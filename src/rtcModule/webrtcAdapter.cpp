@@ -54,7 +54,6 @@ bool init(void *appCtx)
 
         gAudioProcessing = rtc::scoped_refptr<webrtc::AudioProcessing>(webrtc::AudioProcessingBuilder().Create());
         webrtc::AudioProcessing::Config audioConfig = gAudioProcessing->GetConfig();
-        audioConfig.voice_detection.enabled = true;
         gAudioProcessing->ApplyConfig(audioConfig);
 
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(

@@ -42,11 +42,6 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
     mEnableVideo->setVisible(false);
 
-    QString audioMonTex = mMegaChatApi.isAudioLevelMonitorEnabled(mChatid) ? "Audio monitor (is enabled)" : "Audio monitor (is disabled)";
-    mAudioMonitor = new QPushButton(audioMonTex.toStdString().c_str(), this);
-    connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
-    mAudioMonitor->setVisible(false);
-
     mRemOwnSpeaker = new QPushButton("Remove own speaker", this);
     connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
     mRemOwnSpeaker->setVisible(false);
@@ -68,11 +63,6 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mOnHoldLabel->setVisible(false);
     mSetOnHold->setVisible(false);
 
-    mLocalAudioDetected = new QLabel("AUDIO DETECTED", this);
-    mLocalAudioDetected->setStyleSheet("background-color:#088529 ;color:#FFFFFF; font-weight:bold;");
-    mLocalAudioDetected->setAlignment(Qt::AlignCenter);
-    mLocalAudioDetected->setContentsMargins(0, 0, 0, 0);
-    mLocalAudioDetected->setVisible(false);
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -100,10 +90,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mRemOwnSpeaker);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
-    mButtonsLayout->addWidget(mAudioMonitor);
     mButtonsLayout->addWidget(mSetOnHold);
     mButtonsLayout->addWidget(mOnHoldLabel);
-    mButtonsLayout->addWidget(mLocalAudioDetected);
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
@@ -125,12 +113,6 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
 MeetingView::~MeetingView()
 {
-}
-
-void MeetingView::updateAudioMonitor(bool enabled)
-{
-    QString audioMonTex = enabled ? "Audio monitor (is enabled)" : "Audio monitor (is disabled)";
-    mAudioMonitor->setText(audioMonTex.toStdString().c_str());
 }
 
 void MeetingView::updateLabel(megachat::MegaChatCall *call)
@@ -168,7 +150,6 @@ void MeetingView::setNotParticipating()
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
-    mAudioMonitor->setVisible(false);
     mRemOwnSpeaker->setVisible(false);
     mSetOnHold->setVisible(false);
     mOnHoldLabel->setVisible(false);
@@ -186,7 +167,6 @@ void MeetingView::setConnecting()
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
-    mAudioMonitor->setVisible(false);
     mRemOwnSpeaker->setVisible(false);
     mSetOnHold->setVisible(false);
     mJoinCallWithVideo->setVisible(false);
@@ -283,11 +263,6 @@ void MeetingView::removeHiResByCid(uint32_t cid)
     }
 }
 
-void MeetingView::localAudioDetected(bool audio)
-{
-    mLocalAudioDetected->setVisible(audio);
-}
-
 void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
 {
     if (!mRingingWindow)
@@ -340,7 +315,6 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     mRequestSpeakerCancel->setVisible(true);
     mEnableAudio->setVisible(true);
     mEnableVideo->setVisible(true);
-    mAudioMonitor->setVisible(true);
     mRemOwnSpeaker->setVisible(true);
     mSetOnHold->setVisible(true);
 }
@@ -676,13 +650,6 @@ void MeetingView::onEnableVideo()
 void MeetingView::onRemoveSpeaker(uint32_t cid)
 {
     mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
-}
-
-void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
-{
-    mMegaChatApi.isAudioLevelMonitorEnabled(mChatid)
-           ? mMegaChatApi.enableAudioLevelMonitor(false, mChatid)
-           : mMegaChatApi.enableAudioLevelMonitor(true, mChatid);
 }
 
 void MeetingView::onJoinCallWithVideo()

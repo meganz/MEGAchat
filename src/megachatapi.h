@@ -378,9 +378,6 @@ public:
     /**
      * @brief Returns if audio is detected for this session
      *
-     * @note The returned value is always false when audio level monitor is disabled
-     * @see MegaChatApi::enableAudioLevelMonitor or audio flag is disabled
-     *
      * @return true if audio is detected for this session, false in other case
      */
     virtual bool isAudioDetected() const;
@@ -590,9 +587,6 @@ public:
      * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK = 0x20
      * Check MegaChatCall::isAllowSpeak()
      *
-     * - MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL = 0x40
-     * Check MegaChatCall::isAudioDetected()
-     *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
      *
@@ -631,9 +625,6 @@ public:
      * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK = 0x20
      * Check MegaChatCall::isAllowSpeak()
      *
-     * - MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL = 0x40
-     * Check MegaChatCall::isAudioDetected()
-     *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
      *
@@ -646,6 +637,8 @@ public:
 
     /**
      * @brief Returns if local audio is detected
+     *
+     * @deprecated
      *
      * @return true if audio is detected
      */
@@ -1955,7 +1948,8 @@ public:
         TYPE_LOAD_PREVIEW, TYPE_CHAT_LINK_HANDLE,
         TYPE_SET_PRIVATE_MODE, TYPE_AUTOJOIN_PUBLIC_CHAT, TYPE_CHANGE_VIDEO_STREAM,
         TYPE_IMPORT_MESSAGES,  TYPE_SET_RETENTION_TIME, TYPE_SET_CALL_ON_HOLD,
-        TYPE_ENABLE_AUDIO_LEVEL_MONITOR, TYPE_MANAGE_REACTION,
+        TYPE_ENABLE_AUDIO_LEVEL_MONITOR,  // Deprecated
+        TYPE_MANAGE_REACTION,
         TYPE_GET_PEER_ATTRIBUTES, TYPE_REQUEST_SPEAK, TYPE_APPROVE_SPEAK,
         TYPE_REQUEST_HIGH_RES_VIDEO, TYPE_REQUEST_LOW_RES_VIDEO,
         TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY,
@@ -5490,6 +5484,7 @@ public:
     /**
      * @brief Returns if audio level monitor is enabled
      *
+     * @deprecated
      * It's false by default
      *
      * @note If there isn't a call in that chatroom in which user is participating,
@@ -5502,6 +5497,8 @@ public:
 
     /**
      * @brief Enable or disable audio level monitor
+     *
+     * @deprecated
      *
      * It's false by default and it's app responsibility to enable it
      *

@@ -149,7 +149,6 @@ public:
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
-    virtual void onLocalAudioDetected(const ICall& call) = 0;
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
@@ -163,7 +162,6 @@ public:
     virtual karere::Id getCallid() const = 0;
     virtual karere::Id getChatid() const = 0;
     virtual karere::Id getCallerid() const = 0;
-    virtual bool isAudioDetected() const = 0;
     virtual CallState getState() const = 0;
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
@@ -182,7 +180,6 @@ public:
 
     virtual bool participate() = 0;
     virtual bool isJoining() const = 0;
-    virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
     virtual void stopOutgoingRinging() = 0;
@@ -191,7 +188,6 @@ public:
     virtual bool isRinging() const = 0;
     virtual bool isOutgoingRinging() const = 0;
     virtual bool isIgnored() const = 0;
-    virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
     virtual bool hasRequestSpeak() const = 0;
@@ -220,7 +216,6 @@ public:
     virtual int64_t getInitialOffset() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
-    virtual void setAudioDetected(bool audioDetected) = 0;
 };
 
 class RtcModule

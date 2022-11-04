@@ -32,7 +32,6 @@ public:
     void updateVideoButtonText(const megachat::MegaChatCall &call);
     void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
     std::string sessionToString(const megachat::MegaChatSession& session);
-    void updateAudioMonitor(bool enabled);
     void updateLabel(megachat::MegaChatCall *call);
     void setNotParticipating();
     void setConnecting();
@@ -45,7 +44,6 @@ public:
     void addHiResByCid(megachat::MegaChatHandle chatid, uint32_t cid);
     void removeLowResByCid(uint32_t cid);
     void removeHiResByCid(uint32_t cid);
-    void localAudioDetected(bool audio);
     void createRingingWindow(megachat::MegaChatHandle callid);
     void destroyRingingWindow();
 
@@ -68,13 +66,11 @@ protected:
     QPushButton* mRequestSpeakerCancel;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
-    QPushButton* mAudioMonitor;
     QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
     QPushButton* mJoinCallWithVideo;
     QPushButton* mJoinCallWithoutVideo;
     QLabel* mOnHoldLabel;
-    QLabel* mLocalAudioDetected;
     QLabel* mLabel;
 
     QListWidget* mListWidget;
@@ -95,7 +91,6 @@ public slots:
     void onEnableAudio();
     void onEnableVideo();
     void onRemoveSpeaker(uint32_t cid);
-    void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();
 };

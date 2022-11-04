@@ -163,12 +163,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     ChatWindow *window = itemController->showChatWindow();
     assert(window);
 
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL))
-    {
-        assert(itemController->getMeetingView());
-        itemController->getMeetingView()->localAudioDetected(call->isAudioDetected());
-    }
-
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
         switch (call->getStatus())

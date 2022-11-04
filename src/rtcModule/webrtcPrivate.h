@@ -297,11 +297,6 @@ public:
     promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
-    // (for your own audio level)
-    void enableAudioLevelMonitor(bool enable) override;
-    bool isAudioLevelMonitorEnabled() const override;
-    bool isAudioDetected() const override;
-
     // called when the user wants to "mute" an incoming call (the call is kept in ringing state)
     void ignoreCall() override;
     bool isIgnored() const override;
@@ -350,7 +345,6 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
-    void setAudioDetected(bool audioDetected) override;
 
     //
     // ------ end ICall methods -----
@@ -466,9 +460,6 @@ protected:
     int64_t mOffset = 0;    // duration of call when we joined
     int64_t mFinalTs = 0;   // end of the call
     bool mAudioDetected = false;
-
-    // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
-    megaHandle mVoiceDetectionTimer = 0;
 
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;

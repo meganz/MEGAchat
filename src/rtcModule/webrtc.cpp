@@ -98,11 +98,6 @@ karere::Id Call::getCallerid() const
     return mCallerId;
 }
 
-bool Call::isAudioDetected() const
-{
-    return mAudioDetected;
-}
-
 void Call::setState(CallState newState)
 {
     if (newState == mState)
@@ -349,41 +344,6 @@ bool Call::isJoining() const
     return mIsJoining;
 }
 
-void Call::enableAudioLevelMonitor(bool enable)
-{
-    if ( (enable && mVoiceDetectionTimer != 0)          // already enabled
-        || (!enable && mVoiceDetectionTimer == 0) )     // already disabled
-    {
-        return;
-    }
-
-    RTCM_LOG_DEBUG("Audio level monitor %s", enable ? "enabled" : "disabled");
-
-    if (enable)
-    {
-        mAudioDetected = false;
-        auto wptr = weakHandle();
-        mVoiceDetectionTimer = karere::setInterval([this, wptr]()
-        {
-            if (wptr.deleted())
-                return;
-
-            webrtc::AudioProcessingStats audioStats = artc::gAudioProcessing->GetStatistics(false);
-
-            if (audioStats.voice_detected && mAudioDetected != audioStats.voice_detected.value())
-            {
-                setAudioDetected(audioStats.voice_detected.value());
-            }
-        }, kAudioMonitorTimeout, mRtc.getAppCtx());
-    }
-    else
-    {
-        setAudioDetected(false);
-        karere::cancelInterval(mVoiceDetectionTimer, mRtc.getAppCtx());
-        mVoiceDetectionTimer = 0;
-    }
-}
-
 void Call::ignoreCall()
 {
     mIgnored = true;
@@ -449,11 +409,6 @@ void Call::releaseOnHold()
 bool Call::isIgnored() const
 {
     return mIgnored;
-}
-
-bool Call::isAudioLevelMonitorEnabled() const
-{
-    return mVoiceDetectionTimer;
 }
 
 bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
@@ -575,12 +530,6 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
         updateVideoTracks();
         mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
     }
-}
-
-void Call::setAudioDetected(bool audioDetected)
-{
-    mAudioDetected = audioDetected;
-    mCallHandler.onLocalAudioDetected(*this);
 }
 
 void Call::requestSpeaker(bool add)
@@ -1039,7 +988,6 @@ void Call::clearResources(const TermCode& termCode)
 {
     RTCM_LOG_DEBUG("clearResources, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     disableStats();
-    enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
     mVThumb.reset();
     mHiRes.reset();
