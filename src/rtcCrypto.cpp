@@ -73,7 +73,7 @@ std::shared_ptr<strongvelope::SendKey> RtcCryptoMeetings::generateSendKey()
 
 void RtcCryptoMeetings::xorWithCallKey(const strongvelope::SendKey &callKey, strongvelope::SendKey &sendKey)
 {
-    SymmCipher::xorblock(static_cast<const byte *> (callKey.ubuf()), static_cast<byte *>(sendKey.ubuf()));
+    SymmCipher::xorblock(static_cast<const CryptoPP::byte *> (callKey.ubuf()), static_cast<CryptoPP::byte *>(sendKey.ubuf()));
 }
 
 std::string RtcCryptoMeetings::keyToStr(const strongvelope::SendKey& key)
