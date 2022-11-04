@@ -7440,12 +7440,12 @@ public:
 class MegaChatScheduledRules
 {
 public:
-    typedef enum {
+    enum {
         FREQ_INVALID    = -1,
         FREQ_DAILY      = 0,
         FREQ_WEEKLY     = 1,
         FREQ_MONTHLY    = 2,
-    } freq_type;
+    };
 
     constexpr static int INTERVAL_INVALID = 0;
     virtual ~MegaChatScheduledRules();
@@ -7545,7 +7545,7 @@ public:
 class MegaChatScheduledMeeting
 {
 public:
-    typedef enum
+    enum
     {
        SC_NEW_SCHED        = 0,
        SC_PARENT           = 1,
@@ -7560,9 +7560,7 @@ public:
        SC_FLAGS            = 10,
        SC_RULES            = 11,
        SC_SIZE             = 12,
-    } scheduled_changed_flags_t;
-
-    typedef std::bitset<SC_SIZE> megachat_sched_bs_t;
+    };
 
     virtual ~MegaChatScheduledMeeting();
 
@@ -7657,7 +7655,7 @@ public:
      *
      * @return MegaChatHandle of the chat
      */
-    virtual MegaChatHandle chatid() const;
+    virtual MegaChatHandle chatId() const;
 
     /**
      * @brief Returns the MegaChatHandle that identifies the scheduled meeting
@@ -7678,7 +7676,7 @@ public:
      *
      * @return MegaChatHandle of the organizer user of the scheduled meeting
      */
-    virtual MegaChatHandle organizerUserid() const;
+    virtual MegaChatHandle organizerUserId() const;
 
     /**
      * @brief Returns the time zone B64 encoded

@@ -2388,10 +2388,10 @@ int MegaChatScheduledMeeting::cancelled() const                                 
 bool MegaChatScheduledMeeting::hasChanged(size_t /*change*/) const              { return false; }
 bool MegaChatScheduledMeeting::isNew() const                                    { return false; }
 bool MegaChatScheduledMeeting::isDeleted() const                                { return false; }
-MegaChatHandle MegaChatScheduledMeeting::chatid() const                         { return MEGACHAT_INVALID_HANDLE; }
+MegaChatHandle MegaChatScheduledMeeting::chatId() const                         { return MEGACHAT_INVALID_HANDLE; }
 MegaChatHandle MegaChatScheduledMeeting::schedId() const                        { return MEGACHAT_INVALID_HANDLE; }
 MegaChatHandle MegaChatScheduledMeeting::parentSchedId() const                  { return MEGACHAT_INVALID_HANDLE; }
-MegaChatHandle MegaChatScheduledMeeting::organizerUserid() const                { return MEGACHAT_INVALID_HANDLE; }
+MegaChatHandle MegaChatScheduledMeeting::organizerUserId() const                { return MEGACHAT_INVALID_HANDLE; }
 MegaChatScheduledMeeting* MegaChatScheduledMeeting::copy()                      { return NULL; }
 const char* MegaChatScheduledMeeting::timezone() const                          { return NULL; }
 const char* MegaChatScheduledMeeting::startDateTime() const                     { return NULL; }

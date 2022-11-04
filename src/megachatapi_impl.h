@@ -933,10 +933,10 @@ public:
     MegaChatScheduledMeetingPrivate* copy();
     void setChanged(unsigned long val);
 
-    MegaChatHandle chatid() const;
+    MegaChatHandle chatId() const;
     MegaChatHandle schedId() const;
     MegaChatHandle parentSchedId() const;
-    MegaChatHandle organizerUserid() const;
+    MegaChatHandle organizerUserId() const;
     const char* timezone() const;
     const char* startDateTime() const;
     const char* endDateTime() const;
@@ -1176,7 +1176,6 @@ private:
 
 #ifndef KARERE_DISABLE_WEBRTC
     std::set<MegaChatCallListener *> callListeners;
-    std::set<MegaChatScheduledMeetingListener *> schedMeetingListeners;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersHiRes;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersLowRes;
     std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalVideoListeners;
@@ -1184,8 +1183,10 @@ private:
     mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCalls();
     std::unique_ptr<MegaChatCallHandler> mCallHandler;
-    std::unique_ptr<MegaChatScheduledMeetingHandler> mScheduledMeetingHandler;
 #endif
+
+    std::unique_ptr<MegaChatScheduledMeetingHandler> mScheduledMeetingHandler;
+    std::set<MegaChatScheduledMeetingListener *> mSchedMeetingListeners;
 
     void cleanChatHandlers();
 
@@ -1638,7 +1639,6 @@ public:
     static std::string generateAttachContactJSon(mega::MegaHandleList *contacts, karere::ContactList *contactList);
     static std::string generateGeolocationJSon(float longitude, float latitude, const char* img);
     static std::string generateGiphyJSon(const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
-    static std::string generateSchedulingRules(MegaChatScheduledRulesPrivate* rules);
 
     // you take the ownership of returned value. NULL if error
     static mega::MegaNodeList *parseAttachNodeJSon(const char* json);
