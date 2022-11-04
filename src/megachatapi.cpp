@@ -752,24 +752,9 @@ MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
     return pImpl->getAllScheduledMeetings();
 }
 
-MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid)
+void MegaChatApi::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatRequestListener* listener)
 {
-    return pImpl->getScheduledMeetingsOccurrencesByChat(chatid);
-}
-
-MegaChatScheduledMeetingList* MegaChatApi::getScheduledMeetingOccurrencesByShedMeetingId(MegaChatHandle chatid, MegaChatHandle schedId)
-{
-    return pImpl->getScheduledMeetingOccurrencesByShedId(chatid, schedId);
-}
-
-MegaChatScheduledMeeting* MegaChatApi::getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime)
-{
-    return pImpl->getScheduledMeetingOccurrence(chatid, schedId, startDateTime);
-}
-
-MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetingsOccurrences()
-{
-    return pImpl->getAllScheduledMeetingsOccurrences();
+    pImpl->fetchScheduledMeetingOccurrencesByChat(chatid, nullptr /*since*/, nullptr /*until*/, 0 /*count*/, MegaChatScheduledMeeting::MIN_OCURRENCES, listener);
 }
 
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
@@ -2154,6 +2139,16 @@ unsigned int MegaChatMessage::getRetentionTime() const
 int MegaChatMessage::getTermCode() const
 {
     return 0;
+}
+
+bool MegaChatMessage::hasSchedMeetingChanged(unsigned int change) const
+{
+    return false;
+}
+
+const MegaStringList* MegaChatMessage::getStringList() const
+{
+    return NULL;
 }
 
 void MegaChatLogger::log(int , const char *)
