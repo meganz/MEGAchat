@@ -1464,7 +1464,7 @@ class DbClientInterface
 {
 public:
     virtual ~DbClientInterface(){}
-    virtual void insertOrUpdateSchedMeeting(const KarereScheduledMeeting* sm) = 0;
+    virtual void insertOrUpdateSchedMeeting(const KarereScheduledMeeting& sm) = 0;
     virtual void removeSchedMeetingBySchedId(karere::Id id) = 0;
     virtual void removeSchedMeetingByChatId(karere::Id id) = 0;
     virtual std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsByChatId(karere::Id id) = 0;

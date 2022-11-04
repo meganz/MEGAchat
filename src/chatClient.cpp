@@ -4222,7 +4222,8 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
         auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
         if (res.second)
         {
-            getClientDbInterface().insertOrUpdateSchedMeeting(res.first->second.get());
+            assert(res.first->second);
+            getClientDbInterface().insertOrUpdateSchedMeeting(*res.first->second);
             notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
         }
         else
@@ -4278,7 +4279,8 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                     notifySchedMeetingUpdated(it->second.get(),  diff.to_ulong());
 
                     // insert in db
-                    getClientDbInterface().insertOrUpdateSchedMeeting(it->second.get());
+                    assert(it->second);
+                    getClientDbInterface().insertOrUpdateSchedMeeting(*it->second);
                 }
                 else // not found (new scheduled meeting), add it
                 {
@@ -4287,8 +4289,8 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                     {
                         notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
 
-                        // insert in db
-                        getClientDbInterface().insertOrUpdateSchedMeeting(res.first->second.get());
+                        assert(res.first->second);
+                        getClientDbInterface().insertOrUpdateSchedMeeting(*res.first->second);
                     }
                 }
             }
