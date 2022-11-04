@@ -5330,12 +5330,12 @@ KarereScheduledFlags::KarereScheduledFlags(unsigned long numericValue)
 {
 }
 
-KarereScheduledFlags::KarereScheduledFlags(KarereScheduledFlags* flags)
+KarereScheduledFlags::KarereScheduledFlags(const KarereScheduledFlags *flags)
     : mFlags(flags ? flags->getNumericValue() : 0)
 {
 }
 
-KarereScheduledFlags::KarereScheduledFlags(::mega::MegaScheduledFlags* flags)
+KarereScheduledFlags::KarereScheduledFlags(const mega::MegaScheduledFlags *flags)
  : mFlags(flags ? flags->getNumericValue() : 0)
 {
 }
@@ -5379,7 +5379,7 @@ KarereScheduledRules::KarereScheduledRules(int freq,
 {
 }
 
-KarereScheduledRules::KarereScheduledRules(KarereScheduledRules* rules)
+KarereScheduledRules::KarereScheduledRules(const KarereScheduledRules *rules)
     : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
       mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
       mUntil(rules->until()),
@@ -5389,7 +5389,7 @@ KarereScheduledRules::KarereScheduledRules(KarereScheduledRules* rules)
 {
 }
 
-KarereScheduledRules::KarereScheduledRules(::mega::MegaScheduledRules* rules)
+KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules)
 {
     mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
     mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
@@ -5659,7 +5659,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id org
 {
 }
 
-KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduledMeeting)
+KarereScheduledMeeting::KarereScheduledMeeting(const KarereScheduledMeeting *scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
       mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),
@@ -5677,7 +5677,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(KarereScheduledMeeting* scheduled
 {
 }
 
-KarereScheduledMeeting::KarereScheduledMeeting(mega::MegaScheduledMeeting* scheduledMeeting)
+KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting *scheduledMeeting)
     : mChatid(scheduledMeeting->chatid()),
       mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),

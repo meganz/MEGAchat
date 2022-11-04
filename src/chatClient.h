@@ -1281,8 +1281,8 @@ public:
     typedef std::bitset<FLAGS_SIZE> karereScheduledFlagsBitSet;
 
     KarereScheduledFlags (unsigned long numericValue);
-    KarereScheduledFlags (KarereScheduledFlags* flags);
-    KarereScheduledFlags(::mega::MegaScheduledFlags* flags);
+    KarereScheduledFlags (const KarereScheduledFlags* flags);
+    KarereScheduledFlags(const ::mega::MegaScheduledFlags* flags);
     virtual ~KarereScheduledFlags();
     KarereScheduledFlags* copy();
 
@@ -1319,8 +1319,8 @@ public:
                    const karere_rules_vector* byMonthDay = nullptr,
                    const karere_rules_map* byMonthWeekDay = nullptr);
 
-    KarereScheduledRules(KarereScheduledRules* rules);
-    KarereScheduledRules(::mega::MegaScheduledRules* rules);
+    KarereScheduledRules(const KarereScheduledRules* rules);
+    KarereScheduledRules(const ::mega::MegaScheduledRules* rules);
     virtual ~KarereScheduledRules();
     KarereScheduledRules* copy();
 
@@ -1386,8 +1386,8 @@ public:
                                     karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
                                     const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
 
-    KarereScheduledMeeting(KarereScheduledMeeting* karereScheduledMeeting);
-    KarereScheduledMeeting(mega::MegaScheduledMeeting* sm);
+    KarereScheduledMeeting(const KarereScheduledMeeting* karereScheduledMeeting);
+    KarereScheduledMeeting(const mega::MegaScheduledMeeting* sm);
 
     KarereScheduledMeeting* copy();
     virtual ~KarereScheduledMeeting();
