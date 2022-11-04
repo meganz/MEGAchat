@@ -101,8 +101,10 @@ public:
     virtual mega::MegaHandleList *getMegaHandleList();
     virtual int getParamType();
     virtual MegaChatScheduledMeeting* getMegaChatScheduledMeeting() const;
-    virtual void setMegaChatScheduledMeeting(MegaChatScheduledMeeting* scheduledMeeting);
+    virtual MegaChatScheduledMeetingList* getMegaChatScheduledMeetingList() const;
 
+    void setMegaChatScheduledMeeting(MegaChatScheduledMeeting* scheduledMeeting);
+    void setMegaChatScheduledMeetingList(const MegaChatScheduledMeetingList* schedMeetingList);
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
     void setStringList(mega::MegaStringList* stringList);
@@ -141,6 +143,7 @@ protected:
     mega::MegaHandleList *mMegaHandleList;
     std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
     std::unique_ptr<MegaChatScheduledMeeting> mScheduledMeeting;
+    std::unique_ptr<MegaChatScheduledMeetingList> mScheduledMeetingList;
     int mParamType;
 };
 
@@ -1370,19 +1373,11 @@ public:
     // return a specific scheduled meeting given a chatid and a scheduled meeting id
     MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId);
 
-    // get all scheduled meetings occurrences given a chatid
-    MegaChatScheduledMeetingList* getScheduledMeetingsOccurrencesByChat(MegaChatHandle chatid);
-
-    // get all scheduled meetings occurrences given a chatid and a scheduled meeting id
-    MegaChatScheduledMeetingList* getScheduledMeetingOccurrencesByShedId(MegaChatHandle chatid, MegaChatHandle schedId);
-
-    // get a specific scheduled meeting occurrence given a chatid, a scheduled meeting id, and it's start date time
-    MegaChatScheduledMeeting* getScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* startDateTime);
-
+    // return a list of scheduled meeting for all chatrooms
     MegaChatScheduledMeetingList* getAllScheduledMeetings();
 
-    // get all scheduled meetings occurrences for all chats
-    MegaChatScheduledMeetingList* getAllScheduledMeetingsOccurrences();
+    // get all future scheduled meetings occurrences given a chatid, if there are not enough occurrences, MEGAChat will fetch automatically from API
+    void fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener);
 
     void setChatOption(MegaChatHandle chatid, int option, bool enabled, MegaChatRequestListener* listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
