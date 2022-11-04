@@ -2362,7 +2362,7 @@ void Call::updateVideoTracks()
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
+                mHiRes->getTransceiver()->sender()->SetTrack(videoTrack.get());
             }
             else if (!mHiResActive)
             {
@@ -2378,7 +2378,7 @@ void Call::updateVideoTracks()
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
+                mVThumb->getTransceiver()->sender()->SetTrack(videoTrack.get());
             }
             else if (!mVThumbActive)
             {
@@ -2528,9 +2528,9 @@ void Call::updateAudioTracks()
         if (!track) // create audio track only if not exists
         {
             rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
-                    artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
+                    artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()).get());
 
-            mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
+            mAudio->getTransceiver()->sender()->SetTrack(audioTrack.get());
             audioTrack->set_enabled(true);
         }
         else
@@ -2863,7 +2863,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 
 artc::VideoManager *RtcModuleSfu::getVideoDevice()
 {
-    return mVideoDevice;
+    return mVideoDevice.get();
 }
 
 void RtcModuleSfu::changeDevice(const std::string &device, bool shouldOpen)
@@ -3063,9 +3063,9 @@ void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
         return;
     }
 
-    mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
+    mTransceiver->receiver()->SetFrameDecryptor(rtc::scoped_refptr<webrtc::FrameDecryptorInterface>(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, getTransceiverMid()));
+                                                                      mIv, getTransceiverMid())));
 }
 
 RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx)
@@ -3093,9 +3093,9 @@ LocalSlot::LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterf
 
 void LocalSlot::createEncryptor()
 {
-    mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
+    mTransceiver->sender()->SetFrameEncryptor(rtc::scoped_refptr<webrtc::FrameEncryptorInterface>(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, getTransceiverMid()));
+                                                                      mIv, getTransceiverMid())));
 }
 
 void LocalSlot::generateRandomIv()
@@ -3190,7 +3190,7 @@ bool RemoteVideoSlot::hasTrack()
 
     if (mTransceiver->receiver())
     {
-        return  mTransceiver->receiver()->track();
+        return  mTransceiver->receiver()->track().get() != nullptr;
     }
 
     return false;
@@ -3466,7 +3466,7 @@ AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)
 {
 }
 
-void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms)
 {
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);

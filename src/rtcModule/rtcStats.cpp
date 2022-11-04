@@ -12,22 +12,6 @@ void ConnStatsCallBack::removeStats()
     mStats = nullptr;
 }
 
-void ConnStatsCallBack::AddRef() const
-{
-    mRefCount.IncRef();
-}
-
-rtc::RefCountReleaseStatus ConnStatsCallBack::Release() const
-{
-    const auto status = mRefCount.DecRef();
-    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
-    {
-        delete this;
-    }
-
-    return status;
-}
-
 std::string Stats::getJson()
 {
     rapidjson::Document json(rapidjson::kObjectType);
@@ -246,7 +230,6 @@ ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lo
     , mLowResId(lowResId)
     , mAppCtx(appCtx)
 {
-    AddRef();
 }
 
 ConnStatsCallBack::~ConnStatsCallBack()
@@ -385,8 +368,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             }
         }
     }, mAppCtx);
-
-    Release();
 }
 
 void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend)

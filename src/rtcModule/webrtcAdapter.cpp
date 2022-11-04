@@ -211,7 +211,7 @@ void CaptureModuleLinux::releaseDevice()
     }
 }
 
-rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CaptureModuleLinux::getVideoTrackSource()
+webrtc::VideoTrackSourceInterface* CaptureModuleLinux::getVideoTrackSource()
 {
     return this;
 }
@@ -289,22 +289,6 @@ std::set<std::pair<std::string, std::string>> VideoManager::getVideoDevices()
     #else
         return CaptureModuleLinux::getVideoDevices();
     #endif
-}
-
-void VideoManager::AddRef() const
-{
-    mRefCount.IncRef();
-}
-
-rtc::RefCountReleaseStatus VideoManager::Release() const
-{
-    const auto status = mRefCount.DecRef();
-    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
-    {
-        delete this;
-    }
-
-    return status;
 }
 
 RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv, uint32_t mid)
@@ -643,7 +627,7 @@ void CaptureModuleAndroid::releaseDevice()
     }
 }
 
-rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CaptureModuleAndroid::getVideoTrackSource()
+webrtc::VideoTrackSourceInterface* CaptureModuleAndroid::getVideoTrackSource()
 {
     return this;
 }

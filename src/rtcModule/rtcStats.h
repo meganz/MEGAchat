@@ -72,15 +72,13 @@ protected:
     void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<float> *periods = nullptr);
 };
 
-class ConnStatsCallBack : public webrtc::RTCStatsCollectorCallback, public karere::DeleteTrackable
+class ConnStatsCallBack : public rtc::RefCountedObject<webrtc::RTCStatsCollectorCallback>, public karere::DeleteTrackable
 {
 public:
     ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId, void* appCtx);
     ~ConnStatsCallBack();
     void removeStats();
 
-    void AddRef() const override;
-    rtc::RefCountReleaseStatus Release() const override;
     void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
 protected:
     void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend);
@@ -89,10 +87,6 @@ protected:
     uint32_t mHiResId;
     uint32_t mLowResId;
     void* mAppCtx;
-
-private:
-    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
-
 };
 }
 
