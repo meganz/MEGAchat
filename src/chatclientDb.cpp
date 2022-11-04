@@ -21,9 +21,6 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
             return;
         }
 
-        // JCHECK remove if and do this  rulesBuf ? rulesBuf : nullptr);
-
-
         mDb.query("insert or replace into scheduledMeetings(schedid, chatid, organizerid, parentschedid, timezone, startdatetime, enddatetime, "
               "title, description, attributes, overrides, cancelled, flags, rules)"
               "values(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
