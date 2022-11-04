@@ -1468,6 +1468,11 @@ MegaChatScheduledMeeting* MegaChatRequest::getMegaChatScheduledMeeting() const
     return NULL;
 }
 
+MegaChatScheduledMeetingList* MegaChatRequest::getMegaChatScheduledMeetingList() const
+{
+    return NULL;
+}
+
 int MegaChatRequest::getParamType()
 {
     return -1;
