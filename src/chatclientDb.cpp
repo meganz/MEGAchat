@@ -95,6 +95,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeetingOcurr(const KarereScheduledMe
               sm.attributes().size() ? sm.attributes().c_str() : nullptr,
               sm.overrides().size() ? sm.overrides().c_str() : nullptr,
               sm.cancelled(),
+              sm.flags()->getNumericValue());
 }
 
 void ChatClientSqliteDb::clearSchedMeetingOcurrByChatid(karere::Id id)

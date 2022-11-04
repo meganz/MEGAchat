@@ -8342,7 +8342,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle 
 {
 }
 
-MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting)
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate* scheduledMeeting)
     : mChatid(scheduledMeeting->chatId()),
       mSchedId(scheduledMeeting->schedId()),
       mParentSchedId(scheduledMeeting->parentSchedId()),
@@ -8357,7 +8357,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatSchedul
       mCancelled(scheduledMeeting->cancelled()),
       mFlags(scheduledMeeting->flags() ? scheduledMeeting->flags()->copy() : nullptr),
       mRules(scheduledMeeting->rules() ? scheduledMeeting->rules()->copy() : nullptr),
-      mChanged(megachat_sched_bs_t(0))
+      mChanged(scheduledMeeting->getChanged())
 {
 }
 
@@ -8389,10 +8389,18 @@ MegaChatScheduledMeetingPrivate* MegaChatScheduledMeetingPrivate::copy()
    return new MegaChatScheduledMeetingPrivate(this);
 }
 
-void MegaChatScheduledMeetingPrivate::setChanged(unsigned long val)           { mChanged = megachat_sched_bs_t(val); }
+void MegaChatScheduledMeetingPrivate::setChanged(unsigned long val)
+{
+    mChanged = megachat_sched_bs_t(val);
+}
+
+MegaChatScheduledMeetingPrivate::megachat_sched_bs_t MegaChatScheduledMeetingPrivate::getChanged() const
+{
+    return mChanged;
+}
 
 MegaChatHandle MegaChatScheduledMeetingPrivate::chatId() const                { return mChatid;}
-MegaChatHandle MegaChatScheduledMeetingPrivate::schedId() const                { return mSchedId;}
+MegaChatHandle MegaChatScheduledMeetingPrivate::schedId() const               { return mSchedId;}
 MegaChatHandle MegaChatScheduledMeetingPrivate::parentSchedId() const         { return mParentSchedId;}
 MegaChatHandle MegaChatScheduledMeetingPrivate::organizerUserId() const       { return mOrganizerUserId; }
 const char* MegaChatScheduledMeetingPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr;}

@@ -915,6 +915,7 @@ private:
 class MegaChatScheduledMeetingPrivate: public MegaChatScheduledMeeting
 {
 public:
+    typedef std::bitset<SC_SIZE> megachat_sched_bs_t;
     MegaChatScheduledMeetingPrivate(MegaChatHandle chatid,
                                     const char* timezone,
                                     const char* startDateTime,
@@ -930,12 +931,13 @@ public:
                                     const MegaChatScheduledFlags* flags = nullptr,
                                     const MegaChatScheduledRules* rules = nullptr);
 
-    MegaChatScheduledMeetingPrivate(MegaChatScheduledMeetingPrivate* scheduledMeeting);
+    MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate *scheduledMeeting);
     MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting);
     virtual ~MegaChatScheduledMeetingPrivate();
     MegaChatScheduledMeetingPrivate* copy();
     void setChanged(unsigned long val);
 
+    megachat_sched_bs_t getChanged() const;
     MegaChatHandle chatId() const;
     MegaChatHandle schedId() const;
     MegaChatHandle parentSchedId() const;
