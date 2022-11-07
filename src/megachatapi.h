@@ -4109,37 +4109,6 @@ public:
                                                      MegaChatRequestListener* listener = nullptr);
 
     /**
-     * @brief Creates a scheduled meeting from an existing chatroom
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting (containing the params provided by user)
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting`
-     *
-     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
-     *
-     * @param chatid MegaChatHandle that identifies a chat room
-     * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
-     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
-     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
-     * @param attributes - not supported yet
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void createScheduledMeetingFromExistingChat(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
-                                             const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr, MegaChatRequestListener* listener = nullptr);
-
-    /**
      * @brief Modify an existing scheduled meeting
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
