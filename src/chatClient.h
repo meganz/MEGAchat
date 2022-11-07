@@ -367,7 +367,10 @@ protected:
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
     // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
     // (check ScheduledMeeting class documentation)
-    std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetingsOcurrences;
+    std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>> mScheduledMeetingsOcurrences;
+
+    // this flag indicates if scheduled meeting occurrences have been loaded from Db for this chatroom
+    bool mDbOccurrencesLoaded = false;
 
     DbClientInterface& getClientDbInterface();
     ScheduledMeetingHandler& schedMeetingHandler();
@@ -477,13 +480,10 @@ public:
     // a scheduled meetings allows the user to specify an event that will occur in the future
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
 
-    // get the number of scheduled meeting occurrences for a chatroom
-    size_t getNumOccurrences();
-
     // maps a scheduled meeting id to a scheduled meeting occurrence
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
     // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
-    promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
+    promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
     getFutureScheduledMeetingsOccurrences() const;
 
     /** TODO
@@ -504,6 +504,13 @@ public:
 
     void handleTitleChange(const std::string &title, bool saveToDb = false);
     bool isMember(karere::Id peerid) const override;
+
+    /**
+     * @brief Load scheduled meeting occurrences locally
+     * This method loads scheduled meeting occurrences from Db, if we haven't loaded yet
+     * @returns the number of loaded scheduled meeting occurrences
+     */
+    size_t loadSchedMeetingsOccurrFromLocal();
 
     unsigned long numMembers() const override;
 

@@ -2676,17 +2676,17 @@ void MegaChatApiImpl::sendPendingRequests()
 
             unsigned int min = static_cast<unsigned int>(request->getPrivilege());
 
-            promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>> pms;
-            if (chatroom->getNumOccurrences() < min)
+            promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>> pms;
+            if (chatroom->loadSchedMeetingsOccurrFromLocal() < min)
             {
-                pms.resolve(std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>());
+                pms.resolve(std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>());
             }
             else
             {
                 pms = chatroom->getFutureScheduledMeetingsOccurrences();
             }
 
-            pms.then([this, request, chatid, min](std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
+            pms.then([this, request, chatid, min](std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>> res)
             {
                 if (!min || res.size() <= min) // fetch fresh occurrences from API
                 {
