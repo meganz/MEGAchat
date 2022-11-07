@@ -63,6 +63,7 @@ class ContactList;
 class KarereScheduledFlags;
 class KarereScheduledRules;
 class KarereScheduledMeeting;
+class KarereScheduledMeetingOccurr;
 class ScheduledMeetingHandler;
 class DbClientInterface;
 
@@ -1457,6 +1458,41 @@ private:
 
     // scheduled meetings rules
     std::unique_ptr<KarereScheduledRules> mRules;
+};
+
+class KarereScheduledMeetingOccurr
+{
+public:
+
+    KarereScheduledMeetingOccurr(const karere::Id& schedId, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime, int cancelled = -1);
+    KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* karereScheduledMeetingOccurr);
+    KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* sm);
+
+    KarereScheduledMeetingOccurr* copy();
+    virtual ~KarereScheduledMeetingOccurr();
+
+    karere::Id schedId() const;
+    const std::string& timezone() const;
+    const std::string& startDateTime() const;
+    const std::string& endDateTime() const;
+    int cancelled() const;
+
+private:
+
+    // scheduled meeting handle
+    karere::Id mSchedId;
+
+    // timeZone
+    std::string mTimezone;
+
+    // start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // cancelled flag
+    int mCancelled;
 };
 
 class ScheduledMeetingHandler

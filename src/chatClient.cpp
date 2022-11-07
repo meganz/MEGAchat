@@ -5800,4 +5800,47 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
     }
     return bs;
 }
+
+/* class KarereScheduledMeetingOccurr */
+KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const Id& schedId, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime, int cancelled)
+    : mSchedId(schedId),
+      mTimezone(timezone),
+      mStartDateTime(startDateTime),
+      mEndDateTime(endDateTime),
+      mCancelled(cancelled)
+{
+}
+
+KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* scheduledMeeting)
+    : mSchedId(scheduledMeeting->schedId()),
+      mTimezone(scheduledMeeting->timezone()),
+      mStartDateTime(scheduledMeeting->startDateTime()),
+      mEndDateTime(scheduledMeeting->endDateTime()),
+      mCancelled(scheduledMeeting->cancelled())
+{
+}
+
+KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* scheduledMeeting)
+    : mSchedId(scheduledMeeting->schedId()),
+      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mCancelled(scheduledMeeting->cancelled())
+{
+}
+
+KarereScheduledMeetingOccurr* KarereScheduledMeetingOccurr::copy()
+{
+   return new KarereScheduledMeetingOccurr(this);
+}
+
+KarereScheduledMeetingOccurr::~KarereScheduledMeetingOccurr()
+{
+}
+
+karere::Id KarereScheduledMeetingOccurr::schedId() const                        { return mSchedId; }
+const std::string& KarereScheduledMeetingOccurr::timezone() const               { return mTimezone; }
+const std::string& KarereScheduledMeetingOccurr::startDateTime() const          { return mStartDateTime; }
+const std::string& KarereScheduledMeetingOccurr::endDateTime() const            { return mEndDateTime; }
+int KarereScheduledMeetingOccurr::cancelled() const                             { return mCancelled; }
 }
