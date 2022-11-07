@@ -934,27 +934,27 @@ public:
     MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate *scheduledMeeting);
     MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting);
     virtual ~MegaChatScheduledMeetingPrivate();
-    MegaChatScheduledMeetingPrivate* copy();
+    MegaChatScheduledMeetingPrivate* copy() const override;
     void setChanged(unsigned long val);
 
     megachat_sched_bs_t getChanged() const;
-    MegaChatHandle chatId() const;
-    MegaChatHandle schedId() const;
-    MegaChatHandle parentSchedId() const;
-    MegaChatHandle organizerUserId() const;
-    const char* timezone() const;
-    const char* startDateTime() const;
-    const char* endDateTime() const;
-    const char* title() const;
-    const char* description() const;
-    const char* attributes() const;
-    const char* overrides() const;
-    int cancelled() const;
-    bool hasChanged(size_t changeType) const;
-    bool isNew() const;
-    bool isDeleted() const;
-    MegaChatScheduledFlags* flags() const;
-    MegaChatScheduledRules* rules() const;
+    MegaChatHandle chatId() const override;
+    MegaChatHandle schedId() const override;
+    MegaChatHandle parentSchedId() const override;
+    MegaChatHandle organizerUserId() const override;
+    const char* timezone() const override;
+    const char* startDateTime() const override;
+    const char* endDateTime() const override;
+    const char* title() const override;
+    const char* description() const override;
+    const char* attributes() const override;
+    const char* overrides() const override;
+    int cancelled() const override;
+    bool hasChanged(size_t changeType) const override;
+    bool isNew() const override;
+    bool isDeleted() const override;
+    MegaChatScheduledFlags* flags() const override;
+    MegaChatScheduledRules* rules() const override;
 
 private:
     // chat handle
@@ -1016,12 +1016,12 @@ public:
     MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate *scheduledMeeting);
     MegaChatScheduledMeetingOccurrPrivate(const karere::KarereScheduledMeetingOccurr* scheduledMeeting);
     virtual ~MegaChatScheduledMeetingOccurrPrivate();
-    MegaChatScheduledMeetingOccurrPrivate* copy();
-    MegaChatHandle schedId() const;
-    const char* timezone() const;
-    const char* startDateTime() const;
-    const char* endDateTime() const;
-    int cancelled() const;
+    MegaChatScheduledMeetingOccurrPrivate* copy() const override;
+    MegaChatHandle schedId() const override;
+    const char* timezone() const override;
+    const char* startDateTime() const override;
+    const char* endDateTime() const override;
+    int cancelled() const override;
 
 private:
     // scheduled meeting handle
@@ -1051,7 +1051,7 @@ public:
 
     // getters
     unsigned long size() const override;
-    MegaChatScheduledMeeting* at(unsigned long i) const override;
+    const MegaChatScheduledMeeting *at(unsigned long i) const override;
 
     // setters
     void insert(MegaChatScheduledMeeting *sm) override;
@@ -1072,7 +1072,7 @@ public:
 
     // getters
     unsigned long size() const override;
-    MegaChatScheduledMeetingOccurr* at(unsigned long i) const override;
+    const MegaChatScheduledMeetingOccurr *at(unsigned long i) const override;
 
     // setters
     void insert(MegaChatScheduledMeetingOccurr *sm) override;

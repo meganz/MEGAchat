@@ -7620,7 +7620,7 @@ public:
      *
      * @return Copy of the MegaChatScheduledMeeting object
      */
-    virtual MegaChatScheduledMeeting* copy();
+    virtual MegaChatScheduledMeeting* copy() const;
 
     /**
      * @brief Returns if scheduled meeting is cancelled or not
@@ -7801,7 +7801,7 @@ public:
      *
      * @return Copy of the MegaChatScheduledMeetingOccurr object
      */
-    virtual MegaChatScheduledMeetingOccurr* copy();
+    virtual MegaChatScheduledMeetingOccurr* copy() const;
 
     /**
      * @brief Returns if scheduled meeting occurrence is cancelled or not
@@ -7839,35 +7839,125 @@ public:
     virtual const char* endDateTime() const;
 };
 
+/**
+ * @brief List of MegaChatScheduledMeeting objects
+ */
 class MegaChatScheduledMeetingList
 {
 public:
-    static MegaChatScheduledMeetingList* createInstance();
     virtual ~MegaChatScheduledMeetingList();
+
+    /**
+     * @brief Creates a new instance of MegaChatScheduledMeetingList
+     *
+     * You take the ownership of the returned object
+     *
+     * @return A pointer to the superclass of the private object
+     */
+    static MegaChatScheduledMeetingList* createInstance();
+
+    /**
+     * @brief Creates a copy of this MegaChatScheduledMeetingList object
+     *
+     * The resulting object is fully independent of the source MegaChatScheduledMeetingList,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You take the ownership of the returned object
+     *
+     * @return Copy of the MegaChatScheduledMeetingList object
+     */
     virtual MegaChatScheduledMeetingList *copy() const;
 
-    // getters
+    /**
+     * @brief Returns the number of elements in the list
+     * @return Number of elements in the list
+     */
     virtual unsigned long size() const;
-    virtual MegaChatScheduledMeeting* at(unsigned long i) const;
 
-    // setters
+    /**
+     * @brief Returns the MegaChatScheduledMeeting at the position i in the MegaChatScheduledMeetingList
+     *
+     * If the index is >= the size of the list, this function returns NULL.
+     *
+     * @param i Position of the element that we want to get for the list
+     * @return MegaChatScheduledMeeting at the position i in the MegaChatScheduledMeetingList
+     */
+    virtual const MegaChatScheduledMeeting* at(unsigned long i) const;
+
+    /**
+     * @brief Add element to the MegaChatScheduledMeetingList
+     *
+     * The SDK adquires the ownership of provided MegaChatScheduledMeeting
+     *
+     * @param sm MegaChatScheduledMeeting to add to list
+     */
     virtual void insert(MegaChatScheduledMeeting* sm);
+
+    /**
+     * @brief Clears the MegaChatScheduledMeetingList
+     */
     virtual void clear();
 };
 
+/**
+ * @brief List of MegaChatScheduledMeetingOccurr objects
+ */
 class MegaChatScheduledMeetingOccurrList
 {
 public:
-    static MegaChatScheduledMeetingOccurrList* createInstance();
     virtual ~MegaChatScheduledMeetingOccurrList();
+
+    /**
+     * @brief Creates a new instance of MegaChatScheduledMeetingList
+     *
+     * You take the ownership of the returned object
+     *
+     * @return A pointer to the superclass of the private object
+     */
+    static MegaChatScheduledMeetingOccurrList* createInstance();
+
+    /**
+     * @brief Creates a copy of this MegaChatScheduledMeetingOccurrList object
+     *
+     * The resulting object is fully independent of the source MegaChatScheduledMeetingOccurrList,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You take the ownership of the returned object
+     *
+     * @return Copy of the MegaChatScheduledMeetingOccurrList object
+     */
     virtual MegaChatScheduledMeetingOccurrList *copy() const;
 
-    // getters
+    /**
+     * @brief Returns the number of elements in the list
+     * @return Number of elements in the list
+     */
     virtual unsigned long size() const;
-    virtual MegaChatScheduledMeetingOccurr* at(unsigned long i) const;
 
-    // setters
+    /**
+     * @brief Returns the MegaChatScheduledMeetingOccurr at the position i in the MegaChatScheduledMeetingOccurrList
+     *
+     * If the index is >= the size of the list, this function returns NULL.
+     *
+     * @param i Position of the element that we want to get for the list
+     * @return MegaChatScheduledMeetingOccurr at the position i in the MegaChatScheduledMeetingOccurrList
+     */
+    virtual const MegaChatScheduledMeetingOccurr* at(unsigned long i) const;
+
+    /**
+     * @brief Add element to the MegaChatScheduledMeetingOccurrList
+     *
+     * The SDK adquires the ownership of provided MegaChatScheduledMeetingOccurr
+     *
+     * @param sm MegaChatScheduledMeetingOccurr to add to list
+     */
     virtual void insert(MegaChatScheduledMeetingOccurr* sm);
+
+    /**
+     * @brief Clears the MegaChatScheduledMeetingOccurrList
+     */
     virtual void clear();
 };
 }

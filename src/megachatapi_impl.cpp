@@ -2533,7 +2533,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
+            const MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
             if (!sm || !sm->timezone() || !sm->startDateTime() || !sm->endDateTime()
                     || !sm->title() || !sm->description()
                     || (request->getNumber() /*isMeeting*/ && !request->getPrivilege() /*!publicChat*/))
@@ -8407,7 +8407,7 @@ MegaChatScheduledMeetingPrivate::~MegaChatScheduledMeetingPrivate()
 {
 }
 
-MegaChatScheduledMeetingPrivate* MegaChatScheduledMeetingPrivate::copy()
+MegaChatScheduledMeetingPrivate* MegaChatScheduledMeetingPrivate::copy() const
 {
    return new MegaChatScheduledMeetingPrivate(this);
 }
@@ -8477,7 +8477,7 @@ MegaChatScheduledMeetingOccurrPrivate::~MegaChatScheduledMeetingOccurrPrivate()
 {
 }
 
-MegaChatScheduledMeetingOccurrPrivate* MegaChatScheduledMeetingOccurrPrivate::copy()
+MegaChatScheduledMeetingOccurrPrivate* MegaChatScheduledMeetingOccurrPrivate::copy() const
 {
    return new MegaChatScheduledMeetingOccurrPrivate(this);
 }
@@ -8517,8 +8517,12 @@ MegaChatScheduledMeetingListPrivate* MegaChatScheduledMeetingListPrivate::copy()
    return new MegaChatScheduledMeetingListPrivate(*this);
 }
 
-MegaChatScheduledMeeting* MegaChatScheduledMeetingListPrivate::at(unsigned long i) const
+const MegaChatScheduledMeeting* MegaChatScheduledMeetingListPrivate::at(unsigned long i) const
 {
+    if (i >= mList.size())
+    {
+        return nullptr;
+    }
     return mList.at(i).get();
 }
 
@@ -8561,8 +8565,12 @@ MegaChatScheduledMeetingOccurrListPrivate* MegaChatScheduledMeetingOccurrListPri
    return new MegaChatScheduledMeetingOccurrListPrivate(*this);
 }
 
-MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurrListPrivate::at(unsigned long i) const
+const MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurrListPrivate::at(unsigned long i) const
 {
+    if (i >= mList.size())
+    {
+        return nullptr;
+    }
     return mList.at(i).get();
 }
 
