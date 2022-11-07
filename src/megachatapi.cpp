@@ -2433,3 +2433,20 @@ unsigned long MegaChatScheduledMeetingList::size() const                        
 MegaChatScheduledMeeting* MegaChatScheduledMeetingList::at(unsigned long) const                     { return NULL; }
 void MegaChatScheduledMeetingList::insert(MegaChatScheduledMeeting*)                                {}
 void MegaChatScheduledMeetingList::clear()                                                          {}
+
+/* Class MegaChatScheduledMeetingOccurrList */
+MegaChatScheduledMeetingOccurrList* MegaChatScheduledMeetingOccurrList::createInstance()
+{
+    return new MegaChatScheduledMeetingOccurrListPrivate();
+}
+
+MegaChatScheduledMeetingOccurrList::~MegaChatScheduledMeetingOccurrList()
+{
+
+}
+
+MegaChatScheduledMeetingOccurrList* MegaChatScheduledMeetingOccurrList::copy() const                      { return NULL; }
+unsigned long MegaChatScheduledMeetingOccurrList::size() const                                            { return 0; }
+MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurrList::at(unsigned long) const               { return NULL; }
+void MegaChatScheduledMeetingOccurrList::insert(MegaChatScheduledMeetingOccurr*)                          {}
+void MegaChatScheduledMeetingOccurrList::clear()                                                          {}

@@ -1061,6 +1061,27 @@ private:
     std::vector<std::unique_ptr<MegaChatScheduledMeeting>> mList;
 };
 
+class MegaChatScheduledMeetingOccurrListPrivate: public MegaChatScheduledMeetingOccurrList
+{
+public:
+    MegaChatScheduledMeetingOccurrListPrivate();
+    MegaChatScheduledMeetingOccurrListPrivate(const MegaChatScheduledMeetingOccurrListPrivate &l);
+    ~MegaChatScheduledMeetingOccurrListPrivate();
+
+    MegaChatScheduledMeetingOccurrListPrivate *copy() const override;
+
+    // getters
+    unsigned long size() const override;
+    MegaChatScheduledMeetingOccurr* at(unsigned long i) const override;
+
+    // setters
+    void insert(MegaChatScheduledMeetingOccurr *sm) override;
+    void clear() override;
+
+private:
+    std::vector<std::unique_ptr<MegaChatScheduledMeetingOccurr>> mList;
+};
+
 class MegaChatAttachedUser;
 class MegaChatRichPreviewPrivate;
 class MegaChatContainsMetaPrivate;

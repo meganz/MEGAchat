@@ -8517,6 +8517,50 @@ void MegaChatScheduledMeetingListPrivate::clear()
      mList.clear();
 }
 
+/* Class MegaChatScheduledMeetingOccurrListPrivate */
+MegaChatScheduledMeetingOccurrListPrivate::MegaChatScheduledMeetingOccurrListPrivate()
+{
+}
+
+MegaChatScheduledMeetingOccurrListPrivate::MegaChatScheduledMeetingOccurrListPrivate(const MegaChatScheduledMeetingOccurrListPrivate& l)
+{
+    mList.reserve(l.size());
+    for (unsigned long i = 0; i < l.size(); i++)
+    {
+        mList.emplace_back(l.at(i)->copy());
+    }
+}
+
+MegaChatScheduledMeetingOccurrListPrivate::~MegaChatScheduledMeetingOccurrListPrivate()
+{
+    // all objects managed by unique_ptr's containted in mList will be deallocated when mList is destroyed
+}
+
+unsigned long MegaChatScheduledMeetingOccurrListPrivate::size() const
+{
+    return mList.size();
+}
+
+MegaChatScheduledMeetingOccurrListPrivate* MegaChatScheduledMeetingOccurrListPrivate::copy() const
+{
+   return new MegaChatScheduledMeetingOccurrListPrivate(*this);
+}
+
+MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurrListPrivate::at(unsigned long i) const
+{
+    return mList.at(i).get();
+}
+
+void MegaChatScheduledMeetingOccurrListPrivate::insert(MegaChatScheduledMeetingOccurr* sm)
+{
+    mList.emplace_back(sm);
+}
+
+void MegaChatScheduledMeetingOccurrListPrivate::clear()
+{
+     mList.clear();
+}
+
 MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
 {
     mChatid = chat->getChatId();

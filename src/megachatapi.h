@@ -7853,6 +7853,22 @@ public:
     virtual void insert(MegaChatScheduledMeeting* sm);
     virtual void clear();
 };
+
+class MegaChatScheduledMeetingOccurrList
+{
+public:
+    static MegaChatScheduledMeetingOccurrList* createInstance();
+    virtual ~MegaChatScheduledMeetingOccurrList();
+    virtual MegaChatScheduledMeetingOccurrList *copy() const;
+
+    // getters
+    virtual unsigned long size() const;
+    virtual MegaChatScheduledMeetingOccurr* at(unsigned long i) const;
+
+    // setters
+    virtual void insert(MegaChatScheduledMeetingOccurr* sm);
+    virtual void clear();
+};
 }
 
 #endif // MEGACHATAPI_H
