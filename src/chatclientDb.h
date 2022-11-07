@@ -14,18 +14,19 @@ public:
 
      // DbClientInterface methods for scheduled meetings
      void insertOrUpdateSchedMeeting(const KarereScheduledMeeting& sm) override;
-     void removeSchedMeetingBySchedId(karere::Id id) override;
-     void removeSchedMeetingByChatId(karere::Id id) override;
-     std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsByChatId(karere::Id id) override;
+     void removeSchedMeetingBySchedId(const karere::Id& id) override;
+     void removeSchedMeetingByChatId(const karere::Id& id) override;
+     std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsByChatId(const karere::Id& id) override;
 
      // DbClientInterface methods for scheduled meetings occurrences
-     void insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeeting& sm) override;
-     void clearSchedMeetingOcurrByChatid(karere::Id id) override;
-     std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsOccurByChatId(karere::Id id) override;
+     void insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeetingOccurr& sm) override;
+     void clearSchedMeetingOcurrByChatid(const karere::Id& id) override;
+     std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> getSchedMeetingsOccurByChatId(const karere::Id& id) override;
 
 protected:
     SqliteDb& mDb;
-    std::vector<std::unique_ptr<KarereScheduledMeeting>> loadSchedMeetings(const Id &id, bool loadingOccurr);
+    std::vector<std::unique_ptr<KarereScheduledMeeting>> loadSchedMeetings(const karere::Id& id);
+    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> loadSchedMeetingsOccurr(const karere::Id& id);
 };
 }
 

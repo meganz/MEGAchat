@@ -442,9 +442,8 @@ bool Client::openDb(const std::string& sid)
                             "startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
                             "flags int64 default 0, rules blob)");
 
-                db.query("CREATE TABLE scheduledMeetingsOccurr(schedid int64, chatid int64, organizerid int64, parentschedid int64, timezone text,"
-                            "startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
-                            "flags int64 default 0, PRIMARY KEY (schedid, startdatetime))");
+                db.query("CREATE TABLE scheduledMeetingsOccurr(schedid int64, startdatetime text, enddatetime text, PRIMARY KEY (schedid, startdatetime), "
+                         "FOREIGN KEY(schedid) REFERENCES scheduledMeetings(schedid) ON DELETE CASCADE)");
 
                 db.commit();
                 ok = true;

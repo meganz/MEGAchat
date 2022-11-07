@@ -1508,12 +1508,12 @@ class DbClientInterface
 public:
     virtual ~DbClientInterface(){}
     virtual void insertOrUpdateSchedMeeting(const KarereScheduledMeeting& sm) = 0;
-    virtual void removeSchedMeetingBySchedId(karere::Id id) = 0;
-    virtual void removeSchedMeetingByChatId(karere::Id id) = 0;
-    virtual std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsByChatId(karere::Id id) = 0;
-    virtual void insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeeting& sm) = 0;
-    virtual void clearSchedMeetingOcurrByChatid(karere::Id id) = 0;
-    virtual std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsOccurByChatId(karere::Id id) = 0;
+    virtual void removeSchedMeetingBySchedId(const karere::Id& id) = 0;
+    virtual void removeSchedMeetingByChatId(const karere::Id& id) = 0;
+    virtual std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsByChatId(const karere::Id& id) = 0;
+    virtual void insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeetingOccurr& sm) = 0;
+    virtual void clearSchedMeetingOcurrByChatid(const karere::Id& id) = 0;
+    virtual std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> getSchedMeetingsOccurByChatId(const karere::Id& id) = 0;
 };
 }
 #endif // CHATCLIENT_H
