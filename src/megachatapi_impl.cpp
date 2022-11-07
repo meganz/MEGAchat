@@ -2665,7 +2665,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS:
+        case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES:
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
@@ -4346,7 +4346,7 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
 
 void MegaChatApiImpl::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener)
 {
-    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS, listener);
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES, listener);
     request->setChatHandle(chatid);
     request->setText(since);
     request->setLink(until);
@@ -6542,7 +6542,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_CHATROOM_OPTIONS: return "TYPE_SET_CHATROOM_OPTIONS";
         case TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING : return "CREATE_SCHEDULED_MEETING";
         case TYPE_DELETE_SCHEDULED_MEETING: return "DELETE_SCHEDULED_MEETING";
-        case TYPE_FETCH_SCHEDULED_MEETING_EVENTS: return "TYPE_FETCH_SCHEDULED_MEETING_EVENTS";
+        case TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES: return "TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES";
     }
     return "UNKNOWN";
 }

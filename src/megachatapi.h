@@ -2075,7 +2075,7 @@ public:
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
         TYPE_SET_CHATROOM_OPTIONS,
         TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING,
-        TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_EVENTS,
+        TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4207,7 +4207,7 @@ public:
      * A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
      * A scheduled meeting can produce one or multiple scheduled meeting occurrences
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS
+     * The associated request type with this request is MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
      * - MegaChatRequest::getMegaChatScheduledMeetingList - Returns a list of scheduled meeting occurrences
