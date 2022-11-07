@@ -1458,6 +1458,11 @@ MegaChatScheduledMeetingList* MegaChatRequest::getMegaChatScheduledMeetingList()
     return NULL;
 }
 
+MegaChatScheduledMeetingOccurrList* MegaChatRequest::getMegaChatScheduledMeetingOccurrList() const
+{
+    return NULL;
+}
+
 int MegaChatRequest::getParamType()
 {
     return -1;

@@ -2694,16 +2694,16 @@ void MegaChatApiImpl::sendPendingRequests()
                                                               request->getLink(),                             /*until*/
                                                               static_cast<unsigned int>(request->getNumber()) /*count*/)
 
-                    .then([request](std::vector<std::shared_ptr<KarereScheduledMeeting>> result)
+                    .then([request](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
                     {
                         if (!result.empty())
                         {
-                            std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+                            std::unique_ptr<MegaChatScheduledMeetingOccurrList> l(MegaChatScheduledMeetingOccurrList::createInstance());
                             for (auto const& sm: result)
                             {
-                                l->insert(new MegaChatScheduledMeetingPrivate(sm.get()));
+                                l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get()));
                             }
-                            request->setMegaChatScheduledMeetingList(l.get());
+                            request->setMegaChatScheduledMeetingOccurrList(l.get());
                         }
                     })
                     .fail([request, this](const ::promise::Error& err)
@@ -2716,12 +2716,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
                 else
                 {
-                    std::unique_ptr<MegaChatScheduledMeetingList> list(MegaChatScheduledMeetingList::createInstance());
+                    std::unique_ptr<MegaChatScheduledMeetingOccurrList> list(MegaChatScheduledMeetingOccurrList::createInstance());
                     for (auto it = res.begin(); it != res.end(); it++)
                     {
-                        list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+                        list->insert(new MegaChatScheduledMeetingOccurrPrivate(it->second.get()));
                     }
-                    request->setMegaChatScheduledMeetingList(list.get());
+                    request->setMegaChatScheduledMeetingOccurrList(list.get());
                 }
             })
             .fail([this, request](const ::promise::Error& err)
@@ -6438,6 +6438,9 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     setMegaChatMessage(request.getMegaChatMessage());
     setMegaNodeList(request.getMegaNodeList());
     setMegaHandleList(request.getMegaHandleList());
+    setMegaChatScheduledMeetingList(request.getMegaChatScheduledMeetingList());
+    setMegaChatScheduledMeetingOccurrList(request.getMegaChatScheduledMeetingOccurrList());
+
     if (mMegaHandleList)
     {
         for (unsigned int i = 0; i < mMegaHandleList->size(); i++)
@@ -6737,6 +6740,11 @@ MegaChatScheduledMeetingList* MegaChatRequestPrivate::getMegaChatScheduledMeetin
     return mScheduledMeetingList.get();
 }
 
+MegaChatScheduledMeetingOccurrList* MegaChatRequestPrivate::getMegaChatScheduledMeetingOccurrList() const
+{
+    return mScheduledMeetingOccurrList.get();
+}
+
 void MegaChatRequestPrivate::setMegaChatScheduledMeeting(MegaChatScheduledMeeting* scheduledMeeting)
 {
     mScheduledMeeting.reset();
@@ -6755,6 +6763,17 @@ void MegaChatRequestPrivate::setMegaChatScheduledMeetingList(const MegaChatSched
        mScheduledMeetingList = unique_ptr<MegaChatScheduledMeetingList>(schedMeetingList->copy());
     }
 }
+
+void MegaChatRequestPrivate::setMegaChatScheduledMeetingOccurrList(const MegaChatScheduledMeetingOccurrList* schedMeetingOccurrList)
+{
+    mScheduledMeetingOccurrList.reset();
+
+    if (schedMeetingOccurrList)
+    {
+       mScheduledMeetingOccurrList = unique_ptr<MegaChatScheduledMeetingOccurrList>(schedMeetingOccurrList->copy());
+    }
+}
+
 
 void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 {

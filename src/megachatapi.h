@@ -62,6 +62,7 @@ class MegaChatScheduledRules;
 class MegaChatScheduledFlags;
 class MegaChatScheduledMeeting;
 class MegaChatScheduledMeetingList;
+class MegaChatScheduledMeetingOccurrList;
 
 /**
  * @brief Provide information about a session
@@ -2265,6 +2266,16 @@ public:
      * @return scheduled meeting list
      */
     virtual MegaChatScheduledMeetingList* getMegaChatScheduledMeetingList() const;
+
+    /**
+     * @brief Returns the scheduled meeting occurrences list
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return scheduled meeting occurrences list
+     */
+    virtual MegaChatScheduledMeetingOccurrList* getMegaChatScheduledMeetingOccurrList() const;
 
     /**
      * @brief Returns the list of handles related to this request
