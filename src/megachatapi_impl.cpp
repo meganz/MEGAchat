@@ -3247,7 +3247,7 @@ void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(const karere::Id& id)
 
     for (set<MegaChatScheduledMeetingListener *>::iterator it = mSchedMeetingListeners.begin(); it != mSchedMeetingListeners.end() ; it++)
     {
-        (*it)->onSchedMeetingOccurrencesChange(mChatApi, id);
+        (*it)->onSchedMeetingOccurrencesUpdate(mChatApi, id);
     }
 }
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)

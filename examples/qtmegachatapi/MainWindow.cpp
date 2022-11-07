@@ -383,7 +383,7 @@ void MainWindow::onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMee
 {
 }
 
-void MainWindow::onSchedMeetingOccurrencesChange(MegaChatApi* api, MegaChatHandle chatid)
+void MainWindow::onSchedMeetingOccurrencesUpdate(MegaChatApi* api, MegaChatHandle chatid)
 {
 }
 
