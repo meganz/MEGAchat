@@ -969,7 +969,7 @@ private:
     // organizer user handle
     MegaChatHandle mOrganizerUserId;
 
-    // timeZone (B64 encoded)
+    // timeZone
     std::string mTimezone;
 
     // start dateTime (format: 20220726T133000)
@@ -984,7 +984,7 @@ private:
     // meeting description
     std::string mDescription;
 
-    // attributes to store any additional data (B64 encoded)
+    // attributes to store any additional data
     std::string mAttributes;
 
     // start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
