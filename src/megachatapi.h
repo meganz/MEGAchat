@@ -4111,6 +4111,8 @@ public:
     /**
      * @brief Modify an existing scheduled meeting
      *
+     * Note: this action won't create a child scheduled meeting
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
@@ -4128,20 +4130,17 @@ public:
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
      * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
-     * @param cancelled True if scheduled meeting is going to be cancelled
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters     
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
      * @param listener MegaChatRequestListener to track this request
      */
-    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId, const char* overrides,
-                                             const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
-                                             int cancelled, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules, const char* attributes,
-                                             MegaChatRequestListener* listener = nullptr);
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, const char* title, const char* description,
+                                const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules, const char* attributes,
+                                MegaChatRequestListener* listener = nullptr);
+
     /**
      * @brief Removes a scheduled meeting by scheduled meeting id and chatid
      *

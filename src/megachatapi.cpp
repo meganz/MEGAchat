@@ -715,13 +715,14 @@ void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat,
                                                  timezone, startDate, endDate, title, description, false /*cancelled*/, attributes, nullptr /*overrides*/, flags, rules, listener);
 }
 
-void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId, const char* overrides,
-                                         const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
-                                         int cancelled, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules, const char* attributes,
-                                         MegaChatRequestListener* listener)
+void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone,
+                                          const char* title, const char* description, const MegaChatScheduledFlags* flags,
+                                          const MegaChatScheduledRules* rules, const char* attributes, MegaChatRequestListener* listener)
 {
-    pImpl->createOrUpdateScheduledMeeting(chatid, schedId, parentSchedId, false /*createChat*/, false /*isMeeting*/, false /*publicChat*/, false /*speakRequest*/, false /*bool waitingRoom*/, false /*openInvite*/,
-                                                 timezone, startDate, endDate, title, description, cancelled, attributes, overrides, flags, rules, listener);
+    pImpl->createOrUpdateScheduledMeeting(chatid, schedId, MEGACHAT_INVALID_HANDLE /*parentSchedId*/, false /*createChat*/, false /*isMeeting*/,
+                                          false /*publicChat*/, false /*speakRequest*/, false /*bool waitingRoom*/, false /*openInvite*/,
+                                          timezone, nullptr /*startDate*/, nullptr /*endDate*/, title, description, false /*cancelled*/,
+                                          attributes, nullptr /*overrides*/, flags, rules, listener);
 }
 
 void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener)
