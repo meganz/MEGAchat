@@ -1037,7 +1037,27 @@ class MegaChatScheduledMeetingListener
 {
 public:
     virtual ~MegaChatScheduledMeetingListener() {}
-    virtual void onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting *sm);
+
+    /**
+     * @brief This function is called when there are changes in the MegaChatScheduledMeeting
+     *
+     * Check documentation of MegaChatScheduledMeeting::hasChanged to get a complete list
+     * of posible changes
+     *
+     * @param api MegaChatApi connected to the account
+     * @param sm MegaChatScheduledMeeting that contains the updates relatives to the scheduled meeting
+     */
+    virtual void onChatSchedMeetingUpdate(MegaChatApi* /*api*/, MegaChatScheduledMeeting *sm);
+
+    /**
+     * @brief This function is called when the scheduled meeting occurrences for a chatroom have changed
+     *
+     * Apps will need to discard any local occurrence list, and fetch fresh occurrences by calling
+     * asynchronous method MegaChatApi::fetchScheduledMeetingOccurrencesByChat
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
     virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid);
 };
 
