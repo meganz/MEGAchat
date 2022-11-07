@@ -1500,7 +1500,7 @@ class ScheduledMeetingHandler
 public:
     virtual ~ScheduledMeetingHandler(){}
     virtual void onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed) = 0;
-    virtual void onSchedMeetingOccurrencesChange(const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>&l) = 0;
+    virtual void onSchedMeetingOccurrencesChange(const karere::Id& id) = 0;
 };
 
 class DbClientInterface

@@ -3159,7 +3159,7 @@ void GroupChatRoom::notifySchedMeetingOccurrencesUpdated()
 {
     callAfterInit(this, [this]
     {
-       schedMeetingHandler().onSchedMeetingOccurrencesChange(mScheduledMeetingsOcurrences);
+       schedMeetingHandler().onSchedMeetingOccurrencesChange(chatid());
     }, parent.mKarereClient.appCtx);
 }
 

@@ -1751,7 +1751,7 @@ void MegaChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChatApi* /*a
 
 }
 
-void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesChange(MegaChatApi* /*api*/, MegaChatScheduledMeetingList* /*l*/)
+void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesChange(MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)
 {
 
 }

@@ -3230,7 +3230,7 @@ void MegaChatApiImpl::fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPriva
     }
 }
 
-void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(MegaChatScheduledMeetingListPrivate* l)
+void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(const karere::Id& id)
 {
     if (mTerminating)
     {
@@ -3239,7 +3239,7 @@ void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(MegaChatScheduledMeeti
 
     for (set<MegaChatScheduledMeetingListener *>::iterator it = mSchedMeetingListeners.begin(); it != mSchedMeetingListeners.end() ; it++)
     {
-        (*it)->onSchedMeetingOccurrencesChange(mChatApi, l);
+        (*it)->onSchedMeetingOccurrencesChange(mChatApi, id);
     }
 }
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
@@ -10167,14 +10167,9 @@ void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduled
     mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
 }
 
-void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>&l)
+void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id)
 {
-    std::unique_ptr<MegaChatScheduledMeetingListPrivate> list(new MegaChatScheduledMeetingListPrivate());
-    for (auto it = l.begin(); it != l.end(); it++)
-    {
-        list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
-    }
-    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(list.get());
+    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id);
 }
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {

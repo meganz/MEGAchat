@@ -1037,7 +1037,7 @@ class MegaChatScheduledMeetingListener
 public:
     virtual ~MegaChatScheduledMeetingListener() {}
     virtual void onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting *sm);
-    virtual void onSchedMeetingOccurrencesChange(MegaChatApi* /*api*/, MegaChatScheduledMeetingList* l);
+    virtual void onSchedMeetingOccurrencesChange(MegaChatApi* /*api*/, MegaChatHandle chatid);
 };
 
 class MegaChatPeerList

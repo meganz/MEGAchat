@@ -427,7 +427,7 @@ public:
                                      megachat::MegaChatSession *session);
 
     virtual void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm) override;
-    virtual void onSchedMeetingOccurrencesChange(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeetingList* l) override;
+    virtual void onSchedMeetingOccurrencesChange(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid) override;
 #endif
 };
 
