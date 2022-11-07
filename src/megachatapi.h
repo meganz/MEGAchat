@@ -4194,6 +4194,10 @@ public:
     /**
      * @brief Get a list of all scheduled meeting for a chatroom
      *
+     * Important consideration:
+     * A Chatroom only should have one root scheduled meeting associated, it means that for all scheduled meeting
+     * returned by this method, just one should have an invalid parent sched Id (MegaChatScheduledMeeting::parentSchedId)
+     *
      * You take the ownership of the returned value
      *
      * @param chatid MegaChatHandle that identifies a chat room
@@ -4214,6 +4218,11 @@ public:
 
     /**
      * @brief Get a list of all scheduled meeting for all chatrooms
+     *
+     * Important consideration:
+     * For every chatroom there should only exist one root scheduled meeting associated, it means that for all scheduled meeting
+     * returned by this method, there should be just one scheduled meeting, with an invalid parent sched Id (MegaChatScheduledMeeting::parentSchedId),
+     * for every different chatid.
      *
      * You take the ownership of the returned value
      *
@@ -7581,6 +7590,11 @@ public:
 /**
  * @brief This class represents a scheduled meeting. Scheduled Meetings allows the user to specify an event that will occur in the future.
  * The user can also specify a set of rules for repetition, these rules enable an event to reoccur periodically.
+ *
+ * Important consideration:
+ * A Chatroom only should have one root scheduled meeting associated, it means that just one scheduled meeting for a chatroom,
+ * should have an invalid parent sched Id (MegaChatScheduledMeeting::parentSchedId)
+ *
  */
 class MegaChatScheduledMeeting
 {
