@@ -1448,11 +1448,6 @@ MegaHandleList *MegaChatRequest::getMegaHandleListByChat(MegaChatHandle)
     return NULL;
 }
 
-MegaChatScheduledMeeting* MegaChatRequest::getMegaChatScheduledMeeting() const
-{
-    return NULL;
-}
-
 MegaChatScheduledMeetingList* MegaChatRequest::getMegaChatScheduledMeetingList() const
 {
     return NULL;
