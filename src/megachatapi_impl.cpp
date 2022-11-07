@@ -8425,6 +8425,55 @@ bool MegaChatScheduledMeetingPrivate::isDeleted() const                       { 
 MegaChatScheduledFlags* MegaChatScheduledMeetingPrivate::flags() const        { return mFlags.get();}
 MegaChatScheduledRules* MegaChatScheduledMeetingPrivate::rules() const        { return mRules.get();}
 
+/* Class MegaChatScheduledMeetingOccurrPrivate */
+MegaChatScheduledMeetingOccurrPrivate::MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
+                                                                       const char* timezone,
+                                                                       const char* startDateTime,
+                                                                       const char* endDateTime,
+                                                                       int cancelled)
+    : mSchedId(schedId),
+      mTimezone(timezone ? timezone : std::string()),
+      mStartDateTime(startDateTime ? startDateTime : std::string()),
+      mEndDateTime(endDateTime ? endDateTime : std::string()),
+      mCancelled(cancelled)
+{
+}
+
+MegaChatScheduledMeetingOccurrPrivate::MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate* scheduledMeeting)
+    : mSchedId(scheduledMeeting->schedId()),
+      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mCancelled(scheduledMeeting->cancelled())
+{
+}
+
+MegaChatScheduledMeetingOccurrPrivate::MegaChatScheduledMeetingOccurrPrivate(const karere::KarereScheduledMeetingOccurr* scheduledMeeting)
+    :
+      mSchedId(scheduledMeeting->schedId()),
+      mTimezone(scheduledMeeting->timezone()),
+      mStartDateTime(scheduledMeeting->startDateTime()),
+      mEndDateTime(scheduledMeeting->endDateTime()),
+      mCancelled(scheduledMeeting->cancelled())
+{
+}
+
+MegaChatScheduledMeetingOccurrPrivate::~MegaChatScheduledMeetingOccurrPrivate()
+{
+}
+
+MegaChatScheduledMeetingOccurrPrivate* MegaChatScheduledMeetingOccurrPrivate::copy()
+{
+   return new MegaChatScheduledMeetingOccurrPrivate(this);
+}
+
+MegaChatHandle MegaChatScheduledMeetingOccurrPrivate::schedId() const               { return mSchedId;}
+const char* MegaChatScheduledMeetingOccurrPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr;}
+const char* MegaChatScheduledMeetingOccurrPrivate::startDateTime() const            { return !mStartDateTime.empty() ? mStartDateTime.c_str() : nullptr;}
+const char* MegaChatScheduledMeetingOccurrPrivate::endDateTime() const              { return !mEndDateTime.empty() ? mEndDateTime.c_str() : nullptr;}
+int MegaChatScheduledMeetingOccurrPrivate::cancelled() const                        { return mCancelled;}
+
+/* Class MegaChatScheduledMeetingListPrivate */
 MegaChatScheduledMeetingListPrivate::MegaChatScheduledMeetingListPrivate()
 {
 }

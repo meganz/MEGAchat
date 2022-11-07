@@ -2403,6 +2403,20 @@ const char* MegaChatScheduledMeeting::overrides() const                         
 MegaChatScheduledRules* MegaChatScheduledMeeting::rules() const                 { return NULL; }
 MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 { return NULL; }
 
+/* Class MegaChatScheduledMeetingOccurr */
+MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurr::createInstance(MegaChatHandle schedId, const char* timezone, const char* startDateTime, const char* endDateTime, int cancelled)
+{
+    return new MegaChatScheduledMeetingOccurrPrivate(schedId, timezone, startDateTime, endDateTime, cancelled);
+}
+
+MegaChatScheduledMeetingOccurr::~MegaChatScheduledMeetingOccurr()                     {}
+int MegaChatScheduledMeetingOccurr::cancelled() const                                 { return 0; }
+MegaChatHandle MegaChatScheduledMeetingOccurr::schedId() const                        { return MEGACHAT_INVALID_HANDLE; }
+MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurr::copy()                { return NULL; }
+const char* MegaChatScheduledMeetingOccurr::timezone() const                          { return NULL; }
+const char* MegaChatScheduledMeetingOccurr::startDateTime() const                     { return NULL; }
+const char* MegaChatScheduledMeetingOccurr::endDateTime() const                       { return NULL; }
+
 /* Class MegaChatScheduledMeetingList */
 MegaChatScheduledMeetingList* MegaChatScheduledMeetingList::createInstance()
 {

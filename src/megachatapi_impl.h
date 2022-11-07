@@ -1003,6 +1003,43 @@ private:
     megachat_sched_bs_t mChanged;
 };
 
+
+class MegaChatScheduledMeetingOccurrPrivate: public MegaChatScheduledMeetingOccurr
+{
+public:
+    MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
+                                    const char* timezone,
+                                    const char* startDateTime,
+                                    const char* endDateTime,
+                                    int cancelled = -1);
+
+    MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate *scheduledMeeting);
+    MegaChatScheduledMeetingOccurrPrivate(const karere::KarereScheduledMeetingOccurr* scheduledMeeting);
+    virtual ~MegaChatScheduledMeetingOccurrPrivate();
+    MegaChatScheduledMeetingOccurrPrivate* copy();
+    MegaChatHandle schedId() const;
+    const char* timezone() const;
+    const char* startDateTime() const;
+    const char* endDateTime() const;
+    int cancelled() const;
+
+private:
+    // scheduled meeting handle
+    MegaChatHandle mSchedId;
+
+    // timeZone
+    std::string mTimezone;
+
+    // start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // cancelled flag
+    int mCancelled;
+};
+
 class MegaChatScheduledMeetingListPrivate: public MegaChatScheduledMeetingList
 {
 public:

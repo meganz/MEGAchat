@@ -7766,6 +7766,78 @@ public:
     virtual MegaChatScheduledRules* rules() const;
 };
 
+/**
+ * @brief This class represents a scheduled meeting occurrence.
+ * A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
+ * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+ */
+class MegaChatScheduledMeetingOccurr
+{
+public:
+    virtual ~MegaChatScheduledMeetingOccurr();
+
+    /**
+     * @brief Creates a new instance of MegaChatScheduledMeetingOccurr
+     *
+     * @param schedId       : scheduled meeting handle
+     * @param cancelled     : cancelled flag
+     * @param timezone      : timeZone
+     * @param startDateTime : start dateTime (format: 20220726T133000)
+     * @param endDateTime   : end dateTime (format: 20220726T133000)
+     *
+     * @return A pointer to the superclass of the private object
+     */
+    static MegaChatScheduledMeetingOccurr* createInstance (MegaChatHandle schedId, const char* timezone, const char* startDateTime, const char* endDateTime, int cancelled);
+
+    /**
+     * @brief Creates a copy of this MegaChatScheduledMeetingOccurr object
+     *
+     * The resulting object is fully independent of the source MegaChatScheduledMeetingOccurr,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You take the ownership of the returned object
+     *
+     * @return Copy of the MegaChatScheduledMeetingOccurr object
+     */
+    virtual MegaChatScheduledMeetingOccurr* copy();
+
+    /**
+     * @brief Returns if scheduled meeting occurrence is cancelled or not
+     *
+     * @return True if scheduled meeting occurrence is cancelled, otherwise returns false
+     */
+    virtual int cancelled() const;
+
+    /**
+     * @brief Returns the MegaChatHandle that identifies the scheduled meeting
+     *
+     * @return MegaChatHandle that identifies the scheduled meeting
+     */
+    virtual MegaChatHandle schedId() const;
+
+    /**
+     * @brief Returns the time zone B64 encoded
+     *
+     * @return time zone B64 encoded
+     */
+    virtual const char* timezone() const;
+
+    /**
+     * @brief Returns the start dateTime of the scheduled Meeting occurrence (format: 20220726T133000)
+     *
+     * @return the start dateTime of the scheduled Meeting occurrence
+     */
+    virtual const char* startDateTime() const;
+
+    /**
+     * @brief Returns the end dateTime of the scheduled Meeting occurrence (format: 20220726T133000)
+     *
+     * @return the end dateTime of the scheduled Meeting occurrence
+     */
+    virtual const char* endDateTime() const;
+};
+
 class MegaChatScheduledMeetingList
 {
 public:

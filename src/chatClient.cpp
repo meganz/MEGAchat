@@ -4282,6 +4282,7 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
 
                 // set occurrences loaded flag to false
                 mDbOccurrencesLoaded = false;
+                // we don't need to notify with notifySchedMeetingOccurrencesUpdated as SDK will automatically fetch occurrences again
             }
             else // if scheduled meeting we want to remove, no longer exists in ram
             {
@@ -4421,7 +4422,7 @@ void GroupChatRoom::loadSchedMeetingsOccurrFromDb()
         std::unique_ptr<KarereScheduledMeetingOccurr> aux(new KarereScheduledMeetingOccurr((schedMeetingsOccurr.at(i)).get()));
         mScheduledMeetingsOcurrences.emplace(aux->schedId(), std::move(aux));
     }
-    mDbOccurrencesLoaded = true;
+    mDbOccurrencesLoaded = true; // set occurrences loaded flag true, to indicate that occurrences have been loaded from Db
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
