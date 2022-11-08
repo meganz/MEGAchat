@@ -860,7 +860,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
 promise::Promise<KarereScheduledMeeting*> Client::createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting)
 {
     auto wptr = getDelTracker();
-    return api.call(&::mega::MegaApi::createScheduledMeeting, scheduledMeeting)
+    return api.call(&::mega::MegaApi::createOrUpdateScheduledMeeting, scheduledMeeting)
     .then([wptr](ReqResult result) -> promise::Promise<KarereScheduledMeeting*>
     {
         wptr.throwIfDeleted();
