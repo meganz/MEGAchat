@@ -725,6 +725,12 @@ void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle s
                                           attributes, nullptr /*overrides*/, flags, rules, listener);
 }
 
+void MegaChatApi::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* overrides, const char* newStartDate,
+                                                   const char* newEndDate, bool newCancelled, MegaChatRequestListener* listener)
+{
+    pImpl->updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate,  newCancelled, listener);
+}
+
 void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener)
 {
     pImpl->removeScheduledMeeting(chatid, schedId, listener);
