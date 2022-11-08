@@ -100,11 +100,11 @@ public:
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
     virtual mega::MegaHandleList *getMegaHandleList();
     virtual int getParamType();
-    virtual MegaChatScheduledMeeting* getMegaChatScheduledMeeting() const;
     virtual MegaChatScheduledMeetingList* getMegaChatScheduledMeetingList() const;
+    virtual MegaChatScheduledMeetingOccurrList* getMegaChatScheduledMeetingOccurrList() const;
 
-    void setMegaChatScheduledMeeting(MegaChatScheduledMeeting* scheduledMeeting);
     void setMegaChatScheduledMeetingList(const MegaChatScheduledMeetingList* schedMeetingList);
+    void setMegaChatScheduledMeetingOccurrList(const MegaChatScheduledMeetingOccurrList* schedMeetingOccurrList);
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
     void setStringList(mega::MegaStringList* stringList);
@@ -142,8 +142,8 @@ protected:
     mega::MegaNodeList* mMegaNodeList;
     mega::MegaHandleList *mMegaHandleList;
     std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
-    std::unique_ptr<MegaChatScheduledMeeting> mScheduledMeeting;
     std::unique_ptr<MegaChatScheduledMeetingList> mScheduledMeetingList;
+    std::unique_ptr<MegaChatScheduledMeetingOccurrList> mScheduledMeetingOccurrList;
     int mParamType;
 };
 
@@ -638,7 +638,7 @@ public:
     MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi);
     ~MegaChatScheduledMeetingHandler();
     void onSchedMeetingChange(const karere::KarereScheduledMeeting* sm, unsigned long diff) override;
-    void onSchedMeetingOccurrencesChange(const std::multimap<karere::Id, std::unique_ptr<karere::KarereScheduledMeeting>>&l) override;
+    void onSchedMeetingOccurrencesChange(const karere::Id& id) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -969,7 +969,7 @@ private:
     // organizer user handle
     MegaChatHandle mOrganizerUserId;
 
-    // timeZone (B64 encoded)
+    // timeZone
     std::string mTimezone;
 
     // start dateTime (format: 20220726T133000)
@@ -984,7 +984,7 @@ private:
     // meeting description
     std::string mDescription;
 
-    // attributes to store any additional data (B64 encoded)
+    // attributes to store any additional data
     std::string mAttributes;
 
     // start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
@@ -1001,6 +1001,43 @@ private:
 
     // changed bitmap
     megachat_sched_bs_t mChanged;
+};
+
+
+class MegaChatScheduledMeetingOccurrPrivate: public MegaChatScheduledMeetingOccurr
+{
+public:
+    MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
+                                    const char* timezone,
+                                    const char* startDateTime,
+                                    const char* endDateTime,
+                                    int cancelled = -1);
+
+    MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate *scheduledMeeting);
+    MegaChatScheduledMeetingOccurrPrivate(const karere::KarereScheduledMeetingOccurr* scheduledMeeting);
+    virtual ~MegaChatScheduledMeetingOccurrPrivate();
+    MegaChatScheduledMeetingOccurrPrivate* copy();
+    MegaChatHandle schedId() const;
+    const char* timezone() const;
+    const char* startDateTime() const;
+    const char* endDateTime() const;
+    int cancelled() const;
+
+private:
+    // scheduled meeting handle
+    MegaChatHandle mSchedId;
+
+    // timeZone
+    std::string mTimezone;
+
+    // start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // cancelled flag
+    int mCancelled;
 };
 
 class MegaChatScheduledMeetingListPrivate: public MegaChatScheduledMeetingList
@@ -1022,6 +1059,27 @@ public:
 
 private:
     std::vector<std::unique_ptr<MegaChatScheduledMeeting>> mList;
+};
+
+class MegaChatScheduledMeetingOccurrListPrivate: public MegaChatScheduledMeetingOccurrList
+{
+public:
+    MegaChatScheduledMeetingOccurrListPrivate();
+    MegaChatScheduledMeetingOccurrListPrivate(const MegaChatScheduledMeetingOccurrListPrivate &l);
+    ~MegaChatScheduledMeetingOccurrListPrivate();
+
+    MegaChatScheduledMeetingOccurrListPrivate *copy() const override;
+
+    // getters
+    unsigned long size() const override;
+    MegaChatScheduledMeetingOccurr* at(unsigned long i) const override;
+
+    // setters
+    void insert(MegaChatScheduledMeetingOccurr *sm) override;
+    void clear() override;
+
+private:
+    std::vector<std::unique_ptr<MegaChatScheduledMeetingOccurr>> mList;
 };
 
 class MegaChatAttachedUser;
@@ -1276,7 +1334,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     // MegaChatScheduledMeetListener callbacks
     void fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPrivate* sm);
-    void fireOnSchedMeetingOccurrencesChange(MegaChatScheduledMeetingListPrivate* l);
+    void fireOnSchedMeetingOccurrencesChange(const karere::Id& id);
 
     // MegaChatCallListener callbacks
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);

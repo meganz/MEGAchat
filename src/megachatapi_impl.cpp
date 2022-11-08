@@ -2526,7 +2526,14 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING:
         {
-            MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeeting();
+            if (!request->getMegaChatScheduledMeetingList()
+                    || request->getMegaChatScheduledMeetingList()->size() != 1)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
             if (!sm || !sm->timezone() || !sm->startDateTime() || !sm->endDateTime()
                     || !sm->title() || !sm->description()
                     || (request->getNumber() /*isMeeting*/ && !request->getPrivilege() /*!publicChat*/))
@@ -2586,8 +2593,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     if (sm)
                     {
-                        std::unique_ptr<MegaChatScheduledMeetingPrivate> auxsm(new MegaChatScheduledMeetingPrivate(sm));
-                        request->setMegaChatScheduledMeeting(auxsm.get());
+                        std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+                        l->insert(new MegaChatScheduledMeetingPrivate(sm));
+                        request->setMegaChatScheduledMeetingList(l.get());
                     }
                     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
@@ -2657,7 +2665,7 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-        case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS:
+        case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES:
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
@@ -2676,17 +2684,17 @@ void MegaChatApiImpl::sendPendingRequests()
 
             unsigned int min = static_cast<unsigned int>(request->getPrivilege());
 
-            promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>> pms;
-            if (chatroom->getNumOccurrences() < min)
+            promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>> pms;
+            if (chatroom->loadSchedMeetingsOccurrFromLocal() < min)
             {
-                pms.resolve(std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>>());
+                pms.resolve(std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>());
             }
             else
             {
                 pms = chatroom->getFutureScheduledMeetingsOccurrences();
             }
 
-            pms.then([this, request, chatid, min](std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
+            pms.then([this, request, chatid, min](std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>> res)
             {
                 if (!min || res.size() <= min) // fetch fresh occurrences from API
                 {
@@ -2694,16 +2702,16 @@ void MegaChatApiImpl::sendPendingRequests()
                                                               request->getLink(),                             /*until*/
                                                               static_cast<unsigned int>(request->getNumber()) /*count*/)
 
-                    .then([request](std::vector<std::shared_ptr<KarereScheduledMeeting>> result)
+                    .then([request](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
                     {
                         if (!result.empty())
                         {
-                            std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+                            std::unique_ptr<MegaChatScheduledMeetingOccurrList> l(MegaChatScheduledMeetingOccurrList::createInstance());
                             for (auto const& sm: result)
                             {
-                                l->insert(new MegaChatScheduledMeetingPrivate(sm.get()));
+                                l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get()));
                             }
-                            request->setMegaChatScheduledMeetingList(l.get());
+                            request->setMegaChatScheduledMeetingOccurrList(l.get());
                         }
                     })
                     .fail([request, this](const ::promise::Error& err)
@@ -2716,12 +2724,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
                 else
                 {
-                    std::unique_ptr<MegaChatScheduledMeetingList> list(MegaChatScheduledMeetingList::createInstance());
+                    std::unique_ptr<MegaChatScheduledMeetingOccurrList> list(MegaChatScheduledMeetingOccurrList::createInstance());
                     for (auto it = res.begin(); it != res.end(); it++)
                     {
-                        list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
+                        list->insert(new MegaChatScheduledMeetingOccurrPrivate(it->second.get()));
                     }
-                    request->setMegaChatScheduledMeetingList(list.get());
+                    request->setMegaChatScheduledMeetingOccurrList(list.get());
                 }
             })
             .fail([this, request](const ::promise::Error& err)
@@ -3230,7 +3238,7 @@ void MegaChatApiImpl::fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPriva
     }
 }
 
-void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(MegaChatScheduledMeetingListPrivate* l)
+void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(const karere::Id& id)
 {
     if (mTerminating)
     {
@@ -3239,7 +3247,7 @@ void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(MegaChatScheduledMeeti
 
     for (set<MegaChatScheduledMeetingListener *>::iterator it = mSchedMeetingListeners.begin(); it != mSchedMeetingListeners.end() ; it++)
     {
-        (*it)->onSchedMeetingOccurrencesChange(mChatApi, l);
+        (*it)->onSchedMeetingOccurrencesUpdate(mChatApi, id);
     }
 }
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
@@ -4262,7 +4270,9 @@ void MegaChatApiImpl::createOrUpdateScheduledMeeting(MegaChatHandle chatid, Mega
     request->setNumber(isMeeting);
     request->setPrivilege(publicChat);
     request->setParamType(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
-    request->setMegaChatScheduledMeeting(scheduledMeeting.get());
+    std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+    l->insert(scheduledMeeting.get());
+    request->setMegaChatScheduledMeetingList(l.get());
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4336,7 +4346,7 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
 
 void MegaChatApiImpl::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener)
 {
-    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS, listener);
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES, listener);
     request->setChatHandle(chatid);
     request->setText(since);
     request->setLink(until);
@@ -6438,6 +6448,9 @@ MegaChatRequestPrivate::MegaChatRequestPrivate(MegaChatRequestPrivate &request)
     setMegaChatMessage(request.getMegaChatMessage());
     setMegaNodeList(request.getMegaNodeList());
     setMegaHandleList(request.getMegaHandleList());
+    setMegaChatScheduledMeetingList(request.getMegaChatScheduledMeetingList());
+    setMegaChatScheduledMeetingOccurrList(request.getMegaChatScheduledMeetingOccurrList());
+
     if (mMegaHandleList)
     {
         for (unsigned int i = 0; i < mMegaHandleList->size(); i++)
@@ -6529,7 +6542,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_CHATROOM_OPTIONS: return "TYPE_SET_CHATROOM_OPTIONS";
         case TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING : return "CREATE_SCHEDULED_MEETING";
         case TYPE_DELETE_SCHEDULED_MEETING: return "DELETE_SCHEDULED_MEETING";
-        case TYPE_FETCH_SCHEDULED_MEETING_EVENTS: return "TYPE_FETCH_SCHEDULED_MEETING_EVENTS";
+        case TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES: return "TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES";
     }
     return "UNKNOWN";
 }
@@ -6727,23 +6740,14 @@ int MegaChatRequestPrivate::getParamType()
     return mParamType;
 }
 
-MegaChatScheduledMeeting* MegaChatRequestPrivate::getMegaChatScheduledMeeting() const
-{
-    return mScheduledMeeting.get();
-}
-
 MegaChatScheduledMeetingList* MegaChatRequestPrivate::getMegaChatScheduledMeetingList() const
 {
     return mScheduledMeetingList.get();
 }
 
-void MegaChatRequestPrivate::setMegaChatScheduledMeeting(MegaChatScheduledMeeting* scheduledMeeting)
+MegaChatScheduledMeetingOccurrList* MegaChatRequestPrivate::getMegaChatScheduledMeetingOccurrList() const
 {
-    mScheduledMeeting.reset();
-    if (scheduledMeeting)
-    {
-       mScheduledMeeting.reset(scheduledMeeting->copy());
-    }
+    return mScheduledMeetingOccurrList.get();
 }
 
 void MegaChatRequestPrivate::setMegaChatScheduledMeetingList(const MegaChatScheduledMeetingList* schedMeetingList)
@@ -6755,6 +6759,17 @@ void MegaChatRequestPrivate::setMegaChatScheduledMeetingList(const MegaChatSched
        mScheduledMeetingList = unique_ptr<MegaChatScheduledMeetingList>(schedMeetingList->copy());
     }
 }
+
+void MegaChatRequestPrivate::setMegaChatScheduledMeetingOccurrList(const MegaChatScheduledMeetingOccurrList* schedMeetingOccurrList)
+{
+    mScheduledMeetingOccurrList.reset();
+
+    if (schedMeetingOccurrList)
+    {
+       mScheduledMeetingOccurrList = unique_ptr<MegaChatScheduledMeetingOccurrList>(schedMeetingOccurrList->copy());
+    }
+}
+
 
 void MegaChatRequestPrivate::setMegaNodeList(MegaNodeList *nodelist)
 {
@@ -8425,6 +8440,55 @@ bool MegaChatScheduledMeetingPrivate::isDeleted() const                       { 
 MegaChatScheduledFlags* MegaChatScheduledMeetingPrivate::flags() const        { return mFlags.get();}
 MegaChatScheduledRules* MegaChatScheduledMeetingPrivate::rules() const        { return mRules.get();}
 
+/* Class MegaChatScheduledMeetingOccurrPrivate */
+MegaChatScheduledMeetingOccurrPrivate::MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
+                                                                       const char* timezone,
+                                                                       const char* startDateTime,
+                                                                       const char* endDateTime,
+                                                                       int cancelled)
+    : mSchedId(schedId),
+      mTimezone(timezone ? timezone : std::string()),
+      mStartDateTime(startDateTime ? startDateTime : std::string()),
+      mEndDateTime(endDateTime ? endDateTime : std::string()),
+      mCancelled(cancelled)
+{
+}
+
+MegaChatScheduledMeetingOccurrPrivate::MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate* scheduledMeeting)
+    : mSchedId(scheduledMeeting->schedId()),
+      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mCancelled(scheduledMeeting->cancelled())
+{
+}
+
+MegaChatScheduledMeetingOccurrPrivate::MegaChatScheduledMeetingOccurrPrivate(const karere::KarereScheduledMeetingOccurr* scheduledMeeting)
+    :
+      mSchedId(scheduledMeeting->schedId()),
+      mTimezone(scheduledMeeting->timezone()),
+      mStartDateTime(scheduledMeeting->startDateTime()),
+      mEndDateTime(scheduledMeeting->endDateTime()),
+      mCancelled(scheduledMeeting->cancelled())
+{
+}
+
+MegaChatScheduledMeetingOccurrPrivate::~MegaChatScheduledMeetingOccurrPrivate()
+{
+}
+
+MegaChatScheduledMeetingOccurrPrivate* MegaChatScheduledMeetingOccurrPrivate::copy()
+{
+   return new MegaChatScheduledMeetingOccurrPrivate(this);
+}
+
+MegaChatHandle MegaChatScheduledMeetingOccurrPrivate::schedId() const               { return mSchedId;}
+const char* MegaChatScheduledMeetingOccurrPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr;}
+const char* MegaChatScheduledMeetingOccurrPrivate::startDateTime() const            { return !mStartDateTime.empty() ? mStartDateTime.c_str() : nullptr;}
+const char* MegaChatScheduledMeetingOccurrPrivate::endDateTime() const              { return !mEndDateTime.empty() ? mEndDateTime.c_str() : nullptr;}
+int MegaChatScheduledMeetingOccurrPrivate::cancelled() const                        { return mCancelled;}
+
+/* Class MegaChatScheduledMeetingListPrivate */
 MegaChatScheduledMeetingListPrivate::MegaChatScheduledMeetingListPrivate()
 {
 }
@@ -8464,6 +8528,50 @@ void MegaChatScheduledMeetingListPrivate::insert(MegaChatScheduledMeeting* sm)
 }
 
 void MegaChatScheduledMeetingListPrivate::clear()
+{
+     mList.clear();
+}
+
+/* Class MegaChatScheduledMeetingOccurrListPrivate */
+MegaChatScheduledMeetingOccurrListPrivate::MegaChatScheduledMeetingOccurrListPrivate()
+{
+}
+
+MegaChatScheduledMeetingOccurrListPrivate::MegaChatScheduledMeetingOccurrListPrivate(const MegaChatScheduledMeetingOccurrListPrivate& l)
+{
+    mList.reserve(l.size());
+    for (unsigned long i = 0; i < l.size(); i++)
+    {
+        mList.emplace_back(l.at(i)->copy());
+    }
+}
+
+MegaChatScheduledMeetingOccurrListPrivate::~MegaChatScheduledMeetingOccurrListPrivate()
+{
+    // all objects managed by unique_ptr's containted in mList will be deallocated when mList is destroyed
+}
+
+unsigned long MegaChatScheduledMeetingOccurrListPrivate::size() const
+{
+    return mList.size();
+}
+
+MegaChatScheduledMeetingOccurrListPrivate* MegaChatScheduledMeetingOccurrListPrivate::copy() const
+{
+   return new MegaChatScheduledMeetingOccurrListPrivate(*this);
+}
+
+MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurrListPrivate::at(unsigned long i) const
+{
+    return mList.at(i).get();
+}
+
+void MegaChatScheduledMeetingOccurrListPrivate::insert(MegaChatScheduledMeetingOccurr* sm)
+{
+    mList.emplace_back(sm);
+}
+
+void MegaChatScheduledMeetingOccurrListPrivate::clear()
 {
      mList.clear();
 }
@@ -10167,14 +10275,9 @@ void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduled
     mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
 }
 
-void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeeting>>&l)
+void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id)
 {
-    std::unique_ptr<MegaChatScheduledMeetingListPrivate> list(new MegaChatScheduledMeetingListPrivate());
-    for (auto it = l.begin(); it != l.end(); it++)
-    {
-        list->insert(new MegaChatScheduledMeetingPrivate(it->second.get()));
-    }
-    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(list.get());
+    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id);
 }
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {

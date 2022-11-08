@@ -51,6 +51,5 @@ CREATE TABLE scheduledMeetings(schedid int64 unique primary key, chatid int64, o
     startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,
     flags int64 default 0, rules blob);
 
-CREATE TABLE scheduledMeetingsOccurr(schedid int64, chatid int64, organizerid int64, parentschedid int64, timezone text,
-    startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,
-    flags int64 default 0, PRIMARY KEY (schedid, startdatetime));
+CREATE TABLE scheduledMeetingsOccurr(schedid int64, startdatetime text, enddatetime text, PRIMARY KEY (schedid, startdatetime),
+    FOREIGN KEY(schedid) REFERENCES scheduledMeetings(schedid) ON DELETE CASCADE);

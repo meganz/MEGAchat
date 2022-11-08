@@ -62,6 +62,7 @@ class MegaChatScheduledRules;
 class MegaChatScheduledFlags;
 class MegaChatScheduledMeeting;
 class MegaChatScheduledMeetingList;
+class MegaChatScheduledMeetingOccurrList;
 
 /**
  * @brief Provide information about a session
@@ -1037,7 +1038,7 @@ class MegaChatScheduledMeetingListener
 public:
     virtual ~MegaChatScheduledMeetingListener() {}
     virtual void onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting *sm);
-    virtual void onSchedMeetingOccurrencesChange(MegaChatApi* /*api*/, MegaChatScheduledMeetingList* l);
+    virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid);
 };
 
 class MegaChatPeerList
@@ -2074,7 +2075,7 @@ public:
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
         TYPE_SET_CHATROOM_OPTIONS,
         TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING,
-        TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_EVENTS,
+        TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2247,16 +2248,6 @@ public:
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
 
     /**
-     * @brief Returns a pointer to a MegaChatScheduledMeeting instance that represents a scheduled meeting
-     *
-     * The SDK retains the ownership of the returned value. It will be valid until
-     * the MegaChatRequest object is deleted.
-     *
-     * @return a pointer to a MegaChatScheduledMeeting instance that represents a scheduled meeting
-     */
-    virtual MegaChatScheduledMeeting* getMegaChatScheduledMeeting() const;
-
-    /**
      * @brief Returns the scheduled meeting list
      *
      * The SDK retains the ownership of the returned value. It will be valid until
@@ -2265,6 +2256,16 @@ public:
      * @return scheduled meeting list
      */
     virtual MegaChatScheduledMeetingList* getMegaChatScheduledMeetingList() const;
+
+    /**
+     * @brief Returns the scheduled meeting occurrences list
+     *
+     * The SDK retains the ownership of the returned value. It will be valid until
+     * the MegaChatRequest object is deleted.
+     *
+     * @return scheduled meeting occurrences list
+     */
+    virtual MegaChatScheduledMeetingOccurrList* getMegaChatScheduledMeetingOccurrList() const;
 
     /**
      * @brief Returns the list of handles related to this request
@@ -4056,11 +4057,11 @@ public:
      *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
      *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
      *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
-     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the a MegaChatScheduledMeeting instance with the rest of params that user provided
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting (containing the params provided by user)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the MegaChatScheduledMeeting with definitive data returned from API
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting (with definitive ScheduledMeeting updated from API)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
@@ -4095,11 +4096,11 @@ public:
      * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
      * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
      * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the a MegaChatScheduledMeeting instance with rest of params that user provided
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting (containing the params provided by user)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the MegaChatScheduledMeeting with definitive data returned from API
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting`
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
@@ -4126,11 +4127,11 @@ public:
      * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
      * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
      * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the a MegaChatScheduledMeeting instance with rest of params that user provided
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting (containing the params provided by user)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::request->getMegaChatScheduledMeeting - returns the updated MegaChatScheduledMeeting returned from API
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting (with definitive ScheduledMeeting updated from API)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
@@ -4206,7 +4207,7 @@ public:
      * A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
      * A scheduled meeting can produce one or multiple scheduled meeting occurrences
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_EVENTS
+     * The associated request type with this request is MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
      * - MegaChatRequest::getMegaChatScheduledMeetingList - Returns a list of scheduled meeting occurrences
@@ -7699,9 +7700,9 @@ public:
     virtual MegaChatHandle organizerUserId() const;
 
     /**
-     * @brief Returns the time zone B64 encoded
+     * @brief Returns the time zone
      *
-     * @return time zone B64 encoded
+     * @return time zone
      */
     virtual const char* timezone() const;
 
@@ -7720,23 +7721,23 @@ public:
     virtual const char* endDateTime() const;
 
     /**
-     * @brief Returns the scheduled meeting title B64 encoded
+     * @brief Returns the scheduled meeting title
      *
-     * @return The title of the scheduled meeting B64 encoded
+     * @return The title of the scheduled meeting
      */
     virtual const char* title() const;
 
     /**
-     * @brief Returns the scheduled meeting description B64 encoded
+     * @brief Returns the scheduled meeting description
      *
-     * @return The description of the scheduled meeting B64 encoded
+     * @return The description of the scheduled meeting
      */
     virtual const char* description() const;
 
     /**
-     * @brief Returns additional scheduled meetings attributes B64 encoded
+     * @brief Returns additional scheduled meetings attributes
      *
-     * @return Additional scheduled meetings attributes B64 encoded
+     * @return Additional scheduled meetings attributes
      */
     virtual const char* attributes() const;
 
@@ -7766,6 +7767,78 @@ public:
     virtual MegaChatScheduledRules* rules() const;
 };
 
+/**
+ * @brief This class represents a scheduled meeting occurrence.
+ * A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
+ * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+ */
+class MegaChatScheduledMeetingOccurr
+{
+public:
+    virtual ~MegaChatScheduledMeetingOccurr();
+
+    /**
+     * @brief Creates a new instance of MegaChatScheduledMeetingOccurr
+     *
+     * @param schedId       : scheduled meeting handle
+     * @param cancelled     : cancelled flag
+     * @param timezone      : timeZone
+     * @param startDateTime : start dateTime (format: 20220726T133000)
+     * @param endDateTime   : end dateTime (format: 20220726T133000)
+     *
+     * @return A pointer to the superclass of the private object
+     */
+    static MegaChatScheduledMeetingOccurr* createInstance (MegaChatHandle schedId, const char* timezone, const char* startDateTime, const char* endDateTime, int cancelled);
+
+    /**
+     * @brief Creates a copy of this MegaChatScheduledMeetingOccurr object
+     *
+     * The resulting object is fully independent of the source MegaChatScheduledMeetingOccurr,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You take the ownership of the returned object
+     *
+     * @return Copy of the MegaChatScheduledMeetingOccurr object
+     */
+    virtual MegaChatScheduledMeetingOccurr* copy();
+
+    /**
+     * @brief Returns if scheduled meeting occurrence is cancelled or not
+     *
+     * @return True if scheduled meeting occurrence is cancelled, otherwise returns false
+     */
+    virtual int cancelled() const;
+
+    /**
+     * @brief Returns the MegaChatHandle that identifies the scheduled meeting
+     *
+     * @return MegaChatHandle that identifies the scheduled meeting
+     */
+    virtual MegaChatHandle schedId() const;
+
+    /**
+     * @brief Returns the time zone
+     *
+     * @return time zone
+     */
+    virtual const char* timezone() const;
+
+    /**
+     * @brief Returns the start dateTime of the scheduled Meeting occurrence (format: 20220726T133000)
+     *
+     * @return the start dateTime of the scheduled Meeting occurrence
+     */
+    virtual const char* startDateTime() const;
+
+    /**
+     * @brief Returns the end dateTime of the scheduled Meeting occurrence (format: 20220726T133000)
+     *
+     * @return the end dateTime of the scheduled Meeting occurrence
+     */
+    virtual const char* endDateTime() const;
+};
+
 class MegaChatScheduledMeetingList
 {
 public:
@@ -7779,6 +7852,22 @@ public:
 
     // setters
     virtual void insert(MegaChatScheduledMeeting* sm);
+    virtual void clear();
+};
+
+class MegaChatScheduledMeetingOccurrList
+{
+public:
+    static MegaChatScheduledMeetingOccurrList* createInstance();
+    virtual ~MegaChatScheduledMeetingOccurrList();
+    virtual MegaChatScheduledMeetingOccurrList *copy() const;
+
+    // getters
+    virtual unsigned long size() const;
+    virtual MegaChatScheduledMeetingOccurr* at(unsigned long i) const;
+
+    // setters
+    virtual void insert(MegaChatScheduledMeetingOccurr* sm);
     virtual void clear();
 };
 }
