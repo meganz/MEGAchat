@@ -2794,7 +2794,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (!auxOccurr)
             {
-                if (numOccurrences< MegaChatScheduledMeeting::MIN_OCURRENCES)
+                if (numOccurrences < MegaChatScheduledMeeting::MIN_OCURRENCES)
                 {
                     // load fresh scheduled meeting occurrences from API
                     mClient->fetchScheduledMeetingOccurrences(sm->chatId(),

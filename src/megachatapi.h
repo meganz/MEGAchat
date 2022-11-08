@@ -4171,7 +4171,7 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* overrides,  const char* newStartDate,
-                                          const char* newEndDate, bool newCancelled,MegaChatRequestListener* listener = nullptr);
+                                          const char* newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
 
     /**
      * @brief Removes a scheduled meeting by scheduled meeting id and chatid
