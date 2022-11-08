@@ -7441,7 +7441,7 @@ public:
      *
      * @return True if emails disabled flag is enabled, otherwise returns false.
      */
-    virtual bool EmailsDisabled() const;
+    virtual bool emailsDisabled() const;
 
     /**
      * @brief Returns true if all flags are disabled

@@ -1303,6 +1303,7 @@ public:
 
     // --- setters ---
     void reset();
+    bool emailsDisabled() const;
     unsigned long getNumericValue() const;
     bool isEmpty() const;
     bool equalTo(::mega::MegaScheduledFlags* aux) const;

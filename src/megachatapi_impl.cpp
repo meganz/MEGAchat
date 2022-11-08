@@ -8250,7 +8250,7 @@ void MegaChatScheduledFlagsPrivate::setEmailsDisabled(bool enabled)
 }
 
 unsigned long MegaChatScheduledFlagsPrivate::getNumericValue() const       { return mFlags.to_ulong();}
-bool MegaChatScheduledFlagsPrivate::EmailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
+bool MegaChatScheduledFlagsPrivate::emailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
 bool MegaChatScheduledFlagsPrivate::isEmpty() const                        { return mFlags.none(); }
 
 /* Class MegaChatScheduledRulesPrivate */

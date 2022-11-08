@@ -5421,6 +5421,7 @@ void KarereScheduledFlags::reset()
     mFlags.reset();
 }
 
+bool KarereScheduledFlags::emailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
 unsigned long KarereScheduledFlags::getNumericValue() const       { return mFlags.to_ulong(); }
 bool KarereScheduledFlags::isEmpty() const                        { return mFlags.none(); }
 

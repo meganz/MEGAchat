@@ -2340,7 +2340,7 @@ MegaChatScheduledFlags::~MegaChatScheduledFlags()
 
 void MegaChatScheduledFlags::reset()                                {}
 void MegaChatScheduledFlags::setEmailsDisabled(bool /*enabled*/)    {}
-bool MegaChatScheduledFlags::EmailsDisabled() const                 { return false; }
+bool MegaChatScheduledFlags::emailsDisabled() const                 { return false; }
 bool MegaChatScheduledFlags::isEmpty() const                        { return false; }
 
 /* Class MegaChatScheduledRules */

@@ -854,7 +854,7 @@ public:
 
     // getters
     unsigned long getNumericValue() const;
-    bool EmailsDisabled() const override;
+    bool emailsDisabled() const override;
     bool isEmpty() const override;
 
 private:
