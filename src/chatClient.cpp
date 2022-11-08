@@ -857,10 +857,10 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     room->connect();
 }
 
-promise::Promise<KarereScheduledMeeting*> Client::createScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting)
+promise::Promise<KarereScheduledMeeting*> Client::createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting)
 {
     auto wptr = getDelTracker();
-    return api.call(&::mega::MegaApi::createScheduledMeeting, scheduledMeeting)
+    return api.call(&::mega::MegaApi::createOrUpdateScheduledMeeting, scheduledMeeting)
     .then([wptr](ReqResult result) -> promise::Promise<KarereScheduledMeeting*>
     {
         wptr.throwIfDeleted();
@@ -4328,6 +4328,13 @@ const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRo
     return mScheduledMeetings;
 }
 
+const std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>>&
+GroupChatRoom::getScheduledMeetingsOccurrences() const
+{
+    return mScheduledMeetingsOcurrences;
+}
+
+
 promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
 GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
 {
@@ -4416,7 +4423,7 @@ size_t GroupChatRoom::loadSchedMeetingsOccurrFromLocal()
 void GroupChatRoom::loadSchedMeetingsOccurrFromDb()
 {
     mScheduledMeetingsOcurrences.clear();
-    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> schedMeetingsOccurr = getClientDbInterface().getSchedMeetingsOccurByChatId(chatid());    
+    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> schedMeetingsOccurr = getClientDbInterface().getSchedMeetingsOccurByChatId(chatid());
     for (unsigned int i = 0; i < schedMeetingsOccurr.size(); i++)
     {
         std::unique_ptr<KarereScheduledMeetingOccurr> aux(new KarereScheduledMeetingOccurr((schedMeetingsOccurr.at(i)).get()));
@@ -5421,6 +5428,7 @@ void KarereScheduledFlags::reset()
     mFlags.reset();
 }
 
+bool KarereScheduledFlags::emailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
 unsigned long KarereScheduledFlags::getNumericValue() const       { return mFlags.to_ulong(); }
 bool KarereScheduledFlags::isEmpty() const                        { return mFlags.none(); }
 
@@ -5842,7 +5850,7 @@ KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const mega::MegaSched
 {
 }
 
-KarereScheduledMeetingOccurr* KarereScheduledMeetingOccurr::copy()
+KarereScheduledMeetingOccurr* KarereScheduledMeetingOccurr::copy() const
 {
    return new KarereScheduledMeetingOccurr(this);
 }

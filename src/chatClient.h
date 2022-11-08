@@ -486,6 +486,9 @@ public:
     promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
     getFutureScheduledMeetingsOccurrences() const;
 
+    const std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>>&
+    getScheduledMeetingsOccurrences() const;
+
     /** TODO
      *
      */
@@ -1069,7 +1072,7 @@ public:
      * @brief This function allows to create a scheduled meeting.
      * TODO: complete documentation
      */
-    promise::Promise<KarereScheduledMeeting*> createScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting);
+    promise::Promise<KarereScheduledMeeting*> createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting);
 
 
     promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>> fetchScheduledMeetingOccurrences(uint64_t chatid, const char* since, const char* until, unsigned int count);
@@ -1303,6 +1306,7 @@ public:
 
     // --- setters ---
     void reset();
+    bool emailsDisabled() const;
     unsigned long getNumericValue() const;
     bool isEmpty() const;
     bool equalTo(::mega::MegaScheduledFlags* aux) const;
@@ -1475,7 +1479,7 @@ public:
     KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* karereScheduledMeetingOccurr);
     KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* sm);
 
-    KarereScheduledMeetingOccurr* copy();
+    KarereScheduledMeetingOccurr* copy() const;
     virtual ~KarereScheduledMeetingOccurr();
 
     karere::Id schedId() const;

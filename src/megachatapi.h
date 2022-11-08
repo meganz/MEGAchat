@@ -1037,7 +1037,27 @@ class MegaChatScheduledMeetingListener
 {
 public:
     virtual ~MegaChatScheduledMeetingListener() {}
-    virtual void onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting *sm);
+
+    /**
+     * @brief This function is called when there are changes in the MegaChatScheduledMeeting
+     *
+     * Check documentation of MegaChatScheduledMeeting::hasChanged to get a complete list
+     * of posible changes
+     *
+     * @param api MegaChatApi connected to the account
+     * @param sm MegaChatScheduledMeeting that contains the updates relatives to the scheduled meeting
+     */
+    virtual void onChatSchedMeetingUpdate(MegaChatApi* /*api*/, MegaChatScheduledMeeting *sm);
+
+    /**
+     * @brief This function is called when the scheduled meeting occurrences for a chatroom have changed
+     *
+     * Apps will need to discard any local occurrence list, and fetch fresh occurrences by calling
+     * asynchronous method MegaChatApi::fetchScheduledMeetingOccurrencesByChat
+     *
+     * @param api MegaChatApi connected to the account
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
     virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid);
 };
 
@@ -2076,6 +2096,7 @@ public:
         TYPE_SET_CHATROOM_OPTIONS,
         TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING,
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
+        TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4089,38 +4110,9 @@ public:
                                                      MegaChatRequestListener* listener = nullptr);
 
     /**
-     * @brief Creates a scheduled meeting from an existing chatroom
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting (containing the params provided by user)
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting`
-     *
-     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
-     *
-     * @param chatid MegaChatHandle that identifies a chat room
-     * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
-     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
-     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
-     * @param attributes - not supported yet
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void createScheduledMeetingFromExistingChat(MegaChatHandle chatid, const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
-                                             const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr, MegaChatRequestListener* listener = nullptr);
-
-    /**
      * @brief Modify an existing scheduled meeting
+     *
+     * Note: this action won't create a child scheduled meeting
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -4139,20 +4131,48 @@ public:
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
      * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
-     * @param cancelled True if scheduled meeting is going to be cancelled
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters     
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
      * @param listener MegaChatRequestListener to track this request
      */
-    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId, const char* overrides,
-                                             const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
-                                             int cancelled, const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules, const char* attributes,
-                                             MegaChatRequestListener* listener = nullptr);
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, const char* title, const char* description,
+                                const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules, const char* attributes,
+                                MegaChatRequestListener* listener = nullptr);
+
+
+    /**
+     * @brief Modify an existing scheduled meeting occurrence
+     *
+     * Note: this action will create a new child scheduled meeting whose parent schedid will be the schedid provided by this method
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting (containing the params provided by user)
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting (with definitive ScheduledMeeting updated from API)
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param schedId MegaChatHandle that identifies the scheduled meeting
+     * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param overrides new start date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param newEndDate new end date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param cancelled True if scheduled meeting is going to be cancelled
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* overrides,  const char* newStartDate,
+                                          const char* newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
+
     /**
      * @brief Removes a scheduled meeting by scheduled meeting id and chatid
      *
@@ -4174,6 +4194,10 @@ public:
     /**
      * @brief Get a list of all scheduled meeting for a chatroom
      *
+     * Important consideration:
+     * A Chatroom only should have one root scheduled meeting associated, it means that for all scheduled meeting
+     * returned by this method, just one should have an invalid parent sched Id (MegaChatScheduledMeeting::parentSchedId)
+     *
      * You take the ownership of the returned value
      *
      * @param chatid MegaChatHandle that identifies a chat room
@@ -4194,6 +4218,11 @@ public:
 
     /**
      * @brief Get a list of all scheduled meeting for all chatrooms
+     *
+     * Important consideration:
+     * For every chatroom there should only exist one root scheduled meeting associated, it means that for all scheduled meeting
+     * returned by this method, there should be just one scheduled meeting, with an invalid parent sched Id (MegaChatScheduledMeeting::parentSchedId),
+     * for every different chatid.
      *
      * You take the ownership of the returned value
      *
@@ -7444,7 +7473,7 @@ public:
      *
      * @return True if emails disabled flag is enabled, otherwise returns false.
      */
-    virtual bool EmailsDisabled() const;
+    virtual bool emailsDisabled() const;
 
     /**
      * @brief Returns true if all flags are disabled
@@ -7561,6 +7590,11 @@ public:
 /**
  * @brief This class represents a scheduled meeting. Scheduled Meetings allows the user to specify an event that will occur in the future.
  * The user can also specify a set of rules for repetition, these rules enable an event to reoccur periodically.
+ *
+ * Important consideration:
+ * A Chatroom only should have one root scheduled meeting associated, it means that just one scheduled meeting for a chatroom,
+ * should have an invalid parent sched Id (MegaChatScheduledMeeting::parentSchedId)
+ *
  */
 class MegaChatScheduledMeeting
 {
@@ -7620,7 +7654,7 @@ public:
      *
      * @return Copy of the MegaChatScheduledMeeting object
      */
-    virtual MegaChatScheduledMeeting* copy();
+    virtual MegaChatScheduledMeeting* copy() const;
 
     /**
      * @brief Returns if scheduled meeting is cancelled or not
@@ -7778,19 +7812,6 @@ public:
     virtual ~MegaChatScheduledMeetingOccurr();
 
     /**
-     * @brief Creates a new instance of MegaChatScheduledMeetingOccurr
-     *
-     * @param schedId       : scheduled meeting handle
-     * @param cancelled     : cancelled flag
-     * @param timezone      : timeZone
-     * @param startDateTime : start dateTime (format: 20220726T133000)
-     * @param endDateTime   : end dateTime (format: 20220726T133000)
-     *
-     * @return A pointer to the superclass of the private object
-     */
-    static MegaChatScheduledMeetingOccurr* createInstance (MegaChatHandle schedId, const char* timezone, const char* startDateTime, const char* endDateTime, int cancelled);
-
-    /**
      * @brief Creates a copy of this MegaChatScheduledMeetingOccurr object
      *
      * The resulting object is fully independent of the source MegaChatScheduledMeetingOccurr,
@@ -7801,7 +7822,7 @@ public:
      *
      * @return Copy of the MegaChatScheduledMeetingOccurr object
      */
-    virtual MegaChatScheduledMeetingOccurr* copy();
+    virtual MegaChatScheduledMeetingOccurr* copy() const;
 
     /**
      * @brief Returns if scheduled meeting occurrence is cancelled or not
@@ -7839,35 +7860,125 @@ public:
     virtual const char* endDateTime() const;
 };
 
+/**
+ * @brief List of MegaChatScheduledMeeting objects
+ */
 class MegaChatScheduledMeetingList
 {
 public:
-    static MegaChatScheduledMeetingList* createInstance();
     virtual ~MegaChatScheduledMeetingList();
+
+    /**
+     * @brief Creates a new instance of MegaChatScheduledMeetingList
+     *
+     * You take the ownership of the returned object
+     *
+     * @return A pointer to the superclass of the private object
+     */
+    static MegaChatScheduledMeetingList* createInstance();
+
+    /**
+     * @brief Creates a copy of this MegaChatScheduledMeetingList object
+     *
+     * The resulting object is fully independent of the source MegaChatScheduledMeetingList,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You take the ownership of the returned object
+     *
+     * @return Copy of the MegaChatScheduledMeetingList object
+     */
     virtual MegaChatScheduledMeetingList *copy() const;
 
-    // getters
+    /**
+     * @brief Returns the number of elements in the list
+     * @return Number of elements in the list
+     */
     virtual unsigned long size() const;
-    virtual MegaChatScheduledMeeting* at(unsigned long i) const;
 
-    // setters
+    /**
+     * @brief Returns the MegaChatScheduledMeeting at the position i in the MegaChatScheduledMeetingList
+     *
+     * If the index is >= the size of the list, this function returns NULL.
+     *
+     * @param i Position of the element that we want to get for the list
+     * @return MegaChatScheduledMeeting at the position i in the MegaChatScheduledMeetingList
+     */
+    virtual const MegaChatScheduledMeeting* at(unsigned long i) const;
+
+    /**
+     * @brief Add element to the MegaChatScheduledMeetingList
+     *
+     * The SDK adquires the ownership of provided MegaChatScheduledMeeting
+     *
+     * @param sm MegaChatScheduledMeeting to add to list
+     */
     virtual void insert(MegaChatScheduledMeeting* sm);
+
+    /**
+     * @brief Clears the MegaChatScheduledMeetingList
+     */
     virtual void clear();
 };
 
+/**
+ * @brief List of MegaChatScheduledMeetingOccurr objects
+ */
 class MegaChatScheduledMeetingOccurrList
 {
 public:
-    static MegaChatScheduledMeetingOccurrList* createInstance();
     virtual ~MegaChatScheduledMeetingOccurrList();
+
+    /**
+     * @brief Creates a new instance of MegaChatScheduledMeetingList
+     *
+     * You take the ownership of the returned object
+     *
+     * @return A pointer to the superclass of the private object
+     */
+    static MegaChatScheduledMeetingOccurrList* createInstance();
+
+    /**
+     * @brief Creates a copy of this MegaChatScheduledMeetingOccurrList object
+     *
+     * The resulting object is fully independent of the source MegaChatScheduledMeetingOccurrList,
+     * it contains a copy of all internal attributes, so it will be valid after
+     * the original object is deleted.
+     *
+     * You take the ownership of the returned object
+     *
+     * @return Copy of the MegaChatScheduledMeetingOccurrList object
+     */
     virtual MegaChatScheduledMeetingOccurrList *copy() const;
 
-    // getters
+    /**
+     * @brief Returns the number of elements in the list
+     * @return Number of elements in the list
+     */
     virtual unsigned long size() const;
-    virtual MegaChatScheduledMeetingOccurr* at(unsigned long i) const;
 
-    // setters
+    /**
+     * @brief Returns the MegaChatScheduledMeetingOccurr at the position i in the MegaChatScheduledMeetingOccurrList
+     *
+     * If the index is >= the size of the list, this function returns NULL.
+     *
+     * @param i Position of the element that we want to get for the list
+     * @return MegaChatScheduledMeetingOccurr at the position i in the MegaChatScheduledMeetingOccurrList
+     */
+    virtual const MegaChatScheduledMeetingOccurr* at(unsigned long i) const;
+
+    /**
+     * @brief Add element to the MegaChatScheduledMeetingOccurrList
+     *
+     * The SDK adquires the ownership of provided MegaChatScheduledMeetingOccurr
+     *
+     * @param sm MegaChatScheduledMeetingOccurr to add to list
+     */
     virtual void insert(MegaChatScheduledMeetingOccurr* sm);
+
+    /**
+     * @brief Clears the MegaChatScheduledMeetingOccurrList
+     */
     virtual void clear();
 };
 }
