@@ -2579,7 +2579,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             pms.then([request, this, sm](Id chatid)
             {
-               std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance(sm->flags()->EmailsDisabled()));
+               std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance(sm->flags()->emailsDisabled()));
                std::unique_ptr<::mega::MegaScheduledRules> megaRules(!sm->rules() ? nullptr : ::mega::MegaScheduledRules::createInstance(sm->rules()->freq(), sm->rules()->interval(), sm->rules()->until(),
                                                                                                                  sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
@@ -2588,7 +2588,7 @@ void MegaChatApiImpl::sendPendingRequests()
                                                                                                                    sm->title(), sm->description(), sm->attributes(), sm->overrides(),
                                                                                                                    megaFlags.get(), megaRules.get()));
 
-                mClient->createScheduledMeeting(megaSchedMeeting.get())
+                mClient->createOrUpdateScheduledMeeting(megaSchedMeeting.get())
                 .then([request, this](KarereScheduledMeeting* sm)
                 {
                     if (sm)
@@ -4271,7 +4271,11 @@ void MegaChatApiImpl::createOrUpdateScheduledMeeting(MegaChatHandle chatid, Mega
     request->setPrivilege(publicChat);
     request->setParamType(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
     std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-    l->insert(scheduledMeeting.get());
+    l->insert(scheduledMeeting->copy());
+    request->setMegaChatScheduledMeetingList(l.get());
+    requestQueue.push(request);
+    waiter->notify();
+}
     request->setMegaChatScheduledMeetingList(l.get());
     requestQueue.push(request);
     waiter->notify();
@@ -6542,7 +6546,8 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_CHATROOM_OPTIONS: return "TYPE_SET_CHATROOM_OPTIONS";
         case TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING : return "CREATE_SCHEDULED_MEETING";
         case TYPE_DELETE_SCHEDULED_MEETING: return "DELETE_SCHEDULED_MEETING";
-        case TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES: return "TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES";
+        case TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES: return "FETCH_SCHEDULED_MEETING_OCCURRENCES";
+        case TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE: return "UPDATE_SCHEDULED_MEETING_OCCURRENCE";
     }
     return "UNKNOWN";
 }

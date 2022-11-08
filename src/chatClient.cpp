@@ -857,7 +857,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     room->connect();
 }
 
-promise::Promise<KarereScheduledMeeting*> Client::createScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting)
+promise::Promise<KarereScheduledMeeting*> Client::createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting)
 {
     auto wptr = getDelTracker();
     return api.call(&::mega::MegaApi::createScheduledMeeting, scheduledMeeting)
@@ -4327,6 +4327,13 @@ const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRo
 {
     return mScheduledMeetings;
 }
+
+const std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>>&
+GroupChatRoom::getScheduledMeetingsOccurrences() const
+{
+    return mScheduledMeetingsOcurrences;
+}
+
 
 promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
 GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
