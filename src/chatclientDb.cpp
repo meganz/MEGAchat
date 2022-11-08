@@ -86,7 +86,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeetingOcurr(const KarereScheduledMe
 
 void ChatClientSqliteDb::clearSchedMeetingOcurrByChatid(const karere::Id& id)
 {
-    mDb.query("delete from scheduledMeetingsOccurr where chatid = ?", id);
+    mDb.query("delete from scheduledMeetingsOccurr where schedid IN (select schedid from scheduledMeetings where chatid = ?)", id);
 }
 
 std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> ChatClientSqliteDb::getSchedMeetingsOccurByChatId(const karere::Id& id)
@@ -136,8 +136,8 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::loadSch
 std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> ChatClientSqliteDb::loadSchedMeetingsOccurr(const karere::Id& id)
 {
     std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> v;
-    std::string query = "select scheduledMeetings.chatid, scheduledMeetings.timezone, scheduledMeetings.cancelled, scheduledMeetingsOccurr.schedid, scheduledMeetingsOccurr.startdatetime, scheduledMeetingsOccurr.enddatetime"
-                        "FROM scheduledMeetings"
+    std::string query = "select scheduledMeetings.chatid, scheduledMeetings.timezone, scheduledMeetings.cancelled, scheduledMeetingsOccurr.schedid, scheduledMeetingsOccurr.startdatetime, scheduledMeetingsOccurr.enddatetime "
+                        "FROM scheduledMeetings "
                         "INNER JOIN scheduledMeetingsOccurr ON scheduledMeetings.schedid=scheduledMeetingsOccurr.schedid where scheduledMeetings.chatid = ?";
 
     SqliteStmt stmt(mDb, query.c_str());
@@ -147,7 +147,7 @@ std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> ChatClientSqliteDb::l
     {
        std::string timeZone(stmt.stringCol(1));
        int cancelled = stmt.intCol(2);
-       karere::Id schedId = stmt.int64Col(3) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(0));
+       karere::Id schedId = stmt.int64Col(3) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(3));
        std::string startDateTime(stmt.stringCol(4));
        std::string endDateTime(stmt.stringCol(5));
 
