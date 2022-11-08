@@ -4423,7 +4423,7 @@ size_t GroupChatRoom::loadSchedMeetingsOccurrFromLocal()
 void GroupChatRoom::loadSchedMeetingsOccurrFromDb()
 {
     mScheduledMeetingsOcurrences.clear();
-    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> schedMeetingsOccurr = getClientDbInterface().getSchedMeetingsOccurByChatId(chatid());    
+    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> schedMeetingsOccurr = getClientDbInterface().getSchedMeetingsOccurByChatId(chatid());
     for (unsigned int i = 0; i < schedMeetingsOccurr.size(); i++)
     {
         std::unique_ptr<KarereScheduledMeetingOccurr> aux(new KarereScheduledMeetingOccurr((schedMeetingsOccurr.at(i)).get()));
@@ -5850,7 +5850,7 @@ KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const mega::MegaSched
 {
 }
 
-KarereScheduledMeetingOccurr* KarereScheduledMeetingOccurr::copy()
+KarereScheduledMeetingOccurr* KarereScheduledMeetingOccurr::copy() const
 {
    return new KarereScheduledMeetingOccurr(this);
 }

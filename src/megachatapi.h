@@ -7812,19 +7812,6 @@ public:
     virtual ~MegaChatScheduledMeetingOccurr();
 
     /**
-     * @brief Creates a new instance of MegaChatScheduledMeetingOccurr
-     *
-     * @param schedId       : scheduled meeting handle
-     * @param cancelled     : cancelled flag
-     * @param timezone      : timeZone
-     * @param startDateTime : start dateTime (format: 20220726T133000)
-     * @param endDateTime   : end dateTime (format: 20220726T133000)
-     *
-     * @return A pointer to the superclass of the private object
-     */
-    static MegaChatScheduledMeetingOccurr* createInstance (MegaChatHandle schedId, const char* timezone, const char* startDateTime, const char* endDateTime, int cancelled);
-
-    /**
      * @brief Creates a copy of this MegaChatScheduledMeetingOccurr object
      *
      * The resulting object is fully independent of the source MegaChatScheduledMeetingOccurr,

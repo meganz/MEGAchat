@@ -2403,11 +2403,6 @@ MegaChatScheduledRules* MegaChatScheduledMeeting::rules() const                 
 MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 { return NULL; }
 
 /* Class MegaChatScheduledMeetingOccurr */
-MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurr::createInstance(MegaChatHandle schedId, const char* timezone, const char* startDateTime, const char* endDateTime, int cancelled)
-{
-    return new MegaChatScheduledMeetingOccurrPrivate(schedId, timezone, startDateTime, endDateTime, cancelled);
-}
-
 MegaChatScheduledMeetingOccurr::~MegaChatScheduledMeetingOccurr()                     {}
 int MegaChatScheduledMeetingOccurr::cancelled() const                                 { return 0; }
 MegaChatHandle MegaChatScheduledMeetingOccurr::schedId() const                        { return MEGACHAT_INVALID_HANDLE; }

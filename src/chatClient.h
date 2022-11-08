@@ -1479,7 +1479,7 @@ public:
     KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* karereScheduledMeetingOccurr);
     KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* sm);
 
-    KarereScheduledMeetingOccurr* copy();
+    KarereScheduledMeetingOccurr* copy() const;
     virtual ~KarereScheduledMeetingOccurr();
 
     karere::Id schedId() const;
