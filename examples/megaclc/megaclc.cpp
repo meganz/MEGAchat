@@ -4446,8 +4446,8 @@ void exec_synclist(ac::ACState& s)
         else
         {
             // Display what status info we can.
-            conlock(cout) << "  Enabled: "
-                << sync->isEnabled()
+            conlock(cout) << "  State: "
+                << sync->getRunState()
                 << "\n"
                 << "  Last Error: "
                 << sync->getMegaSyncErrorCode(sync->getError())
@@ -4535,7 +4535,7 @@ void exec_syncxable(ac::ACState& s)
                       << endl;
 
         auto* listener = new OneShotRequestListener(std::move(completion));
-        g_megaApi->enableSync(backupId, listener);
+        g_megaApi->setSyncRunState(backupId, m::MegaSync::RUNSTATE_RUNNING, listener);
 
         return;
     }
@@ -4565,7 +4565,7 @@ void exec_syncxable(ac::ACState& s)
                   << endl;
 
     auto* listener = new OneShotRequestListener(std::move(completion));
-    g_megaApi->disableSync(backupId, listener);
+    g_megaApi->setSyncRunState(backupId, m::MegaSync::RUNSTATE_DISABLED, listener);
 }
 
 
