@@ -7496,7 +7496,7 @@ public:
         FREQ_MONTHLY    = 2,
     };
 
-    constexpr static int INTERVAL_INVALID = 0;
+    static constexpr int INTERVAL_INVALID = 0;
     virtual ~MegaChatScheduledRules();
 
     /**
@@ -7615,7 +7615,7 @@ public:
        SC_RULES            = 11,
        SC_SIZE             = 12,
     };
-    static unsigned int constexpr MIN_OCURRENCES = 10;
+    static constexpr unsigned int MIN_OCURRENCES = 10;
 
     virtual ~MegaChatScheduledMeeting();
 
