@@ -386,7 +386,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_SCHED_ID:
             {
-                mUserId = record.read<uint64_t>();
+                mActionId = record.read<uint64_t>();
                 break;
             }
             case TLV_TYPE_SCHED_CHANGESET:
@@ -1120,7 +1120,7 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
         case Message::kMsgSchedMeeting:
         {
             msg->userid = parsedMsg->sender;
-            msg->createSchedMeetingInfo(parsedMsg->mUserId,
+            msg->createSchedMeetingInfo(parsedMsg->mActionId,
                                         parsedMsg->encryptedKey /*sched meetings fields changed json */);
             msg->setEncrypted(Message::kNotEncrypted);
             return msg;
