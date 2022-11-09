@@ -5646,11 +5646,13 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     karere_rules_vector byWeekDay;
     karere_rules_vector byMonthDay;
     karere_rules_map byMonthWeekDay;
+    size_t auxSize = 0;
+    constexpr unsigned int flagSize = 5;
     unsigned char expansions[8];
 
     mega::CacheableReader w(aux);
     w.unserializei32(freq);
-    w.unserializeexpansionflags(expansions, 5);
+    w.unserializeexpansionflags(expansions, flagSize);
 
     bool hasInterval        = expansions[0];
     bool hasUntil           = expansions[1];
@@ -5658,46 +5660,56 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     bool hasByMonthDay      = expansions[3];
     bool hasByMonthWeekDay  = expansions[4];
 
-    if (hasInterval) { w.unserializei32(interval); }
-    if (hasUntil)    { w.unserializestring(until); }
-    if (hasByWeekDay)
+    if (hasInterval && !w.unserializei32(interval))
     {
-        size_t vectorSize = 0;
-        int8_t element = 0;
-        w.unserializeu64(vectorSize);
-        for (size_t i = 0; i < vectorSize; i++)
+        assert(false);
+        KR_LOG_ERROR("Failure at schedule meeting rules unserialization interval");
+        return nullptr;
+    }
+
+    if (hasUntil && !w.unserializestring(until))
+    {
+        assert(false);
+        KR_LOG_ERROR("Failure at schedule meeting rules unserialization until");
+        return nullptr;
+    }
+
+    auxSize = 0;
+    if (hasByWeekDay && w.unserializeu64(auxSize))
+    {
+        for (size_t i = 0; i < auxSize; i++)
         {
-           element = 0;
-           w.unserializei8(element);
-           byWeekDay.emplace_back(element);
+           int8_t element = 0;
+           if (w.unserializei8(element))
+           {
+               byWeekDay.emplace_back(element);
+           }
         }
     }
 
-    if (hasByMonthDay)
+    auxSize = 0;
+    if (hasByMonthDay && w.unserializeu64(auxSize))
     {
-        size_t vectorSize = 0;
-        int8_t element = 0;
-        w.unserializeu64(vectorSize);
-        for (size_t i = 0; i < vectorSize; i++)
+        for (size_t i = 0; i < auxSize; i++)
         {
-           element = 0;
-           w.unserializei8(element);
-           byMonthDay.emplace_back(element);
+           int8_t element = 0;
+           if (w.unserializei8(element))
+           {
+               byMonthDay.emplace_back(element);
+           }
         }
     }
 
-    if (hasByMonthWeekDay)
+    if (hasByMonthWeekDay && w.unserializeu64(auxSize))
     {
-        size_t mapSize = 0;
-        int8_t key = 0;
-        int8_t value = 0;
-        w.unserializeu64(mapSize);
-        for (size_t i = 0; i < mapSize / 2; i++)
+        for (size_t i = 0; i < auxSize / 2; i++)
         {
-           key = value = 0;
-           w.unserializei8(key);
-           w.unserializei8(value);
-           byMonthWeekDay.emplace(key, value);
+            int8_t key = 0;
+            int8_t value = 0;
+            if (w.unserializei8(key) && w.unserializei8(value))
+            {
+                byMonthWeekDay.emplace(key, value);
+            }
         }
     }
 

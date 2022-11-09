@@ -118,8 +118,9 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     reqtag = 0;
 #ifndef KARERE_DISABLE_WEBRTC
     mCallHandler = ::mega::make_unique<MegaChatCallHandler>(this);
-    mScheduledMeetingHandler = ::mega::make_unique<MegaChatScheduledMeetingHandler>(this);
 #endif
+    mScheduledMeetingHandler = ::mega::make_unique<MegaChatScheduledMeetingHandler>(this);
+
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
