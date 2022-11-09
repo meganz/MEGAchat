@@ -440,7 +440,7 @@ bool Client::openDb(const std::string& sid)
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
                 db.query("CREATE TABLE scheduledMeetings(schedid int64 unique primary key, chatid int64, organizerid int64, parentschedid int64, timezone text,"
                             "startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
-                            "flags int64 default 0, rules blob)");
+                            "flags int64 default 0, rules blob, FOREIGN KEY(chatid) REFERENCES chats(chatid) ON DELETE CASCADE)");
 
                 db.query("CREATE TABLE scheduledMeetingsOccurr(schedid int64, startdatetime text, enddatetime text, PRIMARY KEY (schedid, startdatetime), "
                          "FOREIGN KEY(schedid) REFERENCES scheduledMeetings(schedid) ON DELETE CASCADE)");
@@ -3925,10 +3925,7 @@ void ChatRoomList::deleteRoomFromDb(const Id &chatid)
         db.query("delete from sending where chatid = ?", chatid);
         db.query("delete from sendkeys where chatid = ?", chatid);
         db.query("delete from node_history where chatid = ?", chatid);
-
-        // remove scheduled meetings and scheduled meetings occurrences
-        mKarereClient.getClientDbInterface().removeSchedMeetingByChatId(chatid);
-        // no need to clear scheduled meetings occurrences by chatid, as they will be deleted on cascade
+        // no need to clear scheduled meetings nor occurrences by chatid, as they will be deleted on cascade
     }
 }
 
