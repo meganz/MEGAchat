@@ -5504,7 +5504,7 @@ KarereScheduledRules::~KarereScheduledRules()
 {
 }
 
-KarereScheduledRules* KarereScheduledRules::copy()
+KarereScheduledRules* KarereScheduledRules::copy() const
 {
     return new KarereScheduledRules(this);
 }

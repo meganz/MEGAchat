@@ -1341,7 +1341,7 @@ public:
     KarereScheduledRules(const KarereScheduledRules* rules);
     KarereScheduledRules(const ::mega::MegaScheduledRules* rules);
     virtual ~KarereScheduledRules();
-    KarereScheduledRules* copy();
+    KarereScheduledRules* copy() const;
 
     // --- getters ---
     int freq() const;
