@@ -4399,8 +4399,7 @@ void GroupChatRoom::loadSchedMeetingsFromDb()
     std::vector<std::unique_ptr<KarereScheduledMeeting>> schedMeetings = getClientDbInterface().getSchedMeetingsByChatId(chatid());
     for (unsigned int i = 0; i < schedMeetings.size(); i++)
     {
-        std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting((schedMeetings.at(i)).get()));
-        auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
+        auto res = mScheduledMeetings.emplace(schedMeetings.at(i)->schedId(), std::move((schedMeetings.at(i))));
         if (res.second)
         {
             notifySchedMeetingUpdated(res.first->second.get(), 1 /* same than 2^SC_NEW_SCHED */);
