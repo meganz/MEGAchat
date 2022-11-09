@@ -1408,7 +1408,7 @@ public:
     KarereScheduledMeeting(const KarereScheduledMeeting* karereScheduledMeeting);
     KarereScheduledMeeting(const mega::MegaScheduledMeeting* sm);
 
-    KarereScheduledMeeting* copy();
+    KarereScheduledMeeting* copy() const;
     virtual ~KarereScheduledMeeting();
 
     karere::Id chatid() const;

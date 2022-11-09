@@ -3148,9 +3148,10 @@ DbClientInterface& GroupChatRoom::getClientDbInterface()
 
 void GroupChatRoom::notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed)
 {
-    callAfterInit(this, [this, sm, changed]
+    std::shared_ptr<KarereScheduledMeeting> auxSm(sm->copy());
+    callAfterInit(this, [this, auxSm, changed]
     {
-        schedMeetingHandler().onSchedMeetingChange(sm, changed);
+        schedMeetingHandler().onSchedMeetingChange(auxSm.get(), changed);
     }, parent.mKarereClient.appCtx);
 }
 
@@ -4267,9 +4268,8 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
             {
                 // schedId was in changed list, but not in sched meeting list from API (it has been removed)
                 // important: SDK will notify deletion of child scheduled meetings when it's parent has been removed
-                std::unique_ptr<KarereScheduledMeeting> aux(new KarereScheduledMeeting(it->second.get()));
-                mScheduledMeetings.erase(h);
-                notifySchedMeetingUpdated(aux.get(), 0 /*changed flags set to zero*/);
+                notifySchedMeetingUpdated(it->second.get(), 0 /*changed flags set to zero*/);
+                mScheduledMeetings.erase(it);
 
                 // clear list of current scheduled meetings occurrences from db
                 getClientDbInterface().clearSchedMeetingOcurrByChatid(chat.getHandle());
@@ -5767,7 +5767,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting 
 {
 }
 
-KarereScheduledMeeting* KarereScheduledMeeting::copy()
+KarereScheduledMeeting* KarereScheduledMeeting::copy() const
 {
    return new KarereScheduledMeeting(this);
 }
