@@ -4084,9 +4084,21 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         updateSchedMeetings(chat);
     }
-
-    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR))
+    else if (chat.getScheduledMeetingList()
+             && chat.getScheduledMeetingList()->size()
+             && mScheduledMeetings.empty())
     {
+         // if chat from API have scheduled meetings, but we don't have those meetings stored in karere
+         addSchedMeetings(chat);
+    }
+
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR) ||
+            (chat.getScheduledMeetingOccurrencesList()
+                && chat.getScheduledMeetingOccurrencesList()->size()
+                && mScheduledMeetingsOcurrences.empty()))
+    {
+        // if scheduled meetings occurrences have changed, or chat from API have scheduled meetings occurrences,
+        // but we don't have those occurrences stored in karere
         addSchedMeetingsOccurrences(chat);
     }
 
