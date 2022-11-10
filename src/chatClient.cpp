@@ -44,6 +44,7 @@ using namespace promise;
 
 namespace karere
 {
+class ChatClientSqliteDb;
 
 template <class T, class F>
 void callAfterInit(T* self, F&& func, void* ctx);
@@ -5641,7 +5642,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     karere_rules_vector byWeekDay;
     karere_rules_vector byMonthDay;
     karere_rules_map byMonthWeekDay;
-    size_t auxSize = 0;
+    uint64_t auxSize = 0;
     constexpr unsigned int flagSize = 5;
     unsigned char expansions[8];
 
@@ -5672,7 +5673,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     auxSize = 0;
     if (hasByWeekDay && w.unserializeu64(auxSize))
     {
-        for (size_t i = 0; i < auxSize; i++)
+        for (size_t i = 0; i < static_cast<size_t>(auxSize); i++)
         {
            int8_t element = 0;
            if (w.unserializei8(element))
@@ -5685,7 +5686,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     auxSize = 0;
     if (hasByMonthDay && w.unserializeu64(auxSize))
     {
-        for (size_t i = 0; i < auxSize; i++)
+        for (size_t i = 0; i < static_cast<size_t>(auxSize); i++)
         {
            int8_t element = 0;
            if (w.unserializei8(element))
@@ -5697,7 +5698,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
 
     if (hasByMonthWeekDay && w.unserializeu64(auxSize))
     {
-        for (size_t i = 0; i < auxSize / 2; i++)
+        for (size_t i = 0; i < static_cast<size_t>(auxSize) / 2; i++)
         {
             int8_t key = 0;
             int8_t value = 0;

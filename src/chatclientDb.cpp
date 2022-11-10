@@ -36,7 +36,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
                   sm.attributes().size() ? sm.attributes().c_str() : nullptr,
                   sm.overrides().size() ? sm.overrides().c_str() : nullptr,
                   sm.cancelled(),
-                  sm.flags()->getNumericValue(),
+                  static_cast<int64_t>(sm.flags()->getNumericValue()),
                   rulesBuf);
     }
     else
@@ -56,7 +56,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
                   sm.attributes().size() ? sm.attributes().c_str() : nullptr,
                   sm.overrides().size() ? sm.overrides().c_str() : nullptr,
                   sm.cancelled(),
-                  sm.flags()->getNumericValue());
+                  static_cast<int64_t>(sm.flags()->getNumericValue()));
     }
 }
 
