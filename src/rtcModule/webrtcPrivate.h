@@ -571,7 +571,7 @@ public:
     bool isCallStartInProgress(const karere::Id &chatid) const override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) override;
+    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, int sfuId, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeDevice() override;
     void releaseDevice() override;
     void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
