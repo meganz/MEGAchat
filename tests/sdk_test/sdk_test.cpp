@@ -5260,6 +5260,15 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle chati
     LOG_debug << "On chat session update END with apiIndex|" << apiIndex << "|";
 }
 
+void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* /*api*/, megachat::MegaChatScheduledMeeting* /*sm*/)
+{
+    // TODO implement
+}
+
+void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)
+{
+    // TODO implement
+}
 
 TestChatVideoListener::TestChatVideoListener()
 {

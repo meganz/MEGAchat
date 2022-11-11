@@ -99,6 +99,8 @@ enum
     TLV_TYPE_PRIVILEGE          = 0x0c,
     TLV_TYPE_KEYBLOB            = 0x0f,
     TLV_TYPE_OPENMODE           = 0x10,
+    TLV_TYPE_SCHED_ID           = 0x11,
+    TLV_TYPE_SCHED_CHANGESET    = 0x12,
     TLV_TYPES_COUNT
 };
 
@@ -169,6 +171,7 @@ struct ParsedMessage: public karere::DeleteTrackable
     Buffer signedContent;
     Buffer signature;
     unsigned char type;
+    karere::Id mActionId;
 
     /** True when the message is posted in open mode. It allows to decrypt the `ct` of management
      * messages related to topic changes, which must use unified-key instead of embedded key in `ct` */

@@ -11,6 +11,7 @@
 #include "megaLoggerApplication.h"
 #include "chatGroupDialog.h"
 #include "QTMegaChatCallListener.h"
+#include "QTMegaChatSchedMeetListener.h"
 #include "MegaChatApplication.h"
 #include "listItemController.h"
 #include "chatWindow.h"
@@ -61,7 +62,8 @@ namespace Ui
 class MainWindow :
       public QMainWindow,
       public megachat::MegaChatListener,
-      public megachat::MegaChatCallListener
+      public megachat::MegaChatCallListener,
+      public megachat::MegaChatScheduledMeetingListener
 {
     Q_OBJECT
     public:
@@ -165,8 +167,14 @@ class MainWindow :
         void onDbError(megachat::MegaChatApi */*api*/, int error, const char *msg);
 
 #ifndef KARERE_DISABLE_WEBRTC
+        // MegaChatCallListener callbacks
         void onChatCallUpdate(megachat::MegaChatApi *api, megachat::MegaChatCall *call);
         void onChatSessionUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, megachat::MegaChatHandle callid, megachat::MegaChatSession *session);
+
+        // MegaChatScheduledMeetingListener callbacks
+        void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm);
+        void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid);
+
 #endif
         MegaChatApplication* getApp() const;
 
@@ -190,6 +198,7 @@ class MainWindow :
         megachat::MegaChatApi *mMegaChatApi;
         megachat::QTMegaChatListener *megaChatListenerDelegate;
         megachat::QTMegaChatCallListener *megaChatCallListenerDelegate;
+        megachat::QTMegaChatScheduledMeetingListener* megaSchedMeetingListenerDelegate;
 
         //Maps ChatId to to ChatListItemController
         std::map<mega::MegaHandle, ChatListItemController *> mChatControllers;
