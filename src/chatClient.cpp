@@ -5781,10 +5781,13 @@ KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting 
       mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
       mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
       mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
-      mCancelled(scheduledMeeting->cancelled()),
-      mFlags(scheduledMeeting->flags() ? new KarereScheduledFlags(scheduledMeeting->flags()) : nullptr),
-      mRules(scheduledMeeting->rules() ? new KarereScheduledRules(scheduledMeeting->rules()) : nullptr)
+      mCancelled(scheduledMeeting->cancelled())
 {
+    std::unique_ptr<mega::MegaScheduledFlags> flags(scheduledMeeting->flags());
+    mFlags.reset(flags ? new KarereScheduledFlags(flags.get()) : nullptr);
+
+    std::unique_ptr<mega::MegaScheduledRules> rules(scheduledMeeting->rules());
+    mRules.reset(rules ? new KarereScheduledRules(rules.get()) : nullptr);
 }
 
 KarereScheduledMeeting* KarereScheduledMeeting::copy() const
@@ -5825,16 +5828,18 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
     if (mAttributes.compare(sm->attributes() ? sm->attributes(): std::string()))            { bs[SC_ATTR] = 1; }
     if (mOverrides.compare(sm->overrides() ? sm->overrides(): std::string()))               { bs[SC_OVERR] = 1; }
 
-    if (flags() || sm->flags())
+    std::unique_ptr<mega::MegaScheduledFlags> smFlags(sm->flags());
+    if (flags() || smFlags)
     {
-        if (!flags() || !sm->flags())                                                       { bs[SC_FLAGS] = 1; }
-        else if (!flags()->equalTo(sm->flags()))                                            { bs[SC_FLAGS] = 1; }
+        if (!flags() || !smFlags)                                                           { bs[SC_FLAGS] = 1; }
+        else if (!flags()->equalTo(smFlags.get()))                                          { bs[SC_FLAGS] = 1; }
     }
 
-    if (rules() || sm->rules())
+    std::unique_ptr<mega::MegaScheduledRules> smRules(sm->rules());
+    if (rules() || smRules)
     {
-        if (!rules() || !sm->rules())                                                       { bs[SC_RULES] = 1; }
-        else if (!rules()->equalTo(sm->rules()))                                            { bs[SC_RULES] = 1; }
+        if (!rules() || !smRules)                                                           { bs[SC_RULES] = 1; }
+        else if (!rules()->equalTo(smRules.get()))                                          { bs[SC_RULES] = 1; }
     }
     return bs;
 }
