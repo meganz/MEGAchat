@@ -43,6 +43,7 @@ ChatWindow::ChatWindow(QWidget *parent, megachat::MegaChatApi *megaChatApi, mega
     #ifndef KARERE_DISABLE_WEBRTC
         connect(ui->mVideoCallBtn, SIGNAL(clicked(bool)), this, SLOT(onVideoCallBtn(bool)));
         connect(ui->mAudioCallBtn, SIGNAL(clicked(bool)), this, SLOT(onAudioCallBtn(bool)));
+        connect(ui->mAudioCallBtnNoRing, SIGNAL(clicked(bool)), this, SLOT(onAudioCallNoRingBtn()));
     #else
         ui->mAudioCallBtn->hide();
         ui->mVideoCallBtn->hide();
@@ -1087,6 +1088,15 @@ void ChatWindow::onVideoCallBtn(bool)
 void ChatWindow::onAudioCallBtn(bool)
 {
     onCallBtn(false);
+}
+
+void ChatWindow::onAudioCallNoRingBtn()
+{
+    std::string schedIdStr = mMainWin->mApp->getText("Get scheduled meeting id");
+    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
+    std::string sfuIdStr = mMainWin->mApp->getText("Get SFU id");
+    int sfuId = sfuIdStr.empty() ? MegaChatCall::SFU_INVALID : atoi(sfuIdStr.c_str());
+    mMegaChatApi->startChatCallDebug(mChatRoom->getChatId(), schedId, false, false, sfuId);
 }
 
 void ChatWindow::closeEvent(QCloseEvent *event)

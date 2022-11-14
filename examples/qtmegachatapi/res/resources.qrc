@@ -30,5 +30,7 @@
         <file>callOnHold2.png</file>
         <file>callOnHoldActive.png</file>
         <file>callOnHoldActive2.png</file>
+        <file>callNoRing-hover.svg</file>
+        <file>callNoRing.svg</file>
     </qresource>
 </RCC>
