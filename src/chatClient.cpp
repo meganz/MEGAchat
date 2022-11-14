@@ -4244,8 +4244,7 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
     const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingList();
     for (unsigned int i = 0; i < schedMeetings->size(); i++)
     {
-        std::unique_ptr<KarereScheduledMeeting> aux = ::mega::make_unique<KarereScheduledMeeting>(schedMeetings->at(i));
-        auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
+        auto res = mScheduledMeetings.emplace(schedMeetings->at(i)->schedId(), new KarereScheduledMeeting(schedMeetings->at(i)));
         if (res.second)
         {
             assert(res.first->second);
@@ -4307,10 +4306,9 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
 
             if (diff.any())
             {
-                std::unique_ptr<KarereScheduledMeeting> aux = mega::make_unique<KarereScheduledMeeting>(newSched);
                 if (it != mScheduledMeetings.end())
                 {
-                    it->second = std::move(aux);
+                    it->second.reset(new KarereScheduledMeeting(newSched));
                     notifySchedMeetingUpdated(it->second.get(), diff.to_ulong());
 
                     // insert in db
@@ -4319,7 +4317,7 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                 }
                 else // not found (new scheduled meeting), add it
                 {
-                    auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
+                    auto res = mScheduledMeetings.emplace(newSched->schedId(), new KarereScheduledMeeting(newSched));
                     if (res.second)
                     {
                         notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
