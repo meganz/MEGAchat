@@ -4084,9 +4084,21 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         updateSchedMeetings(chat);
     }
-
-    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR))
+    else if (chat.getScheduledMeetingList()
+             && chat.getScheduledMeetingList()->size()
+             && mScheduledMeetings.empty())
     {
+         // if chat from API have scheduled meetings, but we don't have those meetings stored in karere
+         addSchedMeetings(chat);
+    }
+
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR) ||
+            (chat.getScheduledMeetingOccurrencesList()
+                && chat.getScheduledMeetingOccurrencesList()->size()
+                && mScheduledMeetingsOcurrences.empty()))
+    {
+        // if scheduled meetings occurrences have changed, or chat from API have scheduled meetings occurrences,
+        // but we don't have those occurrences stored in karere
         addSchedMeetingsOccurrences(chat);
     }
 
@@ -5604,7 +5616,7 @@ bool KarereScheduledRules::serialize(Buffer& out) const
     if (hasUntil)    { w.serializestring(mUntil); }
     if (hasByWeekDay)
     {
-        w.serializeu64(mByWeekDay->size());
+        w.serializeu32(static_cast<uint32_t>(mByWeekDay->size()));
         for (auto i: *mByWeekDay)
         {
             int8_t aux = static_cast<int8_t>(i);
@@ -5614,7 +5626,7 @@ bool KarereScheduledRules::serialize(Buffer& out) const
 
     if (hasByMonthDay)
     {
-        w.serializeu64(mByMonthDay->size());
+        w.serializeu32(static_cast<uint32_t>(mByMonthDay->size()));
         for (auto i: *mByMonthDay)
         {
             int8_t aux = static_cast<int8_t>(i);
@@ -5624,7 +5636,7 @@ bool KarereScheduledRules::serialize(Buffer& out) const
 
     if (hasByMonthWeekDay)
     {
-        w.serializeu64(mByMonthWeekDay->size()*2);
+        w.serializeu32(static_cast<uint32_t>(mByMonthWeekDay->size()*2));
         for (auto i: *mByMonthWeekDay)
         {
             int8_t key = static_cast<int8_t>(i.first);
@@ -5650,13 +5662,18 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     karere_rules_vector byWeekDay;
     karere_rules_vector byMonthDay;
     karere_rules_map byMonthWeekDay;
-    uint64_t auxSize = 0;
+    uint32_t auxSize = 0;
     constexpr unsigned int flagSize = 5;
     unsigned char expansions[8];
 
-    mega::CacheableReader w(aux);
-    w.unserializei32(freq);
-    w.unserializeexpansionflags(expansions, flagSize);
+    mega::CacheableReader r(aux);
+    if (!r.unserializei32(freq)
+            || !r.unserializeexpansionflags(expansions, flagSize))
+    {
+        assert(false);
+        KR_LOG_ERROR("Failure at schedule meeting rules unserialization freq/flagSize");
+        return nullptr;
+    }
 
     bool hasInterval        = expansions[0];
     bool hasUntil           = expansions[1];
@@ -5664,14 +5681,14 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     bool hasByMonthDay      = expansions[3];
     bool hasByMonthWeekDay  = expansions[4];
 
-    if (hasInterval && !w.unserializei32(interval))
+    if (hasInterval && !r.unserializei32(interval))
     {
         assert(false);
         KR_LOG_ERROR("Failure at schedule meeting rules unserialization interval");
         return nullptr;
     }
 
-    if (hasUntil && !w.unserializestring(until))
+    if (hasUntil && !r.unserializestring(until))
     {
         assert(false);
         KR_LOG_ERROR("Failure at schedule meeting rules unserialization until");
@@ -5679,40 +5696,80 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     }
 
     auxSize = 0;
-    if (hasByWeekDay && w.unserializeu64(auxSize))
+    if (hasByWeekDay)
     {
-        for (size_t i = 0; i < static_cast<size_t>(auxSize); i++)
+        if (!r.unserializeu32(auxSize))
+        {
+            assert(false);
+            KR_LOG_ERROR("Failure at schedule meeting rules unserialization byWeekDay vector size");
+            return nullptr;
+        }
+
+        for (uint32_t i = 0; i < auxSize; i++)
         {
            int8_t element = 0;
-           if (w.unserializei8(element))
+           if (r.unserializei8(element))
            {
                byWeekDay.emplace_back(element);
+           }
+           else
+           {
+               assert(false);
+               KR_LOG_ERROR("Failure at schedule meeting rules unserialization byWeekDay");
+               return nullptr;
            }
         }
     }
 
     auxSize = 0;
-    if (hasByMonthDay && w.unserializeu64(auxSize))
+    if (hasByMonthDay)
     {
-        for (size_t i = 0; i < static_cast<size_t>(auxSize); i++)
+        if (!r.unserializeu32(auxSize))
+        {
+            assert(false);
+            KR_LOG_ERROR("Failure at schedule meeting rules unserialization byMonthDay vector size");
+            return nullptr;
+        }
+
+        for (uint32_t i = 0; i < auxSize; i++)
         {
            int8_t element = 0;
-           if (w.unserializei8(element))
+           if (r.unserializei8(element))
            {
                byMonthDay.emplace_back(element);
+           }
+           else
+           {
+               assert(false);
+               KR_LOG_ERROR("Failure at schedule meeting rules unserialization byMonthDay");
+               return nullptr;
            }
         }
     }
 
-    if (hasByMonthWeekDay && w.unserializeu64(auxSize))
+    auxSize = 0;
+    if (hasByMonthWeekDay)
     {
-        for (size_t i = 0; i < static_cast<size_t>(auxSize) / 2; i++)
+        if (!r.unserializeu32(auxSize))
+        {
+            assert(false);
+            KR_LOG_ERROR("Failure at schedule meeting rules unserialization byMonthWeekDay vector size");
+            return nullptr;
+        }
+
+        for (uint32_t i = 0; i < auxSize / 2; i++)
         {
             int8_t key = 0;
             int8_t value = 0;
-            if (w.unserializei8(key) && w.unserializei8(value))
+            if (r.unserializei8(key) && r.unserializei8(value))
             {
                 byMonthWeekDay.emplace(key, value);
+            }
+            else
+            {
+                assert(false);
+                KR_LOG_ERROR("Failure at schedule meeting rules unserialization byMonthWeekDay");
+                return nullptr;
             }
         }
     }
@@ -5777,10 +5834,13 @@ KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting 
       mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
       mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
       mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
-      mCancelled(scheduledMeeting->cancelled()),
-      mFlags(scheduledMeeting->flags() ? new KarereScheduledFlags(scheduledMeeting->flags()) : nullptr),
-      mRules(scheduledMeeting->rules() ? new KarereScheduledRules(scheduledMeeting->rules()) : nullptr)
+      mCancelled(scheduledMeeting->cancelled())
 {
+    std::unique_ptr<mega::MegaScheduledFlags> flags(scheduledMeeting->flags());
+    mFlags.reset(flags ? new KarereScheduledFlags(flags.get()) : nullptr);
+
+    std::unique_ptr<mega::MegaScheduledRules> rules(scheduledMeeting->rules());
+    mRules.reset(rules ? new KarereScheduledRules(rules.get()) : nullptr);
 }
 
 KarereScheduledMeeting* KarereScheduledMeeting::copy() const
@@ -5821,16 +5881,18 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
     if (mAttributes.compare(sm->attributes() ? sm->attributes(): std::string()))            { bs[SC_ATTR] = 1; }
     if (mOverrides.compare(sm->overrides() ? sm->overrides(): std::string()))               { bs[SC_OVERR] = 1; }
 
-    if (flags() || sm->flags())
+    std::unique_ptr<mega::MegaScheduledFlags> smFlags(sm->flags());
+    if (flags() || smFlags)
     {
-        if (!flags() || !sm->flags())                                                       { bs[SC_FLAGS] = 1; }
-        else if (!flags()->equalTo(sm->flags()))                                            { bs[SC_FLAGS] = 1; }
+        if (!flags() || !smFlags)                                                           { bs[SC_FLAGS] = 1; }
+        else if (!flags()->equalTo(smFlags.get()))                                          { bs[SC_FLAGS] = 1; }
     }
 
-    if (rules() || sm->rules())
+    std::unique_ptr<mega::MegaScheduledRules> smRules(sm->rules());
+    if (rules() || smRules)
     {
-        if (!rules() || !sm->rules())                                                       { bs[SC_RULES] = 1; }
-        else if (!rules()->equalTo(sm->rules()))                                            { bs[SC_RULES] = 1; }
+        if (!rules() || !smRules)                                                           { bs[SC_RULES] = 1; }
+        else if (!rules()->equalTo(smRules.get()))                                          { bs[SC_RULES] = 1; }
     }
     return bs;
 }
