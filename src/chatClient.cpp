@@ -4283,7 +4283,9 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                 notifySchedMeetingUpdated(it->second.get(), KarereScheduledMeeting::deletedSchedMeetingFlagsValue());
                 mScheduledMeetings.erase(it);
 
-                // clear list of current scheduled meetings occurrences from db
+                // clear list of current scheduled meetings occurrences from db by chatid
+                // this is required as we are removing a scheduled meeting by sched Id (FK),
+                // however we want to remove all scheduled meeting for that chat due to API specs
                 getClientDbInterface().clearSchedMeetingOcurrByChatid(chat.getHandle());
 
                 // clear list of current scheduled meetings occurrences
@@ -4383,7 +4385,8 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
 
 void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
 {
-    // clear list of current scheduled meetings occurrences from db
+    // clear list of current scheduled meetings occurrences from db by chatid
+    // we want to remove all scheduled meeting for that chat due to API specs
     getClientDbInterface().clearSchedMeetingOcurrByChatid(chat.getHandle());
 
     // clear list of current scheduled meetings occurrences
