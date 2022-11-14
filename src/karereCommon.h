@@ -214,9 +214,9 @@ typedef enum
     SC_CANC             = 9,
     SC_FLAGS            = 10,
     SC_RULES            = 11,
-    SC_SIZE             = 12,
+    SC_FLAGS_SIZE       = 12,
 } karere_scheduled_changed_flags_t;
-typedef std::bitset<SC_SIZE> karere_sched_bs_t;
+typedef std::bitset<SC_FLAGS_SIZE> karere_sched_bs_t;
 
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql
 extern const char* gDbSchema;

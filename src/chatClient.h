@@ -1396,9 +1396,9 @@ public:
         SC_CANC             = 9,
         SC_FLAGS            = 10,
         SC_RULES            = 11,
-        SC_SIZE             = 12,
+        SC_FLAGS_SIZE       = 12,
     } scheduled_changed_flags_t;
-    typedef std::bitset<SC_SIZE> sched_bs_t;
+    typedef std::bitset<SC_FLAGS_SIZE> sched_bs_t;
 
     KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime,
                                     const std::string& title, const std::string& description, karere::Id schedId = karere::Id::inval(),
