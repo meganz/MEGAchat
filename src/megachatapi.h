@@ -1960,6 +1960,8 @@ public:
     /**
      * @brief Returns a MegaStringList list relative to the action
      *
+     * The MegaChatMessage retains the ownership of the MegaStringList.
+     *
      * This funcion returns a valid value for:
      * - MegaChatMessage::TYPE_SCHED_MEETING: the first element of the list, represents the old title,
      *   and the second element of the list, represents the new title
