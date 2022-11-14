@@ -1426,6 +1426,8 @@ public:
     KarereScheduledFlags* flags() const;
     KarereScheduledRules* rules() const;
     sched_bs_t compare(const mega::MegaScheduledMeeting* sm) const;
+    static unsigned long newSchedMeetingFlagsValue();
+    static unsigned long deletedSchedMeetingFlagsValue();
 
 private:
     // chat handle
