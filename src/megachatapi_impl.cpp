@@ -2596,7 +2596,7 @@ int MegaChatApiImpl::initAnonymous()
     createKarereClient();
 
     int state = mClient->initWithAnonymousSession();
-    if (state != karere::Client::kInitAnonymousMode)
+    if (state >= karere::Client::kInitErrFirst)
     {
         // there's been an error during initialization
         localLogout();
@@ -2612,9 +2612,8 @@ int MegaChatApiImpl::init(const char *sid, bool waitForFetchnodesToConnect)
     createKarereClient();
 
     int state = mClient->init(sid, waitForFetchnodesToConnect);
-    if (state != karere::Client::kInitErrNoCache &&
-            state != karere::Client::kInitWaitingNewSession &&
-            state != karere::Client::kInitHasOfflineSession)
+    if (state >= karere::Client::kInitErrFirst
+            && state != karere::Client::kInitErrNoCache)    // this one is recoverable via login+fetchnodes
     {
         // there's been an error during initialization
         localLogout();
@@ -5740,7 +5739,7 @@ int MegaChatApiImpl::convertInitState(int state)
     case karere::Client::kInitErrGeneric:
     case karere::Client::kInitErrCorruptCache:
     case karere::Client::kInitErrSidMismatch:
-    case karere::Client::kInitErrAlready:
+    case karere::Client::kInitErrSidInvalid:
         return MegaChatApi::INIT_ERROR;
 
     case karere::Client::kInitCreated:
@@ -5762,7 +5761,8 @@ int MegaChatApiImpl::convertInitState(int state)
         return MegaChatApi::INIT_ANONYMOUS;
 
     case karere::Client::kInitTerminated:
-    case karere::Client::kInitErrSidInvalid:
+        return MegaChatApi::INIT_TERMINATED;
+
     default:
         return state;
     }
@@ -6629,7 +6629,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
-    mInitialTs = call.getInitialTimeStamp() - call.getInitialOffset();
+    mInitialTs = call.getInitialTimeStamp() - call.getInitialOffsetinMs()/1000;
     mFinalTs = call.getFinalTimeStamp();
     mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();

@@ -222,7 +222,7 @@ public:
     virtual bool isOutgoing() const = 0;
     virtual int64_t getInitialTimeStamp() const = 0;
     virtual int64_t getFinalTimeStamp() const = 0;
-    virtual int64_t getInitialOffset() const = 0;
+    virtual int64_t getInitialOffsetinMs() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual void setAudioDetected(bool audioDetected) = 0;

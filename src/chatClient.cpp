@@ -1071,8 +1071,8 @@ Client::InitState Client::initWithAnonymousSession()
 {
     if (mInitState > kInitCreated)
     {
-        KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
-        return kInitErrAlready;
+        KR_LOG_WARNING("init: karere is already initialized. Current state: %s", initStateStr());
+        return mInitState;
     }
 
     mInitStats.stageStart(InitStats::kStatsInit);
@@ -1282,8 +1282,8 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 {
     if (mInitState > kInitCreated)
     {
-        KR_LOG_ERROR("init: karere is already initialized. Current state: %s", initStateStr());
-        return kInitErrAlready;
+        KR_LOG_WARNING("init: karere is already initialized. Current state: %s", initStateStr());
+        return mInitState;  // simply honor the current state
     }
 
     if (!waitForFetchnodesToConnect && !sid)

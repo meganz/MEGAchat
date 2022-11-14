@@ -527,7 +527,7 @@ int64_t Call::getFinalTimeStamp() const
     return mFinalTs;
 }
 
-int64_t Call::getInitialOffset() const
+int64_t Call::getInitialOffsetinMs() const
 {
     return mOffset;
 }
@@ -1150,7 +1150,7 @@ bool Call::isUdpDisconnected() const
 {
     return (mInitialTs
             && mStats.mSamples.mT.empty()
-            && (time(nullptr) - (mInitialTs - mOffset) > sfu::SfuConnection::kNoMediaPathTimeout));
+            && (time(nullptr) - (mInitialTs - mOffset/1000) > sfu::SfuConnection::kNoMediaPathTimeout));
 }
 
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
@@ -1350,7 +1350,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
         setState(CallState::kStateInProgress);
 
-        mOffset = duration / 1000;
+        mOffset = duration;
         enableStats();
     })
     .fail([wptr, this](const ::promise::Error& err)
