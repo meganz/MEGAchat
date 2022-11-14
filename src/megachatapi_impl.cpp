@@ -5567,9 +5567,8 @@ void MegaChatApiImpl::addSchedMeetingListener(MegaChatScheduledMeetingListener *
         return;
     }
 
-    sdkMutex.lock();
+    SdkMutexGuard g(sdkMutex);
     mSchedMeetingListeners.insert(listener);
-    sdkMutex.unlock();
 }
 
 void MegaChatApiImpl::removeSchedMeetingListener(MegaChatScheduledMeetingListener *listener)
@@ -5579,9 +5578,8 @@ void MegaChatApiImpl::removeSchedMeetingListener(MegaChatScheduledMeetingListene
         return;
     }
 
-    sdkMutex.lock();
+    SdkMutexGuard g(sdkMutex);
     mSchedMeetingListeners.erase(listener);
-    sdkMutex.unlock();
 }
 
 int MegaChatApiImpl::getMaxCallParticipants()
