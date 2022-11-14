@@ -2580,7 +2580,13 @@ void MegaChatApiImpl::sendPendingRequests()
 
             pms.then([request, this, sm](Id chatid)
             {
-               std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance(sm->flags()->emailsDisabled()));
+               std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
+               if (megaFlags)
+               {
+                    assert(sm->flags());
+                    megaFlags->importFlagsValue(static_cast<MegaChatScheduledFlagsPrivate *>(sm->flags())->getNumericValue());
+               }
+
                std::unique_ptr<::mega::MegaScheduledRules> megaRules(!sm->rules() ? nullptr : ::mega::MegaScheduledRules::createInstance(sm->rules()->freq(), sm->rules()->interval(), sm->rules()->until(),
                                                                                                                  sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
@@ -2824,7 +2830,12 @@ void MegaChatApiImpl::sendPendingRequests()
             const char* newStartDate = sm->startDateTime() ? sm->startDateTime() : auxOccurr->startDateTime().c_str();
             const char* newEndDate = sm->endDateTime() ? sm->endDateTime() : auxOccurr->endDateTime().c_str();
             int newCancelled = (sm->cancelled() == 0 || sm->cancelled() == 1) ? sm->cancelled() : auxOccurr->cancelled();
-            std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!auxMeeting->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance(auxMeeting->flags()->emailsDisabled()));
+            std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!auxMeeting->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
+            if (megaFlags)
+            {
+                 assert(auxMeeting->flags());
+                 megaFlags->importFlagsValue(auxMeeting->flags()->getNumericValue());
+            }
 
             std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(auxMeeting->chatid(), MEGACHAT_INVALID_HANDLE /*schedId*/,
                                                                                                                 auxMeeting->schedId() /*parentId*/, organizerUserId,

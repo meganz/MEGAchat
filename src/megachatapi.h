@@ -7437,15 +7437,6 @@ public:
     static MegaChatScheduledFlags* createInstance();
 
     /**
-     * @brief Creates a new instance of MegaChatScheduledFlags
-     *
-     * @param emailsDisabled If this flag is enabled, API won't send out calendar emails for this meeting
-     *
-     * @return A pointer to the superclass of the private object
-     */
-    static MegaChatScheduledFlags* createInstance(bool emailsDisabled);
-
-    /**
      * @brief Creates a copy of this virtual MegaChatScheduledFlags object
      *
      * The resulting object is fully independent of the source MegaChatScheduledFlags,
