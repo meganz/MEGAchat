@@ -17,7 +17,7 @@
 #import "MEGAChatNotificationDelegate.h"
 #import "MEGAChatNodeHistoryDelegate.h"
 #import "MEGAChatLogLevel.h"
-
+#import "MEGAChatScheduledMeetingDelegate.h"
 
 #import "MEGASdk.h"
 
