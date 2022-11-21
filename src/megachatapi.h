@@ -4241,7 +4241,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
-     * - MegaChatRequest::getMegaChatScheduledMeetingList - Returns a list of scheduled meeting occurrences
+     * - MegaChatRequest::getMegaChatScheduledMeetingOccurrList - Returns a list of scheduled meeting occurrences
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if chatid is invalid
