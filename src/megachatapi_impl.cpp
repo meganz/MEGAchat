@@ -2549,9 +2549,17 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+
+            if (strlen(sm->title()) > MegaChatScheduledMeeting::MAX_TITLE_LENGTH
+                    || strlen(sm->description()) > MegaChatScheduledMeeting::MAX_DESC_LENGTH)
+            {
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             promise::Promise<karere::Id> pms;
-            ChatRoom* chatroom = sm->chatId() != MEGACHAT_INVALID_HANDLE
-                    ? findChatRoom(sm->chatId())
+            GroupChatRoom* chatroom = sm->chatId() != MEGACHAT_INVALID_HANDLE
+                    ? dynamic_cast<GroupChatRoom *>(findChatRoom(sm->chatId()))
                     : nullptr;
 
             bool createChat = request->getFlag();
@@ -2575,6 +2583,17 @@ void MegaChatApiImpl::sendPendingRequests()
                     errorCode = MegaChatError::ERROR_NOENT;
                     break;
                 }
+
+                // get scheduled meeting list from RAM
+                const auto& schedMeetings = chatroom->getScheduledMeetings();
+                auto it = schedMeetings.find(sm->schedId());
+                if (it != schedMeetings.end())
+                {
+                    // scheduled meeting already exists
+                    errorCode = MegaChatError::ERROR_EXIST;
+                    break;
+                }
+
                 pms.resolve(sm->chatId());
             }
 
@@ -2624,7 +2643,6 @@ void MegaChatApiImpl::sendPendingRequests()
             });
             break;
         }
-
         case MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING:
         {
             handle chatid = request->getChatHandle();

@@ -4089,6 +4089,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
      * - MegaChatError::ERROR_ARGS  - if isMeeting is set true but publicChat is set to false
+     * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
      *
      * @param isMeeting True to create a meeting room
      * @param publicChat True to create a public chat, otherwise false
@@ -4099,8 +4100,8 @@ public:
      * @param timezone Timezone where we want to schedule the meeting
      * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
      * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
@@ -7608,6 +7609,8 @@ public:
        SC_RULES            = 11,
        SC_SIZE             = 12,
     };
+    static constexpr unsigned int MAX_TITLE_LENGTH = 30;
+    static constexpr unsigned int MAX_DESC_LENGTH = 4000;
     static constexpr unsigned int MIN_OCURRENCES = 10;
 
     virtual ~MegaChatScheduledMeeting();
