@@ -120,6 +120,14 @@ void ChatListItemController::leaveGroupChat()
     mMegaChatApi->leaveChat(mItemId);
 }
 
+void ChatListItemController::updateScheduledMeetingOccurrence()
+{
+    std::string schedB64 = mMainWindow->mApp->getText("Sched Id of occurrence we want to modify (B64): ", true);
+    MegaChatHandle schedId = mMegaApi->base64ToUserHandle(schedB64.c_str());
+    std::string overrides = mMainWindow->mApp->getText("Start date we want to modify (format: YYYYMMDDTHHMMSS)", false).c_str();
+    std::string newStartDate = mMainWindow->mApp->getText("New start date (format: YYYYMMDDTHHMMSS)", false).c_str();
+    mMegaChatApi->updateScheduledMeetingOccurrence(mItemId, schedId, overrides.c_str(), newStartDate.c_str(), nullptr /*newEndDate*/, false /*newCancelled*/);
+}
 void ChatListItemController::removeScheduledMeeting()
 {
     std::string aux = mMainWindow->mApp->getText("Sched meeting Id to remove: ", false).c_str();

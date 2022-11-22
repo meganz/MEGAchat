@@ -446,6 +446,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actLeave = roomMenu->addAction(tr("Leave chat"));
     connect(actLeave, SIGNAL(triggered()), mController, SLOT(leaveGroupChat()));
 
+    auto actUpdateMeetingOccurr = roomMenu->addAction(tr("Update scheduled meeting occurrence"));
+    connect(actUpdateMeetingOccurr, SIGNAL(triggered()), mController, SLOT(updateScheduledMeetingOccurrence()));
+
     auto actDelSchedMeeting = roomMenu->addAction(tr("Delete scheduled meeting"));
     connect(actDelSchedMeeting, SIGNAL(triggered()), mController, SLOT(removeScheduledMeeting()));
 
