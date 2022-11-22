@@ -61,7 +61,7 @@ function(execute_checked_command)
     )
 
     if(_result)
-        message(FATAL_ERROR "Execute_process command had nonzero exit code ${_result} with error ${_error}")
+        message(FATAL_ERROR "Execute_process command had nonzero exit code ${_result} with error ${_error}: ${execute_checked_command}")
     endif()
 endfunction()
 
