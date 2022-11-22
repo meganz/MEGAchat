@@ -120,6 +120,13 @@ void ChatListItemController::leaveGroupChat()
     mMegaChatApi->leaveChat(mItemId);
 }
 
+void ChatListItemController::removeScheduledMeeting()
+{
+    std::string aux = mMainWindow->mApp->getText("Sched meeting Id to remove: ", false).c_str();
+    uint64_t schedId = mMegaApi->base64ToUserHandle(aux.c_str());
+    mMegaApi->removeScheduledMeeting(mItemId, schedId);
+}
+
 void ChatListItemController::setTitle()
 {
     std::string title;

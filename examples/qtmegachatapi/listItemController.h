@@ -56,6 +56,7 @@ public:
 #endif
 
 public slots:
+    void removeScheduledMeeting();
     void leaveGroupChat();
     void setTitle();
     void truncateChat();
