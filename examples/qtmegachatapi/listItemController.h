@@ -56,6 +56,7 @@ public:
 #endif
 
 public slots:
+    void updateScheduledMeeting();
     void updateScheduledMeetingOccurrence();
     void removeScheduledMeeting();
     void fetchScheduledMeeting();

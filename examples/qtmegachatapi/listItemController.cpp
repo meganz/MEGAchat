@@ -122,11 +122,31 @@ void ChatListItemController::leaveGroupChat()
 
 void ChatListItemController::updateScheduledMeetingOccurrence()
 {
+    // By modifying a scheduled meeting, API will create a child scheduled meeting
     std::string schedB64 = mMainWindow->mApp->getText("Sched Id of occurrence we want to modify (B64): ", true);
     MegaChatHandle schedId = mMegaApi->base64ToUserHandle(schedB64.c_str());
     std::string overrides = mMainWindow->mApp->getText("Start date we want to modify (format: YYYYMMDDTHHMMSS)", false).c_str();
     std::string newStartDate = mMainWindow->mApp->getText("New start date (format: YYYYMMDDTHHMMSS)", false).c_str();
     mMegaChatApi->updateScheduledMeetingOccurrence(mItemId, schedId, overrides.c_str(), newStartDate.c_str(), nullptr /*newEndDate*/, false /*newCancelled*/);
+}
+
+void ChatListItemController::updateScheduledMeeting()
+{
+    // this action won't generate a child scheduled meeting
+    std::string schedB64 = mMainWindow->mApp->getText("Sched meeting Id we want to modify: ", true);
+    MegaChatHandle schedId = mMegaApi->base64ToUserHandle(schedB64.c_str());
+    std::unique_ptr<MegaChatScheduledMeeting> sm (mMegaChatApi->getScheduledMeeting(mItemId, schedId));
+    if (!sm) { return; }
+
+    std::string newTitle = mMainWindow->mApp->getText("New title: ", false);
+    std::string newDesc = mMainWindow->mApp->getText("New decription: ", false);
+    std::string newStartDate = mMainWindow->mApp->getText("New StartDate: ", false);
+    std::string newEndDate = mMainWindow->mApp->getText("New EndDate: ", false);
+    std::string newTz = mMainWindow->mApp->getText("New TimeZone: ", false);
+
+    mMegaChatApi->updateScheduledMeeting(mItemId, schedId, newTz.c_str(), newStartDate.c_str(), newEndDate.c_str(),
+                                                                                 newTitle.c_str(), newDesc.c_str(),
+                                                                                 sm->flags(), sm->rules());
 }
 void ChatListItemController::removeScheduledMeeting()
 {
