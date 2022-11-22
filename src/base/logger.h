@@ -192,7 +192,7 @@ extern KRLOGGER_DLLIMPEXP Logger gLogger;
 #endif
 
 
-#include <loggerChannelConfig.h>
+#include "loggerChannelConfig.h"
 
 //The code below is plain C
 

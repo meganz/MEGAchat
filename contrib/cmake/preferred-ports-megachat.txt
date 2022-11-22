@@ -1,3 +1,9 @@
+# Building this on Windows was possible using
+# cmake -DTRIPLET=x64-windows-mega -DEXTRA_ARGS="-DUSE_PDFIUM=0;-DUSE_WEBRTC=0" -P build_from_scratch.cmake
+# It might also need to:
+#   - comment out the 2 pdfium dependencies below;
+#   - tweak importing curl libs in SDK's contrib/cmake/CMakeLists.txt (because apparently ${Mega3rdPartyDir} was wrongly set there) to always do
+#     ImportStdVcpkgLibrary(curl        libcurl-d libcurl libcurl-d libcurl)
 
 # direct core dependencies of the SDK
 c-ares/c303dd024e2dc03a0665ddffbb12a1077933e649 all:on ios:off

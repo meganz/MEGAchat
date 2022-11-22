@@ -14,7 +14,11 @@
 #include <stdio.h>
 #include <time.h>
 #include <sys/stat.h>
+#ifdef _WIN32
+#include <direct.h>
+#else
 #include <unistd.h>
+#endif
 
 using namespace mega;
 using namespace megachat;
@@ -318,13 +322,21 @@ void MegaChatApiTest::SetUp()
     struct stat st = {0};
     if (stat(LOCAL_PATH.c_str(), &st) == -1)
     {
+#ifdef _WIN32
+        _mkdir(LOCAL_PATH.c_str());
+#else
         mkdir(LOCAL_PATH.c_str(), 0700);
+#endif
     }
 
     for (int i = 0; i < NUM_ACCOUNTS; i++)
     {
         char path[1024];
+#ifdef _WIN32
+        _getcwd(path, sizeof path);
+#else
         getcwd(path, sizeof path);
+#endif
         megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
         megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
         megaApi[i]->addListener(this);
@@ -659,7 +671,7 @@ bool MegaChatApiTest::waitForMultiResponse(std::vector<bool *>responsesReceived,
     bool connRetried = false;
     while (!exitWait(responsesReceived, waitForAll))
     {
-        usleep(pollingT);
+        std::this_thread::sleep_for(std::chrono::microseconds(pollingT));
 
         if (timeout)
         {
@@ -698,7 +710,7 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
     bool connRetried = false;
     while(!(*responseReceived))
     {
-        usleep(pollingT);
+        std::this_thread::sleep_for(std::chrono::microseconds(pollingT));
 
         if (timeout)
         {
@@ -932,14 +944,14 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
         ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set background status after " + std::to_string(maxTimeout) + " seconds");
 
         logger->postLog("========== Enter background status ================= ");
-        sleep(15);
+        std::this_thread::sleep_for(std::chrono::seconds(15));
 
         flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_BACKGROUND_STATUS]; *flag = false;
         megaChatApi[accountIndex]->setBackgroundStatus(false);
         ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set background status after " + std::to_string(maxTimeout) + " seconds");
 
         logger->postLog("========== Enter foreground status ================= ");
-        sleep(5);
+        std::this_thread::sleep_for(std::chrono::seconds(5));
     }
 
     delete [] session; session = NULL;
@@ -1020,8 +1032,7 @@ void MegaChatApiTest::TEST_SetOnlineStatus(unsigned int accountIndex)
 
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
-
-    sleep(static_cast<unsigned int>(config->getAutoawayTimeout() + 12));   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
+    std::this_thread::sleep_for(std::chrono::seconds(static_cast<unsigned int>(config->getAutoawayTimeout() + 12)));   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
 
     // and check the status is away
     ASSERT_CHAT_TEST(mOnlineStatus[accountIndex] == MegaChatApi::STATUS_AWAY,
@@ -1068,7 +1079,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
     postLog(buffer.str());
 
     // Open chats and print history
-    for (int i = 0; i < chats->size(); i++)
+    for (unsigned i = 0; i < chats->size(); i++)
     {
         // Open a chatroom
         const MegaChatRoom *chatroom = chats->get(i);
@@ -1459,7 +1470,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     {
         // give some margin to API-chatd synchronization, so chatd knows the room is archived and needs
         // to be unarchived upon new message
-        sleep(3);
+        std::this_thread::sleep_for(std::chrono::seconds(3));
     }
 
     // --> Send a message and wait for reception by target user
@@ -2236,7 +2247,7 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
     char *session = login(a1);
 
     MegaChatListItemList *items = megaChatApi[a1]->getChatListItems();
-    for (int i = 0; i < items->size(); i++)
+    for (unsigned i = 0; i < items->size(); i++)
     {
         const MegaChatListItem *item = items->get(i);
         if (item->isPublic())
@@ -2248,7 +2259,7 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
         postLog(info);
         delete [] info; info = NULL;
 
-        sleep(3);
+        std::this_thread::sleep_for(std::chrono::seconds(3));
 
         MegaChatHandle chatid = item->getChatId();
         MegaChatListItem *itemUpdated = megaChatApi[a1]->getChatListItem(chatid);
@@ -2920,7 +2931,7 @@ void MegaChatApiTest::TEST_RetentionHistory(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
 
     // Wait a considerable time period to ensure that retentionTime has been processed successfully
-    sleep(chatd::Client::kMinRetentionTimeout + 10);
+    std::this_thread::sleep_for(std::chrono::seconds(chatd::Client::kMinRetentionTimeout + 10));
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed0), "Retention history autotruncate hasn't been received for account" + std::to_string(a1+1) + " after timeout: " +  std::to_string(maxTimeout) + " seconds");
     ASSERT_CHAT_TEST(*msgId0 != MEGACHAT_INVALID_HANDLE, "Wrong message id");
     ASSERT_CHAT_TEST(waitForResponse(flagConfirmed1), "Retention history autotruncate hasn't been received for account" + std::to_string(a2+1) + " after timeout: " +  std::to_string(maxTimeout) + " seconds");
@@ -4015,7 +4026,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
                             (!isRichLink && msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META)) &&
                         (tWaited < maxTimeout))
                 {
-                    usleep(pollingT);
+                    std::this_thread::sleep_for(std::chrono::microseconds(pollingT));
                     tWaited += pollingT;
                     MegaChatMessage* newMsgUpdated = megaChatApi[ai]->getMessage(chatid, msgSent->getMsgId());
                     if (msgUpdated != newMsgUpdated)
@@ -4292,18 +4303,18 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
     bool chatroomExist = false;
     MegaChatHandle targetChatid = MEGACHAT_INVALID_HANDLE;
-    for (int i = 0; i < chats->size() && !chatroomExist; ++i)
+    for (unsigned i = 0; i < chats->size() && !chatroomExist; ++i)
     {
         const MegaChatRoom *chat = chats->get(i);
         if (!chat->isGroup() || !chat->isActive()
                 || (chat->isPublic() != publicChat)
-                || (chat->getPeerCount() != peers->size())
+                || ((int)chat->getPeerCount() != peers->size())
                 || (a1Priv != megachat::MegaChatPeerList::PRIV_UNKNOWN && a1Priv != chat->getOwnPrivilege()))
         {
             continue;
         }
 
-        for (int userIndex = 0; userIndex < chat->getPeerCount(); userIndex++)
+        for (unsigned userIndex = 0; userIndex < chat->getPeerCount(); userIndex++)
         {
             if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
             {
@@ -4731,7 +4742,11 @@ bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
     struct stat st = {0};
     if (stat(DOWNLOAD_PATH.c_str(), &st) == -1)
     {
+#ifdef _WIN32
+        _mkdir(DOWNLOAD_PATH.c_str());
+#else
         mkdir(DOWNLOAD_PATH.c_str(), 0700);
+#endif
     }
 
     addTransfer(accountIndex);
@@ -4795,6 +4810,12 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
 
 int MegaChatApiTest::purgeLocalTree(const std::string &path)
 {
+#ifdef _WIN32
+    // should be reimplemented, maybe using std::filesystem
+    std::cout << "Manually purge local tree: " << path << std::endl;
+    return 0;
+
+#else
     DIR *directory = opendir(path.c_str());
     size_t path_len = path.length();
     int r = -1;
@@ -4848,6 +4869,7 @@ int MegaChatApiTest::purgeLocalTree(const std::string &path)
     }
 
     return r;
+#endif
 }
 
 void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
@@ -4959,7 +4981,7 @@ void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string last
     // MegaRequest::TYPE_GET_ATTR_USER before exit from this function.
     // In other case, we could ask for the name to MegaChatApi before this will be established
     // because MegachatApiTest listener is called before than MegaChatApi listener
-    sleep(1);
+    std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
@@ -5148,6 +5170,7 @@ void MegaChatApiTest::onTransferTemporaryError(MegaApi */*api*/, MegaTransfer */
 
 bool MegaChatApiTest::onTransferData(MegaApi */*api*/, MegaTransfer */*transfer*/, char */*buffer*/, size_t /*size*/)
 {
+    return false;
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -5691,7 +5714,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
     for (auto testCase : checkUrls)
     {
         executedTests ++;
-        if (chatd::Message::hasUrl(testCase.first, url) != testCase.second)
+        if (chatd::Message::hasUrl(testCase.first, url) != !!testCase.second)
         {
             failureTests ++;
             std::cout << "         [" << " FAILED Parse" << "] " << testCase.first << std::endl;
@@ -5861,7 +5884,7 @@ bool RequestListener::waitForResponse(unsigned int timeout)
     bool connRetried = false;
     while(!mFinished)
     {
-        usleep(pollingT);
+        std::this_thread::sleep_for(std::chrono::milliseconds(pollingT));
 
         if (timeout)
         {
