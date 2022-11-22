@@ -42,6 +42,7 @@ using namespace megachat;
 @property (nonatomic, assign) std::set<DelegateMEGAChatVideoListener *>activeChatRemoteVideoListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNotificationListener *>activeChatNotificationListeners;
 @property (nonatomic, assign) std::set<DelegateMEGAChatNodeHistoryListener *>activeChatNodeHistoryListeners;
+@property (nonatomic, assign) std::set<DelegateMEGAChatScheduledMeetingListener *>activeChatScheduledMeetingListeners;
 
 @property (nonatomic, nullable) MegaChatApi *megaChatApi;
 - (MegaChatApi *)getCPtr;
@@ -401,6 +402,44 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     {
         if (self.megaChatApi) {
             self.megaChatApi->removeChatNotificationListener(listenersToRemove[i]);
+        }
+        delete listenersToRemove[i];
+    }
+}
+
+- (void)addChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->addSchedMeetingListener([self createDelegateMEGAChatScheduledMeetingListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)addChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate queueType:(ListenerQueueType)queueType {
+    if (self.megaChatApi) {
+        self.megaChatApi->addSchedMeetingListener([self createDelegateMEGAChatScheduledMeetingListener:delegate singleListener:YES queueType:queueType]);
+    }
+}
+
+- (void)removeChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate {
+    std::vector<DelegateMEGAChatScheduledMeetingListener *> listenersToRemove;
+    
+    pthread_mutex_lock(&listenerMutex);
+    std::set<DelegateMEGAChatScheduledMeetingListener *>::iterator it = _activeChatScheduledMeetingListeners.begin();
+    while (it != _activeChatScheduledMeetingListeners.end()) {
+        DelegateMEGAChatScheduledMeetingListener *delegateListener = *it;
+        if (delegateListener->getUserListener() == delegate) {
+            listenersToRemove.push_back(delegateListener);
+            _activeChatScheduledMeetingListeners.erase(it++);
+        }
+        else {
+            it++;
+        }
+    }
+    pthread_mutex_unlock(&listenerMutex);
+    
+    for (int i = 0; i < listenersToRemove.size(); i++)
+    {
+        if (self.megaChatApi) {
+            self.megaChatApi->removeSchedMeetingListener(listenersToRemove[i]);
         }
         delete listenersToRemove[i];
     }
@@ -1328,7 +1367,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi -> createChatAndScheduledMeeting(isMeeting, publicChat, speakRequest, waitingRoom, openInvite, timezone.UTF8String, startDate.UTF8String, endDate.UTF8String, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(emailsDisabled), MegaChatScheduledRules::createInstance(frequency), attributes.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
-- (void)updateScheduledMeeting:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
     if (!self.megaChatApi) { return; }
     self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(emailsDisabled), MegaChatScheduledRules::createInstance(frequency), attributes.UTF8String);
 }
@@ -1375,7 +1414,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return scheduledMeetings;
 }
 
-- (MEGAChatScheduledMeeting *)scheduledMeeting:(uint64_t)chatId  chatId:(uint64_t)scheduledId {
+- (MEGAChatScheduledMeeting *)scheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId {
     if (!self.megaChatApi) { return nil; }
     MegaChatScheduledMeeting *megaChatScheduledMeeting = self.megaChatApi->getScheduledMeeting(chatId, scheduledId);
     return [[MEGAChatScheduledMeeting alloc] initWithMegaChatScheduledMeeting:megaChatScheduledMeeting cMemoryOwn:YES];
@@ -1818,6 +1857,20 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     DelegateMEGAChatNodeHistoryListener *delegateListener = new DelegateMEGAChatNodeHistoryListener(self, delegate, singleListener);
     pthread_mutex_lock(&listenerMutex);
     _activeChatNodeHistoryListeners.insert(delegateListener);
+    pthread_mutex_unlock(&listenerMutex);
+    return delegateListener;
+}
+
+- (MegaChatScheduledMeetingListener *)createDelegateMEGAChatScheduledMeetingListener:(id<MEGAChatScheduledMeetingDelegate>)delegate singleListener:(BOOL)singleListener {
+    return [self createDelegateMEGAChatScheduledMeetingListener:delegate singleListener:singleListener queueType:ListenerQueueTypeMain];
+}
+
+- (MegaChatScheduledMeetingListener *)createDelegateMEGAChatScheduledMeetingListener:(id<MEGAChatScheduledMeetingDelegate>)delegate singleListener:(BOOL)singleListener  queueType:(ListenerQueueType)queueType {
+    if (delegate == nil) return nil;
+    
+    DelegateMEGAChatScheduledMeetingListener *delegateListener = new DelegateMEGAChatScheduledMeetingListener(self, delegate, singleListener, queueType);
+    pthread_mutex_lock(&listenerMutex);
+    _activeChatScheduledMeetingListeners.insert(delegateListener);
     pthread_mutex_unlock(&listenerMutex);
     return delegateListener;
 }

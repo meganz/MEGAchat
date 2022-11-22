@@ -15,8 +15,15 @@ using namespace mega;
 
 @implementation MEGAChatScheduledRules
 
-- (instancetype)initWithMegaChatScheduledRules:(megachat::MegaChatScheduledRules *)MegaChatScheduledRules cMemoryOwn:(BOOL)cMemoryOwn {
+- (instancetype)initWithMegaChatScheduledRules:(MegaChatScheduledRules *)megaChatScheduledRules cMemoryOwn:(BOOL)cMemoryOwn {
+    self = [super init];
     
+    if (self != nil) {
+        _megaChatScheduledRules = megaChatScheduledRules;
+        _cMemoryOwn = cMemoryOwn;
+    }
+    
+    return self;
 }
 
 - (MegaChatScheduledRules *)getCPtr {
@@ -61,6 +68,7 @@ using namespace mega;
 
 - (NSArray <NSNumber *>*)byMonthDay {
     if (!self.megaChatScheduledRules) { return nil; }
+    
     MegaIntegerList *integerList = self.megaChatScheduledRules->byMonthDay()->copy();
     NSMutableArray<NSNumber *> *integerArray = [NSMutableArray arrayWithCapacity:integerList->size()];
 
@@ -70,6 +78,26 @@ using namespace mega;
     }
 
     delete integerList;
+    return integerArray;
+}
+
+- (NSMutableArray< NSMutableArray<NSNumber *> *> *)byMonthWeekDay {
+    if (!self.megaChatScheduledRules) { return nil; }
+
+    MegaIntegerMap *integerMap = self.megaChatScheduledRules->byMonthWeekDay()->copy();
+    NSMutableArray< NSMutableArray<NSNumber *> *> *integerArray = [NSMutableArray arrayWithCapacity:integerMap->size()];
+    
+    for (int i = 0; i < integerMap->size(); i++)
+    {
+        long long key;
+        long long value;
+        integerMap->at(i, key, value);
+        
+        NSMutableArray<NSNumber *> *keyValueArray = @[[NSNumber.alloc initWithInt:key], [NSNumber.alloc initWithInt:value]];
+        [integerArray addObject:keyValueArray];
+    }
+    
+    delete integerMap;
     return integerArray;
 }
 

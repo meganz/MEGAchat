@@ -13,7 +13,7 @@ using namespace megachat;
 
 @implementation MEGAChatScheduledFlags
 
-- (instancetype)initWithMegaChatScheduledFlags:(megachat::MegaChatScheduledFlags *)megaChatScheduledFlags cMemoryOwn:(BOOL)cMemoryOwn {
+- (instancetype)initWithMegaChatScheduledFlags:(MegaChatScheduledFlags *)megaChatScheduledFlags cMemoryOwn:(BOOL)cMemoryOwn {
     self = [super init];
     
     if (self != nil) {

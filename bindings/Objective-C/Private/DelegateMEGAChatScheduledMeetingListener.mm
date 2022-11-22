@@ -2,33 +2,35 @@
 #import "DelegateMEGAChatScheduledMeetingListener.h"
 #import "MEGAChatScheduledMeeting+init.h"
 
-DelegateMEGAChatScheduledMeetingListener::DelegateMEGAChatScheduledMeetingListener(MEGAChatSdk *megaChatSdk, id<MEGAChatScheduledMeetingDelegate>listener, bool singleListener) {
+using namespace megachat;
+
+DelegateMEGAChatScheduledMeetingListener::DelegateMEGAChatScheduledMeetingListener(MEGAChatSdk *megaChatSdk, id<MEGAChatScheduledMeetingDelegate>listener, bool singleListener, ListenerQueueType queueType) {
     this->megaChatSdk = megaChatSdk;
     this->listener = listener;
     this->singleListener = singleListener;
+    this->queueType = queueType;
 }
-
 
 id<MEGAChatScheduledMeetingDelegate>DelegateMEGAChatScheduledMeetingListener::getUserListener() {
     return listener;
 }
 
-void DelegateMEGAChatScheduledMeetingListener::onChatSchedMeetingUpdate(megachat::MegaChatApi *api, megachat::MegaChatScheduledMeeting *scheduledMeeting) {
+void DelegateMEGAChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChatApi *api, MegaChatScheduledMeeting *scheduledMeeting) {
     if (listener != nil && [listener respondsToSelector:@selector(onChatSchedMeetingUpdate:scheduledMeeting:)]) {
-        megachat::MegaChatScheduledMeeting *tempScheduledMeeting = scheduledMeeting->copy();
+        MegaChatScheduledMeeting *tempScheduledMeeting = scheduledMeeting->copy();
         MEGAChatSdk *tempMEGAChatSdk = this->megaChatSdk;
         id<MEGAChatScheduledMeetingDelegate>tempListener = this->listener;
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch(this->queueType, ^{
             [tempListener onChatSchedMeetingUpdate:tempMEGAChatSdk scheduledMeeting:[MEGAChatScheduledMeeting.alloc initWithMegaChatScheduledMeeting:tempScheduledMeeting cMemoryOwn:YES]];
         });
     }
 }
 
-void DelegateMEGAChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid) {
+void DelegateMEGAChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi *api, MegaChatHandle chatid) {
     if (listener != nil && [listener respondsToSelector:@selector(onSchedMeetingOccurrencesUpdate:chatId:)]) {
         MEGAChatSdk *tempMEGAChatSdk = this->megaChatSdk;
         id<MEGAChatScheduledMeetingDelegate>tempListener = this->listener;
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch(this->queueType, ^{
             [tempListener onSchedMeetingOccurrencesUpdate:tempMEGAChatSdk chatId:chatid];
         });
     }

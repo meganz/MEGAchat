@@ -45,7 +45,7 @@ using namespace megachat;
     return self.megaChatScheduledMeeting ? self.megaChatScheduledMeeting->cancelled() : NO;
 }
 
-- (BOOL)inNew {
+- (BOOL)isNew {
     return self.megaChatScheduledMeeting ? self.megaChatScheduledMeeting->isNew() : NO;
 }
 
