@@ -51,6 +51,7 @@ int main(int argc, char **argv)
     MegaChatApiTest t;
     t.init();
 
+#ifndef KARERE_DISABLE_WEBRTC
     // Tests that requires a groupchat (start with public chat, converted into private)
     EXECUTE_TEST(t.TEST_PublicChatManagement(0, 1), "TEST Publicchat management");
     EXECUTE_TEST(t.TEST_GroupChatManagement(0, 1), "TEST Groupchat management");
@@ -73,7 +74,6 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_SendRichLink(0, 1), "TEST Send Rich link");
     EXECUTE_TEST(t.TEST_SendGiphy(0, 1), "TEST Send Giphy");
 
-#ifndef KARERE_DISABLE_WEBRTC
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
     EXECUTE_TEST(t.TEST_EstablishedCalls(0, 1), "TEST Groupal meeting without audio nor video");
 #endif
@@ -5070,8 +5070,10 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 }
                 break;
             case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
+#ifndef KARERE_DISABLE_WEBRTC
                 mChatCallReconnection[apiIndex] = request->getFlag() &&
                     !static_cast<bool>(request->getParamType());
+#endif
                 break;
         }
     }
@@ -5788,6 +5790,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     std::cout << "          TEST - SfuConnection::handleIncomingData() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
     return !failedTest;
 }
+#endif
 
 karere::IApp::IChatListHandler* MegaChatApiUnitaryTest::chatListHandler()
 {
@@ -5808,8 +5811,6 @@ void MegaChatApiUnitaryTest::onDbError(int /*error*/, const std::string &/*msg*/
 {
 
 }
-
-#endif
 
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)
     : RequestListener(megaApi, megaChatApi)

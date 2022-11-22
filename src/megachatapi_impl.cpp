@@ -2976,7 +2976,7 @@ void MegaChatApiImpl::createKarereClient()
 #ifndef KARERE_DISABLE_WEBRTC
         mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mCallHandler, *mScheduledMeetingHandler, mMegaApi->getBasePath(), caps, this);
 #else
-        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, mMegaApi->getBasePath(), caps, this);
+        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mScheduledMeetingHandler, mMegaApi->getBasePath(), caps, this);
 #endif
         API_LOG_DEBUG("createKarereClient: karere client instance created");
         mTerminating = false;
@@ -10297,6 +10297,27 @@ void LoggerHandler::log(krLogLevel level, const char *msg, size_t /*len*/, unsig
     mutex.unlock();
 }
 
+MegaChatScheduledMeetingHandler::MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi)
+{
+    mMegaChatApi = megaChatApi;
+}
+
+void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed)
+{
+    std::unique_ptr<MegaChatScheduledMeetingPrivate> schedMeeting(new MegaChatScheduledMeetingPrivate(sm));
+    schedMeeting->setChanged(changed);
+#ifndef KARERE_DISABLE_WEBRTC
+    mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
+#endif
+}
+
+void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id)
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id);
+#endif
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaChatCallHandler::MegaChatCallHandler(MegaChatApiImpl *megaChatApi)
@@ -10395,26 +10416,6 @@ void MegaChatCallHandler::onNetworkQualityChanged(const rtcModule::ICall &call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
-MegaChatScheduledMeetingHandler::MegaChatScheduledMeetingHandler(MegaChatApiImpl *megaChatApi)
-{
-    mMegaChatApi = megaChatApi;
-}
-
-MegaChatScheduledMeetingHandler::~MegaChatScheduledMeetingHandler()
-{
-}
-
-void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduledMeeting *sm, unsigned long changed)
-{
-    std::unique_ptr<MegaChatScheduledMeetingPrivate> schedMeeting(new MegaChatScheduledMeetingPrivate(sm));
-    schedMeeting->setChanged(changed);
-    mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
-}
-
-void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id)
-{
-    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id);
-}
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {
     mMegaChatApi = megaChatApi;

@@ -607,6 +607,18 @@ private:
     MegaChatLogger *megaLogger;
 };
 
+class MegaChatScheduledMeetingHandler : public karere::ScheduledMeetingHandler
+{
+public:
+    MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi);
+    ~MegaChatScheduledMeetingHandler() = default;
+    void onSchedMeetingChange(const karere::KarereScheduledMeeting* sm, unsigned long diff) override;
+    void onSchedMeetingOccurrencesChange(const karere::Id& id) override;
+
+private:
+    MegaChatApiImpl* mMegaChatApi;
+};
+
 #ifndef KARERE_DISABLE_WEBRTC
 class MegaChatSessionHandler;
 
@@ -627,18 +639,6 @@ public:
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
     void onPermissionsChanged(const rtcModule::ICall& call) override;
-
-private:
-    MegaChatApiImpl* mMegaChatApi;
-};
-
-class MegaChatScheduledMeetingHandler: public karere::ScheduledMeetingHandler
-{
-public:
-    MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi);
-    ~MegaChatScheduledMeetingHandler();
-    void onSchedMeetingChange(const karere::KarereScheduledMeeting* sm, unsigned long diff) override;
-    void onSchedMeetingOccurrencesChange(const karere::Id& id) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
