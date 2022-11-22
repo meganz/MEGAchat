@@ -448,6 +448,13 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     auto actDelSchedMeeting = roomMenu->addAction(tr("Delete scheduled meeting"));
     connect(actDelSchedMeeting, SIGNAL(triggered()), mController, SLOT(removeScheduledMeeting()));
+
+    auto actFetchSchedMeeting = roomMenu->addAction(tr("Fetch scheduled meetings"));
+    connect(actFetchSchedMeeting, SIGNAL(triggered()), mController, SLOT(fetchScheduledMeeting()));
+
+    auto actFetchSchedMeetingEvents = roomMenu->addAction(tr("Fetch scheduled meetings events"));
+    connect(actFetchSchedMeetingEvents, SIGNAL(triggered()), mController, SLOT(fetchScheduledMeetingEvents()));
+
     auto actTruncate = roomMenu->addAction(tr("Truncate chat"));
     connect(actTruncate, SIGNAL(triggered()), mController, SLOT(truncateChat()));
 

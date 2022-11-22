@@ -57,6 +57,8 @@ public:
 
 public slots:
     void removeScheduledMeeting();
+    void fetchScheduledMeeting();
+    void fetchScheduledMeetingEvents();
     void leaveGroupChat();
     void setTitle();
     void truncateChat();

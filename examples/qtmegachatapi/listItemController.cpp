@@ -127,6 +127,16 @@ void ChatListItemController::removeScheduledMeeting()
     mMegaApi->removeScheduledMeeting(mItemId, schedId);
 }
 
+void ChatListItemController::fetchScheduledMeeting()
+{
+    mMegaApi->fetchScheduledMeeting(mItemId, MEGACHAT_INVALID_HANDLE);
+}
+
+void ChatListItemController::fetchScheduledMeetingEvents()
+{
+    mMegaApi->fetchScheduledMeetingEvents(mItemId, nullptr, nullptr, 0);
+}
+
 void ChatListItemController::setTitle()
 {
     std::string title;
