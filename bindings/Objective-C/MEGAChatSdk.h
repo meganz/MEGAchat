@@ -18,6 +18,7 @@
 #import "MEGAChatNodeHistoryDelegate.h"
 #import "MEGAChatLogLevel.h"
 #import "MEGAChatScheduledMeetingDelegate.h"
+#import "ListenerDispatch.h"
 
 #import "MEGASdk.h"
 
@@ -145,6 +146,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)removeChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate;
+- (void)addChatDelegate:(id<MEGAChatDelegate>)delegate queueType:(ListenerQueueType)queueType;
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate;
 
 - (void)addChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
@@ -196,6 +198,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (uint64_t)userHandleByEmail:(NSString *)email;
 
 - (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)loadUserAttributesForChatId:(uint64_t)chatId
+                       usersHandles:(NSArray<NSNumber *> *)usersHandles
+                           delegate:(id<MEGAChatRequestDelegate>)delegate
+                          queueType:(ListenerQueueType)queueType;
 - (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles;
 
 #pragma mark - Chat management

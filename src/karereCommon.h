@@ -2,8 +2,8 @@
 #define KARERECOMMON_H
 
 #include <string>
-#include <logger.h>
-#include <cservices.h> //needed for timestampMs()
+#include "base/logger.h"
+#include "base/cservices.h" //needed for timestampMs()
 #include <string.h>
 #include <bitset>
 

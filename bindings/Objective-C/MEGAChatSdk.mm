@@ -347,6 +347,12 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)addChatDelegate:(id<MEGAChatDelegate>)delegate queueType:(ListenerQueueType)queueType {
+    if (self.megaChatApi) {
+        self.megaChatApi->addChatListener([self createDelegateMEGAChatListener:delegate singleListener:NO queueType:ListenerQueueTypeGlobalBackground]);
+    }
+}
+
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate {
     std::vector<DelegateMEGAChatListener *> listenersToRemove;
     
@@ -762,6 +768,23 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     
     if (self.megaChatApi) {
         self.megaChatApi->loadUserAttributes(chatId, handleList.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)loadUserAttributesForChatId:(uint64_t)chatId
+                       usersHandles:(NSArray<NSNumber *> *)usersHandles
+                           delegate:(id<MEGAChatRequestDelegate>)delegate
+                          queueType:(ListenerQueueType)queueType {
+    MEGAHandleList *handleList = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+    
+    for (NSNumber *handle in usersHandles) {
+        [handleList addMegaHandle:handle.unsignedLongLongValue];
+    }
+    
+    if (self.megaChatApi) {
+        self.megaChatApi->loadUserAttributes(chatId,
+                                             handleList.getCPtr,
+                                             [self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:queueType]);
     }
 }
 
@@ -1766,9 +1789,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MegaChatListener *)createDelegateMEGAChatListener:(id<MEGAChatDelegate>)delegate singleListener:(BOOL)singleListener {
+    return [self createDelegateMEGAChatListener:delegate singleListener:singleListener queueType:ListenerQueueTypeMain];
+}
+
+- (MegaChatListener *)createDelegateMEGAChatListener:(id<MEGAChatDelegate>)delegate singleListener:(BOOL)singleListener queueType:(ListenerQueueType)queueType {
     if (delegate == nil) return nil;
     
-    DelegateMEGAChatListener *delegateListener = new DelegateMEGAChatListener(self, delegate, singleListener);
+    DelegateMEGAChatListener *delegateListener = new DelegateMEGAChatListener(self, delegate, singleListener, queueType);
     pthread_mutex_lock(&listenerMutex);
     _activeChatListeners.insert(delegateListener);
     pthread_mutex_unlock(&listenerMutex);

@@ -6,7 +6,7 @@
 #include <memory>
 #include <map>
 #include <type_traits>
-#include <retryHandler.h>
+#include "base/retryHandler.h"
 #include "userAttrCache.h"
 #include <db.h>
 #include "chatd.h"
@@ -1019,8 +1019,8 @@ public:
     Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 #ifndef KARERE_DISABLE_WEBRTC
            rtcModule::CallHandler& callHandler,
-           ScheduledMeetingHandler& mScheduledMeetingHandler,
 #endif
+           ScheduledMeetingHandler& mScheduledMeetingHandler,
            const std::string &appDir, uint8_t caps, void *ctx);
 
     virtual ~Client();

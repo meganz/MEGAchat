@@ -631,6 +631,7 @@ public:
 private:
     MegaChatApiImpl* mMegaChatApi;
 };
+#endif
 
 class MegaChatScheduledMeetingHandler: public karere::ScheduledMeetingHandler
 {
@@ -644,6 +645,7 @@ private:
     MegaChatApiImpl* mMegaChatApi;
 };
 
+#ifndef KARERE_DISABLE_WEBRTC
 class MegaChatSessionHandler : public rtcModule::SessionHandler
 {
 public:
