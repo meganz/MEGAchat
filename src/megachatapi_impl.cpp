@@ -10297,27 +10297,6 @@ void LoggerHandler::log(krLogLevel level, const char *msg, size_t /*len*/, unsig
     mutex.unlock();
 }
 
-MegaChatScheduledMeetingHandler::MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi)
-{
-    mMegaChatApi = megaChatApi;
-}
-
-void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed)
-{
-    std::unique_ptr<MegaChatScheduledMeetingPrivate> schedMeeting(new MegaChatScheduledMeetingPrivate(sm));
-    schedMeeting->setChanged(changed);
-#ifndef KARERE_DISABLE_WEBRTC
-    mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
-#endif
-}
-
-void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id)
-{
-#ifndef KARERE_DISABLE_WEBRTC
-    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id);
-#endif
-}
-
 #ifndef KARERE_DISABLE_WEBRTC
 
 MegaChatCallHandler::MegaChatCallHandler(MegaChatApiImpl *megaChatApi)
@@ -10415,7 +10394,34 @@ void MegaChatCallHandler::onNetworkQualityChanged(const rtcModule::ICall &call)
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
+#endif
 
+MegaChatScheduledMeetingHandler::MegaChatScheduledMeetingHandler(MegaChatApiImpl *megaChatApi)
+{
+    mMegaChatApi = megaChatApi;
+}
+
+MegaChatScheduledMeetingHandler::~MegaChatScheduledMeetingHandler()
+{
+}
+
+void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduledMeeting *sm, unsigned long changed)
+{
+    std::unique_ptr<MegaChatScheduledMeetingPrivate> schedMeeting(new MegaChatScheduledMeetingPrivate(sm));
+    schedMeeting->setChanged(changed);
+#ifndef KARERE_DISABLE_WEBRTC
+    mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
+#endif
+}
+
+void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id)
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id);
+#endif
+}
+
+#ifndef KARERE_DISABLE_WEBRTC
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {
     mMegaChatApi = megaChatApi;
