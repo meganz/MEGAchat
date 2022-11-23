@@ -5591,6 +5591,40 @@ bool KarereScheduledRules::equalTo(const ::mega::MegaScheduledRules* r) const
     return true;
 }
 
+::mega::MegaScheduledRules* KarereScheduledRules::getMegaScheduledRules() const
+{
+    mega::MegaIntegerList auxByWeekDay;
+    if (byWeekDay())
+    {
+        for (const auto& e: *byWeekDay())
+        {
+            auxByWeekDay.add(e);
+        }
+    }
+    mega::MegaIntegerList auxByMonthDay;
+    if (byMonthDay())
+    {
+        for (const auto& e: *byMonthDay())
+        {
+            auxByMonthDay.add(e);
+        }
+    }
+
+    mega::MegaIntegerMap auxByMonthWeekDay;
+    if (byMonthWeekDay())
+    {
+        for (const auto& e: *byMonthWeekDay())
+        {
+            auxByMonthWeekDay.set(e.first, e.second);
+        }
+    }
+
+    return ::mega::MegaScheduledRules::createInstance(freq(), interval(), until().c_str(),
+                                               byWeekDay() ? &auxByWeekDay : nullptr,
+                                               byMonthDay() ? &auxByMonthDay  : nullptr,
+                                               byMonthWeekDay() ? &auxByMonthWeekDay : nullptr);
+}
+
 bool KarereScheduledRules::serialize(Buffer& out) const
 {
     assert(isValidFreq(mFreq));
