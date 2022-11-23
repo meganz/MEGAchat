@@ -68,8 +68,8 @@ bool Client::isInBackground() const
 Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 #ifndef KARERE_DISABLE_WEBRTC
                rtcModule::CallHandler &callHandler,
-               ScheduledMeetingHandler& scheduledMeetingHandler,
 #endif
+               ScheduledMeetingHandler& scheduledMeetingHandler,
                const std::string &appDir, uint8_t caps, void *ctx)
     : mAppDir(appDir),
       websocketIO(websocketsIO),
@@ -80,8 +80,8 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       mDnsCache(db, chatd::Client::chatdVersion),
 #ifndef KARERE_DISABLE_WEBRTC
       mCallHandler(callHandler),
-      mScheduledMeetingHandler(scheduledMeetingHandler),
 #endif
+      mScheduledMeetingHandler(scheduledMeetingHandler),
       mContactList(new ContactList(*this)),
       chats(new ChatRoomList(*this)),
       mPresencedClient(&api, this, *this, caps)
