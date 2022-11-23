@@ -2857,7 +2857,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting;
-            if (!occurrSchedMeeting->rules() || occurrSchedMeeting->parentSchedId() == MEGACHAT_INVALID_HANDLE)
+            if (!occurrSchedMeeting->rules() || occurrSchedMeeting->parentSchedId() != MEGACHAT_INVALID_HANDLE)
             {
                 /* we don't want to create a new child scheduled meeting (don't set parent nor overrides params)
                  * if scheduled meeting associated to the occurrence we want to modify:
