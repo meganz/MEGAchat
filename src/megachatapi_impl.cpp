@@ -2848,6 +2848,7 @@ void MegaChatApiImpl::sendPendingRequests()
             const char* newStartDate = ocurr->startDateTime() ? ocurr->startDateTime() : localOccurr->startDateTime().c_str();
             const char* newEndDate = ocurr->endDateTime() ? ocurr->endDateTime() : localOccurr->endDateTime().c_str();
             int newCancelled = (ocurr->cancelled() == 0 || ocurr->cancelled() == 1) ? ocurr->cancelled() : localOccurr->cancelled();
+
             std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!occurrSchedMeeting->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
             if (megaFlags)
             {
@@ -2961,11 +2962,12 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             const KarereScheduledMeeting* currentMeeting = it->second.get();
-            const char* newTimezone = sm->timezone();
-            const char* newStartDate = sm->startDateTime();
-            const char* newEndDate = sm->endDateTime();
-            const char* newTitle = sm->title();
-            const char* newDescription = sm->description();
+            std::string newTimezone = sm->timezone() ? sm->timezone() : currentMeeting->timezone();
+            std::string newStartDate = sm->startDateTime() ? sm->startDateTime() : currentMeeting->startDateTime();
+            std::string newEndDate = sm->endDateTime() ? sm->endDateTime() : currentMeeting->endDateTime();
+            std::string newTitle = sm->title() ? sm->title() : currentMeeting->title();
+            std::string newDescription = sm->description() ? sm->description() : currentMeeting->description();
+
             std::unique_ptr<::mega::MegaScheduledFlags> newFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
             if (newFlags)
             {
@@ -2977,10 +2979,14 @@ void MegaChatApiImpl::sendPendingRequests()
                                                                                                               sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
             std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(currentMeeting->chatid(), currentMeeting->schedId(), currentMeeting->parentSchedId(), currentMeeting->organizerUserid(),
-                                                                                                                currentMeeting->cancelled(), newTimezone, newStartDate, newEndDate,newTitle, newDescription,
+                                                                                                                currentMeeting->cancelled(),
+                                                                                                                newTimezone.empty() ? nullptr : newTimezone.c_str(),
+                                                                                                                newStartDate.empty() ? nullptr : newStartDate.c_str(),
+                                                                                                                newEndDate.empty() ? nullptr : newEndDate.c_str(),
+                                                                                                                newTitle.empty() ? nullptr : newTitle.c_str(),
+                                                                                                                newDescription.empty() ? nullptr : newDescription.c_str(),
                                                                                                                 currentMeeting->attributes().empty() ? nullptr : currentMeeting->attributes().c_str(),
-                                                                                                                currentMeeting->overrides().empty() ? nullptr : currentMeeting->overrides().c_str(),
-                                                                                                                newFlags.get(), newRules.get()));
+                                                                                                                nullptr /*overrides*/, newFlags.get(), newRules.get()));
             mClient->createOrUpdateScheduledMeeting(megaSchedMeeting.get())
             .then([request, this](KarereScheduledMeeting* sm)
             {
