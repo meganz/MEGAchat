@@ -17,8 +17,8 @@
 #import "MEGAChatNotificationDelegate.h"
 #import "MEGAChatNodeHistoryDelegate.h"
 #import "MEGAChatLogLevel.h"
+#import "MEGAChatScheduledMeetingDelegate.h"
 #import "ListenerDispatch.h"
-
 
 #import "MEGASdk.h"
 
@@ -151,6 +151,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)addChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
 - (void)removeChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
+
+- (void)addChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate;
+- (void)addChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate queueType:(ListenerQueueType)queueType;
+- (void)removeChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate;
 
 #ifndef KARERE_DISABLE_WEBRTC
 
@@ -511,6 +515,34 @@ NS_ASSUME_NONNULL_BEGIN
  * @return YES if specified option is enabled in the bitmask
  */
 - (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask;
+
+#pragma mark - Scheduled meetings
+
+- (void)createChatAndScheduledMeeting:(BOOL)isMeeting publicChat:(BOOL)publicChat speakRequest:(BOOL)speakRequest waitingRoom:(BOOL)waitingRoom openInvite:(BOOL)openInvite timezone:(NSString *)timezone startDate:(NSString *)startDate endDate:(NSString *)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes;
+
+- (void)createChatAndScheduledMeeting:(BOOL)isMeeting publicChat:(BOOL)publicChat speakRequest:(BOOL)speakRequest waitingRoom:(BOOL)waitingRoom openInvite:(BOOL)openInvite timezone:(NSString *)timezone startDate:(NSString *)startDate endDate:(NSString *)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes;
+
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)updateScheduledMeetingOccurrence:(uint64_t)chatId scheduledId:(uint64_t)scheduledId overrides:(NSString *)overrides newStartDate:(NSString *)newStartDate newEndDate:(NSString *)newEndDate newCancelled:(BOOL)newCancelled;
+
+- (void)updateScheduledMeetingOccurrence:(uint64_t)chatId scheduledId:(uint64_t)scheduledId overrides:(NSString *)overrides newStartDate:(NSString *)newStartDate newEndDate:(NSString *)newEndDate newCancelled:(BOOL)newCancelled delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
+
+- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingsByChat:(uint64_t)chatId;
+
+- (MEGAChatScheduledMeeting *)scheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
+
+- (NSArray<MEGAChatScheduledMeeting *> *)getAllScheduledMeetings;
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId;
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 
 #pragma mark - Audio and video calls
 

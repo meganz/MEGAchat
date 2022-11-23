@@ -46,6 +46,19 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeEnableAudioLevelMonitor,
     MEGAChatRequestTypeManageReaction,
     MEGAChatRequestTypeGetPeerAttributes,
+    MEGAChatRequestTypeRequestSpeak,
+    MEGAChatRequestTypeApproveSpeak,
+    MEGAChatRequestTypeRequestHighResVideo,
+    MEGAChatRequestTypeRequestLowResVideo,
+    MEGAChatRequestTypeOpenVideoDevice,
+    MEGAChatRequestTypeRequestHiResQuality,
+    MEGAChatRequestTypeDeleteSpeaker,
+    MEGAChatRequestTypeRequestSvcLayers,
+    MEGAChatRequestTypeSetChatRoomOptions,
+    MEGAChatRequestTypeCreateOrUpdateScheduledMeeting,
+    MEGAChatRequestTypeDeleteScheduledMeeting,
+    MEGAChatRequestTypeFetchScheduledMeetingOccurrences,
+    MEGAChatRequestTypeUpdateScheduledMeetingOcurrence,
 };
 
 enum {
