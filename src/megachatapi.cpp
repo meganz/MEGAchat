@@ -710,7 +710,7 @@ void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat,
                                                  const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes,
                                                  MegaChatRequestListener* listener)
 {
-    pImpl->createOrUpdateScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, MEGACHAT_INVALID_HANDLE /* schedId */, MEGACHAT_INVALID_HANDLE /*parentSchedId,*/,
+    pImpl->createChatAndScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, MEGACHAT_INVALID_HANDLE /* schedId */, MEGACHAT_INVALID_HANDLE /*parentSchedId,*/,
                                                  true /*createChat*/, isMeeting, publicChat, speakRequest, waitingRoom, openInvite,
                                                  timezone, startDate, endDate, title, description, false /*cancelled*/, attributes, nullptr /*overrides*/, flags, rules, listener);
 }
