@@ -2776,14 +2776,14 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            const MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
-            if (!sm->startDateTime()  && !sm->startDateTime() && sm->cancelled() == -1)
+            const MegaChatScheduledMeeting* ocurr = request->getMegaChatScheduledMeetingList()->at(0);
+            if (!ocurr->startDateTime() && !ocurr->startDateTime() && ocurr->cancelled() == -1)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
 
-            GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(sm->chatId()));
+            GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(ocurr->chatId()));
             if (!chatroom)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
@@ -2792,7 +2792,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             // get scheduled meeting list from RAM
             const auto& schedMeetings = chatroom->getScheduledMeetings();
-            auto it = schedMeetings.find(sm->schedId());
+            auto it = schedMeetings.find(ocurr->schedId());
             if (it == schedMeetings.end())
             {
                 // scheduled meeting related to occurrence we want to modify, doesn't exists
@@ -2804,25 +2804,26 @@ void MegaChatApiImpl::sendPendingRequests()
             size_t numOccurrences = chatroom->loadSchedMeetingsOccurrFromLocal();
 
             // get the occurrence and it's scheduled meeting associated from RAM
-            const KarereScheduledMeeting* auxMeeting = it->second.get();
-            const KarereScheduledMeetingOccurr* auxOccurr = nullptr;
+            const KarereScheduledMeeting* occurrSchedMeeting = it->second.get();
+            const KarereScheduledMeetingOccurr* localOccurr = nullptr;
             const char* overrides = request->getText();
             const auto& occurrences = chatroom->getScheduledMeetingsOccurrences();
             for (auto it = occurrences.begin(); it != occurrences.end(); it++)
             {
-                if (it->second->schedId() == sm->schedId() && !it->second->startDateTime().compare(overrides))
+                if (it->second->schedId() == ocurr->schedId() && !it->second->startDateTime().compare(overrides))
                 {
-                    auxOccurr = it->second.get();
+                    // primary key for an occurrence is composed of schedId and StartDateTime
+                    localOccurr = it->second.get();
                     break;
                 }
             }
 
-            if (!auxOccurr)
+            if (!localOccurr)
             {
                 if (numOccurrences < MegaChatScheduledMeeting::MIN_OCURRENCES)
                 {
                     // load fresh scheduled meeting occurrences from API
-                    mClient->fetchScheduledMeetingOccurrences(sm->chatId(),
+                    mClient->fetchScheduledMeetingOccurrences(ocurr->chatId(),
                                                               nullptr, /*since*/
                                                               nullptr, /*until*/
                                                               0 /*count*/)
@@ -2844,23 +2845,53 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             // check if startDatetime endDateTime and cancelled were provided in request, otherwise get the values from ocurrence stored in RAM
-            MegaChatHandle organizerUserId =  sm->organizerUserId();
-            const char* newStartDate = sm->startDateTime() ? sm->startDateTime() : auxOccurr->startDateTime().c_str();
-            const char* newEndDate = sm->endDateTime() ? sm->endDateTime() : auxOccurr->endDateTime().c_str();
-            int newCancelled = (sm->cancelled() == 0 || sm->cancelled() == 1) ? sm->cancelled() : auxOccurr->cancelled();
-            std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!auxMeeting->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
+            const char* newStartDate = ocurr->startDateTime() ? ocurr->startDateTime() : localOccurr->startDateTime().c_str();
+            const char* newEndDate = ocurr->endDateTime() ? ocurr->endDateTime() : localOccurr->endDateTime().c_str();
+            int newCancelled = (ocurr->cancelled() == 0 || ocurr->cancelled() == 1) ? ocurr->cancelled() : localOccurr->cancelled();
+
+            std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!occurrSchedMeeting->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
             if (megaFlags)
             {
-                 assert(auxMeeting->flags());
-                 megaFlags->importFlagsValue(auxMeeting->flags()->getNumericValue());
+                 assert(occurrSchedMeeting->flags());
+                 megaFlags->importFlagsValue(occurrSchedMeeting->flags()->getNumericValue());
             }
 
-            std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(auxMeeting->chatid(), MEGACHAT_INVALID_HANDLE /*schedId*/,
-                                                                                                                auxMeeting->schedId() /*parentId*/, organizerUserId,
-                                                                                                                newCancelled, auxMeeting->timezone().c_str(), newStartDate, newEndDate,
-                                                                                                                auxMeeting->title().c_str(),auxMeeting->description().c_str(),
-                                                                                                                auxMeeting->attributes().size() ? auxMeeting->attributes().c_str() :nullptr,
+            std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting;
+            if (!occurrSchedMeeting->rules() || occurrSchedMeeting->parentSchedId() != MEGACHAT_INVALID_HANDLE)
+            {
+                /* we don't want to create a new child scheduled meeting (don't set parent nor overrides params)
+                 * if scheduled meeting associated to the occurrence we want to modify:
+                 *   - doesn't have repetition rules
+                 *   - has a parent scheduled meeting
+                 */
+                std::unique_ptr<::mega::MegaScheduledRules> megaRules(occurrSchedMeeting->rules() ? occurrSchedMeeting->rules()->getMegaScheduledRules() : nullptr);
+                megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(occurrSchedMeeting->chatid(), occurrSchedMeeting->schedId() /*schedId*/,
+                                                                                                                    MEGACHAT_INVALID_HANDLE /*parentId*/, occurrSchedMeeting->organizerUserid(),
+                                                                                                                    newCancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
+                                                                                                                    occurrSchedMeeting->title().c_str(),occurrSchedMeeting->description().c_str(),
+                                                                                                                    occurrSchedMeeting->attributes().size() ? occurrSchedMeeting->attributes().c_str() :nullptr,
+                                                                                                                    nullptr /*overrides*/, megaFlags.get(), megaRules.get()));
+
+            }
+            else
+            {
+                /* we want to create a new child scheduled meeting that contains the modified ocurrence
+                 * if scheduled meeting associated to the occurrence we want to modify:
+                 *   - has repetition rules and doesn't have a parent scheduled meeting
+                 *
+                 * then we need to set overrides as occurrence startDateTime and parentSchedId as schedId of the meeting
+                 * to which this occurrence belongs
+                 *
+                 * as we want to create a new child scheduled meeting that contains the modified ocurrence, we won't set
+                 * repetition rules (non recurring scheduled meeting)
+                 */
+                megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(occurrSchedMeeting->chatid(), MEGACHAT_INVALID_HANDLE /*schedId*/,
+                                                                                                                occurrSchedMeeting->schedId() /*parentId*/, occurrSchedMeeting->organizerUserid(),
+                                                                                                                newCancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
+                                                                                                                occurrSchedMeeting->title().c_str(),occurrSchedMeeting->description().c_str(),
+                                                                                                                occurrSchedMeeting->attributes().size() ? occurrSchedMeeting->attributes().c_str() :nullptr,
                                                                                                                 overrides, megaFlags.get(), /*rules*/ nullptr));
+            }
 
             mClient->createOrUpdateScheduledMeeting(megaSchedMeeting.get())
             .then([request, this](KarereScheduledMeeting* sm)
@@ -2931,11 +2962,12 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             const KarereScheduledMeeting* currentMeeting = it->second.get();
-            const char* newTimezone = sm->timezone();
-            const char* newStartDate = sm->startDateTime();
-            const char* newEndDate = sm->endDateTime();
-            const char* newTitle = sm->title();
-            const char* newDescription = sm->description();
+            std::string newTimezone = sm->timezone() ? sm->timezone() : currentMeeting->timezone();
+            std::string newStartDate = sm->startDateTime() ? sm->startDateTime() : currentMeeting->startDateTime();
+            std::string newEndDate = sm->endDateTime() ? sm->endDateTime() : currentMeeting->endDateTime();
+            std::string newTitle = sm->title() ? sm->title() : currentMeeting->title();
+            std::string newDescription = sm->description() ? sm->description() : currentMeeting->description();
+
             std::unique_ptr<::mega::MegaScheduledFlags> newFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
             if (newFlags)
             {
@@ -2947,10 +2979,14 @@ void MegaChatApiImpl::sendPendingRequests()
                                                                                                               sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
             std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(currentMeeting->chatid(), currentMeeting->schedId(), currentMeeting->parentSchedId(), currentMeeting->organizerUserid(),
-                                                                                                                currentMeeting->cancelled(), newTimezone, newStartDate, newEndDate,newTitle, newDescription,
+                                                                                                                currentMeeting->cancelled(),
+                                                                                                                newTimezone.empty() ? nullptr : newTimezone.c_str(),
+                                                                                                                newStartDate.empty() ? nullptr : newStartDate.c_str(),
+                                                                                                                newEndDate.empty() ? nullptr : newEndDate.c_str(),
+                                                                                                                newTitle.empty() ? nullptr : newTitle.c_str(),
+                                                                                                                newDescription.empty() ? nullptr : newDescription.c_str(),
                                                                                                                 currentMeeting->attributes().empty() ? nullptr : currentMeeting->attributes().c_str(),
-                                                                                                                currentMeeting->overrides().empty() ? nullptr : currentMeeting->overrides().c_str(),
-                                                                                                                newFlags.get(), newRules.get()));
+                                                                                                                nullptr /*overrides*/, newFlags.get(), newRules.get()));
             mClient->createOrUpdateScheduledMeeting(megaSchedMeeting.get())
             .then([request, this](KarereScheduledMeeting* sm)
             {

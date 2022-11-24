@@ -4153,7 +4153,16 @@ public:
     /**
      * @brief Modify an existing scheduled meeting occurrence
      *
-     * Note: this action will create a new child scheduled meeting whose parent schedid will be the schedid provided by this method
+     * Note: A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
+     * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+     *
+     * Important considerations:
+     *  - If the scheduled meeting associated to the occurrence we want to modify, doesn't have repetition rules, OR has a
+     *    parent scheduled meeting, this method won't to create a new child scheduled meeting (API requirement).
+     *
+     *  - If the scheduled meeting associated to the occurrence we want to modify, has repetition rules AND doesn't have a parent
+     *    scheduled meeting, this method will create a new child scheduled meeting (with it's own schedId), that contains
+     *    the modified ocurrence (API requirement)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
