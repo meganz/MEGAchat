@@ -3130,7 +3130,7 @@ void MegaChatApiImpl::createKarereClient()
 #ifndef KARERE_DISABLE_WEBRTC
         mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mCallHandler, *mScheduledMeetingHandler, mMegaApi->getBasePath(), caps, this);
 #else
-        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, mMegaApi->getBasePath(), caps, this);
+        mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mScheduledMeetingHandler, mMegaApi->getBasePath(), caps, this);
 #endif
         API_LOG_DEBUG("createKarereClient: karere client instance created");
         mTerminating = false;
@@ -10562,6 +10562,7 @@ void MegaChatCallHandler::onNetworkQualityChanged(const rtcModule::ICall &call)
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
+#endif
 
 MegaChatScheduledMeetingHandler::MegaChatScheduledMeetingHandler(MegaChatApiImpl *megaChatApi)
 {
@@ -10576,13 +10577,19 @@ void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduled
 {
     std::unique_ptr<MegaChatScheduledMeetingPrivate> schedMeeting(new MegaChatScheduledMeetingPrivate(sm));
     schedMeeting->setChanged(changed);
+#ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->fireOnChatSchedMeetingUpdate(schedMeeting.get());
+#endif
 }
 
 void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id)
 {
+#ifndef KARERE_DISABLE_WEBRTC
     mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id);
+#endif
 }
+
+#ifndef KARERE_DISABLE_WEBRTC
 MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, const rtcModule::ICall& call)
 {
     mMegaChatApi = megaChatApi;

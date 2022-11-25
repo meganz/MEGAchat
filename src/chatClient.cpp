@@ -68,8 +68,8 @@ bool Client::isInBackground() const
 Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 #ifndef KARERE_DISABLE_WEBRTC
                rtcModule::CallHandler &callHandler,
-               ScheduledMeetingHandler& scheduledMeetingHandler,
 #endif
+               ScheduledMeetingHandler& scheduledMeetingHandler,
                const std::string &appDir, uint8_t caps, void *ctx)
     : mAppDir(appDir),
       websocketIO(websocketsIO),
@@ -80,8 +80,8 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       mDnsCache(db, chatd::Client::chatdVersion),
 #ifndef KARERE_DISABLE_WEBRTC
       mCallHandler(callHandler),
-      mScheduledMeetingHandler(scheduledMeetingHandler),
 #endif
+      mScheduledMeetingHandler(scheduledMeetingHandler),
       mContactList(new ContactList(*this)),
       chats(new ChatRoomList(*this)),
       mPresencedClient(&api, this, *this, caps)
@@ -5643,7 +5643,7 @@ bool KarereScheduledRules::serialize(Buffer& out) const
     if (hasUntil)    { w.serializestring(mUntil); }
     if (hasByWeekDay)
     {
-        w.serializeu64(mByWeekDay->size());
+        w.serializeu32(static_cast<uint32_t>(mByWeekDay->size()));
         for (auto i: *mByWeekDay)
         {
             int8_t aux = static_cast<int8_t>(i);
@@ -5653,7 +5653,7 @@ bool KarereScheduledRules::serialize(Buffer& out) const
 
     if (hasByMonthDay)
     {
-        w.serializeu64(mByMonthDay->size());
+        w.serializeu32(static_cast<uint32_t>(mByMonthDay->size()));
         for (auto i: *mByMonthDay)
         {
             int8_t aux = static_cast<int8_t>(i);
@@ -5663,7 +5663,7 @@ bool KarereScheduledRules::serialize(Buffer& out) const
 
     if (hasByMonthWeekDay)
     {
-        w.serializeu64(mByMonthWeekDay->size()*2);
+        w.serializeu32(static_cast<uint32_t>(mByMonthWeekDay->size()*2));
         for (auto i: *mByMonthWeekDay)
         {
             int8_t key = static_cast<int8_t>(i.first);
@@ -5689,13 +5689,18 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     karere_rules_vector byWeekDay;
     karere_rules_vector byMonthDay;
     karere_rules_map byMonthWeekDay;
-    uint64_t auxSize = 0;
+    uint32_t auxSize = 0;
     constexpr unsigned int flagSize = 5;
     unsigned char expansions[8];
 
-    mega::CacheableReader w(aux);
-    w.unserializei32(freq);
-    w.unserializeexpansionflags(expansions, flagSize);
+    mega::CacheableReader r(aux);
+    if (!r.unserializei32(freq)
+            || !r.unserializeexpansionflags(expansions, flagSize))
+    {
+        assert(false);
+        KR_LOG_ERROR("Failure at schedule meeting rules unserialization freq/flagSize");
+        return nullptr;
+    }
 
     bool hasInterval        = expansions[0];
     bool hasUntil           = expansions[1];
@@ -5703,14 +5708,14 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     bool hasByMonthDay      = expansions[3];
     bool hasByMonthWeekDay  = expansions[4];
 
-    if (hasInterval && !w.unserializei32(interval))
+    if (hasInterval && !r.unserializei32(interval))
     {
         assert(false);
         KR_LOG_ERROR("Failure at schedule meeting rules unserialization interval");
         return nullptr;
     }
 
-    if (hasUntil && !w.unserializestring(until))
+    if (hasUntil && !r.unserializestring(until))
     {
         assert(false);
         KR_LOG_ERROR("Failure at schedule meeting rules unserialization until");
@@ -5718,40 +5723,80 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     }
 
     auxSize = 0;
-    if (hasByWeekDay && w.unserializeu64(auxSize))
+    if (hasByWeekDay)
     {
-        for (size_t i = 0; i < static_cast<size_t>(auxSize); i++)
+        if (!r.unserializeu32(auxSize))
+        {
+            assert(false);
+            KR_LOG_ERROR("Failure at schedule meeting rules unserialization byWeekDay vector size");
+            return nullptr;
+        }
+
+        for (uint32_t i = 0; i < auxSize; i++)
         {
            int8_t element = 0;
-           if (w.unserializei8(element))
+           if (r.unserializei8(element))
            {
                byWeekDay.emplace_back(element);
+           }
+           else
+           {
+               assert(false);
+               KR_LOG_ERROR("Failure at schedule meeting rules unserialization byWeekDay");
+               return nullptr;
            }
         }
     }
 
     auxSize = 0;
-    if (hasByMonthDay && w.unserializeu64(auxSize))
+    if (hasByMonthDay)
     {
-        for (size_t i = 0; i < static_cast<size_t>(auxSize); i++)
+        if (!r.unserializeu32(auxSize))
+        {
+            assert(false);
+            KR_LOG_ERROR("Failure at schedule meeting rules unserialization byMonthDay vector size");
+            return nullptr;
+        }
+
+        for (uint32_t i = 0; i < auxSize; i++)
         {
            int8_t element = 0;
-           if (w.unserializei8(element))
+           if (r.unserializei8(element))
            {
                byMonthDay.emplace_back(element);
+           }
+           else
+           {
+               assert(false);
+               KR_LOG_ERROR("Failure at schedule meeting rules unserialization byMonthDay");
+               return nullptr;
            }
         }
     }
 
-    if (hasByMonthWeekDay && w.unserializeu64(auxSize))
+    auxSize = 0;
+    if (hasByMonthWeekDay)
     {
-        for (size_t i = 0; i < static_cast<size_t>(auxSize) / 2; i++)
+        if (!r.unserializeu32(auxSize))
+        {
+            assert(false);
+            KR_LOG_ERROR("Failure at schedule meeting rules unserialization byMonthWeekDay vector size");
+            return nullptr;
+        }
+
+        for (uint32_t i = 0; i < auxSize / 2; i++)
         {
             int8_t key = 0;
             int8_t value = 0;
-            if (w.unserializei8(key) && w.unserializei8(value))
+            if (r.unserializei8(key) && r.unserializei8(value))
             {
                 byMonthWeekDay.emplace(key, value);
+            }
+            else
+            {
+                assert(false);
+                KR_LOG_ERROR("Failure at schedule meeting rules unserialization byMonthWeekDay");
+                return nullptr;
             }
         }
     }

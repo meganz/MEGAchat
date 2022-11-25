@@ -6,7 +6,7 @@
 #include <memory>
 #include <map>
 #include <type_traits>
-#include <retryHandler.h>
+#include "base/retryHandler.h"
 #include "userAttrCache.h"
 #include <db.h>
 #include "chatd.h"
@@ -1019,8 +1019,8 @@ public:
     Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 #ifndef KARERE_DISABLE_WEBRTC
            rtcModule::CallHandler& callHandler,
-           ScheduledMeetingHandler& mScheduledMeetingHandler,
 #endif
+           ScheduledMeetingHandler& mScheduledMeetingHandler,
            const std::string &appDir, uint8_t caps, void *ctx);
 
     virtual ~Client();
@@ -1399,9 +1399,9 @@ public:
         SC_CANC             = 9,
         SC_FLAGS            = 10,
         SC_RULES            = 11,
-        SC_SIZE             = 12,
+        SC_FLAGS_SIZE       = 12,
     } scheduled_changed_flags_t;
-    typedef std::bitset<SC_SIZE> sched_bs_t;
+    typedef std::bitset<SC_FLAGS_SIZE> sched_bs_t;
 
     KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime,
                                     const std::string& title, const std::string& description, karere::Id schedId = karere::Id::inval(),

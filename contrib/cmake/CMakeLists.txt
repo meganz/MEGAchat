@@ -113,6 +113,11 @@ if (WIN32)
 target_link_libraries(karere PUBLIC Iphlpapi.lib Psapi.lib Userenv.lib Msdmo.lib Strmiids.lib Dmoguids.lib Winmm.dll wmcodecdspuuid.lib Wldap32.lib)
 endif()
 
+#test apps
+add_executable(sdk_test ${KarereDir}/tests/sdk_test/sdk_test.cpp)
+target_link_libraries(sdk_test PUBLIC karere)
+target_compile_definitions(sdk_test PRIVATE MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC>)
+
 add_executable(megaclc ${KarereDir}/examples/megaclc/megaclc.cpp)
 target_link_libraries(megaclc PUBLIC karere)
 target_compile_definitions(megaclc PRIVATE MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC>)
@@ -123,6 +128,7 @@ endif (NOT NO_READLINE)
 if (WIN32)
     set_property(TARGET karere PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>$<${MEGA_LINK_DYNAMIC_CRT}:DLL>")
     set_property(TARGET megaclc PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>$<${MEGA_LINK_DYNAMIC_CRT}:DLL>")
+    set_property(TARGET sdk_test PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>$<${MEGA_LINK_DYNAMIC_CRT}:DLL>")
 
     target_compile_options(karere PRIVATE /WX-)  # tackling the sheer number of warnings in this project is a big job
 

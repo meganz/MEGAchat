@@ -7620,7 +7620,7 @@ public:
        SC_CANC             = 9,
        SC_FLAGS            = 10,
        SC_RULES            = 11,
-       SC_SIZE             = 12,
+       SC_FLAGS_SIZE       = 12,
     };
     static constexpr unsigned int MAX_TITLE_LENGTH = 30;
     static constexpr unsigned int MAX_DESC_LENGTH = 4000;

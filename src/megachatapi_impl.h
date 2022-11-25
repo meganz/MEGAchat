@@ -631,6 +631,7 @@ public:
 private:
     MegaChatApiImpl* mMegaChatApi;
 };
+#endif
 
 class MegaChatScheduledMeetingHandler: public karere::ScheduledMeetingHandler
 {
@@ -644,6 +645,7 @@ private:
     MegaChatApiImpl* mMegaChatApi;
 };
 
+#ifndef KARERE_DISABLE_WEBRTC
 class MegaChatSessionHandler : public rtcModule::SessionHandler
 {
 public:
@@ -915,7 +917,7 @@ private:
 class MegaChatScheduledMeetingPrivate: public MegaChatScheduledMeeting
 {
 public:
-    typedef std::bitset<SC_SIZE> megachat_sched_bs_t;
+    typedef std::bitset<SC_FLAGS_SIZE> megachat_sched_bs_t;
     MegaChatScheduledMeetingPrivate(MegaChatHandle chatid,
                                     const char* timezone,
                                     const char* startDateTime,
