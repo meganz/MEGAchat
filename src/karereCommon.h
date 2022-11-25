@@ -5,6 +5,7 @@
 #include <logger.h>
 #include <cservices.h> //needed for timestampMs()
 #include <string.h>
+#include <bitset>
 
 // MEGA Meetings types
 typedef uint8_t Keyid_t;        // 8-bit id of the encryption key
@@ -198,6 +199,24 @@ enum: uint8_t
     /** Client can use bit 15 from preferences to handle last-green's visibility */
     kClientSupportLastGreen = 0x20
 };
+
+typedef enum
+{
+    SC_NEW_SCHED        = 0,
+    SC_PARENT           = 1,
+    SC_TZONE            = 2,
+    SC_START            = 3,
+    SC_END              = 4,
+    SC_TITLE            = 5,
+    SC_DESC             = 6,
+    SC_ATTR             = 7,
+    SC_OVERR            = 8,
+    SC_CANC             = 9,
+    SC_FLAGS            = 10,
+    SC_RULES            = 11,
+    SC_FLAGS_SIZE       = 12,
+} karere_scheduled_changed_flags_t;
+typedef std::bitset<SC_FLAGS_SIZE> karere_sched_bs_t;
 
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql
 extern const char* gDbSchema;

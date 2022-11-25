@@ -1868,7 +1868,7 @@ void Call::onSendByeCommand()
 
         if (!mSfuConnection)
         {
-            RTCM_LOG_DEBUG("onSendByeCommand: SFU connection doesn't exists anymore");
+            RTCM_LOG_DEBUG("onSendByeCommand: SFU connection no longer exists");
             return;
         }
 
@@ -2846,7 +2846,7 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
     Call *call = static_cast<Call*>(iCall);
     if (!call)
     {
-        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call doesn't exists anymore");
+        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call no longer exists");
         return;
     }
 
@@ -2872,7 +2872,7 @@ void RtcModuleSfu::immediateRemoveCall(Call* call, uint8_t reason, TermCode conn
     assert(reason != kInvalidReason);
     if (!call)
     {
-        RTCM_LOG_WARNING("removeCall: call doesn't exists anymore");
+        RTCM_LOG_WARNING("removeCall: call no longer exists");
         return;
     }
 

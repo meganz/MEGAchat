@@ -60,6 +60,12 @@ class ChatRoom;
 class GroupChatRoom;
 class Contact;
 class ContactList;
+class KarereScheduledFlags;
+class KarereScheduledRules;
+class KarereScheduledMeeting;
+class KarereScheduledMeetingOccurr;
+class ScheduledMeetingHandler;
+class DbClientInterface;
 
 typedef std::map<Id, chatd::Priv> UserPrivMap;
 typedef std::map<uint64_t, std::string> AliasesMap;
@@ -354,8 +360,27 @@ protected:
     bool mMeeting = false;
     ::mega::ChatOptions mChatOptions; // by default chat options are empty
 
+    // scheduled meetings map
+    std::map<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
+
+    // maps a scheduled meeting id to a scheduled meeting occurrence
+    // a scheduled meetings ocurrence is an event based on a scheduled meeting
+    // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
+    // (check ScheduledMeeting class documentation)
+    std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>> mScheduledMeetingsOcurrences;
+
+    // this flag indicates if scheduled meeting occurrences have been loaded from Db for this chatroom
+    bool mDbOccurrencesLoaded = false;
+
+    DbClientInterface& getClientDbInterface();
+    ScheduledMeetingHandler& schedMeetingHandler();
     void setChatPrivateMode();
     void updateChatOptions(mega::ChatOptions_t opt);
+    void addSchedMeetings(const mega::MegaTextChat& chat);
+    void updateSchedMeetings(const mega::MegaTextChat& chat);
+    void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
+    void loadSchedMeetingsFromDb();
+    void loadSchedMeetingsOccurrFromDb();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -370,6 +395,8 @@ protected:
     void updateTitleInDb(const std::string &title, int isEncrypted);
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
+    void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
+    void notifySchedMeetingOccurrencesUpdated();
     void setRemoved();
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
@@ -449,6 +476,19 @@ public:
      */
     promise::Promise<void> setChatRoomOption(int option, bool enabled);
 
+    // maps a scheduled meeting id to a scheduled meeting
+    // a scheduled meetings allows the user to specify an event that will occur in the future
+    const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
+
+    // maps a scheduled meeting id to a scheduled meeting occurrence
+    // a scheduled meetings ocurrence is an event based on a scheduled meeting
+    // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
+    promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
+    getFutureScheduledMeetingsOccurrences() const;
+
+    const std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>>&
+    getScheduledMeetingsOccurrences() const;
+
     /** TODO
      *
      */
@@ -467,6 +507,13 @@ public:
 
     void handleTitleChange(const std::string &title, bool saveToDb = false);
     bool isMember(karere::Id peerid) const override;
+
+    /**
+     * @brief Load scheduled meeting occurrences locally
+     * This method loads scheduled meeting occurrences from Db, if we haven't loaded yet
+     * @returns the number of loaded scheduled meeting occurrences
+     */
+    size_t loadSchedMeetingsOccurrFromLocal();
 
     unsigned long numMembers() const override;
 
@@ -900,6 +947,7 @@ public:
     DNScache mDnsCache;         // dns cache
 
     std::unique_ptr<chatd::Client> mChatdClient;
+    ScheduledMeetingHandler& mScheduledMeetingHandler; // interface for global events in scheduled meetings
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::CallHandler& mCallHandler; // interface for global events in calls
@@ -951,6 +999,9 @@ protected:
     AliasesMap mAliasesMap;
     bool mIsInBackground = false;
 
+    // client db interface
+    std::unique_ptr<DbClientInterface> mClientDbInterface;
+
 public:
 
     /**
@@ -968,6 +1019,7 @@ public:
     Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 #ifndef KARERE_DISABLE_WEBRTC
            rtcModule::CallHandler& callHandler,
+           ScheduledMeetingHandler& mScheduledMeetingHandler,
 #endif
            const std::string &appDir, uint8_t caps, void *ctx);
 
@@ -1015,6 +1067,21 @@ public:
      * to avoid that openChatPreview creates the chat room
      */
     void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting);
+
+    /**
+     * @brief This function allows to create a scheduled meeting.
+     * TODO: complete documentation
+     */
+    promise::Promise<KarereScheduledMeeting*> createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting);
+
+
+    promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>> fetchScheduledMeetingOccurrences(uint64_t chatid, const char* since, const char* until, unsigned int count);
+
+    /**
+     * @brief This function allows to remove a scheduled meeting.
+     * TODO: complete documentation
+     */
+    promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
@@ -1154,6 +1221,8 @@ public:
     void setMyEmail(const std::string &email);
     const std::string& getMyEmail() const;
 
+    DbClientInterface &getClientDbInterface();
+
 protected:
     void heartbeat();
     void setInitState(InitState newState);
@@ -1215,6 +1284,247 @@ protected:
     //==
     friend class ChatRoom;
     friend class ChatRoomList;
+};
+
+class KarereScheduledFlags
+{
+public:
+    typedef enum
+    {
+        FLAGS_DONT_SEND_EMAILS = 0, // API won't send out calendar emails for this meeting if it's enabled
+        FLAGS_SIZE             = 1, // size in bits of flags bitmask
+    } scheduled_flags_t;
+
+    // TODO remove
+    typedef std::bitset<FLAGS_SIZE> karereScheduledFlagsBitSet;
+
+    KarereScheduledFlags (unsigned long numericValue);
+    KarereScheduledFlags (const KarereScheduledFlags* flags);
+    KarereScheduledFlags(const ::mega::MegaScheduledFlags* flags);
+    virtual ~KarereScheduledFlags();
+    KarereScheduledFlags* copy();
+
+    // --- setters ---
+    void reset();
+    bool emailsDisabled() const;
+    unsigned long getNumericValue() const;
+    bool isEmpty() const;
+    bool equalTo(::mega::MegaScheduledFlags* aux) const;
+
+private:
+    karereScheduledFlagsBitSet mFlags = 0;
+};
+
+class KarereScheduledRules
+{
+public:
+    typedef enum {
+        FREQ_INVALID    = -1,
+        FREQ_DAILY      = 0,
+        FREQ_WEEKLY     = 1,
+        FREQ_MONTHLY    = 2,
+    } freq_type;
+
+    constexpr static int INTERVAL_INVALID = 0;
+
+    // just for karere internal usage
+    typedef std::vector<int8_t> karere_rules_vector;
+    typedef std::multimap<int8_t, int8_t> karere_rules_map;
+
+    KarereScheduledRules(int freq,
+                   int interval = INTERVAL_INVALID,
+                   const std::string& until = std::string(),
+                   const karere_rules_vector* byWeekDay = nullptr,
+                   const karere_rules_vector* byMonthDay = nullptr,
+                   const karere_rules_map* byMonthWeekDay = nullptr);
+
+    KarereScheduledRules(const KarereScheduledRules* rules);
+    KarereScheduledRules(const ::mega::MegaScheduledRules* rules);
+    virtual ~KarereScheduledRules();
+    KarereScheduledRules* copy() const;
+
+    // --- getters ---
+    int freq() const;
+    int interval() const;
+    const std::string &until() const;
+    const karere_rules_vector* byWeekDay() const;
+    const karere_rules_vector* byMonthDay() const;
+    const karere_rules_map* byMonthWeekDay() const;
+    bool equalTo (const mega::MegaScheduledRules *r) const;
+
+    static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
+    static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
+
+    // --- methods to un/serialize ---
+    bool serialize(Buffer& out) const;
+    static KarereScheduledRules* unserialize(const Buffer& in);
+
+private:
+    // scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
+    int mFreq;
+
+    // repetition interval in relation to the frequency
+    int mInterval = 0;
+
+    // specifies when the repetitions should end
+    std::string mUntil;
+
+    // allows us to specify that an event will only occur on given week day/s
+    std::unique_ptr<karere_rules_vector> mByWeekDay;
+
+    // allows us to specify that an event will only occur on a given day/s of the month
+    std::unique_ptr<karere_rules_vector> mByMonthDay;
+
+    // allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
+    std::unique_ptr<karere_rules_map> mByMonthWeekDay;
+};
+
+class KarereScheduledMeeting
+{
+public:
+    typedef enum
+    {
+        SC_NEW_SCHED        = 0,
+        SC_PARENT           = 1,
+        SC_TZONE            = 2,
+        SC_START            = 3,
+        SC_END              = 4,
+        SC_TITLE            = 5,
+        SC_DESC             = 6,
+        SC_ATTR             = 7,
+        SC_OVERR            = 8,
+        SC_CANC             = 9,
+        SC_FLAGS            = 10,
+        SC_RULES            = 11,
+        SC_FLAGS_SIZE       = 12,
+    } scheduled_changed_flags_t;
+    typedef std::bitset<SC_FLAGS_SIZE> sched_bs_t;
+
+    KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime,
+                                    const std::string& title, const std::string& description, karere::Id schedId = karere::Id::inval(),
+                                    karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
+                                    const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
+
+    KarereScheduledMeeting(const KarereScheduledMeeting* karereScheduledMeeting);
+    KarereScheduledMeeting(const mega::MegaScheduledMeeting* sm);
+
+    KarereScheduledMeeting* copy() const;
+    virtual ~KarereScheduledMeeting();
+
+    karere::Id chatid() const;
+    karere::Id schedId() const;
+    karere::Id parentSchedId() const;
+    karere::Id organizerUserid() const;
+    const std::string& timezone() const;
+    const std::string& startDateTime() const;
+    const std::string& endDateTime() const;
+    const std::string& title() const;
+    const std::string& description() const;
+    const std::string& attributes() const;
+    const std::string& overrides() const;
+    int cancelled() const;
+    KarereScheduledFlags* flags() const;
+    KarereScheduledRules* rules() const;
+    sched_bs_t compare(const mega::MegaScheduledMeeting* sm) const;
+
+private:
+    // chat handle
+    karere::Id mChatid;
+
+    // scheduled meeting handle
+    karere::Id mSchedId;
+
+    // parent scheduled meeting handle
+    karere::Id mParentSchedId;
+
+    // organizer user handle
+    karere::Id mOrganizerUserId;
+
+    // timeZone
+    std::string mTimezone;
+
+    // start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // meeting title
+    std::string mTitle;
+
+    // meeting description
+    std::string mDescription;
+
+    // attributes to store any additional data
+    std::string mAttributes;
+
+    // start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
+    std::string mOverrides;
+
+    // cancelled flag
+    int mCancelled;
+
+    // flags bitmask (used to store additional boolean settings as a bitmask)
+    std::unique_ptr<KarereScheduledFlags> mFlags;
+
+    // scheduled meetings rules
+    std::unique_ptr<KarereScheduledRules> mRules;
+};
+
+class KarereScheduledMeetingOccurr
+{
+public:
+
+    KarereScheduledMeetingOccurr(const karere::Id& schedId, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime, int cancelled = -1);
+    KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* karereScheduledMeetingOccurr);
+    KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* sm);
+
+    KarereScheduledMeetingOccurr* copy() const;
+    virtual ~KarereScheduledMeetingOccurr();
+
+    karere::Id schedId() const;
+    const std::string& timezone() const;
+    const std::string& startDateTime() const;
+    const std::string& endDateTime() const;
+    int cancelled() const;
+
+private:
+
+    // scheduled meeting handle
+    karere::Id mSchedId;
+
+    // timeZone
+    std::string mTimezone;
+
+    // start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // cancelled flag
+    int mCancelled;
+};
+
+class ScheduledMeetingHandler
+{
+public:
+    virtual ~ScheduledMeetingHandler(){}
+    virtual void onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed) = 0;
+    virtual void onSchedMeetingOccurrencesChange(const karere::Id& id) = 0;
+};
+
+class DbClientInterface
+{
+public:
+    virtual ~DbClientInterface(){}
+    virtual void insertOrUpdateSchedMeeting(const KarereScheduledMeeting& sm) = 0;
+    virtual void removeSchedMeetingBySchedId(const karere::Id& id) = 0;
+    virtual void removeSchedMeetingByChatId(const karere::Id& id) = 0;
+    virtual std::vector<std::unique_ptr<KarereScheduledMeeting>> getSchedMeetingsByChatId(const karere::Id& id) = 0;
+    virtual void insertOrUpdateSchedMeetingOcurr(const KarereScheduledMeetingOccurr& sm) = 0;
+    virtual void clearSchedMeetingOcurrByChatid(const karere::Id& id) = 0;
+    virtual std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> getSchedMeetingsOccurByChatId(const karere::Id& id) = 0;
 };
 }
 #endif // CHATCLIENT_H
