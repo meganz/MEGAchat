@@ -82,7 +82,7 @@ private:
             t.mOKTests ++; \
             LOG_debug << "Finished test: " << title; \
         } \
-        catch(ChatTestException e) \
+        catch(const ChatTestException& e) \
         { \
             t.testHasFailed = true; \
             std::cout << e.what() << std::endl; \

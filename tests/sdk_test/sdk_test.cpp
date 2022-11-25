@@ -138,7 +138,7 @@ std::string Account::getPassword() const
 
 MegaChatApiTest::MegaChatApiTest()
 {
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned i = 0u; i < NUM_ACCOUNTS; i++)
     {
         megaApi[i] = NULL;
         megaChatApi[i] = NULL;
@@ -313,7 +313,7 @@ void MegaChatApiTest::terminate()
 
 void MegaChatApiTest::SetUp()
 {
-    struct stat st = {0};
+    struct stat st = {}; // init all members to default values (0)
     if (stat(LOCAL_PATH.c_str(), &st) == -1)
     {
 #ifdef _WIN32
@@ -323,7 +323,7 @@ void MegaChatApiTest::SetUp()
 #endif
     }
 
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned i = 0u; i < NUM_ACCOUNTS; i++)
     {
         char path[1024];
 #ifdef _WIN32
@@ -505,7 +505,7 @@ void MegaChatApiTest::TearDown()
 
 void MegaChatApiTest::logoutAccounts(bool closeSession)
 {
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned i = 0u; i < NUM_ACCOUNTS; i++)
     {
         if (megaApi[i]->isLoggedIn())
         {
@@ -1736,7 +1736,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to autojoin chat-link. Error: " + lastErrorMsgChat[a2] + " (" + std::to_string(lastErrorChat[a2]) + ")");
     ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
     MegaChatListItem *item = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST((item->getNumPreviewers() == 0), "Wrong number of previewers. Current: " + item->getNumPreviewers());
+    ASSERT_CHAT_TEST((item->getNumPreviewers() == 0), "Wrong number of previewers. Current: " + to_string(item->getNumPreviewers()));
     delete item;
     item = NULL;
 
@@ -4265,7 +4265,7 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
 }
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                                 MegaChatPeerList *peers, int a1Priv, bool create, bool publicChat, const char *title)
+                                                 MegaChatPeerList *peers, int a1Priv, bool create, bool publicChat, const char*)
 {
     std::string logMsg;
     MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
@@ -4485,14 +4485,14 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     ASSERT_CHAT_TEST(msgPrimaryId != MEGACHAT_INVALID_HANDLE, "Wrong message id for sent message");
     MegaChatMessage *messageSent = megaChatApi[senderAccountIndex]->getMessage(chatid, msgPrimaryId);   // message should be already confirmed, so in RAM
     ASSERT_CHAT_TEST(messageSent, "Failed to find the confirmed message by msgid");
-    ASSERT_CHAT_TEST(messageSent->getMsgId() == msgPrimaryId, "Failed to retrieve the message id");
+    ASSERT_CHAT_TEST(messageSent && messageSent->getMsgId() == msgPrimaryId, "Failed to retrieve the message id");
 
     ASSERT_CHAT_TEST(waitForResponse(flagReceived), "Timeout expired for receiving message by target user");    // for reception
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(receiverAccountIndex, msgPrimaryId), "Message id of sent message and received message don't match");
     MegaChatHandle msgSecondaryId = msgPrimaryId;
     MegaChatMessage *messageReceived = megaChatApi[receiverAccountIndex]->getMessage(chatid, msgSecondaryId);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(messageReceived, "Failed to retrieve the message at the receiver account");
-    ASSERT_CHAT_TEST(!strcmp(textToSend.c_str(), messageReceived->getContent()), "Content of message received doesn't match the content of sent message");
+    ASSERT_CHAT_TEST(messageReceived && !strcmp(textToSend.c_str(), messageReceived->getContent()), "Content of message received doesn't match the content of sent message");
 
     // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
     if (megaChatApi[senderAccountIndex]->isMessageReceptionConfirmationActive()
@@ -4504,7 +4504,7 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     // Update Message
     if (messageId != MEGACHAT_INVALID_HANDLE)
     {
-        ASSERT_CHAT_TEST(messageReceived->isEdited(), "Edited messages is not reported as edition");
+        ASSERT_CHAT_TEST(messageReceived && messageReceived->isEdited(), "Edited messages is not reported as edition");
     }
 
     delete messageReceived;
@@ -4564,11 +4564,11 @@ MegaChatMessage *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, M
     ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId0), "Wrong message id at destination");
     MegaChatMessage *msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
     ASSERT_CHAT_TEST(msgReceived, "Failed to get messagbe by id");
-    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT, "Wrong type of message. Type: " + std::to_string(msgReceived->getType()));
+    ASSERT_CHAT_TEST(msgReceived && msgReceived->getType() == MegaChatMessage::TYPE_NODE_ATTACHMENT, "Wrong type of message. Type: " + std::to_string(msgReceived->getType()));
     megaNodeList = msgReceived->getMegaNodeList();
     ASSERT_CHAT_TEST(megaNodeList, "Failed to get list of nodes attached");
-    ASSERT_CHAT_TEST(megaNodeList->size() == 1, "Wrong size of list of nodes attached");
-    ASSERT_CHAT_TEST(megaNodeList->get(0)->getHandle() == nodeToSend->getHandle(), "Handle of node from received message doesn't match the nodehandle attached");
+    ASSERT_CHAT_TEST(megaNodeList && megaNodeList->size() == 1, "Wrong size of list of nodes attached");
+    ASSERT_CHAT_TEST(megaNodeList && nodeToSend && megaNodeList->get(0)->getHandle() == nodeToSend->getHandle(), "Handle of node from received message doesn't match the nodehandle attached");
 
     delete msgReceived;
     msgReceived = NULL;
@@ -4624,7 +4624,7 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
 unsigned int MegaChatApiTest::getMegaChatApiIndex(MegaChatApi *api)
 {
     int apiIndex = -1;
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (int i = 0; i < (int)NUM_ACCOUNTS; i++)
     {
         if (api == megaChatApi[i])
         {
@@ -4644,7 +4644,7 @@ unsigned int MegaChatApiTest::getMegaChatApiIndex(MegaChatApi *api)
 unsigned int MegaChatApiTest::getMegaApiIndex(MegaApi *api)
 {
     int apiIndex = -1;
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (int i = 0; i < (int)NUM_ACCOUNTS; i++)
     {
         if (api == megaApi[i])
         {
@@ -4707,7 +4707,7 @@ bool &MegaChatApiTest::isNotTransferRunning(int accountIndex)
 
 bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
 {
-    struct stat st = {0};
+    struct stat st = {}; // init all members to default values (0)
     if (stat(DOWNLOAD_PATH.c_str(), &st) == -1)
     {
 #ifdef _WIN32
@@ -5082,7 +5082,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
     }
 }
 
-void MegaChatApiTest::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool inProgress)
+void MegaChatApiTest::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
     if (userhandle == megaChatApi[apiIndex]->getMyUserHandle())
@@ -5206,8 +5206,8 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     LOG_debug << "On chat call change state ";
 }
 
-void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle chatid,
-                                          MegaChatHandle callid, MegaChatSession *session)
+void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
+                                          MegaChatHandle, MegaChatSession *session)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
     LOG_debug << "On chat session update START with apiIndex|" << apiIndex << "|";
@@ -5260,7 +5260,7 @@ TestChatVideoListener::~TestChatVideoListener()
 {
 }
 
-void TestChatVideoListener::onChatVideoData(MegaChatApi *api, MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
+void TestChatVideoListener::onChatVideoData(MegaChatApi*, MegaChatHandle, int, int, char*, size_t)
 {
 }
 
@@ -5273,7 +5273,7 @@ TestChatRoomListener::TestChatRoomListener(MegaChatApiTest *t, MegaChatApi **api
     this->chatid = chatid;
     this->message = NULL;
 
-    for (int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned i = 0u; i < NUM_ACCOUNTS; i++)
     {
         this->historyLoaded[i] = false;
         this->historyTruncated[i] = false;
@@ -5313,7 +5313,7 @@ bool TestChatRoomListener::hasValidMessages(unsigned int apiIndex)
 
 bool TestChatRoomListener::hasArrivedMessage(unsigned int apiIndex, MegaChatHandle messageHandle)
 {
-    for (int i = 0; i < msgId[apiIndex].size(); ++i)
+    for (unsigned i = 0u; i < msgId[apiIndex].size(); ++i)
     {
         if (msgId[apiIndex][i] == messageHandle)
         {
@@ -5461,7 +5461,7 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
     msgReceived[apiIndex] = true;
 }
 
-void TestChatRoomListener::onReactionUpdate(MegaChatApi *api, MegaChatHandle msgid, const char *reaction, int count)
+void TestChatRoomListener::onReactionUpdate(MegaChatApi *api, MegaChatHandle, const char*, int)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
     reactionReceived[apiIndex] = true;
@@ -5641,7 +5641,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
     checkUrls["http://../"] = 0;
     checkUrls["http://?"] = 0;
     checkUrls["http://??"] = 0;
-    checkUrls["http://??/"] = 0;
+    checkUrls["http://\?\?/"] = 0; // escape '?' to avoid confusion with trigraph (clang)
     checkUrls["http://#"] = 0;
     checkUrls["http://foo.bar?q=Spaces should be encoded"] = 0;
     checkUrls["///a"] = 0;
@@ -5670,7 +5670,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
     int executedTests = 0;
     int failureTests = 0;
     std::string url;
-    for (auto testCase : checkUrls)
+    for (const auto& testCase : checkUrls)
     {
         executedTests ++;
         if (chatd::Message::hasUrl(testCase.first, url) != !!testCase.second)
@@ -5711,7 +5711,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 
     int failedTest = 0;
     int executedTests = 0;
-    for (auto testCase : checkCommands)
+    for (const auto& testCase : checkCommands)
     {
         executedTests++;
         int32_t errCode = INT32_MIN; // init errCode to invalid value, to check if a valid errCode has been returned by SFU
@@ -5780,7 +5780,7 @@ TestMegaRequestListener::~TestMegaRequestListener()
     delete mError;
 }
 
-void TestMegaRequestListener::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
+void TestMegaRequestListener::onRequestFinish(MegaApi *, MegaRequest *request, MegaError *e)
 {
     mFinished = true;
     mRequest = request->copy();
@@ -5813,7 +5813,7 @@ TestMegaChatRequestListener::~TestMegaChatRequestListener()
     delete mError;
 }
 
-void TestMegaChatRequestListener::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, MegaChatError *e)
+void TestMegaChatRequestListener::onRequestFinish(MegaChatApi *, MegaChatRequest *request, MegaChatError *e)
 {
     mFinished = true;
     mRequest = request->copy();
@@ -5881,17 +5881,17 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-bool MockupCall::handleAvCommand(Cid_t cid, unsigned av)
+bool MockupCall::handleAvCommand(Cid_t, unsigned)
 {
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t cid, sfu::Sdp &sdp, uint64_t ts, const std::vector<sfu::Peer> &peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod)
+bool MockupCall::handleAnswerCommand(Cid_t, sfu::Sdp &, uint64_t, const std::vector<sfu::Peer> &, const std::map<Cid_t, sfu::TrackDescriptor> &, const std::map<Cid_t, sfu::TrackDescriptor> &, std::set<karere::Id>&, bool)
 {
     return true;
 }
 
-bool MockupCall::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
+bool MockupCall::handleKeyCommand(Keyid_t, Cid_t, const std::string &)
 {
     return true;
 }
@@ -5931,33 +5931,33 @@ bool MockupCall::handleSpeakReqsCommand(const std::vector<Cid_t> &)
     return true;
 }
 
-bool MockupCall::handleSpeakReqDelCommand(Cid_t cid)
+bool MockupCall::handleSpeakReqDelCommand(Cid_t)
 {
     return true;
 }
 
-bool MockupCall::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
+bool MockupCall::handleSpeakOnCommand(Cid_t, sfu::TrackDescriptor)
 {
     return true;
 }
 
-bool MockupCall::handleSpeakOffCommand(Cid_t cid)
+bool MockupCall::handleSpeakOffCommand(Cid_t)
 {
     return true;
 }
 
 
-bool MockupCall::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
+bool MockupCall::handlePeerJoin(Cid_t, uint64_t, int)
 {
     return true;
 }
 
-bool MockupCall::handlePeerLeft(Cid_t cid, unsigned termcode)
+bool MockupCall::handlePeerLeft(Cid_t, unsigned)
 {
     return true;
 }
 
-bool MockupCall::handleBye(unsigned termcode)
+bool MockupCall::handleBye(unsigned)
 {
     return false;
 }
