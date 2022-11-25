@@ -528,9 +528,6 @@ public:
         END_CALL_REASON_BY_MODERATOR    = 6      /// group or meeting call has been ended by moderator
     };
 
-    // invalid SFU id
-    static constexpr int SFU_INVALID = -1;
-
     virtual ~MegaChatCall();
 
     /**
