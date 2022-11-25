@@ -2728,7 +2728,7 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, int sfuId, std::shared_ptr<std::string> unifiedKey)
+promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey)
 {
     // add chatid to CallsAttempts to avoid multiple start call attempts
     mCallStartAttempts.insert(chatid);
@@ -2736,7 +2736,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
     // we need a temp string to avoid issues with lambda shared pointer capture
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
-    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid, schedId, sfuId)
+    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid, schedId)
     .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result) -> promise::Promise<void>
     {
         if (wptr.deleted())

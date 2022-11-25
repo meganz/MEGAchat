@@ -219,7 +219,7 @@
         <property name="styleSheet">
          <string notr="true"/>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0,0,0,0,0,0,0">
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0,0,0,0,0,0">
          <property name="spacing">
           <number>6</number>
          </property>
@@ -380,62 +380,6 @@ border-radius: 6px;</string>
            </property>
            <property name="textInteractionFlags">
             <set>Qt::NoTextInteraction</set>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QToolButton" name="mAudioCallBtnNoRing">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>24</width>
-             <height>20</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>16777215</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="layoutDirection">
-            <enum>Qt::LeftToRight</enum>
-           </property>
-           <property name="autoFillBackground">
-            <bool>false</bool>
-           </property>
-           <property name="styleSheet">
-            <string notr="true">QToolButton
-{
-   border-image: url(&quot;:/callNoRing.svg&quot;);
-}
-QToolButton:hover
-{
-   border-image: url(&quot;:/callNoRing-hover.svg&quot;);
-}</string>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-           <property name="iconSize">
-            <size>
-             <width>0</width>
-             <height>0</height>
-            </size>
-           </property>
-           <property name="checkable">
-            <bool>false</bool>
-           </property>
-           <property name="checked">
-            <bool>false</bool>
-           </property>
-           <property name="autoRaise">
-            <bool>false</bool>
            </property>
           </widget>
          </item>

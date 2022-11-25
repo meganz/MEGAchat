@@ -237,7 +237,7 @@ public:
     virtual bool isCallStartInProgress(const karere::Id &chatid) const = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
-    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, int sfuId, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
+    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
     virtual void takeDevice() = 0;
     virtual void releaseDevice() = 0;
     virtual void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) = 0;
