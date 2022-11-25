@@ -4244,13 +4244,12 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
     const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingList();
     for (unsigned int i = 0; i < schedMeetings->size(); i++)
     {
-        std::unique_ptr<KarereScheduledMeeting> aux = ::mega::make_unique<KarereScheduledMeeting>(schedMeetings->at(i));
-        auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
+        auto res = mScheduledMeetings.emplace(schedMeetings->at(i)->schedId(), new KarereScheduledMeeting(schedMeetings->at(i)));
         if (res.second)
         {
             assert(res.first->second);
             getClientDbInterface().insertOrUpdateSchedMeeting(*res.first->second);
-            notifySchedMeetingUpdated(res.first->second.get(), 1 /* same than 2^SC_NEW_SCHED */);
+            notifySchedMeetingUpdated(res.first->second.get(), KarereScheduledMeeting::newSchedMeetingFlagsValue());
         }
         else
         {
@@ -4281,10 +4280,12 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
             {
                 // schedId was in changed list, but not in sched meeting list from API (it has been removed)
                 // important: SDK will notify deletion of child scheduled meetings when it's parent has been removed
-                notifySchedMeetingUpdated(it->second.get(), 0 /*changed flags set to zero*/);
+                notifySchedMeetingUpdated(it->second.get(), KarereScheduledMeeting::deletedSchedMeetingFlagsValue());
                 mScheduledMeetings.erase(it);
 
-                // clear list of current scheduled meetings occurrences from db
+                // clear list of current scheduled meetings occurrences from db by chatid
+                // this is required as we are removing a scheduled meeting by sched Id (FK),
+                // however we want to remove all scheduled meeting for that chat due to API specs
                 getClientDbInterface().clearSchedMeetingOcurrByChatid(chat.getHandle());
 
                 // clear list of current scheduled meetings occurrences
@@ -4302,15 +4303,14 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
         else
         {
             KarereScheduledMeeting::sched_bs_t diff = (it == mScheduledMeetings.end())
-                    ? KarereScheduledMeeting::sched_bs_t(1) // same than 2^SC_NEW_SCHED
+                    ? KarereScheduledMeeting::sched_bs_t(KarereScheduledMeeting::newSchedMeetingFlagsValue())
                     : it->second->compare(newSched);
 
             if (diff.any())
             {
-                std::unique_ptr<KarereScheduledMeeting> aux = mega::make_unique<KarereScheduledMeeting>(newSched);
                 if (it != mScheduledMeetings.end())
                 {
-                    it->second = std::move(aux);
+                    it->second.reset(new KarereScheduledMeeting(newSched));
                     notifySchedMeetingUpdated(it->second.get(), diff.to_ulong());
 
                     // insert in db
@@ -4319,7 +4319,7 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                 }
                 else // not found (new scheduled meeting), add it
                 {
-                    auto res = mScheduledMeetings.emplace(aux->schedId(), std::move(aux));
+                    auto res = mScheduledMeetings.emplace(newSched->schedId(), new KarereScheduledMeeting(newSched));
                     if (res.second)
                     {
                         notifySchedMeetingUpdated(res.first->second.get(), diff.to_ulong());
@@ -4385,7 +4385,8 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
 
 void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
 {
-    // clear list of current scheduled meetings occurrences from db
+    // clear list of current scheduled meetings occurrences from db by chatid
+    // we want to remove all scheduled meeting for that chat due to API specs
     getClientDbInterface().clearSchedMeetingOcurrByChatid(chat.getHandle());
 
     // clear list of current scheduled meetings occurrences
@@ -5590,6 +5591,40 @@ bool KarereScheduledRules::equalTo(const ::mega::MegaScheduledRules* r) const
     return true;
 }
 
+::mega::MegaScheduledRules* KarereScheduledRules::getMegaScheduledRules() const
+{
+    mega::MegaIntegerList auxByWeekDay;
+    if (byWeekDay())
+    {
+        for (const auto& e: *byWeekDay())
+        {
+            auxByWeekDay.add(e);
+        }
+    }
+    mega::MegaIntegerList auxByMonthDay;
+    if (byMonthDay())
+    {
+        for (const auto& e: *byMonthDay())
+        {
+            auxByMonthDay.add(e);
+        }
+    }
+
+    mega::MegaIntegerMap auxByMonthWeekDay;
+    if (byMonthWeekDay())
+    {
+        for (const auto& e: *byMonthWeekDay())
+        {
+            auxByMonthWeekDay.set(e.first, e.second);
+        }
+    }
+
+    return ::mega::MegaScheduledRules::createInstance(freq(), interval(), until().c_str(),
+                                               byWeekDay() ? &auxByWeekDay : nullptr,
+                                               byMonthDay() ? &auxByMonthDay  : nullptr,
+                                               byMonthWeekDay() ? &auxByMonthWeekDay : nullptr);
+}
+
 bool KarereScheduledRules::serialize(Buffer& out) const
 {
     assert(isValidFreq(mFreq));
@@ -5887,6 +5922,18 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
         else if (!rules()->equalTo(smRules.get()))                                          { bs[SC_RULES] = 1; }
     }
     return bs;
+}
+
+unsigned long KarereScheduledMeeting::newSchedMeetingFlagsValue()
+{
+    // first bit enabled in a sched_bs_t bitset, represents that scheduled meeting is new => same than 2^SC_NEW_SCHED
+    return 1;
+}
+
+unsigned long KarereScheduledMeeting::deletedSchedMeetingFlagsValue()
+{
+    // if none of bits are enabled in a sched_bs_t bitset, represents that scheduled meeting has been removed
+    return 0;
 }
 
 /* class KarereScheduledMeetingOccurr */

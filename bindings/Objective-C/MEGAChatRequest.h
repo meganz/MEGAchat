@@ -55,10 +55,11 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeDeleteSpeaker,
     MEGAChatRequestTypeRequestSvcLayers,
     MEGAChatRequestTypeSetChatRoomOptions,
-    MEGAChatRequestTypeCreateOrUpdateScheduledMeeting,
+    MEGAChatRequestTypeCreateScheduledMeeting,
     MEGAChatRequestTypeDeleteScheduledMeeting,
     MEGAChatRequestTypeFetchScheduledMeetingOccurrences,
     MEGAChatRequestTypeUpdateScheduledMeetingOcurrence,
+    MEGAChatRequestTypeUpdateScheduledMeeting,
 };
 
 enum {

@@ -710,19 +710,16 @@ void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat,
                                                  const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes,
                                                  MegaChatRequestListener* listener)
 {
-    pImpl->createOrUpdateScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, MEGACHAT_INVALID_HANDLE /* schedId */, MEGACHAT_INVALID_HANDLE /*parentSchedId,*/,
+    pImpl->createChatAndScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, MEGACHAT_INVALID_HANDLE /* schedId */, MEGACHAT_INVALID_HANDLE /*parentSchedId,*/,
                                                  true /*createChat*/, isMeeting, publicChat, speakRequest, waitingRoom, openInvite,
                                                  timezone, startDate, endDate, title, description, false /*cancelled*/, attributes, nullptr /*overrides*/, flags, rules, listener);
 }
 
-void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone,
-                                          const char* title, const char* description, const MegaChatScheduledFlags* flags,
-                                          const MegaChatScheduledRules* rules, const char* attributes, MegaChatRequestListener* listener)
+void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, const char* startDate, const char* endDate,
+                                         const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                         MegaChatRequestListener* listener)
 {
-    pImpl->createOrUpdateScheduledMeeting(chatid, schedId, MEGACHAT_INVALID_HANDLE /*parentSchedId*/, false /*createChat*/, false /*isMeeting*/,
-                                          false /*publicChat*/, false /*speakRequest*/, false /*bool waitingRoom*/, false /*openInvite*/,
-                                          timezone, nullptr /*startDate*/, nullptr /*endDate*/, title, description, false /*cancelled*/,
-                                          attributes, nullptr /*overrides*/, flags, rules, listener);
+    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description,flags, rules, listener);
 }
 
 void MegaChatApi::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* overrides, const char* newStartDate,
@@ -2326,13 +2323,6 @@ void MegaChatNodeHistoryListener::onTruncate(MegaChatApi */*api*/, MegaChatHandl
 MegaChatScheduledFlags* MegaChatScheduledFlags::createInstance()
 {
     return new MegaChatScheduledFlagsPrivate();
-}
-
-MegaChatScheduledFlags* MegaChatScheduledFlags::createInstance(bool emailsDisabled)
-{
-    MegaChatScheduledFlagsPrivate *flags = new MegaChatScheduledFlagsPrivate();
-    flags->setEmailsDisabled(emailsDisabled);
-    return flags;
 }
 
 MegaChatScheduledFlags* MegaChatScheduledFlags::copy() const

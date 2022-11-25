@@ -1352,6 +1352,9 @@ public:
     const karere_rules_map* byMonthWeekDay() const;
     bool equalTo (const mega::MegaScheduledRules *r) const;
 
+    // get a MegaScheduledRules object from KarereScheduledRules
+    mega::MegaScheduledRules *getMegaScheduledRules() const;
+
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
 
@@ -1426,6 +1429,8 @@ public:
     KarereScheduledFlags* flags() const;
     KarereScheduledRules* rules() const;
     sched_bs_t compare(const mega::MegaScheduledMeeting* sm) const;
+    static unsigned long newSchedMeetingFlagsValue();
+    static unsigned long deletedSchedMeetingFlagsValue();
 
 private:
     // chat handle

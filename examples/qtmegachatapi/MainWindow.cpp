@@ -625,6 +625,8 @@ void MainWindow::on_bSettings_clicked()
     auto actMeetingRoom = chatMenu->addAction(tr("Create meeting room (EKR off)"));
     connect(actMeetingRoom, &QAction::triggered, this, [=](){onAddChatRoom(true, true, true);});
 
+    auto actschedMeeting = chatMenu->addAction(tr("Create new chat and scheduled meeting (EKR off)"));
+    connect(actschedMeeting, &QAction::triggered, this, [=](){onAddChatSchedMeeting();});
     auto actPreviewChat = chatMenu->addAction(tr("Preview chat-link"));
     connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
 
@@ -1086,6 +1088,31 @@ void MainWindow::onAddChatRoom(bool isGroup, bool isPublic, bool isMeeting)
     ChatGroupDialog *chatDialog = new ChatGroupDialog(this, isGroup, isPublic, isMeeting, mMegaChatApi);
     chatDialog->createChatList(list.get());
     chatDialog->show();
+}
+
+void MainWindow::onAddChatSchedMeeting()
+{
+    // define rules and flags from hardcoded
+    std::unique_ptr<::mega::MegaIntegerList> byWeekDay(::mega::MegaIntegerList::createInstance());
+    byWeekDay->add(1);byWeekDay->add(3);byWeekDay->add(5);
+
+    std::unique_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance());
+    flags->setEmailsDisabled(false);
+
+    std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
+                                                                                         MegaChatScheduledRules::INTERVAL_INVALID,
+                                                                                         nullptr, byWeekDay.get(), nullptr, nullptr));
+
+
+    std::string timezone = mApp->getText("Get TimeZone (i.e: Europe/Madrid)", false);
+    std::string startDate = mApp->getText("Get StartDate (Format YYYYMMDDTHHMMSS)", false);
+    std::string endDate = mApp->getText("Get EndDate (Format YYYYMMDDTHHMMSS)", false);
+    std::string title = mApp->getText("Get title", false);
+    std::string description = mApp->getText("Get description", false);
+
+    mMegaChatApi->createChatAndScheduledMeeting(true /*isMeeting*/, true /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, true /*openInvite*/,
+                                                timezone.c_str(), startDate.c_str(), endDate.c_str(), title.c_str(), description.c_str(),
+                                                flags.get(), rules.get(), nullptr);
 }
 
 char *MainWindow::askChatTitle()
