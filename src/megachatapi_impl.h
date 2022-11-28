@@ -631,6 +631,7 @@ public:
 private:
     MegaChatApiImpl* mMegaChatApi;
 };
+#endif
 
 class MegaChatScheduledMeetingHandler: public karere::ScheduledMeetingHandler
 {
@@ -644,6 +645,7 @@ private:
     MegaChatApiImpl* mMegaChatApi;
 };
 
+#ifndef KARERE_DISABLE_WEBRTC
 class MegaChatSessionHandler : public rtcModule::SessionHandler
 {
 public:
@@ -915,7 +917,7 @@ private:
 class MegaChatScheduledMeetingPrivate: public MegaChatScheduledMeeting
 {
 public:
-    typedef std::bitset<SC_SIZE> megachat_sched_bs_t;
+    typedef std::bitset<SC_FLAGS_SIZE> megachat_sched_bs_t;
     MegaChatScheduledMeetingPrivate(MegaChatHandle chatid,
                                     const char* timezone,
                                     const char* startDateTime,
@@ -1418,12 +1420,17 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
-    // creates or update a scheduled meeting
-    void createOrUpdateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId,
+    // creates a scheduled meeting
+    void createChatAndScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId,
                                                  bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                                  const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
                                                  int cancelled, const char* attributes, const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                  MegaChatRequestListener* listener = nullptr);
+
+    // updates a scheduled meeting
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, const char* startDate, const char* endDate,
+                                             const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                             MegaChatRequestListener* listener = nullptr);
 
 
     // updates a scheduled meeting ocurrence

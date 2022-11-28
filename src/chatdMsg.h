@@ -711,7 +711,7 @@ public:
                 std::unique_ptr<char[]> changedJson(new char[changedLen + 1]);
                 memcpy(changedJson.get(), &buffer[position], changedLen);
                 changedJson[changedLen] = '\0';
-                position += changedLen;
+                position += (unsigned)changedLen;
 
                 rapidjson::StringStream stringStream(changedJson.get());
                 rapidjson::Document document;

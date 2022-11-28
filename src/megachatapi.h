@@ -1960,6 +1960,8 @@ public:
     /**
      * @brief Returns a MegaStringList list relative to the action
      *
+     * The MegaChatMessage retains the ownership of the MegaStringList.
+     *
      * This funcion returns a valid value for:
      * - MegaChatMessage::TYPE_SCHED_MEETING: the first element of the list, represents the old title,
      *   and the second element of the list, represents the new title
@@ -2094,9 +2096,10 @@ public:
         TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY,
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
         TYPE_SET_CHATROOM_OPTIONS,
-        TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING,
+        TYPE_CREATE_SCHEDULED_MEETING,
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
+        TYPE_UPDATE_SCHEDULED_MEETING,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4087,6 +4090,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
      * - MegaChatError::ERROR_ARGS  - if isMeeting is set true but publicChat is set to false
+     * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
      *
      * @param isMeeting True to create a meeting room
      * @param publicChat True to create a public chat, otherwise false
@@ -4097,8 +4101,8 @@ public:
      * @param timezone Timezone where we want to schedule the meeting
      * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
      * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
@@ -4108,13 +4112,12 @@ public:
                                                      const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
                                                      const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr,
                                                      MegaChatRequestListener* listener = nullptr);
-
     /**
      * @brief Modify an existing scheduled meeting
      *
      * Note: this action won't create a child scheduled meeting
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
+     * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
      * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
@@ -4126,27 +4129,40 @@ public:
      * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting (with definitive ScheduledMeeting updated from API)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     * - MegaChatError::ERROR_ARGS  - if chatid or schedId are invalid
+     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, description, flags and rules are invalid
+     * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
+     * - MegaChatError::ERROR_NOENT - if chatroom or scheduled meeting don't exist
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
      * @param timezone Timezone where we want to schedule the meeting
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters     
+     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
-     * @param attributes - not supported yet
      * @param listener MegaChatRequestListener to track this request
      */
-    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, const char* title, const char* description,
-                                const MegaChatScheduledFlags* flags,  const MegaChatScheduledRules* rules, const char* attributes,
-                                MegaChatRequestListener* listener = nullptr);
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, const char* startDate, const char* endDate,
+                                                                         const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                                         MegaChatRequestListener* listener = nullptr);
 
 
     /**
      * @brief Modify an existing scheduled meeting occurrence
      *
-     * Note: this action will create a new child scheduled meeting whose parent schedid will be the schedid provided by this method
+     * Note: A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
+     * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+     *
+     * Important considerations:
+     *  - If the scheduled meeting associated to the occurrence we want to modify, doesn't have repetition rules, OR has a
+     *    parent scheduled meeting, this method won't to create a new child scheduled meeting (API requirement).
+     *
+     *  - If the scheduled meeting associated to the occurrence we want to modify, has repetition rules AND doesn't have a parent
+     *    scheduled meeting, this method will create a new child scheduled meeting (with it's own schedId), that contains
+     *    the modified ocurrence (API requirement)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -4239,7 +4255,7 @@ public:
      * The associated request type with this request is MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
-     * - MegaChatRequest::getMegaChatScheduledMeetingList - Returns a list of scheduled meeting occurrences
+     * - MegaChatRequest::getMegaChatScheduledMeetingOccurrList - Returns a list of scheduled meeting occurrences
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if chatid is invalid
@@ -7488,15 +7504,6 @@ public:
     static MegaChatScheduledFlags* createInstance();
 
     /**
-     * @brief Creates a new instance of MegaChatScheduledFlags
-     *
-     * @param emailsDisabled If this flag is enabled, API won't send out calendar emails for this meeting
-     *
-     * @return A pointer to the superclass of the private object
-     */
-    static MegaChatScheduledFlags* createInstance(bool emailsDisabled);
-
-    /**
      * @brief Creates a copy of this virtual MegaChatScheduledFlags object
      *
      * The resulting object is fully independent of the source MegaChatScheduledFlags,
@@ -7666,8 +7673,10 @@ public:
        SC_CANC             = 9,
        SC_FLAGS            = 10,
        SC_RULES            = 11,
-       SC_SIZE             = 12,
+       SC_FLAGS_SIZE       = 12,
     };
+    static constexpr unsigned int MAX_TITLE_LENGTH = 30;
+    static constexpr unsigned int MAX_DESC_LENGTH = 4000;
     static constexpr unsigned int MIN_OCURRENCES = 10;
 
     virtual ~MegaChatScheduledMeeting();

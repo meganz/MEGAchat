@@ -13,6 +13,10 @@
 		77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */; };
 		77CB2DCF2356FFD50095FF8C /* OBJCCaptureModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */; };
 		836B0909292230A10058D53C /* chatclientDb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 836B0908292230A10058D53C /* chatclientDb.cpp */; };
+		8374E56B29279DAF00E0C473 /* MEGAChatScheduledMeeting.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8374E5672927977600E0C473 /* MEGAChatScheduledMeeting.mm */; };
+		8374E56E2927A0CA00E0C473 /* MEGAChatScheduledFlags.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8374E56D2927A0CA00E0C473 /* MEGAChatScheduledFlags.mm */; };
+		8374E5722927A32B00E0C473 /* MEGAChatScheduledRules.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8374E5712927A32B00E0C473 /* MEGAChatScheduledRules.mm */; };
+		8374E5762927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8374E5752927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.mm */; };
 		8394CF9E211992A200A1634A /* MEGAChatSession.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8394CF9D211992A200A1634A /* MEGAChatSession.mm */; };
 		83BFB99C27D8D67E001755B6 /* kareredb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 83BFB99B27D8D67E001755B6 /* kareredb.cpp */; };
 		941977341F163DDE00A76EE3 /* websocketsIO.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 941977321F163DDE00A76EE3 /* websocketsIO.cpp */; };
@@ -71,6 +75,18 @@
 		77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatRichPreview+init.h"; sourceTree = "<group>"; };
 		77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OBJCCaptureModule.mm; sourceTree = "<group>"; };
 		836B0908292230A10058D53C /* chatclientDb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = chatclientDb.cpp; sourceTree = "<group>"; };
+		8374E5662927977600E0C473 /* MEGAChatScheduledMeeting.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatScheduledMeeting.h; sourceTree = "<group>"; };
+		8374E5672927977600E0C473 /* MEGAChatScheduledMeeting.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatScheduledMeeting.mm; sourceTree = "<group>"; };
+		8374E56A2927980400E0C473 /* MEGAChatScheduledMeeting+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatScheduledMeeting+init.h"; sourceTree = "<group>"; };
+		8374E56C2927A0CA00E0C473 /* MEGAChatScheduledFlags.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatScheduledFlags.h; sourceTree = "<group>"; };
+		8374E56D2927A0CA00E0C473 /* MEGAChatScheduledFlags.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatScheduledFlags.mm; sourceTree = "<group>"; };
+		8374E56F2927A20100E0C473 /* MEGAChatScheduledFlags+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatScheduledFlags+init.h"; sourceTree = "<group>"; };
+		8374E5702927A32B00E0C473 /* MEGAChatScheduledRules.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatScheduledRules.h; sourceTree = "<group>"; };
+		8374E5712927A32B00E0C473 /* MEGAChatScheduledRules.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatScheduledRules.mm; sourceTree = "<group>"; };
+		8374E5732927A86E00E0C473 /* MEGAChatScheduledRules+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatScheduledRules+init.h"; sourceTree = "<group>"; };
+		8374E5742927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DelegateMEGAChatScheduledMeetingListener.h; sourceTree = "<group>"; };
+		8374E5752927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = DelegateMEGAChatScheduledMeetingListener.mm; sourceTree = "<group>"; };
+		8374E5772927C89C00E0C473 /* MEGAChatScheduledMeetingDelegate.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatScheduledMeetingDelegate.h; sourceTree = "<group>"; };
 		8394CF9C211992A200A1634A /* MEGAChatSession.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatSession.h; sourceTree = "<group>"; };
 		8394CF9D211992A200A1634A /* MEGAChatSession.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatSession.mm; sourceTree = "<group>"; };
 		8394CFA02119F3E700A1634A /* MEGAChatSession+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatSession+init.h"; sourceTree = "<group>"; };
@@ -401,6 +417,11 @@
 				A8AA1BF82195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm */,
 				A819DE8D219EE12E00EA9C22 /* MEGAChatGeolocation+init.h */,
 				2F59F4A2251C5F9100DDD2D0 /* MEGAChatGiphy+init.h */,
+				8374E56A2927980400E0C473 /* MEGAChatScheduledMeeting+init.h */,
+				8374E56F2927A20100E0C473 /* MEGAChatScheduledFlags+init.h */,
+				8374E5732927A86E00E0C473 /* MEGAChatScheduledRules+init.h */,
+				8374E5742927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.h */,
+				8374E5752927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.mm */,
 			);
 			name = private;
 			path = Private;
@@ -452,6 +473,13 @@
 				A8F96C19219DE3A2005A3EB6 /* MEGAChatGeolocation.mm */,
 				A8E1D8EF277F3794009093C5 /* MEGAChatLogLevel.h */,
 				B5371A1327E0229D00B2A6E5 /* MEGAChatDBError.h */,
+				8374E5662927977600E0C473 /* MEGAChatScheduledMeeting.h */,
+				8374E5672927977600E0C473 /* MEGAChatScheduledMeeting.mm */,
+				8374E56C2927A0CA00E0C473 /* MEGAChatScheduledFlags.h */,
+				8374E56D2927A0CA00E0C473 /* MEGAChatScheduledFlags.mm */,
+				8374E5702927A32B00E0C473 /* MEGAChatScheduledRules.h */,
+				8374E5712927A32B00E0C473 /* MEGAChatScheduledRules.mm */,
+				8374E5772927C89C00E0C473 /* MEGAChatScheduledMeetingDelegate.h */,
 			);
 			name = binding;
 			sourceTree = "<group>";
@@ -612,6 +640,8 @@
 				77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */,
 				A835A8AB1F979CDC0075646F /* MEGAChatCall.mm in Sources */,
 				A879F3C21F96683A007C5394 /* presenced.cpp in Sources */,
+				8374E5722927A32B00E0C473 /* MEGAChatScheduledRules.mm in Sources */,
+				8374E56B29279DAF00E0C473 /* MEGAChatScheduledMeeting.mm in Sources */,
 				A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */,
 				2F59F49F251C5B3600DDD2D0 /* MEGAChatGiphy.mm in Sources */,
 				A82750D81E9788A3007CD9E2 /* MEGAChatRequest.mm in Sources */,
@@ -644,8 +674,10 @@
 				A838B20A1E9685A200875D96 /* logger.cpp in Sources */,
 				83BFB99C27D8D67E001755B6 /* kareredb.cpp in Sources */,
 				A82750D31E9788A3007CD9E2 /* MEGAChatListItem.mm in Sources */,
+				8374E5762927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.mm in Sources */,
 				A835A8B31F97A74B0075646F /* DelegateMEGAChatCallListener.mm in Sources */,
 				A879F3C51F96683A007C5394 /* chatd.cpp in Sources */,
+				8374E56E2927A0CA00E0C473 /* MEGAChatScheduledFlags.mm in Sources */,
 				A82750D21E9788A3007CD9E2 /* MEGAChatError.mm in Sources */,
 				A83D5BF51F974AF900A038F7 /* webrtc.cpp in Sources */,
 				A82750F11E9788D8007CD9E2 /* DelegateMEGAChatRoomListener.mm in Sources */,
