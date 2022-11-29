@@ -117,10 +117,11 @@ MeetingView::~MeetingView()
 
 void MeetingView::updateLabel(megachat::MegaChatCall *call)
 {
-    std::string txt = "Participants: ";
-    txt.append(std::to_string(call->getNumParticipants()))
-        .append("  State: ")
-        .append(callStateToString(*call));
+    std::string txt = call->isOwnModerator() ? QString::fromUtf8("<span style='font-size:25px'>\xE2\x99\x9A</span>").toStdString() : std::string();
+    txt.append (" Participants: ")
+            .append(std::to_string(call->getNumParticipants()))
+            .append("  State: ")
+            .append(callStateToString(*call));
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
     {
@@ -319,8 +320,18 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     mSetOnHold->setVisible(true);
 }
 
+bool MeetingView::hasSession(megachat::MegaChatHandle h)
+{
+    return mSessionWidgets.find(static_cast<uint32_t>(h)) != mSessionWidgets.end();
+}
+
 void MeetingView::addSession(const megachat::MegaChatSession &session)
 {
+    if (hasSession(session.getClientid()))
+    {
+        return;
+    }
+
     QString cid(std::to_string(session.getClientid()).c_str());
     QVariant data(cid);
     MeetingSession *widget = new MeetingSession(this, session);

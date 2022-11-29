@@ -4446,8 +4446,8 @@ void exec_synclist(ac::ACState& s)
         else
         {
             // Display what status info we can.
-            conlock(cout) << "  Enabled: "
-                << sync->isEnabled()
+            conlock(cout) << "  State: "
+                << sync->getRunState()
                 << "\n"
                 << "  Last Error: "
                 << sync->getMegaSyncErrorCode(sync->getError())
@@ -4484,7 +4484,7 @@ void exec_syncremove(ac::ACState& s)
         std::unique_ptr<m::MegaSync> sync(g_megaApi->getSyncByNode(targetNode.get()));
         m::MegaHandle backupId = sync ? sync->getBackupId() : m::INVALID_HANDLE;
 
-        g_megaApi->removeSync(backupId, m::INVALID_HANDLE,
+        g_megaApi->removeSync(backupId,
             new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
             {
                 conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
@@ -4492,7 +4492,7 @@ void exec_syncremove(ac::ACState& s)
     }
     else if (byId)
     {
-        g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()), m::INVALID_HANDLE,
+        g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()),
             new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
                 {
                     conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
@@ -4535,7 +4535,7 @@ void exec_syncxable(ac::ACState& s)
                       << endl;
 
         auto* listener = new OneShotRequestListener(std::move(completion));
-        g_megaApi->enableSync(backupId, listener);
+        g_megaApi->setSyncRunState(backupId, m::MegaSync::RUNSTATE_RUNNING, listener);
 
         return;
     }
@@ -4565,7 +4565,7 @@ void exec_syncxable(ac::ACState& s)
                   << endl;
 
     auto* listener = new OneShotRequestListener(std::move(completion));
-    g_megaApi->disableSync(backupId, listener);
+    g_megaApi->setSyncRunState(backupId, m::MegaSync::RUNSTATE_DISABLED, listener);
 }
 
 

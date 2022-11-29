@@ -24,6 +24,7 @@ public:
     ~MeetingView();
     void addLocalVideo(PeerWidget* widget);
     void joinedToCall(const megachat::MegaChatCall& call);
+    bool hasSession(megachat::MegaChatHandle h);
     void addSession(const megachat::MegaChatSession& session);
     void removeSession(const megachat::MegaChatSession& session);
     size_t getNumSessions( ) const;

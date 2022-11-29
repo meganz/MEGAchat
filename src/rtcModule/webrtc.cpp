@@ -173,6 +173,11 @@ bool Call::isJoined() const
     return mSfuConnection && mSfuConnection->isJoined();
 }
 
+bool Call::isOwnPrivModerator() const
+{
+   return mMyPeer->isModerator();
+}
+
 void Call::addParticipant(const karere::Id &peer)
 {
     mParticipants.insert(peer);
@@ -477,7 +482,7 @@ int64_t Call::getFinalTimeStamp() const
     return mFinalTs;
 }
 
-int64_t Call::getInitialOffset() const
+int64_t Call::getInitialOffsetinMs() const
 {
     return mOffset;
 }
@@ -745,6 +750,11 @@ std::set<karere::Id> Call::getParticipants() const
     return mParticipants;
 }
 
+std::set<karere::Id> Call::getModerators() const
+{
+    return mModerators;
+}
+
 std::vector<Cid_t> Call::getSessionsCids() const
 {
     std::vector<Cid_t> returnedValue;
@@ -884,7 +894,7 @@ void Call::joinSfu()
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-        mSfuConnection->joinSfu(sdp, ivs, getLocalAvFlags().value(), mMyPeer->getCid(), mSpeakerState, kInitialvthumbCount);
+        mSfuConnection->joinSfu(sdp, ivs, getLocalAvFlags().value(), getOwnCid(), mSpeakerState, kInitialvthumbCount);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -989,6 +999,10 @@ void Call::clearResources(const TermCode& termCode)
     RTCM_LOG_DEBUG("clearResources, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     disableStats();
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
+
+    mModerators.clear();            // clear moderators list and ownModerator
+    mMyPeer->setModerator(false);
+
     mVThumb.reset();
     mHiRes.reset();
     mAudio.reset();
@@ -1084,7 +1098,7 @@ bool Call::isUdpDisconnected() const
 {
     return (mInitialTs
             && mStats.mSamples.mT.empty()
-            && (time(nullptr) - (mInitialTs - mOffset) > sfu::SfuConnection::kNoMediaPathTimeout));
+            && (time(nullptr) - (mInitialTs - mOffset/1000) > sfu::SfuConnection::kNoMediaPathTimeout));
 }
 
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
@@ -1095,6 +1109,29 @@ bool Call::isTermCodeRetriable(const TermCode& termCode) const
 bool Call::isDisconnectionTermcode(const TermCode& termCode) const
 {
     return termCode & kFlagDisconn;
+}
+
+Cid_t Call::getOwnCid() const
+{
+    return mMyPeer->getCid();
+}
+
+
+void Call::setSessionModByUserId(uint64_t userid, bool isMod)
+{
+    for (const auto& session : mSessions)
+    {
+        if (session.second->getPeerid() == userid)
+        {
+            session.second->setModerator(isMod);
+        }
+    }
+}
+
+void Call::setOwnModerator(bool isModerator)
+{
+    mMyPeer->setModerator(isModerator);
+    mCallHandler.onPermissionsChanged(*this);
 }
 
 bool Call::isValidConnectionTermcode(TermCode termCode) const
@@ -1170,7 +1207,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
         return false;
     }
 
-    if (mMyPeer->getCid() == cid)
+    if (getOwnCid() == cid)
     {
         RTCM_LOG_WARNING("handleAvCommand: Received our own AV flags");
         return false;
@@ -1189,7 +1226,8 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
 }
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, const std::vector<sfu::Peer>& peers,
-                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
+                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers
+                               , std::set<karere::Id>& moderators, bool ownMod)
 {
     if (mState != kStateJoining)
     {
@@ -1202,6 +1240,10 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
     // update max peers seen in call
     mMaxPeers = static_cast<uint8_t> (peers.size() > mMaxPeers ? peers.size() : mMaxPeers);
+
+    // set moderator list and ownModerator value
+    setOwnModerator(ownMod);
+    mModerators = moderators;
 
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers) // does not include own cid
@@ -1256,7 +1298,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
         setState(CallState::kStateInProgress);
 
-        mOffset = duration / 1000;
+        mOffset = duration;
         enableStats();
     })
     .fail([wptr, this](const ::promise::Error& err)
@@ -1421,7 +1463,7 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 
     for (Cid_t cid : speakRequests)
     {
-        if (cid != mMyPeer->getCid())
+        if (cid != getOwnCid())
         {
             Session *session = getSession(cid);
             assert(session);
@@ -1446,7 +1488,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
         return false;
     }
 
-    if (mMyPeer->getCid() != cid) // remote peer
+    if (getOwnCid() != cid) // remote peer
     {
         Session *session = getSession(cid);
         assert(session);
@@ -1485,7 +1527,7 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
     // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
-        assert(cid != mMyPeer->getCid());
+        assert(cid != getOwnCid());
         addSpeaker(cid, speaker);
     }
     else if (mSpeakerState == SpeakerState::kPending)
@@ -1515,7 +1557,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
-        assert(cid != mMyPeer->getCid());
+        assert(cid != getOwnCid());
         removeSpeaker(cid);
     }
     else if (mSpeakerState == SpeakerState::kActive)
@@ -1543,9 +1585,11 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
         return false;
     }
 
-    sfu::Peer peer(userid, static_cast<unsigned>(av), cid);
+    bool isModerator = mModerators.find(userid) != mModerators.end();
+    sfu::Peer peer(userid, static_cast<unsigned>(av), cid, isModerator);
     mSessions[cid] = ::mega::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[cid], *this);
+
     // update max peers seen in call
     mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
     generateAndSendNewkey();
@@ -1631,6 +1675,46 @@ bool Call::handleBye(unsigned termcode)
         mRtc.immediateRemoveCall(this, reason, auxTermCode);
     }, mRtc.getAppCtx());
 
+    return true;
+}
+
+bool Call::handleModAdd(uint64_t userid)
+{
+    if (userid == mMyPeer->getPeerid())
+    {
+        setOwnModerator(true);
+    }
+
+    // update moderator privilege for all sessions that mached with received userid
+    setSessionModByUserId(userid, true);
+
+    if (!mModerators.emplace(userid).second)
+    {
+        RTCM_LOG_WARNING("MOD_ADD: user[%s] already added in moderators list", karere::Id(userid).toString().c_str());
+        return false;
+    }
+
+    RTCM_LOG_DEBUG("MOD_ADD: user[%s] added in moderators list", karere::Id(userid).toString().c_str());
+    return true;
+}
+
+bool Call::handleModDel(uint64_t userid)
+{
+    if (userid == mMyPeer->getPeerid())
+    {
+        setOwnModerator(false);
+    }
+
+    // update moderator privilege for all sessions that mached with received userid
+    setSessionModByUserId(userid, false);
+
+    if (!mModerators.erase(userid))
+    {
+        RTCM_LOG_WARNING("MOD_DEL: user[%s] not found in moderators list", karere::Id(userid).toString().c_str());
+        return false;
+    }
+
+    RTCM_LOG_DEBUG("MOD_DEL: user[%s] removed from moderators list", karere::Id(userid).toString().c_str());
     return true;
 }
 
@@ -1732,7 +1816,7 @@ void Call::onSendByeCommand()
 
         if (!mSfuConnection)
         {
-            RTCM_LOG_DEBUG("onSendByeCommand: SFU connection doesn't exists anymore");
+            RTCM_LOG_DEBUG("onSendByeCommand: SFU connection no longer exists");
             return;
         }
 
@@ -2227,7 +2311,7 @@ void Call::initStatsValues()
 
 void Call::enableStats()
 {
-    mStats.mCid = mMyPeer->getCid();
+    mStats.mCid = getOwnCid();
     mStats.mTimeOffset = static_cast<uint64_t>(mOffset);
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
@@ -2710,7 +2794,7 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
     Call *call = static_cast<Call*>(iCall);
     if (!call)
     {
-        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call doesn't exists anymore");
+        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call no longer exists");
         return;
     }
 
@@ -2736,7 +2820,7 @@ void RtcModuleSfu::immediateRemoveCall(Call* call, uint8_t reason, TermCode conn
     assert(reason != kInvalidReason);
     if (!call)
     {
-        RTCM_LOG_WARNING("removeCall: call doesn't exists anymore");
+        RTCM_LOG_WARNING("removeCall: call no longer exists");
         return;
     }
 
@@ -3272,6 +3356,11 @@ bool Session::hasLowResolutionTrack() const
     return mVthumSlot && mVthumSlot->hasTrack();
 }
 
+bool Session::isModerator() const
+{
+    return mPeer.isModerator();
+}
+
 void Session::notifyHiResReceived()
 {
     mSessionHandler->onHiResReceived(*this);
@@ -3371,6 +3460,12 @@ void Session::disableVideoSlot(VideoResolution videoResolution)
         mVthumSlot = nullptr;
         mSessionHandler->onVThumbReceived(*this);
     }
+}
+
+void Session::setModerator(bool isModerator)
+{
+    mPeer.setModerator(isModerator);
+    mSessionHandler->onPermissionsChanged(*this);
 }
 
 void Session::setSpeakRequested(bool requested)

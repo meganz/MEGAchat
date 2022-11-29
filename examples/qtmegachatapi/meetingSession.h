@@ -32,6 +32,7 @@ private:
     MeetingView *mMeetingView;
     QListWidgetItem *mListWidgetItem;
     std::unique_ptr <QHBoxLayout> mLayout;
+    std::unique_ptr <QLabel> mModeratorLabel;
     std::unique_ptr <QLabel> mStatusLabel;
     std::unique_ptr <QLabel> mTitleLabel;
     std::unique_ptr <QLabel> mAudioLabel;

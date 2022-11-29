@@ -201,7 +201,8 @@ class MegaChatApiTest :
         public ::mega::MegaLogger,
         public megachat::MegaChatRequestListener,
         public megachat::MegaChatListener,
-        public megachat::MegaChatCallListener
+        public megachat::MegaChatCallListener,
+        public megachat::MegaChatScheduledMeetingListener
 {
 public:
     MegaChatApiTest();
@@ -424,6 +425,9 @@ public:
     virtual void onChatSessionUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid,
                                      megachat::MegaChatHandle callid,
                                      megachat::MegaChatSession *session);
+
+    virtual void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm) override;
+    virtual void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid) override;
 #endif
 };
 
@@ -585,7 +589,7 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
@@ -600,6 +604,8 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(unsigned termcode) override;
+    bool handleModAdd(uint64_t userid) override;
+    bool handleModDel(uint64_t userid) override;
     void onSfuConnected() override;
     void onSendByeCommand() override;
     void onSfuDisconnected() override;

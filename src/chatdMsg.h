@@ -5,7 +5,11 @@
 #include <string>
 #include <buffer.h>
 #include <memory>
+#include <map>
 #include "karereId.h"
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <karereCommon.h>
 
 enum
 {
@@ -557,7 +561,8 @@ public:
         kMsgPublicHandleDelete  = 0x09,
         kMsgSetPrivateMode      = 0x0A,
         kMsgSetRetentionTime    = 0x0B,
-        kMsgManagementHighest   = 0x0B,
+        kMsgSchedMeeting        = 0x0C,
+        kMsgManagementHighest   = 0x0C,
         kMsgOffset              = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst           = 0x65,
         kMsgAttachment          = 0x65,   // kMsgNormal's subtype = 0x10
@@ -663,6 +668,87 @@ public:
         {
             return userIndex(userId) != -1;
         }
+    };
+
+    class SchedMeetingInfo
+    {
+        public:
+            // scheduled meeting id
+            karere::Id mSchedId;
+
+            // bitmask with the changed fields
+            unsigned long mSchedChanged;
+
+            // maps a field id to a pair of strings <old value, new value>
+            std::unique_ptr<std::map<unsigned int, std::pair<std::string, std::string>>> mSchedInfo;
+
+            static SchedMeetingInfo* fromBuffer(const char* buffer, size_t len)
+            {
+                if (!buffer || len < (sizeof (karere::Id) /*lenSchedId*/ + sizeof (karere::Id)/*lenJson*/))
+                {
+                    return NULL;
+                }
+
+                // read schedId
+                unsigned int position = 0;
+                karere::Id schedId;
+                unsigned int idDataSize = sizeof(karere::Id);
+                memcpy(&schedId, &buffer[position], idDataSize);
+                position += idDataSize;
+
+                // read json length
+                size_t changedLen = 0;
+                unsigned int lenDataSize = sizeof(size_t);
+                memcpy(&changedLen, &buffer[position], lenDataSize);
+                position += lenDataSize;
+
+                if (len < (position + changedLen))
+                {
+                    return NULL;
+                }
+
+                // read changed fields in json format
+                std::unique_ptr<char[]> changedJson(new char[changedLen + 1]);
+                memcpy(changedJson.get(), &buffer[position], changedLen);
+                changedJson[changedLen] = '\0';
+                position += (unsigned)changedLen;
+
+                rapidjson::StringStream stringStream(changedJson.get());
+                rapidjson::Document document;
+                document.ParseStream(stringStream);
+                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                {
+                   return NULL;
+                }
+
+                SchedMeetingInfo* info = new SchedMeetingInfo;
+                karere::karere_sched_bs_t bs = 0;
+                if (document.FindMember("tz") != document.MemberEnd())  { bs[karere::SC_TZONE] = 1; }
+                if (document.FindMember("s") != document.MemberEnd())   { bs[karere::SC_START] = 1; }
+                if (document.FindMember("e") != document.MemberEnd())   { bs[karere::SC_END] = 1; }
+                if (document.FindMember("d") != document.MemberEnd())   { bs[karere::SC_DESC] = 1; }
+                if (document.FindMember("p") != document.MemberEnd())   { bs[karere::SC_PARENT] = 1; }
+                if (document.FindMember("c") != document.MemberEnd())   { bs[karere::SC_CANC] = 1; }
+                if (document.FindMember("o") != document.MemberEnd())   { bs[karere::SC_OVERR] = 1; }
+                if (document.FindMember("f") != document.MemberEnd())   { bs[karere::SC_FLAGS] = 1; }
+                if (document.FindMember("r") != document.MemberEnd())   { bs[karere::SC_RULES] = 1; }
+                if (document.FindMember("at") != document.MemberEnd())  { bs[karere::SC_ATTR] = 1; }
+
+                rapidjson::Value::ConstMemberIterator itTitle = document.FindMember("t");
+                if (itTitle != document.MemberEnd())
+                {
+                    bs[karere::SC_TITLE] = 1;
+                    if (itTitle->value.IsArray() && itTitle->value.Size() == 2)
+                    {
+                        info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
+                        info->mSchedInfo->emplace(karere::SC_TITLE,
+                                    std::pair<std::string, std::string>(itTitle->value[0].GetString(), itTitle->value[1].GetString()));
+                    }
+                }
+                info->mSchedId = schedId;
+                info->mSchedChanged = bs.to_ulong();
+                return info;
+            }
     };
 
     class CallEndedInfo
@@ -805,6 +891,15 @@ public:
         {
             append(&src.participants[i], sizeof(src.participants[i]));
         }
+    }
+
+    void createSchedMeetingInfo(const karere::Id& id, const Buffer& changedJson)
+    {
+        assert(empty());
+        append(&id, sizeof(karere::Id));
+        size_t changedSize = changedJson.dataSize();
+        append(&changedSize, sizeof(size_t));
+        append(changedJson.buf(), changedJson.dataSize());
     }
 
     static const char* statusToStr(unsigned status)

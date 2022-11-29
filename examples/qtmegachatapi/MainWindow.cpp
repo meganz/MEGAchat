@@ -34,6 +34,9 @@ MainWindow::MainWindow(QWidget *parent, MegaLoggerApplication *logger, megachat:
 #ifndef KARERE_DISABLE_WEBRTC
     megaChatCallListenerDelegate = new megachat::QTMegaChatCallListener(mMegaChatApi, this);
     mMegaChatApi->addChatCallListener(megaChatCallListenerDelegate);
+
+    megaSchedMeetingListenerDelegate = new megachat::QTMegaChatScheduledMeetingListener(mMegaChatApi, this);
+    mMegaChatApi->addSchedMeetingListener(megaSchedMeetingListenerDelegate);
 #endif
 }
 
@@ -62,6 +65,13 @@ void MainWindow::removeListeners()
         mMegaChatApi->removeChatCallListener(megaChatCallListenerDelegate);
         delete megaChatCallListenerDelegate;
         megaChatCallListenerDelegate = NULL;
+    }
+
+    if(megaSchedMeetingListenerDelegate)
+    {
+        mMegaChatApi->removeSchedMeetingListener(megaSchedMeetingListenerDelegate);
+        delete megaSchedMeetingListenerDelegate;
+        megaSchedMeetingListenerDelegate = NULL;
     }
     #endif
 }
@@ -251,7 +261,8 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         itemController->getMeetingView()->updateVideoButtonText(*call);
     }
 
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION))
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
+            || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS))
     {
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateLabel(call);
@@ -325,11 +336,22 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
     }
 
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS))
+    {
+        meetingView->updateSession(*session);
+    }
+
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_STATUS))
     {
         if (session->getStatus() == megachat::MegaChatSession::SESSION_STATUS_IN_PROGRESS)
         {
             meetingView->addSession(*session);
+            ChatListItemController* itemController = getChatControllerById(chatid);
+            std::unique_ptr<MegaChatCall> call(mMegaChatApi->getChatCallByCallId(callid));
+            if (call && itemController)
+            {
+                itemController->getMeetingView()->updateLabel(call.get());
+            }
         }
         else // SESSION_STATUS_DESTROYED
         {
@@ -351,7 +373,13 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 }
 
+void MainWindow::onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting* sm)
+{
+}
 
+void MainWindow::onSchedMeetingOccurrencesUpdate(MegaChatApi* api, MegaChatHandle chatid)
+{
+}
 
 #endif
 
@@ -591,6 +619,8 @@ void MainWindow::on_bSettings_clicked()
     auto actMeetingRoom = chatMenu->addAction(tr("Create meeting room (EKR off)"));
     connect(actMeetingRoom, &QAction::triggered, this, [=](){onAddChatRoom(true, true, true);});
 
+    auto actschedMeeting = chatMenu->addAction(tr("Create new chat and scheduled meeting (EKR off)"));
+    connect(actschedMeeting, &QAction::triggered, this, [=](){onAddChatSchedMeeting();});
     auto actPreviewChat = chatMenu->addAction(tr("Preview chat-link"));
     connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
 
@@ -1052,6 +1082,31 @@ void MainWindow::onAddChatRoom(bool isGroup, bool isPublic, bool isMeeting)
     ChatGroupDialog *chatDialog = new ChatGroupDialog(this, isGroup, isPublic, isMeeting, mMegaChatApi);
     chatDialog->createChatList(list.get());
     chatDialog->show();
+}
+
+void MainWindow::onAddChatSchedMeeting()
+{
+    // define rules and flags from hardcoded
+    std::unique_ptr<::mega::MegaIntegerList> byWeekDay(::mega::MegaIntegerList::createInstance());
+    byWeekDay->add(1);byWeekDay->add(3);byWeekDay->add(5);
+
+    std::unique_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance());
+    flags->setEmailsDisabled(false);
+
+    std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
+                                                                                         MegaChatScheduledRules::INTERVAL_INVALID,
+                                                                                         nullptr, byWeekDay.get(), nullptr, nullptr));
+
+
+    std::string timezone = mApp->getText("Get TimeZone (i.e: Europe/Madrid)", false);
+    std::string startDate = mApp->getText("Get StartDate (Format YYYYMMDDTHHMMSS)", false);
+    std::string endDate = mApp->getText("Get EndDate (Format YYYYMMDDTHHMMSS)", false);
+    std::string title = mApp->getText("Get title", false);
+    std::string description = mApp->getText("Get description", false);
+
+    mMegaChatApi->createChatAndScheduledMeeting(true /*isMeeting*/, true /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, true /*openInvite*/,
+                                                timezone.c_str(), startDate.c_str(), endDate.c_str(), title.c_str(), description.c_str(),
+                                                flags.get(), rules.get(), nullptr);
 }
 
 char *MainWindow::askChatTitle()

@@ -14,7 +14,7 @@ namespace rtcModule {void globalCleanup(); }
 
 namespace karere
 {
-const char* gDbSchemaVersionSuffix = "14";
+const char* gDbSchemaVersionSuffix = "15";
 /*
     2 --> +3: invalidate cached chats to reload history (so call-history msgs are fetched)
     3 --> +4: invalidate both caches, SDK + MEGAchat, if there's at least one chat (so deleted chats are re-fetched from API)
@@ -29,6 +29,7 @@ const char* gDbSchemaVersionSuffix = "14";
     11 -> +12: modify schema to add sess_data (TLS session) to the table dns_cache
     12 -> +13: modify chats table to add new meeting flag
     13 -> +14: modify chats table to add chat_options field
+    14 -> +15: add scheduledMeetings and scheduledMeetingsOccurr tables
 */
 
 bool gCatchException = true;
