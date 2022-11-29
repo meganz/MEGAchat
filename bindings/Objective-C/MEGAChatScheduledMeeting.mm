@@ -72,57 +72,43 @@ using namespace megachat;
 - (NSString *)timezone {
     const char *val = self.megaChatScheduledMeeting->timezone();
     if (!val) return nil;
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    delete [] val;
-    return ret;
+    return @(val);
 }
 
 - (NSString *)startDateTime {
     const char *val = self.megaChatScheduledMeeting->startDateTime();
     if (!val) return nil;
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    delete [] val;
-    return ret;
+    return @(val);
 }
 
 - (NSString *)endDateTime {
     const char *val = self.megaChatScheduledMeeting->endDateTime();
     if (!val) return nil;
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    delete [] val;
-    return ret;
+    return @(val);
 }
 
 - (NSString *)title {
     const char *val = self.megaChatScheduledMeeting->title();
     if (!val) return nil;
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    delete [] val;
-    return ret;
+    return @(val);
 }
 
 - (NSString *)description {
     const char *val = self.megaChatScheduledMeeting->description();
     if (!val) return nil;
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    delete [] val;
-    return ret;
+    return @(val);
 }
 
 - (NSString *)attributes {
     const char *val = self.megaChatScheduledMeeting->attributes();
     if (!val) return nil;
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    delete [] val;
-    return ret;
+    return @(val);
 }
 
 - (NSString *)overrides {
     const char *val = self.megaChatScheduledMeeting->overrides();
     if (!val) return nil;
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    delete [] val;
-    return ret;
+    return @(val);
 }
 
 - (MEGAChatScheduledFlags *)flags {
