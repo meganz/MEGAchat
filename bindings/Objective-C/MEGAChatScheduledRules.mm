@@ -103,12 +103,12 @@ using namespace mega;
 
 - (BOOL)isValidFrequency:(MEGAChatScheduledRulesFrequency)frequency {
     if (!self.megaChatScheduledRules) { return NO; }
-    self.megaChatScheduledRules->isValidFreq(frequency);
+    return self.megaChatScheduledRules->isValidFreq(frequency);
 }
 
 - (BOOL)isValidInterval:(NSInteger)interval {
     if (!self.megaChatScheduledRules) { return NO; }
-    self.megaChatScheduledRules->isValidInterval(interval);
+    return self.megaChatScheduledRules->isValidInterval(interval);
 }
 
 @end
