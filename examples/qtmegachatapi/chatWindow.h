@@ -129,6 +129,7 @@ class ChatWindow : public QDialog,
         void closeEvent(QCloseEvent *event);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
+        void onAudioCallNoRingBtn();
 #endif
 
     friend class CallGui;

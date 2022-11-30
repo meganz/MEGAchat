@@ -1580,6 +1580,15 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            MegaChatHandle schedId = request->getUserHandle();
+            if (schedId != MEGACHAT_INVALID_HANDLE &&
+                    !dynamic_cast<GroupChatRoom *>(chatroom)->getScheduledMeetingsBySchedId(schedId))
+            {
+                API_LOG_ERROR("Start call - scheduled meeting id doesn't exists");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
             bool enableVideo = request->getFlag();
             bool enableAudio = request->getParamType();
             karere::AvFlags avFlags(enableAudio, enableVideo);
@@ -1604,9 +1613,9 @@ void MegaChatApiImpl::sendPendingRequests()
                }
 
                bool isGroup = chatroom->isGroup();
-               pms.then([request, this, chatid, avFlags, isGroup] (shared_ptr<string> unifiedKey)
+               pms.then([request, this, chatid, avFlags, isGroup, schedId] (shared_ptr<string> unifiedKey)
                {
-                   mClient->rtc->startCall(chatid, avFlags, isGroup, unifiedKey)
+                   mClient->rtc->startCall(chatid, avFlags, isGroup, schedId, unifiedKey)
                    .then([request, this]()
                    {
                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -5456,12 +5465,13 @@ char *MegaChatApiImpl::getVideoDeviceSelected()
     return deviceName;
 }
 
-void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
+void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatHandle schedId, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_START_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
     request->setParamType(enableAudio);
+    request->setUserHandle(schedId);
     requestQueue.push(request);
     waiter->notify();
 }
