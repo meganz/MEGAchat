@@ -4624,7 +4624,7 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
 unsigned int MegaChatApiTest::getMegaChatApiIndex(MegaChatApi *api)
 {
     int apiIndex = -1;
-    for (int i = 0; i < (int)NUM_ACCOUNTS; i++)
+    for (int i = 0; i < static_cast<int>(NUM_ACCOUNTS); i++)
     {
         if (api == megaChatApi[i])
         {
@@ -4644,7 +4644,7 @@ unsigned int MegaChatApiTest::getMegaChatApiIndex(MegaChatApi *api)
 unsigned int MegaChatApiTest::getMegaApiIndex(MegaApi *api)
 {
     int apiIndex = -1;
-    for (int i = 0; i < (int)NUM_ACCOUNTS; i++)
+    for (int i = 0; i < static_cast<int>(NUM_ACCOUNTS); i++)
     {
         if (api == megaApi[i])
         {
