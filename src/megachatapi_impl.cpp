@@ -2875,7 +2875,7 @@ void MegaChatApiImpl::sendPendingRequests()
                  */
                 std::unique_ptr<::mega::MegaScheduledRules> megaRules(occurrSchedMeeting->rules() ? occurrSchedMeeting->rules()->getMegaScheduledRules() : nullptr);
                 megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(occurrSchedMeeting->chatid(), occurrSchedMeeting->schedId() /*schedId*/,
-                                                                                                                    MEGACHAT_INVALID_HANDLE /*parentId*/, occurrSchedMeeting->organizerUserid(),
+                                                                                                                    occurrSchedMeeting->parentSchedId(), occurrSchedMeeting->organizerUserid(),
                                                                                                                     newCancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
                                                                                                                     occurrSchedMeeting->title().c_str(),occurrSchedMeeting->description().c_str(),
                                                                                                                     occurrSchedMeeting->attributes().size() ? occurrSchedMeeting->attributes().c_str() :nullptr,
