@@ -31,6 +31,7 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
     MEGAChatMessageTypeSetPrivateMode     = 10,
     MEGAChatMessageTypeSetRetentionTime   = 11,
     MEGAChatMessageTypeHighestManagement  = 11,
+    MEGAChatMessageTypeScheduledMeeting   = 12,
     MEGAChatMessageTypeAttachment         = 101,
     MEGAChatMessageTypeRevokeAttachment   = 102, /// Obsolete
     MEGAChatMessageTypeContact            = 103,
