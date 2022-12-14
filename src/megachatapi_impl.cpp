@@ -8604,43 +8604,6 @@ MegaChatScheduledRulesPrivate* MegaChatScheduledRulesPrivate::copy() const
     return new MegaChatScheduledRulesPrivate(this);
 }
 
-void MegaChatScheduledRulesPrivate::setByWeekDay(const ::mega::MegaIntegerList* byWeekDay)
-{
-    mByWeekDay.reset();
-    if (byWeekDay) { mByWeekDay.reset(byWeekDay->copy()); }
-}
-
-void MegaChatScheduledRulesPrivate::setByMonthDay(const ::mega::MegaIntegerList* byMonthDay)
-{
-    mByMonthDay.reset();
-    if (byMonthDay) { mByMonthDay.reset(byMonthDay->copy()); }
-}
-
-void MegaChatScheduledRulesPrivate::setByMonthWeekDay(const ::mega::MegaIntegerMap* byMonthWeekDay)
-{
-    mByMonthWeekDay.reset();
-    if (byMonthWeekDay) { mByMonthWeekDay.reset(byMonthWeekDay->copy()); }
-}
-
-void MegaChatScheduledRulesPrivate::setFreq(int newFreq)
-{
-    mFreq = isValidFreq(newFreq)
-            ? newFreq
-            : FREQ_INVALID;
-}
-
-void MegaChatScheduledRulesPrivate::setInterval(int interval)
-{
-    mInterval = isValidInterval(interval)
-            ? interval
-            : INTERVAL_INVALID;
-}
-
-void MegaChatScheduledRulesPrivate::setUntil(const char* until)
-{
-    mUntil.assign(until ? until : std::string());
-}
-
 int MegaChatScheduledRulesPrivate::freq() const                                     { return mFreq; }
 int MegaChatScheduledRulesPrivate::interval() const                                 { return mInterval; }
 MegaChatTimeStamp MegaChatScheduledRulesPrivate::until() const                      { return mUntil; }

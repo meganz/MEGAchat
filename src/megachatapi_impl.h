@@ -877,13 +877,6 @@ public:
     MegaChatScheduledRulesPrivate(const karere::KarereScheduledRules* rules);
     virtual ~MegaChatScheduledRulesPrivate();
 
-    void setFreq(int newFreq);
-    void setInterval(int interval);
-    void setUntil(const char* until);
-    void setByWeekDay(const mega::MegaIntegerList* byWeekDay);
-    void setByMonthDay(const mega::MegaIntegerList* byMonthDay);
-    void setByMonthWeekDay(const mega::MegaIntegerMap* byMonthWeekDay);
-
     MegaChatScheduledRulesPrivate* copy() const override;
     int freq() const override;
     int interval() const override;
