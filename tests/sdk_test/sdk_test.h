@@ -82,7 +82,7 @@ private:
             t.mOKTests ++; \
             LOG_debug << "Finished test: " << title; \
         } \
-        catch(ChatTestException e) \
+        catch(const ChatTestException& e) \
         { \
             t.testHasFailed = true; \
             std::cout << e.what() << std::endl; \
@@ -507,23 +507,23 @@ public:
    void onDbError(int error, const std::string &msg) override;
 };
 
-typedef std::function<void(::mega::MegaError& e, ::mega::MegaRequest& request)> OnReqFinish;
-
-struct RequestTracker : public ::mega::MegaRequestListener
+class RequestTracker : public ::mega::MegaRequestListener
 {
     std::atomic<bool> started = { false };
     std::atomic<bool> finished = { false };
     std::atomic<::mega::ErrorCodes> result = { ::mega::ErrorCodes::API_EINTERNAL };
     std::promise<::mega::ErrorCodes> promiseResult;
-    ::mega::MegaApi *mApi;
+    ::mega::MegaApi *mApi = nullptr;
 
-    ::mega::unique_ptr<::mega::MegaRequest> request;
-
+    using OnReqFinish = std::function<void(::mega::MegaError& e, ::mega::MegaRequest& request)>;
     OnReqFinish onFinish;
 
-    RequestTracker(::mega::MegaApi *api, OnReqFinish finish = nullptr)
+public:
+    ::mega::unique_ptr<::mega::MegaRequest> request;
+
+    RequestTracker(::mega::MegaApi *api, OnReqFinish onFin = nullptr)
         : mApi(api)
-        , onFinish(finish)
+        , onFinish(onFin)
     {
     }
 
@@ -534,20 +534,22 @@ struct RequestTracker : public ::mega::MegaRequestListener
     {
     }
 
-    void onRequestStart(::mega::MegaApi* api, ::mega::MegaRequest *request) override
+    void onRequestStart(::mega::MegaApi*, ::mega::MegaRequest*) override
     {
         started = true;
     }
-    void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request,
+
+    void onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest *req,
                          ::mega::MegaError* e) override
     {
-        if (onFinish) onFinish(*e, *request);
+        if (onFinish) onFinish(*e, *req);
 
         result = ::mega::ErrorCodes(e->getErrorCode());
-        this->request.reset(request->copy());
+        request.reset(req ? req->copy() : nullptr);
         finished = true;
         promiseResult.set_value(static_cast<::mega::ErrorCodes>(result));
     }
+
     ::mega::ErrorCodes waitForResult(int seconds = maxTimeout, bool unregisterListenerOnTimeout = true)
     {
         auto f = promiseResult.get_future();
@@ -558,7 +560,7 @@ struct RequestTracker : public ::mega::MegaRequestListener
             {
                 mApi->removeRequestListener(this);
             }
-            return static_cast<::mega::ErrorCodes>(-999); // local timeout
+            return static_cast<mega::ErrorCodes>(-999); // local timeout
         }
         return f.get();
     }
@@ -566,21 +568,18 @@ struct RequestTracker : public ::mega::MegaRequestListener
     ::mega::MegaHandle getNodeHandle()
     {
         // if the operation succeeded and supplies a node handle
-        if (request) return request->getNodeHandle();
-        return ::mega::INVALID_HANDLE;
+        return request ? request->getNodeHandle() : ::mega::INVALID_HANDLE;
     }
 
     std::string getLink()
     {
-        // if the operation succeeded and supplies a link
-        if (request && request->getLink()) return request->getLink();
-        return "";
+        // if the operation succeeded and supplied a link
+        return request && request->getLink() ? request->getLink() : std::string();
     }
 
     ::mega::unique_ptr<::mega::MegaNode> getPublicMegaNode()
     {
-        if (request) return ::mega::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode());
-        return nullptr;
+        return request ? ::mega::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode()) : nullptr;
     }
 };
 

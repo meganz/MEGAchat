@@ -476,6 +476,9 @@ public:
      */
     promise::Promise<void> setChatRoomOption(int option, bool enabled);
 
+    // searchs a scheduled meeting by schedId
+    const KarereScheduledMeeting* getScheduledMeetingsBySchedId(const karere::Id& schedId) const;
+
     // maps a scheduled meeting id to a scheduled meeting
     // a scheduled meetings allows the user to specify an event that will occur in the future
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;

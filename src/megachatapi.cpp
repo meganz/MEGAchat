@@ -1032,7 +1032,12 @@ char *MegaChatApi::getVideoDeviceSelected()
 
 void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-    pImpl->startChatCall(chatid, enableVideo, enableAudio, listener);
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE /*schedId*/, listener);
+}
+
+void MegaChatApi::startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
+{
+   pImpl->startChatCall(chatid, enableVideo, enableAudio, schedId, listener);
 }
 
 void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)

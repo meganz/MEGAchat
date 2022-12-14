@@ -554,6 +554,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)videoDeviceSelected;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
+- (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)hangChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;

@@ -4333,6 +4333,14 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
     }
 }
 
+const KarereScheduledMeeting* GroupChatRoom::getScheduledMeetingsBySchedId(const karere::Id& schedId) const
+{
+    auto it = mScheduledMeetings.find(schedId);
+    return it != mScheduledMeetings.end()
+            ? it->second.get()
+            : nullptr;
+}
+
 const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRoom::getScheduledMeetings() const
 {
     return mScheduledMeetings;
