@@ -31,6 +31,7 @@ namespace megachat
 {
 
 typedef uint64_t MegaChatHandle;
+typedef int64_t MegaChatTimeStamp; // unix timestamp
 typedef int MegaChatIndex;  // int32_t
 
 /**
@@ -7557,6 +7558,7 @@ public:
     };
 
     static constexpr int INTERVAL_INVALID = 0;
+    static constexpr int UNTIL_INVALID = 0;
     virtual ~MegaChatScheduledRules();
 
     /**
@@ -7573,7 +7575,7 @@ public:
      */
     static MegaChatScheduledRules* createInstance(int freq,
                                                   int interval = INTERVAL_INVALID,
-                                                  const char* until = nullptr,
+                                                  MegaChatTimeStamp until = UNTIL_INVALID,
                                                   const ::mega::MegaIntegerList* byWeekDay = nullptr,
                                                   const ::mega::MegaIntegerList* byMonthDay = nullptr,
                                                   const ::mega::MegaIntegerMap* byMonthWeekDay = nullptr);
@@ -7609,7 +7611,7 @@ public:
      *
      * @return When the repetitions should end
      */
-    virtual const char* until() const;
+    virtual MegaChatTimeStamp until() const;
 
     /**
      * @brief Returns a MegaIntegerList with the week days when the event will occur

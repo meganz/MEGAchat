@@ -5455,13 +5455,13 @@ bool KarereScheduledFlags::equalTo(::mega::MegaScheduledFlags* aux) const
 /* class scheduledRules */
 KarereScheduledRules::KarereScheduledRules(int freq,
                               int interval,
-                              const std::string& until,
+                              ::mega::m_time_t until,
                               const karere_rules_vector* byWeekDay,
                               const karere_rules_vector* byMonthDay,
                               const karere_rules_map* byMonthWeekDay)
     : mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
       mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
-      mUntil(until),
+      mUntil(isValidUntil(until) ? until : UNTIL_INVALID),
       mByWeekDay(byWeekDay ? new karere_rules_vector(*byWeekDay) : nullptr),
       mByMonthDay (byMonthDay ? new karere_rules_vector(*byMonthDay) : nullptr),
       mByMonthWeekDay(byMonthWeekDay ? new karere_rules_map(byMonthWeekDay->begin(), byMonthWeekDay->end()) : nullptr)
@@ -5482,7 +5482,7 @@ KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules
 {
     mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
     mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
-    mUntil = rules->until() ? rules->until() : std::string();
+    mUntil = isValidUntil(rules->until()) ? rules->until() : UNTIL_INVALID;
 
     if (rules->byWeekDay() && rules->byWeekDay()->size())
     {
@@ -5528,7 +5528,7 @@ KarereScheduledRules* KarereScheduledRules::copy() const
 
 int KarereScheduledRules::freq() const                                                      { return mFreq; }
 int KarereScheduledRules::interval() const                                                  { return mInterval; }
-const std::string& KarereScheduledRules::until() const                                      { return mUntil; }
+mega::m_time_t KarereScheduledRules::until() const                                          { return mUntil; }
 const KarereScheduledRules::karere_rules_vector* KarereScheduledRules::byWeekDay() const    { return mByWeekDay.get(); }
 const KarereScheduledRules::karere_rules_vector* KarereScheduledRules::byMonthDay() const   { return mByMonthDay.get(); }
 const KarereScheduledRules::karere_rules_map* KarereScheduledRules::byMonthWeekDay() const  { return mByMonthWeekDay.get(); }
@@ -5538,7 +5538,7 @@ bool KarereScheduledRules::equalTo(const ::mega::MegaScheduledRules* r) const
     if (!r)                                                         { return false; }
     if (mFreq != r->freq())                                         { return false; }
     if (mInterval != r->interval())                                 { return false; }
-    if (mUntil.compare(r->until() ? r->until() : std::string()))    { return false; }
+    if (mUntil != r->until())                                       { return false; }
 
     if (mByWeekDay || r->byWeekDay())
     {
@@ -5627,7 +5627,7 @@ bool KarereScheduledRules::equalTo(const ::mega::MegaScheduledRules* r) const
         }
     }
 
-    return ::mega::MegaScheduledRules::createInstance(freq(), interval(), until().c_str(),
+    return ::mega::MegaScheduledRules::createInstance(freq(), interval(), until(),
                                                byWeekDay() ? &auxByWeekDay : nullptr,
                                                byMonthDay() ? &auxByMonthDay  : nullptr,
                                                byMonthWeekDay() ? &auxByMonthWeekDay : nullptr);
@@ -5638,7 +5638,7 @@ bool KarereScheduledRules::serialize(Buffer& out) const
     assert(isValidFreq(mFreq));
     std::string aux;
     bool hasInterval = isValidInterval(mInterval);
-    bool hasUntil = !mUntil.empty();
+    bool hasUntil = isValidUntil(mUntil);
     bool hasByWeekDay = mByWeekDay.get() && !mByWeekDay->empty();
     bool hasByMonthDay = mByMonthDay.get() && !mByMonthDay->empty();
     bool hasByMonthWeekDay = mByMonthWeekDay.get() && !mByMonthWeekDay->empty();
@@ -5648,7 +5648,7 @@ bool KarereScheduledRules::serialize(Buffer& out) const
     w.serializeexpansionflags(hasInterval, hasUntil, hasByWeekDay, hasByMonthDay, hasByMonthWeekDay);
 
     if (hasInterval) { w.serializei32(mInterval); }
-    if (hasUntil)    { w.serializestring(mUntil); }
+    if (hasUntil)    { w.serializei64(mUntil); }
     if (hasByWeekDay)
     {
         w.serializeu32(static_cast<uint32_t>(mByWeekDay->size()));
@@ -5692,7 +5692,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     std::string aux(in.buf(), in.dataSize());
     int freq = FREQ_INVALID;
     int interval = INTERVAL_INVALID;
-    std::string until;
+    ::mega::m_time_t until;
 
     karere_rules_vector byWeekDay;
     karere_rules_vector byMonthDay;
@@ -5723,7 +5723,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
         return nullptr;
     }
 
-    if (hasUntil && !r.unserializestring(until))
+    if (hasUntil && !r.unserializei64(until))
     {
         assert(false);
         KR_LOG_ERROR("Failure at schedule meeting rules unserialization until");

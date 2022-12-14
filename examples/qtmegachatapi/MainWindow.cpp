@@ -1101,7 +1101,8 @@ void MainWindow::onAddChatSchedMeeting()
 
     std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,
-                                                                                         nullptr, byWeekDay.get(), nullptr, nullptr));
+                                                                                         MegaChatScheduledRules::UNTIL_INVALID,
+                                                                                         byWeekDay.get(), nullptr, nullptr));
 
 
     std::string timezone = mApp->getText("Get TimeZone (i.e: Europe/Madrid)", false);

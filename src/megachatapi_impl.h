@@ -868,7 +868,7 @@ class MegaChatScheduledRulesPrivate : public MegaChatScheduledRules
 public:
     MegaChatScheduledRulesPrivate(int freq,
                                   int interval = INTERVAL_INVALID,
-                                  const char* until = nullptr,
+                                  MegaChatTimeStamp until = UNTIL_INVALID,
                                   const mega::MegaIntegerList* byWeekDay = nullptr,
                                   const mega::MegaIntegerList* byMonthDay = nullptr,
                                   const mega::MegaIntegerMap* byMonthWeekDay = nullptr);
@@ -887,12 +887,13 @@ public:
     MegaChatScheduledRulesPrivate* copy() const override;
     int freq() const override;
     int interval() const override;
-    const char* until() const override;
+    MegaChatTimeStamp until() const override;
     const mega::MegaIntegerList* byWeekDay()  const override;
     const mega::MegaIntegerList* byMonthDay()  const  override;
     const mega::MegaIntegerMap* byMonthWeekDay() const override;
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
+    static bool isValidUntil(mega::m_time_t until) { return until > UNTIL_INVALID; }
 
 private:
     // scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
@@ -902,7 +903,7 @@ private:
     int mInterval = INTERVAL_INVALID;
 
     // specifies when the repetitions should end
-    std::string mUntil;
+    ::mega::m_time_t mUntil = UNTIL_INVALID;
 
     // allows us to specify that an event will only occur on given week day/s
     std::unique_ptr<mega::MegaIntegerList> mByWeekDay;

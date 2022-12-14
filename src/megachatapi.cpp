@@ -2347,7 +2347,7 @@ bool MegaChatScheduledFlags::isEmpty() const                        { return fal
 /* Class MegaChatScheduledRules */
 MegaChatScheduledRules* MegaChatScheduledRules::createInstance(int freq,
                                int interval,
-                               const char* until,
+                               MegaChatTimeStamp until,
                                const ::mega::MegaIntegerList* byWeekDay,
                                const ::mega::MegaIntegerList* byMonthDay,
                                const ::mega::MegaIntegerMap* byMonthWeekDay)
@@ -2359,7 +2359,7 @@ MegaChatScheduledRules::~MegaChatScheduledRules()                               
 MegaChatScheduledRules* MegaChatScheduledRules::copy() const                    { return NULL; }
 int MegaChatScheduledRules::freq() const                                        { return 0; }
 int MegaChatScheduledRules::interval() const                                    { return 0; }
-const char* MegaChatScheduledRules::until() const                               { return nullptr; }
+MegaChatTimeStamp MegaChatScheduledRules::until() const                         { return UNTIL_INVALID; }
 const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay() const          { return nullptr; }
 const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay() const         { return nullptr; }
 const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay() const      { return nullptr; }

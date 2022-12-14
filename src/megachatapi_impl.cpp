@@ -8562,13 +8562,13 @@ bool MegaChatScheduledFlagsPrivate::isEmpty() const                        { ret
 /* Class MegaChatScheduledRulesPrivate */
 MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(int freq,
                               int interval,
-                              const char* until,
+                              MegaChatTimeStamp until,
                               const ::mega::MegaIntegerList* byWeekDay,
                               const ::mega::MegaIntegerList* byMonthDay,
                               const ::mega::MegaIntegerMap* byMonthWeekDay):
     mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
     mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
-    mUntil(until ? until : std::string()),
+    mUntil(isValidUntil(until) ? until : UNTIL_INVALID),
     mByWeekDay(byWeekDay ? byWeekDay->copy() : nullptr),
     mByMonthDay (byMonthDay ? byMonthDay->copy() : nullptr),
     mByMonthWeekDay(byMonthWeekDay ? byMonthWeekDay->copy() : nullptr)
@@ -8578,7 +8578,7 @@ MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(int freq,
 MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const MegaChatScheduledRulesPrivate* rules) :
         mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
         mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
-        mUntil(rules->until() ? rules->until() : std::string()),
+        mUntil(isValidUntil(rules->until()) ? rules->until() : UNTIL_INVALID),
         mByWeekDay(rules->byWeekDay() ? rules->byWeekDay()->copy() : nullptr),
         mByMonthDay (rules->byMonthDay() ? rules->byMonthDay()->copy() : nullptr),
         mByMonthWeekDay(rules->byMonthWeekDay() ? rules->byMonthWeekDay()->copy() : nullptr)
@@ -8643,7 +8643,7 @@ void MegaChatScheduledRulesPrivate::setUntil(const char* until)
 
 int MegaChatScheduledRulesPrivate::freq() const                                     { return mFreq; }
 int MegaChatScheduledRulesPrivate::interval() const                                 { return mInterval; }
-const char* MegaChatScheduledRulesPrivate::until() const                            { return !mUntil.empty() ? mUntil.c_str() : nullptr; }
+MegaChatTimeStamp MegaChatScheduledRulesPrivate::until() const                      { return mUntil; }
 const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byWeekDay() const     { return mByWeekDay.get(); }
 const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byMonthDay()  const   { return mByMonthDay.get(); }
 const ::mega::MegaIntegerMap* MegaChatScheduledRulesPrivate::byMonthWeekDay() const { return mByMonthWeekDay.get(); }
