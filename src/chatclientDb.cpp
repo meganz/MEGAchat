@@ -34,7 +34,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
                   sm.title().size() ? sm.title().c_str() : nullptr,
                   sm.description().size() ? sm.description().c_str() : nullptr,
                   sm.attributes().size() ? sm.attributes().c_str() : nullptr,
-                  sm.overrides().size() ? sm.overrides().c_str() : nullptr,
+                  sm.overrides(),
                   sm.cancelled(),
                   static_cast<int64_t>(sm.flags()->getNumericValue()),
                   rulesBuf);
@@ -54,7 +54,7 @@ void ChatClientSqliteDb::insertOrUpdateSchedMeeting(const KarereScheduledMeeting
                   sm.title().size() ? sm.title().c_str() : nullptr,
                   sm.description().size() ? sm.description().c_str() : nullptr,
                   sm.attributes().size() ? sm.attributes().c_str() : nullptr,
-                  sm.overrides().size() ? sm.overrides().c_str() : nullptr,
+                  sm.overrides(),
                   sm.cancelled(),
                   static_cast<int64_t>(sm.flags()->getNumericValue()));
     }
@@ -113,7 +113,7 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::loadSch
        std::string title(stmt.stringCol(7));
        std::string description(stmt.stringCol(8));
        std::string attributes = stmt.stringCol(9);
-       std::string overrides  = stmt.stringCol(10);
+       ::mega::m_time_t overrides  = stmt.int64Col(10);
        int cancelled = stmt.intCol(11);
        std::unique_ptr <KarereScheduledFlags> flags(new KarereScheduledFlags(static_cast<unsigned long>(stmt.intCol(12))));
        std::unique_ptr <KarereScheduledRules> rules;

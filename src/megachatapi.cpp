@@ -712,7 +712,7 @@ void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat,
 {
     pImpl->createChatAndScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, MEGACHAT_INVALID_HANDLE /* schedId */, MEGACHAT_INVALID_HANDLE /*parentSchedId,*/,
                                                  true /*createChat*/, isMeeting, publicChat, speakRequest, waitingRoom, openInvite,
-                                                 timezone, startDate, endDate, title, description, false /*cancelled*/, attributes, nullptr /*overrides*/, flags, rules, listener);
+                                                 timezone, startDate, endDate, title, description, false /*cancelled*/, attributes, MEGACHAT_INVALID_TIMESTAMP /*overrides*/, flags, rules, listener);
 }
 
 void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, const char* endDate,
@@ -2370,7 +2370,7 @@ bool MegaChatScheduledRules::isValidInterval(int interval)                      
 MegaChatScheduledMeeting* MegaChatScheduledMeeting::createInstance(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId, MegaChatHandle organizerUserId,
                                                                    int cancelled, const char* timezone, MegaChatTimeStamp startDateTime,
                                                                    const char* endDateTime, const char* title, const char* description, const char* attributes,
-                                                                   const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules)
+                                                                   MegaChatTimeStamp overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules)
 {
     return new MegaChatScheduledMeetingPrivate(chatid, timezone, startDateTime, endDateTime, title,
                                                description, schedId, parentSchedId, organizerUserId, cancelled,
@@ -2393,7 +2393,7 @@ const char* MegaChatScheduledMeeting::endDateTime() const                       
 const char* MegaChatScheduledMeeting::title() const                             { return NULL; }
 const char* MegaChatScheduledMeeting::description() const                       { return NULL; }
 const char* MegaChatScheduledMeeting::attributes() const                        { return NULL; }
-const char* MegaChatScheduledMeeting::overrides() const                         { return NULL; }
+MegaChatTimeStamp MegaChatScheduledMeeting::overrides() const                   { return MEGACHAT_INVALID_TIMESTAMP; }
 MegaChatScheduledRules* MegaChatScheduledMeeting::rules() const                 { return NULL; }
 MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 { return NULL; }
 

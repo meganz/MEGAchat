@@ -923,7 +923,7 @@ public:
                                     MegaChatHandle organizerUserId = MEGACHAT_INVALID_HANDLE,
                                     int cancelled = -1,
                                     const char* attributes = nullptr,
-                                    const char* overrides = nullptr,
+                                    MegaChatTimeStamp overrides = MEGACHAT_INVALID_TIMESTAMP,
                                     const MegaChatScheduledFlags* flags = nullptr,
                                     const MegaChatScheduledRules* rules = nullptr);
 
@@ -944,7 +944,7 @@ public:
     const char* title() const override;
     const char* description() const override;
     const char* attributes() const override;
-    const char* overrides() const override;
+    MegaChatTimeStamp overrides() const override;
     int cancelled() const override;
     bool hasChanged(size_t changeType) const override;
     bool isNew() const override;
@@ -983,8 +983,8 @@ private:
     // attributes to store any additional data
     std::string mAttributes;
 
-    // start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
-    std::string mOverrides;
+    // start dateTime of the original meeting series event to be replaced (unix timestamp)
+    MegaChatTimeStamp mOverrides;
 
     // cancelled flag
     int mCancelled;
@@ -1418,7 +1418,7 @@ public:
     void createChatAndScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId,
                                                  bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                                  const char* timezone, MegaChatTimeStamp startDate, const char* endDate, const char* title, const char* description,
-                                                 int cancelled, const char* attributes, const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                 int cancelled, const char* attributes, MegaChatTimeStamp overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                  MegaChatRequestListener* listener = nullptr);
 
     // updates a scheduled meeting

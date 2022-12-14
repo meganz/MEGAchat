@@ -1411,7 +1411,7 @@ public:
     KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, ::mega::m_time_t startDateTime, const std::string& endDateTime,
                                     const std::string& title, const std::string& description, karere::Id schedId = karere::Id::inval(),
                                     karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
-                                    const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
+                                    mega::m_time_t overrides = ::mega::MEGA_INVALID_TIMESTAMP, KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
 
     KarereScheduledMeeting(const KarereScheduledMeeting* karereScheduledMeeting);
     KarereScheduledMeeting(const mega::MegaScheduledMeeting* sm);
@@ -1429,7 +1429,7 @@ public:
     const std::string& title() const;
     const std::string& description() const;
     const std::string& attributes() const;
-    const std::string& overrides() const;
+    mega::m_time_t overrides() const;
     int cancelled() const;
     KarereScheduledFlags* flags() const;
     KarereScheduledRules* rules() const;
@@ -1468,8 +1468,8 @@ private:
     // attributes to store any additional data
     std::string mAttributes;
 
-    // start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
-    std::string mOverrides;
+    // start dateTime of the original meeting series event to be replaced (unix timestamp)
+    ::mega::m_time_t mOverrides;
 
     // cancelled flag
     int mCancelled;

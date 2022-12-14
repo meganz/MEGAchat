@@ -5820,7 +5820,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
 /* class scheduledMeeting */
 KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, ::mega::m_time_t startDateTime,
                                                const std::string& endDateTime, const std::string& title, const std::string& description, karere::Id schedId,
-                                               karere::Id parentSchedId, int cancelled, const std::string& attributes, const std::string& overrides,
+                                               karere::Id parentSchedId, int cancelled, const std::string& attributes, ::mega::m_time_t overrides,
                                                KarereScheduledFlags* flags, KarereScheduledRules* rules)
     : mChatid(chatid),
       mSchedId(schedId),
@@ -5868,7 +5868,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting 
       mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
       mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
       mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
-      mOverrides(scheduledMeeting->overrides() ? scheduledMeeting->overrides() : std::string()),
+      mOverrides(scheduledMeeting->overrides()),
       mCancelled(scheduledMeeting->cancelled())
 {
     std::unique_ptr<mega::MegaScheduledFlags> flags(scheduledMeeting->flags());
@@ -5897,7 +5897,7 @@ const std::string& KarereScheduledMeeting::endDateTime() const            { retu
 const std::string& KarereScheduledMeeting::title() const                  { return mTitle; }
 const std::string& KarereScheduledMeeting::description() const            { return mDescription; }
 const std::string& KarereScheduledMeeting::attributes() const             { return mAttributes; }
-const std::string& KarereScheduledMeeting::overrides() const              { return mOverrides; }
+::mega::m_time_t KarereScheduledMeeting::overrides() const                { return mOverrides; }
 int KarereScheduledMeeting::cancelled() const                             { return mCancelled; }
 KarereScheduledFlags* KarereScheduledMeeting::flags() const               { return mFlags.get(); }
 KarereScheduledRules* KarereScheduledMeeting::rules() const               { return mRules.get(); }
@@ -5914,7 +5914,7 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
     if (mTitle.compare(sm->title() ? sm->title(): std::string()))                           { bs[SC_TITLE] = 1; }
     if (mDescription.compare(sm->description() ? sm->description(): std::string()))         { bs[SC_DESC] = 1; }
     if (mAttributes.compare(sm->attributes() ? sm->attributes(): std::string()))            { bs[SC_ATTR] = 1; }
-    if (mOverrides.compare(sm->overrides() ? sm->overrides(): std::string()))               { bs[SC_OVERR] = 1; }
+    if (mOverrides != sm->overrides())                                                      { bs[SC_OVERR] = 1; }
 
     std::unique_ptr<mega::MegaScheduledFlags> smFlags(sm->flags());
     if (flags() || smFlags)
