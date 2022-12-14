@@ -1,10 +1,10 @@
 #ifndef USERATTRCACHE
 #define USERATTRCACHE
-#include <logger.h>
+#include "base/logger.h"
 #include "karereId.h"
 #include <megaapi.h>
 #include <list>
-#include <promise.h>
+#include "base/promise.h"
 #include <base/trackDelete.h>
 
 #define UACACHE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_uacache, fmtString, ##__VA_ARGS__)
@@ -166,7 +166,7 @@ public:
      * the attribute data. If there is an error obraining the attribute, the callback
      * will be called with a \c null Buffer object.
      * @param user User from attribute is request
-     * @param attrType Attriute type
+     * @param attrType Attribute type
      * @param userp An arbitrary user-supplied pointer that will be passed to the
      * callback
      * @param cb Callback called when attribute is available

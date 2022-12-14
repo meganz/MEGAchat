@@ -38,6 +38,8 @@ public:
         OnReactionUpdated,
         OnHistoryTruncatedByRetentionTime,
         OnDbError,
+        onChatSchedMeetingUpdate,
+        onSchedMeetingOccurrencesChange,
     };
 
     QTMegaChatEvent(MegaChatApi *megaChatApi, Type type);
@@ -59,6 +61,8 @@ public:
     char *getBuffer();
     size_t getSize();
     MegaChatSession *getChatSession();
+    MegaChatScheduledMeeting* getSchedMeeting();
+    MegaChatScheduledMeetingList* getSchedMeetingOccurr();
     MegaChatHandle getChatCallid();
 
     void setChatRequest(MegaChatRequest *request);
@@ -76,6 +80,8 @@ public:
     void setBuffer(char *buffer);
     void setSize(size_t size);
     void setChatSession(MegaChatSession *session);
+    void setSchedMeeting(MegaChatScheduledMeeting* sm);
+    void setSchedMeetingOccurr(MegaChatScheduledMeetingList* l);
     void setChatCallid(MegaChatHandle callid);
 
 private:
@@ -90,6 +96,8 @@ private:
     MegaChatCall *call;
     MegaChatSession *session;
     MegaChatHandle callid;
+    MegaChatScheduledMeeting* schedMeeting;
+    MegaChatScheduledMeetingList* schedMeetingOccurr;
     bool inProgress;
     int status;
     int width;

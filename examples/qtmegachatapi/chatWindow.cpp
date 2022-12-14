@@ -112,6 +112,19 @@ void ChatWindow::setChatTittle(const char *title)
     .append(mChatRoom->privToString(mChatRoom->getOwnPrivilege()))
     .append("]");
 
+    if (mChatRoom->isGroup())
+    {
+        QString speakRequest = QString::fromUtf8("\xE2\x98\x9D");
+        QString waitingRoom = QString::fromUtf8("\xE2\x8F\xB2");
+        QString openInvite = QString::fromUtf8("\xF0\x9F\x94\x93");
+
+        chatTitle.append("[");
+        if (mChatRoom->isSpeakRequest())    { chatTitle.append(" ").append(speakRequest); }
+        if (mChatRoom->isWaitingRoom())     { chatTitle.append(" ").append(waitingRoom); }
+        if (mChatRoom->isOpenInvite())      { chatTitle.append(" ").append(openInvite); }
+        chatTitle.append(" ]");
+    }
+
     if(mChatRoom->isPreview())
     {
         chatTitle.append("        <PREVIEW>");
@@ -215,6 +228,13 @@ void ChatWindow::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoo
     if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_UPDATE_PREVIEWERS))
     {
        updatePreviewers(chat->getNumPreviewers());
+    }
+
+    if(chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_WAITING_ROOM)
+            ||chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_SPEAK_REQUEST)
+            || chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_OPEN_INVITE))
+    {
+        setChatTittle(nullptr);
     }
 
 //    if (chat->hasChanged(megachat::MegaChatRoom::CHANGE_TYPE_RETENTION_TIME))
@@ -886,6 +906,32 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto actSetRetentionTimeSec = roomMenu->addAction(tr("Set retention time (in seconds)"));
     connect(actSetRetentionTimeSec, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetRetentionTime();});
 
+    // chat options
+    //---------------------------------------------------------------------------------------------------------------
+    auto actgetChatOptions = roomMenu->addAction(tr("Get chat Options"));
+    connect(actgetChatOptions, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onGetChatOptions();});
+
+    QMenu *chatOptionsMenu= roomMenu->addMenu("Set chat options");
+
+    auto actEnableOpenInvite = chatOptionsMenu->addAction(tr("[+] Enable Open invite"));
+    connect(actEnableOpenInvite, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetOpenInvite(true);});
+
+    auto actDisableOpenInvite = chatOptionsMenu->addAction(tr("[-] Disable Open invite"));
+    connect(actDisableOpenInvite, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetOpenInvite(false);});
+
+    auto actEnableSpeakRequest = chatOptionsMenu->addAction(tr("[+] Enable Speak request"));
+    connect(actEnableSpeakRequest, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetSpeakRequest(true);});
+
+    auto actDisableSpeakRequest = chatOptionsMenu->addAction(tr("[-] Disable Speak request"));
+    connect(actDisableSpeakRequest, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetSpeakRequest(false);});
+
+    auto actEnableWaitingRoom = chatOptionsMenu->addAction(tr("[+] Enable Waiting room"));
+    connect(actEnableWaitingRoom, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetWaitingRoom(true);});
+
+    auto actDisableWaitingRoom = chatOptionsMenu->addAction(tr("[-] Disable Waiting room"));
+    connect(actDisableWaitingRoom, &QAction::triggered, getChatItemController(), [=](){getChatItemController()->onSetWaitingRoom(false);});
+    //---------------------------------------------------------------------------------------------------------------
+
     //Set topic
     auto title = roomMenu->addAction("Set title");
     connect(title, SIGNAL(triggered()), getChatItemController(), SLOT(setTitle()));
@@ -1043,6 +1089,13 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
+void ChatWindow::onAudioCallNoRingBtn()
+{
+    std::string schedIdStr = mMainWin->mApp->getText("Get scheduled meeting id");
+    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
+    mMegaChatApi->startChatCallNoRinging(mChatRoom->getChatId(), schedId, false, false);
+}
+
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
     delete this;
@@ -1133,11 +1186,11 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
 
     if (isVoiceClip)
     {
-        mMegaApi->startUploadWithData(node.toStdString().c_str(), parent, "vm");
+        mMegaApi->startUpload(node.toStdString().c_str(), parent, nullptr, 0, "vm", false, false, nullptr);
     }
     else
     {
-        mMegaApi->startUploadForChat(node.toStdString().c_str(), parent, nullptr, false);
+        mMegaApi->startUploadForChat(node.toStdString().c_str(), parent, nullptr, false, nullptr);
     }
 
     delete parent;

@@ -169,6 +169,7 @@ public:
     void notifyHiResReceived();
     void notifyLowResReceived();
     void disableVideoSlot(VideoResolution videoResolution);
+    void setModerator(bool isModerator);
 
     // ISession methods (called from intermediate layer, upon SessionHandler callbacks and others)
     karere::Id getPeerid() const override;
@@ -177,11 +178,14 @@ public:
     karere::AvFlags getAvFlags() const override;
     bool isAudioDetected() const override;
     bool hasRequestSpeak() const override;
+    TermCode getTermcode() const override;
+    void setTermcode(TermCode termcode) override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
     void setVideoRendererVthumb(IVideoRenderer *videoRenderer) override;
     void setVideoRendererHiRes(IVideoRenderer *videoRenderer) override;
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
+    bool isModerator() const override;
 
 private:
     // Data about the partipant in the call relative to this session
@@ -202,6 +206,7 @@ private:
 
     // Session starts directly in progress: the SFU sends the tracks immediately from new peer
     SessionState mState = kSessStateInProgress;
+    TermCode mTermCode = kInvalidTermCode;
 };
 
 /**
@@ -226,11 +231,14 @@ public:
 
     double mPacketLostLower;
     double mPacketLostUpper;
+    double mPacketLostCapping;
     double mLowestRttSeen;
     double mRttLower;
     double mRttUpper;
     double mMovingAverageRtt;
     double mMovingAveragePlost;
+    double mVtxDelay;
+    double mMovingAverageVideoTxHeight;
     time_t mTsLastSwitch;
 };
 
@@ -250,7 +258,9 @@ public:
         kActive = 2,
     };
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0);
+    static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
+
+    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
     virtual ~Call();
 
 
@@ -259,6 +269,10 @@ public:
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
     CallState getState() const override;
+    bool isOwnClientCaller() const override;
+    bool isJoined()  const override;
+    bool isOwnPrivModerator() const override;
+
     // returns true if your user participates of the call
     bool participate() override;
     bool isJoining() const override;
@@ -268,11 +282,15 @@ public:
     uint8_t getEndCallReason() const override;
 
     // called upon reception of OP_JOINEDCALL from chatd
-    void addParticipant(karere::Id peer) override;
+    void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) override;
+
+    // add new participant to mParticipants map, and notify stopOutgoingRinging for 1on1 calls if it's required
+    void addParticipant(const karere::Id &peer) override;
+
     // called upon reception of OP_LEFTCALL from chatd
     void removeParticipant(karere::Id peer) override;
     // check if our peer is participating in the call (called from chatd)
-    bool isOtherClientParticipating() override;
+    bool alreadyParticipating() override;
 
     // called from chatd::onDisconnect() to remove peers from the call when disconnected from chatd
     void onDisconnectFromChatd() override;
@@ -280,7 +298,7 @@ public:
     void reconnectToSfu() override;
 
     promise::Promise<void> hangup() override;
-    promise::Promise<void> endCall(int reason = chatd::kDefault) override;  // only used on 1on1 when incoming call is rejected
+    promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
     // (for your own audio level)
@@ -293,7 +311,9 @@ public:
     bool isIgnored() const override;
 
     void setRinging(bool ringing) override;
+    void stopOutgoingRinging() override;
     bool isRinging() const override;    // (always false for outgoing calls)
+    bool isOutgoingRinging() const override; // (always false for incomming calls or groupal calls)
 
     void setOnHold() override;
     void releaseOnHold() override;
@@ -322,7 +342,8 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
-    std::vector<karere::Id> getParticipants() const override;
+    std::set<karere::Id> getModerators() const override;
+    std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
 
@@ -330,7 +351,7 @@ public:
 
     int64_t getInitialTimeStamp() const override;
     int64_t getFinalTimeStamp() const override;
-    int64_t getInitialOffset() const override;
+    int64_t getInitialOffsetinMs() const override;
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
@@ -341,7 +362,7 @@ public:
 
 
     Session* getSession(Cid_t cid);
-
+    std::set<Cid_t> getSessionsCidsByUserHandle(const karere::Id& id);
     void setState(CallState newState);
     static const char *stateToStr(CallState state);
 
@@ -350,15 +371,32 @@ public:
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
+    void sfuDisconnect(const TermCode &termCode, bool hadParticipants);
 
-    void disconnect(TermCode termCode, const std::string& msg = "");
-    void handleCallDisconnect(const TermCode &termCode);
+    // ordered call disconnect by sending BYE command before performing SFU and media channel disconnect
+    void orderedCallDisconnect(TermCode termCode, const std::string &msg);
+
+    // immediate disconnect (without sending BYE command) from SFU and media channel, and also clear call resources
+    void immediateCallDisconnect(const TermCode& termCode);
+
+    // clear call resources
+    void clearResources(const TermCode& termCode);
+
+    // disconnect from media channel (MyPeerConnection)
+    void mediaChannelDisconnect(bool releaseDevices = false);
+
+    // set temporal endCallReason (when call is not destroyed immediately)
+    void setTempEndCallReason(uint8_t reason);
+
+    // set definitive endCallReason
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
     std::string connectionTermCodeToString(const TermCode &termcode) const;
     bool isValidConnectionTermcode(TermCode termCode) const;
     void sendStats(const TermCode& termCode);
+    static EndCallReason getEndCallReasonFromTermcode(const TermCode& termCode);
 
+    void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
     sfu::Peer &getMyPeer();
@@ -371,10 +409,13 @@ public:
     void freeAudioTrack(bool releaseSlot = false);
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
+    void updateNetworkQuality(int networkQuality);
+    void setDestroying(bool isDestroying);
+    bool isDestroying();
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
@@ -387,9 +428,13 @@ public:
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
-    bool handlePeerLeft(Cid_t cid) override;
+    bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
+    bool handleBye(unsigned termcode) override;
     void onSfuConnected() override;
     void onSfuDisconnected() override;
+    void onSendByeCommand() override;
+    bool handleModAdd (uint64_t userid) override;
+    bool handleModDel (uint64_t userid) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
@@ -401,35 +446,50 @@ public:
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
 
 protected:
-    std::vector<karere::Id> mParticipants; // managed exclusively by meetings related chatd commands
+    /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands
+     * if we are disconnected from chatd (chatd connectivity lost), but still participating in a call, peerleft and peerjoin SFU commands
+     * could also add/remove participants to this list, in order to keep participants up to date */
+    std::set<karere::Id> mParticipants;
     karere::Id mCallid;
     karere::Id mChatid;
     karere::Id mCallerId;
-    CallState mState = CallState::kStateInitial;
+    CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
+
+    // (just for 1on1 calls) flag to indicate that outgoing ringing sound is reproducing
+    // no need to reset this flag as 1on1 calls, are destroyed when any of the participants hangs up
+    bool mIsOutgoingRinging = false;
     bool mIgnored = false;
+    bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
+    bool mIsDestroying = false;
+
+    // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
+    bool mIsReconnectingToChatd = false;
 
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
 
-    int64_t mInitialTs = 0; // when we joined the call
-    int64_t mOffset = 0;    // duration of call when we joined
-    int64_t mFinalTs = 0;   // end of the call
+    int64_t mInitialTs = 0; // when we joined the call (seconds)
+    int64_t mOffset = 0;    // duration of call when we joined (millis)
+    int64_t mFinalTs = 0;   // end of the call (seconds)
     bool mAudioDetected = false;
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
 
-    int mNetworkQuality = kNetworkQualityDefault;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
     TermCode mTermCode = kInvalidTermCode;
+    TermCode mTempTermCode = kInvalidTermCode;
     uint8_t mEndCallReason = kInvalidReason;
+    uint8_t mTempEndCallReason = kInvalidReason;
 
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
 
+    // represents the Media channel connection (via WebRTC) between the local device and SFU.
     artc::MyPeerConnection<Call> mRtcConn;
     std::string mSdpStr;   // session description provided by WebRTC::createOffer()
     std::unique_ptr<LocalSlot> mAudio;
@@ -450,10 +510,29 @@ protected:
     RtcModuleSfu& mRtc;
     artc::VideoManager* mVideoManager = nullptr;
 
+    megaHandle mConnectTimer = 0;    // Handler of the timeout for call re/connecting
     megaHandle mStatsTimer = 0;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
+
+    /*
+     * List of participants with moderator role
+     *
+     * This list must be updated with any of the following events, independently if those users
+     * currently has answered or not the call.
+     *
+     * The information about moderator role is only updated from SFU.
+     *  1) ANSWER command: When user receives Answer call, SFU will provide a list with current moderators for this call
+     *  2) ADDMOD command: informs that a peer has been granted with moderator role
+     *  3) DELMOD command: informs that a peer has been removed it's moderator role
+     *
+     *  Participants with moderator role can:
+     *  - End groupal calls for all participants
+     *  - Approve/reject speaker requests
+     */
+    std::set<karere::Id> mModerators;
+
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey(bool reset = false);
     // associate slots with their corresponding sessions (video)
@@ -473,7 +552,12 @@ protected:
     // ask the SFU to get higher/lower (spatial + temporal) quality of HighRes video (thanks to SVC), automatically due to network quality
     void updateSvcQuality(int8_t delta);
     void resetLocalAvFlags();
+    bool isUdpDisconnected() const;
+    bool isTermCodeRetriable(const TermCode& termCode) const;
     bool isDisconnectionTermcode(const TermCode& termCode) const;
+    Cid_t getOwnCid() const;
+    void setSessionModByUserId(uint64_t userid, bool isMod);
+    void setOwnModerator(bool isModerator);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
@@ -487,7 +571,7 @@ public:
     bool isCallStartInProgress(const karere::Id &chatid) const override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) override;
+    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeDevice() override;
     void releaseDevice() override;
     void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
@@ -499,10 +583,11 @@ public:
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
-    void removeCall(karere::Id chatid, EndCallReason reason, TermCode connectionTermCode) override;
+    void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
+    void immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode);
 
-    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersJoined) override;
-    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::vector<karere::Id>& usersLeft) override;
+    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
+    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;
     void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;

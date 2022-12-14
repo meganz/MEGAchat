@@ -27,6 +27,7 @@
 #include "megachatapi.h"
 #include <chatClient.h>
 #include <iostream>
+#include <future>
 #include <fstream>
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -35,7 +36,7 @@
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
-
+static constexpr unsigned int maxAttempts = 3;
 static const unsigned int maxTimeout = 600;
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
@@ -81,7 +82,7 @@ private:
             t.mOKTests ++; \
             LOG_debug << "Finished test: " << title; \
         } \
-        catch(ChatTestException e) \
+        catch(const ChatTestException& e) \
         { \
             t.testHasFailed = true; \
             std::cout << e.what() << std::endl; \
@@ -200,7 +201,8 @@ class MegaChatApiTest :
         public ::mega::MegaLogger,
         public megachat::MegaChatRequestListener,
         public megachat::MegaChatListener,
-        public megachat::MegaChatCallListener
+        public megachat::MegaChatCallListener,
+        public megachat::MegaChatScheduledMeetingListener
 {
 public:
     MegaChatApiTest();
@@ -226,9 +228,11 @@ public:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
     void postLog(const std::string &msg);
 
+    bool exitWait(const std::vector<bool *>&responsesReceived, bool any) const;
+    bool waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout = maxTimeout) const;
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
-    bool TEST_ResumeSession(unsigned int accountIndex);
+    void TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
     void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
@@ -248,6 +252,7 @@ public:
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
     void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
+    void TEST_EstablishedCalls(unsigned int a1, unsigned int a2);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
@@ -314,7 +319,6 @@ private:
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
     bool mChatConnectionOnline[NUM_ACCOUNTS];
-    int lastError[NUM_ACCOUNTS];
     int lastErrorChat[NUM_ACCOUNTS];
     std::string lastErrorMsgChat[NUM_ACCOUNTS];
     int lastErrorTransfer[NUM_ACCOUNTS];
@@ -356,6 +360,7 @@ private:
     bool mCallReceivedRinging[NUM_ACCOUNTS];
     bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
+    bool mCallConnecting[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
@@ -364,6 +369,14 @@ private:
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
+    bool mChatCallOnHold[NUM_ACCOUNTS];
+    bool mChatCallOnHoldResumed[NUM_ACCOUNTS];
+    bool mChatCallAudioEnabled[NUM_ACCOUNTS];
+    bool mChatCallAudioDisabled[NUM_ACCOUNTS];
+    bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
+    bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
+    bool mChatCallSilenceReq[NUM_ACCOUNTS];
+    bool mChatCallReconnection[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -409,6 +422,12 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
+    virtual void onChatSessionUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid,
+                                     megachat::MegaChatHandle callid,
+                                     megachat::MegaChatSession *session);
+
+    virtual void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm) override;
+    virtual void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid) override;
 #endif
 };
 
@@ -488,12 +507,88 @@ public:
    void onDbError(int error, const std::string &msg) override;
 };
 
+class RequestTracker : public ::mega::MegaRequestListener
+{
+    std::atomic<bool> started = { false };
+    std::atomic<bool> finished = { false };
+    std::atomic<::mega::ErrorCodes> result = { ::mega::ErrorCodes::API_EINTERNAL };
+    std::promise<::mega::ErrorCodes> promiseResult;
+    ::mega::MegaApi *mApi = nullptr;
+
+    using OnReqFinish = std::function<void(::mega::MegaError& e, ::mega::MegaRequest& request)>;
+    OnReqFinish onFinish;
+
+public:
+    ::mega::unique_ptr<::mega::MegaRequest> request;
+
+    RequestTracker(::mega::MegaApi *api, OnReqFinish onFin = nullptr)
+        : mApi(api)
+        , onFinish(onFin)
+    {
+    }
+
+    RequestTracker(::mega::MegaApi *api, ::mega::MegaRequestListener *listener)
+        : mApi(api)
+        , onFinish([api, listener](::mega::MegaError& e, ::mega::MegaRequest& req)
+                   {listener->onRequestFinish(api, &req, &e);})
+    {
+    }
+
+    void onRequestStart(::mega::MegaApi*, ::mega::MegaRequest*) override
+    {
+        started = true;
+    }
+
+    void onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest *req,
+                         ::mega::MegaError* e) override
+    {
+        if (onFinish) onFinish(*e, *req);
+
+        result = ::mega::ErrorCodes(e->getErrorCode());
+        request.reset(req ? req->copy() : nullptr);
+        finished = true;
+        promiseResult.set_value(static_cast<::mega::ErrorCodes>(result));
+    }
+
+    ::mega::ErrorCodes waitForResult(int seconds = maxTimeout, bool unregisterListenerOnTimeout = true)
+    {
+        auto f = promiseResult.get_future();
+        if (std::future_status::ready != f.wait_for(std::chrono::seconds(seconds)))
+        {
+            assert(mApi);
+            if (unregisterListenerOnTimeout)
+            {
+                mApi->removeRequestListener(this);
+            }
+            return static_cast<mega::ErrorCodes>(-999); // local timeout
+        }
+        return f.get();
+    }
+
+    ::mega::MegaHandle getNodeHandle()
+    {
+        // if the operation succeeded and supplies a node handle
+        return request ? request->getNodeHandle() : ::mega::INVALID_HANDLE;
+    }
+
+    std::string getLink()
+    {
+        // if the operation succeeded and supplied a link
+        return request && request->getLink() ? request->getLink() : std::string();
+    }
+
+    ::mega::unique_ptr<::mega::MegaNode> getPublicMegaNode()
+    {
+        return request ? ::mega::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode()) : nullptr;
+    }
+};
+
 #ifndef KARERE_DISABLE_WEBRTC
 class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
@@ -506,8 +601,12 @@ public:
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
-    bool handlePeerLeft(Cid_t cid) override;
+    bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
+    bool handleBye(unsigned termcode) override;
+    bool handleModAdd(uint64_t userid) override;
+    bool handleModDel(uint64_t userid) override;
     void onSfuConnected() override;
+    void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     void logError(const char* error) override;

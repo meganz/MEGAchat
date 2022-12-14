@@ -40,7 +40,7 @@ public:
 class Peer
 {
 public:
-    Peer(karere::Id peerid, unsigned avFlags, Cid_t cid = 0);
+    Peer(karere::Id peerid, unsigned avFlags, Cid_t cid = 0, bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -51,6 +51,9 @@ public:
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
 
+    bool isModerator() const;
+    void setModerator(bool isModerator);
+
     bool hasAnyKey() const;
     Keyid_t getCurrentKeyId() const;
     std::string getKey(Keyid_t keyid) const;
@@ -58,11 +61,26 @@ public:
     void resetKeys();
 
 protected:
-    Cid_t mCid = 0;
+    Cid_t mCid = 0; // 0 is an invalid Cid
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
+
+    /*
+     * Moderator role for this call
+     *
+     * The information about moderator role is only updated from SFU.
+     *  1) ANSWER command: When user receives Answer call, SFU will provide a list with current moderators for this call,
+     *     independently if those users currently has answered or not the call
+     *  2) ADDMOD command: informs that a peer has been granted with moderator role
+     *  3) DELMOD command: informs that a peer has been removed it's moderator role
+     *
+     *  Participants with moderator role can:
+     *  - End groupal calls for all participants
+     *  - Approve/reject speaker requests
+     */
+    bool mIsModerator = false;
 };
 
 class TrackDescriptor
@@ -142,7 +160,7 @@ class SfuInterface
 public:
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
-    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, uint64_t, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, uint64_t, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
@@ -154,12 +172,16 @@ public:
     virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
     virtual bool handleSpeakOnCommand(Cid_t cid, TrackDescriptor speaker) = 0;
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
+    virtual bool handleModAdd (uint64_t userid) = 0;
+    virtual bool handleModDel (uint64_t userid) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
-    virtual bool handlePeerLeft(Cid_t cid) = 0;
+    virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
+    virtual bool handleBye(unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
+    virtual void onSendByeCommand() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
@@ -199,15 +221,16 @@ public:
 class AnswerCommand : public Command
 {
 public:
-    typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     AnswerCompleteFunction mComplete;
 
 private:
-    void parsePeerObject(std::vector<Peer>&peers, rapidjson::Value::ConstMemberIterator& it) const;
+    void parsePeerObject(std::vector<Peer>& peers, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
     void parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio) const;
+    void parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
 };
 
 typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
@@ -330,7 +353,7 @@ public:
     PeerJoinCommandFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid)> PeerLeftCommandFunction;
+typedef std::function<bool(Cid_t cid, unsigned termcode)> PeerLeftCommandFunction;
 class PeerLeftCommand : public Command
 {
 public:
@@ -340,6 +363,35 @@ public:
     PeerLeftCommandFunction mComplete;
 };
 
+typedef std::function<bool(unsigned termCode)> ByeCommandFunction;
+class ByeCommand : public Command
+{
+public:
+    ByeCommand(const ByeCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    ByeCommandFunction mComplete;
+};
+
+typedef std::function<bool(uint64_t userid)> ModAddCommandFunction;
+class ModAddCommand : public Command
+{
+public:
+    ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    ModAddCommandFunction mComplete;
+};
+
+typedef std::function<bool(uint64_t userid)> ModDelCommandFunction;
+class ModDelCommand : public Command
+{
+public:
+    ModDelCommand(const ModDelCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    ModDelCommandFunction mComplete;
+};
 
 /**
  * @brief This class allows to handle a connection to the SFU
@@ -387,9 +439,11 @@ public:
     };
 
     static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
-
+    static constexpr uint8_t kNoMediaPathTimeout = 6;        // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
+    void setIsSendingBye(bool sending);
+    bool isSendingByeCommand() const;
     bool isOnline() const;
     bool isJoined() const;
     bool isDisconnected() const;
@@ -407,7 +461,7 @@ public:
     void checkThreadId();
     const karere::Url& getSfuUrl();
 
-    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker = -1, int vthumbs = -1);
+    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, Cid_t prevCid, int speaker = -1, int vthumbs = -1);
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);
     bool sendGetVtumbs(const std::vector<Cid_t>& cids);
@@ -462,6 +516,9 @@ protected:
     void onSocketClose(int errcode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
     void abortRetryController();
+
+    // This flag is set true when BYE command is sent to SFU
+    bool mIsSendingBye = false;
 
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;

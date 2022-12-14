@@ -41,7 +41,7 @@ std::string Stats::getJson()
     rapidjson::Value callid(rapidjson::kStringType);
     callid.SetString(mCallid.toString().c_str(), json.GetAllocator());
     json.AddMember("callid", callid, json.GetAllocator());
-    json.AddMember("toffs", mTimeOffset, json.GetAllocator());
+    json.AddMember("toffs", mTimeOffset, json.GetAllocator()); // must be in milliseconds
     json.AddMember("dur", mDuration, json.GetAllocator());
     rapidjson::Value device(rapidjson::kStringType);
     device.SetString(mDevice.c_str(), json.GetAllocator());
@@ -54,7 +54,7 @@ std::string Stats::getJson()
         std::vector<float> periods;
         for (unsigned int i = 1; i < mSamples.mT.size(); i++)
         {
-            periods.push_back(static_cast<float>(mSamples.mT[i] - mSamples.mT[i - 1]/1000.0));
+            periods.push_back(static_cast<float>((mSamples.mT[i] - mSamples.mT[i - 1])/1000.0));
         }
 
         rapidjson::Value t(rapidjson::kArrayType);
@@ -141,12 +141,21 @@ void Stats::clear()
     mCallid = karere::Id::inval();
     mTimeOffset = 0;
     mDuration = 0;
+    mMaxPeers = 0;
+    mTermCode = 0;
+    mInitialTs = 0;
+    mIsGroup = false;
+    mDevice.clear();
+    mSfuHost.clear();
     mSamples.mT.clear();
     mSamples.mPacketLost.clear();
     mSamples.mRoundTripTime.clear();
     mSamples.mOutGoingBitrate.clear();
     mSamples.mBytesReceived.clear();
     mSamples.mBytesSend.clear();
+    mSamples.mPacketSent.clear();
+    mSamples.mTotalPacketSendDelay.clear();
+    mSamples.mAudioJitter.clear();
     mSamples.mQ.clear();
     mSamples.mAv.clear();
     mSamples.mNrxh.clear();
@@ -155,10 +164,14 @@ void Stats::clear()
     mSamples.mVtxLowResfps.clear();
     mSamples.mVtxLowResw.clear();
     mSamples.mVtxLowResh.clear();
-    mTermCode = 0;
-    mIsGroup = false;
-    mInitialTs = 0;
-    mDevice.clear();
+    mSamples.mVtxHiResfps.clear();
+    mSamples.mVtxHiResw.clear();
+    mSamples.mVtxHiResh.clear();
+}
+
+bool Stats::isEmptyStats()
+{
+    return mPeerId == karere::Id::inval();
 }
 
 void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &value, rapidjson::Document& json, bool diff, const std::vector<float> *periods)
@@ -265,6 +278,8 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
         mStats->mSamples.mVtxLowResfps.push_back(0);
         mStats->mSamples.mVtxLowResw.push_back(0);
         mStats->mSamples.mAudioJitter.push_back(0);
+        mStats->mSamples.mPacketSent.push_back(0);
+        mStats->mSamples.mTotalPacketSendDelay.push_back(0);
 
         if (mStats->mInitialTs == 0)
         {
@@ -343,6 +358,16 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                     {
                         ssrc = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
                     }
+                    else if (strcmp(member->name(), "packetsSent") == 0)
+                    {
+                        uint32_t packetSent = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                        mStats->mSamples.mPacketSent.back() = packetSent;
+                    }
+                    else if (strcmp(member->name(), "totalPacketSendDelay") == 0)
+                    {
+                        double totalPacketSendDelay = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        mStats->mSamples.mTotalPacketSendDelay.back() = totalPacketSendDelay;
+                    }
                 }
 
                 if (ssrc == mHiResId && mHiResId)
@@ -364,7 +389,7 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
     Release();
 }
 
-void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double txBwe, int64_t& bytesRecv, int64_t& bytesSend)
+void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend)
 {
     std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
     for (const webrtc::RTCStatsMemberInterface* member : members)
@@ -375,7 +400,7 @@ void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator
         }
         else if (strcmp(member->name(), "availableOutgoingBitrate") == 0)
         {
-            txBwe = round(static_cast<double>(*member->cast_to<const webrtc::RTCStatsMember<double>>()) / 128.0);
+            txBwe = round(static_cast<double>(*member->cast_to<const webrtc::RTCStatsMember<double>>()) / 1024.0);
         }
         else if (strcmp(member->name(), "bytesReceived") == 0)
         {

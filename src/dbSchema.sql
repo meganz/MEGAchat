@@ -13,7 +13,7 @@ CREATE TABLE chats(chatid int64 unique primary key, shard tinyint,
     own_priv tinyint, peer int64 default -1, peer_priv tinyint default 0,
     title text, ts_created int64 not null default 0,
     last_seen int64 default 0, last_recv int64 default 0, archived tinyint default 0,
-    mode tinyint default 0, unified_key blob, rsn blob, meeting tinyint default 0);
+    mode tinyint default 0, unified_key blob, rsn blob, meeting tinyint default 0, chat_options tinyint default 0);
 
 CREATE TABLE contacts(userid int64 PRIMARY KEY, email text, visibility int,
     since int64 not null default 0);
@@ -46,3 +46,10 @@ CREATE TABLE chat_reactions(chatid int64 not null, msgid int64 not null, userid 
 
 CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null, reaction text, encReaction blob,
     status tinyint, UNIQUE(chatid, msgid, reaction), FOREIGN KEY(chatid, msgid) REFERENCES history(chatid, msgid) ON DELETE CASCADE);
+
+CREATE TABLE scheduledMeetings(schedid int64 unique primary key, chatid int64, organizerid int64, parentschedid int64, timezone text,
+    startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,
+    flags int64 default 0, rules blob, FOREIGN KEY(chatid) REFERENCES chats(chatid) ON DELETE CASCADE);
+
+CREATE TABLE scheduledMeetingsOccurr(schedid int64, startdatetime text, enddatetime text, PRIMARY KEY (schedid, startdatetime),
+    FOREIGN KEY(schedid) REFERENCES scheduledMeetings(schedid) ON DELETE CASCADE);

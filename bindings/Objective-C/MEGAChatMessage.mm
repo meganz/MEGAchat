@@ -342,7 +342,9 @@ using namespace megachat;
         case MEGAChatMessageEndCallReasonCancelled:
             result = @"Cancelled";
             break;
-            
+        case MEGAChatMessageEndCallReasonByModerator:
+            result = @"End by moderator";
+            break;
         default:
             result = @"Default";
             break;

@@ -87,4 +87,3 @@ size_t base64urldecode(const char* str, size_t len, void* bin, size_t binlen)
     }
     return static_cast<size_t>(out-(unsigned char*)bin);
 }
-

@@ -18,6 +18,8 @@ public:
     std::vector<int32_t> mBytesReceived;
     std::vector<int32_t> mBytesSend;
     std::vector<int32_t> mAudioJitter;
+    std::vector<uint32_t> mPacketSent;
+    std::vector<double> mTotalPacketSendDelay;
     // Scalable video coding index
     std::vector<int32_t> mQ;
     // Audio video flags
@@ -47,6 +49,7 @@ class Stats
 public:
     std::string getJson();
     void clear();
+    bool isEmptyStats();
 
     karere::Id mPeerId;
     uint32_t mCid = 0;
@@ -80,7 +83,7 @@ public:
     rtc::RefCountReleaseStatus Release() const override;
     void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
 protected:
-    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double &rtt, double txBwe, int64_t &bytesRecv, int64_t &bytesSend);
+    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend);
 
     Stats* mStats = nullptr; // Doesn't take ownership (Belongs to Call)
     uint32_t mHiResId;

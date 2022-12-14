@@ -331,7 +331,7 @@ void LibwebsocketsClient::resetOutputBuffer()
     sendbuffer.clear();
 }
 
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined (LIBRESSL_VERSION_NUMBER) || defined (OPENSSL_IS_BORINGSSL)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined (LIBRESSL_VERSION_NUMBER)
 #define X509_STORE_CTX_get0_cert(ctx) (ctx->cert)
 #define X509_STORE_CTX_get0_untrusted(ctx) (ctx->untrusted)
 #define EVP_PKEY_get0_DSA(_pkey_) ((_pkey_)->pkey.dsa)
@@ -461,7 +461,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
         {
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
-            if (client && client->mTlsSession.saveToStorage())
+            if (wsi && client && client->mTlsSession.saveToStorage())
             {
                 WEBSOCKETS_LOG_DEBUG("TLS session retrying to save to persistent storage for %s:%d",
                                      client->mTlsSession.hostname.c_str(), client->mTlsSession.port);

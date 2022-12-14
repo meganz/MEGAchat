@@ -597,8 +597,11 @@ public:
     template <typename V>
     void resolve(V&& val)
     {
-        if (mSharedObj->mResolved)
-            throw std::runtime_error("Already resolved/rejected");
+        if (mSharedObj->mResolved == kSucceeded)
+            throw std::runtime_error("Already resolved");
+
+        if (mSharedObj->mResolved == kFailed)
+            throw std::runtime_error("Already rejected");
 
         mSharedObj->mResult = std::forward<V>(val);
         mSharedObj->mResolved = kSucceeded;
@@ -660,8 +663,11 @@ public:
     void reject(const Error& err)
     {
         assert(err);
-        if (mSharedObj->mResolved)
-            throw std::runtime_error("Already resolved/rejected");
+        if (mSharedObj->mResolved == kSucceeded)
+            throw std::runtime_error("Already resolved");
+
+        if (mSharedObj->mResolved == kFailed)
+            throw std::runtime_error("Already rejected");
 
         mSharedObj->mError = err;
         mSharedObj->mResolved = kFailed;

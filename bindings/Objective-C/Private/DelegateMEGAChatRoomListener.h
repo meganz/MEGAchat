@@ -1,12 +1,16 @@
 
 #import "megachatapi.h"
 #import "MEGAChatSdk.h"
+#import "ListenerDispatch.h"
 
 class DelegateMEGAChatRoomListener : public megachat::MegaChatRoomListener {
     
 public:
     
-    DelegateMEGAChatRoomListener(MEGAChatSdk *megaChatSDK, id<MEGAChatRoomDelegate>listener, bool singleListener = true);
+    DelegateMEGAChatRoomListener(MEGAChatSdk *megaChatSDK,
+                                 id<MEGAChatRoomDelegate>listener,
+                                 bool singleListener = true,
+                                 ListenerQueueType queueType = ListenerQueueTypeMain);
     id<MEGAChatRoomDelegate>getUserListener();
     
     void onChatRoomUpdate(megachat::MegaChatApi *api, megachat::MegaChatRoom *chat);
@@ -18,6 +22,7 @@ public:
     
 private:
     __weak MEGAChatSdk *megaChatSDK;
-    id<MEGAChatRoomDelegate>listener;
+    __weak id<MEGAChatRoomDelegate>listener;
     bool singleListener;
+    ListenerQueueType queueType;
 };

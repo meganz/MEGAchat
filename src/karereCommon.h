@@ -2,9 +2,10 @@
 #define KARERECOMMON_H
 
 #include <string>
-#include <logger.h>
-#include <cservices.h> //needed for timestampMs()
+#include "base/logger.h"
+#include "base/cservices.h" //needed for timestampMs()
 #include <string.h>
+#include <bitset>
 
 // MEGA Meetings types
 typedef uint8_t Keyid_t;        // 8-bit id of the encryption key
@@ -102,20 +103,26 @@ protected:
     uint8_t mFlags = 0;
 public:
     enum: uint8_t { kEmpty          = 0x00,
+
+                    // audio flags
                     kAudio          = 0x01,
 
+                    // camera flags
                     kCameraLowRes   = 0x02,
                     kCameraHiRes    = 0x04,
                     kCamera         = kCameraLowRes | kCameraHiRes,
 
+                    // screen share flags
                     kScreenLowRes   = 0x08,
                     kScreenHiRes    = 0x10,
                     kScreen         = kScreenLowRes | kScreenHiRes,
 
+                    // Video (screen share | camera) flags
                     kLowResVideo    = kCameraLowRes | kScreenLowRes,
-                    kHiResVideo     = kCameraHiRes | kScreenHiRes,
+                    kHiResVideo     = kCameraHiRes  | kScreenHiRes,
+                    kVideo          = kLowResVideo  | kHiResVideo,
 
-                    kVideo          = kLowResVideo | kHiResVideo,
+                    // on hold flags
                     kOnHold         = 0x80,
                   };
 
@@ -130,13 +137,28 @@ public:
     void setOnHold(bool enable) { enable ? add(kOnHold) : remove(kOnHold); }
 
     // getters
-    uint8_t value() const       { return mFlags; }
-    bool audio() const          { return mFlags & kAudio; }
-    bool video() const          { return mFlags & kVideo; }
-    bool videoHiRes() const     { return mFlags & kHiResVideo; }  //  kCameraHiRes  | kScreenHiRes
-    bool videoLowRes() const    { return mFlags & kLowResVideo; } //  kCameraLowRes | kScreenLowRes
-    bool videoCam() const       { return mFlags & kCamera; }
-    bool isOnHold() const       { return mFlags & kOnHold; }
+    uint8_t value() const                   { return mFlags; }
+
+    // audio flags getters
+    bool audio() const                      { return mFlags & kAudio; }
+
+    // camera flags getters
+    bool cameraHiRes() const                { return mFlags & kCameraHiRes; }
+    bool cameraLowRes() const               { return mFlags & kCameraLowRes; }
+    bool camera() const                     { return mFlags & kCamera; }
+
+    // screen share flags getters
+    bool screenShareHiRes() const           { return mFlags & kScreenHiRes; }
+    bool screenShareLowRes() const          { return mFlags & kScreenLowRes; }
+    bool screenShare() const                { return mFlags & kScreen; }
+
+    // video (screen share AND/OR camera) flags getters
+    bool video() const                      { return mFlags & kVideo; }
+    bool videoHiRes() const                 { return mFlags & kHiResVideo; }
+    bool videoLowRes() const                { return mFlags & kLowResVideo; }
+
+    // on hold flags getters
+    bool isOnHold() const                   { return mFlags & kOnHold; }
 
     // check methods
     operator bool() const           { return mFlags != 0; }
@@ -177,6 +199,24 @@ enum: uint8_t
     /** Client can use bit 15 from preferences to handle last-green's visibility */
     kClientSupportLastGreen = 0x20
 };
+
+typedef enum
+{
+    SC_NEW_SCHED        = 0,
+    SC_PARENT           = 1,
+    SC_TZONE            = 2,
+    SC_START            = 3,
+    SC_END              = 4,
+    SC_TITLE            = 5,
+    SC_DESC             = 6,
+    SC_ATTR             = 7,
+    SC_OVERR            = 8,
+    SC_CANC             = 9,
+    SC_FLAGS            = 10,
+    SC_RULES            = 11,
+    SC_FLAGS_SIZE       = 12,
+} karere_scheduled_changed_flags_t;
+typedef std::bitset<SC_FLAGS_SIZE> karere_sched_bs_t;
 
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql
 extern const char* gDbSchema;

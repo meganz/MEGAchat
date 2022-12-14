@@ -30,6 +30,9 @@ const std::string SpeakOnCommand::COMMAND_NAME        = "SPEAK_ON";
 const std::string SpeakOffCommand::COMMAND_NAME       = "SPEAK_OFF";
 const std::string PeerJoinCommand::COMMAND_NAME       = "PEERJOIN";
 const std::string PeerLeftCommand::COMMAND_NAME       = "PEERLEFT";
+const std::string ByeCommand::COMMAND_NAME            = "BYE";
+const std::string ModAddCommand::COMMAND_NAME         = "MOD_ADD";
+const std::string ModDelCommand::COMMAND_NAME         = "MOD_DEL";
 
 const std::string Sdp::endl = "\r\n";
 
@@ -76,9 +79,11 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-
-Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid)
-    : mCid(cid), mPeerid(peerid), mAvFlags(static_cast<uint8_t>(avFlags))
+Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid, bool isModerator)
+    : mCid(cid),
+      mPeerid(peerid),
+      mAvFlags(static_cast<uint8_t>(avFlags)),
+      mIsModerator(isModerator)
 {
 }
 
@@ -86,8 +91,8 @@ Peer::Peer(const Peer &peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
+    , mIsModerator(peer.mIsModerator)
 {
-
 }
 
 void Peer::setCid(Cid_t cid)
@@ -146,6 +151,16 @@ void Peer::resetKeys()
 void Peer::setAvFlags(karere::AvFlags flags)
 {
     mAvFlags = flags;
+}
+
+bool Peer::isModerator() const
+{
+    return mIsModerator;
+}
+
+void Peer::setModerator(bool isModerator)
+{
+    mIsModerator = isModerator;
 }
 
 Command::~Command()
@@ -302,11 +317,27 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     // call start ts (ms)
     uint64_t callDuration = tsIterator->value.GetUint64();
 
+    // parse moderators list
+    std::set<karere::Id> moderators;
+    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
+    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
+    {
+        parseModeratorsObject(moderators, modsIterator);
+    }
+
+    // parse own moderator permission
+    bool ownModerator = false;
+    rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
+    if (modIterator != command.MemberEnd() && modIterator->value.IsUint())
+    {
+        ownModerator = modIterator->value.GetUint();
+    }
+
     std::vector<Peer> peers;
     rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
     if (peersIterator != command.MemberEnd() && peersIterator->value.IsArray())
     {
-        parsePeerObject(peers, peersIterator);
+        parsePeerObject(peers, moderators, peersIterator);
     }
 
     std::map<Cid_t, TrackDescriptor> speakers;
@@ -323,10 +354,10 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         parseTracks(peers, vthumbs, vthumbsIterator, false);
     }
 
-    return mComplete(cid, sdp, callDuration, peers, vthumbs, speakers);
+    return mComplete(cid, sdp, callDuration, peers, vthumbs, speakers, moderators, ownModerator);
 }
 
-void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
@@ -359,8 +390,9 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, rapidjson::Value::
                  return;
             }
 
+            bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
-            peers.push_back(Peer(userId, av, cid));
+            peers.push_back(Peer(userId, av, cid, isModerator));
         }
         else
         {
@@ -404,6 +436,22 @@ void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
         {
             continue;
         }
+    }
+}
+
+void AnswerCommand::parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const
+{
+    assert(it->value.IsArray());
+    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    {
+        if (!it->value[j].IsString())
+        {
+            SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid user handle value");
+            return;
+        }
+        std::string userIdString = it->value[j].GetString();
+        ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+        moderators.emplace(userId);
     }
 }
 
@@ -1128,9 +1176,19 @@ SfuConnection::~SfuConnection()
     }
 }
 
+void SfuConnection::setIsSendingBye(bool sending)
+{
+    mIsSendingBye = sending;
+}
+
 bool SfuConnection::isJoined() const
 {
     return (mConnState == kJoined);
+}
+
+bool SfuConnection::isSendingByeCommand() const
+{
+    return mIsSendingBye;
 }
 
 bool SfuConnection::isOnline() const
@@ -1256,7 +1314,7 @@ void SfuConnection::retryPendingConnection(bool disconnect)
     }
     else
     {
-        SFU_LOG_WARNING("retryPendingConnection: ignored (currently connecting/connected, no forced disconnect was requested)");
+        SFU_LOG_WARNING("retryPendingConnection: ignored (currently joining/joined, no forced disconnect was requested)");
     }
 }
 
@@ -1299,6 +1357,11 @@ void SfuConnection::processNextCommand(bool resetSending)
     {
         // upon wsSendMsgCb we need to reset isSending flag
         mCommandsQueue.setSending(false);
+        if (mIsSendingBye)
+        {
+            mCall.onSendByeCommand();
+            return; // we have sent BYE command to SFU, following commands will be ignored
+        }
     }
 
     if (mCommandsQueue.empty() || mCommandsQueue.sending())
@@ -1312,6 +1375,14 @@ void SfuConnection::processNextCommand(bool resetSending)
 
     mCommandsQueue.setSending(true);
     std::string command = mCommandsQueue.pop();
+
+    // mCommandsQueue is a sequencial queue, so new commands just can be processed if previous commands have already been sent
+    if (command.find("{\"a\":\"BYE\",\"rsn\":") != std::string::npos)
+    {
+        // set mIsSendingBye flag true, to indicate that we are going to send BYE command
+        mIsSendingBye = true;
+    }
+
     assert(!command.empty());
     SFU_LOG_DEBUG("Send command: %s", command.c_str());
     std::unique_ptr<char[]> buffer(mega::MegaApi::strdup(command.c_str()));
@@ -1320,6 +1391,14 @@ void SfuConnection::processNextCommand(bool resetSending)
     if (!rc)
     {
         mSendPromise.reject("Socket is not ready");
+        if (mIsSendingBye)
+        {
+             // if wsSendMessage failed inmediately trying to send BYE command, call onSendByeCommand in order to
+             // execute the expected action (retry, remove or disconnect call) that triggered the BYE command sent
+             mCommandsQueue.setSending(false);
+             mCall.onSendByeCommand();
+             return;
+        }
         processNextCommand(true);
     }
 }
@@ -1328,6 +1407,7 @@ void SfuConnection::clearCommandsQueue()
 {
     checkThreadId(); // Check that commandsQueue is always accessed from a single thread
     SFU_LOG_WARNING("SfuConnection: clearing commands queue");
+    setIsSendingBye(false);
     mCommandsQueue.clear();
     mCommandsQueue.setSending(false);
 }
@@ -1349,7 +1429,7 @@ const karere::Url& SfuConnection::getSfuUrl()
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
     commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
+    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8), call);
     commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
     commands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
@@ -1362,7 +1442,10 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1), call);
+    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
+    commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
+    commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
@@ -1440,7 +1523,7 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
     return processCommandResult;
 }
 
-bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, int avFlags, int speaker, int vthumbs)
+bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, int avFlags, Cid_t prevCid, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
@@ -1522,6 +1605,11 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
+    if (prevCid) // cid 0 is invalid
+    {
+        // when reconnecting, send the SFU the CID of the previous connection, so it can kill it instantly
+        json.AddMember("cid", prevCid, json.GetAllocator());
+    }
 
     if (speaker)
     {
@@ -1855,6 +1943,13 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
 
 void SfuConnection::wsConnectCb()
 {
+    if (mConnState != kConnecting)
+    {
+        SFU_LOG_WARNING("Connection to SFU has been established, but current connection state is %s, instead of connecting (as we expected)"
+                           , connStateToStr(mConnState));
+        return;
+    }
+
     setConnState(kConnected);
 }
 
@@ -1908,6 +2003,7 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
 
     SFU_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
     mCall.onSfuDisconnected();
+    setIsSendingBye(false); // reset mIsSendingBye as we are already disconnected from SFU
     auto oldState = mConnState;
     setConnState(kDisconnected);
 
@@ -1923,7 +2019,8 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
         assert(!mRetryCtrl);
         reconnect(); //start retry controller
     }
-    else // (mConState < kConnected) --> tell retry controller that the connect attempt failed
+    else // oldState is kResolving or kConnecting
+         // -> tell retry controller that the connect attempt failed
     {
         SFU_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
 
@@ -2040,10 +2137,11 @@ promise::Promise<void> SfuConnection::reconnect()
                     {
                         retryPendingConnection(true);
                     }
-                    else
+                    else if (mConnState == kResolving)
                     {
                         onSocketClose(0, 0, "Async DNS error (sfu connection)");
                     }
+                    // else in case kConnecting let the connection attempt progress
                     return;
                 }
 
@@ -2083,7 +2181,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     // update DNS cache
                     mDnsCache.setSfuIp(mSfuUrl.host, ipsv4, ipsv6);
                     SFU_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
-                    onSocketClose(0, 0, "DNS resolve doesn't match cached IPs (sfu)");
+                    retryPendingConnection(true);
                 }
             });
 
@@ -2195,9 +2293,72 @@ bool PeerLeftCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("rsn");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'rsn' field");
+        return false;
+    }
+
     ::mega::MegaHandle cid = (cidIterator->value.GetUint64());
-    return mComplete(static_cast<Cid_t>(cid));
+    unsigned termcode = reasonIterator->value.GetUint();
+    return mComplete(static_cast<Cid_t>(cid), termcode);
 }
 
+ByeCommand::ByeCommand(const ByeCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool ByeCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("rsn");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'rsn' field");
+        return false;
+    }
+
+    return mComplete(reasonIterator->value.GetUint() /*termcode */);
+}
+
+ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool ModAddCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("MOD_ADD: Received data doesn't have 'user' field");
+        return false;
+    }
+    std::string userIdString = reasonIterator->value.GetString();
+    ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+    return mComplete(userId /*userid*/);
+}
+
+ModDelCommand::ModDelCommand(const ModDelCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool ModDelCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("MOD_DEL: Received data doesn't have 'user' field");
+        return false;
+    }
+    std::string userIdString = reasonIterator->value.GetString();
+    ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+    return mComplete(userId /*userid*/);
+}
 }
 #endif

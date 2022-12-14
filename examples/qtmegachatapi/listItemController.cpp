@@ -120,6 +120,61 @@ void ChatListItemController::leaveGroupChat()
     mMegaChatApi->leaveChat(mItemId);
 }
 
+void ChatListItemController::updateScheduledMeetingOccurrence()
+{
+    MegaChatHandle schedId = mMegaApi->base64ToUserHandle(mMainWindow->mApp->getText("Sched Id of occurrence we want to modify (B64): ", false).c_str());
+    std::string overrides = mMainWindow->mApp->getText("Start date we want to modify (format: YYYYMMDDTHHMMSS)", true).c_str();
+    std::string newStartDate = mMainWindow->mApp->getText("New start date (format: YYYYMMDDTHHMMSS)", true).c_str();
+    std::string newEndDate = mMainWindow->mApp->getText("New end date (format: YYYYMMDDTHHMMSS)", true).c_str();
+    int cancelled = atoi(mMainWindow->mApp->getText("Set occurrence as cancelled? Y=1 | N =0", true).c_str());
+
+    mMegaChatApi->updateScheduledMeetingOccurrence(mItemId,
+                                                   schedId,
+                                                   overrides.c_str(),
+                                                   newStartDate.c_str(),
+                                                   newEndDate.c_str() /*newEndDate*/,
+                                                   cancelled == 1 ? true : false /*newCancelled*/);
+}
+
+void ChatListItemController::updateScheduledMeeting()
+{
+    // this action won't generate a child scheduled meeting
+    std::string schedB64 = mMainWindow->mApp->getText("Sched meeting Id we want to modify: ", true);
+    MegaChatHandle schedId = mMegaApi->base64ToUserHandle(schedB64.c_str());
+    std::unique_ptr<MegaChatScheduledMeeting> sm (mMegaChatApi->getScheduledMeeting(mItemId, schedId));
+    if (!sm) { return; }
+
+    std::string newTitle = mMainWindow->mApp->getText("New title: ", true);
+    std::string newDesc = mMainWindow->mApp->getText("New decription: ", true);
+    std::string newStartDate = mMainWindow->mApp->getText("New StartDate: ", true);
+    std::string newEndDate = mMainWindow->mApp->getText("New EndDate: ", true);
+    std::string newTz = mMainWindow->mApp->getText("New TimeZone: ", true);
+
+    mMegaChatApi->updateScheduledMeeting(mItemId, schedId,
+                                         newTz.empty() ? nullptr : newTz.c_str(),
+                                         newStartDate.empty() ? nullptr : newStartDate.c_str(),
+                                         newEndDate.empty() ? nullptr : newEndDate.c_str(),
+                                         newTitle.empty() ? nullptr : newTitle.c_str(),
+                                         newDesc.empty() ? nullptr : newDesc.c_str(),
+                                         sm->flags(), sm->rules());
+}
+void ChatListItemController::removeScheduledMeeting()
+{
+    std::string aux = mMainWindow->mApp->getText("Sched meeting Id to remove: ", false).c_str();
+    uint64_t schedId = mMegaApi->base64ToUserHandle(aux.c_str());
+    mMegaApi->removeScheduledMeeting(mItemId, schedId);
+}
+
+void ChatListItemController::fetchScheduledMeeting()
+{
+    mMegaApi->fetchScheduledMeeting(mItemId, MEGACHAT_INVALID_HANDLE);
+}
+
+void ChatListItemController::fetchScheduledMeetingEvents()
+{
+    mMegaApi->fetchScheduledMeetingEvents(mItemId, nullptr, nullptr, 0);
+}
+
 void ChatListItemController::setTitle()
 {
     std::string title;
@@ -165,6 +220,34 @@ void ChatListItemController::onSetRetentionTime()
     {
         mMegaChatApi->setChatRetentionTime(mItemId, text.toInt());
     }
+}
+
+void ChatListItemController::onGetChatOptions()
+{
+    ::mega::unique_ptr <megachat::MegaChatRoom> chatRoom(mMegaChatApi->getChatRoom(mItemId));
+    if (!chatRoom)
+    {
+        return;
+    }
+
+    QMessageBox::information(mMainWindow, tr("ChatOptions"), tr(" ")
+                             .append("<br />OpenInvite: ").append(chatRoom->isOpenInvite() ? "Enabled" : "Disabled")
+                             .append("<br />SpeakRequest: ").append(chatRoom->isSpeakRequest() ? "Enabled" : "Disabled")
+                             .append("<br />Waiting Room :").append(chatRoom->isWaitingRoom() ? "Enabled" : "Disabled"));
+}
+void ChatListItemController::onSetOpenInvite(bool enable)
+{
+    mMegaChatApi->setOpenInvite(mItemId, enable);
+}
+
+void ChatListItemController::onSetSpeakRequest(bool enable)
+{
+    mMegaChatApi->setSpeakRequest(mItemId, enable);
+}
+
+void ChatListItemController::onSetWaitingRoom(bool enable)
+{
+    mMegaChatApi->setWaitingRoom(mItemId, enable);
 }
 
 void ChatListItemController::queryChatLink()

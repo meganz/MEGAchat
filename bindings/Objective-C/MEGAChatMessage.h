@@ -31,6 +31,7 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageType) {
     MEGAChatMessageTypeSetPrivateMode     = 10,
     MEGAChatMessageTypeSetRetentionTime   = 11,
     MEGAChatMessageTypeHighestManagement  = 11,
+    MEGAChatMessageTypeScheduledMeeting   = 12,
     MEGAChatMessageTypeAttachment         = 101,
     MEGAChatMessageTypeRevokeAttachment   = 102, /// Obsolete
     MEGAChatMessageTypeContact            = 103,
@@ -57,7 +58,8 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
     MEGAChatMessageEndCallReasonRejected = 2,
     MEGAChatMessageEndCallReasonNoAnswer = 3,
     MEGAChatMessageEndCallReasonFailed = 4,
-    MEGAChatMessageEndCallReasonCancelled = 5
+    MEGAChatMessageEndCallReasonCancelled = 5,
+    MEGAChatMessageEndCallReasonByModerator = 6,
 };
 
 NS_ASSUME_NONNULL_BEGIN

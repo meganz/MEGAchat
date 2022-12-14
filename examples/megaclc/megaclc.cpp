@@ -102,6 +102,48 @@ class ReviewPublicChat_GetUserEmail_Listener;
 
 static const int MAX_NUMBER_MESSAGES = 300;
 
+struct ConsoleLock
+{
+    static std::recursive_mutex outputlock;
+    std::ostream& os;
+    bool locking = false;
+    inline ConsoleLock(std::ostream& o)
+        : os(o), locking(true)
+    {
+        outputlock.lock();
+    }
+    ConsoleLock(ConsoleLock&& o)
+        : os(o.os), locking(o.locking)
+    {
+        o.locking = false;
+    }
+    ~ConsoleLock()
+    {
+        if (locking)
+        {
+            outputlock.unlock();
+        }
+    }
+
+    template<class T>
+    ostream& operator<<(T&& arg)
+    {
+        return os << std::forward<T>(arg);
+    }
+};
+std::recursive_mutex ConsoleLock::outputlock;
+
+ConsoleLock conlock(std::ostream& o)
+{
+    // Returns a temporary object that has locked a mutex.  The temporary's destructor will unlock the object.
+    // So you can get multithreaded non-interleaved console output with just conlock(cout) << "some " << "strings " << endl;
+    // (as the temporary's destructor will run at the end of the outermost enclosing expression).
+    // Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
+    // Be careful not to have cout locked across a g_megaApi member function call, as any callbacks that also log could then deadlock.
+    return ConsoleLock(o);
+}
+
+
 #ifdef __APPLE__
 // No std::fileystem before OSX10.15
 string getExeDirectory()
@@ -209,16 +251,45 @@ class OneShotTransferListener : public m::MegaTransferListener
 public:
     std::function<void(m::MegaApi* api, m::MegaTransfer *request, m::MegaError* e)> onTransferFinishFunc;
 
-    explicit OneShotTransferListener(std::function<void(m::MegaApi* api, m::MegaTransfer* transfer, m::MegaError* e)> f = {})
-        :onTransferFinishFunc(f)
+    unsigned lastKnownStage = unsigned(-1);
+    bool mLogStage = false;
+    explicit OneShotTransferListener(std::function<void(m::MegaApi* api, m::MegaTransfer* transfer, m::MegaError* e)> f = {}, bool ls = false)
+        :onTransferFinishFunc(f), mLogStage(ls)
     {
     }
 
     void onTransferFinish(m::MegaApi* api, m::MegaTransfer *request, m::MegaError* e) override
     {
         if (onTransferFinishFunc) onTransferFinishFunc(api, request, e);
-        //delete this;  // one-shot is done so auto-delete
+        delete this;  // one-shot is done so auto-delete
     }
+
+    bool loggedStart = false;
+    void onTransferStart(m::MegaApi* api, m::MegaTransfer *request) override
+    {
+        if (!loggedStart)
+        {
+            loggedStart = true;
+            string path;
+            if (request->getPath()) path = request->getPath();
+            if (request->getParentPath()) path = request->getParentPath();
+            conlock(cout) << "transfer starts, tag: " << request->getTag() << ": " << path << endl;
+        }
+    }
+
+    void onTransferUpdate(m::MegaApi *, m::MegaTransfer *t) override
+    {
+        if (mLogStage && lastKnownStage != t->getStage())
+        {
+            lastKnownStage = t->getStage();
+            if (lastKnownStage >= m::MegaTransfer::STAGE_SCAN &&
+                lastKnownStage <= m::MegaTransfer::STAGE_TRANSFERRING_FILES)
+            {
+                conlock(cout) << "Transfer stage: " << t->stageToString(t->getStage()) << endl;
+            }
+        }
+    }
+
 };
 
 class OneShotChatRequestListener : public c::MegaChatRequestListener
@@ -255,48 +326,6 @@ public:
         if (onRequestTemporaryErrorFunc) onRequestTemporaryErrorFunc(api, request, error);
     }
 };
-
-struct ConsoleLock
-{
-    static std::recursive_mutex outputlock;
-    std::ostream& os;
-    bool locking = false;
-    inline ConsoleLock(std::ostream& o)
-        : os(o), locking(true)
-    {
-        outputlock.lock();
-    }
-    ConsoleLock(ConsoleLock&& o)
-        : os(o.os), locking(o.locking)
-    {
-        o.locking = false;
-    }
-    ~ConsoleLock()
-    {
-        if (locking)
-        {
-            outputlock.unlock();
-        }
-    }
-
-    template<class T>
-    ostream& operator<<(T&& arg)
-    {
-        return os << std::forward<T>(arg);
-    }
-};
-
-std::recursive_mutex ConsoleLock::outputlock;
-
-ConsoleLock conlock(std::ostream& o)
-{
-    // Returns a temporary object that has locked a mutex.  The temporary's destructor will unlock the object.
-    // So you can get multithreaded non-interleaved console output with just conlock(cout) << "some " << "strings " << endl;
-    // (as the temporary's destructor will run at the end of the outermost enclosing expression).
-    // Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
-    // Be careful not to have cout locked across a g_megaApi member function call, as any callbacks that also log could then deadlock.
-    return ConsoleLock(o);
-}
 
 std::string timeToLocalTimeString(const int64_t time)
 {
@@ -1058,6 +1087,7 @@ std::string callTermCodeToString(const int termCode)
         case c::MegaChatMessage::END_CALL_REASON_NO_ANSWER: return "END_CALL_REASON_NO_ANSWER";
         case c::MegaChatMessage::END_CALL_REASON_FAILED: return "END_CALL_REASON_FAILED";
         case c::MegaChatMessage::END_CALL_REASON_CANCELLED: return "END_CALL_REASON_CANCELLED";
+        case c::MegaChatMessage::END_CALL_REASON_BY_MODERATOR: return "END_CALL_REASON_BY_MODERATOR";
         default: assert(false); return "Invalid Call Term Code (" + std::to_string(termCode) + ")";
     }
 #ifndef WIN32
@@ -3173,6 +3203,79 @@ void exec_createpreview(ac::ACState& s)
     conlock(cout) << (done ? "succeeded" : "failed") << endl;
 }
 
+
+void exec_getthumbnail(ac::ACState& s)
+{
+    string nodepath1 = s.words[1].s;
+    string localpath2 = s.words[2].s;
+
+    if (auto n = GetNodeByPath(nodepath1))
+    {
+        g_megaApi->getThumbnail(n.get(), localpath2.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("getThumbnail", e, ReportResult);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "node not found" << endl;
+    }
+}
+
+void exec_cancelgetthumbnail(ac::ACState& s)
+{
+    string nodepath1 = s.words[1].s;
+
+    if (auto n = GetNodeByPath(nodepath1))
+    {
+        g_megaApi->cancelGetThumbnail(n.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("cancelGetThumbnail", e, ReportResult);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "node not found" << endl;
+    }
+}
+
+
+void exec_getpreview(ac::ACState& s)
+{
+    string nodepath1 = s.words[1].s;
+    string localpath2 = s.words[2].s;
+
+    if (auto n = GetNodeByPath(nodepath1))
+    {
+        g_megaApi->getPreview(n.get(), localpath2.c_str(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("getPreview", e, ReportResult);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "node not found" << endl;
+    }
+}
+
+void exec_cancelgetpreview(ac::ACState& s)
+{
+    string nodepath1 = s.words[1].s;
+
+    if (auto n = GetNodeByPath(nodepath1))
+    {
+        g_megaApi->cancelGetPreview(n.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *, m::MegaError* e)
+        {
+            check_err("cancelGetPreview", e, ReportResult);
+        }));
+    }
+    else
+    {
+        conlock(cout) << "node not found" << endl;
+    }
+}
+
+
 void exec_testAllocation(ac::ACState& s)
 {
     bool success = g_megaApi->testAllocation(unsigned(atoi(s.words[1].s.c_str())), size_t(atoll(s.words[2].s.c_str())));
@@ -3481,39 +3584,186 @@ void exec_createfolder(ac::ACState& s)
     }
 }
 
+void exec_remove(ac::ACState& s)
+{
+    if (auto node = GetNodeByPath(s.words[1].s))
+    {
+        g_megaApi->remove(node.get(), new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
+            {
+                check_err("remove", e, ReportResult);
+            }));
+    }
+}
+
+// only add, never remove.  To invalidate one, set it null.
+vector<std::unique_ptr<m::MegaCancelToken>> globalCancelTokens;
+
+m::MegaCancelToken* makeNewGlobalCancelToken()
+{
+    globalCancelTokens.emplace_back(m::MegaCancelToken::createInstance());
+    conlock(cout) << "cancel token: " << globalCancelTokens.size()-1 << endl;
+    return globalCancelTokens.back().get();
+}
+
+void exec_cancelbytoken(ac::ACState& s)
+{
+    int id = 0;
+    if (s.words.size() > 1)
+    {
+        id = atoi(s.words[1].s.c_str());
+    }
+    else
+    {
+        id = int(globalCancelTokens.size()) - 1;
+    }
+    if (id < 0 || id >= globalCancelTokens.size())
+    {
+        conlock(cout) << "failed: cancel token id is out of range: " << id << endl;
+    }
+    else if (globalCancelTokens[id].get() == nullptr)
+    {
+        conlock(cout) << "failed: cancel token no longer exists for id: " << id << endl;
+    }
+    else
+    {
+        globalCancelTokens[id]->cancel();
+        conlock(cout) << "cancel triggered for token id: " << id << endl;
+    }
+}
+
+void exec_setmaxuploadspeed(ac::ACState& s)
+{
+    int bps = atoi(s.words[1].s.c_str());
+    g_megaApi->setMaxUploadSpeed(bps);
+}
+
+void exec_setmaxdownloadspeed(ac::ACState& s)
+{
+    int bps = atoi(s.words[1].s.c_str());
+    g_megaApi->setMaxDownloadSpeed(bps);
+}
+
 void exec_startupload(ac::ACState& s)
 {
     string newfilename;
     bool set_filename = s.extractflagparam("-filename", newfilename);
 
+    bool useCancelToken = s.extractflag("-withcanceltoken");
+    m::MegaCancelToken* ct = useCancelToken ? makeNewGlobalCancelToken() : nullptr;
+
+    bool logstage = s.extractflag("-logstage");
+
     if (auto node = GetNodeByPath(s.words[2].s))
     {
         if (!set_filename)
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), nullptr, 0, nullptr, false, false, ct,
+                    new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
-                }));
+                }, logstage));
         }
         else
         {
-            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+            g_megaApi->startUpload(s.words[1].s.c_str(), node.get(), newfilename.c_str(), 0, nullptr, false, false, ct,
+                    new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
                 {
                     check_err("startUpload", e, ReportResult);
-                }));
+                }, logstage));
         }
     }
 }
 
 void exec_startdownload(ac::ACState& s)
 {
+
+    bool useCancelToken = s.extractflag("-withcanceltoken");
+    m::MegaCancelToken* ct = useCancelToken ? makeNewGlobalCancelToken() : nullptr;
+
+    bool logstage = s.extractflag("-logstage");
+
     if (auto node = GetNodeByPath(s.words[1].s))
     {
-        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
-            {
-                check_err("startDownload", e, ReportResult);
-            }));
+        g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, ct,
+            new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+                {
+                    check_err("startDownload", e, ReportResult);
+                }, logstage));
     }
+}
+
+void exec_pausetransfers(ac::ACState& s)
+{
+    int paused = atoi(s.words[1].s.c_str());
+
+    if (s.words.size() > 2)
+    {
+        int direction = atoi(s.words[2].s.c_str());
+
+        g_megaApi->pauseTransfers(paused, direction,
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                {
+                    check_err("pauseTransfers", e, ReportResult);
+                }));
+    }
+    else
+    {
+        g_megaApi->pauseTransfers(paused,
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                {
+                    check_err("pauseTransfers", e, ReportResult);
+                }));
+    }
+}
+
+void exec_pausetransferbytag(ac::ACState& s)
+{
+    int tag = atoi(s.words[1].s.c_str());
+    int pause = atoi(s.words[2].s.c_str());
+
+    g_megaApi->pauseTransferByTag(tag, pause,
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            {
+                check_err("cancelTransferByTag", e, ReportResult);
+            }));
+}
+
+void exec_canceltransfers(ac::ACState& s)
+{
+    auto direction = atoi(s.words[1].s.c_str());
+
+    g_megaApi->cancelTransfers(direction,
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            {
+                check_err("cancelTransfers", e, ReportResult);
+            }));
+}
+
+void exec_canceltransferbytag(ac::ACState& s)
+{
+    int tag = atoi(s.words[1].s.c_str());
+
+    g_megaApi->cancelTransferByTag(tag,
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            {
+                check_err("cancelTransferByTag", e, ReportResult);
+            }));
+}
+
+void exec_gettransfers(ac::ACState& s)
+{
+    int type = atoi(s.words[1].s.c_str());
+
+    unique_ptr<m::MegaTransferList> ts(g_megaApi->getTransfers(type));
+
+    auto cl = conlock(cout);
+
+    for (int i = 0; i < ts->size(); ++i)
+    {
+        m::MegaTransfer* t = ts->get(i);
+        cout << t->getTag() << " : " << t->getPath() << endl;
+    }
+    cout << "(" << ts->size() << " transfers listed by tag, type " << type << ")" << endl;
 }
 
 void exec_exportNode(ac::ACState& s)
@@ -3531,18 +3781,17 @@ void exec_exportNode(ac::ACState& s)
         {
             if (specifyExpire)
             {
-                g_megaApi->exportNode(node.get(), expireTime, writableFlag, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                g_megaApi->exportNode(node.get(), expireTime, writableFlag, false, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                     {
                         if (check_err("exportnode", e, ReportFailure))
                         {
                             conlock(cout) << "Exported link: " << r->getLink() << " and auth: " << r->getPrivateKey() << endl;
-
                         }
                     }));
             }
             else
             {
-                g_megaApi->exportNode(node.get(), writableFlag, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+                g_megaApi->exportNode(node.get(), writableFlag, false, new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                     {
                         if (check_err("exportnode", e, ReportFailure))
                         {
@@ -4265,8 +4514,8 @@ void exec_synclist(ac::ACState& s)
         else
         {
             // Display what status info we can.
-            conlock(cout) << "  Enabled: "
-                << sync->isEnabled()
+            conlock(cout) << "  State: "
+                << sync->getRunState()
                 << "\n"
                 << "  Last Error: "
                 << sync->getMegaSyncErrorCode(sync->getError())
@@ -4300,7 +4549,10 @@ void exec_syncremove(ac::ACState& s)
             return;
         }
 
-        g_megaApi->removeSync(targetNode.get(),
+        std::unique_ptr<m::MegaSync> sync(g_megaApi->getSyncByNode(targetNode.get()));
+        m::MegaHandle backupId = sync ? sync->getBackupId() : m::INVALID_HANDLE;
+
+        g_megaApi->removeSync(backupId,
             new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
             {
                 conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
@@ -4351,7 +4603,7 @@ void exec_syncxable(ac::ACState& s)
                       << endl;
 
         auto* listener = new OneShotRequestListener(std::move(completion));
-        g_megaApi->enableSync(backupId, listener);
+        g_megaApi->setSyncRunState(backupId, m::MegaSync::RUNSTATE_RUNNING, listener);
 
         return;
     }
@@ -4381,38 +4633,35 @@ void exec_syncxable(ac::ACState& s)
                   << endl;
 
     auto* listener = new OneShotRequestListener(std::move(completion));
-    g_megaApi->disableSync(backupId, listener);
+    g_megaApi->setSyncRunState(backupId, m::MegaSync::RUNSTATE_DISABLED, listener);
 }
 
 
-void exec_getmybackupsfolder(ac::ACState& s)
+void exec_getmybackupsfolder(ac::ACState&)
 {
-    g_megaApi->getMyBackupsFolder(new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    g_megaApi->getUserAttribute(m::ATTR_MY_BACKUPS_FOLDER,
+                                new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* request, m::MegaError* e)
         {
+            ConsoleLock outstr(cout);
+            outstr << "getUserAttribute ATTR_MY_BACKUPS_FOLDER result: ";
+
             if (e->getErrorCode() != m::MegaError::API_OK)
             {
-                conlock(cout) << "getMyBackupsFolder result: " << e->getErrorString() << endl;
+                outstr << e->getErrorString() << endl;
             }
             else
             {
-
-                conlock(cout) << "getMyBackupsFolder result: " << OwnStr(g_megaApi->getNodePathByNodeHandle(request->getNodeHandle())) << endl;
+                outstr << OwnStr(g_megaApi->getNodePathByNodeHandle(request->getNodeHandle())) << endl;
             }
         }));
 }
 
 void exec_setmybackupsfolder(ac::ACState& s)
 {
-    unique_ptr<m::MegaNode> targetNode(g_megaApi->getNodeByPath(s.words[1].s.c_str()));
-    if (!targetNode)
-    {
-        conlock(cout) << "Path not found" << endl;
-        return;
-    }
-
-    g_megaApi->setMyBackupsFolder(targetNode->getHandle(), new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    g_megaApi->setMyBackupsFolder(s.words[1].s.c_str(),
+                                  new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
         {
-            conlock(cout) << "getMyBackupsFolder result: " << e->getErrorString() << endl;
+            conlock(cout) << "setMyBackupsFolder result: " << e->getErrorString() << endl;
         }));
 }
 
@@ -4611,13 +4860,27 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_setunshareablenodecoordinates, sequence(text("setunshareablenodecoordinates"), param("remotepath"), param("latitude"), param("longitude")));
     p->Add(exec_createthumbnail, sequence(text("createthumbnail"), opt(flag("-tempmegaapi")), opt(sequence(flag("-parallel"), param("count"))), localFSFile(), localFSFile()));
     p->Add(exec_createpreview, sequence(text("createpreview"), localFSFile(), localFSFile()));
+    p->Add(exec_getthumbnail, sequence(text("getthumbnail"), param("node"), localFSFile()));
+    p->Add(exec_cancelgetthumbnail, sequence(text("cancelgetthumbnail"), param("node")));
+    p->Add(exec_getpreview, sequence(text("getpreview"), param("node"), localFSFile()));
+    p->Add(exec_cancelgetpreview, sequence(text("cancelgetpreview"), param("node")));
     p->Add(exec_testAllocation, sequence(text("testAllocation"), param("count"), param("size")));
     p->Add(exec_getnodebypath, sequence(text("getnodebypath"), param("remotepath")));
     p->Add(exec_ls, sequence(text("ls"), repeat(either(flag("-recursive"), flag("-handles"), flag("-ctime"), flag("-mtime"), flag("-size"), flag("-versions"), sequence(flag("-order"), param("order")), sequence(flag("-refilter"), param("regex")))), param("path")));
     p->Add(exec_createfolder, sequence(text("createfolder"), param("name"), param("remotepath")));
+    p->Add(exec_remove, sequence(text("remove"), param("remotepath")));
     p->Add(exec_renamenode, sequence(text("renamenode"), param("remotepath"), param("newname")));
-    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(sequence(flag("-filename"), param("newname")))));
-    p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath()));
+    p->Add(exec_setmaxuploadspeed, sequence(text("setmaxuploadspeed"), param("bps")));
+    p->Add(exec_setmaxdownloadspeed, sequence(text("setmaxdownloadspeed"), param("bps")));
+    p->Add(exec_startupload, sequence(text("startupload"), localFSPath(), param("remotepath"), opt(flag("-withcanceltoken")), opt(flag("-logstage")), opt(sequence(flag("-filename"), param("newname")))));
+    p->Add(exec_startdownload, sequence(text("startdownload"), param("remotepath"), localFSPath(), opt(flag("-withcanceltoken")), (flag("-logstage"))));
+    p->Add(exec_pausetransfers, sequence(text("pausetransfers"), param("pause"), opt(param("direction"))));
+    p->Add(exec_pausetransferbytag, sequence(text("exec_pausetransferbytag"), param("tag"), param("pause")));
+    p->Add(exec_canceltransfers, sequence(text("canceltransfers"), param("direction")));
+    p->Add(exec_canceltransferbytag, sequence(text("canceltransferbytag"), param("tag")));
+    p->Add(exec_gettransfers, sequence(text("gettransfers"), param("type")));
+
+    p->Add(exec_cancelbytoken, sequence(text("cancelbytoken"), opt(param("token-id"))));
 
     p->Add(exec_exportNode, sequence(text("exportnode"), opt(sequence(flag("-writable"), either(text("true"), text("false")))), opt(sequence(flag("-expiry"), param("time_t"))), param("remotepath")));
 

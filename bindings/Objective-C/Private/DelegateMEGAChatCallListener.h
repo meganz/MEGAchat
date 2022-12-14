@@ -13,6 +13,6 @@ public:
     
 private:
     __weak MEGAChatSdk *megaChatSdk;
-    id<MEGAChatCallDelegate>listener;
+    __weak id<MEGAChatCallDelegate>listener;
     bool singleListener;
 };

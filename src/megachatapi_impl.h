@@ -45,6 +45,7 @@
 #include <stdint.h>
 #include "net/libwebsocketsIO.h"
 #include "waiter/libuvWaiter.h"
+#include <bitset>
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -99,9 +100,14 @@ public:
     virtual mega::MegaHandleList *getMegaHandleListByChat(MegaChatHandle chatid);
     virtual mega::MegaHandleList *getMegaHandleList();
     virtual int getParamType();
+    virtual MegaChatScheduledMeetingList* getMegaChatScheduledMeetingList() const;
+    virtual MegaChatScheduledMeetingOccurrList* getMegaChatScheduledMeetingOccurrList() const;
 
+    void setMegaChatScheduledMeetingList(const MegaChatScheduledMeetingList* schedMeetingList);
+    void setMegaChatScheduledMeetingOccurrList(const MegaChatScheduledMeetingOccurrList* schedMeetingOccurrList);
     void setTag(int tag);
     void setListener(MegaChatRequestListener *listener);
+    void setStringList(mega::MegaStringList* stringList);
     void setNumber(long long number);
     void setNumRetry(int retry);
     void setFlag(bool flag);
@@ -116,6 +122,7 @@ public:
     void setMegaHandleList(mega::MegaHandleList *handlelist);
     void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
+    void setStringMap(mega::MegaStringMap* stringMap);
 
 protected:
     int mType;
@@ -135,6 +142,8 @@ protected:
     mega::MegaNodeList* mMegaNodeList;
     mega::MegaHandleList *mMegaHandleList;
     std::map<MegaChatHandle, mega::MegaHandleList*> mMegaHandleListMap;
+    std::unique_ptr<MegaChatScheduledMeetingList> mScheduledMeetingList;
+    std::unique_ptr<MegaChatScheduledMeetingOccurrList> mScheduledMeetingOccurrList;
     int mParamType;
 };
 
@@ -181,31 +190,43 @@ public:
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
     virtual bool isLowResVideo() const override;
+    virtual bool hasScreenShare() const override;
+    virtual bool isHiResScreenShare() const override;
+    virtual bool isLowResScreenShare() const override;
+    virtual bool hasCamera() const override;
+    virtual bool isLowResCamera() const override;
+    virtual bool isHiResCamera() const override;
     virtual bool isOnHold() const override;
     virtual int getChanges() const override;
+    virtual int getTermCode() const override;
     virtual bool hasChanged(int changeType) const override;
     virtual bool isAudioDetected() const override;
     virtual bool hasRequestSpeak() const override;
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
+    virtual bool isModerator() const override;
 
+    char* avFlagsToString() const override;
     karere::AvFlags getAvFlags() const; // for internal use
     void setState(uint8_t state);
     void setAudioDetected(bool audioDetected);
     void setOnHold(bool onHold);
     void setChange(int change);
     void removeChanges();
+    int convertTermCode(rtcModule::TermCode termCode);
 
 private:
     uint8_t mState = MegaChatSession::SESSION_STATUS_INVALID;
     karere::Id mPeerId;
     Cid_t mClientId;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
+    int mTermCode = MegaChatSession::SESS_TERM_CODE_INVALID;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
     bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
     bool mHasHiResTrack = false;
     bool mHasLowResTrack = false;
+    bool mIsModerator = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -235,15 +256,18 @@ public:
     virtual int getTermCode() const override;
     int getEndCallReason() const override;
     virtual bool isRinging() const override;
+    virtual bool isOwnModerator() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientId) override;
     virtual int getNumParticipants() const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
+    virtual mega::MegaHandleList* getModerators() const override;
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
+    virtual bool isOwnClientCaller() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     bool isSpeakAllow() const override;
@@ -280,6 +304,7 @@ protected:
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
     int mCallCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle mCallerId;
+    std::set<karere::Id> mModerators;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
@@ -287,9 +312,11 @@ protected:
     bool mAudioDetected = false;
     bool mRinging = false;
     bool mIsCaller = false;
+    bool mIsOwnClientCaller = false;
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
-    int mNetworkQuality = rtcModule::kNetworkQualityDefault;
+    bool mOwnModerator = false;
+    int mNetworkQuality = rtcModule::kNetworkQualityGood;
 };
 
 class MegaChatVideoFrame
@@ -511,6 +538,7 @@ public:
     void onLastMessageTsUpdated(uint32_t ts) override;
     void onHistoryReloaded() override;
     void onChatModeChanged(bool mode) override;
+    void onChatOptionsChanged(int option) override;
     void onReactionUpdate(karere::Id msgid, const char *reaction, int count) override;
     void onHistoryTruncatedByRetentionTime(const chatd::Message &msg, const chatd::Idx &idx, const chatd::Message::Status &status) override;
 
@@ -596,11 +624,28 @@ public:
     void onOnHold(const rtcModule::ICall& call) override;
     void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
+    void onNetworkQualityChanged(const rtcModule::ICall &call) override;
+    void onStopOutgoingRinging(const rtcModule::ICall& call) override;
+    void onPermissionsChanged(const rtcModule::ICall& call) override;
+
+private:
+    MegaChatApiImpl* mMegaChatApi;
+};
+#endif
+
+class MegaChatScheduledMeetingHandler: public karere::ScheduledMeetingHandler
+{
+public:
+    MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi);
+    ~MegaChatScheduledMeetingHandler();
+    void onSchedMeetingChange(const karere::KarereScheduledMeeting* sm, unsigned long diff) override;
+    void onSchedMeetingOccurrencesChange(const karere::Id& id) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
 };
 
+#ifndef KARERE_DISABLE_WEBRTC
 class MegaChatSessionHandler : public rtcModule::SessionHandler
 {
 public:
@@ -614,6 +659,7 @@ public:
     void onRemoteFlagsChanged(rtcModule::ISession& session) override;
     void onOnHold(rtcModule::ISession& session) override;
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
+    void onPermissionsChanged(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;
@@ -708,6 +754,9 @@ public:
     bool isActive() const override;
     bool isArchived() const override;
     bool isMeeting() const override;
+    bool isWaitingRoom() const override;
+    bool isOpenInvite() const override;
+    bool isSpeakRequest() const override;
     int64_t getCreationTs() const override;
 
     int getChanges() const override;
@@ -723,6 +772,7 @@ public:
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
     void changeUnreadCount();
+    void changeChatRoomOption(int option);
     void setNumPreviewers(unsigned int numPrev);
     void setMembersUpdated(MegaChatHandle uh);
     void setUserTyping(MegaChatHandle uh);
@@ -745,6 +795,9 @@ private:
     bool mHasCustomTitle;
     int64_t mCreationTs;
     bool mMeeting = false;
+    bool mWaitingRoom = false;
+    bool mOpenInvite = false;
+    bool mSpeakRequest = false;
 
     std::string mTitle;
     int unreadCount;
@@ -766,7 +819,6 @@ public:
     MegaChatRoomListPrivate();
     virtual ~MegaChatRoomListPrivate() {}
     virtual MegaChatRoomList *copy() const;
-
     virtual const MegaChatRoom *get(unsigned int i) const;
     virtual unsigned int size() const;
 
@@ -775,6 +827,250 @@ public:
 private:
     MegaChatRoomListPrivate(const MegaChatRoomListPrivate *list);
     std::vector<MegaChatRoom*> mList;
+};
+
+class MegaChatScheduledFlagsPrivate: public MegaChatScheduledFlags
+{
+public:
+    MegaChatScheduledFlagsPrivate();
+    MegaChatScheduledFlagsPrivate(unsigned long numericValue);
+    MegaChatScheduledFlagsPrivate(const MegaChatScheduledFlagsPrivate *flags);
+    MegaChatScheduledFlagsPrivate(const karere::KarereScheduledFlags* flags);
+    virtual ~MegaChatScheduledFlagsPrivate();
+    MegaChatScheduledFlagsPrivate* copy() const override;
+
+    // setters
+    void reset() override;
+    void setEmailsDisabled(bool enabled) override;
+
+    // getters
+    unsigned long getNumericValue() const;
+    bool emailsDisabled() const override;
+    bool isEmpty() const override;
+
+private:
+    std::bitset<FLAGS_SIZE> mFlags = 0;
+};
+
+class MegaChatScheduledRulesPrivate : public MegaChatScheduledRules
+{
+public:
+    MegaChatScheduledRulesPrivate(int freq,
+                                  int interval = INTERVAL_INVALID,
+                                  const char* until = nullptr,
+                                  const mega::MegaIntegerList* byWeekDay = nullptr,
+                                  const mega::MegaIntegerList* byMonthDay = nullptr,
+                                  const mega::MegaIntegerMap* byMonthWeekDay = nullptr);
+
+    MegaChatScheduledRulesPrivate(const MegaChatScheduledRulesPrivate *rules);
+    MegaChatScheduledRulesPrivate(const karere::KarereScheduledRules* rules);
+    virtual ~MegaChatScheduledRulesPrivate();
+
+    void setFreq(int newFreq);
+    void setInterval(int interval);
+    void setUntil(const char* until);
+    void setByWeekDay(const mega::MegaIntegerList* byWeekDay);
+    void setByMonthDay(const mega::MegaIntegerList* byMonthDay);
+    void setByMonthWeekDay(const mega::MegaIntegerMap* byMonthWeekDay);
+
+    MegaChatScheduledRulesPrivate* copy() const override;
+    int freq() const override;
+    int interval() const override;
+    const char* until() const override;
+    const mega::MegaIntegerList* byWeekDay()  const override;
+    const mega::MegaIntegerList* byMonthDay()  const  override;
+    const mega::MegaIntegerMap* byMonthWeekDay() const override;
+    static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
+    static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
+
+private:
+    // scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
+    int mFreq = FREQ_INVALID;
+
+    // repetition interval in relation to the frequency
+    int mInterval = INTERVAL_INVALID;
+
+    // specifies when the repetitions should end
+    std::string mUntil;
+
+    // allows us to specify that an event will only occur on given week day/s
+    std::unique_ptr<mega::MegaIntegerList> mByWeekDay;
+
+    // allows us to specify that an event will only occur on a given day/s of the month
+    std::unique_ptr<mega::MegaIntegerList> mByMonthDay;
+
+    // allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
+    std::unique_ptr<mega::MegaIntegerMap> mByMonthWeekDay;
+};
+
+class MegaChatScheduledMeetingPrivate: public MegaChatScheduledMeeting
+{
+public:
+    typedef std::bitset<SC_FLAGS_SIZE> megachat_sched_bs_t;
+    MegaChatScheduledMeetingPrivate(MegaChatHandle chatid,
+                                    const char* timezone,
+                                    const char* startDateTime,
+                                    const char* endDateTime,
+                                    const char* title,
+                                    const char* description,
+                                    MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE,
+                                    MegaChatHandle parentSchedId = MEGACHAT_INVALID_HANDLE,
+                                    MegaChatHandle organizerUserId = MEGACHAT_INVALID_HANDLE,
+                                    int cancelled = -1,
+                                    const char* attributes = nullptr,
+                                    const char* overrides = nullptr,
+                                    const MegaChatScheduledFlags* flags = nullptr,
+                                    const MegaChatScheduledRules* rules = nullptr);
+
+    MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate *scheduledMeeting);
+    MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting);
+    virtual ~MegaChatScheduledMeetingPrivate();
+    MegaChatScheduledMeetingPrivate* copy() const override;
+    void setChanged(unsigned long val);
+
+    megachat_sched_bs_t getChanged() const;
+    MegaChatHandle chatId() const override;
+    MegaChatHandle schedId() const override;
+    MegaChatHandle parentSchedId() const override;
+    MegaChatHandle organizerUserId() const override;
+    const char* timezone() const override;
+    const char* startDateTime() const override;
+    const char* endDateTime() const override;
+    const char* title() const override;
+    const char* description() const override;
+    const char* attributes() const override;
+    const char* overrides() const override;
+    int cancelled() const override;
+    bool hasChanged(size_t changeType) const override;
+    bool isNew() const override;
+    bool isDeleted() const override;
+    MegaChatScheduledFlags* flags() const override;
+    MegaChatScheduledRules* rules() const override;
+
+private:
+    // chat handle
+    MegaChatHandle mChatid;
+
+    // scheduled meeting handle
+    MegaChatHandle mSchedId;
+
+    // parent scheduled meeting handle
+    MegaChatHandle mParentSchedId;
+
+    // organizer user handle
+    MegaChatHandle mOrganizerUserId;
+
+    // timeZone
+    std::string mTimezone;
+
+    // start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // meeting title
+    std::string mTitle;
+
+    // meeting description
+    std::string mDescription;
+
+    // attributes to store any additional data
+    std::string mAttributes;
+
+    // start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
+    std::string mOverrides;
+
+    // cancelled flag
+    int mCancelled;
+
+    // flags bitmask (used to store additional boolean settings as a bitmask)
+    std::unique_ptr<MegaChatScheduledFlags> mFlags;
+
+    // scheduled meetings rules
+    std::unique_ptr<MegaChatScheduledRules> mRules;
+
+    // changed bitmap
+    megachat_sched_bs_t mChanged;
+};
+
+
+class MegaChatScheduledMeetingOccurrPrivate: public MegaChatScheduledMeetingOccurr
+{
+public:
+    MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
+                                    const char* timezone,
+                                    const char* startDateTime,
+                                    const char* endDateTime,
+                                    int cancelled = -1);
+
+    MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate *scheduledMeeting);
+    MegaChatScheduledMeetingOccurrPrivate(const karere::KarereScheduledMeetingOccurr* scheduledMeeting);
+    virtual ~MegaChatScheduledMeetingOccurrPrivate();
+    MegaChatScheduledMeetingOccurrPrivate* copy() const override;
+    MegaChatHandle schedId() const override;
+    const char* timezone() const override;
+    const char* startDateTime() const override;
+    const char* endDateTime() const override;
+    int cancelled() const override;
+
+private:
+    // scheduled meeting handle
+    MegaChatHandle mSchedId;
+
+    // timeZone
+    std::string mTimezone;
+
+    // start dateTime (format: 20220726T133000)
+    std::string mStartDateTime;
+
+    // end dateTime (format: 20220726T133000)
+    std::string mEndDateTime;
+
+    // cancelled flag
+    int mCancelled;
+};
+
+class MegaChatScheduledMeetingListPrivate: public MegaChatScheduledMeetingList
+{
+public:
+    MegaChatScheduledMeetingListPrivate();
+    MegaChatScheduledMeetingListPrivate(const MegaChatScheduledMeetingListPrivate &l);
+    ~MegaChatScheduledMeetingListPrivate();
+
+    MegaChatScheduledMeetingListPrivate *copy() const override;
+
+    // getters
+    unsigned long size() const override;
+    const MegaChatScheduledMeeting *at(unsigned long i) const override;
+
+    // setters
+    void insert(MegaChatScheduledMeeting *sm) override;
+    void clear() override;
+
+private:
+    std::vector<std::unique_ptr<MegaChatScheduledMeeting>> mList;
+};
+
+class MegaChatScheduledMeetingOccurrListPrivate: public MegaChatScheduledMeetingOccurrList
+{
+public:
+    MegaChatScheduledMeetingOccurrListPrivate();
+    MegaChatScheduledMeetingOccurrListPrivate(const MegaChatScheduledMeetingOccurrListPrivate &l);
+    ~MegaChatScheduledMeetingOccurrListPrivate();
+
+    MegaChatScheduledMeetingOccurrListPrivate *copy() const override;
+
+    // getters
+    unsigned long size() const override;
+    const MegaChatScheduledMeetingOccurr *at(unsigned long i) const override;
+
+    // setters
+    void insert(MegaChatScheduledMeetingOccurr *sm) override;
+    void clear() override;
+
+private:
+    std::vector<std::unique_ptr<MegaChatScheduledMeetingOccurr>> mList;
 };
 
 class MegaChatAttachedUser;
@@ -819,6 +1115,9 @@ public:
     int getDuration() const override;
     unsigned getRetentionTime() const override;
     int getTermCode() const override;
+    bool hasSchedMeetingChanged(unsigned int change) const override;
+
+    const mega::MegaStringList* getStringList() const override;
 
     int getChanges() const override;
     bool hasChanged(int changeType) const override;
@@ -857,6 +1156,7 @@ private:
     mega::MegaNodeList *megaNodeList = NULL;
     mega::MegaHandleList *megaHandleList = NULL;
     const MegaChatContainsMeta *mContainsMeta = NULL;
+    std::unique_ptr<::mega::MegaStringList> mStringList;
 };
 
 //Thread safe request queue
@@ -943,10 +1243,14 @@ private:
     std::unique_ptr<MegaChatCallHandler> mCallHandler;
 #endif
 
+    std::unique_ptr<MegaChatScheduledMeetingHandler> mScheduledMeetingHandler;
+    std::set<MegaChatScheduledMeetingListener *> mSchedMeetingListeners;
+
     void cleanChatHandlers();
 
     static int convertInitState(int state);
     static int convertDbError(int errCode);
+    bool isChatroomFromType(const karere::ChatRoom& chat, int type);
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);
@@ -1005,7 +1309,9 @@ public:
     void setPublicKeyPinning(bool enable);
 #ifndef KARERE_DISABLE_WEBRTC
     void addChatCallListener(MegaChatCallListener *listener);
+    void addSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
     void removeChatCallListener(MegaChatCallListener *listener);
+    void removeSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
     void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
     void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
 #endif
@@ -1017,6 +1323,10 @@ public:
     void fireOnChatRequestTemporaryError(MegaChatRequestPrivate *request, MegaChatError *e);
 
 #ifndef KARERE_DISABLE_WEBRTC
+    // MegaChatScheduledMeetListener callbacks
+    void fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPrivate* sm);
+    void fireOnSchedMeetingOccurrencesChange(const karere::Id& id);
+
     // MegaChatCallListener callbacks
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);
     void fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHandle callid, MegaChatSessionPrivate *session);
@@ -1084,9 +1394,11 @@ public:
     char *getMyFullname();
     char *getMyEmail();
     MegaChatRoomList* getChatRooms();
+    MegaChatRoomList* getChatRoomsByType(int type);
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
     MegaChatListItemList *getChatListItems();
+    MegaChatListItemList* getChatListItemsByType(int type);
     MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
     int getUnreadChats();
@@ -1097,9 +1409,42 @@ public:
     MegaChatHandle getChatHandleByUser(MegaChatHandle userhandle);
 
     // Chatrooms management
+    // creates a scheduled meeting
+    void createChatAndScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId,
+                                                 bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
+                                                 const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                                 int cancelled, const char* attributes, const char* overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                 MegaChatRequestListener* listener = nullptr);
+
+    // updates a scheduled meeting
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, const char* startDate, const char* endDate,
+                                             const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                             MegaChatRequestListener* listener = nullptr);
+
+
+    // updates a scheduled meeting ocurrence
+    void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* overrides, const char* newStartDate,
+                                                       const char* newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
+
+    // removes a scheduled meeting
+    void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener = nullptr);
+
+    // get all scheduled meetings given a chatid
+    MegaChatScheduledMeetingList* getScheduledMeetingsByChat(MegaChatHandle chatid);
+
+    // return a specific scheduled meeting given a chatid and a scheduled meeting id
+    MegaChatScheduledMeeting* getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId);
+
+    // return a list of scheduled meeting for all chatrooms
+    MegaChatScheduledMeetingList* getAllScheduledMeetings();
+
+    // get all future scheduled meetings occurrences given a chatid, if there are not enough occurrences, MEGAChat will fetch automatically from API
+    void fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener);
+
+    void setChatOption(MegaChatHandle chatid, int option, bool enabled, MegaChatRequestListener* listener = NULL);
     void createChat(bool group, MegaChatPeerList *peerList, MegaChatRequestListener *listener = NULL);
-    void createChat(bool group, MegaChatPeerList *peerList, const char *title, MegaChatRequestListener *listener = NULL);
-    void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, MegaChatRequestListener *listener = NULL);
+    void createChat(bool group, MegaChatPeerList* peerList, const char* title, bool speakRequest, bool waitingRoom, bool openInvite, MegaChatRequestListener* listener = NULL);
+    void createPublicChat(MegaChatPeerList *peerList, bool meeting, const char *title = NULL, bool speakRequest = false, bool waitingRoom = false, bool openInvite = false,  MegaChatRequestListener *listener = NULL);
     void chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener = NULL);
     void inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int privilege, MegaChatRequestListener *listener = NULL);
     void autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
@@ -1147,6 +1492,9 @@ public:
     bool isMessageReceptionConfirmationActive() const;
     void saveCurrentState();
     void pushReceived(bool beep, MegaChatHandle chatid, int type, MegaChatRequestListener *listener = NULL);
+    int createChatOptionsBitMask(bool speakRequest, bool waitingRoom, bool openInvite);
+    bool isValidChatOptionsBitMask(int chatOptionsBitMask);
+    static bool hasChatOptionEnabled(int option, int chatOptionsBitMask);
 
 #ifndef KARERE_DISABLE_WEBRTC
 
@@ -1156,7 +1504,7 @@ public:
     char *getVideoDeviceSelected();
 
     // Calls
-    void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);

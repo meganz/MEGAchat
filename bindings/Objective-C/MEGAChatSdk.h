@@ -17,7 +17,8 @@
 #import "MEGAChatNotificationDelegate.h"
 #import "MEGAChatNodeHistoryDelegate.h"
 #import "MEGAChatLogLevel.h"
-
+#import "MEGAChatScheduledMeetingDelegate.h"
+#import "ListenerDispatch.h"
 
 #import "MEGASdk.h"
 
@@ -52,6 +53,24 @@ typedef NS_ENUM (NSInteger, MEGAChatConnection) {
     MEGAChatConnectionLogging    = 2,
     MEGAChatConnectionOnline     = 3
 };
+
+typedef NS_ENUM (NSInteger, MEGAChatType) {
+    MEGAChatTypeAll             = 0,
+    MEGAChatTypeIndividual      = 1,
+    MEGAChatTypeGroup           = 2,
+    MEGAChatTypeGroupPrivate    = 3,
+    MEGAChatTypeGroupPublic     = 4,
+    MEGAChatTypeMeeting         = 5,
+    MEGAChatTypeNonMeeting      = 6,
+};
+
+typedef NS_ENUM (NSUInteger, MEGAChatOption) {
+    MEGAChatOptionEmpty             = 0,
+    MEGAChatOptionSpeakRequest      = 1 << 0,
+    MEGAChatOptionWaitingRoom       = 1 << 1,
+    MEGAChatOptionOpenInvite        = 1 << 2
+};
+
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -127,10 +146,15 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)removeChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate;
+- (void)addChatDelegate:(id<MEGAChatDelegate>)delegate queueType:(ListenerQueueType)queueType;
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate;
 
 - (void)addChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
 - (void)removeChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
+
+- (void)addChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate;
+- (void)addChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate queueType:(ListenerQueueType)queueType;
+- (void)removeChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate;
 
 #ifndef KARERE_DISABLE_WEBRTC
 
@@ -149,6 +173,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (nullable MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId;
 - (nullable MEGAChatRoom *)chatRoomByUser:(uint64_t)userHandle;
+- (nullable MEGAChatRoomList *)chatRoomsByType:(MEGAChatType)type;
+- (nullable MEGAChatListItemList *)chatListItemsByType:(MEGAChatType)type;
 
 - (nullable MEGAChatListItem *)chatListItemForChatId:(uint64_t)chatId;
 
@@ -172,6 +198,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (uint64_t)userHandleByEmail:(NSString *)email;
 
 - (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)loadUserAttributesForChatId:(uint64_t)chatId
+                       usersHandles:(NSArray<NSNumber *> *)usersHandles
+                           delegate:(id<MEGAChatRequestDelegate>)delegate
+                          queueType:(ListenerQueueType)queueType;
 - (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles;
 
 #pragma mark - Chat management
@@ -181,10 +211,153 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers title:(nullable NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers title:(nullable NSString *)title;
 
+/**
+ * @brief Creates a group chat for one or more participants, allowing you to specify their permissions and creation chat options
+ *
+ * The creator of the chat will have moderator level privilege and should not be included in the
+ * list of peers.
+ *
+ * Valid data in the MegaChatRequest object received on callbacks:
+ * - [MegaChatRequest flag] - Returns if the new chat is a group chat or permanent chat
+ * - [MegaChatRequest privilege] - Returns zero (private mode)
+ * - [MegaChatRequest megaChatPeerList] - List of participants and their privilege level
+ * - [MegaChatRequest text] - Returns the title of the chat.
+ * - [MegaChatRequest paramType] - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+ *  + To check if speakRequest was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionSpeakRequest
+ *  + To check if waitingRoom was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionWaitingRoom
+ *  + To check if openInvite was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionOpenInvite
+ *
+ * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+ * is MEGAChatErrorTypeOk:
+ * - [MegaChatRequest chatHandle] - Returns the handle of the new chatroom
+ *
+ * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+ * - MEGAChatErrorTypeNoEnt  - If the target user is the same user as caller
+ * - MEGAChatErrorTypeAccess - If the target is not actually contact of the user.
+ *
+ * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+ * to be a group chat.
+ *
+ * @note If peers list contains only one person, group chat is not set and a permament chat already
+ * exists with that person, then this call will return the information for the existing chat, rather
+ * than a new chat.
+ *
+ * @param peers MegaChatPeerList including other users and their privilege level
+ * @param title Null-terminated string with the chat title. If the title
+ * is longer than 30 characters, it will be truncated to that maximum length.
+ * @param speakRequest YES to set that during calls non moderator users, must request permission to speak
+ * @param waitingRoom YES to set that during calls, non moderator members will be placed into a waiting room.
+ * A moderator user must grant each user access to the call.
+ * @param openInvite to set that users with MEGAChatRoomPrivilegeStandard privilege, can invite other users into the chat
+ * @param delegate MEGAChatRequestDelegate to track this request
+ */
+- (void)createChatGroupWithPeers:(MEGAChatPeerList *)peers
+                           title:(nullable NSString *)title
+                    speakRequest:(BOOL)speakRequest
+                     waitingRoom:(BOOL)waitingRoom
+                      openInvite:(BOOL)openInvite
+                        delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+/**
+ * @brief Creates an public chatroom for multiple participants (groupchat) allowing you to specify creation chat options
+ *
+ * This function allows to create public chats, where the moderator can create chat links to share
+ * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+ * moderator can create/get a public handle for the chatroom and generate a URL by using
+ * \c [MEGAChatSDK createChatLink]. The chat-link can be deleted at any time by any moderator
+ * by using \c [MEGAChatSDK removeChatLink].
+ *
+ * The chatroom remains in the public mode until a moderator calls \c [MEGAChatSDK setPublicChatToPrivate].
+ *
+ * Any user can preview the chatroom thanks to the chat-link by using \c [MEGAChatSDK openChatPreview].
+ * Any user can join the chatroom thanks to the chat-link by using \c [MEGAChatSDK autojoinPublicChat].
+ *
+ * Valid data in the MegaChatRequest object received on callbacks:
+ * - [MegaChatRequest flag] - Returns if the new chat is a group chat or permanent chat
+ * - [MegaChatRequest privilege] - Returns zero (private mode)
+ * - [MegaChatRequest megaChatPeerList] - List of participants and their privilege level
+ * - [MegaChatRequest text] - Returns the title of the chat.
+ * - [MegaChatRequest paramType] - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+ *  + To check if speakRequest was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionSpeakRequest
+ *  + To check if waitingRoom was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionWaitingRoom
+ *  + To check if openInvite was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionOpenInvite
+ *
+ * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+ * is MEGAChatErrorTypeOk:
+ * - [MegaChatRequest chatHandle] - Returns the handle of the new chatroom
+ *
+ * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+ * - MEGAChatErrorTypeNoEnt  - If the target user is the same user as caller
+ * - MEGAChatErrorTypeAccess - If the target is not actually contact of the user.
+ *
+ * @param peers MegaChatPeerList including other users and their privilege level
+ * @param title Null-terminated character string with the chat title. If the title
+ * is longer than 30 characters, it will be truncated to that maximum length.
+ * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+ * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+ * A moderator user must grant each user access to the call.
+ * @param openInvite to set that users with MEGAChatRoomPrivilegeStandard privilege, can invite other users into the chat
+ * @param delegate MEGAChatRequestDelegate to track this request
+ */
+- (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers
+                            title:(nullable NSString *)title
+                     speakRequest:(BOOL)speakRequest
+                      waitingRoom:(BOOL)waitingRoom
+                       openInvite:(BOOL)openInvite
+                         delegate:(id<MEGAChatRequestDelegate>)delegate;
+
 - (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(nullable NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)createPublicChatWithPeers:(MEGAChatPeerList *)peers title:(nullable NSString *)title;
 - (void)createMeetingWithTitle:(NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)createMeetingWithTitle:(NSString *)title;
+
+/**
+ * @brief Creates a meeting
+ *
+ * * This function allows to create public chats, where the moderator can create chat links to share
+ * the access to the chatroom via a URL (chat-link). In order to create a public chat-link, the
+ * moderator can create/get a public handle for the chatroom and generate a URL by using
+ * \c [MEGAChatSDK createChatLink]. The chat-link can be deleted at any time by any moderator
+ * by using \c [MEGAChatSDK removeChatLink].
+ *
+ *
+ * The chatroom remains in the public mode until a moderator calls \c [MEGAChatSDK setPublicChatToPrivate].
+ *
+ * Any user can preview the chatroom thanks to the chat-link by using \c [MEGAChatSDK openChatPreview].
+ * Any user can join the chatroom thanks to the chat-link by using \c [MEGAChatSDK autojoinPublicChat].
+ *
+ * Valid data in the MegaChatRequest object received on callbacks:
+ * - [MegaChatRequest flag] - Returns if the new chat is a group chat or permanent chat
+ * - [MegaChatRequest privilege] - Returns zero (private mode)
+ * - [MegaChatRequest megaChatPeerList] - List of participants and their privilege level
+ * - [MegaChatRequest text] - Returns the title of the chat.
+ * - [MegaChatRequest paramType] - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+ *  + To check if speakRequest was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionSpeakRequest
+ *  + To check if waitingRoom was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionWaitingRoom
+ *  + To check if openInvite was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionOpenInvite
+ *
+ * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+ * is MEGAChatErrorTypeOk:
+ * - [MegaChatRequest chatHandle] - Returns the handle of the new chatroom
+ *
+ * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+ * - MEGAChatErrorTypeNoEnt  - If the target user is the same user as caller
+ * - MEGAChatErrorTypeAccess - If the target is not actually contact of the user.
+ *
+ * @param title Null-terminated character string with the chat title. If the title
+ * is longer than 30 characters, it will be truncated to that maximum length.
+ * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+ * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+ * A moderator user must grant each user access to the call.
+ * @param openInvite to set that users with MEGAChatRoomPrivilegeStandard privilege, can invite other users into the chat
+ * @param delegate MEGAChatRequestDelegate to track this request
+ */
+- (void)createMeetingWithTitle:(NSString *)title
+                  speakRequest:(BOOL)speakRequest
+                   waitingRoom:(BOOL)waitingRoom
+                    openInvite:(BOOL)openInvite
+                      delegate:(id<MEGAChatRequestDelegate>)delegate;
+
 - (void)queryChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)queryChatLink:(uint64_t)chatId;
 - (void)createChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -286,6 +459,91 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)pushReceivedWithBeep:(BOOL)beep chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)pushReceivedWithBeep:(BOOL)beep chatId:(uint64_t)chatId;
 
+/**
+ * @brief Allows to enable/disable the open invite option for a chat room
+ *
+ * The open invite option allows users with MEGAChatRoomPrivilegeStandard privilege, to invite other users into the chat
+ *
+ * Valid data in the MegaChatRequest object received on callbacks:
+ * - [MegaChatRequest chatHandle] - Returns the handle of the chatroom
+ * - [MegaChatRequest privilege] - Returns MEGAChatOptionOpenInvite
+ * - [MegaChatRequest flag] - Returns YES if enabled was set YES, otherwise it will return false
+ *
+ * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+ * - MEGAChatErrorTypeNoEnt - If the chatroom does not exists or the chatid is invalid.
+ * - MEGAChatErrorTypeArgs - If the chatroom is a 1on1 chat
+ * - MEGAChatErrorTypeAccess - If the caller is not an operator.
+ * - MegaChatErrorTypeExist - If the value of enabled is the same as open invite option
+ *
+ * @param chatId MegaChatHandle that identifies the chat room
+ * @param enabled YES if we want to enable open invite option, otherwise false.
+ */
+- (void)openInvite:(BOOL)enabled chatId:(uint64_t)chatId;
+
+/**
+ * @brief Allows to enable/disable the open invite option for a chat room
+ *
+ * The open invite option allows users with MEGAChatRoomPrivilegeStandard privilege, to invite other users into the chat
+ *
+ * Valid data in the MegaChatRequest object received on callbacks:
+ * - [MegaChatRequest chatHandle] - Returns the handle of the chatroom
+ * - [MegaChatRequest privilege] - Returns MEGAChatOptionOpenInvite
+ * - [MegaChatRequest flag] - Returns YES if enabled was set YES, otherwise it will return false
+ *
+ * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+ * - MEGAChatErrorTypeNoEnt - If the chatroom does not exists or the chatid is invalid.
+ * - MEGAChatErrorTypeArgs - If the chatroom is a 1on1 chat
+ * - MEGAChatErrorTypeAccess - If the caller is not an operator.
+ * - MegaChatErrorTypeExist - If the value of enabled is the same as open invite option
+ *
+ * @param chatId MegaChatHandle that identifies the chat room
+ * @param enabled YES if we want to enable open invite option, otherwise false.
+ * @param delegate MegaChatRequestListener to track this request
+ */
+- (void)openInvite:(BOOL)enabled chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+/**
+ * @brief Checks if a chat option is enabled in a bitmask
+ *
+ * Valid values for option are:
+ * - MEGAChatOptionSpeakRequest
+ * - MEGAChatOptionWaitingRoom
+ * - MEGAChatOptionOpenInvite
+ *
+ * @param option Option to check if it's enabled in a bitmask
+ * @param chatOptionsBitMask Bitmask that represents a set of chat options
+ * @return YES if specified option is enabled in the bitmask
+ */
+- (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask;
+
+#pragma mark - Scheduled meetings
+
+- (void)createChatAndScheduledMeeting:(BOOL)isMeeting publicChat:(BOOL)publicChat speakRequest:(BOOL)speakRequest waitingRoom:(BOOL)waitingRoom openInvite:(BOOL)openInvite timezone:(NSString *)timezone startDate:(NSString *)startDate endDate:(NSString *)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes;
+
+- (void)createChatAndScheduledMeeting:(BOOL)isMeeting publicChat:(BOOL)publicChat speakRequest:(BOOL)speakRequest waitingRoom:(BOOL)waitingRoom openInvite:(BOOL)openInvite timezone:(NSString *)timezone startDate:(NSString *)startDate endDate:(NSString *)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes;
+
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)updateScheduledMeetingOccurrence:(uint64_t)chatId scheduledId:(uint64_t)scheduledId overrides:(NSString *)overrides newStartDate:(NSString *)newStartDate newEndDate:(NSString *)newEndDate newCancelled:(BOOL)newCancelled;
+
+- (void)updateScheduledMeetingOccurrence:(uint64_t)chatId scheduledId:(uint64_t)scheduledId overrides:(NSString *)overrides newStartDate:(NSString *)newStartDate newEndDate:(NSString *)newEndDate newCancelled:(BOOL)newCancelled delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
+
+- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingsByChat:(uint64_t)chatId;
+
+- (MEGAChatScheduledMeeting *)scheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
+
+- (NSArray<MEGAChatScheduledMeeting *> *)getAllScheduledMeetings;
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId;
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -296,6 +554,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)videoDeviceSelected;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
+- (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)hangChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;

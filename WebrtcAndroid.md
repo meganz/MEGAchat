@@ -7,62 +7,63 @@ We strongly recommend to user the pre-built library, rather than build it by you
 ```
     mkdir webrtcAndroid
     cd webrtcAndroid
-    fetch --nohooks webrtcAndroid
+    fetch --nohooks webrtc_android
     cd src
-    git checkout 41bfcf4a63611409220fcd458a03deaa2cd23619
+    git checkout 954f7274ac91594d0e06ec052d0d0401631d02ee
     gclient sync
 ```
-Before compile, you need to modify the file `buildtools/third_party/libc++/trunk/include/__config`
+Before compile, you need to modify the file `./buildtools/third_party/libc++/trunk/include/__config`
 
 ```
-@@ -130 +130 @@
-# define _LIBCPP_ABI_NAMESPACE 
-- _LIBCPP_CONCAT(__,_LIBCPP_ABI_VERSION)
-+ _LIBCPP_CONCAT(__ndk,_LIBCPP_ABI_VERSION)
-#endif
+@@ -137,7 +137,7 @@
+ #define _LIBCPP_CONCAT(_LIBCPP_X,_LIBCPP_Y) _LIBCPP_CONCAT1(_LIBCPP_X,_LIBCPP_Y)
+ 
+ #ifndef _LIBCPP_ABI_NAMESPACE
+-# define _LIBCPP_ABI_NAMESPACE _LIBCPP_CONCAT(__,_LIBCPP_ABI_VERSION)
++# define _LIBCPP_ABI_NAMESPACE _LIBCPP_CONCAT(__ndk,_LIBCPP_ABI_VERSION)
+ #endif
 ```
 
-and apply patch in webrtc source directory
-```
-git apply ${MEGA_SDK_PATH}/patches/webRtcPatch.patch
-```
-
-Now, you are ready to start building the library. We recommend to compile every architecture in different console in order to reset the environment variable `LD_LIBRARY_PATH`.
+Now, you are ready to start building the library. We recommend to compile every architecture in different console in order to reset the environment variable `LD_LIBRARY_PATH`, and always use absolute paths.
 
 ### Arm 32 ###
-`gn gen <WebRTC_output_arm32> --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android32_ndk_api_level=21'`
+`export WebRTC_output_arm32=``pwd``/out/Release-arm32`
+`gn gen $WebRTC_output_arm32 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android32_ndk_api_level=21'`
 
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<WebRTC_output_arm32>/clang_x64`
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WebRTC_output_arm32/clang_x64`
 
-`ninja -C <WebRTC_output_arm32>`
+`ninja -C $WebRTC_output_arm32`
 ### Arm 64 ###
-`gn gen <WebRTC_output_arm64> --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm64" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android64_ndk_api_level=21'`
+`export WebRTC_output_arm64=``pwd``/out/Release-arm64`
+`gn gen $WebRTC_output_arm64 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm64" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android64_ndk_api_level=21'`
 
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<WebRTC_output_arm64>/clang_x64`
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WebRTC_output_arm64/clang_x64`
 
-`ninja -C <WebRTC_output_arm64>`
+`ninja -C $WebRTC_output_arm64`
 ### x86 ###
-`gn gen <WebRTC_output_x86> --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="x86" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android32_ndk_api_level=21'`
+`export WebRTC_output_x86=``pwd``/out/Release-x86`
+`gn gen $WebRTC_output_x86 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="x86" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android32_ndk_api_level=21'`
 
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<WebRTC_output_x86>/clang_x64`
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WebRTC_output_x86/clang_x64`
 
-`ninja -C <WebRTC_output_x86>`
+`ninja -C $WebRTC_output_x86`
 ### x64 ###
-`gn gen <WebRTC_output_x64> --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="x64" rtc_build_examples=false rtc_build_tools=true android64_ndk_api_level=21'`
+`export WebRTC_output_x86_64=``pwd``/out/Release-x86_64`
+`gn gen $WebRTC_output_x86_64 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="x64" rtc_build_examples=false rtc_build_tools=true android64_ndk_api_level=21'`
 
-`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:<WebRTC_output_x64>/clang_x64`
+`export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WebRTC_output_x86_64/clang_x64`
 
-`ninja -C <WebRTC_output_x64>`
+`ninja -C $WebRTC_output_x86_64`
 
-The resulting libraries `libwebrtc.a` for each platform should be located in each `<WebRTC_output_XXX>/obj`. The libraries should be copied into `<Android_Path>/android2/app/src/main/jni/megachat/webrtc/` with a specific name for every architecture.
+The resulting libraries `libwebrtc.a` for each platform should be located in each `<WebRTC_output_XXX>/obj`. The libraries should be copied into `<Android_Path>/android/app/src/main/jni/megachat/webrtc/` with a specific name for every architecture.
 * `arm 32 => libwebrtc_arm.a`
 * `arm 64 => libwebrtc_arm64.a`
 * `x86    => libwebrtc_x86.a`
 * `x64    => libwebrtc_x86_64.a`
 
-Furthermore, you need to copy the following folders from `<webRTCAndroid>/src` as below:
+You need to copy the following folders from `<webRTCAndroid>/src` as below:
 
-  `cp -R third_party/abseil-cpp <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R third_party/abseil-cpp <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
   `cp -R third_party/boringssl <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
   `cp -R third_party/libyuv <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/third_party/`  
   `cp -R api <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
@@ -81,6 +82,9 @@ Furthermore, you need to copy the following folders from `<webRTCAndroid>/src` a
   `cp -R p2p <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R pc <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
   `cp -R sdk <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
-  `cp -R system_wrappers <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`  
+  `cp -R system_wrappers <Android_Path>/android/app/src/main/jni/megachat/webrtc/include/webrtc/`
+  
+Furthermore, you should copy the library, libwebrtc.jar. This jar is located in `<WebRTC_output_XXX>/lib.java/sdk/android/`. You can take one of four `WebRTC_output_XXX` (arm32, arm64, x64 and x86_64) because it is present in all and it is the same
+  `cp <WebRTC_output_XXX>/lib.java/sdk/android/libwebrtc.jar <Android_Path>/android/app/src/main/jni/megachat/webrtc/libwebrtc.jar`
  
 Should you have any question about the Android project, you can check https://github.com/meganz/android.

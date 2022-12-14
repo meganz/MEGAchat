@@ -1,7 +1,7 @@
 #ifndef RETRYHANDLER_H
 #define RETRYHANDLER_H
 
-#include <promise.h>
+#include "base/promise.h"
 #include <base/gcm.h>
 #include <karereCommon.h>
 #include <base/timers.hpp>
@@ -109,7 +109,7 @@ protected:
     size_t mMaxAttemptCount;
     unsigned mAttemptTimeout = 0;
     unsigned mMaxAttemptTimeout = 0;
-    unsigned mMaxSingleWaitTime;
+    size_t mMaxSingleWaitTime;
     unsigned short mDelayRandPct = 20;
     promise::Promise<RetType> mPromise;
     unsigned long mTimer = 0;
@@ -144,7 +144,7 @@ public:
                     , unsigned maxAttemptTimeout
                     , DeleteTrackable::Handle wptr
                     , void *ctx
-                    , unsigned maxSingleWaitTime=kDefaultMaxSingleWaitTime
+                    , size_t maxSingleWaitTime=kDefaultMaxSingleWaitTime
                     , size_t maxAttemptCount = kDefaultMaxAttemptCount
                     , unsigned short backoffStart=1000)
         :IRetryController(aName)
@@ -303,7 +303,7 @@ protected:
         mTimer = 0;
     }
 
-    void attachThenHandler(promise::Promise<void>& promise, unsigned attempt)
+    void attachThenHandler(promise::Promise<void>& promise, size_t attempt)
     {
         auto track = getDelTracker();
         promise.then([track, this, attempt]()
