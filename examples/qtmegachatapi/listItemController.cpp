@@ -123,15 +123,15 @@ void ChatListItemController::leaveGroupChat()
 void ChatListItemController::updateScheduledMeetingOccurrence()
 {
     MegaChatHandle schedId = mMegaApi->base64ToUserHandle(mMainWindow->mApp->getText("Sched Id of occurrence we want to modify (B64): ", false).c_str());
-    std::string overrides = mMainWindow->mApp->getText("Start date we want to modify (format: YYYYMMDDTHHMMSS)", true).c_str();
-    std::string newStartDate = mMainWindow->mApp->getText("New start date (format: YYYYMMDDTHHMMSS)", true).c_str();
+    MegaChatTimeStamp overrides = atoi(mMainWindow->mApp->getText("Start date we want to modify (format: YYYYMMDDTHHMMSS)", true).c_str());
+    MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New start date (format: YYYYMMDDTHHMMSS)", true).c_str());
     std::string newEndDate = mMainWindow->mApp->getText("New end date (format: YYYYMMDDTHHMMSS)", true).c_str();
     int cancelled = atoi(mMainWindow->mApp->getText("Set occurrence as cancelled? Y=1 | N =0", true).c_str());
 
     mMegaChatApi->updateScheduledMeetingOccurrence(mItemId,
                                                    schedId,
-                                                   overrides.c_str(),
-                                                   newStartDate.c_str(),
+                                                   overrides,
+                                                   newStartDate,
                                                    newEndDate.c_str() /*newEndDate*/,
                                                    cancelled == 1 ? true : false /*newCancelled*/);
 }
@@ -146,13 +146,13 @@ void ChatListItemController::updateScheduledMeeting()
 
     std::string newTitle = mMainWindow->mApp->getText("New title: ", true);
     std::string newDesc = mMainWindow->mApp->getText("New decription: ", true);
-    std::string newStartDate = mMainWindow->mApp->getText("New StartDate: ", true);
+    MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New StartDate: ", true).c_str());
     std::string newEndDate = mMainWindow->mApp->getText("New EndDate: ", true);
     std::string newTz = mMainWindow->mApp->getText("New TimeZone: ", true);
 
     mMegaChatApi->updateScheduledMeeting(mItemId, schedId,
                                          newTz.empty() ? nullptr : newTz.c_str(),
-                                         newStartDate.empty() ? nullptr : newStartDate.c_str(),
+                                         newStartDate,
                                          newEndDate.empty() ? nullptr : newEndDate.c_str(),
                                          newTitle.empty() ? nullptr : newTitle.c_str(),
                                          newDesc.empty() ? nullptr : newDesc.c_str(),

@@ -440,10 +440,10 @@ bool Client::openDb(const std::string& sid)
             {
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
                 db.query("CREATE TABLE scheduledMeetings(schedid int64 unique primary key, chatid int64, organizerid int64, parentschedid int64, timezone text,"
-                            "startdatetime text, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
+                            "startdatetime int64, enddatetime text, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
                             "flags int64 default 0, rules blob, FOREIGN KEY(chatid) REFERENCES chats(chatid) ON DELETE CASCADE)");
 
-                db.query("CREATE TABLE scheduledMeetingsOccurr(schedid int64, startdatetime text, enddatetime text, PRIMARY KEY (schedid, startdatetime), "
+                db.query("CREATE TABLE scheduledMeetingsOccurr(schedid int64, startdatetime int64, enddatetime text, PRIMARY KEY (schedid, startdatetime), "
                          "FOREIGN KEY(schedid) REFERENCES scheduledMeetings(schedid) ON DELETE CASCADE)");
 
                 db.commit();
@@ -4377,7 +4377,7 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
                 if (!it->second.get()->timezone().compare(tzDetails->getTimeZone(i)))
                 {
                     // convert ISO8601 string into unix timestamp, and apply offset relative to Scheduled meeting configured timezone
-                    time_t schedTs = ::mega::stringToTimestamp(it->second.get()->startDateTime(), ::mega::FORMAT_ISO8601);
+                    ::mega::m_time_t schedTs = it->second.get()->startDateTime();
                     schedTs += tzDetails->getTimeOffset(i);
 
                     if (schedTs > time(nullptr) /*now (unix timestamp [UTC])*/)
@@ -5818,7 +5818,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
 }
 
 /* class scheduledMeeting */
-KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime,
+KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, ::mega::m_time_t startDateTime,
                                                const std::string& endDateTime, const std::string& title, const std::string& description, karere::Id schedId,
                                                karere::Id parentSchedId, int cancelled, const std::string& attributes, const std::string& overrides,
                                                KarereScheduledFlags* flags, KarereScheduledRules* rules)
@@ -5863,7 +5863,7 @@ KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting 
       mParentSchedId(scheduledMeeting->parentSchedId()),
       mOrganizerUserId(scheduledMeeting->organizerUserid()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
-      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime()),
       mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
       mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
       mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
@@ -5892,7 +5892,7 @@ karere::Id KarereScheduledMeeting::schedId() const                        { retu
 karere::Id KarereScheduledMeeting::parentSchedId() const                  { return mParentSchedId; }
 karere::Id KarereScheduledMeeting::organizerUserid() const                { return mOrganizerUserId; }
 const std::string& KarereScheduledMeeting::timezone() const               { return mTimezone; }
-const std::string& KarereScheduledMeeting::startDateTime() const          { return mStartDateTime; }
+::mega::m_time_t KarereScheduledMeeting::startDateTime() const            { return mStartDateTime; }
 const std::string& KarereScheduledMeeting::endDateTime() const            { return mEndDateTime; }
 const std::string& KarereScheduledMeeting::title() const                  { return mTitle; }
 const std::string& KarereScheduledMeeting::description() const            { return mDescription; }
@@ -5909,7 +5909,7 @@ KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::M
     if (parentSchedId() != sm->parentSchedId())                                             { bs[SC_PARENT] = 1; }
     if (timezone().compare(sm->timezone() ? sm->timezone() : std::string()))                { bs[SC_TZONE] = 1; }
     if (cancelled() != sm->cancelled())                                                     { bs[SC_CANC] = 1; }
-    if (mStartDateTime.compare(sm->startDateTime() ? sm->startDateTime(): std::string()))   { bs[SC_START] = 1; }
+    if (mStartDateTime != sm->startDateTime())                                              { bs[SC_START] = 1; }
     if (mEndDateTime.compare(sm->endDateTime() ? sm->endDateTime(): std::string()))         { bs[SC_END] = 1; }
     if (mTitle.compare(sm->title() ? sm->title(): std::string()))                           { bs[SC_TITLE] = 1; }
     if (mDescription.compare(sm->description() ? sm->description(): std::string()))         { bs[SC_DESC] = 1; }
@@ -5945,7 +5945,7 @@ unsigned long KarereScheduledMeeting::deletedSchedMeetingFlagsValue()
 }
 
 /* class KarereScheduledMeetingOccurr */
-KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const Id& schedId, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime, int cancelled)
+KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const Id& schedId, const std::string& timezone, ::mega::m_time_t startDateTime, const std::string& endDateTime, int cancelled)
     : mSchedId(schedId),
       mTimezone(timezone),
       mStartDateTime(startDateTime),
@@ -5966,7 +5966,7 @@ KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const KarereScheduled
 KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* scheduledMeeting)
     : mSchedId(scheduledMeeting->schedId()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
-      mStartDateTime(scheduledMeeting->startDateTime() ? scheduledMeeting->startDateTime() : std::string()),
+      mStartDateTime(scheduledMeeting->startDateTime()),
       mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
       mCancelled(scheduledMeeting->cancelled())
 {
@@ -5983,7 +5983,7 @@ KarereScheduledMeetingOccurr::~KarereScheduledMeetingOccurr()
 
 karere::Id KarereScheduledMeetingOccurr::schedId() const                        { return mSchedId; }
 const std::string& KarereScheduledMeetingOccurr::timezone() const               { return mTimezone; }
-const std::string& KarereScheduledMeetingOccurr::startDateTime() const          { return mStartDateTime; }
+::mega::m_time_t KarereScheduledMeetingOccurr::startDateTime() const            { return mStartDateTime; }
 const std::string& KarereScheduledMeetingOccurr::endDateTime() const            { return mEndDateTime; }
 int KarereScheduledMeetingOccurr::cancelled() const                             { return mCancelled; }
 }

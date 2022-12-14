@@ -1106,13 +1106,13 @@ void MainWindow::onAddChatSchedMeeting()
 
 
     std::string timezone = mApp->getText("Get TimeZone (i.e: Europe/Madrid)", false);
-    std::string startDate = mApp->getText("Get StartDate (Format YYYYMMDDTHHMMSS)", false);
+    MegaChatTimeStamp startDate = atoi(mApp->getText("Get StartDate (Format YYYYMMDDTHHMMSS)", false).c_str());
     std::string endDate = mApp->getText("Get EndDate (Format YYYYMMDDTHHMMSS)", false);
     std::string title = mApp->getText("Get title", false);
     std::string description = mApp->getText("Get description", false);
 
     mMegaChatApi->createChatAndScheduledMeeting(true /*isMeeting*/, true /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, true /*openInvite*/,
-                                                timezone.c_str(), startDate.c_str(), endDate.c_str(), title.c_str(), description.c_str(),
+                                                timezone.c_str(), startDate, endDate.c_str(), title.c_str(), description.c_str(),
                                                 flags.get(), rules.get(), nullptr);
 }
 

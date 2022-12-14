@@ -1408,7 +1408,7 @@ public:
     } scheduled_changed_flags_t;
     typedef std::bitset<SC_FLAGS_SIZE> sched_bs_t;
 
-    KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime,
+    KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, ::mega::m_time_t startDateTime, const std::string& endDateTime,
                                     const std::string& title, const std::string& description, karere::Id schedId = karere::Id::inval(),
                                     karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
                                     const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
@@ -1424,7 +1424,7 @@ public:
     karere::Id parentSchedId() const;
     karere::Id organizerUserid() const;
     const std::string& timezone() const;
-    const std::string& startDateTime() const;
+    ::mega::m_time_t startDateTime() const;
     const std::string& endDateTime() const;
     const std::string& title() const;
     const std::string& description() const;
@@ -1453,8 +1453,8 @@ private:
     // timeZone
     std::string mTimezone;
 
-    // start dateTime (format: 20220726T133000)
-    std::string mStartDateTime;
+    // start dateTime (unix timestamp)
+    ::mega::m_time_t mStartDateTime;
 
     // end dateTime (format: 20220726T133000)
     std::string mEndDateTime;
@@ -1485,7 +1485,7 @@ class KarereScheduledMeetingOccurr
 {
 public:
 
-    KarereScheduledMeetingOccurr(const karere::Id& schedId, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime, int cancelled = -1);
+    KarereScheduledMeetingOccurr(const karere::Id& schedId, const std::string& timezone, mega::m_time_t startDateTime, const std::string& endDateTime, int cancelled = -1);
     KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* karereScheduledMeetingOccurr);
     KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* sm);
 
@@ -1494,7 +1494,7 @@ public:
 
     karere::Id schedId() const;
     const std::string& timezone() const;
-    const std::string& startDateTime() const;
+    ::mega::m_time_t startDateTime() const;
     const std::string& endDateTime() const;
     int cancelled() const;
 
@@ -1506,8 +1506,8 @@ private:
     // timeZone
     std::string mTimezone;
 
-    // start dateTime (format: 20220726T133000)
-    std::string mStartDateTime;
+    // start dateTime (unix timestamp)
+    ::mega::m_time_t mStartDateTime;
 
     // end dateTime (format: 20220726T133000)
     std::string mEndDateTime;
