@@ -473,6 +473,7 @@ void MeetingView::onRequestFinish(megachat::MegaChatApi*, megachat::MegaChatRequ
     }
     else
     {
+        assert(mLogger);
         mLogger->postLog("Couldn't retrieve user data for user pariticipating in the session.");
     }
 }

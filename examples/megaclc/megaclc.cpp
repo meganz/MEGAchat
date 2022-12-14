@@ -1928,6 +1928,9 @@ void printChatInfo(const c::MegaChatRoom *room)
 
         if (missingPeersList->size())
         {
+            // lk it's already locked in exec_chatinfo
+            ++g_remainingPrints;
+
             auto allUserDataReceivedListener = new OneShotChatRequestListener(
                 [room](c::MegaChatApi*, c::MegaChatRequest*, c::MegaChatError* e)
                 {
@@ -1956,10 +1959,10 @@ void exec_chatinfo(ac::ACState& s)
     std::unique_ptr<c::MegaChatRoom> room;
 
     std::unique_lock<std::mutex> lk(g_mutexPrintChatInfo);
+    g_remainingPrints = 0;
     if (s.words.size() == 1)    // print all chats
     {
         chats.reset(g_chatApi->getChatRooms());
-        g_remainingPrints = chats->size();
         for (unsigned int i = 0; i < chats->size(); i++)
         {
             printChatInfo(chats->get(i));
@@ -1969,7 +1972,6 @@ void exec_chatinfo(ac::ACState& s)
     {
         c::MegaChatHandle chatid = s_ch(s.words[1].s);
         room.reset(g_chatApi->getChatRoom(chatid));
-        g_remainingPrints = 1;
         printChatInfo(room.get());
     }
     else // just in case the parameter precon check changes at some point
@@ -1978,7 +1980,7 @@ void exec_chatinfo(ac::ACState& s)
         return;
     }
 
-    if (!g_cvChatInfoPrinted.wait_for(lk, std::chrono::milliseconds(500),
+    if (g_remainingPrints && !g_cvChatInfoPrinted.wait_for(lk, std::chrono::milliseconds(500),
                                       [&g_remainingPrints]{ return !g_remainingPrints; }))
     {
         conlock(cout) << "Timeout on request to get chat information" << endl;
