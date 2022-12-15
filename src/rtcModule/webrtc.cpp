@@ -3570,7 +3570,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
 
             if (audioDetected != mAudioDetected)
             {
-                onAudioDetected(mAudioDetected);
+                onAudioDetected(audioDetected);
             }
 
         }, mAppCtx);
