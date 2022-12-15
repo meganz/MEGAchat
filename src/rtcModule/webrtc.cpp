@@ -351,6 +351,11 @@ bool Call::isJoining() const
 
 void Call::enableAudioLevelMonitor(bool enable)
 {
+    mAudioLevelMonitor = enable;
+    for (auto& itSession : mSessions)
+    {
+        itSession.second->getAudioSlot()->enableAudioMonitor(enable);
+    }
 }
 
 void Call::ignoreCall()
@@ -422,6 +427,7 @@ bool Call::isIgnored() const
 
 bool Call::isAudioLevelMonitorEnabled() const
 {
+    return mAudioLevelMonitor;
 }
 
 bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
@@ -3252,7 +3258,6 @@ RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTrans
 void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
 {
     assign(cid, iv);
-    enableAudioMonitor(true);   // Enable audio monitor
 }
 
 void RemoteAudioSlot::enableAudioMonitor(bool enable)
@@ -3263,11 +3268,13 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
     if (enable && !mAudioLevelMonitorEnabled)
     {
         mAudioLevelMonitorEnabled = true;
+        mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
     }
     else if (!enable && mAudioLevelMonitorEnabled)
     {
         mAudioLevelMonitorEnabled = false;
+        mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
     }
 }

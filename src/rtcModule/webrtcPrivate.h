@@ -469,7 +469,8 @@ protected:
     int64_t mInitialTs = 0; // when we joined the call (seconds)
     int64_t mOffset = 0;    // duration of call when we joined (millis)
     int64_t mFinalTs = 0;   // end of the call (seconds)
-    bool mAudioDetected = false;
+
+    bool mAudioLevelMonitor = false;
 
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
