@@ -184,6 +184,7 @@ public:
 
     virtual bool participate() = 0;
     virtual bool isJoining() const = 0;
+    virtual void enableAudioLevelMonitor(bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
     virtual void stopOutgoingRinging() = 0;
@@ -192,6 +193,7 @@ public:
     virtual bool isRinging() const = 0;
     virtual bool isOutgoingRinging() const = 0;
     virtual bool isIgnored() const = 0;
+    virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
     virtual bool hasRequestSpeak() const = 0;

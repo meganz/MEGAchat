@@ -1531,6 +1531,8 @@ public:
     bool hasCallInChatRoom(MegaChatHandle chatid);
     int getMaxCallParticipants();
     int getMaxVideoCallParticipants();
+    bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
+    void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);

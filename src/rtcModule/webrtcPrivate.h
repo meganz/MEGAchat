@@ -301,6 +301,9 @@ public:
     promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
+    void enableAudioLevelMonitor(bool enable) override;
+    bool isAudioLevelMonitorEnabled() const override;
+
     // called when the user wants to "mute" an incoming call (the call is kept in ringing state)
     void ignoreCall() override;
     bool isIgnored() const override;

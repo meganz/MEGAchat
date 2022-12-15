@@ -349,6 +349,10 @@ bool Call::isJoining() const
     return mIsJoining;
 }
 
+void Call::enableAudioLevelMonitor(bool enable)
+{
+}
+
 void Call::ignoreCall()
 {
     mIgnored = true;
@@ -414,6 +418,10 @@ void Call::releaseOnHold()
 bool Call::isIgnored() const
 {
     return mIgnored;
+}
+
+bool Call::isAudioLevelMonitorEnabled() const
+{
 }
 
 bool Call::hasVideoSlot(Cid_t cid, bool highRes) const

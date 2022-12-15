@@ -5841,7 +5841,6 @@ public:
     /**
      * @brief Returns if audio level monitor is enabled
      *
-     * @deprecated
      * It's false by default
      *
      * @note If there isn't a call in that chatroom in which user is participating,
@@ -5854,8 +5853,6 @@ public:
 
     /**
      * @brief Enable or disable audio level monitor
-     *
-     * @deprecated
      *
      * It's false by default and it's app responsibility to enable it
      *

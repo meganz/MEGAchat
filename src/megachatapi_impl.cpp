@@ -2165,6 +2165,39 @@ void MegaChatApiImpl::sendPendingRequests()
             break;
         }
 #ifndef KARERE_DISABLE_WEBRTC
+        case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
+        {
+            handle chatid = request->getChatHandle();
+            bool enable = request->getFlag();
+            if (chatid == MEGACHAT_INVALID_HANDLE)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR - Invalid chatid");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            rtcModule::ICall* call = findCall(chatid);
+            if (!call)
+            {
+                API_LOG_ERROR("Enable audio level monitor  - There is not any call in that chatroom");
+                errorCode = MegaChatError::ERROR_NOENT;
+                assert(false);
+                break;
+            }
+
+            if (!call->participate())
+            {
+                API_LOG_ERROR("Enable audio level monitor - You don't participate in the call");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            call->enableAudioLevelMonitor(enable);
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            fireOnChatRequestFinish(request, megaChatError);
+            break;
+        }
+
         case MegaChatRequest::TYPE_REQUEST_SPEAK:
         {
             handle chatid = request->getChatHandle();
@@ -5728,6 +5761,36 @@ int MegaChatApiImpl::getMaxVideoCallParticipants()
 {
     return rtcModule::RtcConstant::kMaxCallVideoSenders;
 }
+
+
+bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
+{
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("isAudioLevelMonitorEnabled - Invalid chatId");
+        return false;
+    }
+
+    SdkMutexGuard g(sdkMutex);
+    rtcModule::ICall *call = findCall(chatid);
+    if (!call)
+    {
+       API_LOG_ERROR("isAudioLevelMonitorEnabled - Failed to get the call associated to chat room");
+       return false;
+    }
+
+    return call->isAudioLevelMonitorEnabled();
+}
+
+void MegaChatApiImpl::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(enable);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 
 void MegaChatApiImpl::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
