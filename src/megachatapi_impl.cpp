@@ -6090,6 +6090,12 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
     videoMutex.unlock();
 }
 
+void MegaChatApiImpl::setSFUid(int sfuid)
+{
+    SdkMutexGuard g(sdkMutex);
+    mClient->setSFUid(sfuid);
+}
+
 #endif  // webrtc
 
 void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)

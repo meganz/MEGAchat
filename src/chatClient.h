@@ -1104,6 +1104,10 @@ public:
      */
     promise::Promise<uint64_t> deleteChatLink(karere::Id chatid);
 
+    /** @brief This function allows to set the SFU server where all chat calls will be started
+     */
+    void setSFUid(int sfuid);
+
     /**
      * @brief Initializes karere, opening or creating the local db cache
      *

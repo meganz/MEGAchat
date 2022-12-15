@@ -6359,6 +6359,16 @@ public:
      * @param listener Object that is unregistered
      */
     void removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener);
+
+    /**
+     * @brief Change the SFU id
+     *
+     * This function allows to set the SFU server where all chat calls will be started
+     * It's only useful for testing or debugging purposes.
+     *
+     * @param sfuid New SFU id
+     */
+    void setSFUid(int sfuid);
 #endif
 
     static void setCatchException(bool enable);
