@@ -3258,6 +3258,10 @@ RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTrans
 void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
 {
     assign(cid, iv);
+    if (mCall.isAudioLevelMonitorEnabled())
+    {
+        enableAudioMonitor(true);   // Enable audio monitor
+    }
 }
 
 void RemoteAudioSlot::enableAudioMonitor(bool enable)
