@@ -4102,7 +4102,7 @@ public:
      * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @param timezone Timezone where we want to schedule the meeting
      * @param startDate start date time of the meeting with the format (unix timestamp)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param endDate end date time of the meeting with the format (unix timestamp)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
@@ -4111,7 +4111,7 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
-                                                     const char* timezone, MegaChatTimeStamp startDate, const char* endDate, const char* title, const char* description,
+                                                     const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
                                                      const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr,
                                                      MegaChatRequestListener* listener = nullptr);
     /**
@@ -4140,14 +4140,14 @@ public:
      * @param schedId MegaChatHandle that identifies the scheduled meeting
      * @param timezone Timezone where we want to schedule the meeting
      * @param startDate start date time of the meeting with the format (unix timestamp)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param endDate end date time of the meeting with the format (unix timestamp)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param listener MegaChatRequestListener to track this request
      */
-    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, const char* endDate,
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
                                                                          const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                          MegaChatRequestListener* listener = nullptr);
 
@@ -4184,12 +4184,12 @@ public:
      * @param schedId MegaChatHandle that identifies the scheduled meeting
      * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp)
      * @param overrides new start date time of the occurrence with the format (unix timestamp)
-     * @param newEndDate new end date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param newEndDate new end date time of the occurrence with the format (unix timestamp)
      * @param cancelled True if scheduled meeting is going to be cancelled
      * @param listener MegaChatRequestListener to track this request
      */
     void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides,  MegaChatTimeStamp newStartDate,
-                                          const char* newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
+                                          MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
 
     /**
      * @brief Removes a scheduled meeting by scheduled meeting id and chatid
@@ -7692,8 +7692,8 @@ public:
      * @param parentSchedId : parent scheduled meeting handle
      * @param cancelled     : cancelled flag
      * @param timezone      : timeZone
-     * @param startDateTime : start dateTime (format: 20220726T133000)
-     * @param endDateTime   : end dateTime (format: 20220726T133000)
+     * @param startDateTime : start dateTime (unix timestamp)
+     * @param endDateTime   : end dateTime (unix timestamp)
      * @param title         : meeting title
      * @param description   : meeting description
      * @param attributes    : attributes to store any additional data
@@ -7705,7 +7705,7 @@ public:
      */
     static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId, MegaChatHandle organizerUserId,
                                                      int cancelled, const char* timezone, MegaChatTimeStamp startDateTime,
-                                                     const char* endDateTime, const char* title, const char* description, const char* attributes,
+                                                     MegaChatTimeStamp endDateTime, const char* title, const char* description, const char* attributes,
                                                      MegaChatTimeStamp overrides, const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules);
 
     /**
@@ -7813,11 +7813,11 @@ public:
     virtual MegaChatTimeStamp startDateTime() const;
 
     /**
-     * @brief Returns the end dateTime of the scheduled Meeting (format: 20220726T133000)
+     * @brief Returns the end dateTime of the scheduled Meeting (unix timestamp)
      *
      * @return the end dateTime of the scheduled Meeting
      */
-    virtual const char* endDateTime() const;
+    virtual MegaChatTimeStamp endDateTime() const;
 
     /**
      * @brief Returns the scheduled meeting title
@@ -7918,11 +7918,11 @@ public:
     virtual MegaChatTimeStamp startDateTime() const;
 
     /**
-     * @brief Returns the end dateTime of the scheduled Meeting occurrence (format: 20220726T133000)
+     * @brief Returns the end dateTime of the scheduled Meeting occurrence (unix timestamp)
      *
      * @return the end dateTime of the scheduled Meeting occurrence
      */
-    virtual const char* endDateTime() const;
+    virtual MegaChatTimeStamp endDateTime() const;
 };
 
 /**

@@ -915,7 +915,7 @@ public:
     MegaChatScheduledMeetingPrivate(MegaChatHandle chatid,
                                     const char* timezone,
                                     MegaChatTimeStamp startDateTime,
-                                    const char* endDateTime,
+                                    MegaChatTimeStamp endDateTime,
                                     const char* title,
                                     const char* description,
                                     MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE,
@@ -940,7 +940,7 @@ public:
     MegaChatHandle organizerUserId() const override;
     const char* timezone() const override;
     MegaChatTimeStamp startDateTime() const override;
-    const char* endDateTime() const override;
+    MegaChatTimeStamp endDateTime() const override;
     const char* title() const override;
     const char* description() const override;
     const char* attributes() const override;
@@ -971,8 +971,8 @@ private:
     // start dateTime (unix timestamp)
     ::mega::m_time_t mStartDateTime;
 
-    // end dateTime (format: 20220726T133000)
-    std::string mEndDateTime;
+    // end dateTime (unix timestamp)
+    ::mega::m_time_t mEndDateTime;
 
     // meeting title
     std::string mTitle;
@@ -1006,7 +1006,7 @@ public:
     MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
                                     const char* timezone,
                                     MegaChatTimeStamp startDateTime,
-                                    const char* endDateTime,
+                                    MegaChatTimeStamp endDateTime,
                                     int cancelled = -1);
 
     MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate *scheduledMeeting);
@@ -1016,7 +1016,7 @@ public:
     MegaChatHandle schedId() const override;
     const char* timezone() const override;
     MegaChatTimeStamp startDateTime() const override;
-    const char* endDateTime() const override;
+    MegaChatTimeStamp endDateTime() const override;
     int cancelled() const override;
 
 private:
@@ -1029,8 +1029,8 @@ private:
     // start dateTime (unix timestamp)
     MegaChatTimeStamp mStartDateTime;
 
-    // end dateTime (format: 20220726T133000)
-    std::string mEndDateTime;
+    // end dateTime (unix timestamp)
+    MegaChatTimeStamp mEndDateTime;
 
     // cancelled flag
     int mCancelled;
@@ -1417,19 +1417,19 @@ public:
     // creates a scheduled meeting
     void createChatAndScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId,
                                                  bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
-                                                 const char* timezone, MegaChatTimeStamp startDate, const char* endDate, const char* title, const char* description,
+                                                 const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
                                                  int cancelled, const char* attributes, MegaChatTimeStamp overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                  MegaChatRequestListener* listener = nullptr);
 
     // updates a scheduled meeting
-    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, const char* endDate,
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
                                              const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                              MegaChatRequestListener* listener = nullptr);
 
 
     // updates a scheduled meeting ocurrence
     void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
-                                                       const char* newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
+                                                       MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
 
     // removes a scheduled meeting
     void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener = nullptr);

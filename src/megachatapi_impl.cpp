@@ -2855,7 +2855,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             // check if startDatetime endDateTime and cancelled were provided in request, otherwise get the values from ocurrence stored in RAM
             MegaChatTimeStamp newStartDate = ocurr->startDateTime();
-            const char* newEndDate = ocurr->endDateTime() ? ocurr->endDateTime() : localOccurr->endDateTime().c_str();
+            MegaChatTimeStamp newEndDate = ocurr->endDateTime();
             int newCancelled = (ocurr->cancelled() == 0 || ocurr->cancelled() == 1) ? ocurr->cancelled() : localOccurr->cancelled();
 
             std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!occurrSchedMeeting->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
@@ -2973,7 +2973,7 @@ void MegaChatApiImpl::sendPendingRequests()
             const KarereScheduledMeeting* currentMeeting = it->second.get();
             std::string newTimezone = sm->timezone() ? sm->timezone() : currentMeeting->timezone();
             MegaChatTimeStamp newStartDate = sm->startDateTime();
-            std::string newEndDate = sm->endDateTime() ? sm->endDateTime() : currentMeeting->endDateTime();
+            MegaChatTimeStamp newEndDate = sm->endDateTime();
             std::string newTitle = sm->title() ? sm->title() : currentMeeting->title();
             std::string newDescription = sm->description() ? sm->description() : currentMeeting->description();
 
@@ -2991,7 +2991,7 @@ void MegaChatApiImpl::sendPendingRequests()
                                                                                                                 currentMeeting->cancelled(),
                                                                                                                 newTimezone.empty() ? nullptr : newTimezone.c_str(),
                                                                                                                 newStartDate,
-                                                                                                                newEndDate.empty() ? nullptr : newEndDate.c_str(),
+                                                                                                                newEndDate,
                                                                                                                 newTitle.empty() ? nullptr : newTitle.c_str(),
                                                                                                                 newDescription.empty() ? nullptr : newDescription.c_str(),
                                                                                                                 currentMeeting->attributes().empty() ? nullptr : currentMeeting->attributes().c_str(),
@@ -4532,7 +4532,7 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     waiter->notify();
 }
 
-void MegaChatApiImpl::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, const char* endDate, const char* title, const char* description,
+void MegaChatApiImpl::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
                                                                                       const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                                       MegaChatRequestListener* listener)
 {
@@ -4549,7 +4549,7 @@ void MegaChatApiImpl::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHand
 
 void MegaChatApiImpl::createChatAndScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId,
                                              bool createChat, bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
-                                             const char* timezone, MegaChatTimeStamp startDate, const char* endDate, const char* title, const char* description,
+                                             const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
                                              int cancelled, const char* attributes, MegaChatTimeStamp overrides, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                              MegaChatRequestListener* listener)
 {
@@ -4569,7 +4569,7 @@ void MegaChatApiImpl::createChatAndScheduledMeeting(MegaChatHandle chatid, MegaC
 }
 
 void MegaChatApiImpl::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
-                                                   const char* newEndDate, bool newCancelled, MegaChatRequestListener* listener)
+                                                   MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE, listener);
     std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), newCancelled, nullptr, newStartDate,
@@ -8612,7 +8612,7 @@ const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byMonthDay()  cons
 const ::mega::MegaIntegerMap* MegaChatScheduledRulesPrivate::byMonthWeekDay() const { return mByMonthWeekDay.get(); }
 
 /* Class MegaChatScheduledMeetingPrivate */
-MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle chatid, const char* timezone, MegaChatTimeStamp startDateTime, const char* endDateTime,
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle chatid, const char* timezone, MegaChatTimeStamp startDateTime, MegaChatTimeStamp endDateTime,
                                                                   const char* title, const char* description, MegaChatHandle schedId, MegaChatHandle parentSchedId,
                                                                   MegaChatHandle organizerUserId, int cancelled, const char* attributes, MegaChatTimeStamp overrides,
                                                                   const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules)
@@ -8622,7 +8622,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle 
       mOrganizerUserId(organizerUserId),
       mTimezone(timezone ? timezone : std::string()),
       mStartDateTime(startDateTime),
-      mEndDateTime(endDateTime ? endDateTime : std::string()),
+      mEndDateTime(endDateTime),
       mTitle(title ? title : std::string()),
       mDescription(description ? description : std::string()),
       mAttributes(attributes ? attributes : std::string()),
@@ -8641,7 +8641,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatS
       mOrganizerUserId(scheduledMeeting->organizerUserId()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
       mStartDateTime(scheduledMeeting->startDateTime()),
-      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime()),
       mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
       mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
       mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
@@ -8697,7 +8697,7 @@ MegaChatHandle MegaChatScheduledMeetingPrivate::parentSchedId() const         { 
 MegaChatHandle MegaChatScheduledMeetingPrivate::organizerUserId() const       { return mOrganizerUserId; }
 const char* MegaChatScheduledMeetingPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr;}
 MegaChatTimeStamp MegaChatScheduledMeetingPrivate::startDateTime() const      { return mStartDateTime; }
-const char* MegaChatScheduledMeetingPrivate::endDateTime() const              { return !mEndDateTime.empty() ? mEndDateTime.c_str() : nullptr;}
+MegaChatTimeStamp MegaChatScheduledMeetingPrivate::endDateTime() const        { return mEndDateTime; }
 const char* MegaChatScheduledMeetingPrivate::title() const                    { return !mTitle.empty() ? mTitle.c_str() : nullptr;}
 const char* MegaChatScheduledMeetingPrivate::description() const              { return !mDescription.empty() ? mDescription.c_str() : nullptr;}
 const char* MegaChatScheduledMeetingPrivate::attributes() const               { return !mAttributes.empty() ? mAttributes.c_str() : nullptr;}
@@ -8713,12 +8713,12 @@ MegaChatScheduledRules* MegaChatScheduledMeetingPrivate::rules() const        { 
 MegaChatScheduledMeetingOccurrPrivate::MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
                                                                        const char* timezone,
                                                                        MegaChatTimeStamp startDateTime,
-                                                                       const char* endDateTime,
+                                                                       MegaChatTimeStamp endDateTime,
                                                                        int cancelled)
     : mSchedId(schedId),
       mTimezone(timezone ? timezone : std::string()),
       mStartDateTime(startDateTime),
-      mEndDateTime(endDateTime ? endDateTime : std::string()),
+      mEndDateTime(endDateTime),
       mCancelled(cancelled)
 {
 }
@@ -8727,7 +8727,7 @@ MegaChatScheduledMeetingOccurrPrivate::MegaChatScheduledMeetingOccurrPrivate(con
     : mSchedId(scheduledMeeting->schedId()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
       mStartDateTime(scheduledMeeting->startDateTime()),
-      mEndDateTime(scheduledMeeting->endDateTime() ? scheduledMeeting->endDateTime() : std::string()),
+      mEndDateTime(scheduledMeeting->endDateTime()),
       mCancelled(scheduledMeeting->cancelled())
 {
 }
@@ -8754,7 +8754,7 @@ MegaChatScheduledMeetingOccurrPrivate* MegaChatScheduledMeetingOccurrPrivate::co
 MegaChatHandle MegaChatScheduledMeetingOccurrPrivate::schedId() const               { return mSchedId;}
 const char* MegaChatScheduledMeetingOccurrPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr;}
 MegaChatTimeStamp MegaChatScheduledMeetingOccurrPrivate::startDateTime() const      { return mStartDateTime; }
-const char* MegaChatScheduledMeetingOccurrPrivate::endDateTime() const              { return !mEndDateTime.empty() ? mEndDateTime.c_str() : nullptr;}
+MegaChatTimeStamp MegaChatScheduledMeetingOccurrPrivate::endDateTime() const        { return mEndDateTime; }
 int MegaChatScheduledMeetingOccurrPrivate::cancelled() const                        { return mCancelled;}
 
 /* Class MegaChatScheduledMeetingListPrivate */

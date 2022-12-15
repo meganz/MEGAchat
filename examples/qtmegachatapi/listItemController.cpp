@@ -125,14 +125,14 @@ void ChatListItemController::updateScheduledMeetingOccurrence()
     MegaChatHandle schedId = mMegaApi->base64ToUserHandle(mMainWindow->mApp->getText("Sched Id of occurrence we want to modify (B64): ", false).c_str());
     MegaChatTimeStamp overrides = atoi(mMainWindow->mApp->getText("Start date we want to modify (format: YYYYMMDDTHHMMSS)", true).c_str());
     MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New start date (format: YYYYMMDDTHHMMSS)", true).c_str());
-    std::string newEndDate = mMainWindow->mApp->getText("New end date (format: YYYYMMDDTHHMMSS)", true).c_str();
+    MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New end date (format: YYYYMMDDTHHMMSS)", true).c_str());
     int cancelled = atoi(mMainWindow->mApp->getText("Set occurrence as cancelled? Y=1 | N =0", true).c_str());
 
     mMegaChatApi->updateScheduledMeetingOccurrence(mItemId,
                                                    schedId,
                                                    overrides,
                                                    newStartDate,
-                                                   newEndDate.c_str() /*newEndDate*/,
+                                                   newEndDate,
                                                    cancelled == 1 ? true : false /*newCancelled*/);
 }
 
@@ -147,13 +147,13 @@ void ChatListItemController::updateScheduledMeeting()
     std::string newTitle = mMainWindow->mApp->getText("New title: ", true);
     std::string newDesc = mMainWindow->mApp->getText("New decription: ", true);
     MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New StartDate: ", true).c_str());
-    std::string newEndDate = mMainWindow->mApp->getText("New EndDate: ", true);
+    MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New EndDate: ", true).c_str());
     std::string newTz = mMainWindow->mApp->getText("New TimeZone: ", true);
 
     mMegaChatApi->updateScheduledMeeting(mItemId, schedId,
                                          newTz.empty() ? nullptr : newTz.c_str(),
                                          newStartDate,
-                                         newEndDate.empty() ? nullptr : newEndDate.c_str(),
+                                         newEndDate,
                                          newTitle.empty() ? nullptr : newTitle.c_str(),
                                          newDesc.empty() ? nullptr : newDesc.c_str(),
                                          sm->flags(), sm->rules());
