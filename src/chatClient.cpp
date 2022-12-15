@@ -874,7 +874,7 @@ promise::Promise<KarereScheduledMeeting*> Client::createOrUpdateScheduledMeeting
 }
 
 promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
-Client::fetchScheduledMeetingOccurrences(uint64_t chatid, const char* since, const char* until, unsigned int count)
+Client::fetchScheduledMeetingOccurrences(uint64_t chatid, ::mega::m_time_t since, ::mega::m_time_t until, unsigned int count)
 {
     auto wptr = getDelTracker();
     return api.call(&::mega::MegaApi::fetchScheduledMeetingEvents, chatid, since, until, count)

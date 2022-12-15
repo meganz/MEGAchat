@@ -2716,6 +2716,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!request->getMegaHandleList() || request->getMegaHandleList()->size() != 2)
+            {
+                // check since and until param
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             unsigned int min = static_cast<unsigned int>(request->getPrivilege());
 
             promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>> pms;
@@ -2732,8 +2739,10 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 if (!min || res.size() <= min) // fetch fresh occurrences from API
                 {
-                    mClient->fetchScheduledMeetingOccurrences(chatid, request->getText(),                     /*since*/
-                                                              request->getLink(),                             /*until*/
+                    MegaHandleList* tsList = request->getMegaHandleList();
+                    mClient->fetchScheduledMeetingOccurrences(chatid,
+                                                              static_cast<::mega::m_time_t>(tsList->get(0)),  /*since*/
+                                                              static_cast<::mega::m_time_t>(tsList->get(1)),  /*until*/
                                                               static_cast<unsigned int>(request->getNumber()) /*count*/)
 
                     .then([request](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
@@ -2833,8 +2842,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                     // load fresh scheduled meeting occurrences from API
                     mClient->fetchScheduledMeetingOccurrences(ocurr->chatId(),
-                                                              nullptr, /*since*/
-                                                              nullptr, /*until*/
+                                                              MEGACHAT_INVALID_TIMESTAMP, /*since*/
+                                                              MEGACHAT_INVALID_TIMESTAMP, /*until*/
                                                               0 /*count*/)
                     .then([](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> /*result*/)
                     {
@@ -4649,12 +4658,14 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
     return list;
 }
 
-void MegaChatApiImpl::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, const char* since, const char* until, unsigned int count, unsigned int min, MegaChatRequestListener* listener)
+void MegaChatApiImpl::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatTimeStamp since, MegaChatTimeStamp until, unsigned int count, unsigned int min, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES, listener);
     request->setChatHandle(chatid);
-    request->setText(since);
-    request->setLink(until);
+    unique_ptr<MegaHandleList> peerList = unique_ptr<MegaHandleList>(MegaHandleList::createInstance());
+    peerList->addMegaHandle(static_cast<MegaHandle>(since));
+    peerList->addMegaHandle(static_cast<MegaHandle>(until));
+    request->setMegaHandleList(peerList.get());
     request->setNumber(count);
     request->setPrivilege(static_cast<int>(min));
     requestQueue.push(request);

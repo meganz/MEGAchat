@@ -172,7 +172,7 @@ void ChatListItemController::fetchScheduledMeeting()
 
 void ChatListItemController::fetchScheduledMeetingEvents()
 {
-    mMegaApi->fetchScheduledMeetingEvents(mItemId, nullptr, nullptr, 0);
+    mMegaApi->fetchScheduledMeetingEvents(mItemId, MEGACHAT_INVALID_TIMESTAMP, MEGACHAT_INVALID_TIMESTAMP, 0);
 }
 
 void ChatListItemController::setTitle()
