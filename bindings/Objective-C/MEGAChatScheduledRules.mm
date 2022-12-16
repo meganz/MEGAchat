@@ -44,12 +44,8 @@ using namespace mega;
     return self.megaChatScheduledRules->interval();
 }
 
-- (NSString *)until {
-    const char *val = self.megaChatScheduledRules->until();
-    if (!val) return nil;
-    NSString *ret = [[NSString alloc] initWithUTF8String:val];
-    delete [] val;
-    return ret;
+- (uint64_t)until {
+    return self.megaChatScheduledRules->until();
 }
 
 - (NSArray <NSNumber *>*)byWeekDay {
