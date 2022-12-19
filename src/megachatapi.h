@@ -4140,6 +4140,8 @@ public:
      * - MegaChatError::ERROR_ARGS  - if isMeeting is set true but publicChat is set to false
      * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
      *
+     * @deprecated This function must NOT be used in new developments. Use MegaChatApi::createChatroomAndSchedMeeting instead
+     *
      * @param isMeeting True to create a meeting room
      * @param publicChat True to create a public chat, otherwise false
      * @param speakRequest True to set that during calls non moderator users, must request permission to speak
