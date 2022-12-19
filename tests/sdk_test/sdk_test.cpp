@@ -334,7 +334,6 @@ void MegaChatApiTest::SetUp()
         megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
         megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
         megaApi[i]->addListener(this);
-        megaApi[i]->addRequestListener(this);
 
         megaChatApi[i] = new MegaChatApi(megaApi[i]);
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
@@ -492,8 +491,6 @@ void MegaChatApiTest::TearDown()
                 ASSERT_CHAT_TEST((logoutResult == API_OK), "Failed to logout from SDK. Error: "
                                  + std::to_string(logoutResult));
             }
-
-            megaApi[i]->removeRequestListener(this);
 
             delete megaApi[i];
             megaApi[i] = NULL;
@@ -1691,12 +1688,13 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     char *sessionSecondary = login(a2);
 
     // Make a1 and a2 contacts
+    { // scope for 'user' local variable
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
         delete user;
-        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    }
     }
 
     // Create chat link
@@ -2378,7 +2376,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     // A gets the thumbnail of the uploaded image
     std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
-    auto getThumbnailTracker = ::mega::make_unique<RequestTracker>(megaApi[a1], this);
+    auto getThumbnailTracker = ::mega::make_unique<RequestTracker>(megaApi[a1]);
     megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), getThumbnailTracker.get());
     ErrorCodes getThumbnailResult = getThumbnailTracker->waitForResult();
     ASSERT_CHAT_TEST((getThumbnailResult == API_OK), "Failed to get thumbnail. Error: "
@@ -2386,7 +2384,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     // B gets the thumbnail of the attached image
     thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
-    getThumbnailTracker.reset(new RequestTracker(megaApi[a2], this));
+    getThumbnailTracker.reset(new RequestTracker(megaApi[a2]));
     megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), getThumbnailTracker.get());
     getThumbnailResult = getThumbnailTracker->waitForResult();
     ASSERT_CHAT_TEST((getThumbnailResult == API_OK), "Failed to get thumbnail. Error: "
@@ -4734,7 +4732,7 @@ bool MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string 
     mNodeCopiedHandle[accountIndex] = INVALID_HANDLE;
     megaApi[accountIndex]->authorizeNode(node);
     MegaNode *parentNode = megaApi[accountIndex]->getRootNode();
-    auto copyNodeTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex], this);
+    auto copyNodeTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
     megaApi[accountIndex]->copyNode(node, parentNode, targetName.c_str(), copyNodeTracker.get());
     ErrorCodes copyNodeResult = copyNodeTracker->waitForResult();
     delete parentNode;
