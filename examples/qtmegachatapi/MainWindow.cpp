@@ -1111,8 +1111,9 @@ void MainWindow::onAddChatSchedMeeting()
     std::string title = mApp->getText("Get title", false);
     std::string description = mApp->getText("Get description", false);
 
-    mMegaChatApi->createChatAndScheduledMeeting(true /*isMeeting*/, true /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, true /*openInvite*/,
-                                                timezone.c_str(), startDate, endDate, title.c_str(), description.c_str(),
+    MegaChatPeerList* peerList =  MegaChatPeerList::createInstance();
+    mMegaChatApi->createChatroomAndSchedMeeting(peerList, true /*isMeeting*/, true /*publicChat*/,  title.c_str(), false /*speakRequest*/, false /*waitingRoom*/, true /*openInvite*/,
+                                                timezone.c_str(), startDate, endDate, description.c_str(),
                                                 flags.get(), rules.get(), nullptr);
 }
 

@@ -472,7 +472,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     title = request->getText();
                 }
 
-                mClient->createGroupChat(peers, publicChat, isMeeting, chatOptionsBitMask, title)
+                mClient->createGroupChat(peers, publicChat, isMeeting, chatOptionsBitMask, title, megaSchedMeeting)
                 .then([request, this](Id chatid)
                 {
                     request->setChatHandle(chatid);
