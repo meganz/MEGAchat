@@ -5461,7 +5461,7 @@ KarereScheduledRules::KarereScheduledRules(int freq,
                               const karere_rules_map* byMonthWeekDay)
     : mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
       mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
-      mUntil(isValidUntil(until) ? until : UNTIL_INVALID),
+      mUntil(isValidUntil(until) ? until : ::mega::mega_invalid_timestamp),
       mByWeekDay(byWeekDay ? new karere_rules_vector(*byWeekDay) : nullptr),
       mByMonthDay (byMonthDay ? new karere_rules_vector(*byMonthDay) : nullptr),
       mByMonthWeekDay(byMonthWeekDay ? new karere_rules_map(byMonthWeekDay->begin(), byMonthWeekDay->end()) : nullptr)
@@ -5482,7 +5482,7 @@ KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules
 {
     mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
     mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
-    mUntil = isValidUntil(rules->until()) ? rules->until() : UNTIL_INVALID;
+    mUntil = isValidUntil(rules->until()) ? rules->until() : ::mega::mega_invalid_timestamp;
 
     if (rules->byWeekDay() && rules->byWeekDay()->size())
     {

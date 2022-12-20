@@ -2359,7 +2359,7 @@ MegaChatScheduledRules::~MegaChatScheduledRules()                               
 MegaChatScheduledRules* MegaChatScheduledRules::copy() const                    { return NULL; }
 int MegaChatScheduledRules::freq() const                                        { return 0; }
 int MegaChatScheduledRules::interval() const                                    { return 0; }
-MegaChatTimeStamp MegaChatScheduledRules::until() const                         { return UNTIL_INVALID; }
+MegaChatTimeStamp MegaChatScheduledRules::until() const                         { return MEGACHAT_INVALID_TIMESTAMP; }
 const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay() const          { return nullptr; }
 const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay() const         { return nullptr; }
 const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay() const      { return nullptr; }

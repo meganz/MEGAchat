@@ -1329,7 +1329,6 @@ public:
     } freq_type;
 
     constexpr static int INTERVAL_INVALID = 0;
-    constexpr static int UNTIL_INVALID = 0;
 
     // just for karere internal usage
     typedef std::vector<int8_t> karere_rules_vector;
@@ -1337,7 +1336,7 @@ public:
 
     KarereScheduledRules(int freq,
                    int interval = INTERVAL_INVALID,
-                   mega::m_time_t until = UNTIL_INVALID,
+                   mega::m_time_t until = ::mega::mega_invalid_timestamp,
                    const karere_rules_vector* byWeekDay = nullptr,
                    const karere_rules_vector* byMonthDay = nullptr,
                    const karere_rules_map* byMonthWeekDay = nullptr);
@@ -1361,7 +1360,7 @@ public:
 
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
-    static bool isValidUntil(::mega::m_time_t until) { return until > UNTIL_INVALID; }
+    static bool isValidUntil(::mega::m_time_t until) { return until > ::mega::mega_invalid_timestamp; }
 
     // --- methods to un/serialize ---
     bool serialize(Buffer& out) const;

@@ -7559,7 +7559,6 @@ public:
     };
 
     static constexpr int INTERVAL_INVALID = 0;
-    static constexpr int UNTIL_INVALID = 0;
     virtual ~MegaChatScheduledRules();
 
     /**
@@ -7576,7 +7575,7 @@ public:
      */
     static MegaChatScheduledRules* createInstance(int freq,
                                                   int interval = INTERVAL_INVALID,
-                                                  MegaChatTimeStamp until = UNTIL_INVALID,
+                                                  MegaChatTimeStamp until = MEGACHAT_INVALID_TIMESTAMP,
                                                   const ::mega::MegaIntegerList* byWeekDay = nullptr,
                                                   const ::mega::MegaIntegerList* byMonthDay = nullptr,
                                                   const ::mega::MegaIntegerMap* byMonthWeekDay = nullptr);

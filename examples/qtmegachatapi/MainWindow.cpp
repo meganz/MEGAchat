@@ -1101,7 +1101,7 @@ void MainWindow::onAddChatSchedMeeting()
 
     std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,
-                                                                                         MegaChatScheduledRules::UNTIL_INVALID,
+                                                                                         MEGACHAT_INVALID_TIMESTAMP,
                                                                                          byWeekDay.get(), nullptr, nullptr));
 
 
