@@ -1476,7 +1476,18 @@ void Client::removePeers(const std::vector<karere::Id> &peers)
 
 void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
 {
-    mPeersPresence[peer] = pres;
+    auto pair = mPeersPresence.emplace(peer, pres);
+    if (!pair.second) // Element is already in the map (update value)
+    {
+        if (pair.first->second == pres)
+        {
+            return;
+        }
+        else
+        {
+            pair.first->second = pres;
+        }
+    }
 
     // Do not notify if the peer is ex-contact or has never been contact
     // (except updating to unknown when a contact becomes ex-contact)
