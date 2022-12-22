@@ -385,6 +385,7 @@ private:
     int lastMsgPriv;
     MegaChatHandle lastMsgHandle;
     unsigned int mNumPreviewers;
+    bool mMeeting;
 
 public:
     int getChanges() const override;
@@ -410,6 +411,7 @@ public:
     int getLastMessagePriv() const override;
     MegaChatHandle getLastMessageHandle() const override;
     unsigned int getNumPreviewers() const override;
+    bool isMeeting() const override;
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);

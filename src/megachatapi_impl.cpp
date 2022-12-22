@@ -9540,6 +9540,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     lastMsgHandle = MEGACHAT_INVALID_HANDLE;
     mNumPreviewers = chatroom.getNumPreviewers();
     mDeleted = false;
+    mMeeting = chatroom.isMeeting();
 
     LastTextMsg tmp;
     LastTextMsg *message = &tmp;
@@ -9646,6 +9647,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     lastMsgHandle = item->getLastMessageHandle();
     mNumPreviewers = item->getNumPreviewers();
     mDeleted = item->isDeleted();
+    mMeeting = item->isMeeting();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -9764,7 +9766,12 @@ MegaChatHandle MegaChatListItemPrivate::getLastMessageHandle() const
 
 unsigned int MegaChatListItemPrivate::getNumPreviewers() const
 {
-   return mNumPreviewers;
+    return mNumPreviewers;
+}
+
+bool MegaChatListItemPrivate::isMeeting() const
+{
+    return mMeeting;
 }
 
 void MegaChatListItemPrivate::setOwnPriv(int ownPriv)

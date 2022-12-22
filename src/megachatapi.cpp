@@ -1904,7 +1904,12 @@ MegaChatHandle MegaChatListItem::getLastMessageHandle() const
 
 unsigned int MegaChatListItem::getNumPreviewers() const
 {
-   return 0;
+    return 0;
+}
+
+bool MegaChatListItem::isMeeting() const
+{
+    return false;
 }
 
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi * /*api*/, MegaChatRoom * /*chat*/)
