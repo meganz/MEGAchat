@@ -175,7 +175,7 @@ enum Opcode
       *    msgid.
       *
       * Note: if incompatibility with the history is detected (current time is
-      * one hour greater than message timestamp). The command recived will be
+      * one hour greater than message timestamp). The command received will be
       * OP_NEWMSGIDTIMESTAMP
       *
       * Receive: <msgxid> <msgid>
@@ -264,7 +264,7 @@ enum Opcode
       *     msgid.
       *
       * Note: if incompatibility with the history is detected (current time is
-      * one hour greater than message timestamp). The command recived will be
+      * one hour greater than message timestamp). The command received will be
       * OP_MSGIDTIMESTAMP
       *
       * Receive: <msgxid> <msgid>
