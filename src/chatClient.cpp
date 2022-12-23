@@ -440,7 +440,7 @@ bool Client::openDb(const std::string& sid)
             {
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
                 db.query("CREATE TABLE scheduledMeetings(schedid int64 unique primary key, chatid int64, organizerid int64, parentschedid int64, timezone text,"
-                            "startdatetime int64, enddatetime int64, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
+                            "startdatetime int64, enddatetime int64, title text, description text, attributes text, overrides int64, cancelled tinyint default 0,"
                             "flags int64 default 0, rules blob, FOREIGN KEY(chatid) REFERENCES chats(chatid) ON DELETE CASCADE)");
 
                 db.query("CREATE TABLE scheduledMeetingsOccurr(schedid int64, startdatetime int64, enddatetime int64, PRIMARY KEY (schedid, startdatetime), "
