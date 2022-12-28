@@ -2771,9 +2771,10 @@ void Chat::onFetchHistDone()
             }
         }
 
-        bool allMsgReceived = mLastServerHistFetchCount >= static_cast<unsigned int>(abs(mLastServerRequested));
-        if (mLastServerHistFetchCount <= 0
-                || (mLastServerRequested <= 0 && !allMsgReceived))
+        assert(mLastServerRequested < 0); // mLastServerRequested is < 0 if we are fetching old hist from server
+        bool allRequestedMsgRecv = mLastServerHistFetchCount >= static_cast<unsigned int>(abs(mLastServerRequested));
+        if (mLastServerHistFetchCount == 0                              // no messages received
+                || (mLastServerRequested <= 0 && !allRequestedMsgRecv)) // less messages received than requested
         {
             //server returned zero messages or we have received all history from server
             assert((mDecryptOldHaltedAt == CHATD_IDX_INVALID) && (mDecryptNewHaltedAt == CHATD_IDX_INVALID));
@@ -2788,8 +2789,8 @@ void Chat::onFetchHistDone()
                 notifyLastTextMsg();
             }
 
-            if (mLastServerRequested <= 0 // requested old messages
-                    && !allMsgReceived)   // number of received msg's is smaller than requested
+            if (mLastServerRequested <= 0      // requested old messages
+                    && !allRequestedMsgRecv)   // number of received msg's is smaller than requested
             {
                 calculateUnreadCount();
             }
