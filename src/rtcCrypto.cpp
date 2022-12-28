@@ -86,4 +86,11 @@ void RtcCryptoMeetings::strToKey(const std::string& keystr, strongvelope::SendKe
     res.setDataSize(keystr.size());
     memcpy(res.ubuf(), keystr.data(), keystr.size());
 }
+
+X25519KeyPair* RtcCryptoMeetings::genX25519KeyPair()
+{
+    X25519KeyPair* keyPair = new X25519KeyPair();
+    crypto_box_keypair(keyPair->pubKey, keyPair->privKey);
+    return keyPair;
+}
 }
