@@ -62,6 +62,7 @@ enum CallState: uint8_t
     kStateClientNoParticipating,        // < User is not partipating in the call
     kStateConnecting,                   // < Connecting to SFU
     kStateJoining,                      // < Joining a call
+    kInWaitingRoom,                     // < In a waiting room
     kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
     kStateDestroyed,                    // < Call object is not valid anymore, the call is removed from the system
@@ -228,6 +229,15 @@ public:
     virtual void setAudioDetected(bool audioDetected) = 0;
 };
 
+
+class IWaitingRoom
+{
+    virtual void wrOnJoinAllowed() = 0;
+    virtual void wrOnJoinNotAllowed() = 0;
+    virtual void wrOnUserDump(std::map<karere::Id, bool>& waitingRoomUsers) = 0;
+};
+
+
 class RtcModule
 {
 public:
@@ -274,7 +284,7 @@ RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScach
 enum RtcConstant {
    kMaxCallReceivers = 20,
    kMaxCallAudioSenders = 20,
-   kMaxCallVideoSenders = 30,
+   kMaxCallVideoSenders = 24,
    kInitialvthumbCount = 0, // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
    kHiResWidth = 960,  // px
    kHiResHeight = 540,  // px

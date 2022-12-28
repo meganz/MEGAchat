@@ -217,6 +217,9 @@ std::string MeetingView::callStateToString(const ::megachat::MegaChatCall &call)
         case ::megachat::MegaChatCall::CALL_STATUS_CONNECTING:
             return "Connecting";
         break;
+        case ::megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM:
+            return "Waiting room";
+        break;
         case ::megachat::MegaChatCall::CALL_STATUS_JOINING:
             return "Joining";
         break;

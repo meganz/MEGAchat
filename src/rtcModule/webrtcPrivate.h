@@ -248,7 +248,7 @@ public:
 * This object is created upon OP_JOINEDCALL (or OP_CALLSTATE).
 * It implements ICall interface for the intermediate layer.
 */
-class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
+class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall, public IWaitingRoom
 {
 public:
     enum SpeakerState
@@ -435,9 +435,9 @@ public:
     void onSendByeCommand() override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
-    bool handleHello (Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
+    bool handleHello (Cid_t cid, unsigned int nAudioTracks, unsigned int nVideoTracks,
                                        std::set<karere::Id> mods, bool wr, bool allowed,
-                                       std::map<uint64_t, bool> wrUsers) override;
+                                       std::map<karere::Id, bool> wrUsers) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
@@ -447,6 +447,11 @@ public:
     void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver);
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
+
+    // ---- IWaitingRoom methods ----
+    void wrOnJoinAllowed() override;
+    void wrOnJoinNotAllowed() override;
+    void wrOnUserDump(std::map<karere::Id, bool>& waitingRoomUsers) override;
 
 protected:
     /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands
@@ -476,6 +481,12 @@ protected:
     int64_t mOffset = 0;    // duration of call when we joined (millis)
     int64_t mFinalTs = 0;   // end of the call (seconds)
     bool mAudioDetected = false;
+
+    // Number of SFU->client audio tracks that the client must allocate. This is equal to the maximum number of simultaneous speakers the call supports.
+    uint32_t mNumInputAudioTracks = 0;
+
+    // Number of SFU->client video tracks that the client must allocate. This is equal to the maximum number of simultaneous video tracks the call supports.
+    uint32_t mNumInputVideoTracks = 0;
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
@@ -535,6 +546,13 @@ protected:
      *  - Approve/reject speaker requests
      */
     std::set<karere::Id> mModerators;
+
+    /*
+     * Map that contains the users in the waiting room, and it's permission to JOIN the call (0 = not allowed | 1 = allowed)
+     *  - users with permission = 0 must wait in the waiting room, until receive WR_ALLOW notification (then they can send JOIN command)
+     *  - users with permission = 1 can enter the call directly by sending JOIN command to SFU
+     */
+    std::map<karere::Id, bool> mWaitingRoomUsers;
 
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey(bool reset = false);

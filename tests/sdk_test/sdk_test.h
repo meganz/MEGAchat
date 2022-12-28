@@ -612,7 +612,7 @@ public:
     void logError(const char* error) override;
     bool handleHello(Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
                                        std::set<karere::Id> mods, bool wr, bool allowed,
-                                       std::map<uint64_t, bool> wrUsers) override;
+                                       std::map<karere::Id, bool> wrUsers) override;
 };
 #endif
 #endif // CHATTEST_H

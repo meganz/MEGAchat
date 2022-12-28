@@ -540,6 +540,7 @@ const char *Call::stateToStr(CallState state)
         RET_ENUM_RTC_NAME(kStateClientNoParticipating);
         RET_ENUM_RTC_NAME(kStateConnecting);
         RET_ENUM_RTC_NAME(kStateJoining);    // < Joining a call
+        RET_ENUM_RTC_NAME(kInWaitingRoom);
         RET_ENUM_RTC_NAME(kStateInProgress);
         RET_ENUM_RTC_NAME(kStateTerminatingUserParticipation);
         RET_ENUM_RTC_NAME(kStateDestroyed);
@@ -871,6 +872,11 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
         return false;
     }
 
+    if (mSfuClient.getSfuVersion() == 1)
+    {
+        mSfuClient.addVersionToUrl(sfuUrl, mMyPeer->getCid());
+    }
+
     setState(CallState::kStateConnecting);
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
     return true;
@@ -982,6 +988,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     mAudio->generateRandomIv();
 
     // create transceivers for receiving audio from peers
+    assert(mNumInputAudioTracks && mNumInputAudioTracks == RtcConstant::kMaxCallAudioSenders);
     for (int i = 1; i < RtcConstant::kMaxCallAudioSenders; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
@@ -990,6 +997,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     }
 
     // create transceivers for receiving video from peers
+    assert(mNumInputVideoTracks && mNumInputVideoTracks == RtcConstant::kMaxCallVideoSenders);
     for (int i = 2; i < RtcConstant::kMaxCallVideoSenders; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
@@ -1770,15 +1778,53 @@ bool Call::handleModDel(uint64_t userid)
     return true;
 }
 
-bool Call::handleHello(Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
+bool Call::handleHello(Cid_t cid, unsigned int nAudioTracks, unsigned int nVideoTracks,
                                    std::set<karere::Id> mods, bool wr, bool allowed,
-                                   std::map<uint64_t, bool> wrUsers)
+                                   std::map<karere::Id, bool> wrUsers)
 {
+    if (mSfuClient.getSfuVersion() < 1)
+    {
+        assert(false);
+        RTCM_LOG_ERROR("handleHello: we have received a HELLO command from SFU but our SFU protocol version is < 1");
+        return false;
+    }
+
+    // set number of SFU->client audio/video tracks that the client must allocate. This is equal to the maximum number of simultaneous audio/video tracks the call supports
+    mNumInputAudioTracks = nAudioTracks;
+    mNumInputVideoTracks = nVideoTracks;
+
+    // set moderator list and ownModerator value
+    setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
+    mModerators = mods;
+
+    // set my own client-id (cid)
+    mMyPeer->setCid(cid);
+
+    if (!wr) // if waiting room is disabled => send JOIN command to SFU
+    {
+        joinSfu();
+    }
+    else
+    {
+        setState(CallState::kInWaitingRoom);
+        allowed
+               ? wrOnJoinAllowed()        // allowed to JOIN SFU
+               : wrOnJoinNotAllowed();    // must wait in waiting room until a moderator allow to access
+
+        if (!wrUsers.empty())
+        {
+            assert(isOwnPrivModerator()); // only mods should receive users in waiting room
+            wrOnUserDump(wrUsers);
+        }
+    }
 }
 
 void Call::onSfuConnected()
 {
-    joinSfu();
+    if (mSfuClient.getSfuVersion() < 1)
+    {
+        joinSfu(); // if SFU is >= v1, we need to wait for HELLO command before sending JOIN to SFU
+    }
 }
 
 void Call::onSfuDisconnected()
@@ -2042,6 +2088,21 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
         RTCM_LOG_DEBUG("onConnectionChange retryPendingConnection (reconnect) : %d", reconnect);
         mSfuConnection->retryPendingConnection(reconnect);
     }
+}
+
+// ---- IWaitingRoom methods ----
+void Call::wrOnJoinAllowed()
+{
+    joinSfu();
+}
+
+void Call::wrOnJoinNotAllowed()
+{
+}
+
+void Call::wrOnUserDump(std::map<karere::Id, bool>& waitingRoomUsers)
+{
+    mWaitingRoomUsers = waitingRoomUsers;
 }
 
 Keyid_t Call::generateNextKeyId()

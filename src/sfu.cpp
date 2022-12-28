@@ -204,7 +204,7 @@ bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::
     return true;
 }
 
-bool Command::parseWaitingRoom(bool& allow, std::map<uint64_t, bool>& wrUsers, const rapidjson::Value& obj) const
+bool Command::parseWaitingRoom(bool& allow, std::map<karere::Id, bool>& wrUsers, const rapidjson::Value& obj) const
 {
     assert(obj.IsObject());
     rapidjson::Value::ConstMemberIterator allowIterator = obj.FindMember("allow");
@@ -2451,7 +2451,7 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
     rapidjson::Value::ConstMemberIterator nvIterator = command.FindMember("nv");
     if (nvIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
-        SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'na' field");
+        SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'nv' field");
         return false;
     }
     unsigned int nVideoTracks = nvIterator->value.GetUint();
@@ -2465,7 +2465,7 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
 
     bool wr = false;
     bool allowed = false;
-    std::map<uint64_t, bool> wrUsers;
+    std::map<karere::Id, bool> wrUsers;
     rapidjson::Value::ConstMemberIterator wrIterator = command.FindMember("wr");
     if (wrIterator != command.MemberEnd())
     {

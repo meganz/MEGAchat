@@ -176,7 +176,7 @@ public:
     virtual bool handleModDel (uint64_t userid) = 0;
     virtual bool handleHello (Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
                                        std::set<karere::Id> mods, bool wr, bool allowed,
-                                       std::map<uint64_t, bool> wrUsers) = 0;
+                                       std::map<karere::Id, bool> wrUsers) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
@@ -208,7 +208,7 @@ public:
 protected:
     Command(SfuInterface& call);
     bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
-    bool parseWaitingRoom(bool &allow, std::map<uint64_t, bool> &wrUsers, const rapidjson::Value &obj) const;
+    bool parseWaitingRoom(bool &allow, std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
     static uint8_t hexDigitVal(char value);
 
     SfuInterface& mCall;
@@ -404,7 +404,7 @@ typedef std::function<bool(Cid_t userid,
                            std::set<karere::Id> mods,
                            bool wr,
                            bool allowed,
-                           std::map<uint64_t, bool> wrUsers)>HelloCommandFunction;
+                           std::map<karere::Id, bool> wrUsers)>HelloCommandFunction;
 class HelloCommand : public Command
 {
 public:
