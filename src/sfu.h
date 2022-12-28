@@ -545,12 +545,23 @@ public:
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
     const karere::Id& myHandle();
+    void addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid);
+    unsigned int getSfuVersion();
 
 private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
     std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
+
+    /** SFU Version:
+     * - Version 0: initial version
+     * - Version 1:
+     *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
+     *      + Waiting rooms
+     *      + Dynamic audio routing
+     */
+    static const unsigned int mSfuVersion = 1;
 };
 
 static inline const char* connStateToStr(SfuConnection::ConnState state)

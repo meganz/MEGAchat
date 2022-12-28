@@ -2270,6 +2270,29 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
     return mRtcCryptoMeetings;
 }
 
+void SfuClient::addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid)
+{
+    std::string app;
+    if (sfuUrl.path.back() != '?') // if last URL char is '?' => just add version
+    {
+        app = !sfuUrl.path.find("?")
+                 ? "&"  // url already has parameters
+                 : "?"; // add ? as append character
+    }
+
+    sfuUrl.path.append(app).append("v=").append(std::to_string(getSfuVersion()));
+
+    if (myCid != 0) // in case of reconenct add cid (if valid)
+    {
+        sfuUrl.path.append("&cid=").append(std::to_string(myCid));;
+    }
+}
+
+unsigned int SfuClient::getSfuVersion()
+{
+    return mSfuVersion;
+}
+
 void SfuClient::retryPendingConnections(bool disconnect)
 {
     for (auto it = mConnections.begin(); it != mConnections.end(); it++)
