@@ -1770,6 +1770,12 @@ bool Call::handleModDel(uint64_t userid)
     return true;
 }
 
+bool Call::handleHello(Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
+                                   std::set<karere::Id> mods, bool wr, bool allowed,
+                                   std::map<uint64_t, bool> wrUsers)
+{
+}
+
 void Call::onSfuConnected()
 {
     joinSfu();

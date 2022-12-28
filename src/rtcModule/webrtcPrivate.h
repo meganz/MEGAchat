@@ -435,6 +435,9 @@ public:
     void onSendByeCommand() override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
+    bool handleHello (Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
+                                       std::set<karere::Id> mods, bool wr, bool allowed,
+                                       std::map<uint64_t, bool> wrUsers) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;

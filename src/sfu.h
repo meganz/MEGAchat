@@ -174,6 +174,9 @@ public:
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
+    virtual bool handleHello (Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
+                                       std::set<karere::Id> mods, bool wr, bool allowed,
+                                       std::map<uint64_t, bool> wrUsers) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
@@ -200,9 +203,12 @@ public:
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
+    void parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
+
 protected:
     Command(SfuInterface& call);
     bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
+    bool parseWaitingRoom(bool &allow, std::map<uint64_t, bool> &wrUsers, const rapidjson::Value &obj) const;
     static uint8_t hexDigitVal(char value);
 
     SfuInterface& mCall;
@@ -230,7 +236,6 @@ public:
 private:
     void parsePeerObject(std::vector<Peer>& peers, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
     void parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio) const;
-    void parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
 };
 
 typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
@@ -391,6 +396,22 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     ModDelCommandFunction mComplete;
+};
+
+typedef std::function<bool(Cid_t userid,
+                           unsigned int nAudioTracks,
+                           unsigned int nVideoTracks,
+                           std::set<karere::Id> mods,
+                           bool wr,
+                           bool allowed,
+                           std::map<uint64_t, bool> wrUsers)>HelloCommandFunction;
+class HelloCommand : public Command
+{
+public:
+    HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    HelloCommandFunction mComplete;
 };
 
 /**

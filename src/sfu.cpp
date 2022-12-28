@@ -33,6 +33,7 @@ const std::string PeerLeftCommand::COMMAND_NAME       = "PEERLEFT";
 const std::string ByeCommand::COMMAND_NAME            = "BYE";
 const std::string ModAddCommand::COMMAND_NAME         = "MOD_ADD";
 const std::string ModDelCommand::COMMAND_NAME         = "MOD_DEL";
+const std::string HelloCommand::COMMAND_NAME          = "HELLO";
 
 const std::string Sdp::endl = "\r\n";
 
@@ -201,6 +202,60 @@ bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::
     trackDescriptor.mMid = midIterator->value.GetUint();
     trackDescriptor.mIv = hexToBinary(ivString);
     return true;
+}
+
+bool Command::parseWaitingRoom(bool& allow, std::map<uint64_t, bool>& wrUsers, const rapidjson::Value& obj) const
+{
+    assert(obj.IsObject());
+    rapidjson::Value::ConstMemberIterator allowIterator = obj.FindMember("allow");
+    if (allowIterator == obj.MemberEnd() || !allowIterator->value.IsUint())
+    {
+         SFU_LOG_ERROR("parseWaitingRoom: 'allow' field not found");
+         return false;
+    }
+    allow = allowIterator->value.GetUint();
+
+    rapidjson::Value::ConstMemberIterator usersIterator = obj.FindMember("users");
+    if (usersIterator != obj.MemberEnd())
+    {
+        const rapidjson::Value& objUsers = usersIterator->value;
+        if (!objUsers.IsObject())
+        {
+            SFU_LOG_ERROR("parseWaitingRoom: 'users' is not an object");
+            return false;
+        }
+
+        for (rapidjson::Value::ConstMemberIterator m = objUsers.MemberBegin(); m != objUsers.MemberEnd(); m++)
+        {
+            if (!m->name.IsString() || !m->value.IsUint())
+            {
+                SFU_LOG_ERROR("parseWaitingRoom: 'users' ill-formed");
+                return false;
+            }
+
+            std::string userIdString = m->name.GetString();
+            uint64_t userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+            bool allow = m->value.GetUint();
+            wrUsers[userId] = allow;
+        }
+    }
+    return true;
+}
+
+void Command::parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const
+{
+    assert(it->value.IsArray());
+    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    {
+        if (!it->value[j].IsString())
+        {
+            SFU_LOG_ERROR("parse moderators: invalid user handle value");
+            return;
+        }
+        std::string userIdString = it->value[j].GetString();
+        ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+        moderators.emplace(userId);
+    }
 }
 
 uint64_t Command::hexToBinary(const std::string &hex)
@@ -436,22 +491,6 @@ void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, 
         {
             continue;
         }
-    }
-}
-
-void AnswerCommand::parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const
-{
-    assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
-    {
-        if (!it->value[j].IsString())
-        {
-            SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid user handle value");
-            return;
-        }
-        std::string userIdString = it->value[j].GetString();
-        ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
-        moderators.emplace(userId);
     }
 }
 
@@ -1446,6 +1485,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
     commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
+    commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
 }
 
 bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
@@ -2382,6 +2422,68 @@ bool ModDelCommand::processCommand(const rapidjson::Document& command)
     std::string userIdString = reasonIterator->value.GetString();
     ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
     return mComplete(userId /*userid*/);
+}
+
+HelloCommand::HelloCommand(const HelloCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool HelloCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'cid' field");
+        return false;
+    }
+    Cid_t cid = cidIterator->value.GetUint();
+
+    rapidjson::Value::ConstMemberIterator naIterator = command.FindMember("na");
+    if (naIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'na' field");
+        return false;
+    }
+    unsigned int nAudioTracks = naIterator->value.GetUint();
+
+    rapidjson::Value::ConstMemberIterator nvIterator = command.FindMember("nv");
+    if (nvIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'na' field");
+        return false;
+    }
+    unsigned int nVideoTracks = nvIterator->value.GetUint();
+
+    std::set<karere::Id> moderators;
+    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
+    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
+    {
+        parseModeratorsObject(moderators, modsIterator);
+    }
+
+    bool wr = false;
+    bool allowed = false;
+    std::map<uint64_t, bool> wrUsers;
+    rapidjson::Value::ConstMemberIterator wrIterator = command.FindMember("wr");
+    if (wrIterator != command.MemberEnd())
+    {
+        if (!wrIterator->value.IsObject())
+        {
+            SFU_LOG_ERROR("HelloCommand: Received wr is not an object");
+            return false;
+        }
+
+        wr = true;
+        if (!parseWaitingRoom(allowed, wrUsers, wrIterator->value))
+        {
+            assert(cidIterator->value.IsObject());
+            SFU_LOG_ERROR("HelloCommand: Received wr is ill-formed");
+            return false;
+        }
+    }
+    return mComplete(cid, nAudioTracks, nVideoTracks, moderators, wr, allowed, wrUsers);
 }
 }
 #endif
