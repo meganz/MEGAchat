@@ -2721,6 +2721,9 @@ public:
         CHAT_OPTION_OPEN_INVITE      = 0x04,   /// Open invite
     };
 
+    // SFUID default value. API will start calls in SFU server it consider
+    static constexpr int SFU_ID_DEFAULT = -1;
+
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
      * @brief Creates an instance of MegaChatApi to access to the chat-engine.
@@ -6366,9 +6369,12 @@ public:
      * This function allows to set the SFU server where all chat calls will be started
      * It's only useful for testing or debugging purposes.
      *
+     * If no sfuid is provided, SFUID will be set as default.
+     * API will start calls in SFU server it consider
+     *
      * @param sfuid New SFU id
      */
-    void setSFUid(int sfuid);
+    void setSFUid(int sfuid = SFU_ID_DEFAULT);
 #endif
 
     static void setCatchException(bool enable);
