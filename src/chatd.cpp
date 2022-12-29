@@ -1821,6 +1821,7 @@ void Chat::requestHistoryFromServer(int32_t count)
         ? kHistFetchingNewFromServer
         : kHistFetchingOldFromServer;
 
+    mLastServerRequested = count;
     mFetchRequest.push(FetchType::kFetchMessages);
     sendCommand(Command(OP_HIST) + mChatId + count);
 }
@@ -2769,9 +2770,13 @@ void Chat::onFetchHistDone()
                 mNextHistFetchIdx = lownum()-1;
             }
         }
-        if (mLastServerHistFetchCount <= 0)
+
+        assert(mLastServerRequested < 0); // mLastServerRequested is < 0 if we are fetching old hist from server
+        bool allRequestedMsgRecv = mLastServerHistFetchCount >= static_cast<unsigned int>(abs(mLastServerRequested));
+        if (mLastServerHistFetchCount == 0                              // no messages received
+                || (mLastServerRequested <= 0 && !allRequestedMsgRecv)) // less messages received than requested
         {
-            //server returned zero messages
+            //server returned zero messages or we have received all history from server
             assert((mDecryptOldHaltedAt == CHATD_IDX_INVALID) && (mDecryptNewHaltedAt == CHATD_IDX_INVALID));
             mHaveAllHistory = true;
             mAttachmentNodes->setHaveAllHistory(true);
@@ -2782,6 +2787,12 @@ void Chat::onFetchHistDone()
             {
                 mLastTextMsg.clear();
                 notifyLastTextMsg();
+            }
+
+            if (mLastServerRequested <= 0      // requested old messages
+                    && !allRequestedMsgRecv)   // number of received msg's is smaller than requested
+            {
+                calculateUnreadCount();
             }
         }
     }
@@ -2808,6 +2819,7 @@ void Chat::onFetchHistDone()
         CHATID_LOG_DEBUG("No text message seen yet, fetching more history from server");
         getHistory(initialHistoryFetchCount);
     }
+    mLastServerRequested = 0; // reset LastServerRequested
 }
 
 void Chat::loadAndProcessUnsent()
@@ -3178,6 +3190,7 @@ void Chat::initChat()
     mOldestIdxInDb = CHATD_IDX_INVALID;
     mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
     mLastServerHistFetchCount = 0;
+    mLastServerRequested = 0;
     mLastHistDecryptCount = 0;
     mRetentionTime = 0;
 
