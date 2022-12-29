@@ -51,6 +51,7 @@ const std::string SfuConnection::CSFU_SPEAK_RQ     = "SPEAK_RQ";
 const std::string SfuConnection::CSFU_SPEAK_RQ_DEL = "SPEAK_RQ_DEL";
 const std::string SfuConnection::CSFU_SPEAK_DEL    = "SPEAKER_DEL";
 const std::string SfuConnection::CSFU_BYE          = "BYE";
+const std::string SfuConnection::CSFU_WR_PUSH      = "WR_PUSH";
 
 
 CommandsQueue::CommandsQueue():
@@ -1912,6 +1913,45 @@ bool SfuConnection::sendBye(int termCode)
     cmdValue.SetString(SfuConnection::CSFU_BYE.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
     json.AddMember("rsn", rapidjson::Value(termCode), json.GetAllocator());
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
+}
+
+bool SfuConnection::sendWrPush(std::set<karere::Id> users, bool all)
+{
+    if (users.empty() && !all)
+    {
+        assert(false);
+        SFU_LOG_DEBUG("Sending WR_PUSH command: invalid arguments provided");
+        return false;
+    }
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    cmdValue.SetString(SfuConnection::CSFU_WR_PUSH.c_str(), json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
+
+    if (users.empty())
+    {
+        std::string userStr = "*";
+        rapidjson::Value nameValue(rapidjson::kStringType);
+        nameValue.SetString(userStr.c_str(), static_cast<rapidjson::SizeType>(userStr.length()), json.GetAllocator());
+        json.AddMember(rapidjson::Value("users"), nameValue, json.GetAllocator());
+    }
+    else
+    {
+        rapidjson::Value usersArray(rapidjson::kArrayType);
+        for (const auto& user: users)
+        {
+            rapidjson::Value auxValue(rapidjson::kStringType);
+            auxValue.SetString(user.toString().c_str(), static_cast<rapidjson::SizeType>(user.toString().length()), json.GetAllocator());
+            usersArray.PushBack(auxValue, json.GetAllocator());
+        }
+        json.AddMember(rapidjson::Value("users"), usersArray, json.GetAllocator());
+    }
+
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
