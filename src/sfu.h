@@ -447,6 +447,8 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_SPEAK_DEL;
     static const std::string CSFU_BYE;
     static const std::string CSFU_WR_PUSH;
+    static const std::string CSFU_WR_ALLOW;
+    static const std::string CSFU_WR_KICK;
 
 public:
     enum ConnState
@@ -499,6 +501,10 @@ public:
 
     // Waiting room related commands
     bool sendWrPush(std::set<karere::Id> users, bool all);
+    bool sendWrAllow(std::set<karere::Id> users, bool all);
+    bool sendWrKick(std::set<karere::Id> users);
+    bool addWrUsersArray(std::set<karere::Id> users, bool all, rapidjson::Document &json);
+
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
     karere::Url mSfuUrl;
