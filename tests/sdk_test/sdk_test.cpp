@@ -5840,7 +5840,7 @@ bool RequestListener::waitForResponse(unsigned int timeout)
     bool connRetried = false;
     while(!mFinished)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(pollingT));
+        std::this_thread::sleep_for(std::chrono::microseconds(pollingT));
 
         if (timeout)
         {
