@@ -2440,21 +2440,27 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
     }
     Cid_t cid = cidIterator->value.GetUint();
 
+    unsigned int nAudioTracks = 0;
     rapidjson::Value::ConstMemberIterator naIterator = command.FindMember("na");
-    if (naIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    if (naIterator != command.MemberEnd() && cidIterator->value.IsUint())
+    {
+        nAudioTracks = naIterator->value.GetUint();
+    }
+    else
     {
         SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'na' field");
-        return false;
     }
-    unsigned int nAudioTracks = naIterator->value.GetUint();
 
+    unsigned int nVideoTracks = 0;
     rapidjson::Value::ConstMemberIterator nvIterator = command.FindMember("nv");
-    if (nvIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    if (nvIterator != command.MemberEnd() && cidIterator->value.IsUint())
+    {
+        nVideoTracks = nvIterator->value.GetUint();
+    }
+    else
     {
         SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'nv' field");
-        return false;
     }
-    unsigned int nVideoTracks = nvIterator->value.GetUint();
 
     std::set<karere::Id> moderators;
     rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");

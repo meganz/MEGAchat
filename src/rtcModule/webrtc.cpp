@@ -988,8 +988,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     mAudio->generateRandomIv();
 
     // create transceivers for receiving audio from peers
-    assert(mNumInputAudioTracks && mNumInputAudioTracks == RtcConstant::kMaxCallAudioSenders);
-    for (int i = 1; i < RtcConstant::kMaxCallAudioSenders; i++)
+    for (uint32_t i = 1; i < mNumInputAudioTracks; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
         transceiverInit.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
@@ -997,8 +996,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     }
 
     // create transceivers for receiving video from peers
-    assert(mNumInputVideoTracks && mNumInputVideoTracks == RtcConstant::kMaxCallVideoSenders);
-    for (int i = 2; i < RtcConstant::kMaxCallVideoSenders; i++)
+    for (uint32_t i = 2; i < mNumInputVideoTracks; i++)
     {
         webrtc::RtpTransceiverInit transceiverInit;
         transceiverInit.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
@@ -1798,9 +1796,11 @@ bool Call::handleHello(Cid_t cid, unsigned int nAudioTracks, unsigned int nVideo
         return false;
     }
 
-    // set number of SFU->client audio/video tracks that the client must allocate. This is equal to the maximum number of simultaneous audio/video tracks the call supports
-    mNumInputAudioTracks = nAudioTracks;
-    mNumInputVideoTracks = nVideoTracks;
+    // set number of SFU->client audio/video tracks that the client must allocate.
+    // This is equal to the maximum number of simultaneous audio/video tracks the call supports
+    // if no received nAudioTracks or nVideoTracks set as max default
+    mNumInputAudioTracks = nAudioTracks ? nAudioTracks : RtcConstant::kMaxCallAudioSenders;
+    mNumInputVideoTracks = nVideoTracks ? nVideoTracks : RtcConstant::kMaxCallVideoSenders;
 
     // set moderator list and ownModerator value
     setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
