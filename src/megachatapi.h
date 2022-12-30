@@ -6369,12 +6369,11 @@ public:
      * This function allows to set the SFU server where all chat calls will be started
      * It's only useful for testing or debugging purposes.
      *
-     * If no sfuid is provided, SFUID will be set as default.
-     * API will start calls in SFU server it consider
+     * Note: To restore default behavior (SFU assigned by API), sfuid param must be set to SFU_ID_DEFAULT
      *
      * @param sfuid New SFU id
      */
-    void setSFUid(int sfuid = SFU_ID_DEFAULT);
+    void setSFUid(int sfuid);
 #endif
 
     static void setCatchException(bool enable);
