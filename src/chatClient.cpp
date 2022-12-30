@@ -865,11 +865,11 @@ promise::Promise<KarereScheduledMeeting*> Client::createOrUpdateScheduledMeeting
     .then([wptr](ReqResult result) -> promise::Promise<KarereScheduledMeeting*>
     {
         wptr.throwIfDeleted();
-        if (!result->getScheduledMeeting())
+        if (!result->getMegaScheduledMeetingList() || result->getMegaScheduledMeetingList()->size() != 1)
         {
-            return nullptr;
+           return nullptr;
         }
-        return new KarereScheduledMeeting (result->getScheduledMeeting());
+        return new KarereScheduledMeeting (result->getMegaScheduledMeetingList()->at(0));
     });
 }
 
