@@ -231,6 +231,19 @@ public:
     bool waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout = maxTimeout) const;
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
+    /**
+     * @brief executes an asynchronous action and wait for results
+     * @param maxAttempts max number of attempts the action must be retried
+     * @param exitFlags vector of conditions that must be accomplished consider action finished
+     * @param flagsStr vector of strings to identify each condition
+     * @param actionMsg string that defines the action
+     * @param waitForAll wait for all exit conditions
+     * @param resetFlags flag that indicates if exitFlags must be reset before executing action
+     * @param timeout max timeout (in seconds) to execute the action
+     * @param action function to be executed
+     */
+    void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
+
     void TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
