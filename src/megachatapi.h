@@ -6722,6 +6722,14 @@ public:
      * @return
      */
     virtual unsigned int getNumPreviewers() const;
+
+    /**
+     * @brief Returns if chatroom is a meeting
+     *
+     * @return True if chatroom is a meeting
+     */
+    virtual bool isMeeting() const;
+
 };
 
 class MegaChatRoom
