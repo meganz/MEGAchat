@@ -1826,6 +1826,37 @@ bool Call::handleHello(Cid_t cid, unsigned int nAudioTracks, unsigned int nVideo
             wrOnUserDump(wrUsers);
         }
     }
+    return true;
+}
+
+bool Call::handleWrDump(std::map<karere::Id, bool> wrUsers)
+{
+    return true;
+}
+
+bool Call::handleWrEnter(std::map<karere::Id, bool> wrUsers)
+{
+    return true;
+}
+
+bool Call::handleWrLeave(std::map<karere::Id, bool> wrUsers)
+{
+    return true;
+}
+
+bool Call::handleWrAllow(std::map<karere::Id, bool> wrUsers)
+{
+    return true;
+}
+
+bool Call::handleWrDeny(std::map<karere::Id, bool> wrUsers)
+{
+    return true;
+}
+
+bool Call::handleWrAllowReq(karere::Id user)
+{
+    return true;
 }
 
 void Call::onSfuConnected()

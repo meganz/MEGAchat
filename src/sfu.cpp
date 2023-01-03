@@ -34,6 +34,12 @@ const std::string ByeCommand::COMMAND_NAME            = "BYE";
 const std::string ModAddCommand::COMMAND_NAME         = "MOD_ADD";
 const std::string ModDelCommand::COMMAND_NAME         = "MOD_DEL";
 const std::string HelloCommand::COMMAND_NAME          = "HELLO";
+const std::string WrDumpCommand::COMMAND_NAME         = "WR_DUMP";
+const std::string WrEnterCommand::COMMAND_NAME        = "WR_ENTER";
+const std::string WrLeaveCommand::COMMAND_NAME        = "WR_LEAVE";
+const std::string WrAllowCommand::COMMAND_NAME        = "WR_ALLOW";
+const std::string WrDenyCommand::COMMAND_NAME         = "WR_DENY";
+const std::string WrAllowReqCommand::COMMAND_NAME     = "WR_ALLOW_REQ";
 
 const std::string Sdp::endl = "\r\n";
 
@@ -1481,6 +1487,12 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
     commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
     commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
+    commands[WrDumpCommand::COMMAND_NAME] = mega::make_unique<WrDumpCommand>(std::bind(&sfu::SfuInterface::handleWrDump, &call, std::placeholders::_1), call);
+    commands[WrEnterCommand::COMMAND_NAME] = mega::make_unique<WrEnterCommand>(std::bind(&sfu::SfuInterface::handleWrEnter, &call, std::placeholders::_1), call);
+    commands[WrLeaveCommand::COMMAND_NAME] = mega::make_unique<WrLeaveCommand>(std::bind(&sfu::SfuInterface::handleWrLeave, &call, std::placeholders::_1), call);
+    commands[WrAllowCommand::COMMAND_NAME] = mega::make_unique<WrAllowCommand>(std::bind(&sfu::SfuInterface::handleWrAllow, &call, std::placeholders::_1), call);
+    commands[WrDenyCommand::COMMAND_NAME] = mega::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call, std::placeholders::_1), call);
+    commands[WrAllowReqCommand::COMMAND_NAME] = mega::make_unique<WrAllowReqCommand>(std::bind(&sfu::SfuInterface::handleWrAllowReq, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
@@ -2517,6 +2529,7 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
+        assert(false);
         SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'cid' field");
         return false;
     }
@@ -2559,17 +2572,18 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
     {
         if (!wrIterator->value.IsObject())
         {
+            assert(false);
             SFU_LOG_ERROR("HelloCommand: Received wr is not an object");
             return false;
         }
 
         wr = true;
-
         const rapidjson::Value& obj = wrIterator->value;
         assert(obj.IsObject());
         rapidjson::Value::ConstMemberIterator allowIterator = obj.FindMember("allow");
         if (allowIterator == obj.MemberEnd() || !allowIterator->value.IsUint())
         {
+             assert(false);
              SFU_LOG_ERROR("HelloCommand: 'allow' field not found in wr object");
              return false;
         }
@@ -2577,12 +2591,126 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
 
         if (!parseUsersArray(wrUsers, obj))
         {
-            assert(cidIterator->value.IsObject());
+            assert(false);
             SFU_LOG_ERROR("HelloCommand: users array in wr is ill-formed");
             return false;
         }
     }
     return mComplete(cid, nAudioTracks, nVideoTracks, moderators, wr, allowed, wrUsers);
+}
+
+WrDumpCommand::WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrDumpCommand::processCommand(const rapidjson::Document& command)
+{
+    std::map<karere::Id, bool> users;
+    rapidjson::Value::ConstMemberIterator usersIterator = command.FindMember("users");
+    if (!parseUsersArray(users, usersIterator->value))
+    {
+        assert(false);
+        SFU_LOG_ERROR("WrDumpCommand: users array is ill-formed");
+        return false;
+    }
+    return mComplete(users);
+}
+
+WrEnterCommand::WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrEnterCommand::processCommand(const rapidjson::Document& command)
+{
+    std::map<karere::Id, bool> users;
+    rapidjson::Value::ConstMemberIterator usersIterator = command.FindMember("users");
+    if (!parseUsersArray(users, usersIterator->value))
+    {
+        assert(false);
+        SFU_LOG_ERROR("WrEnterCommand: users array is ill-formed");
+        return false;
+    }
+    return mComplete(users);
+}
+
+WrLeaveCommand::WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrLeaveCommand::processCommand(const rapidjson::Document& command)
+{
+    std::map<karere::Id, bool> users;
+    rapidjson::Value::ConstMemberIterator usersIterator = command.FindMember("users");
+    if (!parseUsersArray(users, usersIterator->value))
+    {
+        assert(false);
+        SFU_LOG_ERROR("WrLeaveCommand: users array is ill-formed");
+        return false;
+    }
+    return mComplete(users);
+}
+
+WrAllowCommand::WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrAllowCommand::processCommand(const rapidjson::Document& command)
+{
+    std::map<karere::Id, bool> users;
+    rapidjson::Value::ConstMemberIterator usersIterator = command.FindMember("users");
+    if (!parseUsersArray(users, usersIterator->value))
+    {
+        assert(false);
+        SFU_LOG_ERROR("WrAllowCommand: users array is ill-formed");
+        return false;
+    }
+    return mComplete(users);
+}
+
+WrDenyCommand::WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrDenyCommand::processCommand(const rapidjson::Document& command)
+{
+    std::map<karere::Id, bool> users;
+    rapidjson::Value::ConstMemberIterator usersIterator = command.FindMember("users");
+    if (!parseUsersArray(users, usersIterator->value))
+    {
+        assert(false);
+        SFU_LOG_ERROR("WrDenyCommand: users array is ill-formed");
+        return false;
+    }
+    return mComplete(users);
+}
+
+WrAllowReqCommand::WrAllowReqCommand(const WrAllowReqCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrAllowReqCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("WrAllowReqCommand: Received data doesn't have 'user' field");
+        return false;
+    }
+    std::string userIdString = reasonIterator->value.GetString();
+    ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+    return mComplete(userId /*userid*/);
 }
 }
 #endif

@@ -177,6 +177,12 @@ public:
     virtual bool handleHello (Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
                                        std::set<karere::Id> mods, bool wr, bool allowed,
                                        std::map<karere::Id, bool> wrUsers) = 0;
+    virtual bool handleWrDump(std::map<karere::Id, bool> users) = 0;
+    virtual bool handleWrEnter(std::map<karere::Id, bool> users) = 0;
+    virtual bool handleWrLeave(std::map<karere::Id, bool> users) = 0;
+    virtual bool handleWrAllow(std::map<karere::Id, bool> users) = 0;
+    virtual bool handleWrDeny(std::map<karere::Id, bool> users) = 0;
+    virtual bool handleWrAllowReq(karere::Id user) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
@@ -412,6 +418,66 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HelloCommandFunction mComplete;
+};
+
+typedef std::function<bool(std::map<karere::Id, bool> users)>WrDumpCommandFunction;
+class WrDumpCommand: public Command
+{
+public:
+    WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrDumpCommandFunction mComplete;
+};
+
+typedef std::function<bool(std::map<karere::Id, bool> users)>WrEnterCommandFunction;
+class WrEnterCommand: public Command
+{
+public:
+    WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrEnterCommandFunction mComplete;
+};
+
+typedef std::function<bool(std::map<karere::Id, bool> users)>WrLeaveCommandFunction;
+class WrLeaveCommand: public Command
+{
+public:
+    WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrLeaveCommandFunction mComplete;
+};
+
+typedef std::function<bool(std::map<karere::Id, bool> users)>WrAllowCommandFunction;
+class WrAllowCommand: public Command
+{
+public:
+    WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrAllowCommandFunction mComplete;
+};
+
+typedef std::function<bool(std::map<karere::Id, bool> users)>WrDenyCommandFunction;
+class WrDenyCommand: public Command
+{
+public:
+    WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrDenyCommandFunction mComplete;
+};
+
+typedef std::function<bool(karere::Id user)>WrAllowReqCommandFunction;
+class WrAllowReqCommand: public Command
+{
+public:
+    WrAllowReqCommand(const WrAllowReqCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrAllowReqCommandFunction mComplete;
 };
 
 /**

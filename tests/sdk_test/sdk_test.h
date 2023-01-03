@@ -610,9 +610,16 @@ public:
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     void logError(const char* error) override;
-    bool handleHello(Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
-                                       std::set<karere::Id> mods, bool wr, bool allowed,
-                                       std::map<karere::Id, bool> wrUsers) override;
+    bool handleHello(Cid_t /*userid*/, unsigned int /*nAudioTracks*/, unsigned int /*nVideoTracks*/,
+                                       std::set<karere::Id> /*mods*/, bool /*wr*/, bool /*allowed*/,
+                                       std::map<karere::Id, bool> /*wrUsers*/) override;
+
+    bool handleWrDump(std::map<karere::Id, bool> /*users*/) override;
+    bool handleWrEnter(std::map<karere::Id, bool> /*users*/) override;
+    bool handleWrLeave(std::map<karere::Id, bool> /*users*/) override;
+    bool handleWrAllow(std::map<karere::Id, bool> /*users*/) override;
+    bool handleWrDeny(std::map<karere::Id, bool> /*users*/) override;
+    bool handleWrAllowReq(karere::Id /*user*/) override;
 };
 #endif
 #endif // CHATTEST_H

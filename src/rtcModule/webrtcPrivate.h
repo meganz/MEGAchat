@@ -440,6 +440,13 @@ public:
                                        std::set<karere::Id> mods, bool wr, bool allowed,
                                        std::map<karere::Id, bool> wrUsers) override;
 
+    bool handleWrDump(std::map<karere::Id, bool> users) override;
+    bool handleWrEnter(std::map<karere::Id, bool> users) override;
+    bool handleWrLeave(std::map<karere::Id, bool> users) override;
+    bool handleWrAllow(std::map<karere::Id, bool> users) override;
+    bool handleWrDeny(std::map<karere::Id, bool> users) override;
+    bool handleWrAllowReq(karere::Id user) override;
+
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
 
