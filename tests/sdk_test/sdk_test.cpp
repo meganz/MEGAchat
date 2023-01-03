@@ -4031,6 +4031,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;
     MegaChatMessage* msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
+    LOG_debug << "TEST 1. Send rich link message";
     checkMessages(msgSent, messageToSend, true);
 
     //===============================================================================================//
@@ -4041,6 +4042,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;
     MegaChatMessage* msgUpdated1 = megaChatApi[a1]->removeRichLink(chatid, msgSent->getMsgId());
+    LOG_debug << "TEST 2. Remove richlink";
     checkMessages(msgUpdated1, messageToSend, false, true);
 
     //===================================================================//
@@ -4049,6 +4051,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
 
     std::string messageToUpdate2 = "Hello friend";
     MegaChatMessage* msgUpdated2 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate2, chatroomListener, msgUpdated1->getMsgId());
+    LOG_debug << "TEST 3. Edit previous non-richlinked message by removing the URL";
     checkMessages(msgUpdated2, messageToUpdate2, false);
 
 
@@ -4058,6 +4061,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
 
     std::string messageToUpdate3 = "Hello friend, sorry, the URL is https://mega.nz";
     MegaChatMessage* msgUpdated3 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate3, chatroomListener, msgUpdated2->getMsgId());
+    LOG_debug << "TEST 4. Edit previous message by adding a new URL";
     checkMessages(msgUpdated3, messageToUpdate3, true);
 
     //===============================================================//
@@ -4066,6 +4070,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
 
     std::string messageToUpdate4 = "Argghhh!!! Sorry again!! I meant https://mega.io that's the good one!!!";
     MegaChatMessage* msgUpdated4 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate4, chatroomListener, msgUpdated3->getMsgId());
+    LOG_debug << "TEST 5. Edit previous message by modifying the previous URL";
     checkMessages(msgUpdated4, messageToUpdate4, true);
 
     //===============================================================//
@@ -4074,6 +4079,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
 
     std::string messageToUpdate5 = "No more richlinks please!!!!";
     MegaChatMessage* msgUpdated5 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate5, chatroomListener, msgUpdated4->getMsgId());
+    LOG_debug << "TEST 6. Edit previous richlinked message by deleting the URL";
     checkMessages(msgUpdated5, messageToUpdate5, false);
 
 
