@@ -1927,7 +1927,7 @@ bool SfuConnection::sendWrPush(std::set<karere::Id> users, bool all)
     if (users.empty() && !all)
     {
         assert(false);
-        SFU_LOG_DEBUG("Sending WR_PUSH command: invalid arguments provided");
+        SFU_LOG_DEBUG("sendWrPush: invalid arguments provided");
         return false;
     }
     rapidjson::Document json(rapidjson::kObjectType);
@@ -1945,6 +1945,12 @@ bool SfuConnection::sendWrPush(std::set<karere::Id> users, bool all)
 
 bool SfuConnection::sendWrAllow(std::set<karere::Id> users, bool all)
 {
+    if (users.empty() && !all)
+    {
+        assert(false);
+        SFU_LOG_DEBUG("sendWrAllow: invalid arguments provided");
+        return false;
+    }
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_WR_ALLOW.c_str(), json.GetAllocator());
@@ -1960,6 +1966,12 @@ bool SfuConnection::sendWrAllow(std::set<karere::Id> users, bool all)
 
 bool SfuConnection::sendWrKick(std::set<karere::Id> users)
 {
+    if (users.empty())
+    {
+        assert(false);
+        SFU_LOG_DEBUG("sendWrKick: invalid arguments provided");
+        return false;
+    }
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_WR_KICK.c_str(), json.GetAllocator());
@@ -1975,13 +1987,7 @@ bool SfuConnection::sendWrKick(std::set<karere::Id> users)
 
 bool SfuConnection::addWrUsersArray(std::set<karere::Id> users, bool all, rapidjson::Document& json)
 {
-    if (users.empty() && !all)
-    {
-        assert(false);
-        SFU_LOG_DEBUG("addWrUsersArray: invalid arguments provided");
-        return false;
-    }
-
+    assert(!users.empty() || all);
     if (users.empty())
     {
         std::string userStr = "*";
