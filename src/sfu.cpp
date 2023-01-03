@@ -207,24 +207,16 @@ bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::
     return true;
 }
 
-bool Command::parseWaitingRoom(bool& allow, std::map<karere::Id, bool>& wrUsers, const rapidjson::Value& obj) const
+bool Command::parseUsersArray(std::map<karere::Id, bool>& wrUsers, const rapidjson::Value& obj) const
 {
     assert(obj.IsObject());
-    rapidjson::Value::ConstMemberIterator allowIterator = obj.FindMember("allow");
-    if (allowIterator == obj.MemberEnd() || !allowIterator->value.IsUint())
-    {
-         SFU_LOG_ERROR("parseWaitingRoom: 'allow' field not found");
-         return false;
-    }
-    allow = allowIterator->value.GetUint();
-
     rapidjson::Value::ConstMemberIterator usersIterator = obj.FindMember("users");
     if (usersIterator != obj.MemberEnd())
     {
         const rapidjson::Value& objUsers = usersIterator->value;
         if (!objUsers.IsObject())
         {
-            SFU_LOG_ERROR("parseWaitingRoom: 'users' is not an object");
+            SFU_LOG_ERROR("parseUsersArray: 'users' is not an object");
             return false;
         }
 
@@ -232,7 +224,7 @@ bool Command::parseWaitingRoom(bool& allow, std::map<karere::Id, bool>& wrUsers,
         {
             if (!m->name.IsString() || !m->value.IsUint())
             {
-                SFU_LOG_ERROR("parseWaitingRoom: 'users' ill-formed");
+                SFU_LOG_ERROR("parseUsersArray: 'users' ill-formed");
                 return false;
             }
 
@@ -2572,10 +2564,21 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         }
 
         wr = true;
-        if (!parseWaitingRoom(allowed, wrUsers, wrIterator->value))
+
+        const rapidjson::Value& obj = wrIterator->value;
+        assert(obj.IsObject());
+        rapidjson::Value::ConstMemberIterator allowIterator = obj.FindMember("allow");
+        if (allowIterator == obj.MemberEnd() || !allowIterator->value.IsUint())
+        {
+             SFU_LOG_ERROR("HelloCommand: 'allow' field not found in wr object");
+             return false;
+        }
+        allowed = allowIterator->value.GetUint();
+
+        if (!parseUsersArray(wrUsers, obj))
         {
             assert(cidIterator->value.IsObject());
-            SFU_LOG_ERROR("HelloCommand: Received wr is ill-formed");
+            SFU_LOG_ERROR("HelloCommand: users array in wr is ill-formed");
             return false;
         }
     }

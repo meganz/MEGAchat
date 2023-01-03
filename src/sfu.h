@@ -208,7 +208,7 @@ public:
 protected:
     Command(SfuInterface& call);
     bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
-    bool parseWaitingRoom(bool &allow, std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
+    bool parseUsersArray(std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
     static uint8_t hexDigitVal(char value);
 
     SfuInterface& mCall;
