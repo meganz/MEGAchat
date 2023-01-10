@@ -1241,6 +1241,10 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatH
     pImpl->removeChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, listener);
 }
 
+void MegaChatApi::setSFUid(int sfuid)
+{
+    pImpl->setSFUid(sfuid);
+}
 #endif
 
 void MegaChatApi::setCatchException(bool enable)
@@ -1904,7 +1908,12 @@ MegaChatHandle MegaChatListItem::getLastMessageHandle() const
 
 unsigned int MegaChatListItem::getNumPreviewers() const
 {
-   return 0;
+    return 0;
+}
+
+bool MegaChatListItem::isMeeting() const
+{
+    return false;
 }
 
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi * /*api*/, MegaChatRoom * /*chat*/)

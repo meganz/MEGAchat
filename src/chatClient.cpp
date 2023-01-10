@@ -975,6 +975,11 @@ promise::Promise<void> Client::setPublicChatToPrivate(karere::Id chatid)
     });
 }
 
+void Client::setSFUid(int sfuid)
+{
+    api.sdk.setSFUid(sfuid);
+}
+
 promise::Promise<uint64_t> Client::deleteChatLink(karere::Id chatid)
 {
     return api.call(&::mega::MegaApi::chatLinkDelete, chatid)
