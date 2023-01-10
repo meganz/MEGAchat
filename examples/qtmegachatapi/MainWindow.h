@@ -227,6 +227,7 @@ class MainWindow :
         void onPrintMyInfo();
         void on_mLogout_clicked();
         void onCatchUp();
+        void onSetSFUId();
         void onlastGreenVisibleClicked();
         void onChatsSettingsClicked();
         void onChatCheckPushNotificationRestrictionClicked();
