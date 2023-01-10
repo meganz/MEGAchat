@@ -366,6 +366,7 @@ private:
 
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
+    std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
@@ -410,6 +411,7 @@ public:
     void onChatsUpdate(mega::MegaApi* api, mega::MegaTextChatList *chats) override;
     void onRequestTemporaryError(::mega::MegaApi *, ::mega::MegaRequest *, ::mega::MegaError*) override {}
     void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests) override;
+    void onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList) override;
 
     // implementation for MegaChatRequestListener
     void onRequestStart(megachat::MegaChatApi* , megachat::MegaChatRequest *) override {}

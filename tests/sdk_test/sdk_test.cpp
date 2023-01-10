@@ -3942,11 +3942,13 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
 
     // Enable rich link
     bool enableRichLink = true;
+    bool* richPreviewEnabled = &mUsersChanged[a1][MegaUser::CHANGE_TYPE_RICH_PREVIEWS]; *richPreviewEnabled = false;
     TestMegaRequestListener requestListener(megaApi[a1], nullptr);
     megaApi[a1]->enableRichPreviews(enableRichLink, &requestListener);
     ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
     int error = requestListener.getErrorCode();
     ASSERT_CHAT_TEST(!error, "Failed to enable rich preview. Error: " + std::to_string(error));
+    ASSERT_CHAT_TEST(waitForResponse(richPreviewEnabled), "Richlink previews attr change not received, account" + std::to_string(a1+1) + ", after timeout: " +  std::to_string(maxTimeout) + " seconds");
 
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
@@ -4994,6 +4996,28 @@ void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestLi
     unsigned int apiIndex = getMegaApiIndex(api);
 
     mContactRequestUpdated[apiIndex] = true;
+}
+
+void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList)
+{
+    if (!userList) return;
+
+    unsigned int accountIndex = getMegaApiIndex(api);
+    for (int i = 0; i < userList->size(); i++)
+    {
+        ::mega::MegaUser* user = userList->get(i);
+        if (user->getHandle() != megaApi[accountIndex]->getMyUserHandleBinary())
+        {
+            // add here code to manage other users changes
+            continue;
+        }
+
+        // own user changes
+        if (user->hasChanged(MegaUser::CHANGE_TYPE_RICH_PREVIEWS))
+        {
+            mUsersChanged[accountIndex][MegaUser::CHANGE_TYPE_RICH_PREVIEWS] = true;
+        }
+    }
 }
 
 void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, MegaChatError *e)

@@ -134,14 +134,14 @@ Client::Client(karere::Client *aKarereClient) :
                 {
                 case '1':
                 {
-                    CHATD_LOG_DEBUG("chatd::client - Rich links enabled");
+                    CHATD_LOG_DEBUG("USER_ATTR_RICH_PREVIEWS user attribute enabled");
                     client->mRichLinkState = kRichLinkEnabled;
                     break;
                 }
 
                 case '0':
                 {
-                    CHATD_LOG_DEBUG("chatd::client - Rich links disabled");
+                    CHATD_LOG_DEBUG("USER_ATTR_RICH_PREVIEWS user attribute disabled");
                     client->mRichLinkState = kRichLinkDisabled;
                     break;
                 }
