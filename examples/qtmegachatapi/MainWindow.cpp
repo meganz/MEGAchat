@@ -1104,17 +1104,19 @@ void MainWindow::onAddChatSchedMeeting()
 
     std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,
-                                                                                         nullptr, byWeekDay.get(), nullptr, nullptr));
+                                                                                         MegaChatScheduledRules::UNTIL_INVALID,
+                                                                                         byWeekDay.get(), nullptr, nullptr));
 
 
     std::string timezone = mApp->getText("Get TimeZone (i.e: Europe/Madrid)", false);
-    std::string startDate = mApp->getText("Get StartDate (Format YYYYMMDDTHHMMSS)", false);
-    std::string endDate = mApp->getText("Get EndDate (Format YYYYMMDDTHHMMSS)", false);
+    MegaChatTimeStamp startDate = atoi(mApp->getText("Get StartDate (Format YYYYMMDDTHHMMSS)", false).c_str());
+    MegaChatTimeStamp endDate = atoi(mApp->getText("Get EndDate (Format YYYYMMDDTHHMMSS)", false).c_str());
     std::string title = mApp->getText("Get title", false);
     std::string description = mApp->getText("Get description", false);
 
-    mMegaChatApi->createChatAndScheduledMeeting(true /*isMeeting*/, true /*publicChat*/, false /*speakRequest*/, false /*waitingRoom*/, true /*openInvite*/,
-                                                timezone.c_str(), startDate.c_str(), endDate.c_str(), title.c_str(), description.c_str(),
+    MegaChatPeerList* peerList =  MegaChatPeerList::createInstance();
+    mMegaChatApi->createChatroomAndSchedMeeting(peerList, true /*isMeeting*/, true /*publicChat*/,  title.c_str(), false /*speakRequest*/, false /*waitingRoom*/, true /*openInvite*/,
+                                                timezone.c_str(), startDate, endDate, description.c_str(),
                                                 flags.get(), rules.get(), nullptr);
 }
 

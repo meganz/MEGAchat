@@ -1078,7 +1078,7 @@ public:
     promise::Promise<KarereScheduledMeeting*> createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting);
 
 
-    promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>> fetchScheduledMeetingOccurrences(uint64_t chatid, const char* since, const char* until, unsigned int count);
+    promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>> fetchScheduledMeetingOccurrences(uint64_t chatid, mega::m_time_t since, mega::m_time_t until, unsigned int count);
 
     /**
      * @brief This function allows to remove a scheduled meeting.
@@ -1188,7 +1188,7 @@ public:
      * the participants.
      */
     promise::Promise<karere::Id>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = NULL);
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = nullptr, std::shared_ptr<mega::MegaScheduledMeeting> sm = nullptr);
     void setCommitMode(bool commitEach);
     bool commitEach();
     void saveDb();  // forces a commit
@@ -1333,6 +1333,7 @@ public:
     } freq_type;
 
     constexpr static int INTERVAL_INVALID = 0;
+    constexpr static int UNTIL_INVALID = 0;
 
     // just for karere internal usage
     typedef std::vector<int8_t> karere_rules_vector;
@@ -1340,7 +1341,7 @@ public:
 
     KarereScheduledRules(int freq,
                    int interval = INTERVAL_INVALID,
-                   const std::string& until = std::string(),
+                   mega::m_time_t until = UNTIL_INVALID,
                    const karere_rules_vector* byWeekDay = nullptr,
                    const karere_rules_vector* byMonthDay = nullptr,
                    const karere_rules_map* byMonthWeekDay = nullptr);
@@ -1353,7 +1354,7 @@ public:
     // --- getters ---
     int freq() const;
     int interval() const;
-    const std::string &until() const;
+    ::mega::m_time_t until() const;
     const karere_rules_vector* byWeekDay() const;
     const karere_rules_vector* byMonthDay() const;
     const karere_rules_map* byMonthWeekDay() const;
@@ -1364,6 +1365,7 @@ public:
 
     static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
+    static bool isValidUntil(::mega::m_time_t until) { return until > UNTIL_INVALID; }
 
     // --- methods to un/serialize ---
     bool serialize(Buffer& out) const;
@@ -1377,7 +1379,7 @@ private:
     int mInterval = 0;
 
     // specifies when the repetitions should end
-    std::string mUntil;
+    ::mega::m_time_t mUntil;
 
     // allows us to specify that an event will only occur on given week day/s
     std::unique_ptr<karere_rules_vector> mByWeekDay;
@@ -1410,10 +1412,10 @@ public:
     } scheduled_changed_flags_t;
     typedef std::bitset<SC_FLAGS_SIZE> sched_bs_t;
 
-    KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime,
+    KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, ::mega::m_time_t startDateTime, ::mega::m_time_t endDateTime,
                                     const std::string& title, const std::string& description, karere::Id schedId = karere::Id::inval(),
                                     karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
-                                    const std::string& overrides = std::string(), KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
+                                    mega::m_time_t overrides = ::mega::MEGA_INVALID_TIMESTAMP, KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
 
     KarereScheduledMeeting(const KarereScheduledMeeting* karereScheduledMeeting);
     KarereScheduledMeeting(const mega::MegaScheduledMeeting* sm);
@@ -1426,12 +1428,12 @@ public:
     karere::Id parentSchedId() const;
     karere::Id organizerUserid() const;
     const std::string& timezone() const;
-    const std::string& startDateTime() const;
-    const std::string& endDateTime() const;
+    ::mega::m_time_t startDateTime() const;
+    ::mega::m_time_t endDateTime() const;
     const std::string& title() const;
     const std::string& description() const;
     const std::string& attributes() const;
-    const std::string& overrides() const;
+    mega::m_time_t overrides() const;
     int cancelled() const;
     KarereScheduledFlags* flags() const;
     KarereScheduledRules* rules() const;
@@ -1455,11 +1457,11 @@ private:
     // timeZone
     std::string mTimezone;
 
-    // start dateTime (format: 20220726T133000)
-    std::string mStartDateTime;
+    // start dateTime (unix timestamp)
+    ::mega::m_time_t mStartDateTime;
 
-    // end dateTime (format: 20220726T133000)
-    std::string mEndDateTime;
+    // end dateTime (unix timestamp)
+    ::mega::m_time_t mEndDateTime;
 
     // meeting title
     std::string mTitle;
@@ -1470,8 +1472,8 @@ private:
     // attributes to store any additional data
     std::string mAttributes;
 
-    // start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
-    std::string mOverrides;
+    // start dateTime of the original meeting series event to be replaced (unix timestamp)
+    ::mega::m_time_t mOverrides;
 
     // cancelled flag
     int mCancelled;
@@ -1487,7 +1489,7 @@ class KarereScheduledMeetingOccurr
 {
 public:
 
-    KarereScheduledMeetingOccurr(const karere::Id& schedId, const std::string& timezone, const std::string& startDateTime, const std::string& endDateTime, int cancelled = -1);
+    KarereScheduledMeetingOccurr(const karere::Id& schedId, const std::string& timezone, mega::m_time_t startDateTime, mega::m_time_t endDateTime, int cancelled = -1);
     KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* karereScheduledMeetingOccurr);
     KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* sm);
 
@@ -1496,8 +1498,8 @@ public:
 
     karere::Id schedId() const;
     const std::string& timezone() const;
-    const std::string& startDateTime() const;
-    const std::string& endDateTime() const;
+    ::mega::m_time_t startDateTime() const;
+    ::mega::m_time_t endDateTime() const;
     int cancelled() const;
 
 private:
@@ -1508,11 +1510,11 @@ private:
     // timeZone
     std::string mTimezone;
 
-    // start dateTime (format: 20220726T133000)
-    std::string mStartDateTime;
+    // start dateTime (unix timestamp)
+    ::mega::m_time_t mStartDateTime;
 
-    // end dateTime (format: 20220726T133000)
-    std::string mEndDateTime;
+    // end dateTime (unix timestamp)
+    ::mega::m_time_t mEndDateTime;
 
     // cancelled flag
     int mCancelled;
