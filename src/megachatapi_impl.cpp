@@ -1580,6 +1580,15 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            MegaChatHandle schedId = request->getUserHandle();
+            if (schedId != MEGACHAT_INVALID_HANDLE &&
+                    !dynamic_cast<GroupChatRoom *>(chatroom)->getScheduledMeetingsBySchedId(schedId))
+            {
+                API_LOG_ERROR("Start call - scheduled meeting id doesn't exists");
+                errorCode = MegaChatError::ERROR_NOENT;
+                break;
+            }
+
             bool enableVideo = request->getFlag();
             bool enableAudio = request->getParamType();
             karere::AvFlags avFlags(enableAudio, enableVideo);
@@ -1604,9 +1613,9 @@ void MegaChatApiImpl::sendPendingRequests()
                }
 
                bool isGroup = chatroom->isGroup();
-               pms.then([request, this, chatid, avFlags, isGroup] (shared_ptr<string> unifiedKey)
+               pms.then([request, this, chatid, avFlags, isGroup, schedId] (shared_ptr<string> unifiedKey)
                {
-                   mClient->rtc->startCall(chatid, avFlags, isGroup, unifiedKey)
+                   mClient->rtc->startCall(chatid, avFlags, isGroup, schedId, unifiedKey)
                    .then([request, this]()
                    {
                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -2867,7 +2876,7 @@ void MegaChatApiImpl::sendPendingRequests()
                  */
                 std::unique_ptr<::mega::MegaScheduledRules> megaRules(occurrSchedMeeting->rules() ? occurrSchedMeeting->rules()->getMegaScheduledRules() : nullptr);
                 megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(occurrSchedMeeting->chatid(), occurrSchedMeeting->schedId() /*schedId*/,
-                                                                                                                    MEGACHAT_INVALID_HANDLE /*parentId*/, occurrSchedMeeting->organizerUserid(),
+                                                                                                                    occurrSchedMeeting->parentSchedId(), occurrSchedMeeting->organizerUserid(),
                                                                                                                     newCancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
                                                                                                                     occurrSchedMeeting->title().c_str(),occurrSchedMeeting->description().c_str(),
                                                                                                                     occurrSchedMeeting->attributes().size() ? occurrSchedMeeting->attributes().c_str() :nullptr,
@@ -5457,12 +5466,13 @@ char *MegaChatApiImpl::getVideoDeviceSelected()
     return deviceName;
 }
 
-void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
+void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatHandle schedId, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_START_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
     request->setParamType(enableAudio);
+    request->setUserHandle(schedId);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -6081,6 +6091,12 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
         }
     }
     videoMutex.unlock();
+}
+
+void MegaChatApiImpl::setSFUid(int sfuid)
+{
+    SdkMutexGuard g(sdkMutex);
+    mClient->setSFUid(sfuid);
 }
 
 #endif  // webrtc
@@ -9520,6 +9536,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     lastMsgHandle = MEGACHAT_INVALID_HANDLE;
     mNumPreviewers = chatroom.getNumPreviewers();
     mDeleted = false;
+    mMeeting = chatroom.isMeeting();
 
     LastTextMsg tmp;
     LastTextMsg *message = &tmp;
@@ -9626,6 +9643,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     lastMsgHandle = item->getLastMessageHandle();
     mNumPreviewers = item->getNumPreviewers();
     mDeleted = item->isDeleted();
+    mMeeting = item->isMeeting();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -9744,7 +9762,12 @@ MegaChatHandle MegaChatListItemPrivate::getLastMessageHandle() const
 
 unsigned int MegaChatListItemPrivate::getNumPreviewers() const
 {
-   return mNumPreviewers;
+    return mNumPreviewers;
+}
+
+bool MegaChatListItemPrivate::isMeeting() const
+{
+    return mMeeting;
 }
 
 void MegaChatListItemPrivate::setOwnPriv(int ownPriv)

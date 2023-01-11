@@ -1032,7 +1032,12 @@ char *MegaChatApi::getVideoDeviceSelected()
 
 void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-    pImpl->startChatCall(chatid, enableVideo, enableAudio, listener);
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE /*schedId*/, listener);
+}
+
+void MegaChatApi::startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
+{
+   pImpl->startChatCall(chatid, enableVideo, enableAudio, schedId, listener);
 }
 
 void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
@@ -1236,6 +1241,10 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatH
     pImpl->removeChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, listener);
 }
 
+void MegaChatApi::setSFUid(int sfuid)
+{
+    pImpl->setSFUid(sfuid);
+}
 #endif
 
 void MegaChatApi::setCatchException(bool enable)
@@ -1899,7 +1908,12 @@ MegaChatHandle MegaChatListItem::getLastMessageHandle() const
 
 unsigned int MegaChatListItem::getNumPreviewers() const
 {
-   return 0;
+    return 0;
+}
+
+bool MegaChatListItem::isMeeting() const
+{
+    return false;
 }
 
 void MegaChatRoomListener::onChatRoomUpdate(MegaChatApi * /*api*/, MegaChatRoom * /*chat*/)

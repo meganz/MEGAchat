@@ -382,6 +382,7 @@ private:
     int lastMsgPriv;
     MegaChatHandle lastMsgHandle;
     unsigned int mNumPreviewers;
+    bool mMeeting;
 
 public:
     int getChanges() const override;
@@ -407,6 +408,7 @@ public:
     int getLastMessagePriv() const override;
     MegaChatHandle getLastMessageHandle() const override;
     unsigned int getNumPreviewers() const override;
+    bool isMeeting() const override;
 
     void setOwnPriv(int ownPriv);
     void setTitle(const std::string &title);
@@ -1321,6 +1323,7 @@ public:
     void removeSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
     void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
     void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
+    void setSFUid(int sfuid);
 #endif
 
     // MegaChatRequestListener callbacks
@@ -1511,7 +1514,7 @@ public:
     char *getVideoDeviceSelected();
 
     // Calls
-    void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);

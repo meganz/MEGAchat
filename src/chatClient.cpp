@@ -975,6 +975,11 @@ promise::Promise<void> Client::setPublicChatToPrivate(karere::Id chatid)
     });
 }
 
+void Client::setSFUid(int sfuid)
+{
+    api.sdk.setSFUid(sfuid);
+}
+
 promise::Promise<uint64_t> Client::deleteChatLink(karere::Id chatid)
 {
     return api.call(&::mega::MegaApi::chatLinkDelete, chatid)
@@ -4331,6 +4336,14 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
             }
         }
     }
+}
+
+const KarereScheduledMeeting* GroupChatRoom::getScheduledMeetingsBySchedId(const karere::Id& schedId) const
+{
+    auto it = mScheduledMeetings.find(schedId);
+    return it != mScheduledMeetings.end()
+            ? it->second.get()
+            : nullptr;
 }
 
 const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRoom::getScheduledMeetings() const

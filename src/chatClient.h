@@ -476,6 +476,9 @@ public:
      */
     promise::Promise<void> setChatRoomOption(int option, bool enabled);
 
+    // searchs a scheduled meeting by schedId
+    const KarereScheduledMeeting* getScheduledMeetingsBySchedId(const karere::Id& schedId) const;
+
     // maps a scheduled meeting id to a scheduled meeting
     // a scheduled meetings allows the user to specify an event that will occur in the future
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
@@ -1100,6 +1103,10 @@ public:
     /** @brief This function invalidates the current public handle
      */
     promise::Promise<uint64_t> deleteChatLink(karere::Id chatid);
+
+    /** @brief This function allows to set the SFU server where all chat calls will be started
+     */
+    void setSFUid(int sfuid);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache

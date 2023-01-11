@@ -82,7 +82,7 @@ private:
             t.mOKTests ++; \
             LOG_debug << "Finished test: " << title; \
         } \
-        catch(ChatTestException e) \
+        catch(const ChatTestException& e) \
         { \
             t.testHasFailed = true; \
             std::cout << e.what() << std::endl; \
@@ -196,7 +196,6 @@ private:
 
 class MegaChatApiTest :
         public ::mega::MegaListener,
-        public ::mega::MegaRequestListener,
         public ::mega::MegaTransferListener,
         public ::mega::MegaLogger,
         public megachat::MegaChatRequestListener,
@@ -391,43 +390,41 @@ private:
     static const std::string DOWNLOAD_PATH;
 
 public:
-    // implementation for MegaRequestListener
-    virtual void onRequestStart(::mega::MegaApi *api, ::mega::MegaRequest *request) {}
-    virtual void onRequestUpdate(::mega::MegaApi*api, ::mega::MegaRequest *request) {}
-    virtual void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e);
-    virtual void onRequestTemporaryError(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError* error) {}
-    void onChatsUpdate(mega::MegaApi* api, mega::MegaTextChatList *chats) override;
-
     // implementation for MegaListener
-    virtual void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests);
+    void onRequestStart(::mega::MegaApi *, ::mega::MegaRequest *) override {}
+    void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e) override;
+    void onRequestUpdate(::mega::MegaApi*, ::mega::MegaRequest *) override {}
+    void onChatsUpdate(mega::MegaApi* api, mega::MegaTextChatList *chats) override;
+    void onRequestTemporaryError(::mega::MegaApi *, ::mega::MegaRequest *, ::mega::MegaError*) override {}
+    void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests) override;
 
     // implementation for MegaChatRequestListener
-    virtual void onRequestStart(megachat::MegaChatApi* api, megachat::MegaChatRequest *request) {}
-    virtual void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e);
-    virtual void onRequestUpdate(megachat::MegaChatApi*api, megachat::MegaChatRequest *request) {}
-    virtual void onRequestTemporaryError(megachat::MegaChatApi *api, megachat::MegaChatRequest *request, megachat::MegaChatError* error) {}
+    void onRequestStart(megachat::MegaChatApi* , megachat::MegaChatRequest *) override {}
+    void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e) override;
+    void onRequestUpdate(megachat::MegaChatApi*, megachat::MegaChatRequest *) override {}
+    void onRequestTemporaryError(megachat::MegaChatApi *, megachat::MegaChatRequest *, megachat::MegaChatError*) override {}
 
     // implementation for MegaChatListener
-    virtual void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState);
-    virtual void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item);
-    virtual void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress);
-    virtual void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config);
-    virtual void onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state);
+    void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState) override;
+    void onChatListItemUpdate(megachat::MegaChatApi* api, megachat::MegaChatListItem *item) override;
+    void onChatOnlineStatusUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle userhandle, int status, bool inProgress) override;
+    void onChatPresenceConfigUpdate(megachat::MegaChatApi* api, megachat::MegaChatPresenceConfig *config) override;
+    void onChatConnectionStateUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, int state) override;
 
-    virtual void onTransferStart(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
-    virtual void onTransferFinish(::mega::MegaApi* api, ::mega::MegaTransfer *transfer, ::mega::MegaError* error);
-    virtual void onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer);
-    virtual void onTransferTemporaryError(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError* error);
-    virtual bool onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size);
+    void onTransferStart(::mega::MegaApi *api, ::mega::MegaTransfer *transfer) override;
+    void onTransferFinish(::mega::MegaApi* api, ::mega::MegaTransfer *transfer, ::mega::MegaError* error) override;
+    void onTransferUpdate(::mega::MegaApi *api, ::mega::MegaTransfer *transfer) override;
+    void onTransferTemporaryError(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, ::mega::MegaError* error) override;
+    bool onTransferData(::mega::MegaApi *api, ::mega::MegaTransfer *transfer, char *buffer, size_t size) override;
 
 #ifndef KARERE_DISABLE_WEBRTC
-    virtual void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
-    virtual void onChatSessionUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid,
+    void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call) override;
+    void onChatSessionUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid,
                                      megachat::MegaChatHandle callid,
-                                     megachat::MegaChatSession *session);
+                                     megachat::MegaChatSession *session) override;
 
-    virtual void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm) override;
-    virtual void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid) override;
+    void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm) override;
+    void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid) override;
 #endif
 };
 
@@ -507,23 +504,23 @@ public:
    void onDbError(int error, const std::string &msg) override;
 };
 
-typedef std::function<void(::mega::MegaError& e, ::mega::MegaRequest& request)> OnReqFinish;
-
-struct RequestTracker : public ::mega::MegaRequestListener
+class RequestTracker : public ::mega::MegaRequestListener
 {
     std::atomic<bool> started = { false };
     std::atomic<bool> finished = { false };
     std::atomic<::mega::ErrorCodes> result = { ::mega::ErrorCodes::API_EINTERNAL };
     std::promise<::mega::ErrorCodes> promiseResult;
-    ::mega::MegaApi *mApi;
+    ::mega::MegaApi *mApi = nullptr;
 
-    ::mega::unique_ptr<::mega::MegaRequest> request;
-
+    using OnReqFinish = std::function<void(::mega::MegaError& e, ::mega::MegaRequest& request)>;
     OnReqFinish onFinish;
 
-    RequestTracker(::mega::MegaApi *api, OnReqFinish finish = nullptr)
+public:
+    ::mega::unique_ptr<::mega::MegaRequest> request;
+
+    RequestTracker(::mega::MegaApi *api, OnReqFinish onFin = nullptr)
         : mApi(api)
-        , onFinish(finish)
+        , onFinish(onFin)
     {
     }
 
@@ -534,20 +531,22 @@ struct RequestTracker : public ::mega::MegaRequestListener
     {
     }
 
-    void onRequestStart(::mega::MegaApi* api, ::mega::MegaRequest *request) override
+    void onRequestStart(::mega::MegaApi*, ::mega::MegaRequest*) override
     {
         started = true;
     }
-    void onRequestFinish(::mega::MegaApi* api, ::mega::MegaRequest *request,
+
+    void onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest *req,
                          ::mega::MegaError* e) override
     {
-        if (onFinish) onFinish(*e, *request);
+        if (onFinish) onFinish(*e, *req);
 
         result = ::mega::ErrorCodes(e->getErrorCode());
-        this->request.reset(request->copy());
+        request.reset(req ? req->copy() : nullptr);
         finished = true;
         promiseResult.set_value(static_cast<::mega::ErrorCodes>(result));
     }
+
     ::mega::ErrorCodes waitForResult(int seconds = maxTimeout, bool unregisterListenerOnTimeout = true)
     {
         auto f = promiseResult.get_future();
@@ -558,7 +557,7 @@ struct RequestTracker : public ::mega::MegaRequestListener
             {
                 mApi->removeRequestListener(this);
             }
-            return static_cast<::mega::ErrorCodes>(-999); // local timeout
+            return static_cast<mega::ErrorCodes>(-999); // local timeout
         }
         return f.get();
     }
@@ -566,21 +565,18 @@ struct RequestTracker : public ::mega::MegaRequestListener
     ::mega::MegaHandle getNodeHandle()
     {
         // if the operation succeeded and supplies a node handle
-        if (request) return request->getNodeHandle();
-        return ::mega::INVALID_HANDLE;
+        return request ? request->getNodeHandle() : ::mega::INVALID_HANDLE;
     }
 
     std::string getLink()
     {
-        // if the operation succeeded and supplies a link
-        if (request && request->getLink()) return request->getLink();
-        return "";
+        // if the operation succeeded and supplied a link
+        return request && request->getLink() ? request->getLink() : std::string();
     }
 
     ::mega::unique_ptr<::mega::MegaNode> getPublicMegaNode()
     {
-        if (request) return ::mega::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode());
-        return nullptr;
+        return request ? ::mega::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode()) : nullptr;
     }
 };
 
