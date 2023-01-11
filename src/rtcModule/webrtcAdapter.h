@@ -518,7 +518,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;
     void releaseDevice() override;
-    webrtc::VideoTrackSourceInterface getVideoTrackSource() override;
+    webrtc::VideoTrackSourceInterface* getVideoTrackSource() override;
 
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
