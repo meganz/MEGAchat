@@ -11,7 +11,6 @@
 #include <cryptopp/modes.h>
 #include <mega.h>
 using namespace mega;
-using namespace std;
 using namespace karere;
 using namespace CryptoPP;
 namespace rtcModule
