@@ -9,7 +9,7 @@ We strongly recommend to user the pre-built library, rather than build it by you
     cd webrtcAndroid
     fetch --nohooks webrtc_android
     cd src
-    git checkout 954f7274ac91594d0e06ec052d0d0401631d02ee
+    git checkout 93081d594f7efff72958a79251f53731b99e902b
     gclient sync
 ```
 Before compile, you need to modify the file `./buildtools/third_party/libc++/trunk/include/__config`
