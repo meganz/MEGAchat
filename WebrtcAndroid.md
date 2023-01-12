@@ -12,43 +12,75 @@ We strongly recommend to user the pre-built library, rather than build it by you
     git checkout 93081d594f7efff72958a79251f53731b99e902b
     gclient sync
 ```
-Before compile, you need to modify the file `./buildtools/third_party/libc++/trunk/include/__config`
+Before compile, you need to modify files
+
+- `./buildtools/third_party/libc++/__config_site
+```
+@@ -12,7 +12,7 @@
+ //    limit for PDBs (https://crbug.com/1327710#c5). To fix this, we set
+ //    _LIBCPP_ABI_NAMESPACE to a shorter value.
+ #define _LIBCPP_ABI_NAMESPACE Cr
+-#define _LIBCPP_ABI_VERSION 2
++#define _LIBCPP_ABI_VERSION 1
+
+ /* #undef _LIBCPP_ABI_FORCE_ITANIUM */
+```
+
+- `./buildtools/third_party/libc++/trunk/include/__config`
+```
+@@ -42,6 +42,8 @@
+ #  define _LIBCPP_CONCAT_IMPL(_X, _Y) _X##_Y
+ #  define _LIBCPP_CONCAT(_X, _Y) _LIBCPP_CONCAT_IMPL(_X, _Y)
+
++# define _LIBCPP_ABI_NAMESPACE _LIBCPP_CONCAT(__ndk,_LIBCPP_ABI_VERSION)
++
+ // Valid C++ identifier that revs with every libc++ version. This can be used to
+```
+
+- `./buildtools/third_party/libc++/trunk/include/__assert`
+```
+@@ -45,7 +45,7 @@
+ # define _LIBCPP_ASSERT(expression, message)                                        \
+     (__builtin_expect(static_cast<bool>(expression), 1) ?                           \
+       (void)0 :                                                                     \
+-      ::std::__libcpp_verbose_abort("%s:%d: assertion %s failed: %s", __FILE__, __LINE__, #expression, message))
++      (void)0 )
+ #elif !defined(_LIBCPP_ASSERTIONS_DISABLE_ASSUME) && __has_builtin(__builtin_assume)
+ # define _LIBCPP_ASSERT(expression, message)                                        \
+     (_LIBCPP_DIAGNOSTIC_PUSH                                                        \
 
 ```
-@@ -137,7 +137,7 @@
- #define _LIBCPP_CONCAT(_LIBCPP_X,_LIBCPP_Y) _LIBCPP_CONCAT1(_LIBCPP_X,_LIBCPP_Y)
- 
- #ifndef _LIBCPP_ABI_NAMESPACE
--# define _LIBCPP_ABI_NAMESPACE _LIBCPP_CONCAT(__,_LIBCPP_ABI_VERSION)
-+# define _LIBCPP_ABI_NAMESPACE _LIBCPP_CONCAT(__ndk,_LIBCPP_ABI_VERSION)
- #endif
-```
+
 
 Now, you are ready to start building the library. We recommend to compile every architecture in different console in order to reset the environment variable `LD_LIBRARY_PATH`, and always use absolute paths.
 
 ### Arm 32 ###
 `export WebRTC_output_arm32=``pwd``/out/Release-arm32`
-`gn gen $WebRTC_output_arm32 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android32_ndk_api_level=21'`
+
+`gn gen $WebRTC_output_arm32 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true android32_ndk_api_level=21'`
 
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WebRTC_output_arm32/clang_x64`
 
 `ninja -C $WebRTC_output_arm32`
 ### Arm 64 ###
 `export WebRTC_output_arm64=``pwd``/out/Release-arm64`
-`gn gen $WebRTC_output_arm64 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm64" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android64_ndk_api_level=21'`
+
+`gn gen $WebRTC_output_arm64 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="arm64" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true android64_ndk_api_level=21'`
 
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WebRTC_output_arm64/clang_x64`
 
 `ninja -C $WebRTC_output_arm64`
 ### x86 ###
 `export WebRTC_output_x86=``pwd``/out/Release-x86`
-`gn gen $WebRTC_output_x86 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="x86" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true libcxx_abi_unstable=false android32_ndk_api_level=21'`
+
+`gn gen $WebRTC_output_x86 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="x86" rtc_build_examples=false rtc_build_tools=false rtc_enable_protobuf=false libcxx_is_shared=true android32_ndk_api_level=21'`
 
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WebRTC_output_x86/clang_x64`
 
 `ninja -C $WebRTC_output_x86`
 ### x64 ###
 `export WebRTC_output_x86_64=``pwd``/out/Release-x86_64`
+
 `gn gen $WebRTC_output_x86_64 --args='treat_warnings_as_errors=false fatal_linker_warnings=false rtc_include_tests=false target_os="android" target_cpu="x64" rtc_build_examples=false rtc_build_tools=true android64_ndk_api_level=21'`
 
 `export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$WebRTC_output_x86_64/clang_x64`
