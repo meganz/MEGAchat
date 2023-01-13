@@ -3339,7 +3339,6 @@ Message *Chat::removeRichLink(Message &message, const string& content)
 
 void Chat::requestPendingRichLinks()
 {
-    CHATID_LOG_DEBUG("calling requestPendingRichLinks");
     for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin();
          it != mMsgsToUpdateWithRichLink.end();
          it++)
@@ -4291,7 +4290,6 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 // msgid can be 0 in case of rejections
 Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
 {
-    CHATID_LOG_WARNING("Calling msgConfirm");
     Message* msg = msgRemoveFromSending(msgxid, msgid);
     if (!msg)
         return CHATD_IDX_INVALID;
@@ -4397,10 +4395,6 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
             CHATID_LOG_WARNING("richLinkState is disabled");
             manageRichLinkMessage(*msg);
         }
-    }
-    else
-    {
-        CHATID_LOG_WARNING("msg->type is not Message::kMsgNormal");
     }
 
     return idx;
@@ -4528,7 +4522,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 //first, if it was us who updated the message confirm the update by removing any
 //queued msgupds from sending, even if they are not the same edit (i.e. a received
 //MSGUPD from another client with out user will cancel any pending edit by our client
-    CHATID_LOG_WARNING("Calling onMsgUpdated");
     time_t updateTs = 0;
     bool richLinkRemoved = false;
 
@@ -4647,7 +4640,6 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
 void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Message* msg)
 {
-    CHATID_LOG_WARNING("Calling onMsgUpdatedAfterDecrypt");
     assert(!msg->isPendingToDecrypt()); //either decrypted or error
     if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
     {
