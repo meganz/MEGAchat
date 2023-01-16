@@ -31,6 +31,7 @@ namespace megachat
 {
 
 typedef uint64_t MegaChatHandle;
+typedef int64_t MegaChatTimeStamp; // unix timestamp
 typedef int MegaChatIndex;  // int32_t
 
 /**
@@ -42,6 +43,7 @@ typedef int MegaChatIndex;  // int32_t
  */
 const MegaChatHandle MEGACHAT_INVALID_HANDLE = ~(MegaChatHandle)0;
 const MegaChatIndex MEGACHAT_INVALID_INDEX = 0x7fffffff;
+const MegaChatTimeStamp MEGACHAT_INVALID_TIMESTAMP = 0;
 
 class MegaChatApi;
 class MegaChatApiImpl;
@@ -4102,8 +4104,8 @@ public:
      * A moderator user must grant each user access to the call.
      * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param startDate start date time of the meeting with the format (unix timestamp)
+     * @param endDate end date time of the meeting with the format (unix timestamp)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
@@ -4112,7 +4114,7 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
-                                                     const char* timezone, const char* startDate, const char* endDate, const char* title, const char* description,
+                                                     const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
                                                      const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr,
                                                      MegaChatRequestListener* listener = nullptr);
     /**
@@ -4140,15 +4142,15 @@ public:
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
      * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param startDate start date time of the meeting with the format (unix timestamp)
+     * @param endDate end date time of the meeting with the format (unix timestamp)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param listener MegaChatRequestListener to track this request
      */
-    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, const char* startDate, const char* endDate,
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
                                                                          const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                          MegaChatRequestListener* listener = nullptr);
 
@@ -4183,14 +4185,14 @@ public:
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
-     * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param overrides new start date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param newEndDate new end date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp)
+     * @param overrides new start date time of the occurrence with the format (unix timestamp)
+     * @param newEndDate new end date time of the occurrence with the format (unix timestamp)
      * @param cancelled True if scheduled meeting is going to be cancelled
      * @param listener MegaChatRequestListener to track this request
      */
-    void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, const char* overrides,  const char* newStartDate,
-                                          const char* newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
+    void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides,  MegaChatTimeStamp newStartDate,
+                                          MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
 
     /**
      * @brief Removes a scheduled meeting by scheduled meeting id and chatid
@@ -7596,7 +7598,7 @@ public:
      */
     static MegaChatScheduledRules* createInstance(int freq,
                                                   int interval = INTERVAL_INVALID,
-                                                  const char* until = nullptr,
+                                                  MegaChatTimeStamp until = MEGACHAT_INVALID_TIMESTAMP,
                                                   const ::mega::MegaIntegerList* byWeekDay = nullptr,
                                                   const ::mega::MegaIntegerList* byMonthDay = nullptr,
                                                   const ::mega::MegaIntegerMap* byMonthWeekDay = nullptr);
@@ -7632,7 +7634,7 @@ public:
      *
      * @return When the repetitions should end
      */
-    virtual const char* until() const;
+    virtual MegaChatTimeStamp until() const;
 
     /**
      * @brief Returns a MegaIntegerList with the week days when the event will occur
@@ -7712,21 +7714,21 @@ public:
      * @param parentSchedId : parent scheduled meeting handle
      * @param cancelled     : cancelled flag
      * @param timezone      : timeZone
-     * @param startDateTime : start dateTime (format: 20220726T133000)
-     * @param endDateTime   : end dateTime (format: 20220726T133000)
+     * @param startDateTime : start dateTime (unix timestamp)
+     * @param endDateTime   : end dateTime (unix timestamp)
      * @param title         : meeting title
      * @param description   : meeting description
      * @param attributes    : attributes to store any additional data
-     * @param overrides     : start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
+     * @param overrides     : start dateTime of the original meeting series event to be replaced (unix timestamp)
      * @param flags         : flags bitmask (used to store additional boolean settings as a bitmask)
      * @param rules         : scheduled meetings rules
      *
      * @return A pointer to the superclass of the private object
      */
     static MegaChatScheduledMeeting* createInstance (MegaChatHandle chatid, MegaChatHandle schedId, MegaChatHandle parentSchedId, MegaChatHandle organizerUserId,
-                                                     int cancelled, const char* timezone, const char* startDateTime,
-                                                     const char* endDateTime, const char* title, const char* description, const char* attributes,
-                                                     const char* overrides, const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules);
+                                                     int cancelled, const char* timezone, MegaChatTimeStamp startDateTime,
+                                                     MegaChatTimeStamp endDateTime, const char* title, const char* description, const char* attributes,
+                                                     MegaChatTimeStamp overrides, const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules);
 
     /**
      * @brief Creates a copy of this MegaChatScheduledMeeting object
@@ -7826,18 +7828,18 @@ public:
     virtual const char* timezone() const;
 
     /**
-     * @brief Returns the start dateTime of the scheduled Meeting (format: 20220726T133000)
+     * @brief Returns the start dateTime of the scheduled Meeting (unix timestamp)
      *
      * @return the start dateTime of the scheduled Meeting
      */
-    virtual const char* startDateTime() const;
+    virtual MegaChatTimeStamp startDateTime() const;
 
     /**
-     * @brief Returns the end dateTime of the scheduled Meeting (format: 20220726T133000)
+     * @brief Returns the end dateTime of the scheduled Meeting (unix timestamp)
      *
      * @return the end dateTime of the scheduled Meeting
      */
-    virtual const char* endDateTime() const;
+    virtual MegaChatTimeStamp endDateTime() const;
 
     /**
      * @brief Returns the scheduled meeting title
@@ -7861,11 +7863,11 @@ public:
     virtual const char* attributes() const;
 
     /**
-     * @brief Returns the start dateTime of the original meeting series event to be replaced (format: 20220726T133000)
+     * @brief Returns the start dateTime of the original meeting series event to be replaced (unix timestamp)
      *
      * @return the start dateTime of the original meeting series event to be replaced
      */
-    virtual const char* overrides() const;
+    virtual MegaChatTimeStamp overrides() const;
 
     /**
      * @brief Returns a pointer to MegaChatScheduledFlags that contains the scheduled meetings flags
@@ -7931,18 +7933,18 @@ public:
     virtual const char* timezone() const;
 
     /**
-     * @brief Returns the start dateTime of the scheduled Meeting occurrence (format: 20220726T133000)
+     * @brief Returns the start dateTime of the scheduled Meeting occurrence (unix timestamp)
      *
      * @return the start dateTime of the scheduled Meeting occurrence
      */
-    virtual const char* startDateTime() const;
+    virtual MegaChatTimeStamp startDateTime() const;
 
     /**
-     * @brief Returns the end dateTime of the scheduled Meeting occurrence (format: 20220726T133000)
+     * @brief Returns the end dateTime of the scheduled Meeting occurrence (unix timestamp)
      *
      * @return the end dateTime of the scheduled Meeting occurrence
      */
-    virtual const char* endDateTime() const;
+    virtual MegaChatTimeStamp endDateTime() const;
 };
 
 /**

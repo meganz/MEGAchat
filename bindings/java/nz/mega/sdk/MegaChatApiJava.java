@@ -870,8 +870,8 @@ public class MegaChatApiJava {
      * A moderator user must grant each user access to the call.
      * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param startDate Start date time of the meeting in Unix timestamp
+     * @param endDate End date time of the meeting in Unix timestamp
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
@@ -880,7 +880,7 @@ public class MegaChatApiJava {
      * @param listener MegaChatRequestListener to track this request
      */
     public void createChatAndScheduledMeeting(boolean isMeeting, boolean publicChat, boolean speakRequest, boolean waitingRoom, boolean openInvite,
-                                              String timezone, String startDate, String endDate, String title, String description, MegaChatScheduledFlags flags,
+                                              String timezone, long startDate, long endDate, String title, String description, MegaChatScheduledFlags flags,
                                               MegaChatScheduledRules rules, String attributes, MegaChatRequestListenerInterface listener) {
         megaChatApi.createChatAndScheduledMeeting(isMeeting, publicChat, speakRequest, waitingRoom, openInvite, timezone, startDate, endDate, title, description,
                 flags, rules, attributes, createDelegateRequestListener(listener));
@@ -915,8 +915,8 @@ public class MegaChatApiJava {
      *                     A moderator user must grant each user access to the call.
      * @param openInvite   to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @param timezone     Timezone where we want to schedule the meeting
-     * @param startDate    start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate      end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param startDate    Start date time of the meeting in Unix timestamp
+     * @param endDate      End date time of the meeting in Unix timestamp
      * @param title        Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
      * @param description  Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
      * @param flags        Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
@@ -924,7 +924,7 @@ public class MegaChatApiJava {
      * @param attributes   - not supported yet
      */
     public void createChatAndScheduledMeeting(boolean isMeeting, boolean publicChat, boolean speakRequest, boolean waitingRoom, boolean openInvite,
-                                              String timezone, String startDate, String endDate, String title, String description, MegaChatScheduledFlags flags,
+                                              String timezone, long startDate, long endDate, String title, String description, MegaChatScheduledFlags flags,
                                               MegaChatScheduledRules rules, String attributes) {
         megaChatApi.createChatAndScheduledMeeting(isMeeting, publicChat, speakRequest, waitingRoom, openInvite, timezone, startDate, endDate, title, description, flags, rules, attributes);
     }
@@ -958,15 +958,15 @@ public class MegaChatApiJava {
      *                     A moderator user must grant each user access to the call.
      * @param openInvite   to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @param timezone     Timezone where we want to schedule the meeting
-     * @param startDate    start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate      end date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param startDate    Start date time of the meeting in Unix timestamp
+     * @param endDate      End date time of the meeting in Unix timestamp
      * @param title        Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
      * @param description  Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
      * @param flags        Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules        Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      */
     public void createChatAndScheduledMeeting(boolean isMeeting, boolean publicChat, boolean speakRequest, boolean waitingRoom, boolean openInvite,
-                                              String timezone, String startDate, String endDate, String title, String description, MegaChatScheduledFlags flags,
+                                              String timezone, long startDate, long endDate, String title, String description, MegaChatScheduledFlags flags,
                                               MegaChatScheduledRules rules) {
         megaChatApi.createChatAndScheduledMeeting(isMeeting, publicChat, speakRequest, waitingRoom, openInvite, timezone, startDate, endDate, title, description, flags, rules);
     }
@@ -993,15 +993,15 @@ public class MegaChatApiJava {
      * @param chatid      MegaChatHandle that identifies a chat room
      * @param schedId     MegaChatHandle that identifies the scheduled meeting
      * @param timezone    Timezone where we want to schedule the meeting
-     * @param startDate   Start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate     End date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param startDate   Start date time of the meeting in Unix timestamp
+     * @param endDate     End date time of the meeting in Unix timestamp
      * @param title       Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
      * @param flags       Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules       Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param listener    MegaChatRequestListener to track this request
      */
-    public void updateScheduledMeeting(long chatid, long schedId, String timezone, String startDate, String endDate, String title, String description, MegaChatScheduledFlags flags, MegaChatScheduledRules rules, MegaChatRequestListenerInterface listener) {
+    public void updateScheduledMeeting(long chatid, long schedId, String timezone, long startDate, long endDate, String title, String description, MegaChatScheduledFlags flags, MegaChatScheduledRules rules, MegaChatRequestListenerInterface listener) {
         megaChatApi.updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, flags, rules, createDelegateRequestListener(listener));
     }
 
@@ -1027,14 +1027,14 @@ public class MegaChatApiJava {
      * @param chatid      MegaChatHandle that identifies a chat room
      * @param schedId     MegaChatHandle that identifies the scheduled meeting
      * @param timezone    Timezone where we want to schedule the meeting
-     * @param startDate   Start date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param endDate     End date time of the meeting with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param startDate   Start date time of the meeting in Unix timestamp
+     * @param endDate     End date time of the meeting in Unix timestamp
      * @param title       Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
      * @param flags       Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules       Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      */
-    public void updateScheduledMeeting(long chatid, long schedId, String timezone, String startDate, String endDate, String title, String description, MegaChatScheduledFlags flags, MegaChatScheduledRules rules) {
+    public void updateScheduledMeeting(long chatid, long schedId, String timezone, long startDate, long endDate, String title, String description, MegaChatScheduledFlags flags, MegaChatScheduledRules rules) {
         megaChatApi.updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, flags, rules);
     }
 
@@ -1059,13 +1059,13 @@ public class MegaChatApiJava {
      *
      * @param chatid       MegaChatHandle that identifies a chat room
      * @param schedId      MegaChatHandle that identifies the scheduled meeting
-     * @param newStartDate start date time that along with schedId identifies the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param overrides    new start date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param newEndDate   new end date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param newStartDate start date time that along with schedId identifies the occurrence in Unix timestamp
+     * @param overrides    new start date time of the occurrence in Unix timestamp
+     * @param newEndDate   new end date time of the occurrence in Unix timestamp
      * @param newCancelled True if scheduled meeting is going to be cancelled
      * @param listener     MegaChatRequestListener to track this request
      */
-    public void updateScheduledMeetingOccurrence(long chatid, long schedId, String overrides, String newStartDate, String newEndDate, boolean newCancelled, MegaChatRequestListenerInterface listener) {
+    public void updateScheduledMeetingOccurrence(long chatid, long schedId, long overrides, long newStartDate, long newEndDate, boolean newCancelled, MegaChatRequestListenerInterface listener) {
         megaChatApi.updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate, newCancelled, createDelegateRequestListener(listener));
     }
 
@@ -1090,12 +1090,12 @@ public class MegaChatApiJava {
      *
      * @param chatid       MegaChatHandle that identifies a chat room
      * @param schedId      MegaChatHandle that identifies the scheduled meeting
-     * @param newStartDate start date time that along with schedId identifies the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param overrides    new start date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
-     * @param newEndDate   new end date time of the occurrence with the format (ISO8601 Stripped): 20220726T133000 (UTC)
+     * @param newStartDate start date time that along with schedId identifies the occurrence in Unix timestamp
+     * @param overrides    new start date time of the occurrence in Unix timestamp
+     * @param newEndDate   new end date time of the occurrence in Unix timestamp
      * @param newCancelled True if scheduled meeting is going to be cancelled
      */
-    public void updateScheduledMeetingOccurrence(long chatid, long schedId, String overrides, String newStartDate, String newEndDate, boolean newCancelled) {
+    public void updateScheduledMeetingOccurrence(long chatid, long schedId, long overrides, long newStartDate, long newEndDate, boolean newCancelled) {
         megaChatApi.updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate, newCancelled);
     }
 

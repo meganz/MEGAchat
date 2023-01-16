@@ -75,16 +75,12 @@ using namespace megachat;
     return @(val);
 }
 
-- (NSString *)startDateTime {
-    const char *val = self.megaChatScheduledMeeting->startDateTime();
-    if (!val) return nil;
-    return @(val);
+- (uint64_t)startDateTime {
+    return self.megaChatScheduledMeeting->startDateTime();
 }
 
-- (NSString *)endDateTime {
-    const char *val = self.megaChatScheduledMeeting->endDateTime();
-    if (!val) return nil;
-    return @(val);
+- (uint64_t)endDateTime {
+    return self.megaChatScheduledMeeting->endDateTime();
 }
 
 - (NSString *)title {
@@ -105,10 +101,8 @@ using namespace megachat;
     return @(val);
 }
 
-- (NSString *)overrides {
-    const char *val = self.megaChatScheduledMeeting->overrides();
-    if (!val) return nil;
-    return @(val);
+- (uint64_t)overrides {
+    return self.megaChatScheduledMeeting->overrides();
 }
 
 - (MEGAChatScheduledFlags *)flags {

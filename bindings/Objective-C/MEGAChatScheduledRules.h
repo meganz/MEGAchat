@@ -15,7 +15,7 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledRulesFrequency) {
 
 @property (readonly, nonatomic) MEGAChatScheduledRulesFrequency frequency;
 @property (readonly, nonatomic) NSInteger interval;
-@property (readonly, nonatomic) NSString *until;
+@property (readonly, nonatomic) uint64_t until;
 
 - (instancetype)clone;
 - (NSArray <NSNumber *>*)byWeekDay;
