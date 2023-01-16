@@ -76,6 +76,7 @@ int main(int argc, char **argv)
 
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
     EXECUTE_TEST(t.TEST_EstablishedCalls(0, 1), "TEST Groupal meeting without audio nor video");
+    EXECUTE_TEST(t.TEST_ScheduledMeetings(0, 1), "TEST Scheduled meetings");
 #endif
 
     // The tests below are manual tests. They require the call to be answered from another client
@@ -342,6 +343,7 @@ void MegaChatApiTest::SetUp()
 
 #ifndef KARERE_DISABLE_WEBRTC
         megaChatApi[i]->addChatCallListener(this);
+        megaChatApi[i]->addSchedMeetingListener(this);
 #endif
 
         // kill all sessions to ensure no interferences from other tests running in parallel
@@ -410,11 +412,13 @@ void MegaChatApiTest::SetUp()
         mCallInProgress[i] = false;
         mCallDestroyed[i] = false;
         mCallConnecting[i] = false;
+        mChatSchedMeeting[i] = false;
         mChatIdRingInCall[i] = MEGACHAT_INVALID_HANDLE;
         mTerminationCode[i] = 0;
         mChatIdInProgressCall[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdRingIn[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdJoining[i] = MEGACHAT_INVALID_HANDLE;
+        mIdSchedMeeting[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdExpectedReceived[i] = MEGACHAT_INVALID_HANDLE;
         mLocalVideoListener[i] = NULL;
         mRemoteVideoListener[i] = NULL;
@@ -458,6 +462,7 @@ void MegaChatApiTest::TearDown()
 
 #ifndef KARERE_DISABLE_WEBRTC
             megaChatApi[i]->removeChatCallListener(this);
+            megaChatApi[i]->removeSchedMeetingListener(this);
 #endif
             megaChatApi[i]->removeChatRequestListener(this);
             megaChatApi[i]->removeChatListener(this);
@@ -722,6 +727,40 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
     }
 
     return true;    // response is received
+}
+
+void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<string>& flagsStr, const std::string& actionMsg,  bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action)
+{
+    ASSERT_CHAT_TEST(exitFlags.size() == flagsStr.size() || flagsStr.empty(), "waitForCallAction: no valid action provided");
+    ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
+
+    if (resetFlags)
+    {
+        for (auto f: exitFlags)
+        {
+            if (f) { *f = false; }
+        }
+    }
+
+    int retries = 0;
+    while (!exitWait(exitFlags, waitForAll))
+    {
+        action();
+        if (!waitForMultiResponse(exitFlags, waitForAll, timeout))
+        {
+            std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(": ");
+            for (size_t i = 0; i < exitFlags.size(); i++)
+            {
+                (i > flagsStr.size())
+                        ? msg.append("Flag_").append(std::to_string(i))
+                        : msg.append(flagsStr.at(i));
+
+                msg.append(" = ").append(*exitFlags.at(i) ? "true" : "false").append(" ");
+            }
+            LOG_debug << msg;
+            ASSERT_CHAT_TEST(++retries <= maxAttempts, "Max attempts exceeded for " + actionMsg);
+        }
+    }
 }
 
 
@@ -3590,43 +3629,6 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         }
     };
 
-    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
-    std::function<void(int, std::vector<bool*>, const std::vector<string>&, const std::string&, bool,  unsigned int, std::function<void()>)> waitForAction =
-    [this]
-    (int maxAttempts, std::vector<bool*> exitFlags, const std::vector<string>& flagsStr, const std::string& actionMsg, bool resetFlags, unsigned int timeout, std::function<void()>action)
-    {
-        ASSERT_CHAT_TEST(exitFlags.size() == flagsStr.size() || flagsStr.empty(), "waitForCallAction: no valid action provided");
-        ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
-
-        if (resetFlags)
-        {
-            for (auto f: exitFlags)
-            {
-                if (f) { *f = false; }
-            }
-        }
-
-        int retries = 0;
-        while (!exitWait(exitFlags, true /*waitForAll*/))
-        {
-            action();
-            if (!waitForMultiResponse(exitFlags, true /*waitForAll*/, timeout))
-            {
-                std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(": ");
-                for (size_t i = 0; i < exitFlags.size(); i++)
-                {
-                    (i > flagsStr.size())
-                            ? msg.append("Flag_").append(std::to_string(i))
-                            : msg.append(flagsStr.at(i));
-
-                    msg.append(" = ").append(*exitFlags.at(i) ? "true" : "false").append(" ");
-                }
-                LOG_debug << msg;
-                ASSERT_CHAT_TEST(++retries <= maxAttempts, "Max attempts exceeded for " + actionMsg);
-            }
-        }
-    };
-
     std::function<void()> action = nullptr;
     bool* exitFlag = nullptr;
 
@@ -3678,6 +3680,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
                    std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL], &mCallInProgress[a1], &mCallReceivedRinging[a2]},
                    std::vector<string> { "TYPE_START_CHAT_CALL[a1]", "mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
                    "starting chat call from A",
+                   true /* wait for all exit flags*/,
                    true /*reset flags*/,
                    maxTimeout,
                    [this, a1, chatid](){ megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
@@ -3717,6 +3720,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
                                          "mChatCallSilenceReq[a2]"
                                          },
                    "answering chat call from B",
+                   true /* wait for all exit flags*/,
                    true /*reset flags*/,
                    maxTimeout,
                    [this, a2, chatid](){ megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
@@ -3863,6 +3867,83 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener.get());
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListenerA);
     megaChatApi[a2]->removeChatLocalVideoListener(chatid, &localVideoListenerB);
+}
+
+
+/**
+ * @brief TEST_ScheduledMeetings
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ * + Create a Meeting room and a recurrent scheduled meeting in one step
+ *
+ */
+void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
+{
+    //=================================//
+    // TEST preparation
+    //=================================//
+    std::unique_ptr <char[]> primarySession(login(a1));
+    std::unique_ptr <char[]> secondarySession(login(a2));
+    std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
+    if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+    {
+        makeContact(a1, a2);
+        user.reset(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
+        ASSERT_CHAT_TEST(user, "Secondary account is not a contact of primary account yet");
+    }
+
+    // remove when scheduled meetings are deployed into API prod
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+    megaApi[a2]->changeApiUrl("https://staging.api.mega.co.nz/");
+
+    //================================================================//
+    // TEST 1. Create a meeting room and a recurrent scheduled meeting
+    //================================================================//
+    LOG_debug << "TEST_ScheduledMeetings: Create meeting room and scheduled meeting";
+    time_t now = time(nullptr);
+    std::shared_ptr<MegaChatPeerList> peerList(MegaChatPeerList::createInstance());
+    peerList->addPeer(user->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    std::string title = "SMChat_"; title.append(std::to_string(now));
+    MegaChatTimeStamp startDate = now + 60;
+    MegaChatTimeStamp endDate =  startDate + 60;
+
+    // create MegaChatScheduledFlags
+    std::shared_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance());
+    flags->setEmailsDisabled(false);
+
+    // create MegaChatScheduledRules
+    std::shared_ptr<::mega::MegaIntegerList> byWeekDay(::mega::MegaIntegerList::createInstance());
+    byWeekDay->add(1);byWeekDay->add(3);byWeekDay->add(5);
+    std::shared_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_WEEKLY,
+                                                                                         MegaChatScheduledRules::INTERVAL_INVALID,
+                                                                                         MegaChatScheduledRules::UNTIL_INVALID,
+                                                                                         byWeekDay.get(), nullptr, nullptr));
+
+    // reset sched meetings id to invalid handle
+    mIdSchedMeeting[a1] = mIdSchedMeeting[a2] = MEGACHAT_INVALID_HANDLE;
+
+    // create Meeting room and scheduled meeting
+    waitForAction (1,
+                   std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM], &mChatSchedMeeting[a1], &mChatSchedMeeting[a2]},
+                   std::vector<string> { "TYPE_CREATE_CHATROOM[a1]", "mChatSchedMeeting[a1]", "mChatSchedMeeting[a2]"},
+                   "Creating meeting room and scheduled meeting from A",
+                   true /* wait for all exit flags*/,
+                   true /*reset flags*/,
+                   maxTimeout,
+                   [this, a1, &startDate, &endDate, &title, peerList, flags, rules]()
+                   {
+                        megaChatApi[a1]->createChatroomAndSchedMeeting(peerList.get(), true /*isMeeting*/, true /*publicChat*/,
+                                                                       title.c_str(), true /*speakRequest*/, true /*waitingRoom*/,
+                                                                       true /*openInvite*/, "Europe/Madrid", startDate, endDate,
+                                                                       "SM test description", flags.get(), rules.get(), nullptr /*attributes*/);
+                   });
+
+    ASSERT_CHAT_TEST(mIdSchedMeeting[a1] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting could not be created");
+    ASSERT_CHAT_TEST(mIdSchedMeeting[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting could not be created");
 }
 
 #endif
@@ -5240,9 +5321,14 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
     LOG_debug << "On chat session update END with apiIndex|" << apiIndex << "|";
 }
 
-void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* /*api*/, megachat::MegaChatScheduledMeeting* /*sm*/)
+void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm)
 {
-    // TODO implement
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+    if (sm && sm->isNew())
+    {
+       mChatSchedMeeting[apiIndex] = true;
+       mIdSchedMeeting[apiIndex] = sm->schedId();
+ }
 }
 
 void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)

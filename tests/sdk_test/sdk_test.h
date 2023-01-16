@@ -231,6 +231,19 @@ public:
     bool waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout = maxTimeout) const;
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
 
+    /**
+     * @brief executes an asynchronous action and wait for results
+     * @param maxAttempts max number of attempts the action must be retried
+     * @param exitFlags vector of conditions that must be accomplished consider action finished
+     * @param flagsStr vector of strings to identify each condition
+     * @param actionMsg string that defines the action
+     * @param waitForAll wait for all exit conditions
+     * @param resetFlags flag that indicates if exitFlags must be reset before executing action
+     * @param timeout max timeout (in seconds) to execute the action
+     * @param action function to be executed
+     */
+    void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg,  bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
+
     void TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
     void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
@@ -252,6 +265,7 @@ public:
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
     void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
     void TEST_EstablishedCalls(unsigned int a1, unsigned int a2);
+    void TEST_ScheduledMeetings(unsigned int a1, unsigned int a2);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
@@ -366,6 +380,7 @@ private:
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mIdSchedMeeting[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
     bool mChatCallOnHold[NUM_ACCOUNTS];
@@ -376,6 +391,7 @@ private:
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
     bool mChatCallReconnection[NUM_ACCOUNTS];
+    bool mChatSchedMeeting[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
