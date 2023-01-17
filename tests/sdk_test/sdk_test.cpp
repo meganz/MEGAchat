@@ -3884,6 +3884,30 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
  */
 void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
 {
+    std::function<void(unsigned int, MegaChatHandle, MegaChatHandle, std::string, MegaChatTimeStamp,
+                       MegaChatTimeStamp,std::string, std::string, std::shared_ptr<MegaChatScheduledFlags>,
+                       std::shared_ptr<MegaChatScheduledRules>)> updateSchedMeeting =
+    [this, &a1, &a2](unsigned int index, MegaChatHandle chatId, MegaChatHandle schedId, std::string timeZone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
+                                                std::string title,  std::string description, std::shared_ptr<MegaChatScheduledFlags> flags, std::shared_ptr<MegaChatScheduledRules> rules)
+    {
+        mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
+        waitForAction (1,
+                       std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING], &mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2], &mSchedOccurrUpdated[a1]},
+                       std::vector<string> { "TYPE_UPDATE_SCHEDULED_MEETING[a1]", "mChatSchedMeeting[a1]", "mChatSchedMeeting[a2]", "mChatOccurrMod[a1]"},
+                       "Updating meeting room and scheduled meeting from A",
+                       true /* wait for all exit flags*/,
+                       true /*reset flags*/,
+                       maxTimeout,
+                       [this, index, chatId, schedId, &startDate, &endDate, &title, &timeZone, &description, flags, rules]()
+                       {
+                            megaChatApi[index]->updateScheduledMeeting(chatId, schedId, timeZone.c_str(), startDate, endDate, title.c_str(),
+                                                                       description.c_str(), flags.get(), rules.get(), nullptr /*attributes*/);
+                       });
+
+        ASSERT_CHAT_TEST(mSchedIdUpdated[a1] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for primary account could not be updated");
+        ASSERT_CHAT_TEST(mSchedIdUpdated[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for secondary account could not be updated");
+    };
+
     std::function<void(unsigned int, MegaChatHandle, MegaChatHandle, MegaChatTimeStamp, MegaChatTimeStamp, MegaChatTimeStamp, bool)> updateOccurrence =
     [this, &a1, &a2](unsigned int index, MegaChatHandle chatId, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate, MegaChatTimeStamp newEndDate, bool newCancelled)
     {
@@ -3976,31 +4000,10 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     LOG_debug << "TEST_ScheduledMeetings 2: Update a recurrent scheduled meeting";
     MegaChatHandle chatId = chatid[a1];
     MegaChatHandle schedId = mSchedIdUpdated[a1];
-    mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
-    waitForAction (1,
-                   std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING], &mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2], &mSchedOccurrUpdated[a1]},
-                   std::vector<string> { "TYPE_UPDATE_SCHEDULED_MEETING[a1]", "mChatSchedMeeting[a1]", "mChatSchedMeeting[a2]", "mChatOccurrMod[a1]"},
-                   "Updating meeting room and scheduled meeting from A",
-                   true /* wait for all exit flags*/,
-                   true /*reset flags*/,
-                   maxTimeout,
-                   [this, chatId, schedId, a1, &startDate, &endDate, &title, &timeZone, &description, peerList, flags, rules]()
-                   {
-                        title.append(" (Modified)");
-                        description.append(" (Modified)");
-                        std::shared_ptr<::mega::MegaIntegerList> byMonthDay(::mega::MegaIntegerList::createInstance());
-                        byMonthDay->add(1); byMonthDay->add(2); byMonthDay->add(3); byMonthDay->add(4); byMonthDay->add(5);
-                        std::shared_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_MONTHLY,
-                                                                                                             MegaChatScheduledRules::INTERVAL_INVALID,
-                                                                                                             MegaChatScheduledRules::UNTIL_INVALID,
-                                                                                                             nullptr, byMonthDay.get(), nullptr));
-
-                        megaChatApi[a1]->updateScheduledMeeting(chatId, schedId, timeZone.c_str(), startDate, endDate, title.c_str(), description.c_str(),
-                                                                                                             flags.get(), rules.get(), nullptr /*attributes*/);
-                   });
-
-    ASSERT_CHAT_TEST(mSchedIdUpdated[a1] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for primary account could not be updated");
-    ASSERT_CHAT_TEST(mSchedIdUpdated[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for secondary account could not be updated");
+    timeZone = "Europe/Dublin";
+    title.append("(updated)");
+    description.append("(updated)");
+    updateSchedMeeting(a1, chatId, schedId, timeZone, startDate, endDate, title, description, flags, rules);
 
     //================================================================//
     // TEST 3. Update a scheduled meeting occurrence
