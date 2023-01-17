@@ -1595,6 +1595,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         {
             changeType = ::mega::MegaUser::CHANGE_TYPE_ALIAS;
         }
+        else if (attrType == ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS)
+        {
+            changeType = ::mega::MegaUser::CHANGE_TYPE_RICH_PREVIEWS;
+        }
         else
         {
             return;
