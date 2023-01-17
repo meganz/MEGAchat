@@ -412,7 +412,8 @@ void MegaChatApiTest::SetUp()
         mCallInProgress[i] = false;
         mCallDestroyed[i] = false;
         mCallConnecting[i] = false;
-        mChatSchedMeeting[i] = false;
+        mSchedMeetingUpdated[i] = false;
+        mSchedOccurrUpdated[i] = false;
         mChatIdRingInCall[i] = MEGACHAT_INVALID_HANDLE;
         mTerminationCode[i] = 0;
         mChatIdInProgressCall[i] = MEGACHAT_INVALID_HANDLE;
@@ -3931,7 +3932,7 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
 
     // create Meeting room and scheduled meeting
     waitForAction (1,
-                   std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM], &mChatSchedMeeting[a1], &mChatSchedMeeting[a2], &chatItemUpdated[a2]},
+                   std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM], &mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2], &chatItemUpdated[a2]},
                    std::vector<string> { "TYPE_CREATE_CHATROOM[a1]", "mChatSchedMeeting[a1]", "mChatSchedMeeting[a2]", "chatItemUpdated[a2]"},
                    "Creating meeting room and scheduled meeting from A",
                    true /* wait for all exit flags*/,
@@ -3946,8 +3947,8 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
                    });
 
     ASSERT_CHAT_TEST(chatid[a1] != MEGACHAT_INVALID_HANDLE, "Chatroom could not be created");
-    ASSERT_CHAT_TEST(mIdSchedMeeting[a1] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting could not be created");
-    ASSERT_CHAT_TEST(mIdSchedMeeting[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting could not be created");
+    ASSERT_CHAT_TEST(mIdSchedMeeting[a1] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for primary account could not be created");
+    ASSERT_CHAT_TEST(mIdSchedMeeting[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for secondary account could not be created");
 
     //================================================================//
     // TEST 2. Update a recurrent scheduled meeting
@@ -3957,8 +3958,8 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     MegaChatHandle schedId = mIdSchedMeeting[a1];
     mIdSchedMeeting[a1] = mIdSchedMeeting[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
     waitForAction (1,
-                   std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING], &mChatSchedMeeting[a1], &mChatSchedMeeting[a2]},
-                   std::vector<string> { "TYPE_UPDATE_SCHEDULED_MEETING[a1]", "mChatSchedMeeting[a1]", "mChatSchedMeeting[a2]"},
+                   std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING], &mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2], &mSchedOccurrUpdated[a1]},
+                   std::vector<string> { "TYPE_UPDATE_SCHEDULED_MEETING[a1]", "mChatSchedMeeting[a1]", "mChatSchedMeeting[a2]", "mChatOccurrMod[a1]"},
                    "Updating meeting room and scheduled meeting from A",
                    true /* wait for all exit flags*/,
                    true /*reset flags*/,
@@ -3980,8 +3981,8 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
                                                                                                              flags.get(), rules.get(), nullptr /*attributes*/);
                    });
 
-    ASSERT_CHAT_TEST(mIdSchedMeeting[a1] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting could not be updated");
-    ASSERT_CHAT_TEST(mIdSchedMeeting[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting could not be updated");
+    ASSERT_CHAT_TEST(mIdSchedMeeting[a1] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for primary account could not be updated");
+    ASSERT_CHAT_TEST(mIdSchedMeeting[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for secondary account could not be updated");
 }
 #endif
 
@@ -5363,14 +5364,15 @@ void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megac
     unsigned int apiIndex = getMegaChatApiIndex(api);
     if (sm)
     {
-       mChatSchedMeeting[apiIndex] = true;
+       mSchedMeetingUpdated[apiIndex] = true;
        mIdSchedMeeting[apiIndex] = sm->schedId();
- }
+    }
 }
 
-void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)
+void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, MegaChatHandle chatid)
 {
-    // TODO implement
+    unsigned int apiIndex = getMegaChatApiIndex(api);
+    mSchedOccurrUpdated[apiIndex] = true;
 }
 
 TestChatVideoListener::TestChatVideoListener()

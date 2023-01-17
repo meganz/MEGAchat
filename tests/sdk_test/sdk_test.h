@@ -391,7 +391,8 @@ private:
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
     bool mChatCallReconnection[NUM_ACCOUNTS];
-    bool mChatSchedMeeting[NUM_ACCOUNTS];
+    bool mSchedMeetingUpdated[NUM_ACCOUNTS];
+    bool mSchedOccurrUpdated[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
