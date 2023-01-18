@@ -2723,6 +2723,9 @@ public:
         CHAT_OPTION_OPEN_INVITE      = 0x04,   /// Open invite
     };
 
+    // SFUID default value. API will start calls in SFU server it consider
+    static constexpr int SFU_ID_DEFAULT = -1;
+
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
      * @brief Creates an instance of MegaChatApi to access to the chat-engine.
@@ -6409,6 +6412,18 @@ public:
      * @param listener Object that is unregistered
      */
     void removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener);
+
+    /**
+     * @brief Change the SFU id
+     *
+     * This function allows to set the SFU server where all chat calls will be started
+     * It's only useful for testing or debugging purposes.
+     *
+     * Note: To restore default behavior (SFU assigned by API), sfuid param must be set to SFU_ID_DEFAULT
+     *
+     * @param sfuid New SFU id
+     */
+    void setSFUid(int sfuid);
 #endif
 
     static void setCatchException(bool enable);
@@ -6772,6 +6787,14 @@ public:
      * @return
      */
     virtual unsigned int getNumPreviewers() const;
+
+    /**
+     * @brief Returns if chatroom is a meeting
+     *
+     * @return True if chatroom is a meeting
+     */
+    virtual bool isMeeting() const;
+
 };
 
 class MegaChatRoom
@@ -7607,7 +7630,6 @@ public:
     };
 
     static constexpr int INTERVAL_INVALID = 0;
-    static constexpr int UNTIL_INVALID = 0;
     virtual ~MegaChatScheduledRules();
 
     /**
@@ -7624,7 +7646,7 @@ public:
      */
     static MegaChatScheduledRules* createInstance(int freq,
                                                   int interval = INTERVAL_INVALID,
-                                                  MegaChatTimeStamp until = UNTIL_INVALID,
+                                                  MegaChatTimeStamp until = MEGACHAT_INVALID_TIMESTAMP,
                                                   const ::mega::MegaIntegerList* byWeekDay = nullptr,
                                                   const ::mega::MegaIntegerList* byMonthDay = nullptr,
                                                   const ::mega::MegaIntegerMap* byMonthWeekDay = nullptr);

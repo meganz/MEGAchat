@@ -123,9 +123,9 @@ void ChatListItemController::leaveGroupChat()
 void ChatListItemController::updateScheduledMeetingOccurrence()
 {
     MegaChatHandle schedId = mMegaApi->base64ToUserHandle(mMainWindow->mApp->getText("Sched Id of occurrence we want to modify (B64): ", false).c_str());
-    MegaChatTimeStamp overrides = atoi(mMainWindow->mApp->getText("Start date we want to modify (format: YYYYMMDDTHHMMSS)", true).c_str());
-    MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New start date (format: YYYYMMDDTHHMMSS)", true).c_str());
-    MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New end date (format: YYYYMMDDTHHMMSS)", true).c_str());
+    MegaChatTimeStamp overrides = atoi(mMainWindow->mApp->getText("Start date we want to modify (Unix timestamp)", true).c_str());
+    MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New start date (Unix timestamp)", true).c_str());
+    MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New end date (Unix timestamp)", true).c_str());
     int cancelled = atoi(mMainWindow->mApp->getText("Set occurrence as cancelled? Y=1 | N =0", true).c_str());
 
     mMegaChatApi->updateScheduledMeetingOccurrence(mItemId,

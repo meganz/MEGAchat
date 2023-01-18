@@ -2920,7 +2920,7 @@ void MegaChatApiImpl::sendPendingRequests()
                  */
                 std::unique_ptr<::mega::MegaScheduledRules> megaRules(occurrSchedMeeting->rules() ? occurrSchedMeeting->rules()->getMegaScheduledRules() : nullptr);
                 megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(occurrSchedMeeting->chatid(), occurrSchedMeeting->schedId() /*schedId*/,
-                                                                                                                    MEGACHAT_INVALID_HANDLE /*parentId*/, occurrSchedMeeting->organizerUserid(),
+                                                                                                                    occurrSchedMeeting->parentSchedId(), occurrSchedMeeting->organizerUserid(),
                                                                                                                     newCancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
                                                                                                                     occurrSchedMeeting->title().c_str(),occurrSchedMeeting->description().c_str(),
                                                                                                                     occurrSchedMeeting->attributes().size() ? occurrSchedMeeting->attributes().c_str() :nullptr,
@@ -6163,6 +6163,12 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
     videoMutex.unlock();
 }
 
+void MegaChatApiImpl::setSFUid(int sfuid)
+{
+    SdkMutexGuard g(sdkMutex);
+    mClient->setSFUid(sfuid);
+}
+
 #endif  // webrtc
 
 void MegaChatApiImpl::removeChatListener(MegaChatListener *listener)
@@ -8641,7 +8647,7 @@ MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(int freq,
                               const ::mega::MegaIntegerMap* byMonthWeekDay):
     mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
     mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
-    mUntil(isValidUntil(until) ? until : UNTIL_INVALID),
+    mUntil(isValidUntil(until) ? until : MEGACHAT_INVALID_TIMESTAMP),
     mByWeekDay(byWeekDay ? byWeekDay->copy() : nullptr),
     mByMonthDay (byMonthDay ? byMonthDay->copy() : nullptr),
     mByMonthWeekDay(byMonthWeekDay ? byMonthWeekDay->copy() : nullptr)
@@ -8651,7 +8657,7 @@ MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(int freq,
 MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const MegaChatScheduledRulesPrivate* rules) :
         mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
         mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
-        mUntil(isValidUntil(rules->until()) ? rules->until() : UNTIL_INVALID),
+        mUntil(isValidUntil(rules->until()) ? rules->until() : MEGACHAT_INVALID_TIMESTAMP),
         mByWeekDay(rules->byWeekDay() ? rules->byWeekDay()->copy() : nullptr),
         mByMonthDay (rules->byMonthDay() ? rules->byMonthDay()->copy() : nullptr),
         mByMonthWeekDay(rules->byMonthWeekDay() ? rules->byMonthWeekDay()->copy() : nullptr)
@@ -9576,6 +9582,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
     lastMsgHandle = MEGACHAT_INVALID_HANDLE;
     mNumPreviewers = chatroom.getNumPreviewers();
     mDeleted = false;
+    mMeeting = chatroom.isMeeting();
 
     LastTextMsg tmp;
     LastTextMsg *message = &tmp;
@@ -9682,6 +9689,7 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(const MegaChatListItem *item)
     lastMsgHandle = item->getLastMessageHandle();
     mNumPreviewers = item->getNumPreviewers();
     mDeleted = item->isDeleted();
+    mMeeting = item->isMeeting();
 }
 
 MegaChatListItemPrivate::~MegaChatListItemPrivate()
@@ -9800,7 +9808,12 @@ MegaChatHandle MegaChatListItemPrivate::getLastMessageHandle() const
 
 unsigned int MegaChatListItemPrivate::getNumPreviewers() const
 {
-   return mNumPreviewers;
+    return mNumPreviewers;
+}
+
+bool MegaChatListItemPrivate::isMeeting() const
+{
+    return mMeeting;
 }
 
 void MegaChatListItemPrivate::setOwnPriv(int ownPriv)

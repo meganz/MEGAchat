@@ -440,7 +440,7 @@ bool Client::openDb(const std::string& sid)
             {
                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
                 db.query("CREATE TABLE scheduledMeetings(schedid int64 unique primary key, chatid int64, organizerid int64, parentschedid int64, timezone text,"
-                            "startdatetime int64, enddatetime int64, title text, description text, attributes text, overrides text, cancelled tinyint default 0,"
+                            "startdatetime int64, enddatetime int64, title text, description text, attributes text, overrides int64, cancelled tinyint default 0,"
                             "flags int64 default 0, rules blob, FOREIGN KEY(chatid) REFERENCES chats(chatid) ON DELETE CASCADE)");
 
                 db.query("CREATE TABLE scheduledMeetingsOccurr(schedid int64, startdatetime int64, enddatetime int64, PRIMARY KEY (schedid, startdatetime), "
@@ -973,6 +973,11 @@ promise::Promise<void> Client::setPublicChatToPrivate(karere::Id chatid)
             return promise::_Void();
         });
     });
+}
+
+void Client::setSFUid(int sfuid)
+{
+    api.sdk.setSFUid(sfuid);
 }
 
 promise::Promise<uint64_t> Client::deleteChatLink(karere::Id chatid)
@@ -1589,6 +1594,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         else if (attrType == ::mega::MegaApi::USER_ATTR_ALIAS)
         {
             changeType = ::mega::MegaUser::CHANGE_TYPE_ALIAS;
+        }
+        else if (attrType == ::mega::MegaApi::USER_ATTR_RICH_PREVIEWS)
+        {
+            changeType = ::mega::MegaUser::CHANGE_TYPE_RICH_PREVIEWS;
         }
         else
         {
@@ -5461,7 +5470,7 @@ KarereScheduledRules::KarereScheduledRules(int freq,
                               const karere_rules_map* byMonthWeekDay)
     : mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
       mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
-      mUntil(isValidUntil(until) ? until : UNTIL_INVALID),
+      mUntil(isValidUntil(until) ? until : ::mega::mega_invalid_timestamp),
       mByWeekDay(byWeekDay ? new karere_rules_vector(*byWeekDay) : nullptr),
       mByMonthDay (byMonthDay ? new karere_rules_vector(*byMonthDay) : nullptr),
       mByMonthWeekDay(byMonthWeekDay ? new karere_rules_map(byMonthWeekDay->begin(), byMonthWeekDay->end()) : nullptr)
@@ -5482,7 +5491,7 @@ KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules
 {
     mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
     mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
-    mUntil = isValidUntil(rules->until()) ? rules->until() : UNTIL_INVALID;
+    mUntil = isValidUntil(rules->until()) ? rules->until() : ::mega::mega_invalid_timestamp;
 
     if (rules->byWeekDay() && rules->byWeekDay()->size())
     {

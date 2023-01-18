@@ -691,6 +691,9 @@ void MainWindow::on_bSettings_clicked()
     auto actCatchUp = othersMenu->addAction(tr("Catch-Up with API"));
     connect(actCatchUp, SIGNAL(triggered()), this, SLOT(onCatchUp()));
 
+    auto actSFUId = othersMenu->addAction(tr("Set SFU id"));
+    connect(actSFUId, SIGNAL(triggered()), this, SLOT(onSetSFUId()));
+
     auto actUseStaging = othersMenu->addAction("Use API staging");
     connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
     actUseStaging->setCheckable(true);
@@ -1101,13 +1104,13 @@ void MainWindow::onAddChatSchedMeeting()
 
     std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,
-                                                                                         MegaChatScheduledRules::UNTIL_INVALID,
+                                                                                         MEGACHAT_INVALID_TIMESTAMP,
                                                                                          byWeekDay.get(), nullptr, nullptr));
 
 
     std::string timezone = mApp->getText("Get TimeZone (i.e: Europe/Madrid)", false);
-    MegaChatTimeStamp startDate = atoi(mApp->getText("Get StartDate (Format YYYYMMDDTHHMMSS)", false).c_str());
-    MegaChatTimeStamp endDate = atoi(mApp->getText("Get EndDate (Format YYYYMMDDTHHMMSS)", false).c_str());
+    MegaChatTimeStamp startDate = atoi(mApp->getText("Get StartDate (Unix timestamp)", false).c_str());
+    MegaChatTimeStamp endDate = atoi(mApp->getText("Get EndDate (Unix timestamp)", false).c_str());
     std::string title = mApp->getText("Get title", false);
     std::string description = mApp->getText("Get description", false);
 
@@ -1506,6 +1509,12 @@ void MainWindow::on_mLogout_clicked()
 void MainWindow::onCatchUp()
 {
     mMegaApi->catchup();
+}
+
+void MainWindow::onSetSFUId()
+{
+    int sfuid = atoi(mApp->getText("Set SFU id").c_str());
+    mMegaChatApi->setSFUid(sfuid);
 }
 
 void MainWindow::onlastGreenVisibleClicked()
