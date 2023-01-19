@@ -2786,8 +2786,7 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE:
         {
-            if (!request->getText()
-                    || !request->getMegaChatScheduledMeetingList()
+            if (!request->getMegaChatScheduledMeetingList()
                     || request->getMegaChatScheduledMeetingList()->size() != 1)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
