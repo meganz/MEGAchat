@@ -414,26 +414,26 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (group)
             {
-                const MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
-                if (sm && (!sm->timezone() || !sm->title() || !sm->description()
-                           || sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP
-                           || sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP))
-                {
-                    errorCode = MegaChatError::ERROR_ARGS;
-                    break;
-                }
-
-                if (sm && (strlen(sm->title()) > MegaChatScheduledMeeting::MAX_TITLE_LENGTH
-                        || strlen(sm->description()) > MegaChatScheduledMeeting::MAX_DESC_LENGTH))
-                {
-                    API_LOG_ERROR("Error creating a scheduled meeting: title or description length exceeded");
-                    errorCode = MegaChatError::ERROR_ARGS;
-                    break;
-                }
-
                 std::shared_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting;
-                if (sm)
+                if (request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size() == 1)
                 {
+                    const MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
+                    if (sm && (!sm->timezone() || !sm->title() || !sm->description()
+                               || sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP
+                               || sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP))
+                    {
+                        errorCode = MegaChatError::ERROR_ARGS;
+                        break;
+                    }
+
+                    if (sm && (strlen(sm->title()) > MegaChatScheduledMeeting::MAX_TITLE_LENGTH
+                            || strlen(sm->description()) > MegaChatScheduledMeeting::MAX_DESC_LENGTH))
+                    {
+                        API_LOG_ERROR("Error creating a scheduled meeting: title or description length exceeded");
+                        errorCode = MegaChatError::ERROR_ARGS;
+                        break;
+                    }
+
                     std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
                     if (megaFlags)
                     {
