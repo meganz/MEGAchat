@@ -2224,11 +2224,15 @@ void exec_dumpchathistory(ac::ACState& s)
 
     if (!initFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
     {
+        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
+        g_dumpingChatHistory = false;
         return;
     }
 
     if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
     {
+        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
+        g_dumpingChatHistory = false;
         return;
     }
 
