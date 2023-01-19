@@ -4115,8 +4115,8 @@ public:
      */
     void createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                                      const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
-                                                     const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr,
-                                                     MegaChatRequestListener* listener = nullptr);
+                                                     const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = NULL,
+                                                     MegaChatRequestListener* listener = NULL);
     /**
      * @brief Modify an existing scheduled meeting
      *
@@ -4152,7 +4152,7 @@ public:
      */
     void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
                                                                          const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
-                                                                         MegaChatRequestListener* listener = nullptr);
+                                                                         MegaChatRequestListener* listener = NULL);
 
 
     /**
@@ -4192,7 +4192,7 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides,  MegaChatTimeStamp newStartDate,
-                                          MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
+                                          MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Removes a scheduled meeting by scheduled meeting id and chatid
@@ -7599,9 +7599,9 @@ public:
     static MegaChatScheduledRules* createInstance(int freq,
                                                   int interval = INTERVAL_INVALID,
                                                   MegaChatTimeStamp until = MEGACHAT_INVALID_TIMESTAMP,
-                                                  const ::mega::MegaIntegerList* byWeekDay = nullptr,
-                                                  const ::mega::MegaIntegerList* byMonthDay = nullptr,
-                                                  const ::mega::MegaIntegerMap* byMonthWeekDay = nullptr);
+                                                  const ::mega::MegaIntegerList* byWeekDay = NULL,
+                                                  const ::mega::MegaIntegerList* byMonthDay = NULL,
+                                                  const ::mega::MegaIntegerMap* byMonthWeekDay = NULL);
 
     /**
      * @brief Creates a copy of this MegaChatScheduledRules object
