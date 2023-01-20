@@ -90,10 +90,12 @@ std::atomic<bool> g_reportMessagesDeveloper{false};
 
 // These objects are helping to work around history loading problems for reviewing public chats
 std::atomic<bool> g_reviewingPublicChat{false};
+std::atomic<bool> g_dumpingChatHistory{false};
 std::atomic<bool> g_startedPublicChatReview{false};
-std::atomic<int> g_reviewPublicChatMsgCountRemaining{-1};
-std::atomic<unsigned int> g_reviewPublicChatMsgCount{0};
+std::atomic<int> g_reviewChatMsgCountRemaining{-1};
+std::atomic<unsigned int> g_reviewChatMsgCount{0};
 std::atomic<c::MegaChatHandle> g_reviewPublicChatid{c::MEGACHAT_INVALID_HANDLE};
+std::atomic<c::MegaChatHandle> g_dumpHistoryChatid{c::MEGACHAT_INVALID_HANDLE};
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFile;
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLinks;
 std::mutex g_reviewPublicChatOutFileLogsMutex;
@@ -640,15 +642,15 @@ struct CLCListener : public c::MegaChatListener
     void onChatConnectionStateUpdate(c::MegaChatApi* api, c::MegaChatHandle chatid, int newState) override
     {
         if (newState != c::MegaChatApi::CHAT_CONNECTION_ONLINE
-                || !g_reviewingPublicChat
-                || chatid != g_reviewPublicChatid
-                || g_reviewPublicChatMsgCountRemaining == 0)
+                || (!g_reviewingPublicChat && !g_dumpingChatHistory)
+                || (chatid != g_reviewPublicChatid && chatid != g_dumpHistoryChatid)
+                || g_reviewChatMsgCountRemaining == 0)
         {
             return;
         }
 
         // Load all user attributes with loadUserAttributes
-        if (!g_startedPublicChatReview)
+        if (!g_startedPublicChatReview && !g_dumpingChatHistory)
         {
             g_startedPublicChatReview = true;
 
@@ -992,6 +994,10 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             guard.unlock();
             setprompt(COMMAND);
         }
+
+        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
+        g_reviewingPublicChat = false;
+        g_dumpingChatHistory = false;
         break;
 
     case m::MegaRequest::TYPE_FETCH_NODES:
@@ -1010,6 +1016,9 @@ void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
             conlock(cout) << "Error in logout: "<< e->getErrorString() << endl;
         }
 
+        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
+        g_reviewingPublicChat = false;
+        g_dumpingChatHistory = false;
         guard.unlock();
         setprompt(COMMAND);
 
@@ -1100,13 +1109,13 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     if (!msg)
     {
         cout << "Room " << ch_s(chatid) << " - end of " << loadorreceive << " messages" << endl;
-        if (g_reviewingPublicChat && g_reviewPublicChatMsgCountRemaining)
+        if ((g_reviewingPublicChat || g_dumpingChatHistory) && g_reviewChatMsgCountRemaining)
         {
             reviewPublicChatLoadMessages(chatid);
         }
         else
         {
-            std::string message = "Loaded all messages requested: " + std::to_string(g_reviewPublicChatMsgCount);
+            std::string message = "Loaded all messages requested: " + std::to_string(g_reviewChatMsgCount);
             conlock(cout) << message << flush;
             if (g_reviewPublicChatOutFile)
             {
@@ -1116,12 +1125,12 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         return;
     }
 
-    if (g_reviewingPublicChat && g_reviewPublicChatMsgCountRemaining > 0)
+    if ((g_reviewingPublicChat || g_dumpingChatHistory) && g_reviewChatMsgCountRemaining > 0)
     {
-        --g_reviewPublicChatMsgCountRemaining;
+        --g_reviewChatMsgCountRemaining;
     }
 
-    g_reviewPublicChatMsgCount ++;
+    g_reviewChatMsgCount ++;
 
     const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
     const std::string room_title = room ? room->getTitle() : "<No Title>";
@@ -1334,7 +1343,7 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
     }
     else
     {
-        int numberOfMessages = g_reviewPublicChatMsgCountRemaining.load() > 0 ? g_reviewPublicChatMsgCountRemaining.load() : MAX_NUMBER_MESSAGES;
+        int numberOfMessages = g_reviewChatMsgCountRemaining.load() > 0 ? g_reviewChatMsgCountRemaining.load() : MAX_NUMBER_MESSAGES;
         source = g_chatApi->loadMessages(chatid, numberOfMessages);
     }
 
@@ -1348,17 +1357,19 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
         }
         case c::MegaChatApi::SOURCE_NONE:
         {
-            std::string message = "No more messages. Message loaded: " + std::to_string(g_reviewPublicChatMsgCount);
+            std::string message = "No more messages. Message loaded: " + std::to_string(g_reviewChatMsgCount);
             conlock(cout) << message << flush;
             if (g_reviewPublicChatOutFile)
             {
                 conlock(*g_reviewPublicChatOutFile) << message << flush;
             }
 
+            g_dumpingChatHistory = false;
             g_reviewingPublicChat = false;
-            g_reviewPublicChatMsgCountRemaining = 0;
-            g_reviewPublicChatMsgCount = 0;
+            g_reviewChatMsgCountRemaining = 0;
+            g_reviewChatMsgCount = 0;
             g_startedPublicChatReview = false;
+            g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
             return;
         }
         default: return;
@@ -2161,6 +2172,88 @@ bool initFile(std::unique_ptr<std::ofstream>& file, const std::string& filename)
     return true;
 }
 
+void exec_dumpchathistory(ac::ACState& s)
+{
+    if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
+    {
+        conlock(cout) << "Error: Not logged in" << endl;
+        return;
+    }
+
+    if (g_dumpHistoryChatid != c::MEGACHAT_INVALID_HANDLE)
+    {
+        conlock(cout) << "There is other dumping history in progress" << endl;
+        return;
+    }
+
+    g_dumpHistoryChatid = s_ch(s.words[1].s);
+    if (g_dumpHistoryChatid == c::MEGACHAT_INVALID_HANDLE)
+    {
+        conlock(cout) << "Error: Invalid handle" << endl;
+        return;
+    }
+
+    auto& rec = g_roomListeners[g_dumpHistoryChatid];
+    if (rec.open)
+    {
+        g_chatApi->closeChatRoom(g_dumpHistoryChatid, rec.listener.get());
+    }
+
+    if (!g_chatApi->openChatRoom(g_dumpHistoryChatid, rec.listener.get()))
+    {
+        conlock(cout) << "Failed to open chat room." << endl;
+        g_roomListeners.erase(g_dumpHistoryChatid);
+        return;
+    }
+    else
+    {
+        rec.listener->room = g_dumpHistoryChatid;
+        rec.open = true;
+    }
+
+    g_dumpingChatHistory = true;
+    g_reportMessagesDeveloper = false;
+    g_reviewChatMsgCountRemaining = -1;
+    g_reviewChatMsgCount = 0;
+
+    string baseFilename = "ChatRoom" + s.words[1].s + "_" + timeToStringUTC(time(nullptr)) + "UTC";
+    if (s.words.size() >= 3)
+    {
+        baseFilename = s.words[2].s;
+    }
+
+    if (!initFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
+    {
+        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
+        g_dumpingChatHistory = false;
+        return;
+    }
+
+    if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
+    {
+        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
+        g_dumpingChatHistory = false;
+        return;
+    }
+
+    std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(g_dumpHistoryChatid));
+    unique_ptr<m::MegaHandleList> peerList = unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
+    for (unsigned int i = 0; i < chatRoom->getPeerCount(); i++)
+    {
+        peerList->addMegaHandle(chatRoom->getPeerHandle(i));
+    }
+
+    auto allEmailsReceived = new OneShotChatRequestListener;
+    allEmailsReceived->onRequestFinishFunc =
+    [](c::MegaChatApi* api, c::MegaChatRequest * , c::MegaChatError* e)
+    {
+        std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(g_dumpHistoryChatid));
+        reviewPublicChatLoadMessages(g_dumpHistoryChatid);
+    };
+
+    g_chatApi->loadUserAttributes(g_dumpHistoryChatid, peerList.get(), allEmailsReceived);
+}
+
 void exec_reviewpublicchat(ac::ACState& s)
 {
     if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
@@ -2177,13 +2270,13 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
 
     g_reviewingPublicChat = true;
-    g_reviewPublicChatMsgCountRemaining = 0;
-    g_reviewPublicChatMsgCount = 0;
+    g_reviewChatMsgCountRemaining = 0;
+    g_reviewChatMsgCount = 0;
     g_startedPublicChatReview = false;
     g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
 
     const auto chat_link = s.words[1].s;
-    g_reviewPublicChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
+    g_reviewChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
 
     const auto lastSlashIdx = chat_link.find_last_of("/");
     const auto lastHashIdx = chat_link.find_last_of("#");
@@ -4722,6 +4815,8 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_openchatpreview,    sequence(text("openchatpreview"), param("chatlink")));
     p->Add(exec_closechatpreview,   sequence(text("closechatpreview"), param("chatid")));
+
+    p->Add(exec_dumpchathistory,   sequence(text("dumpchathistory"), param("roomid"), param("fileName")));
 
 #ifndef KARERE_DISABLE_WEBRTC
     p->Add(exec_getchatvideoindevices, sequence(text("getchatvideoindevices")));
