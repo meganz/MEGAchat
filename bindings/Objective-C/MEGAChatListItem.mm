@@ -107,6 +107,10 @@ using namespace megachat;
     return self.megaChatListItem ? self.megaChatListItem->isDeleted() : NO;
 }
 
+- (BOOL)isMeeting {
+    return self.megaChatListItem ? self.megaChatListItem->isMeeting() : NO;
+}
+
 - (NSUInteger)previewersCount {
     return self.megaChatListItem ? self.megaChatListItem->getNumPreviewers() : 0;
 }
