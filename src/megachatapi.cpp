@@ -716,10 +716,10 @@ void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat,
 }
 
 void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
-                                         const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                         const char* title, const char* description, bool newCancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                          MegaChatRequestListener* listener)
 {
-    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description,flags, rules, listener);
+    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, newCancelled, flags, rules, listener);
 }
 
 void MegaChatApi::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,

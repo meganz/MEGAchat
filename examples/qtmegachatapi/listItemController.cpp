@@ -149,6 +149,7 @@ void ChatListItemController::updateScheduledMeeting()
     MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New StartDate: ", true).c_str());
     MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New EndDate: ", true).c_str());
     std::string newTz = mMainWindow->mApp->getText("New TimeZone: ", true);
+    int newCancelled = atoi(mMainWindow->mApp->getText("Set scheduled meeting as cancelled? Y=1 | N =0", true).c_str());
 
     mMegaChatApi->updateScheduledMeeting(mItemId, schedId,
                                          newTz.empty() ? nullptr : newTz.c_str(),
@@ -156,7 +157,7 @@ void ChatListItemController::updateScheduledMeeting()
                                          newEndDate,
                                          newTitle.empty() ? nullptr : newTitle.c_str(),
                                          newDesc.empty() ? nullptr : newDesc.c_str(),
-                                         sm->flags(), sm->rules());
+                                         newCancelled, sm->flags(), sm->rules());
 }
 void ChatListItemController::removeScheduledMeeting()
 {

@@ -2982,6 +2982,7 @@ void MegaChatApiImpl::sendPendingRequests()
             std::string newTimezone = sm->timezone() ? sm->timezone() : currentMeeting->timezone();
             MegaChatTimeStamp newStartDate = sm->startDateTime();
             MegaChatTimeStamp newEndDate = sm->endDateTime();
+            bool newCancelled = sm->cancelled();
             std::string newTitle = sm->title() ? sm->title() : currentMeeting->title();
             std::string newDescription = sm->description() ? sm->description() : currentMeeting->description();
 
@@ -2996,7 +2997,7 @@ void MegaChatApiImpl::sendPendingRequests()
                                                                                                               sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
             std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(currentMeeting->chatid(), currentMeeting->schedId(), currentMeeting->parentSchedId(), currentMeeting->organizerUserid(),
-                                                                                                                currentMeeting->cancelled(),
+                                                                                                                newCancelled,
                                                                                                                 newTimezone.empty() ? nullptr : newTimezone.c_str(),
                                                                                                                 newStartDate,
                                                                                                                 newEndDate,
@@ -4541,11 +4542,11 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
 }
 
 void MegaChatApiImpl::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
-                                                                                      const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                                                      bool newCancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                                       MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING, listener);
-    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), false, timezone, startDate,
+    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), newCancelled, timezone, startDate,
                                                                                        endDate, title, description, nullptr, MEGACHAT_INVALID_TIMESTAMP, flags, rules));
 
     std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());

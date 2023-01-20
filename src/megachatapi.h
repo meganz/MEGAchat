@@ -4146,12 +4146,13 @@ public:
      * @param endDate end date time of the meeting with the format (unix timestamp)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
+     * @param newCancelled True if scheduled meeting is going to be cancelled
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param listener MegaChatRequestListener to track this request
      */
     void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
-                                                                         const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                                         const char* title, const char* description, bool newCancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                          MegaChatRequestListener* listener = NULL);
 
 
@@ -4188,7 +4189,7 @@ public:
      * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp)
      * @param overrides new start date time of the occurrence with the format (unix timestamp)
      * @param newEndDate new end date time of the occurrence with the format (unix timestamp)
-     * @param cancelled True if scheduled meeting is going to be cancelled
+     * @param newCancelled True if scheduled meeting occurrence is going to be cancelled
      * @param listener MegaChatRequestListener to track this request
      */
     void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides,  MegaChatTimeStamp newStartDate,
