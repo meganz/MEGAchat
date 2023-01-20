@@ -418,16 +418,25 @@ void MegaChatApiImpl::sendPendingRequests()
                 if (request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size() == 1)
                 {
                     const MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
-                    if (sm && (!sm->timezone() || !sm->title() || !sm->description()
-                               || sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP
-                               || sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP))
+                    if (!sm)
                     {
+                        API_LOG_ERROR("Error creating a scheduled meeting: invalid scheduled meeting");
                         errorCode = MegaChatError::ERROR_ARGS;
                         break;
                     }
 
-                    if (sm && (strlen(sm->title()) > MegaChatScheduledMeeting::MAX_TITLE_LENGTH
-                            || strlen(sm->description()) > MegaChatScheduledMeeting::MAX_DESC_LENGTH))
+                    if (!sm->timezone() || !sm->title() || !sm->description()
+                               || sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP
+                               || sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP)
+                    {
+
+                        API_LOG_ERROR("Error creating a scheduled meeting: invalid timezone, title, description, start date time or end date time");
+                        errorCode = MegaChatError::ERROR_ARGS;
+                        break;
+                    }
+
+                    if (strlen(sm->title()) > MegaChatScheduledMeeting::MAX_TITLE_LENGTH
+                            || strlen(sm->description()) > MegaChatScheduledMeeting::MAX_DESC_LENGTH)
                     {
                         API_LOG_ERROR("Error creating a scheduled meeting: title or description length exceeded");
                         errorCode = MegaChatError::ERROR_ARGS;
