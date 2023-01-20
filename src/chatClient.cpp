@@ -90,9 +90,8 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
 // Create the rtc module
     rtc.reset(rtcModule::createRtcModule(api, mCallHandler, mDnsCache, *websocketIO, appCtx,
                                          new rtcModule::RtcCryptoMeetings(*this)));
-
-    mClientDbInterface = std::unique_ptr<ChatClientSqliteDb>(new ChatClientSqliteDb(db));
 #endif
+    mClientDbInterface = std::unique_ptr<ChatClientSqliteDb>(new ChatClientSqliteDb(db));
 }
 
 
