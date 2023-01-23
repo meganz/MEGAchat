@@ -2363,9 +2363,15 @@ MegaChatScheduledRules* MegaChatScheduledRules::createInstance(int freq,
 {
     return new MegaChatScheduledRulesPrivate(freq, interval, until, byWeekDay, byMonthDay, byMonthWeekDay);
 }
-
-MegaChatScheduledRules::~MegaChatScheduledRules()                               {}
 MegaChatScheduledRules* MegaChatScheduledRules::copy() const                    { return NULL; }
+MegaChatScheduledRules::~MegaChatScheduledRules()                               {}
+void MegaChatScheduledRules::setFreq(int)                                       {}
+void MegaChatScheduledRules::setInterval(int)                                   {}
+void MegaChatScheduledRules::setUntil(MegaChatTimeStamp)                        {}
+void MegaChatScheduledRules::setByWeekDay(const ::mega::MegaIntegerList*)       {}
+void MegaChatScheduledRules::setByMonthDay(const ::mega::MegaIntegerList*)      {}
+void MegaChatScheduledRules::setByMonthWeekDay(const ::mega::MegaIntegerMap*)   {}
+
 int MegaChatScheduledRules::freq() const                                        { return 0; }
 int MegaChatScheduledRules::interval() const                                    { return 0; }
 MegaChatTimeStamp MegaChatScheduledRules::until() const                         { return MEGACHAT_INVALID_TIMESTAMP; }

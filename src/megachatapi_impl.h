@@ -880,6 +880,13 @@ public:
     virtual ~MegaChatScheduledRulesPrivate();
 
     MegaChatScheduledRulesPrivate* copy() const override;
+    void setFreq(int freq) override;
+    void setInterval(int interval) override;
+    void setUntil(MegaChatTimeStamp until) override;
+    void setByWeekDay(const mega::MegaIntegerList* byWeekDay) override;
+    void setByMonthDay(const mega::MegaIntegerList* byMonthDay)  override;
+    void setByMonthWeekDay(const mega::MegaIntegerMap* byMonthWeekDay) override;
+
     int freq() const override;
     int interval() const override;
     MegaChatTimeStamp until() const override;
