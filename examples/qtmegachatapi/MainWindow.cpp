@@ -173,12 +173,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     ChatWindow *window = itemController->showChatWindow();
     assert(window);
 
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL))
-    {
-        assert(itemController->getMeetingView());
-        itemController->getMeetingView()->localAudioDetected(call->isAudioDetected());
-    }
-
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
         switch (call->getStatus())
@@ -342,7 +336,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
     }
 
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS))
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS) || session->hasChanged(MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL))
     {
         meetingView->updateSession(*session);
     }

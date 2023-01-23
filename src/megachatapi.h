@@ -391,9 +391,6 @@ public:
     /**
      * @brief Returns if audio is detected for this session
      *
-     * @note The returned value is always false when audio level monitor is disabled
-     * @see MegaChatApi::enableAudioLevelMonitor or audio flag is disabled
-     *
      * @return true if audio is detected for this session, false in other case
      */
     virtual bool isAudioDetected() const;
@@ -616,9 +613,6 @@ public:
      * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK = 0x20
      * Check MegaChatCall::isAllowSpeak()
      *
-     * - MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL = 0x40
-     * Check MegaChatCall::isAudioDetected()
-     *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
      *
@@ -660,9 +654,6 @@ public:
      * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK = 0x20
      * Check MegaChatCall::isAllowSpeak()
      *
-     * - MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL = 0x40
-     * Check MegaChatCall::isAudioDetected()
-     *
      * - MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY = 0x80
      * Check MegaChatCall::getNetworkQuality()
      *
@@ -678,6 +669,8 @@ public:
 
     /**
      * @brief Returns if local audio is detected
+     *
+     * @deprecated
      *
      * @return true if audio is detected
      */

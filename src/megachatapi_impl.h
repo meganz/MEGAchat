@@ -248,7 +248,6 @@ public:
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
-    virtual bool isAudioDetected() const override;
 
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
@@ -287,7 +286,6 @@ public:
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
     void setOnHold(bool onHold);
-    void setAudioDetected(bool audioDetected);
     static int convertCallState(rtcModule::CallState newState);
     int convertTermCode(rtcModule::TermCode termCode);
 
@@ -309,7 +307,6 @@ protected:
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
     bool mIgnored = false;
-    bool mAudioDetected = false;
     bool mRinging = false;
     bool mIsCaller = false;
     bool mIsOwnClientCaller = false;
@@ -622,7 +619,6 @@ public:
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
     void onAudioApproved(const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call) override;
-    void onLocalAudioDetected(const rtcModule::ICall& call) override;
     void onOnHold(const rtcModule::ICall& call) override;
     void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;

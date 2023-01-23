@@ -2251,6 +2251,7 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+
         case MegaChatRequest::TYPE_REQUEST_SPEAK:
         {
             handle chatid = request->getChatHandle();
@@ -5853,6 +5854,7 @@ int MegaChatApiImpl::getMaxVideoCallParticipants()
     return rtcModule::RtcConstant::kMaxCallVideoSenders;
 }
 
+
 bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
     if (chatid == MEGACHAT_INVALID_HANDLE)
@@ -5880,6 +5882,7 @@ void MegaChatApiImpl::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid
     requestQueue.push(request);
     waiter->notify();
 }
+
 
 void MegaChatApiImpl::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
@@ -7429,7 +7432,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mLocalAVFlags = call.getLocalAvFlags();
     mInitialTs = call.getInitialTimeStamp() - call.getInitialOffsetinMs()/1000;
     mFinalTs = call.getFinalTimeStamp();
-    mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
     mTermCode = convertTermCode(call.getTermCode());
@@ -7477,7 +7479,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mCallCompositionChange = call.mCallCompositionChange;
     mCallerId = call.mCallerId;
     mIsSpeakAllow = call.isSpeakAllow();
-    mAudioDetected = call.isAudioDetected();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
 
@@ -7528,11 +7529,6 @@ bool MegaChatCallPrivate::hasLocalVideo() const
 int MegaChatCallPrivate::getChanges() const
 {
     return mChanged;
-}
-
-bool MegaChatCallPrivate::isAudioDetected() const
-{
-    return mAudioDetected;
 }
 
 bool MegaChatCallPrivate::hasChanged(int changeType) const
@@ -7852,12 +7848,6 @@ void MegaChatCallPrivate::setOnHold(bool onHold)
 {
     mLocalAVFlags.setOnHold(onHold);
     mChanged |= MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD;
-}
-
-void MegaChatCallPrivate::setAudioDetected(bool audioDetected)
-{
-    mAudioDetected = audioDetected;
-    mChanged |= MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL;
 }
 
 MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, rtcModule::VideoResolution videoResolution, uint32_t clientId)
@@ -10594,13 +10584,6 @@ void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call)
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
-}
-
-void MegaChatCallHandler::onLocalAudioDetected(const rtcModule::ICall& call)
-{
-    std::unique_ptr<MegaChatCallPrivate> megaChatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    megaChatCall->setAudioDetected(call.isAudioDetected());
-    mMegaChatApi->fireOnChatCallUpdate(megaChatCall.get());
 }
 
 void MegaChatCallHandler::onOnHold(const rtcModule::ICall& call)
