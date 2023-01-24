@@ -705,6 +705,17 @@ void MegaChatApi::createMeeting(const char* title, bool speakRequest, bool waiti
     pImpl->createPublicChat(peers.get(), true, title, speakRequest, waitingRoom, openInvite, listener);
 }
 
+void MegaChatApi::createChatroomAndSchedMeeting(MegaChatPeerList* peerList, bool isMeeting, bool publicChat, const char* title, bool speakRequest, bool waitingRoom, bool openInvite,
+                                                      const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* description,
+                                                      const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                      const char* attributes, MegaChatRequestListener* listener)
+{
+    pImpl->createChatroomAndSchedMeeting(peerList, isMeeting, publicChat, title, speakRequest, waitingRoom, openInvite,
+                                           timezone, startDate, endDate, description,
+                                           flags, rules, attributes, listener);
+}
+
+
 
 void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                                  const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes,

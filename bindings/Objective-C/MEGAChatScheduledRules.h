@@ -16,11 +16,11 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledRulesFrequency) {
 @property (readonly, nonatomic) MEGAChatScheduledRulesFrequency frequency;
 @property (readonly, nonatomic) NSInteger interval;
 @property (readonly, nonatomic) uint64_t until;
+@property (readonly, nonatomic, nullable) NSArray <NSNumber *> *byWeekDay;
+@property (readonly, nonatomic, nullable) NSArray <NSNumber *> *byMonthDay;
+@property (readonly, nonatomic, nullable) NSArray<NSArray<NSNumber *> *> *byMonthWeekDay;
 
 - (instancetype)clone;
-- (NSArray <NSNumber *>*)byWeekDay;
-- (NSArray <NSNumber *>*)byMonthDay;
-- (NSMutableArray< NSMutableArray<NSNumber *> *> *)byMonthWeekDay;
 - (BOOL)isValidFrequency:(MEGAChatScheduledRulesFrequency)frequency;
 - (BOOL)isValidInterval:(NSInteger)interval;
 
