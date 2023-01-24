@@ -727,16 +727,16 @@ void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat,
 }
 
 void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
-                                         const char* title, const char* description, bool newCancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                         const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                          MegaChatRequestListener* listener)
 {
-    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, newCancelled, flags, rules, listener);
+    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, cancelled, flags, rules, listener);
 }
 
 void MegaChatApi::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
-                                                   MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener)
+                                                   MegaChatTimeStamp newEndDate, bool cancelled, MegaChatRequestListener* listener)
 {
-    pImpl->updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate,  newCancelled, listener);
+    pImpl->updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate,  cancelled, listener);
 }
 
 void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener)

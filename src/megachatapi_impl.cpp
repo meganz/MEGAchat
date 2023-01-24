@@ -2910,7 +2910,7 @@ void MegaChatApiImpl::sendPendingRequests()
             // check if startDatetime endDateTime and cancelled were provided in request, otherwise get the values from ocurrence stored in RAM
             MegaChatTimeStamp newStartDate = ocurr->startDateTime();
             MegaChatTimeStamp newEndDate = ocurr->endDateTime();
-            int newCancelled = (ocurr->cancelled() == 0 || ocurr->cancelled() == 1) ? ocurr->cancelled() : localOccurr->cancelled();
+            int cancelled = (ocurr->cancelled() == 0 || ocurr->cancelled() == 1) ? ocurr->cancelled() : localOccurr->cancelled();
 
             std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!occurrSchedMeeting->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
             if (megaFlags)
@@ -2930,7 +2930,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 std::unique_ptr<::mega::MegaScheduledRules> megaRules(occurrSchedMeeting->rules() ? occurrSchedMeeting->rules()->getMegaScheduledRules() : nullptr);
                 megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(occurrSchedMeeting->chatid(), occurrSchedMeeting->schedId() /*schedId*/,
                                                                                                                     occurrSchedMeeting->parentSchedId(), occurrSchedMeeting->organizerUserid(),
-                                                                                                                    newCancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
+                                                                                                                    cancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
                                                                                                                     occurrSchedMeeting->title().c_str(),occurrSchedMeeting->description().c_str(),
                                                                                                                     occurrSchedMeeting->attributes().size() ? occurrSchedMeeting->attributes().c_str() :nullptr,
                                                                                                                     MEGACHAT_INVALID_TIMESTAMP /*overrides*/, megaFlags.get(), megaRules.get()));
@@ -2950,7 +2950,7 @@ void MegaChatApiImpl::sendPendingRequests()
                  */
                 megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(occurrSchedMeeting->chatid(), MEGACHAT_INVALID_HANDLE /*schedId*/,
                                                                                                                 occurrSchedMeeting->schedId() /*parentId*/, occurrSchedMeeting->organizerUserid(),
-                                                                                                                newCancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
+                                                                                                                cancelled, occurrSchedMeeting->timezone().c_str(), newStartDate, newEndDate,
                                                                                                                 occurrSchedMeeting->title().c_str(),occurrSchedMeeting->description().c_str(),
                                                                                                                 occurrSchedMeeting->attributes().size() ? occurrSchedMeeting->attributes().c_str() :nullptr,
                                                                                                                 overrides, megaFlags.get(), /*rules*/ nullptr));
@@ -3028,7 +3028,7 @@ void MegaChatApiImpl::sendPendingRequests()
             std::string newTimezone = sm->timezone() ? sm->timezone() : currentMeeting->timezone();
             MegaChatTimeStamp newStartDate = sm->startDateTime();
             MegaChatTimeStamp newEndDate = sm->endDateTime();
-            bool newCancelled = sm->cancelled();
+            bool cancelled = sm->cancelled();
             std::string newTitle = sm->title() ? sm->title() : currentMeeting->title();
             std::string newDescription = sm->description() ? sm->description() : currentMeeting->description();
 
@@ -3043,7 +3043,7 @@ void MegaChatApiImpl::sendPendingRequests()
                                                                                                               sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
             std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(currentMeeting->chatid(), currentMeeting->schedId(), currentMeeting->parentSchedId(), currentMeeting->organizerUserid(),
-                                                                                                                newCancelled,
+                                                                                                                cancelled,
                                                                                                                 newTimezone.empty() ? nullptr : newTimezone.c_str(),
                                                                                                                 newStartDate,
                                                                                                                 newEndDate,
@@ -4588,11 +4588,11 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
 }
 
 void MegaChatApiImpl::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
-                                                                                      bool newCancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                                                      bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                                       MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING, listener);
-    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), newCancelled, timezone, startDate,
+    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), cancelled, timezone, startDate,
                                                                                        endDate, title, description, nullptr, MEGACHAT_INVALID_TIMESTAMP, flags, rules));
 
     std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
@@ -4650,10 +4650,10 @@ void MegaChatApiImpl::createChatAndScheduledMeeting(MegaChatHandle chatid, MegaC
 }
 
 void MegaChatApiImpl::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
-                                                   MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener)
+                                                   MegaChatTimeStamp newEndDate, bool cancelled, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE, listener);
-    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), newCancelled, nullptr, newStartDate,
+    std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), cancelled, nullptr, newStartDate,
                                                                                        newEndDate, nullptr, nullptr, nullptr, MEGACHAT_INVALID_TIMESTAMP, nullptr, nullptr));
     request->setNumber(overrides);
     std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
