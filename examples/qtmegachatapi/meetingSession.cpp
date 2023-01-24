@@ -53,10 +53,12 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     std::function<void()> setTitle;
     auto sPeerId = session.getPeerid();
     auto sClientId = session.getClientid();
+    std::string sTitlePreffix = session.isAudioDetected() ? " Speaking" : "No Speaking";
     setTitle = std::function<void()>(
-        [this, sPeerId, sClientId, setTitle]()
+        [this, sPeerId, sClientId, sTitlePreffix, setTitle]()
         {
-            std::string title = mMeetingView->sessionToString(sPeerId, sClientId, setTitle);
+            std::string title = sTitlePreffix
+                                + mMeetingView->sessionToString(sPeerId, sClientId, setTitle);
             mTitleLabel.reset(new QLabel(title.c_str()));
             layout()->addWidget(mTitleLabel.get());
             setToolTip(title.c_str());

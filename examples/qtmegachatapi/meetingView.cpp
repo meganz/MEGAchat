@@ -69,11 +69,6 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mOnHoldLabel->setVisible(false);
     mSetOnHold->setVisible(false);
 
-    mLocalAudioDetected = new QLabel("AUDIO DETECTED", this);
-    mLocalAudioDetected->setStyleSheet("background-color:#088529 ;color:#FFFFFF; font-weight:bold;");
-    mLocalAudioDetected->setAlignment(Qt::AlignCenter);
-    mLocalAudioDetected->setContentsMargins(0, 0, 0, 0);
-    mLocalAudioDetected->setVisible(false);
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -104,7 +99,6 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mAudioMonitor);
     mButtonsLayout->addWidget(mSetOnHold);
     mButtonsLayout->addWidget(mOnHoldLabel);
-    mButtonsLayout->addWidget(mLocalAudioDetected);
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
@@ -285,11 +279,6 @@ void MeetingView::removeHiResByCid(uint32_t cid)
         mHiResWidget.erase(it);
         delete widget;
     }
-}
-
-void MeetingView::localAudioDetected(bool audio)
-{
-    mLocalAudioDetected->setVisible(audio);
 }
 
 void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)

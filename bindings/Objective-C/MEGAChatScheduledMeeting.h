@@ -1,7 +1,8 @@
 
 #import <Foundation/Foundation.h>
 
-@class MEGAChatScheduledFlags, MEGAChatScheduledRules;
+#import "MEGAChatScheduledFlags.h"
+#import "MEGAChatScheduledRules.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -31,12 +32,12 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledMeetingChangeType) {
 @property (readonly, nonatomic) uint64_t parentScheduledId;
 @property (readonly, nonatomic) uint64_t organizerUserId;
 @property (readonly, nonatomic) NSString *timezone;
-@property (readonly, nonatomic) NSString *startDateTime;
-@property (readonly, nonatomic) NSString *endDateTime;
+@property (readonly, nonatomic) uint64_t startDateTime;
+@property (readonly, nonatomic) uint64_t endDateTime;
 @property (readonly, nonatomic) NSString *title;
 @property (readonly, nonatomic) NSString *description;
 @property (readonly, nonatomic) NSString *attributes;
-@property (readonly, nonatomic) NSString *overrides;
+@property (readonly, nonatomic) uint64_t overrides;
 @property (readonly, nonatomic) MEGAChatScheduledFlags *flags;
 @property (readonly, nonatomic) MEGAChatScheduledRules *rules;
 

@@ -147,14 +147,14 @@ struct IceCandText
     }
 };
 
-class SdpSetRemoteCallbacks : public webrtc::SetRemoteDescriptionObserverInterface
+class SdpSetRemoteCallbacks : public rtc::RefCountedObject<webrtc::SetRemoteDescriptionObserverInterface>
         , public karere::DeleteTrackable
 {
 public:
     typedef promise::Promise<void> PromiseType;
     void* mAppCtx;
     SdpSetRemoteCallbacks(const PromiseType& promise, void* appCtx) :mAppCtx(appCtx), mPromise(promise){}
-    virtual void OnSetRemoteDescriptionComplete(webrtc::RTCError error)
+    void OnSetRemoteDescriptionComplete(webrtc::RTCError error) override
     {
         if (error.ok())
         {
@@ -169,14 +169,14 @@ protected:
     PromiseType mPromise;
 };
 
-class SdpSetLocalCallbacks : public webrtc::SetLocalDescriptionObserverInterface
+class SdpSetLocalCallbacks : public rtc::RefCountedObject<webrtc::SetLocalDescriptionObserverInterface>
         , public karere::DeleteTrackable
 {
 public:
     typedef promise::Promise<void> PromiseType;
     void* mAppCtx;
     SdpSetLocalCallbacks(const PromiseType& promise, void* appCtx) :mAppCtx(appCtx), mPromise(promise)     {}
-    virtual void OnSetLocalDescriptionComplete(webrtc::RTCError error)
+    void OnSetLocalDescriptionComplete(webrtc::RTCError error) override
     {
         if (error.ok())
         {
@@ -248,7 +248,18 @@ public:
         webrtc::CryptoOptions cryptoOptions;
         cryptoOptions.sframe.require_frame_encryption = true;
         config.crypto_options = cryptoOptions;
-        Base::operator=(gWebrtcContext->CreatePeerConnection(config, NULL, NULL /*DTLS stuff*/, mObserver.get()));
+
+        webrtc::PeerConnectionDependencies dependencies(mObserver.get());
+        webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::PeerConnectionInterface>> rtcError =
+                gWebrtcContext->CreatePeerConnectionOrError(config, std::move(dependencies));
+
+        if (!rtcError.error().ok())
+        {
+            RTCM_LOG_WARNING("Error at CreatePeerConnectionOrError: %s", rtcError.error().message());
+        }
+
+        Base::operator=(rtcError.value());
+
         if (!get())
             throw std::runtime_error("Failed to create a PeerConnection object");
     }
@@ -273,7 +284,7 @@ public:
   SdpSetLocalCallbacks::PromiseType setLocalDescription(std::unique_ptr<webrtc::SessionDescriptionInterface> desc)
   {
       SdpSetLocalCallbacks::PromiseType promise;
-      auto observer = new rtc::RefCountedObject<SdpSetLocalCallbacks>(promise, mObserver->mAppCtx);
+      auto observer= rtc::scoped_refptr<SdpSetLocalCallbacks>(new SdpSetLocalCallbacks(promise, mObserver->mAppCtx));
       observer->AddRef();
       get()->SetLocalDescription(move(desc), observer);
       return promise;
@@ -283,7 +294,7 @@ public:
   SdpSetRemoteCallbacks::PromiseType setRemoteDescription(std::unique_ptr<webrtc::SessionDescriptionInterface> desc)
   {
       SdpSetRemoteCallbacks::PromiseType promise;
-      auto observer = new rtc::RefCountedObject<SdpSetRemoteCallbacks>(promise, mObserver->mAppCtx);
+      auto observer = rtc::scoped_refptr<SdpSetRemoteCallbacks>(new SdpSetRemoteCallbacks(promise, mObserver->mAppCtx));
       observer->AddRef();
       get()->SetRemoteDescription(move(desc), observer);
       return promise;
@@ -404,21 +415,15 @@ protected:
 };
 
 
-class VideoManager : public webrtc::VideoTrackSourceInterface
+class VideoManager : public rtc::RefCountedObject<webrtc::VideoTrackSourceInterface>
 {
 public:
     virtual ~VideoManager(){}
     static VideoManager* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
     virtual void openDevice(const std::string &videoDevice) = 0;
     virtual void releaseDevice() = 0;
-    virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() = 0;
+    virtual webrtc::VideoTrackSourceInterface* getVideoTrackSource() = 0;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
-
-    void AddRef() const override;
-    rtc::RefCountReleaseStatus Release() const override;
-
-private:
-    mutable webrtc::webrtc_impl::RefCounter mRefCount{0};
 };
 
 class CaptureModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
@@ -430,7 +435,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;
     void releaseDevice() override;
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+    VideoTrackSourceInterface* getVideoTrackSource() override;
 
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
@@ -473,7 +478,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;
     void releaseDevice() override;
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+    webrtc::VideoTrackSourceInterface* getVideoTrackSource() override;
 
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
@@ -513,7 +518,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;
     void releaseDevice() override;
-    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
+    webrtc::VideoTrackSourceInterface* getVideoTrackSource() override;
 
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
