@@ -3937,6 +3937,7 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
  */
 void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
 {
+    constexpr unsigned int timeoutUsec = maxTimeout * 1000000;
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
@@ -3990,7 +3991,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
                 unsigned int tWaited = 0;
                 while (((isRichLink && msgUpdated->getType() != MegaChatMessage::TYPE_CONTAINS_META) ||
                             (!isRichLink && msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META)) &&
-                        (tWaited < maxTimeout))
+                        (tWaited < timeoutUsec))
                 {
                     std::this_thread::sleep_for(std::chrono::microseconds(pollingT));
                     tWaited += pollingT;
