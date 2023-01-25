@@ -884,7 +884,7 @@ Client::fetchScheduledMeetingOccurrences(uint64_t chatid, ::mega::m_time_t since
         const mega::MegaScheduledMeetingList* l = result->getMegaScheduledMeetingList();
         if (l)
         {
-            for (unsigned long i = 0; i <= l->size(); i++)
+            for (unsigned long i = 0; i < l->size(); i++)
             {
                 out.emplace_back(new KarereScheduledMeetingOccurr(l->at(i)));
             }
