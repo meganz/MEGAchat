@@ -4156,8 +4156,8 @@ public:
      */
     void createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
                                                      const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
-                                                     const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = nullptr,
-                                                     MegaChatRequestListener* listener = nullptr);
+                                                     const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = NULL,
+                                                     MegaChatRequestListener* listener = NULL);
     /**
      * @brief Modify an existing scheduled meeting
      *
@@ -4187,13 +4187,14 @@ public:
      * @param endDate end date time of the meeting with the format (unix timestamp)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
+     * @param cancelled True if scheduled meeting is going to be cancelled
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param listener MegaChatRequestListener to track this request
      */
     void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
-                                                                         const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
-                                                                         MegaChatRequestListener* listener = nullptr);
+                                                                         const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                                         MegaChatRequestListener* listener = NULL);
 
 
     /**
@@ -4229,11 +4230,11 @@ public:
      * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp)
      * @param overrides new start date time of the occurrence with the format (unix timestamp)
      * @param newEndDate new end date time of the occurrence with the format (unix timestamp)
-     * @param cancelled True if scheduled meeting is going to be cancelled
+     * @param cancelled True if scheduled meeting occurrence is going to be cancelled
      * @param listener MegaChatRequestListener to track this request
      */
     void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides,  MegaChatTimeStamp newStartDate,
-                                          MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
+                                          MegaChatTimeStamp newEndDate, bool cancelled, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Removes a scheduled meeting by scheduled meeting id and chatid
@@ -7640,9 +7641,9 @@ public:
     static MegaChatScheduledRules* createInstance(int freq,
                                                   int interval = INTERVAL_INVALID,
                                                   MegaChatTimeStamp until = MEGACHAT_INVALID_TIMESTAMP,
-                                                  const ::mega::MegaIntegerList* byWeekDay = nullptr,
-                                                  const ::mega::MegaIntegerList* byMonthDay = nullptr,
-                                                  const ::mega::MegaIntegerMap* byMonthWeekDay = nullptr);
+                                                  const ::mega::MegaIntegerList* byWeekDay = NULL,
+                                                  const ::mega::MegaIntegerList* byMonthDay = NULL,
+                                                  const ::mega::MegaIntegerMap* byMonthWeekDay = NULL);
 
     /**
      * @brief Creates a copy of this MegaChatScheduledRules object
@@ -7658,8 +7659,63 @@ public:
     virtual MegaChatScheduledRules* copy() const;
 
     /**
-     * @brief Returns the frequency of the scheduled meeting: (DAILY | WEEKLY | MONTHLY)
-     * @return The frequence of the scheduled meeting
+     * @brief Sets the frequency of the scheduled meeting. This is used in conjunction with interval,
+     * to allow for a repeatable skips in the event timeline.
+     *
+     * Valid values for frequency are:
+     *  - MegaChatScheduledRules::FREQ_DAILY   = 0
+     *  - MegaChatScheduledRules::FREQ_WEEKLY  = 1
+     *  - MegaChatScheduledRules::FREQ_MONTHLY = 2
+     *
+     * @param freq The frequency of the scheduled meeting
+     */
+    virtual void setFreq(int freq);
+
+    /**
+     * @brief Sets the repetition interval in relation to the frequency
+     *
+     * @param interval The repetition interval in relation to the frequency
+     */
+    virtual void setInterval(int interval);
+
+    /**
+     * @brief Sets the until value that indicates when the repetitions should end
+     *
+     * @param until Value that indicates when the repetitions should end
+     */
+    virtual void setUntil(MegaChatTimeStamp until);
+
+    /**
+     * @brief Sets the week days when the event will occur
+     *
+     * @param byWeekDay A MegaIntegerList with the week days when the event will occur
+     */
+    virtual void setByWeekDay(const ::mega::MegaIntegerList* byWeekDay);
+
+    /**
+     * @brief Sets the days of the month when the event will occur
+     *
+     * @param byMonthDay A MegaIntegerList with the days of the month when the event will occur
+     */
+    virtual void setByMonthDay(const ::mega::MegaIntegerList* byMonthDay);
+
+    /**
+     * @brief Sets one or multiple weekday offset (ie: [5,4] event will occur every 5th Thursday of each month)
+     *
+     * @return A MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset
+     */
+    virtual void setByMonthWeekDay(const ::mega::MegaIntegerMap* byMonthWeekDay);
+
+    /**
+     * @brief Returns the frequency of the scheduled. This value is used in conjunction with interval,
+     * to allow for a repeatable skips in the event timeline.
+     *
+     * Valid values for frequency are:
+     *  - MegaChatScheduledRules::FREQ_DAILY   = 0
+     *  - MegaChatScheduledRules::FREQ_WEEKLY  = 1
+     *  - MegaChatScheduledRules::FREQ_MONTHLY = 2
+     *
+     * @return The frequency of the scheduled meeting
      */
     virtual int freq() const;
 

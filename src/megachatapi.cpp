@@ -727,16 +727,16 @@ void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat,
 }
 
 void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
-                                         const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                         const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                          MegaChatRequestListener* listener)
 {
-    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description,flags, rules, listener);
+    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, cancelled, flags, rules, listener);
 }
 
 void MegaChatApi::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
-                                                   MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener)
+                                                   MegaChatTimeStamp newEndDate, bool cancelled, MegaChatRequestListener* listener)
 {
-    pImpl->updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate,  newCancelled, listener);
+    pImpl->updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate,  cancelled, listener);
 }
 
 void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener)
@@ -2374,15 +2374,21 @@ MegaChatScheduledRules* MegaChatScheduledRules::createInstance(int freq,
 {
     return new MegaChatScheduledRulesPrivate(freq, interval, until, byWeekDay, byMonthDay, byMonthWeekDay);
 }
-
-MegaChatScheduledRules::~MegaChatScheduledRules()                               {}
 MegaChatScheduledRules* MegaChatScheduledRules::copy() const                    { return NULL; }
+MegaChatScheduledRules::~MegaChatScheduledRules()                               {}
+void MegaChatScheduledRules::setFreq(int)                                       {}
+void MegaChatScheduledRules::setInterval(int)                                   {}
+void MegaChatScheduledRules::setUntil(MegaChatTimeStamp)                        {}
+void MegaChatScheduledRules::setByWeekDay(const ::mega::MegaIntegerList*)       {}
+void MegaChatScheduledRules::setByMonthDay(const ::mega::MegaIntegerList*)      {}
+void MegaChatScheduledRules::setByMonthWeekDay(const ::mega::MegaIntegerMap*)   {}
+
 int MegaChatScheduledRules::freq() const                                        { return 0; }
 int MegaChatScheduledRules::interval() const                                    { return 0; }
 MegaChatTimeStamp MegaChatScheduledRules::until() const                         { return MEGACHAT_INVALID_TIMESTAMP; }
-const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay() const          { return nullptr; }
-const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay() const         { return nullptr; }
-const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay() const      { return nullptr; }
+const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay() const          { return NULL; }
+const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay() const         { return NULL; }
+const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay() const      { return NULL; }
 bool MegaChatScheduledRules::isValidFreq(int freq)                              { return MegaChatScheduledRulesPrivate::isValidFreq(freq);}
 bool MegaChatScheduledRules::isValidInterval(int interval)                      { return MegaChatScheduledRulesPrivate::isValidInterval(interval);}
 

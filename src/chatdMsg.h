@@ -212,7 +212,8 @@ enum Opcode
       * S->C: Receive as result of HIST command, it notifies the end of history fetch.
       * Receive: <chatid>
       *
-      * @note There may be more history in server, but the HIST <count> is already satisfied.
+      * @note If we received less messages from chatd than requested <count>, we can assume that we have all history.
+      * Otherwise If HIST <count> is already satisfied, there may be more history in server.
       */
     OP_HISTDONE = 13,
 
