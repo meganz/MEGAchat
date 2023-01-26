@@ -3880,8 +3880,14 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
  * (if not accomplished, the test automatically solves them)
  *
  * This test does the following:
- * + Create a Meeting room and a recurrent scheduled meeting in one step
- *
+ * + TEST 1. A Creates a Meeting room and a recurrent scheduled meeting in one step
+ * + TEST 2. A Updates a recurrent scheduled meeting with invalid TimeZone (Error)
+ * + TEST 3. A Updates previous recurrent scheduled meeting with valid data
+ * + TEST 4. A Updates a scheduled meeting occurrence with invalid schedId (Error)
+ * + TEST 5. A Updates a scheduled meeting occurrence (new child sched meeting created)
+ * + TEST 6. A Cancels previous scheduled meeting occurrence
+ * + TEST 7. A Deletes scheduled meeting with invalid schedId (Error)
+ * + TEST 8. A Deletes scheduled meeting
  */
 void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
 {
@@ -4074,9 +4080,9 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     updateSchedMeeting(a1, MegaChatError::ERROR_OK, chatId, schedId, timeZone, startDate, endDate, title, description, flags, rules);
 
     //================================================================================//
-    // TEST 4. Update a scheduled meeting occurrence (Error)
+    // TEST 4. Update a scheduled meeting occurrence with invalid schedId (Error)
     //================================================================================//
-    LOG_debug << "TEST_ScheduledMeetings 4: Update a scheduled meeting occurrence (Error)";
+    LOG_debug << "TEST_ScheduledMeetings 4: Update a scheduled meeting occurrence with invalid schedId (Error)";
     updateOccurrence(a1, MegaChatError::ERROR_NOENT, chatId, MEGACHAT_INVALID_HANDLE, startDate, startDate, endDate, false);
 
     //================================================================================//
@@ -4102,9 +4108,9 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(sched && sched->schedId() == childSchedId && sched->cancelled(), "Scheduled meeting occurrence could not be cancelled");
 
     //================================================================================//
-    // TEST 7. Delete scheduled meeting (error)
+    // TEST 7. Delete scheduled meeting with invalid schedId (Error)
     //================================================================================//
-    LOG_debug << "TEST_ScheduledMeetings 7: remove a scheduled meeting occurrence (Error)";
+    LOG_debug << "TEST_ScheduledMeetings 7: remove a scheduled meeting occurrence with invalid schedId (Error)";
     deleteSchedMeeting(a1, MegaChatError::ERROR_ARGS, chatId, MEGACHAT_INVALID_HANDLE);
 
     //================================================================================//
