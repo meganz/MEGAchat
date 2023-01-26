@@ -420,6 +420,7 @@ void MegaChatApiTest::SetUp()
         mCallIdRingIn[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdJoining[i] = MEGACHAT_INVALID_HANDLE;
         mSchedIdUpdated[i] = MEGACHAT_INVALID_HANDLE;
+        mSchedIdRemoved[i] = MEGACHAT_INVALID_HANDLE;
         mCallIdExpectedReceived[i] = MEGACHAT_INVALID_HANDLE;
         mLocalVideoListener[i] = NULL;
         mRemoteVideoListener[i] = NULL;
@@ -3884,6 +3885,35 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
  */
 void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
 {
+    // remove scheduled meeting
+    std::function<void(unsigned int, int, MegaChatHandle, MegaChatHandle)> deleteSchedMeeting =
+    [this, &a1, &a2](unsigned int index, int expectedError, MegaChatHandle chatId, MegaChatHandle schedId)
+    {
+        lastErrorChat[index] = MegaChatError::ERROR_OK;                      // reset last MegaChatRequest error
+        mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
+        mSchedIdRemoved[a1] = mSchedIdRemoved[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
+
+        // wait for onRequestFinish
+        waitForAction (1,
+                       std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING]},
+                       std::vector<string> { "TYPE_DELETE_SCHEDULED_MEETING[a1]"},
+                       "Removing scheduled meeting from A",
+                       true /* wait for all exit flags*/,
+                       true /*reset flags*/,
+                       maxTimeout,
+                       [this, index, chatId, schedId]()
+                       {
+                            megaChatApi[index]->removeScheduledMeeting(chatId, schedId);
+                       });
+        ASSERT_CHAT_TEST(lastErrorChat[a1] == expectedError, "Unexpected TYPE_DELETE_SCHEDULED_MEETING request error: " + std::to_string(lastErrorChat[a1]) + " expected: " + std::to_string(expectedError));
+        if (expectedError != MegaChatError::ERROR_OK) { return; }
+
+        // wait for onChatSchedMeetingUpdate (just in case expectedError is ERROR_OK)
+        waitForMultiResponse(std::vector<bool *> {&mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2]}, true, maxTimeout);
+        ASSERT_CHAT_TEST(mSchedIdRemoved[a1] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for primary account could not be removed");
+        ASSERT_CHAT_TEST(mSchedIdRemoved[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for secondary account could not be removed");
+    };
+
     // update scheduled meeting
     std::function<void(unsigned int, int, MegaChatHandle, MegaChatHandle, std::string, MegaChatTimeStamp,
                        MegaChatTimeStamp,std::string, std::string, std::shared_ptr<MegaChatScheduledFlags>,
@@ -4070,6 +4100,18 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     updateOccurrence(a1, MegaChatError::ERROR_OK, chatId, childSchedId, overrides, startDate, endDate, true /*newCancelled*/);
     sched = megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]);
     ASSERT_CHAT_TEST(sched && sched->schedId() == childSchedId && sched->cancelled(), "Scheduled meeting occurrence could not be cancelled");
+
+    //================================================================================//
+    // TEST 7. Delete scheduled meeting (error)
+    //================================================================================//
+    LOG_debug << "TEST_ScheduledMeetings 7: remove a scheduled meeting occurrence (Error)";
+    deleteSchedMeeting(a1, MegaChatError::ERROR_ARGS, chatId, MEGACHAT_INVALID_HANDLE);
+
+    //================================================================================//
+    // TEST 8. Delete scheduled meeting
+    //================================================================================//
+    LOG_debug << "TEST_ScheduledMeetings 8: remove a scheduled meeting occurrence";
+    deleteSchedMeeting(a1, MegaChatError::ERROR_OK, chatId, childSchedId);
 }
 #endif
 
@@ -5453,6 +5495,11 @@ void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megac
     {
        mSchedMeetingUpdated[apiIndex] = true;
        mSchedIdUpdated[apiIndex] = sm->schedId();
+
+       if (sm->isDeleted())
+       {
+           mSchedIdRemoved[apiIndex] = sm->schedId();
+       }
     }
 }
 

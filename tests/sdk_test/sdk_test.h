@@ -381,6 +381,7 @@ private:
     megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     megachat::MegaChatHandle mSchedIdUpdated[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mSchedIdRemoved[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
     bool mChatCallOnHold[NUM_ACCOUNTS];
