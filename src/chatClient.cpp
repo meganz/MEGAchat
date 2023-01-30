@@ -882,9 +882,12 @@ Client::fetchScheduledMeetingOccurrences(uint64_t chatid, ::mega::m_time_t since
         wptr.throwIfDeleted();
         std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> out;
         const mega::MegaScheduledMeetingList* l = result->getMegaScheduledMeetingList();
-        for (unsigned long i = 0; i <= l->size(); i++)
+        if (l)
         {
-            out.emplace_back(new KarereScheduledMeetingOccurr(l->at(i)));
+            for (unsigned long i = 0; i < l->size(); i++)
+            {
+                out.emplace_back(new KarereScheduledMeetingOccurr(l->at(i)));
+            }
         }
         return out;
     });

@@ -2791,7 +2791,7 @@ void MegaChatApiImpl::sendPendingRequests()
                                                               static_cast<::mega::m_time_t>(tsList->get(1)),  /*until*/
                                                               static_cast<unsigned int>(request->getNumber()) /*count*/)
 
-                    .then([request](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
+                    .then([request, this](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
                     {
                         if (!result.empty())
                         {
@@ -2802,6 +2802,8 @@ void MegaChatApiImpl::sendPendingRequests()
                             }
                             request->setMegaChatScheduledMeetingOccurrList(l.get());
                         }
+                        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
                     })
                     .fail([request, this](const ::promise::Error& err)
                     {
