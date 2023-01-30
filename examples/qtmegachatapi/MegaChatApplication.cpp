@@ -1204,6 +1204,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 #endif
         break;
     }
+
     default:
         break;
     }

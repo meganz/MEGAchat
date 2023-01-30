@@ -133,12 +133,18 @@ Client::Client(karere::Client *aKarereClient) :
                 switch(*tmp)
                 {
                 case '1':
+                {
+                    CHATD_LOG_DEBUG("USER_ATTR_RICH_PREVIEWS user attribute enabled");
                     client->mRichLinkState = kRichLinkEnabled;
                     break;
+                }
 
                 case '0':
+                {
+                    CHATD_LOG_DEBUG("USER_ATTR_RICH_PREVIEWS user attribute disabled");
                     client->mRichLinkState = kRichLinkDisabled;
                     break;
+                }
 
                 default:
                     CHATD_LOG_WARNING("Unexpected value for user attribute USER_ATTR_RICH_PREVIEWS - value: %c", *tmp);
@@ -4386,6 +4392,7 @@ Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
         }
         else if (mChatdClient.richLinkState() == Client::kRichLinkNotDefined)
         {
+            CHATID_LOG_WARNING("richLinkState is disabled");
             manageRichLinkMessage(*msg);
         }
     }

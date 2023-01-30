@@ -36,8 +36,8 @@
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
-static constexpr unsigned int maxAttempts = 3;
-static const unsigned int maxTimeout = 600;
+static constexpr unsigned int MAX_ATTEMPTS = 3;
+static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
 
@@ -242,7 +242,7 @@ public:
      * @param timeout max timeout (in seconds) to execute the action
      * @param action function to be executed
      */
-    void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg,  bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
+    void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
 
     void TEST_ResumeSession(unsigned int accountIndex);
     void TEST_SetOnlineStatus(unsigned int accountIndex);
@@ -367,6 +367,7 @@ private:
 
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
+    std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
@@ -415,6 +416,7 @@ public:
     void onChatsUpdate(mega::MegaApi* api, mega::MegaTextChatList *chats) override;
     void onRequestTemporaryError(::mega::MegaApi *, ::mega::MegaRequest *, ::mega::MegaError*) override {}
     void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests) override;
+    void onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList) override;
 
     // implementation for MegaChatRequestListener
     void onRequestStart(megachat::MegaChatApi* , megachat::MegaChatRequest *) override {}

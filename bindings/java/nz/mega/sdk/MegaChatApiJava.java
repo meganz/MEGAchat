@@ -997,12 +997,13 @@ public class MegaChatApiJava {
      * @param endDate     End date time of the meeting in Unix timestamp
      * @param title       Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
+     * @param cancelled   True if scheduled meeting is going to be cancelled
      * @param flags       Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules       Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param listener    MegaChatRequestListener to track this request
      */
-    public void updateScheduledMeeting(long chatid, long schedId, String timezone, long startDate, long endDate, String title, String description, MegaChatScheduledFlags flags, MegaChatScheduledRules rules, MegaChatRequestListenerInterface listener) {
-        megaChatApi.updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, flags, rules, createDelegateRequestListener(listener));
+    public void updateScheduledMeeting(long chatid, long schedId, String timezone, long startDate, long endDate, String title, String description, boolean cancelled, MegaChatScheduledFlags flags, MegaChatScheduledRules rules, MegaChatRequestListenerInterface listener) {
+        megaChatApi.updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, cancelled, flags, rules, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1031,11 +1032,12 @@ public class MegaChatApiJava {
      * @param endDate     End date time of the meeting in Unix timestamp
      * @param title       Null-terminated character string with the scheduled meeting title. Maximum allowed length is XX characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is XX characters
+     * @param cancelled   True if scheduled meeting is going to be cancelled
      * @param flags       Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules       Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      */
-    public void updateScheduledMeeting(long chatid, long schedId, String timezone, long startDate, long endDate, String title, String description, MegaChatScheduledFlags flags, MegaChatScheduledRules rules) {
-        megaChatApi.updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, flags, rules);
+    public void updateScheduledMeeting(long chatid, long schedId, String timezone, long startDate, long endDate, String title, String description, boolean cancelled, MegaChatScheduledFlags flags, MegaChatScheduledRules rules) {
+        megaChatApi.updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, cancelled, flags, rules);
     }
 
     /**

@@ -173,12 +173,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     ChatWindow *window = itemController->showChatWindow();
     assert(window);
 
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL))
-    {
-        assert(itemController->getMeetingView());
-        itemController->getMeetingView()->localAudioDetected(call->isAudioDetected());
-    }
-
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
         switch (call->getStatus())
@@ -342,7 +336,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
     }
 
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS))
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS) || session->hasChanged(MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL))
     {
         meetingView->updateSession(*session);
     }
@@ -1104,13 +1098,13 @@ void MainWindow::onAddChatSchedMeeting()
 
     std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,
-                                                                                         MegaChatScheduledRules::UNTIL_INVALID,
+                                                                                         MEGACHAT_INVALID_TIMESTAMP,
                                                                                          byWeekDay.get(), nullptr, nullptr));
 
 
     std::string timezone = mApp->getText("Get TimeZone (i.e: Europe/Madrid)", false);
-    MegaChatTimeStamp startDate = atoi(mApp->getText("Get StartDate (Format YYYYMMDDTHHMMSS)", false).c_str());
-    MegaChatTimeStamp endDate = atoi(mApp->getText("Get EndDate (Format YYYYMMDDTHHMMSS)", false).c_str());
+    MegaChatTimeStamp startDate = atoi(mApp->getText("Get StartDate (Unix timestamp)", false).c_str());
+    MegaChatTimeStamp endDate = atoi(mApp->getText("Get EndDate (Unix timestamp)", false).c_str());
     std::string title = mApp->getText("Get title", false);
     std::string description = mApp->getText("Get description", false);
 
