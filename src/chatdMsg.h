@@ -173,6 +173,11 @@ enum Opcode
       * @brief
       * S->C: The NEWMSG with msgxid was successfully written and now has the permanent
       *    msgid.
+      *
+      * Note: if incompatibility with the history is detected (current time is
+      * one hour greater than message timestamp). The command received will be
+      * OP_NEWMSGIDTIMESTAMP
+      *
       * Receive: <msgxid> <msgid>
       */
     OP_NEWMSGID = 10,
@@ -257,6 +262,11 @@ enum Opcode
       * @brief
       * S->C: The NEWMSG with msgxid had been written previously, informs of the permanent
       *     msgid.
+      *
+      * Note: if incompatibility with the history is detected (current time is
+      * one hour greater than message timestamp). The command received will be
+      * OP_MSGIDTIMESTAMP
+      *
       * Receive: <msgxid> <msgid>
       */
     OP_MSGID = 21,
@@ -475,6 +485,9 @@ enum Opcode
       *     msgid. This command is similar to MSGID but furthermore update the ts sent in
       *     the NEWMSG due to incompatibility with the history
       *
+      * Note: incompatibility with the history is only detected if current time is
+      * one hour greater than message timestamp
+      *
       * Receive: <msgxid.8> <msgid.8> <ts.4>
       */
     OP_MSGIDTIMESTAMP = 49,
@@ -484,6 +497,9 @@ enum Opcode
       * S->C: The NEWMSG with msgxid was successfully written and now has the permanent
       *    msgid. This command is similar to MSGID but furthermore update the ts sent in
       *     the NEWMSGID due to incompatibility with the history
+      *
+      * Note: incompatibility with the history is only detected if current time is
+      * one hour greater than message timestamp
       *
       * Receive: <msgxid.8> <msgid.8> <ts.4>
       */
@@ -711,7 +727,7 @@ public:
                 std::unique_ptr<char[]> changedJson(new char[changedLen + 1]);
                 memcpy(changedJson.get(), &buffer[position], changedLen);
                 changedJson[changedLen] = '\0';
-                position += changedLen;
+                position += (unsigned)changedLen;
 
                 rapidjson::StringStream stringStream(changedJson.get());
                 rapidjson::Document document;

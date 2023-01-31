@@ -217,6 +217,7 @@ class MainWindow :
         void on_bOnlineStatus_clicked();
         void onAddContact();
         void onAddChatRoom(bool isGroup, bool isPublic, bool isMeeting);
+        void onAddChatSchedMeeting();
         void onWebRTCsetting();
         void setOnlineStatus();
         void onShowArchivedChats();
@@ -226,6 +227,7 @@ class MainWindow :
         void onPrintMyInfo();
         void on_mLogout_clicked();
         void onCatchUp();
+        void onSetSFUId();
         void onlastGreenVisibleClicked();
         void onChatsSettingsClicked();
         void onChatCheckPushNotificationRestrictionClicked();

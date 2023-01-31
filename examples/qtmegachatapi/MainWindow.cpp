@@ -173,12 +173,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     ChatWindow *window = itemController->showChatWindow();
     assert(window);
 
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL))
-    {
-        assert(itemController->getMeetingView());
-        itemController->getMeetingView()->localAudioDetected(call->isAudioDetected());
-    }
-
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
         switch (call->getStatus())
@@ -342,7 +336,7 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
         }
     }
 
-    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS))
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS) || session->hasChanged(MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL))
     {
         meetingView->updateSession(*session);
     }
@@ -625,6 +619,8 @@ void MainWindow::on_bSettings_clicked()
     auto actMeetingRoom = chatMenu->addAction(tr("Create meeting room (EKR off)"));
     connect(actMeetingRoom, &QAction::triggered, this, [=](){onAddChatRoom(true, true, true);});
 
+    auto actschedMeeting = chatMenu->addAction(tr("Create new chat and scheduled meeting (EKR off)"));
+    connect(actschedMeeting, &QAction::triggered, this, [=](){onAddChatSchedMeeting();});
     auto actPreviewChat = chatMenu->addAction(tr("Preview chat-link"));
     connect(actPreviewChat,  &QAction::triggered, this, [this] {openChatPreview(true);});
 
@@ -688,6 +684,9 @@ void MainWindow::on_bSettings_clicked()
 
     auto actCatchUp = othersMenu->addAction(tr("Catch-Up with API"));
     connect(actCatchUp, SIGNAL(triggered()), this, SLOT(onCatchUp()));
+
+    auto actSFUId = othersMenu->addAction(tr("Set SFU id"));
+    connect(actSFUId, SIGNAL(triggered()), this, SLOT(onSetSFUId()));
 
     auto actUseStaging = othersMenu->addAction("Use API staging");
     connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
@@ -1088,6 +1087,33 @@ void MainWindow::onAddChatRoom(bool isGroup, bool isPublic, bool isMeeting)
     chatDialog->show();
 }
 
+void MainWindow::onAddChatSchedMeeting()
+{
+    // define rules and flags from hardcoded
+    std::unique_ptr<::mega::MegaIntegerList> byWeekDay(::mega::MegaIntegerList::createInstance());
+    byWeekDay->add(1);byWeekDay->add(3);byWeekDay->add(5);
+
+    std::unique_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance());
+    flags->setEmailsDisabled(false);
+
+    std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
+                                                                                         MegaChatScheduledRules::INTERVAL_INVALID,
+                                                                                         MEGACHAT_INVALID_TIMESTAMP,
+                                                                                         byWeekDay.get(), nullptr, nullptr));
+
+
+    std::string timezone = mApp->getText("Get TimeZone (i.e: Europe/Madrid)", false);
+    MegaChatTimeStamp startDate = atoi(mApp->getText("Get StartDate (Unix timestamp)", false).c_str());
+    MegaChatTimeStamp endDate = atoi(mApp->getText("Get EndDate (Unix timestamp)", false).c_str());
+    std::string title = mApp->getText("Get title", false);
+    std::string description = mApp->getText("Get description", false);
+
+    MegaChatPeerList* peerList =  MegaChatPeerList::createInstance();
+    mMegaChatApi->createChatroomAndSchedMeeting(peerList, true /*isMeeting*/, true /*publicChat*/,  title.c_str(), false /*speakRequest*/, false /*waitingRoom*/, true /*openInvite*/,
+                                                timezone.c_str(), startDate, endDate, description.c_str(),
+                                                flags.get(), rules.get(), nullptr);
+}
+
 char *MainWindow::askChatTitle()
 {
     char *title = NULL;
@@ -1477,6 +1503,12 @@ void MainWindow::on_mLogout_clicked()
 void MainWindow::onCatchUp()
 {
     mMegaApi->catchup();
+}
+
+void MainWindow::onSetSFUId()
+{
+    int sfuid = atoi(mApp->getText("Set SFU id").c_str());
+    mMegaChatApi->setSFUid(sfuid);
 }
 
 void MainWindow::onlastGreenVisibleClicked()

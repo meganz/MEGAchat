@@ -56,6 +56,11 @@ public:
 #endif
 
 public slots:
+    void updateScheduledMeeting();
+    void updateScheduledMeetingOccurrence();
+    void removeScheduledMeeting();
+    void fetchScheduledMeeting();
+    void fetchScheduledMeetingEvents();
     void leaveGroupChat();
     void setTitle();
     void truncateChat();
