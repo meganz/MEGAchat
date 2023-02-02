@@ -2427,10 +2427,12 @@ MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 
 MegaChatScheduledMeetingOccurr::~MegaChatScheduledMeetingOccurr()                     {}
 int MegaChatScheduledMeetingOccurr::cancelled() const                                 { return 0; }
 MegaChatHandle MegaChatScheduledMeetingOccurr::schedId() const                        { return MEGACHAT_INVALID_HANDLE; }
+MegaChatHandle MegaChatScheduledMeetingOccurr::parentSchedId() const                  { return MEGACHAT_INVALID_HANDLE; }
 MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurr::copy() const          { return NULL; }
 const char* MegaChatScheduledMeetingOccurr::timezone() const                          { return NULL; }
 MegaChatTimeStamp MegaChatScheduledMeetingOccurr::startDateTime() const               { return MEGACHAT_INVALID_TIMESTAMP; }
 MegaChatTimeStamp MegaChatScheduledMeetingOccurr::endDateTime() const                 { return MEGACHAT_INVALID_TIMESTAMP; }
+MegaChatTimeStamp MegaChatScheduledMeetingOccurr::overrides() const                   { return MEGACHAT_INVALID_TIMESTAMP; }
 
 /* Class MegaChatScheduledMeetingList */
 MegaChatScheduledMeetingList* MegaChatScheduledMeetingList::createInstance()

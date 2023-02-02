@@ -1019,14 +1019,22 @@ public:
     virtual ~MegaChatScheduledMeetingOccurrPrivate();
     MegaChatScheduledMeetingOccurrPrivate* copy() const override;
     MegaChatHandle schedId() const override;
+    MegaChatHandle parentSchedId() const override;
     const char* timezone() const override;
     MegaChatTimeStamp startDateTime() const override;
     MegaChatTimeStamp endDateTime() const override;
+    MegaChatTimeStamp overrides() const override;
     int cancelled() const override;
 
 private:
     // scheduled meeting handle
     MegaChatHandle mSchedId;
+
+    // parent scheduled meeting handle
+    MegaChatHandle mParentSchedId;
+
+    // start dateTime of the original meeting series event to be replaced (unix timestamp)
+    MegaChatTimeStamp mOverrides;
 
     // timeZone
     std::string mTimezone;

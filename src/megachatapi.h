@@ -8023,6 +8023,20 @@ public:
     virtual MegaChatHandle schedId() const;
 
     /**
+     * @brief Returns the MegaChatHandle that identifies the parent scheduled meeting
+     *
+     * @return MegaChatHandle that identifies the parent scheduled meeting
+     */
+    virtual MegaChatHandle parentSchedId() const;
+
+    /**
+     * @brief Returns the start dateTime of the original meeting series event to be replaced (unix timestamp)
+     *
+     * @return the start dateTime of the original meeting series event to be replaced
+     */
+    virtual MegaChatTimeStamp overrides() const;
+
+    /**
      * @brief Returns the time zone
      *
      * @return time zone

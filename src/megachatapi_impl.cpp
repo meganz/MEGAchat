@@ -8871,11 +8871,13 @@ MegaChatScheduledMeetingOccurrPrivate* MegaChatScheduledMeetingOccurrPrivate::co
    return new MegaChatScheduledMeetingOccurrPrivate(this);
 }
 
-MegaChatHandle MegaChatScheduledMeetingOccurrPrivate::schedId() const               { return mSchedId;}
-const char* MegaChatScheduledMeetingOccurrPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr;}
+MegaChatHandle MegaChatScheduledMeetingOccurrPrivate::schedId() const               { return mSchedId; }
+MegaChatHandle MegaChatScheduledMeetingOccurrPrivate::parentSchedId() const         { return mParentSchedId; }
+const char* MegaChatScheduledMeetingOccurrPrivate::timezone() const                 { return !mTimezone.empty() ? mTimezone.c_str() : nullptr; }
 MegaChatTimeStamp MegaChatScheduledMeetingOccurrPrivate::startDateTime() const      { return mStartDateTime; }
 MegaChatTimeStamp MegaChatScheduledMeetingOccurrPrivate::endDateTime() const        { return mEndDateTime; }
-int MegaChatScheduledMeetingOccurrPrivate::cancelled() const                        { return mCancelled;}
+MegaChatTimeStamp MegaChatScheduledMeetingOccurrPrivate::overrides() const          { return mOverrides; }
+int MegaChatScheduledMeetingOccurrPrivate::cancelled() const                        { return mCancelled; }
 
 /* Class MegaChatScheduledMeetingListPrivate */
 MegaChatScheduledMeetingListPrivate::MegaChatScheduledMeetingListPrivate()

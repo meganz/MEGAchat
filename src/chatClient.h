@@ -1484,11 +1484,22 @@ private:
     std::unique_ptr<KarereScheduledRules> mRules;
 };
 
+/**
+ * @brief This class represents a scheduled meeting occurrence.
+ * A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
+ * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+ *
+ * Important considerations:
+ *  - The way to uniquely identify an occurrence is by schedid AND startdatetime
+ *  - We only store schedid, startdatetime and enddatetime at local karere db in terms of efficiency.
+ *    The rest of the fields: parentSchedId, timezone, overrides and cancelled, are retrieved from scheduledMeetings table,
+ *    as none of the previously mentioned fields values for an occurrence, can differ from the values of it's associated scheduled meeting
+ */
 class KarereScheduledMeetingOccurr
 {
 public:
 
-    KarereScheduledMeetingOccurr(const karere::Id& schedId, const std::string& timezone, mega::m_time_t startDateTime, mega::m_time_t endDateTime, int cancelled = -1);
+    KarereScheduledMeetingOccurr(const karere::Id& schedId, const karere::Id& parentSchedId, const std::string& timezone, mega::m_time_t startDateTime, mega::m_time_t endDateTime, mega::m_time_t overrides, int cancelled = -1);
     KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* karereScheduledMeetingOccurr);
     KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* sm);
 
@@ -1496,15 +1507,23 @@ public:
     virtual ~KarereScheduledMeetingOccurr();
 
     karere::Id schedId() const;
+    karere::Id parentSchedId() const;
     const std::string& timezone() const;
     ::mega::m_time_t startDateTime() const;
     ::mega::m_time_t endDateTime() const;
+    ::mega::m_time_t overrides() const;
     int cancelled() const;
 
 private:
 
     // scheduled meeting handle
     karere::Id mSchedId;
+
+    // parent scheduled meeting handle
+    karere::Id mParentSchedId;
+
+    // start dateTime of the original meeting series event to be replaced (unix timestamp)
+    ::mega::m_time_t mOverrides;
 
     // timeZone
     std::string mTimezone;
