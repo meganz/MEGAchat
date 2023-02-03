@@ -4389,6 +4389,17 @@ std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOc
 promise::Promise<std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>>>
 GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const
 {
+    auto getTz = [](mega::MegaTimeZoneDetails* tzList, const std::string& timeZone){
+        for (int i = 0; i < tzList->getNumTimeZones(); i++)
+        {
+            if (!timeZone.compare(tzList->getTimeZone(i)))
+            {
+                return tzList->getTimeOffset(i);
+            }
+        }
+        return 0;
+    };
+
     if (mScheduledMeetingsOcurrences.empty() || !count)
     {
         promise::Promise<std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>>>();
@@ -4396,7 +4407,7 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
 
     auto wptr = getDelTracker();
     return parent.mKarereClient.api.call(&mega::MegaApi::fetchTimeZoneFromLocal)
-    .then([wptr, since, until, count, this](ReqResult result) -> Promise<std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>>>
+    .then([wptr, since, until, count, &getTz, this](ReqResult result) -> Promise<std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>>>
     {
         wptr.throwIfDeleted();
         if (!result->getMegaTimeZoneDetails())
@@ -4405,16 +4416,9 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
         }
 
         // all occurrences for the same ChatRoom must have the same TimeZone
-        int offset = 0;
-        const std::string timeZone = mScheduledMeetingsOcurrences.begin()->second->timezone();
+        const std::string& timeZone = mScheduledMeetingsOcurrences.begin()->second->timezone();
         mega::MegaTimeZoneDetails* tzList = result->getMegaTimeZoneDetails();
-        for (int i = 0; i < tzList->getNumTimeZones(); i++)
-        {
-            if (!timeZone.compare(tzList->getTimeZone(i)))
-            {
-                offset = tzList->getTimeOffset(i);
-            }
-        }
+        int offset = getTz(tzList, timeZone);
 
         std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>> ocurrList;
         auto&& occurrSorted = sortOccurrences();
@@ -4425,13 +4429,7 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
             {
                 assert(false); // this should not happen, as it's expected that all occurrences have the same timeZone
                 KR_LOG_ERROR("Unexpected timezone %s", it->second->timezone().c_str());
-                for (int i = 0; i < tzList->getNumTimeZones(); i++)
-                {
-                    if (!it->second->timezone().compare(tzList->getTimeZone(i)))
-                    {
-                        auxoffset = tzList->getTimeOffset(i);
-                    }
-                }
+                auxoffset = getTz(tzList, it->second->timezone());
             }
 
             // apply offset relative to Scheduled meeting configured timezone
