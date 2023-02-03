@@ -120,6 +120,7 @@ using namespace megachat;
 - (NSArray<MEGAChatScheduledMeetingOccurrence *> *)chatScheduledMeetingOccurrences {
     if (!self.megaChatRequest) return [NSArray new];
     MegaChatScheduledMeetingOccurrList *scheduledMeetingOccurrList = self.megaChatRequest->getMegaChatScheduledMeetingOccurrList();
+    if(!scheduledMeetingOccurrList) return [NSArray new];
     NSMutableArray<MEGAChatScheduledMeetingOccurrence *> *scheduledMeetingsOccurrences = [NSMutableArray arrayWithCapacity:scheduledMeetingOccurrList->size()];
 
     for (int i = 0; i < scheduledMeetingOccurrList->size(); i++)
