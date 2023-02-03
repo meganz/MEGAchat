@@ -2871,12 +2871,12 @@ void MegaChatApiImpl::sendPendingRequests()
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
+            const KarereScheduledMeeting* occurrSchedMeeting = it->second.get();
 
             // load occurrences from local if not loaded yet
-            size_t numOccurrences = chatroom->loadOccurresInMemoryFromDb();
+            chatroom->loadOccurresInMemoryFromDb();
 
             // get the occurrence and it's scheduled meeting associated from RAM
-            const KarereScheduledMeeting* occurrSchedMeeting = it->second.get();
             const KarereScheduledMeetingOccurr* localOccurr = nullptr;
             MegaChatTimeStamp overrides = request->getNumber();
             const auto& occurrences = chatroom->getScheduledMeetingsOccurrences();
@@ -2890,28 +2890,38 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
             }
 
-            if (!localOccurr)
+            if (!localOccurr) // occurrence could not be found in RAM
             {
-                if (numOccurrences < MegaChatScheduledMeeting::MIN_OCURRENCES)
+                MegaChatTimeStamp now = ::mega::m_time();
+                MegaChatHandle chatid = ocurr->chatId();
+                chatroom->getFutureScheduledMeetingsOccurrences(MegaChatScheduledMeeting::NUM_OCURRENCES_REQ, now, MEGACHAT_INVALID_TIMESTAMP)
+                .then([this, chatid, now](std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>> res)
                 {
-                    // load fresh scheduled meeting occurrences from API
-                    mClient->fetchScheduledMeetingOccurrences(ocurr->chatId(),
-                                                              MEGACHAT_INVALID_TIMESTAMP, /*since*/
-                                                              MEGACHAT_INVALID_TIMESTAMP, /*until*/
-                                                              0 /*count*/)
-                    .then([](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> /*result*/)
+                    if (res.size() < MegaChatScheduledMeeting::MIN_OCURRENCES)
                     {
+                        // load fresh scheduled meeting occurrences from API, as we don't have enough future occurrences in local
+                        mClient->fetchScheduledMeetingOccurrences(chatid,
+                                                                  now /*since*/,
+                                                                  MEGACHAT_INVALID_TIMESTAMP /*until*/,
+                                                                  MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
+                        .then([](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> /*result*/)
+                        {
+                            API_LOG_ERROR("Newer scheduled meetings occurrences retrieved successfully");
+                        })
+                        .fail([](const ::promise::Error& err)
+                        {
+                            API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
+                        });
+                    }
+                })
+                .fail([this, request](const ::promise::Error& err)
+                {
+                    API_LOG_ERROR("Error fetching scheduled meeting occurrences: %s", err.what());
 
-                    })
-                    .fail([request, this](const ::promise::Error& err)
-                    {
-                        API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
+                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
+                    fireOnChatRequestFinish(request, megaChatError);
+                });
 
-                        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
-                        fireOnChatRequestFinish(request, megaChatError);
-                    });
-
-                }
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
