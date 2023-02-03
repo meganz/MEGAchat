@@ -2776,11 +2776,11 @@ void MegaChatApiImpl::sendPendingRequests()
             // only load occurrences from DB if occurrences in memory are not up to date
             auto occurrInRam = chatroom->loadOccurresInMemoryFromDb();
 
-            promise::Promise<std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>>> pms;
+            promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>> pms;
             if (occurrInRam < numOccurrences)
             {
                 // if number of loaded occurrences in RAM is smaller than requested, fetch for fresh occurrences from API
-                pms.resolve(std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>>());
+                pms.resolve(std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>());
             }
             else
             {
@@ -2788,7 +2788,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 pms = chatroom->getFutureScheduledMeetingsOccurrences(numOccurrences, since, until);
             }
 
-            pms.then([this, request, chatid, numOccurrences, since, until](std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>> res)
+            pms.then([this, request, chatid, numOccurrences, since, until](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> res)
             {
                 if (res.size() < numOccurrences) // fetch fresh occurrences from API
                 {
@@ -2822,7 +2822,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     std::unique_ptr<MegaChatScheduledMeetingOccurrList> list(MegaChatScheduledMeetingOccurrList::createInstance());
                     for (auto it = res.begin(); it != res.end(); it++)
                     {
-                        list->insert(new MegaChatScheduledMeetingOccurrPrivate(it->second.get()));
+                        list->insert(new MegaChatScheduledMeetingOccurrPrivate(it->get()));
                     }
                     request->setMegaChatScheduledMeetingOccurrList(list.get());
 
@@ -2882,10 +2882,10 @@ void MegaChatApiImpl::sendPendingRequests()
             const auto& occurrences = chatroom->getScheduledMeetingsOccurrences();
             for (auto it = occurrences.begin(); it != occurrences.end(); it++)
             {
-                if (it->second->schedId() == ocurr->schedId() && it->second->startDateTime() == overrides)
+                if ((*it)->schedId() == ocurr->schedId() && (*it)->startDateTime() == overrides)
                 {
                     // primary key for an occurrence is composed of schedId and StartDateTime
-                    localOccurr = it->second.get();
+                    localOccurr = (*it).get();
                     break;
                 }
             }
@@ -2895,7 +2895,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatTimeStamp now = ::mega::m_time();
                 MegaChatHandle chatid = ocurr->chatId();
                 chatroom->getFutureScheduledMeetingsOccurrences(MegaChatScheduledMeeting::NUM_OCURRENCES_REQ, now, MEGACHAT_INVALID_TIMESTAMP)
-                .then([this, chatid, now](std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>> res)
+                .then([this, chatid, now](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> res)
                 {
                     if (res.size() < MegaChatScheduledMeeting::MIN_OCURRENCES)
                     {

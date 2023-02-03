@@ -363,11 +363,10 @@ protected:
     // scheduled meetings map
     std::map<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
 
-    // maps a scheduled meeting id to a scheduled meeting occurrence
+    // vector of scheduled meeting occurrences
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
     // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
-    // (check ScheduledMeeting class documentation)
-    std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>> mScheduledMeetingsOcurrences;
+    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> mScheduledMeetingsOcurrences;
 
     // this flag indicates if all scheduled meeting occurrences (including latest updates from API) have been loaded in RAM from Db
     bool mAllDbOccurrencesLoadedInRam = false;
@@ -484,14 +483,13 @@ public:
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
 
     // gets a vector of (count: if enough elements) pairs <> scheduled meetings beyond to since timestamp
-    promise::Promise<std::vector<std::pair<::mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>>>
+    promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
     getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const;
 
     // sort the occurrences list by StartDateTime
-    std::vector<std::pair<mega::m_time_t, std::shared_ptr<KarereScheduledMeetingOccurr>>> sortOccurrences() const;
+    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> sortOccurrences() const;
 
-    const std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>>&
-    getScheduledMeetingsOccurrences() const;
+    const std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> &getScheduledMeetingsOccurrences() const;
 
     /** TODO
      *
