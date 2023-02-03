@@ -1205,6 +1205,35 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
         break;
     }
 
+    case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES:
+      if (error == MegaChatError::ERROR_OK)
+      {
+          MegaChatScheduledMeetingOccurrList* occurrencesList = request->getMegaChatScheduledMeetingOccurrList();
+          if (!occurrencesList) { break; }
+
+          std::string text;
+          for (unsigned long i = 0; i < occurrencesList->size(); i++)
+          {
+              const MegaChatScheduledMeetingOccurr * occur = occurrencesList->at(i);
+              char buf[32];
+              struct tm tms;
+              struct tm* ptm = m_localtime(occur->startDateTime(), &tms);
+              sprintf(buf, "[%04d-%02d-%02d   %02d:%02d:%02d]", ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+              text.append("\t[").append(std::to_string(i+1)).append("]")
+                  .append("\t").append(buf)
+                  .append("\t\t").append(std::to_string(occur->startDateTime()))
+                  .append("\t").append(std::to_string(occur->endDateTime())).append("\n");
+          }
+
+          QMessageBox msg;
+          msg.setStyleSheet("width: 1000px");
+          msg.setIcon(QMessageBox::Information);
+          msg.setModal(false);
+          msg.setText(text.c_str());
+          msg.exec();
+      }
+      break;
+
     default:
         break;
     }
