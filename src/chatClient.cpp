@@ -5767,7 +5767,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     std::string aux(in.buf(), in.dataSize());
     int freq = FREQ_INVALID;
     int interval = INTERVAL_INVALID;
-    ::mega::m_time_t until;
+    ::mega::m_time_t until = ::mega::mega_invalid_timestamp;
 
     karere_rules_vector byWeekDay;
     karere_rules_vector byMonthDay;
