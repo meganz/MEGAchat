@@ -884,9 +884,16 @@ Client::fetchScheduledMeetingOccurrences(uint64_t chatid, ::mega::m_time_t since
         const mega::MegaScheduledMeetingList* l = result->getMegaScheduledMeetingList();
         if (l)
         {
+            ::mega::m_time_t prevTs = ::mega::mega_invalid_timestamp;
             for (unsigned long i = 0; i < l->size(); i++)
             {
+                if (prevTs != ::mega::mega_invalid_timestamp && prevTs > l->at(i)->startDateTime())
+                {
+                    assert(false);
+                    return ::promise::Error("Unordered occurrences list received", -1 /*internal error*/);
+                }
                 out.emplace_back(new KarereScheduledMeetingOccurr(l->at(i)));
+                prevTs = l->at(i)->startDateTime();
             }
         }
         return out;
