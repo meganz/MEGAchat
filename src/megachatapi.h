@@ -4308,10 +4308,33 @@ public:
      * - MegaChatError::ERROR_ARGS  - if chatid is invalid
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists
      *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param listener MegaChatRequestListener to track this request
      */
     void fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Get a list of all scheduled meeting occurrences for a chatroom
+     *
+     * A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
+     * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
+     * - MegaChatRequest::getMegaChatScheduledMeetingOccurrList - Returns a list of scheduled meeting occurrences
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if chatid is invalid
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not exists
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param since Timestamp from which API will generate more occurrences
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatTimeStamp since, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Creates a meeting
@@ -7727,7 +7750,10 @@ public:
     virtual int interval() const;
 
     /**
-     * @brief Returns when the repetitions should end
+     * @brief Returns when the repetitions should end.
+     *
+     * @note: If this method returns MEGACHAT_INVALID_TIMESTAMP it means that
+     * the repetitions will never end.
      *
      * @return When the repetitions should end
      */
@@ -7800,6 +7826,7 @@ public:
     static constexpr unsigned int MAX_TITLE_LENGTH = 30;
     static constexpr unsigned int MAX_DESC_LENGTH = 4000;
     static constexpr unsigned int MIN_OCURRENCES = 10;
+    static constexpr unsigned int NUM_OCURRENCES_REQ = 20;
 
     virtual ~MegaChatScheduledMeeting();
 
@@ -7925,7 +7952,15 @@ public:
     virtual const char* timezone() const;
 
     /**
-     * @brief Returns the start dateTime of the scheduled Meeting (unix timestamp)
+     * @brief Returns the start dateTime (for the first occurrence) of the scheduled Meeting (unix timestamp)
+     *
+     * To check if a recurrent scheduled meeting is a past meeting, you can check MegaChatScheduledRules::until,
+     * which returns the dateDate when the repetitions ends, because this method returns the start dateTime of the first occurrence
+     * without taking into account if that occurrence is in the future or in the past.
+     *
+     * @note The value returned by this method should only be used for purposes related to this scheduled meeting, not for
+     * it's occurrences. Any information related to the occurrences of this scheduled meeting, must be retrieved by calling
+     * MegaChatApi::fetchScheduledMeetingOccurrencesByChat
      *
      * @return the start dateTime of the scheduled Meeting
      */
