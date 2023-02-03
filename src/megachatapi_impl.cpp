@@ -2989,7 +2989,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request,this](const ::promise::Error& err)
             {
-                API_LOG_ERROR("Error creating a scheduled meeting: %s", err.what());
+                API_LOG_ERROR("Error updating a scheduled meeting occurrence: %s", err.what());
 
                 MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
                 fireOnChatRequestFinish(request, megaChatError);

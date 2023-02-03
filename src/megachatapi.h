@@ -4196,7 +4196,6 @@ public:
                                                                          const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                          MegaChatRequestListener* listener = NULL);
 
-
     /**
      * @brief Modify an existing scheduled meeting occurrence
      *
@@ -4204,23 +4203,22 @@ public:
      * A scheduled meeting can produce one or multiple scheduled meeting occurrences
      *
      * Important considerations:
-     *  - If the scheduled meeting associated to the occurrence we want to modify, doesn't have repetition rules, OR has a
+     *  - If the scheduled meeting associated to the occurrence we want to modify, doesn't have repetition rules, OR already has a
      *    parent scheduled meeting, this method won't to create a new child scheduled meeting (API requirement).
      *
      *  - If the scheduled meeting associated to the occurrence we want to modify, has repetition rules AND doesn't have a parent
      *    scheduled meeting, this method will create a new child scheduled meeting (with it's own schedId), that contains
      *    the modified ocurrence (API requirement)
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
+     * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE
      * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
-     * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getNumber - Returns the original startDateTime of the occurrence that we want to modify
      * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting (containing the params provided by user)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
-     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting (with definitive ScheduledMeeting updated from API)
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting associated to the modified occurrence
+     *  (with updated fields from API)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
