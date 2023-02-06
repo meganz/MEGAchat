@@ -1008,12 +1008,6 @@ private:
 class MegaChatScheduledMeetingOccurrPrivate: public MegaChatScheduledMeetingOccurr
 {
 public:
-    MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
-                                    const char* timezone,
-                                    MegaChatTimeStamp startDateTime,
-                                    MegaChatTimeStamp endDateTime,
-                                    int cancelled = -1);
-
     MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate *scheduledMeeting);
     MegaChatScheduledMeetingOccurrPrivate(const karere::KarereScheduledMeetingOccurr* scheduledMeeting);
     virtual ~MegaChatScheduledMeetingOccurrPrivate();
