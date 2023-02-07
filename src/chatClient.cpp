@@ -2134,7 +2134,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
     }, appCtx);
 }
 
-promise::Promise<karere::Id>
+promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
 Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options, const char* title, std::shared_ptr<::mega::MegaScheduledMeeting> sm)
 {
     // prepare set of participants
@@ -2181,7 +2181,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
     auto wptr = getDelTracker();
-    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting, options, sm](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting, options, sm](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
     {
         if (wptr.deleted())
         {
@@ -2248,7 +2248,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         }
 
         return createChatPromise
-        .then([this, wptr](ReqResult result) -> Promise<karere::Id>
+        .then([this, wptr](ReqResult result) -> Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
         {
             if (wptr.deleted())
                 return ::promise::Error("Chat created successfully, but instance was removed");
@@ -2262,7 +2262,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 return ::promise::Error("API created incorrect group");
 
             room->connect();
-            return karere::Id(room->chatid());
+
+            std::shared_ptr<KarereScheduledMeeting> sm;
+            if (result->getMegaScheduledMeetingList() && result->getMegaScheduledMeetingList()->size() == 1)
+            {
+                sm.reset(new KarereScheduledMeeting(result->getMegaScheduledMeetingList()->at(0)));
+            }
+            return std::make_pair(karere::Id(room->chatid()), sm);
         });
      });
 }

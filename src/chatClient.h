@@ -1185,7 +1185,7 @@ public:
      * no title will be set and the room will be shown with the names of
      * the participants.
      */
-    promise::Promise<karere::Id>
+    promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = nullptr, std::shared_ptr<mega::MegaScheduledMeeting> sm = nullptr);
     void setCommitMode(bool commitEach);
     bool commitEach();

@@ -482,12 +482,11 @@ void MegaChatApiImpl::sendPendingRequests()
                 }
 
                 mClient->createGroupChat(peers, publicChat, isMeeting, chatOptionsBitMask, title, megaSchedMeeting)
-                .then([request, this](Id chatid)
+                .then([request, this](std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
                 {
-                    request->setChatHandle(chatid);
+                    request->setChatHandle(res.first);
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
-
                 })
                 .fail([request,this](const ::promise::Error& err)
                 {
@@ -2612,7 +2611,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            promise::Promise<karere::Id> pms;
+            promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>> pms;
             GroupChatRoom* chatroom = sm->chatId() != MEGACHAT_INVALID_HANDLE
                     ? dynamic_cast<GroupChatRoom *>(findChatRoom(sm->chatId()))
                     : nullptr;
@@ -2649,10 +2648,10 @@ void MegaChatApiImpl::sendPendingRequests()
                     break;
                 }
 
-                pms.resolve(sm->chatId());
+                pms.resolve(std::make_pair(sm->chatId(), std::shared_ptr<KarereScheduledMeeting>()));
             }
 
-            pms.then([request, this, sm](Id chatid)
+            pms.then([request, this, sm](std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
             {
                std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
                if (megaFlags)
@@ -2664,7 +2663,7 @@ void MegaChatApiImpl::sendPendingRequests()
                std::unique_ptr<::mega::MegaScheduledRules> megaRules(!sm->rules() ? nullptr : ::mega::MegaScheduledRules::createInstance(sm->rules()->freq(), sm->rules()->interval(), sm->rules()->until(),
                                                                                                                  sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
 
-               std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(chatid, sm->schedId(), sm->parentSchedId(), sm->organizerUserId(),
+               std::unique_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting(MegaScheduledMeeting::createInstance(res.first, sm->schedId(), sm->parentSchedId(), sm->organizerUserId(),
                                                                                                                    sm->cancelled(), sm->timezone(), sm->startDateTime(), sm->endDateTime(),
                                                                                                                    sm->title(), sm->description(), sm->attributes(), sm->overrides(),
                                                                                                                    megaFlags.get(), megaRules.get()));
