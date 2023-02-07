@@ -4100,8 +4100,8 @@ public:
      * A moderator user must grant each user access to the call.
      * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (unix timestamp)
-     * @param endDate end date time of the meeting with the format (unix timestamp)
+     * @param startDate start date time of the meeting with the format (unix timestamp UTC)
+     * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
@@ -4145,8 +4145,8 @@ public:
      * A moderator user must grant each user access to the call.
      * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
      * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (unix timestamp)
-     * @param endDate end date time of the meeting with the format (unix timestamp)
+     * @param startDate start date time of the meeting with the format (unix timestamp UTC)
+     * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
@@ -4183,8 +4183,8 @@ public:
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
      * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (unix timestamp)
-     * @param endDate end date time of the meeting with the format (unix timestamp)
+     * @param startDate start date time of the meeting with the format (unix timestamp UTC)
+     * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
      * @param cancelled True if scheduled meeting is going to be cancelled
@@ -4225,9 +4225,9 @@ public:
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
-     * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp)
-     * @param overrides new start date time of the occurrence with the format (unix timestamp)
-     * @param newEndDate new end date time of the occurrence with the format (unix timestamp)
+     * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp UTC)
+     * @param overrides new start date time of the occurrence with the format (unix timestamp UTC)
+     * @param newEndDate new end date time of the occurrence with the format (unix timestamp UTC)
      * @param cancelled True if scheduled meeting occurrence is going to be cancelled
      * @param listener MegaChatRequestListener to track this request
      */
@@ -7837,12 +7837,12 @@ public:
      * @param parentSchedId : parent scheduled meeting handle
      * @param cancelled     : cancelled flag
      * @param timezone      : timeZone
-     * @param startDateTime : start dateTime (unix timestamp)
-     * @param endDateTime   : end dateTime (unix timestamp)
+     * @param startDateTime : start dateTime (unix timestamp UTC)
+     * @param endDateTime   : end dateTime (unix timestamp UTC)
      * @param title         : meeting title
      * @param description   : meeting description
      * @param attributes    : attributes to store any additional data
-     * @param overrides     : start dateTime of the original meeting series event to be replaced (unix timestamp)
+     * @param overrides     : start dateTime of the original meeting series event to be replaced (unix timestamp UTC)
      * @param flags         : flags bitmask (used to store additional boolean settings as a bitmask)
      * @param rules         : scheduled meetings rules
      *
@@ -7951,7 +7951,7 @@ public:
     virtual const char* timezone() const;
 
     /**
-     * @brief Returns the start dateTime (for the first occurrence) of the scheduled Meeting (unix timestamp)
+     * @brief Returns the start dateTime (for the first occurrence) of the scheduled Meeting (unix timestamp UTC)
      *
      * To check if a recurrent scheduled meeting is a past meeting, you can check MegaChatScheduledRules::until,
      * which returns the dateDate when the repetitions ends, because this method returns the start dateTime of the first occurrence
@@ -7966,7 +7966,7 @@ public:
     virtual MegaChatTimeStamp startDateTime() const;
 
     /**
-     * @brief Returns the end dateTime of the scheduled Meeting (unix timestamp)
+     * @brief Returns the end dateTime of the scheduled Meeting (unix timestamp UTC)
      *
      * @return the end dateTime of the scheduled Meeting
      */
@@ -7994,7 +7994,7 @@ public:
     virtual const char* attributes() const;
 
     /**
-     * @brief Returns the start dateTime of the original meeting series event to be replaced (unix timestamp)
+     * @brief Returns the start dateTime of the original meeting series event to be replaced (unix timestamp UTC)
      *
      * @return the start dateTime of the original meeting series event to be replaced
      */
@@ -8064,14 +8064,14 @@ public:
     virtual const char* timezone() const;
 
     /**
-     * @brief Returns the start dateTime of the scheduled Meeting occurrence (unix timestamp)
+     * @brief Returns the start dateTime of the scheduled Meeting occurrence (unix timestamp UTC)
      *
      * @return the start dateTime of the scheduled Meeting occurrence
      */
     virtual MegaChatTimeStamp startDateTime() const;
 
     /**
-     * @brief Returns the end dateTime of the scheduled Meeting occurrence (unix timestamp)
+     * @brief Returns the end dateTime of the scheduled Meeting occurrence (unix timestamp UTC)
      *
      * @return the end dateTime of the scheduled Meeting occurrence
      */
