@@ -4510,21 +4510,16 @@ size_t GroupChatRoom::loadOccurresInMemoryFromDb()
     if (!mAllDbOccurrencesLoadedInRam)
     {
         // only load occurrences from DB if occurrences in memory are not up to date
-        loadAllSchedMeetingsOccurrFromDb();
+        mScheduledMeetingsOcurrences.clear();
+        std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> schedMeetingsOccurr = getClientDbInterface().getSchedMeetingsOccurByChatId(chatid());
+        for (unsigned int i = 0; i < schedMeetingsOccurr.size(); i++)
+        {
+            std::unique_ptr<KarereScheduledMeetingOccurr> aux(new KarereScheduledMeetingOccurr((schedMeetingsOccurr.at(i)).get()));
+            mScheduledMeetingsOcurrences.emplace_back(std::move(aux));
+        }
+        mAllDbOccurrencesLoadedInRam = true; // set occurrences loaded flag true, to indicate that occurrences have been loaded from Db
     }
     return mScheduledMeetingsOcurrences.size();
-}
-
-void GroupChatRoom::loadAllSchedMeetingsOccurrFromDb()
-{
-    mScheduledMeetingsOcurrences.clear();
-    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> schedMeetingsOccurr = getClientDbInterface().getSchedMeetingsOccurByChatId(chatid());
-    for (unsigned int i = 0; i < schedMeetingsOccurr.size(); i++)
-    {
-        std::unique_ptr<KarereScheduledMeetingOccurr> aux(new KarereScheduledMeetingOccurr((schedMeetingsOccurr.at(i)).get()));
-        mScheduledMeetingsOcurrences.emplace_back(std::move(aux));
-    }
-    mAllDbOccurrencesLoadedInRam = true; // set occurrences loaded flag true, to indicate that occurrences have been loaded from Db
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)

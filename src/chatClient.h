@@ -379,7 +379,6 @@ protected:
     void updateSchedMeetings(const mega::MegaTextChat& chat);
     void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, bool force = false);
     void loadSchedMeetingsFromDb();
-    void loadAllSchedMeetingsOccurrFromDb();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
