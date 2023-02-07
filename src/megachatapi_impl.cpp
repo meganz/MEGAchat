@@ -2849,7 +2849,9 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             const MegaChatScheduledMeeting* ocurr = request->getMegaChatScheduledMeetingList()->at(0);
-            if (!ocurr->startDateTime() && !ocurr->endDateTime() && ocurr->cancelled() == -1)
+            if (ocurr->startDateTime() == MEGACHAT_INVALID_TIMESTAMP &&
+                    ocurr->endDateTime() == MEGACHAT_INVALID_TIMESTAMP &&
+                    ocurr->cancelled() == -1)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
@@ -2926,7 +2928,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            // check if startDatetime endDateTime and cancelled were provided in request, otherwise get the values from ocurrence stored in RAM
+            // check if cancelled were provided in request, otherwise get the values from ocurrence stored in RAM
             MegaChatTimeStamp newStartDate = ocurr->startDateTime();
             MegaChatTimeStamp newEndDate = ocurr->endDateTime();
             int cancelled = (ocurr->cancelled() == 0 || ocurr->cancelled() == 1) ? ocurr->cancelled() : localOccurr->cancelled();
