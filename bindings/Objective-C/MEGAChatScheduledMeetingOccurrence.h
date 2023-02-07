@@ -7,6 +7,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (readonly, nonatomic) BOOL isCancelled;
 @property (readonly, nonatomic) uint64_t scheduledId;
+@property (readonly, nonatomic) uint64_t parentScheduledId;
 @property (readonly, nonatomic) uint64_t overrides;
 @property (readonly, nonatomic) NSString *timezone;
 @property (readonly, nonatomic) uint64_t startDateTime;
