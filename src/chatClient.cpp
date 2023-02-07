@@ -4390,12 +4390,12 @@ std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> GroupChatRoom::sortOc
     return auxV;
 }
 
-promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
+std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>
 GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const
 {
     if (mScheduledMeetingsOcurrences.empty() || !count)
     {
-        promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>();
+        std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>();
     }
 
     std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> ocurrList;

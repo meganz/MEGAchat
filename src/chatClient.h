@@ -482,7 +482,7 @@ public:
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
 
     // gets a vector of (count: if enough elements) pairs <> scheduled meetings beyond to since timestamp
-    promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
+    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>
     getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const;
 
     // sort the occurrences list by StartDateTime
