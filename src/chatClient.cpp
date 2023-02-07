@@ -4393,63 +4393,27 @@ std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> GroupChatRoom::sortOc
 promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
 GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const
 {
-    auto getTz = [](mega::MegaTimeZoneDetails* tzList, const std::string& timeZone){
-        for (int i = 0; i < tzList->getNumTimeZones(); i++)
-        {
-            if (!timeZone.compare(tzList->getTimeZone(i)))
-            {
-                return tzList->getTimeOffset(i);
-            }
-        }
-        return 0;
-    };
-
     if (mScheduledMeetingsOcurrences.empty() || !count)
     {
         promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>();
     }
 
-    auto wptr = getDelTracker();
-    return parent.mKarereClient.api.call(&mega::MegaApi::fetchTimeZoneFromLocal)
-    .then([wptr, since, until, count, &getTz, this](ReqResult result) -> Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
+    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> ocurrList;
+    auto&& occurrSorted = sortOccurrences();
+    for (auto it = occurrSorted.begin(); it != occurrSorted.end(); it++)
     {
-        wptr.throwIfDeleted();
-        if (!result->getMegaTimeZoneDetails())
+        ::mega::m_time_t schedTs = (*it)->startDateTime();
+        ::mega::m_time_t sinceTs = since
+                ? since         /* provided by user (unix timestamp [UTC]) */
+                : time(nullptr) /* now (unix timestamp [UTC]) */;
+
+        if (schedTs > sinceTs && (until == ::mega::mega_invalid_timestamp || schedTs < until))
         {
-            return ::promise::Error("Empty timezone list returned from API");
+            ocurrList.emplace_back((*it)->copy());
+            if (ocurrList.size() >= count) { break; }
         }
-
-        // all occurrences for the same ChatRoom must have the same TimeZone
-        const std::string& timeZone = (*mScheduledMeetingsOcurrences.begin())->timezone();
-        mega::MegaTimeZoneDetails* tzList = result->getMegaTimeZoneDetails();
-        int offset = getTz(tzList, timeZone);
-
-        std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> ocurrList;
-        auto&& occurrSorted = sortOccurrences();
-        for (auto it = occurrSorted.begin(); it != occurrSorted.end(); it++)
-        {
-            int auxoffset = offset;
-            if ((*it)->timezone().compare(timeZone))
-            {
-                assert(false); // this should not happen, as it's expected that all occurrences have the same timeZone
-                KR_LOG_ERROR("Unexpected timezone %s", (*it)->timezone().c_str());
-                auxoffset = getTz(tzList, (*it)->timezone());
-            }
-
-            // apply offset relative to Scheduled meeting configured timezone
-            ::mega::m_time_t schedTs = (*it)->startDateTime() + auxoffset;
-            ::mega::m_time_t sinceTs = since
-                    ? since
-                    : time(nullptr) /*now (unix timestamp [UTC])*/;
-
-            if (schedTs > sinceTs && (until == ::mega::mega_invalid_timestamp || schedTs < until))
-            {
-                ocurrList.emplace_back((*it)->copy());
-                if (ocurrList.size() >= count) { break; }
-            }
-        }
-        return ocurrList;
-    });
+    }
+    return ocurrList;
 }
 
 void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, bool force)
