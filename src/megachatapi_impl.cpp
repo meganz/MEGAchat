@@ -484,6 +484,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 mClient->createGroupChat(peers, publicChat, isMeeting, chatOptionsBitMask, title, megaSchedMeeting)
                 .then([request, this](std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
                 {
+                    if (res.second)
+                    {
+                        std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+                        l->insert(new MegaChatScheduledMeetingPrivate(res.second->copy()));
+                        request->setMegaChatScheduledMeetingList(l.get());
+                    }
+
                     request->setChatHandle(res.first);
                     MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                     fireOnChatRequestFinish(request, megaChatError);
