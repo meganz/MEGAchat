@@ -46,6 +46,16 @@ using namespace megachat;
     return self.megaChatScheduledMeetingOccurr ? self.megaChatScheduledMeetingOccurr->schedId() : MEGACHAT_INVALID_HANDLE;
 }
 
+- (uint64_t)parentScheduledId {
+    return self.megaChatScheduledMeetingOccurr ? self.megaChatScheduledMeetingOccurr->parentSchedId() : MEGACHAT_INVALID_HANDLE;
+}
+
+- (uint64_t)overrides {
+    if (!self.megaChatScheduledMeetingOccurr) return MEGACHAT_INVALID_HANDLE;
+
+    return self.megaChatScheduledMeetingOccurr->overrides();
+}
+
 - (NSString *)timezone {
     if (!self.megaChatScheduledMeetingOccurr) return nil;
     
