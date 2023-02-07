@@ -173,7 +173,8 @@ void ChatListItemController::fetchScheduledMeeting()
 
 void ChatListItemController::fetchScheduledMeetingEvents()
 {
-    mMegaApi->fetchScheduledMeetingEvents(mItemId, MEGACHAT_INVALID_TIMESTAMP, MEGACHAT_INVALID_TIMESTAMP, 0);
+    MegaChatTimeStamp since = atoi(mMainWindow->mApp->getText("Date from which we want to get occurrences (Unix timestamp)", true).c_str());
+    mMegaChatApi->fetchScheduledMeetingOccurrencesByChat(mItemId, since);
 }
 
 void ChatListItemController::setTitle()

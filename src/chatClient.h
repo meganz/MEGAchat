@@ -363,14 +363,13 @@ protected:
     // scheduled meetings map
     std::map<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
 
-    // maps a scheduled meeting id to a scheduled meeting occurrence
+    // vector of scheduled meeting occurrences
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
     // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
-    // (check ScheduledMeeting class documentation)
-    std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>> mScheduledMeetingsOcurrences;
+    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> mScheduledMeetingsOcurrences;
 
-    // this flag indicates if scheduled meeting occurrences have been loaded from Db for this chatroom
-    bool mDbOccurrencesLoaded = false;
+    // this flag indicates if all scheduled meeting occurrences (including latest updates from API) have been loaded in RAM from Db
+    bool mAllDbOccurrencesLoadedInRam = false;
 
     DbClientInterface& getClientDbInterface();
     ScheduledMeetingHandler& schedMeetingHandler();
@@ -378,9 +377,8 @@ protected:
     void updateChatOptions(mega::ChatOptions_t opt);
     void addSchedMeetings(const mega::MegaTextChat& chat);
     void updateSchedMeetings(const mega::MegaTextChat& chat);
-    void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
+    void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, bool force = false);
     void loadSchedMeetingsFromDb();
-    void loadSchedMeetingsOccurrFromDb();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -483,14 +481,14 @@ public:
     // a scheduled meetings allows the user to specify an event that will occur in the future
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
 
-    // maps a scheduled meeting id to a scheduled meeting occurrence
-    // a scheduled meetings ocurrence is an event based on a scheduled meeting
-    // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
-    promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
-    getFutureScheduledMeetingsOccurrences() const;
+    // gets a vector of (count: if enough elements) pairs <> scheduled meetings beyond to since timestamp
+    promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
+    getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const;
 
-    const std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>>&
-    getScheduledMeetingsOccurrences() const;
+    // sort the occurrences list by StartDateTime
+    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> sortOccurrences() const;
+
+    const std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> &getScheduledMeetingsOccurrences() const;
 
     /** TODO
      *
@@ -516,7 +514,7 @@ public:
      * This method loads scheduled meeting occurrences from Db, if we haven't loaded yet
      * @returns the number of loaded scheduled meeting occurrences
      */
-    size_t loadSchedMeetingsOccurrFromLocal();
+    size_t loadOccurresInMemoryFromDb();
 
     unsigned long numMembers() const override;
 

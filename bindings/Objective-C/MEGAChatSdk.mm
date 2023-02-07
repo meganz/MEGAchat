@@ -1470,6 +1470,16 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since {
+    if (!self.megaChatApi) { return; }
+    self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, since);
+}
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (!self.megaChatApi) { return; }
+    self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, since, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC
