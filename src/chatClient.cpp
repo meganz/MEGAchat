@@ -4465,6 +4465,7 @@ void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, 
     // this flag is set false upon every changes in ocurrences for this chatroom
     mAllDbOccurrencesLoadedInRam = false;
 
+    const mega::MegaScheduledMeetingList* schedMeetings = nullptr;
     if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR) || force)
     {
         // important: just wipe current occurrences list if fetch was not triggered by user
@@ -4473,12 +4474,20 @@ void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, 
 
         // clear list of current scheduled meetings occurrences
         mScheduledMeetingsOcurrences.clear();
+
+        if (chat.getScheduledMeetingOccurrencesList())
+        {
+            schedMeetings = chat.getScheduledMeetingOccurrencesList();
+        }
+    }
+    else if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR) && chat.getUpdatedOccurrencesList())
+    {
+        schedMeetings = chat.getUpdatedOccurrencesList();
     }
 
     // add received occurrences from SDK
-    if (chat.getScheduledMeetingOccurrencesList())
+    if (schedMeetings)
     {
-        const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingOccurrencesList();
         for (unsigned int i = 0; i < schedMeetings->size(); i++)
         {
             std::unique_ptr<KarereScheduledMeetingOccurr> aux = mega::make_unique<KarereScheduledMeetingOccurr>(schedMeetings->at(i));
