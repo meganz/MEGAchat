@@ -377,7 +377,7 @@ protected:
     void updateChatOptions(mega::ChatOptions_t opt);
     void addSchedMeetings(const mega::MegaTextChat& chat);
     void updateSchedMeetings(const mega::MegaTextChat& chat);
-    void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, bool force = false);
+    void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
     void loadSchedMeetingsFromDb();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();

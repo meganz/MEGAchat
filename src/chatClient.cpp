@@ -2521,8 +2521,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     // Add scheduled meeting list and notify app
     addSchedMeetings(aChat);
 
-    // pending add occurrences
-    addSchedMeetingsOccurrences(aChat, true);
+    if (aChat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
+            || aChat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
+    {
+        addSchedMeetingsOccurrences(aChat);
+    }
 }
 
 //Resume from cache
@@ -4110,17 +4113,15 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
          addSchedMeetings(chat);
     }
 
-    // if scheduled meetings occurrences have changed, or chat from API have scheduled meetings occurrences,
-    // but we don't have those occurrences stored in karere
-    bool force = chat.getScheduledMeetingOccurrencesList()
-            && chat.getScheduledMeetingOccurrencesList()->size()
-            && mScheduledMeetingsOcurrences.empty();
-
-    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR)
-            || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR)
-            || force)
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
+            || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
     {
-        addSchedMeetingsOccurrences(chat, force);
+        addSchedMeetingsOccurrences(chat);
+    }
+    else if (chat.getUpdatedOccurrencesList() && chat.getUpdatedOccurrencesList()->size())
+    {
+        assert(false);
+        KR_LOG_WARNING("syncWithApi: Chat received from SDK contains updated occurrences, but no related change is set");
     }
 
     // Own privilege changed
@@ -4416,10 +4417,9 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
     return ocurrList;
 }
 
-void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, bool force)
+void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
 {
-    assert(force
-           || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR)
+    assert(chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
            || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR));
 
     // set occurrences loaded flag to false, it doesn't matter if we are clearing current list,
@@ -4427,30 +4427,18 @@ void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, 
     // this flag is set false upon every changes in ocurrences for this chatroom
     mAllDbOccurrencesLoadedInRam = false;
 
-    const mega::MegaScheduledMeetingList* schedMeetings = nullptr;
-    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR) || force)
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR))
     {
-        // important: just wipe current occurrences list if fetch was not triggered by user
-        // clear list of current scheduled meetings occurrences from db by chatid
+        // important: just wipe current occurrences list (from db and RAM) if fetch was not triggered by user
         getClientDbInterface().clearSchedMeetingOcurrByChatid(chat.getHandle());
-
-        // clear list of current scheduled meetings occurrences
         mScheduledMeetingsOcurrences.clear();
-
-        if (chat.getScheduledMeetingOccurrencesList())
-        {
-            schedMeetings = chat.getScheduledMeetingOccurrencesList();
-        }
-    }
-    else if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR) && chat.getUpdatedOccurrencesList())
-    {
-        schedMeetings = chat.getUpdatedOccurrencesList();
     }
 
-    // add received occurrences from SDK
-    if (schedMeetings)
+    // add received occurrences from SDK if any
+    if (chat.getUpdatedOccurrencesList() && chat.getUpdatedOccurrencesList()->size())
     {
-        for (unsigned int i = 0; i < schedMeetings->size(); i++)
+        const mega::MegaScheduledMeetingList* schedMeetings = chat.getUpdatedOccurrencesList() ;
+        for (unsigned int i = 0; i < chat.getUpdatedOccurrencesList()->size(); i++)
         {
             std::unique_ptr<KarereScheduledMeetingOccurr> aux = mega::make_unique<KarereScheduledMeetingOccurr>(schedMeetings->at(i));
             getClientDbInterface().insertOrUpdateSchedMeetingOcurr(*aux);
