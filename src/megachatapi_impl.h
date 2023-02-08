@@ -1008,25 +1008,27 @@ private:
 class MegaChatScheduledMeetingOccurrPrivate: public MegaChatScheduledMeetingOccurr
 {
 public:
-    MegaChatScheduledMeetingOccurrPrivate(MegaChatHandle schedId,
-                                    const char* timezone,
-                                    MegaChatTimeStamp startDateTime,
-                                    MegaChatTimeStamp endDateTime,
-                                    int cancelled = -1);
-
     MegaChatScheduledMeetingOccurrPrivate(const MegaChatScheduledMeetingOccurrPrivate *scheduledMeeting);
     MegaChatScheduledMeetingOccurrPrivate(const karere::KarereScheduledMeetingOccurr* scheduledMeeting);
     virtual ~MegaChatScheduledMeetingOccurrPrivate();
     MegaChatScheduledMeetingOccurrPrivate* copy() const override;
     MegaChatHandle schedId() const override;
+    MegaChatHandle parentSchedId() const override;
     const char* timezone() const override;
     MegaChatTimeStamp startDateTime() const override;
     MegaChatTimeStamp endDateTime() const override;
+    MegaChatTimeStamp overrides() const override;
     int cancelled() const override;
 
 private:
     // scheduled meeting handle
     MegaChatHandle mSchedId;
+
+    // parent scheduled meeting handle
+    MegaChatHandle mParentSchedId;
+
+    // start dateTime of the original meeting series event to be replaced (unix timestamp)
+    MegaChatTimeStamp mOverrides;
 
     // timeZone
     std::string mTimezone;
