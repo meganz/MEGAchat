@@ -2428,6 +2428,16 @@ MegaChatTimeStamp MegaChatScheduledMeeting::overrides() const                   
 MegaChatScheduledRules* MegaChatScheduledMeeting::rules() const                 { return NULL; }
 MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 { return NULL; }
 
+int MegaChatScheduledMeeting::isValidTitleLength(const char* title)
+{
+    return title && strlen(title) <= MegaChatScheduledMeeting::MAX_TITLE_LENGTH;
+}
+
+int MegaChatScheduledMeeting::isValidDescriptionLength(const char* desc)
+{
+    return desc && strlen(desc) <= MegaChatScheduledMeeting::MAX_DESC_LENGTH;
+}
+
 /* Class MegaChatScheduledMeetingOccurr */
 MegaChatScheduledMeetingOccurr::~MegaChatScheduledMeetingOccurr()                     {}
 int MegaChatScheduledMeetingOccurr::cancelled() const                                 { return 0; }

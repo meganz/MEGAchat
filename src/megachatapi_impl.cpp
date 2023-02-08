@@ -435,8 +435,8 @@ void MegaChatApiImpl::sendPendingRequests()
                         break;
                     }
 
-                    if (strlen(sm->title()) > MegaChatScheduledMeeting::MAX_TITLE_LENGTH
-                            || strlen(sm->description()) > MegaChatScheduledMeeting::MAX_DESC_LENGTH)
+                    if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title())
+                            || !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
                     {
                         API_LOG_ERROR("Error creating a scheduled meeting: title or description length exceeded");
                         errorCode = MegaChatError::ERROR_ARGS;
@@ -2621,8 +2621,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (strlen(sm->title()) > MegaChatScheduledMeeting::MAX_TITLE_LENGTH
-                    || strlen(sm->description()) > MegaChatScheduledMeeting::MAX_DESC_LENGTH)
+            if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title())
+                    || !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
             {
                 API_LOG_ERROR("Error creating a scheduled meeting: title or description length exceeded");
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -3016,9 +3016,10 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (strlen(sm->title()) > MegaChatScheduledMeeting::MAX_TITLE_LENGTH
-                    || strlen(sm->description()) > MegaChatScheduledMeeting::MAX_DESC_LENGTH)
+            if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title())
+                    || !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
             {
+                API_LOG_ERROR("Error updating a scheduled meeting: title or description length exceeded");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }

@@ -4096,7 +4096,7 @@ public:
      *
      * @param isMeeting True to create a meeting room, otherwise false
      * @param publicChat True to create a public chat, otherwise false
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
      * @param speakRequest True to set that during calls non moderator users, must request permission to speak
      * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
      * A moderator user must grant each user access to the call.
@@ -4104,7 +4104,7 @@ public:
      * @param timezone Timezone where we want to schedule the meeting
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
@@ -4150,8 +4150,8 @@ public:
      * @param timezone Timezone where we want to schedule the meeting
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
@@ -4190,8 +4190,8 @@ public:
      * @param timezone Timezone where we want to schedule the meeting
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is 30 characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is 4000 characters
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
      * @param cancelled True if scheduled meeting is going to be cancelled
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
@@ -7828,8 +7828,9 @@ public:
        SC_RULES            = 11,
        SC_FLAGS_SIZE       = 12,
     };
+
     static constexpr unsigned int MAX_TITLE_LENGTH = 30;
-    static constexpr unsigned int MAX_DESC_LENGTH = 4000;
+    static constexpr unsigned int MAX_DESC_LENGTH = 3000;
     static constexpr unsigned int MIN_OCURRENCES = 10;
     static constexpr unsigned int NUM_OCURRENCES_REQ = 20;
 
@@ -8023,6 +8024,21 @@ public:
      * @return A pointer to MegaChatScheduledRules that contains the scheduled meetings rules
      */
     virtual MegaChatScheduledRules* rules() const;
+
+
+    /**
+     * @brief Returns if scheduled meeting title length is valid or not
+     *
+     * @return True if scheduled meeting title length is valid, otherwise returns false
+     */
+    static int isValidTitleLength(const char* title);
+
+    /**
+     * @brief Returns if scheduled meeting description length is valid or not
+     *
+     * @return True if scheduled meeting description length is valid, otherwise returns false
+     */
+    static int isValidDescriptionLength(const char* desc);
 };
 
 /**
