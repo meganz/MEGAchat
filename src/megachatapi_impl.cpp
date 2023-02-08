@@ -481,14 +481,25 @@ void MegaChatApiImpl::sendPendingRequests()
                     title = request->getText();
                 }
 
+                bool creatingSchedMeeting = megaSchedMeeting != nullptr;
                 mClient->createGroupChat(peers, publicChat, isMeeting, chatOptionsBitMask, title, megaSchedMeeting)
-                .then([request, this](std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
+                .then([request, creatingSchedMeeting, this](std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
                 {
-                    if (res.second)
+                    if (creatingSchedMeeting)
                     {
-                        std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-                        l->insert(new MegaChatScheduledMeetingPrivate(res.second->copy()));
-                        request->setMegaChatScheduledMeetingList(l.get());
+                        if (res.second)
+                        {
+                            std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+                            l->insert(new MegaChatScheduledMeetingPrivate(res.second->copy()));
+                            request->setMegaChatScheduledMeetingList(l.get());
+                        }
+                        else
+                        {
+                            assert(false);
+                            API_LOG_ERROR("Error creating scheduled meeting upon Meeting room creation");
+                            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
+                            return;
+                        }
                     }
 
                     request->setChatHandle(res.first);
@@ -2962,6 +2973,14 @@ void MegaChatApiImpl::sendPendingRequests()
                     l->insert(new MegaChatScheduledMeetingPrivate(sm));
                     request->setMegaChatScheduledMeetingList(l.get());
                 }
+                else
+                {
+                    assert(false);
+                    API_LOG_ERROR("Error updating a scheduled meeting occurrence, updated occurrence has not been received");
+                    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
+                    return;
+                }
+
                 MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
             })
@@ -3056,6 +3075,13 @@ void MegaChatApiImpl::sendPendingRequests()
                     std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
                     l->insert(new MegaChatScheduledMeetingPrivate(sm));
                     request->setMegaChatScheduledMeetingList(l.get());
+                }
+                else
+                {
+                    assert(false);
+                    API_LOG_ERROR("Error updating a scheduled meeting, non received scheduled meeting");
+                    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
+                    return;
                 }
                 MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                 fireOnChatRequestFinish(request, megaChatError);
