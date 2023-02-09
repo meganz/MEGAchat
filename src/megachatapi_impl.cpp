@@ -8602,7 +8602,7 @@ void MegaChatScheduledRulesPrivate::setByMonthWeekDay(const ::mega::MegaIntegerM
     mByMonthWeekDay.reset();
     if (byMonthWeekDay)
     {
-        mByMonthWeekDay = unique_ptr<::mega::MegaIntegerMap>(mByMonthWeekDay->copy());
+        mByMonthWeekDay = unique_ptr<::mega::MegaIntegerMap>(byMonthWeekDay->copy());
     }
 }
 
