@@ -482,7 +482,7 @@ public:
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
 
     // gets a vector of (count: if enough elements) pairs <> scheduled meetings beyond to since timestamp
-    promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
+    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>
     getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const;
 
     // sort the occurrences list by StartDateTime
@@ -1185,7 +1185,7 @@ public:
      * no title will be set and the room will be shown with the names of
      * the participants.
      */
-    promise::Promise<karere::Id>
+    promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = nullptr, std::shared_ptr<mega::MegaScheduledMeeting> sm = nullptr);
     void setCommitMode(bool commitEach);
     bool commitEach();
