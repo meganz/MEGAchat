@@ -3183,11 +3183,11 @@ void GroupChatRoom::notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, 
     }, parent.mKarereClient.appCtx);
 }
 
-void GroupChatRoom::notifySchedMeetingOccurrencesUpdated()
+void GroupChatRoom::notifySchedMeetingOccurrencesUpdated(bool append)
 {
-    callAfterInit(this, [this]
+    callAfterInit(this, [this, append]
     {
-       schedMeetingHandler().onSchedMeetingOccurrencesChange(chatid());
+       schedMeetingHandler().onSchedMeetingOccurrencesChange(chatid(), append);
     }, parent.mKarereClient.appCtx);
 }
 
@@ -4451,7 +4451,7 @@ void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
         }
     }
 
-    notifySchedMeetingOccurrencesUpdated(); // notify scheduled meetings occurrences for this chat have changed
+    notifySchedMeetingOccurrencesUpdated(chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR)); // notify scheduled meetings occurrences for this chat have changed
 }
 
 void GroupChatRoom::loadSchedMeetingsFromDb()

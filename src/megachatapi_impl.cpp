@@ -3593,7 +3593,7 @@ void MegaChatApiImpl::fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPriva
     }
 }
 
-void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(const karere::Id& id)
+void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(const karere::Id& id, bool append)
 {
     if (mTerminating)
     {
@@ -3602,7 +3602,7 @@ void MegaChatApiImpl::fireOnSchedMeetingOccurrencesChange(const karere::Id& id)
 
     for (set<MegaChatScheduledMeetingListener *>::iterator it = mSchedMeetingListeners.begin(); it != mSchedMeetingListeners.end() ; it++)
     {
-        (*it)->onSchedMeetingOccurrencesUpdate(mChatApi, id);
+        (*it)->onSchedMeetingOccurrencesUpdate(mChatApi, id, append);
     }
 }
 void MegaChatApiImpl::fireOnChatCallUpdate(MegaChatCallPrivate *call)
@@ -10688,10 +10688,10 @@ void MegaChatScheduledMeetingHandler::onSchedMeetingChange(const KarereScheduled
 #endif
 }
 
-void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id)
+void MegaChatScheduledMeetingHandler::onSchedMeetingOccurrencesChange(const karere::Id& id, bool append)
 {
 #ifndef KARERE_DISABLE_WEBRTC
-    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id);
+    mMegaChatApi->fireOnSchedMeetingOccurrencesChange(id, append);
 #endif
 }
 

@@ -394,7 +394,7 @@ protected:
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
     void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
-    void notifySchedMeetingOccurrencesUpdated();
+    void notifySchedMeetingOccurrencesUpdated(bool append);
     void setRemoved();
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
@@ -1541,7 +1541,7 @@ class ScheduledMeetingHandler
 public:
     virtual ~ScheduledMeetingHandler(){}
     virtual void onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed) = 0;
-    virtual void onSchedMeetingOccurrencesChange(const karere::Id& id) = 0;
+    virtual void onSchedMeetingOccurrencesChange(const karere::Id& id, bool append) = 0;
 };
 
 class DbClientInterface

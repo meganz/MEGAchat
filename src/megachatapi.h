@@ -1047,13 +1047,15 @@ public:
     /**
      * @brief This function is called when the scheduled meeting occurrences for a chatroom have changed
      *
-     * Apps will need to discard any local occurrence list, and fetch fresh occurrences by calling
-     * asynchronous method MegaChatApi::fetchScheduledMeetingOccurrencesByChat
+     * If append is false app must discard all occurrences for this chat and fetch again by calling
+     * MegaChatApi->fetchScheduledMeetingOccurrencesByChat with param since equal to MEGACHAT_INVALID_TIMESTAMP.
+     *
+     * If append is true, new occurrences has been received from API (no need to discard current ones)
      *
      * @param api MegaChatApi connected to the account
      * @param chatid MegaChatHandle that identifies the chat room
      */
-    virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid);
+    virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid, bool append);
 };
 
 class MegaChatPeerList

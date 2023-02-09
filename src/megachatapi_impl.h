@@ -637,7 +637,7 @@ public:
     MegaChatScheduledMeetingHandler(MegaChatApiImpl* megaChatApi);
     ~MegaChatScheduledMeetingHandler();
     void onSchedMeetingChange(const karere::KarereScheduledMeeting* sm, unsigned long diff) override;
-    void onSchedMeetingOccurrencesChange(const karere::Id& id) override;
+    void onSchedMeetingOccurrencesChange(const karere::Id& id, bool append) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -1338,7 +1338,7 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     // MegaChatScheduledMeetListener callbacks
     void fireOnChatSchedMeetingUpdate(MegaChatScheduledMeetingPrivate* sm);
-    void fireOnSchedMeetingOccurrencesChange(const karere::Id& id);
+    void fireOnSchedMeetingOccurrencesChange(const karere::Id& id, bool append);
 
     // MegaChatCallListener callbacks
     void fireOnChatCallUpdate(MegaChatCallPrivate *call);
