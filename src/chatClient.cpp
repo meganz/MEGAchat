@@ -1527,13 +1527,15 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+        auto sid = std::make_shared<std::string>(api.sdk.dumpSession());
+        assert(sid);
 
 #ifndef NDEBUG
         dumpContactList(*contactList);
 #endif
 
         auto wptr = weakHandle();
-        marshallCall([wptr, this, state, scsn, contactList, chatList]()
+        marshallCall([wptr, this, state, scsn, contactList, chatList, sid]()
         {
             if (wptr.deleted())
                 return;
@@ -1541,11 +1543,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             if (state == kInitHasOfflineSession)
             {
 // disable this safety checkup, since dumpSession() differs from first-time login value
-//              std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-//              assert(sid);
 //              // we loaded our state from db
 //              // verify the SDK sid is the same as ours
-//              if (mSid != sid.get())
+//              if (mSid != *sid)
 //              {
 //                  setInitState(kInitErrSidMismatch);
 //                  return;
@@ -1559,9 +1559,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
-                std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-                assert(sid);
-                initWithNewSession(sid.get(), scsn, contactList, chatList)
+                initWithNewSession(sid->c_str(), scsn, contactList, chatList)
                 .fail([this](const ::promise::Error& err)
                 {
                     setInitState(kInitErrGeneric);
