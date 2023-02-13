@@ -3921,10 +3921,10 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
 
     // update scheduled meeting
     std::function<void(unsigned int, int, MegaChatHandle, MegaChatHandle, std::string, MegaChatTimeStamp,
-                       MegaChatTimeStamp,std::string, std::string, std::shared_ptr<MegaChatScheduledFlags>,
+                       MegaChatTimeStamp,std::string, std::string, bool, std::shared_ptr<MegaChatScheduledFlags>,
                        std::shared_ptr<MegaChatScheduledRules>)> updateSchedMeeting =
     [this, &a1, &a2](unsigned int index, int expectedError, MegaChatHandle chatId, MegaChatHandle schedId, std::string timeZone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
-                                                std::string title,  std::string description, std::shared_ptr<MegaChatScheduledFlags> flags, std::shared_ptr<MegaChatScheduledRules> rules)
+                                                std::string title,  std::string description, bool cancelled, std::shared_ptr<MegaChatScheduledFlags> flags, std::shared_ptr<MegaChatScheduledRules> rules)
     {
         lastErrorChat[index] = MegaChatError::ERROR_OK;                      // reset last MegaChatRequest error
         mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
@@ -3938,10 +3938,10 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
                        true /* wait for all exit flags*/,
                        true /*reset flags*/,
                        maxTimeout,
-                       [this, index, chatId, schedId, &startDate, &endDate, &title, &timeZone, &description, flags, rules]()
+                       [this, index, chatId, schedId, &startDate, &endDate, &title, &timeZone, &description, cancelled, flags, rules]()
                        {
                             megaChatApi[index]->updateScheduledMeeting(chatId, schedId, timeZone.c_str(), startDate, endDate, title.c_str(),
-                                                                       description.c_str(), flags.get(), rules.get(), nullptr /*attributes*/);
+                                                                       description.c_str(), cancelled, flags.get(), rules.get());
                        });
         ASSERT_CHAT_TEST(lastErrorChat[a1] == expectedError, "Unexpected TYPE_UPDATE_SCHEDULED_MEETING request error: " + std::to_string(lastErrorChat[a1]) + " expected: " + std::to_string(expectedError));
         if (expectedError != MegaChatError::ERROR_OK) { return; }
@@ -4054,7 +4054,7 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     byWeekDay->add(1);byWeekDay->add(3);byWeekDay->add(5);
     std::shared_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_WEEKLY,
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,
-                                                                                         MegaChatScheduledRules::UNTIL_INVALID,
+                                                                                         MEGACHAT_INVALID_TIMESTAMP,
                                                                                          byWeekDay.get(), nullptr, nullptr));
 
     createChatroomAndSchedMeeting (a1, peerList, true /*isMeeting*/, true /*publicChat*/, title, false /*speakRequest*/, false /*waitingRoom*/, false /*openInvite*/,
@@ -4069,14 +4069,14 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     timeZone = "Europe/Borlin"; // invalid timezone
     title.append("(updated)");
     description.append("(updated)");
-    updateSchedMeeting(a1, MegaChatError::ERROR_ARGS, chatId, schedId, timeZone, startDate, endDate, title, description, flags, rules);
+    updateSchedMeeting(a1, MegaChatError::ERROR_ARGS, chatId, schedId, timeZone, startDate, endDate, title, description, false, flags, rules);
 
     //================================================================================//
     // TEST 3. Update previous recurrent scheduled meeting with valid data
     //================================================================================//
     LOG_debug << "TEST_ScheduledMeetings 3: Update a recurrent scheduled meeting";
     timeZone = "Europe/Dublin";
-    updateSchedMeeting(a1, MegaChatError::ERROR_OK, chatId, schedId, timeZone, startDate, endDate, title, description, flags, rules);
+    updateSchedMeeting(a1, MegaChatError::ERROR_OK, chatId, schedId, timeZone, startDate, endDate, title, description, false, flags, rules);
 
     //================================================================================//
     // TEST 4. Update a scheduled meeting occurrence with invalid schedId (Error)
