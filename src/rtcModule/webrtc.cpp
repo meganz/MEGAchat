@@ -3594,9 +3594,15 @@ bool AudioLevelMonitor::hasAudio()
 void AudioLevelMonitor::onAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
-    assert(mCall.getSession(static_cast<Cid_t>(mCid)));
-    Session *sess = mCall.getSession(static_cast<Cid_t>(mCid));
-    sess->setAudioDetected(mAudioDetected);
+    Session* sess = mCall.getSession(static_cast<Cid_t>(mCid));
+    if (sess)
+    {
+        sess->setAudioDetected(mAudioDetected);
+    }
+    else
+    {
+        RTCM_LOG_WARNING("AudioLevelMonitor::onAudioDetected: session with Cid: %d not found", mCid);
+    }
 }
 }
 #endif

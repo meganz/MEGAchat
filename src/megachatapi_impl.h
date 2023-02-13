@@ -876,6 +876,13 @@ public:
     virtual ~MegaChatScheduledRulesPrivate();
 
     MegaChatScheduledRulesPrivate* copy() const override;
+    void setFreq(int freq) override;
+    void setInterval(int interval) override;
+    void setUntil(MegaChatTimeStamp until) override;
+    void setByWeekDay(const mega::MegaIntegerList* byWeekDay) override;
+    void setByMonthDay(const mega::MegaIntegerList* byMonthDay)  override;
+    void setByMonthWeekDay(const mega::MegaIntegerMap* byMonthWeekDay) override;
+
     int freq() const override;
     int interval() const override;
     MegaChatTimeStamp until() const override;
@@ -1427,13 +1434,13 @@ public:
 
     // updates a scheduled meeting
     void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
-                                             const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                             const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                              MegaChatRequestListener* listener = nullptr);
 
 
     // updates a scheduled meeting ocurrence
     void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
-                                                       MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener = nullptr);
+                                                       MegaChatTimeStamp newEndDate, bool cancelled, MegaChatRequestListener* listener = nullptr);
 
     // removes a scheduled meeting
     void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener = nullptr);
