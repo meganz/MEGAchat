@@ -4089,9 +4089,11 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     //================================================================================//
     LOG_debug << "TEST_ScheduledMeetings 5: Update a scheduled meeting occurrence (child sched meeting created)";
     MegaChatTimeStamp overrides =  startDate;
-    startDate += 50; endDate += 50;
+    MegaChatTimeStamp auxStartDate =  startDate + 50;
+    MegaChatTimeStamp auxEndDate = endDate + 50;
+    //startDate += 50; endDate += 50;
     // update occurrence and ensure that we have received a new child scheduled meeting whose parent is the original sched meeting and contains the updated occurrence
-    updateOccurrence(a1, MegaChatError::ERROR_OK, chatId, schedId, overrides, startDate, endDate, false);
+    updateOccurrence(a1, MegaChatError::ERROR_OK, chatId, schedId, overrides, auxStartDate, auxEndDate, false);
     MegaChatScheduledMeeting* sched = megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]);
     ASSERT_CHAT_TEST(sched && sched->parentSchedId() == schedId, "Child scheduled meeting for primary account has not been received");
 
@@ -4100,23 +4102,29 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     //================================================================================//
     LOG_debug << "TEST_ScheduledMeetings 6: Cancel a scheduled meeting occurrence";
     MegaChatHandle childSchedId = sched->schedId();
-    overrides = startDate;
+    overrides = auxStartDate;
     sched = nullptr;
-    updateOccurrence(a1, MegaChatError::ERROR_OK, chatId, childSchedId, overrides, startDate, endDate, true /*newCancelled*/);
+    updateOccurrence(a1, MegaChatError::ERROR_OK, chatId, childSchedId, overrides, auxStartDate, auxEndDate, true /*newCancelled*/);
     sched = megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]);
     ASSERT_CHAT_TEST(sched && sched->schedId() == childSchedId && sched->cancelled(), "Scheduled meeting occurrence could not be cancelled");
 
     //================================================================================//
-    // TEST 7. Delete scheduled meeting with invalid schedId (Error)
+    // TEST 7. Cancel entire series
     //================================================================================//
-    LOG_debug << "TEST_ScheduledMeetings 7: remove a scheduled meeting occurrence with invalid schedId (Error)";
+    LOG_debug << "TEST_ScheduledMeetings 7: Update a recurrent scheduled meeting";
+    updateSchedMeeting(a1, MegaChatError::ERROR_OK, chatId, schedId, timeZone, startDate, endDate, title, description, true /*cancelled*/, flags, rules);
+
+    //================================================================================//
+    // TEST 8. Delete scheduled meeting with invalid schedId (Error)
+    //================================================================================//
+    LOG_debug << "TEST_ScheduledMeetings 8: remove a scheduled meeting occurrence with invalid schedId (Error)";
     deleteSchedMeeting(a1, MegaChatError::ERROR_ARGS, chatId, MEGACHAT_INVALID_HANDLE);
 
     //================================================================================//
-    // TEST 8. Delete scheduled meeting
+    // TEST 9. Delete scheduled meeting
     //================================================================================//
-    LOG_debug << "TEST_ScheduledMeetings 8: remove a scheduled meeting occurrence";
-    deleteSchedMeeting(a1, MegaChatError::ERROR_OK, chatId, childSchedId);
+    LOG_debug << "TEST_ScheduledMeetings 9: remove a scheduled meeting occurrence";
+    deleteSchedMeeting(a1, MegaChatError::ERROR_OK, chatId, schedId);
 }
 #endif
 
