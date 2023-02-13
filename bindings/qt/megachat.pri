@@ -56,6 +56,9 @@ else {
 
 # include the configuration for MEGA SDK
 include(../../third-party/mega/bindings/qt/sdk.pri)
+contains(QMAKE_CXXFLAGS, -std=c++11) {
+    QMAKE_CXXFLAGS -= -std=c++11
+}
 
 MEGACHAT_BASE_PATH = $$PWD/../..
 
