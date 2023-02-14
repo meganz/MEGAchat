@@ -5549,7 +5549,7 @@ KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules
     if (rules->byMonthWeekDay() && rules->byMonthWeekDay()->size())
     {
         mByMonthWeekDay.reset(new karere_rules_map());
-        for (size_t i = 0; i < rules->byMonthWeekDay()->size(); i++)
+        for (auto i = 0; i < rules->byMonthWeekDay()->size(); i++)
         {
             int64_t key;
             int64_t value;
