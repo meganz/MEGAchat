@@ -5551,8 +5551,8 @@ KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules
         mByMonthWeekDay.reset(new karere_rules_map());
         for (size_t i = 0; i < rules->byMonthWeekDay()->size(); i++)
         {
-            long long key;
-            long long value;
+            int64_t key;
+            int64_t value;
             if (rules->byMonthWeekDay()->at(i, key, value))
             {
                 mByMonthWeekDay->emplace(key, value);
@@ -5629,8 +5629,8 @@ bool KarereScheduledRules::equalTo(const ::mega::MegaScheduledRules* r) const
         karere_rules_map auxMap;
         for (unsigned long long i = 0; i < r->byMonthWeekDay()->size(); i++)
         {
-            long long auxkey;
-            long long auxvalue;
+            int64_t auxkey;
+            int64_t auxvalue;
             if (r->byMonthWeekDay()->at(i, auxkey, auxvalue))
             {
                 auxMap.emplace(auxkey, auxvalue);
