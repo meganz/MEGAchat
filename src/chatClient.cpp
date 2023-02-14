@@ -5549,12 +5549,14 @@ KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules
     if (rules->byMonthWeekDay() && rules->byMonthWeekDay()->size())
     {
         mByMonthWeekDay.reset(new karere_rules_map());
-        for (auto i = 0; i < rules->byMonthWeekDay()->size(); i++)
+        std::unique_ptr<::mega::MegaIntegerList> keys(rules->byMonthWeekDay()->getKeys());
+        for (auto i = 0 ; i < keys->size(); i++)
         {
-            int64_t key;
-            int64_t value;
-            if (rules->byMonthWeekDay()->at(i, key, value))
+            int64_t key = keys->get(i);
+            std::unique_ptr<::mega::MegaIntegerList> values(rules->byMonthWeekDay()->get(key));
+            for (auto j = 0 ; j < values->size(); j++)
             {
+                int64_t value = values->get(j);
                 mByMonthWeekDay->emplace(key, value);
             }
         }
@@ -5627,13 +5629,15 @@ bool KarereScheduledRules::equalTo(const ::mega::MegaScheduledRules* r) const
         }
 
         karere_rules_map auxMap;
-        for (unsigned long long i = 0; i < r->byMonthWeekDay()->size(); i++)
+        std::unique_ptr<::mega::MegaIntegerList> keys(r->byMonthWeekDay()->getKeys());
+        for (auto i = 0 ; i < keys->size(); i++)
         {
-            int64_t auxkey;
-            int64_t auxvalue;
-            if (r->byMonthWeekDay()->at(i, auxkey, auxvalue))
+            int64_t key = keys->get(i);
+            std::unique_ptr<::mega::MegaIntegerList> values(r->byMonthWeekDay()->get(key));
+            for (auto j = 0 ; j < values->size(); j++)
             {
-                auxMap.emplace(auxkey, auxvalue);
+                int64_t value = values->get(j);
+                auxMap.emplace(key, value);
             }
         }
 
