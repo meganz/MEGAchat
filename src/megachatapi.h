@@ -44,6 +44,8 @@ typedef int MegaChatIndex;  // int32_t
 const MegaChatHandle MEGACHAT_INVALID_HANDLE = ~(MegaChatHandle)0;
 const MegaChatIndex MEGACHAT_INVALID_INDEX = 0x7fffffff;
 const MegaChatTimeStamp MEGACHAT_INVALID_TIMESTAMP = 0;
+const int MAX_MESSAGES_PER_BLOCK = 256;
+const int MIN_MESSAGES_PER_BLOCK = 1;
 
 class MegaChatApi;
 class MegaChatApiImpl;
@@ -4878,12 +4880,15 @@ public:
      * is local and there's no more history locally available, the number of messages could be
      * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
      *
+     * @note \c count has a maximun value of 256. If user requests more than 256 messages,
+     *  only 256 messages will returned if exits
+     *
      * When there are no more history available from the reported source of messages
      * (local / remote), or when the requested \c count has been already loaded,
      * the callback MegaChatRoomListener::onMessageLoaded will be called with a NULL message.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param count The number of requested messages to load.
+     * @param count The number of requested messages to load (Range 1 - 256)
      *
      * @return Return the source of the messages that is going to be fetched. The possible values are:
      *   - MegaChatApi::SOURCE_ERROR = -1: history has to be fetched from server, but we are not logged in yet
