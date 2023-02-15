@@ -715,17 +715,6 @@ void MegaChatApi::createChatroomAndSchedMeeting(MegaChatPeerList* peerList, bool
                                            flags, rules, attributes, listener);
 }
 
-
-
-void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
-                                                 const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes,
-                                                 MegaChatRequestListener* listener)
-{
-    pImpl->createChatAndScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, MEGACHAT_INVALID_HANDLE /* schedId */, MEGACHAT_INVALID_HANDLE /*parentSchedId,*/,
-                                                 true /*createChat*/, isMeeting, publicChat, speakRequest, waitingRoom, openInvite,
-                                                 timezone, startDate, endDate, title, description, false /*cancelled*/, attributes, MEGACHAT_INVALID_TIMESTAMP /*overrides*/, flags, rules, listener);
-}
-
 void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
                                          const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                          MegaChatRequestListener* listener)
@@ -759,9 +748,14 @@ MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
     return pImpl->getAllScheduledMeetings();
 }
 
+void MegaChatApi::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatTimeStamp since, MegaChatRequestListener* listener)
+{
+    pImpl->fetchScheduledMeetingOccurrencesByChat(chatid, since, MEGACHAT_INVALID_TIMESTAMP, listener);
+}
+
 void MegaChatApi::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatRequestListener* listener)
 {
-    pImpl->fetchScheduledMeetingOccurrencesByChat(chatid, MEGACHAT_INVALID_TIMESTAMP /*since*/, MEGACHAT_INVALID_TIMESTAMP /*until*/, 0 /*count*/, MegaChatScheduledMeeting::MIN_OCURRENCES, listener);
+    pImpl->fetchScheduledMeetingOccurrencesByChat(chatid, MEGACHAT_INVALID_TIMESTAMP /*since*/, MEGACHAT_INVALID_TIMESTAMP /*until*/, listener);
 }
 
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
@@ -1767,7 +1761,7 @@ void MegaChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChatApi* /*a
 
 }
 
-void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)
+void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle /*chatid*/, bool append)
 {
 
 }
@@ -2423,14 +2417,26 @@ MegaChatTimeStamp MegaChatScheduledMeeting::overrides() const                   
 MegaChatScheduledRules* MegaChatScheduledMeeting::rules() const                 { return NULL; }
 MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 { return NULL; }
 
+int MegaChatScheduledMeeting::isValidTitleLength(const char* title)
+{
+    return title && strlen(title) <= MegaChatScheduledMeeting::MAX_TITLE_LENGTH;
+}
+
+int MegaChatScheduledMeeting::isValidDescriptionLength(const char* desc)
+{
+    return desc && strlen(desc) <= MegaChatScheduledMeeting::MAX_DESC_LENGTH;
+}
+
 /* Class MegaChatScheduledMeetingOccurr */
 MegaChatScheduledMeetingOccurr::~MegaChatScheduledMeetingOccurr()                     {}
 int MegaChatScheduledMeetingOccurr::cancelled() const                                 { return 0; }
 MegaChatHandle MegaChatScheduledMeetingOccurr::schedId() const                        { return MEGACHAT_INVALID_HANDLE; }
+MegaChatHandle MegaChatScheduledMeetingOccurr::parentSchedId() const                  { return MEGACHAT_INVALID_HANDLE; }
 MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurr::copy() const          { return NULL; }
 const char* MegaChatScheduledMeetingOccurr::timezone() const                          { return NULL; }
 MegaChatTimeStamp MegaChatScheduledMeetingOccurr::startDateTime() const               { return MEGACHAT_INVALID_TIMESTAMP; }
 MegaChatTimeStamp MegaChatScheduledMeetingOccurr::endDateTime() const                 { return MEGACHAT_INVALID_TIMESTAMP; }
+MegaChatTimeStamp MegaChatScheduledMeetingOccurr::overrides() const                   { return MEGACHAT_INVALID_TIMESTAMP; }
 
 /* Class MegaChatScheduledMeetingList */
 MegaChatScheduledMeetingList* MegaChatScheduledMeetingList::createInstance()
