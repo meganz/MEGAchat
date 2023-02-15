@@ -102,7 +102,7 @@ std::mutex g_reviewPublicChatOutFileLogsMutex;
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLogs;
 class ReviewPublicChat_GetUserEmail_Listener;
 
-static const int MAX_NUMBER_MESSAGES = 300;
+static const int MAX_NUMBER_MESSAGES = 100; // chatd doesn't allow more than 256
 
 struct ConsoleLock
 {

@@ -4799,6 +4799,13 @@ void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
 {
     int ret = MegaChatApi::SOURCE_NONE;
+
+    if (count > MAX_MESSAGES_PER_BLOCK)
+    {
+        API_LOG_WARNING("count value is higher than chatd allows");
+    }
+
+    count = std::clamp(count, MIN_MESSAGES_PER_BLOCK, MAX_MESSAGES_PER_BLOCK);
     sdkMutex.lock();
 
     ChatRoom *chatroom = findChatRoom(chatid);
