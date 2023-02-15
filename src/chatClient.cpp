@@ -4415,10 +4415,10 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
         if (schedTs > sinceTs && (until == ::mega::mega_invalid_timestamp || schedTs < until))
         {
             ocurrList.emplace_back(it->copy());
-            if (ocurrList.size() >= count) { break; }
         }
     }
     parent.mKarereClient.sortOccurrences(ocurrList); // sort occurrences list
+    if (ocurrList.size() > count) { ocurrList.resize(count); }
     return ocurrList;
 }
 
