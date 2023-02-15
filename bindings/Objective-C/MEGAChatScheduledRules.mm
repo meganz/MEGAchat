@@ -87,12 +87,14 @@ using namespace mega;
     
     for (int i = 0; i < integerMap->size(); i++)
     {
-        long long key;
-        long long value;
-        integerMap->at(i, key, value);
-        
-        NSMutableArray<NSNumber *> *keyValueArray = @[[NSNumber.alloc initWithInt:key], [NSNumber.alloc initWithInt:value]];
-        [integerArray addObject:keyValueArray];
+        MegaIntegerList *keyList = integerMap->getKeys();
+        for (int i = 0; i < keyList->size(); i++)
+        {
+            uint64_t key = keyList->get(i);
+            MegaIntegerList *valueList = integerMap->get(key);
+            NSMutableArray<NSNumber *> *keyValueArray = @[[NSNumber.alloc initWithInt:key], [NSNumber.alloc initWithInt:valueList->get(0)]];
+            [integerArray addObject:keyValueArray];
+        }
     }
     
     delete integerMap;
