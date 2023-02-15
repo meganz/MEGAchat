@@ -10,7 +10,7 @@ public:
     id<MEGAChatScheduledMeetingDelegate>getUserListener();
     
     void onChatSchedMeetingUpdate(megachat::MegaChatApi *api, megachat::MegaChatScheduledMeeting *scheduledMeeting);
-    void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid);
+    void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, bool append);
 
 private:
     __weak MEGAChatSdk *megaChatSdk;

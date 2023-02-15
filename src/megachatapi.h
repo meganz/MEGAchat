@@ -1047,13 +1047,15 @@ public:
     /**
      * @brief This function is called when the scheduled meeting occurrences for a chatroom have changed
      *
-     * Apps will need to discard any local occurrence list, and fetch fresh occurrences by calling
-     * asynchronous method MegaChatApi::fetchScheduledMeetingOccurrencesByChat
+     * If append is false app must discard all occurrences for this chat and fetch again by calling
+     * MegaChatApi->fetchScheduledMeetingOccurrencesByChat with param since equal to MEGACHAT_INVALID_TIMESTAMP.
+     *
+     * If append is true, new occurrences has been received from API (no need to discard current ones)
      *
      * @param api MegaChatApi connected to the account
      * @param chatid MegaChatHandle that identifies the chat room
      */
-    virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid);
+    virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid, bool append);
 };
 
 class MegaChatPeerList
@@ -2091,7 +2093,7 @@ public:
         TYPE_OPEN_VIDEO_DEVICE, TYPE_REQUEST_HIRES_QUALITY,
         TYPE_DEL_SPEAKER, TYPE_REQUEST_SVC_LAYERS,
         TYPE_SET_CHATROOM_OPTIONS,
-        TYPE_CREATE_SCHEDULED_MEETING,
+        TYPE_CREATE_SCHEDULED_MEETING, // Deprecated
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
         TYPE_UPDATE_SCHEDULED_MEETING,
@@ -4115,52 +4117,6 @@ public:
                                                           const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                           const char* attributes = NULL, MegaChatRequestListener* listener = NULL);
 
-    /**
-     * @brief Creates a chatroom and a scheduled meeting for that chatroom
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_CREATE_OR_UPDATE_SCHEDULED_MEETING
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::request->getFlag - Returns always true as we are going to create a new chatroom
-     * - MegaChatRequest::request->getNumber - Returns true if new chat is going to be a Meeting room
-     * - MegaChatRequest::request->getPrivilege - Returns true is new chat is going to be a public chat room
-     * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
-     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
-     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
-     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
-     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting (containing the params provided by user)
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting
-     * (with definitive ScheduledMeeting updated from API)
-     *
-     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
-     * - MegaChatError::ERROR_ARGS  - if isMeeting is set true but publicChat is set to false
-     * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
-     *
-     * @deprecated This function must NOT be used in new developments. Use MegaChatApi::createChatroomAndSchedMeeting instead
-     *
-     * @param isMeeting True to create a meeting room
-     * @param publicChat True to create a public chat, otherwise false
-     * @param speakRequest True to set that during calls non moderator users, must request permission to speak
-     * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
-     * A moderator user must grant each user access to the call.
-     * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
-     * @param timezone Timezone where we want to schedule the meeting
-     * @param startDate start date time of the meeting with the format (unix timestamp UTC)
-     * @param endDate end date time of the meeting with the format (unix timestamp UTC)
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
-     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
-     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
-     * @param attributes - not supported yet
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
-                                                     const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description,
-                                                     const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes = NULL,
-                                                     MegaChatRequestListener* listener = NULL);
     /**
      * @brief Modify an existing scheduled meeting
      *

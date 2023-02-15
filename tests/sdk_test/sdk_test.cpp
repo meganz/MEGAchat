@@ -5275,7 +5275,7 @@ void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* /*api*/, m
     // TODO implement
 }
 
-void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)
+void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/, bool append)
 {
     // TODO implement
 }
