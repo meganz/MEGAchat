@@ -877,27 +877,45 @@ Client::fetchScheduledMeetingOccurrences(uint64_t chatid, ::mega::m_time_t since
 {
     auto wptr = getDelTracker();
     return api.call(&::mega::MegaApi::fetchScheduledMeetingEvents, chatid, since, until, count)
-    .then([wptr](ReqResult result) -> promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
+    .then([wptr, this](ReqResult result) -> promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>>
     {
         wptr.throwIfDeleted();
         std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> out;
         const mega::MegaScheduledMeetingList* l = result->getMegaScheduledMeetingList();
         if (l)
         {
+            bool unordered = false;
             ::mega::m_time_t prevTs = ::mega::mega_invalid_timestamp;
             for (unsigned long i = 0; i < l->size(); i++)
             {
-                if (prevTs != ::mega::mega_invalid_timestamp && prevTs > l->at(i)->startDateTime())
+                if (!unordered
+                        && prevTs != ::mega::mega_invalid_timestamp
+                        && prevTs > l->at(i)->startDateTime())
                 {
-                    assert(false);
-                    return ::promise::Error("Unordered occurrences list received", -1 /*internal error*/);
+                    unordered = true;
                 }
                 out.emplace_back(new KarereScheduledMeetingOccurr(l->at(i)));
                 prevTs = l->at(i)->startDateTime();
             }
+
+            if (unordered)
+            {
+                KR_LOG_WARNING("Unordered occurrences list received from API");
+                sortOccurrences(out);
+            }
         }
         return out;
     });
+}
+
+void Client::sortOccurrences(std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>& occurrList) const
+{
+    auto cmp = [](std::shared_ptr<KarereScheduledMeetingOccurr>& a, std::shared_ptr<KarereScheduledMeetingOccurr>& b)
+    {
+        return a->startDateTime() < b->startDateTime();
+    };
+
+    std::sort(occurrList.begin(), occurrList.end(), cmp);
 }
 
 promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t schedId)
@@ -4378,23 +4396,6 @@ GroupChatRoom::getScheduledMeetingsOccurrences() const
     return mScheduledMeetingsOcurrences;
 }
 
-std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> GroupChatRoom::sortOccurrences() const
-{
-    auto cmp = [](std::shared_ptr<KarereScheduledMeetingOccurr>& a, std::shared_ptr<KarereScheduledMeetingOccurr>& b)
-    {
-        return a->startDateTime() < b->startDateTime();
-    };
-
-    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> auxV;
-    for (const auto& it: mScheduledMeetingsOcurrences)
-    {
-        auxV.emplace_back(it->copy());
-    }
-
-    std::sort(auxV.begin(), auxV.end(), cmp);
-    return auxV;
-}
-
 std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>
 GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const
 {
@@ -4404,8 +4405,7 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
     }
 
     std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> ocurrList;
-    auto&& occurrSorted = sortOccurrences();
-    for (auto it = occurrSorted.begin(); it != occurrSorted.end(); it++)
+    for (auto it = mScheduledMeetingsOcurrences.begin(); it != mScheduledMeetingsOcurrences.end(); it++)
     {
         ::mega::m_time_t schedTs = (*it)->startDateTime();
         ::mega::m_time_t sinceTs = since
@@ -4418,6 +4418,7 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
             if (ocurrList.size() >= count) { break; }
         }
     }
+    parent.mKarereClient.sortOccurrences(ocurrList); // sort occurrences list
     return ocurrList;
 }
 
