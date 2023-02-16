@@ -485,9 +485,6 @@ public:
     std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>
     getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const;
 
-    // sort the occurrences list by StartDateTime
-    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> sortOccurrences() const;
-
     const std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> &getScheduledMeetingsOccurrences() const;
 
     /** TODO
@@ -1083,6 +1080,9 @@ public:
      * TODO: complete documentation
      */
     promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
+
+    /** sort the occurrences list by StartDateTime */
+    void sortOccurrences(std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>& occurrList) const;
 
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
