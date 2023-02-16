@@ -395,6 +395,7 @@ private:
     bool mChatCallReconnection[NUM_ACCOUNTS];
     bool mSchedMeetingUpdated[NUM_ACCOUNTS];
     bool mSchedOccurrUpdated[NUM_ACCOUNTS];
+    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> mOccurrList[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];

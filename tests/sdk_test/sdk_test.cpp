@@ -4041,6 +4041,28 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
         ASSERT_CHAT_TEST(mSchedIdUpdated[a2] != MEGACHAT_INVALID_HANDLE, "Scheduled meeting for secondary account could not be created");
     };
 
+    // fetch scheduled meeting occurrences
+    const auto fetchOccurrences = [this, a1](const unsigned int index, int expectedError, const SchedMeetingData& smData) -> void
+    {
+        lastErrorChat[index] = MegaChatError::ERROR_OK; // reset last MegaChatRequest error
+        mOccurrList[index].reset();                     // clear occurrences list
+
+        // wait for onRequestFinish
+        waitForAction (1,
+                       std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES] },
+                       std::vector<string> { "TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES[a1]" },
+                       "Fetching scheduled meeting occurrences",
+                       true /* wait for all exit flags */,
+                       true /* reset flags */,
+                       maxTimeout,
+                       [this, &index, &d = smData]()
+                       {
+                            megaChatApi[index]->fetchScheduledMeetingOccurrencesByChat(d.chatId, d.startDate);
+                       });
+
+        ASSERT_CHAT_TEST(lastErrorChat[a1] == expectedError, "Unexpected TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES request error: " + std::to_string(lastErrorChat[a1]) + " expected: " + std::to_string(expectedError));
+    };
+
     //================================================================================//
     // TEST preparation
     //================================================================================//
@@ -4158,9 +4180,22 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
                      + (chatIdB64 ? std::string(chatIdB64.get()) : "INVALID chatId"));
 
     //================================================================================//
-    // TEST 6. Cancel previous scheduled meeting occurrence
+    // TEST 6. Fetch scheduled meetings occurrences chatroom
     //================================================================================//
-    LOG_debug << "TEST_ScheduledMeetings 6: Cancel a scheduled meeting occurrence";
+    LOG_debug << "TEST_ScheduledMeetings 6: fetch scheduled meetings occurrences";
+    fetchOccurrences(a1, MegaChatError::ERROR_OK, {.chatId = chatId, .startDate = MEGACHAT_INVALID_TIMESTAMP});
+    ASSERT_CHAT_TEST(mOccurrList[a1] && mOccurrList[a1]->size() == MegaChatScheduledMeeting::NUM_OCURRENCES_REQ,
+                     "Scheduled meeting occurrences for primary account could not be fetched");
+
+//    Uncomment when API team fixes the bug that makes API returns 21 occurrences instead of 20
+//    const MegaChatScheduledMeetingOccurr* lastestOcurr = mOccurrList[a1]->at(mOccurrList[a1]->size() -1);
+//    if (lastestOcurr && lastestOcurr->startDateTime() != MEGACHAT_INVALID_TIMESTAMP)
+//    {
+//        fetchOccurrences(a1, MegaChatError::ERROR_OK, {.chatId = chatId, .startDate = lastestOcurr->startDateTime() });
+//        ASSERT_CHAT_TEST(mOccurrList[a1] && mOccurrList[a1]->size() == MegaChatScheduledMeeting::NUM_OCURRENCES_REQ,
+//                         "More scheduled meeting occurrences for primary account could not be fetched");
+//    }
+
     overrides = auxStartDate;
     smDataTests456.schedId = childSchedId;
     smDataTests456.overrides = overrides;
@@ -5385,6 +5420,12 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                     !static_cast<bool>(request->getParamType());
 #endif
                 break;
+
+             case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES:
+                (mOccurrList[apiIndex]).reset(request->getMegaChatScheduledMeetingOccurrList()
+                                                ? request->getMegaChatScheduledMeetingOccurrList()->copy()
+                                                : nullptr);
+             break;
         }
     }
 
