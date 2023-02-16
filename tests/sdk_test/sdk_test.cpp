@@ -4101,7 +4101,7 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     const MegaChatHandle schedId = mSchedIdUpdated[a1];
     const std::unique_ptr<char[]> chatIdB64(MegaApi::userHandleToBase64(chatId));
     const std::unique_ptr<char[]> schedIdB64(MegaApi::userHandleToBase64(schedId));
-    ASSERT_CHAT_TEST(!!getSchedMeeting(a1, {.chatId = chatid[a1], .schedId = MEGACHAT_INVALID_HANDLE}),
+    ASSERT_CHAT_TEST(getSchedMeeting(a1, {.chatId = chatid[a1], .schedId = MEGACHAT_INVALID_HANDLE}),
                      "Can't retrieve scheduled meeting for new chat " + (chatIdB64 ? std::string(chatIdB64.get()) : "INVALID chatId"));
 
     //================================================================================//
@@ -4151,10 +4151,10 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     smDataTests456.newEndDate = auxEndDate;
     updateOccurrence(a1, MegaChatError::ERROR_OK, smDataTests456);
     auto sched = std::make_unique<MegaChatScheduledMeeting*>(megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]));
-    ASSERT_CHAT_TEST(!!sched && (*sched)->parentSchedId() == schedId, "Child scheduled meeting for primary account has not been received");
+    ASSERT_CHAT_TEST(sched && (*sched)->parentSchedId() == schedId, "Child scheduled meeting for primary account has not been received");
 
     const MegaChatHandle childSchedId = (*sched)->schedId();
-    ASSERT_CHAT_TEST(!!getSchedMeeting(a1, {.chatId = chatid[a1], .schedId = childSchedId}), "Can't retrieve child scheduled meeting for chat "
+    ASSERT_CHAT_TEST(getSchedMeeting(a1, {.chatId = chatid[a1], .schedId = childSchedId}), "Can't retrieve child scheduled meeting for chat "
                      + (chatIdB64 ? std::string(chatIdB64.get()) : "INVALID chatId"));
 
     //================================================================================//
@@ -4167,7 +4167,7 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     smDataTests456.newCancelled = true;
     updateOccurrence(a1, MegaChatError::ERROR_OK, smDataTests456);
     sched = std::make_unique<MegaChatScheduledMeeting*>(megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]));
-    ASSERT_CHAT_TEST(!!sched && (*sched)->schedId() == childSchedId && (*sched)->cancelled(), "Scheduled meeting occurrence could not be cancelled");
+    ASSERT_CHAT_TEST(sched && (*sched)->schedId() == childSchedId && (*sched)->cancelled(), "Scheduled meeting occurrence could not be cancelled");
 
     //================================================================================//
     // TEST 7. Cancel entire series
