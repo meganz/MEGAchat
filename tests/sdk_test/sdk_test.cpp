@@ -4246,7 +4246,8 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     bool *flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
     *flagContactRequestUpdatedPrimary = false;
     auto replyContactRequestTracker = ::mega::make_unique<RequestTracker>(megaApi[a2]);
-    megaApi[a2]->replyContactRequest(mContactRequest[a2], MegaContactRequest::REPLY_ACTION_ACCEPT);
+    megaApi[a2]->replyContactRequest(mContactRequest[a2], MegaContactRequest::REPLY_ACTION_ACCEPT,
+                                     replyContactRequestTracker.get());
     ASSERT_CHAT_TEST(waitForResponse(flagReplyContactRequest), "Expired timeout for reply contact request");
     ErrorCodes replyContactRequestResult = replyContactRequestTracker->waitForResult();
     ASSERT_CHAT_TEST((replyContactRequestResult == API_OK), "Error reply contact request. Error: "
@@ -5274,7 +5275,7 @@ void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* /*api*/, m
     // TODO implement
 }
 
-void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)
+void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/, bool append)
 {
     // TODO implement
 }

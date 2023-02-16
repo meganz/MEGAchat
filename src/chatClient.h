@@ -377,7 +377,7 @@ protected:
     void updateChatOptions(mega::ChatOptions_t opt);
     void addSchedMeetings(const mega::MegaTextChat& chat);
     void updateSchedMeetings(const mega::MegaTextChat& chat);
-    void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat, bool force = false);
+    void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
     void loadSchedMeetingsFromDb();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
@@ -394,7 +394,7 @@ protected:
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
     void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
-    void notifySchedMeetingOccurrencesUpdated();
+    void notifySchedMeetingOccurrencesUpdated(bool append);
     void setRemoved();
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
@@ -484,9 +484,6 @@ public:
     // gets a vector of (count: if enough elements) pairs <> scheduled meetings beyond to since timestamp
     std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>
     getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const;
-
-    // sort the occurrences list by StartDateTime
-    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> sortOccurrences() const;
 
     const std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> &getScheduledMeetingsOccurrences() const;
 
@@ -1084,6 +1081,9 @@ public:
      */
     promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
 
+    /** sort the occurrences list by StartDateTime */
+    void sortOccurrences(std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>& occurrList) const;
+
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
      * @return The decrypted title of the chat
@@ -1541,7 +1541,7 @@ class ScheduledMeetingHandler
 public:
     virtual ~ScheduledMeetingHandler(){}
     virtual void onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed) = 0;
-    virtual void onSchedMeetingOccurrencesChange(const karere::Id& id) = 0;
+    virtual void onSchedMeetingOccurrencesChange(const karere::Id& id, bool append) = 0;
 };
 
 class DbClientInterface
