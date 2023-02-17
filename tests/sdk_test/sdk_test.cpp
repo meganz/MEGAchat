@@ -4188,14 +4188,13 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(mOccurrList[a1] && mOccurrList[a1]->size() == MegaChatScheduledMeeting::NUM_OCURRENCES_REQ,
                      "Scheduled meeting occurrences for primary account could not be fetched");
 
-//    Uncomment when API team fixes the bug that makes API returns 21 occurrences instead of 20
-//    const MegaChatScheduledMeetingOccurr* lastestOcurr = mOccurrList[a1]->at(mOccurrList[a1]->size() -1);
-//    if (lastestOcurr && lastestOcurr->startDateTime() != MEGACHAT_INVALID_TIMESTAMP)
-//    {
-//        fetchOccurrences(a1, MegaChatError::ERROR_OK, {.chatId = chatId, .startDate = lastestOcurr->startDateTime() });
-//        ASSERT_CHAT_TEST(mOccurrList[a1] && mOccurrList[a1]->size() == MegaChatScheduledMeeting::NUM_OCURRENCES_REQ,
-//                         "More scheduled meeting occurrences for primary account could not be fetched");
-//    }
+    const MegaChatScheduledMeetingOccurr* lastestOcurr = mOccurrList[a1]->at(mOccurrList[a1]->size() -1);
+    if (lastestOcurr && lastestOcurr->startDateTime() != MEGACHAT_INVALID_TIMESTAMP)
+    {
+        fetchOccurrences(a1, MegaChatError::ERROR_OK, {.chatId = chatId, .startDate = lastestOcurr->startDateTime() });
+        ASSERT_CHAT_TEST(mOccurrList[a1] && mOccurrList[a1]->size() == MegaChatScheduledMeeting::NUM_OCURRENCES_REQ,
+                         "More scheduled meeting occurrences for primary account could not be fetched");
+    }
 
     //================================================================================//
     // TEST 7. Cancel previous scheduled meeting occurrence
