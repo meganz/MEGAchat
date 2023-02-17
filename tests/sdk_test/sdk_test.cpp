@@ -334,7 +334,6 @@ void MegaChatApiTest::SetUp()
         megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
         megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
         megaApi[i]->addListener(this);
-        megaApi[i]->addRequestListener(this);
 
         megaChatApi[i] = new MegaChatApi(megaApi[i]);
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
@@ -492,8 +491,6 @@ void MegaChatApiTest::TearDown()
                 ASSERT_CHAT_TEST((logoutResult == API_OK), "Failed to logout from SDK. Error: "
                                  + std::to_string(logoutResult));
             }
-
-            megaApi[i]->removeRequestListener(this);
 
             delete megaApi[i];
             megaApi[i] = NULL;
@@ -727,6 +724,39 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
     return true;    // response is received
 }
 
+void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action)
+{
+    ASSERT_CHAT_TEST(exitFlags.size() == flagsStr.size() || flagsStr.empty(), "waitForCallAction: no valid action provided");
+    ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
+
+    if (resetFlags)
+    {
+        for (auto f: exitFlags)
+        {
+            if (f) { *f = false; }
+        }
+    }
+
+    int retries = 0;
+    while (!exitWait(exitFlags, waitForAll))
+    {
+        action();
+        if (!waitForMultiResponse(exitFlags, waitForAll, timeout))
+        {
+            std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(": ");
+            for (size_t i = 0; i < exitFlags.size(); i++)
+            {
+                (i > flagsStr.size())
+                        ? msg.append("Flag_").append(std::to_string(i))
+                        : msg.append(flagsStr.at(i));
+
+                msg.append(" = ").append(*exitFlags.at(i) ? "true" : "false").append(" ");
+            }
+            LOG_debug << msg;
+            ASSERT_CHAT_TEST(++retries <= maxAttempts, "Max attempts exceeded for " + actionMsg);
+        }
+    }
+}
 
 /**
  * @brief TEST_ResumeSession
@@ -1691,12 +1721,13 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     char *sessionSecondary = login(a2);
 
     // Make a1 and a2 contacts
+    { // scope for 'user' local variable
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
         delete user;
-        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    }
     }
 
     // Create chat link
@@ -2378,7 +2409,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     // A gets the thumbnail of the uploaded image
     std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
-    auto getThumbnailTracker = ::mega::make_unique<RequestTracker>(megaApi[a1], this);
+    auto getThumbnailTracker = ::mega::make_unique<RequestTracker>(megaApi[a1]);
     megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), getThumbnailTracker.get());
     ErrorCodes getThumbnailResult = getThumbnailTracker->waitForResult();
     ASSERT_CHAT_TEST((getThumbnailResult == API_OK), "Failed to get thumbnail. Error: "
@@ -2386,7 +2417,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
 
     // B gets the thumbnail of the attached image
     thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
-    getThumbnailTracker.reset(new RequestTracker(megaApi[a2], this));
+    getThumbnailTracker.reset(new RequestTracker(megaApi[a2]));
     megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), getThumbnailTracker.get());
     getThumbnailResult = getThumbnailTracker->waitForResult();
     ASSERT_CHAT_TEST((getThumbnailResult == API_OK), "Failed to get thumbnail. Error: "
@@ -3592,43 +3623,6 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         }
     };
 
-    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
-    std::function<void(int, std::vector<bool*>, const std::vector<string>&, const std::string&, bool,  unsigned int, std::function<void()>)> waitForAction =
-    [this]
-    (int maxAttempts, std::vector<bool*> exitFlags, const std::vector<string>& flagsStr, const std::string& actionMsg, bool resetFlags, unsigned int timeout, std::function<void()>action)
-    {
-        ASSERT_CHAT_TEST(exitFlags.size() == flagsStr.size() || flagsStr.empty(), "waitForCallAction: no valid action provided");
-        ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
-
-        if (resetFlags)
-        {
-            for (auto f: exitFlags)
-            {
-                if (f) { *f = false; }
-            }
-        }
-
-        int retries = 0;
-        while (!exitWait(exitFlags, true /*waitForAll*/))
-        {
-            action();
-            if (!waitForMultiResponse(exitFlags, true /*waitForAll*/, timeout))
-            {
-                std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(": ");
-                for (size_t i = 0; i < exitFlags.size(); i++)
-                {
-                    (i > flagsStr.size())
-                            ? msg.append("Flag_").append(std::to_string(i))
-                            : msg.append(flagsStr.at(i));
-
-                    msg.append(" = ").append(*exitFlags.at(i) ? "true" : "false").append(" ");
-                }
-                LOG_debug << msg;
-                ASSERT_CHAT_TEST(++retries <= maxAttempts, "Max attempts exceeded for " + actionMsg);
-            }
-        }
-    };
-
     std::function<void()> action = nullptr;
     bool* exitFlag = nullptr;
 
@@ -3680,6 +3674,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
                    std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL], &mCallInProgress[a1], &mCallReceivedRinging[a2]},
                    std::vector<string> { "TYPE_START_CHAT_CALL[a1]", "mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
                    "starting chat call from A",
+                   true /* wait for all exit flags*/,
                    true /*reset flags*/,
                    maxTimeout,
                    [this, a1, chatid](){ megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
@@ -3719,6 +3714,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
                                          "mChatCallSilenceReq[a2]"
                                          },
                    "answering chat call from B",
+                   true /* wait for all exit flags*/,
                    true /*reset flags*/,
                    maxTimeout,
                    [this, a2, chatid](){ megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
@@ -3727,49 +3723,49 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     LOG_debug << "B setting the call on hold";
     exitFlag = &mChatCallOnHold[a1]; *exitFlag = false;  // from receiver account
     action = [this, a2, chatid](){ megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ true); };
-    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving call on hold at account A", maxTimeout, action);
+    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving call on hold at account A", maxTimeout, action);
 
     // A puts the call on hold
     LOG_debug << "A setting the call on hold";
     exitFlag = &mChatCallOnHold[a2]; *exitFlag = false; // from receiver account
     action = [this, a1, chatid](){ megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ true); };
-    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving call on hold at account B", maxTimeout, action);
+    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving call on hold at account B", maxTimeout, action);
 
     // A releases on hold
     LOG_debug << "A releasing on hold";
     exitFlag = &mChatCallOnHoldResumed[a2]; *exitFlag = false; // from receiver account
     action = [this, a1, chatid](){ megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ false); };
-    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving call resume from on hold at account B", maxTimeout, action);
+    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving call resume from on hold at account B", maxTimeout, action);
 
     // B releases on hold
     LOG_debug << "B releasing on hold";
     exitFlag = &mChatCallOnHoldResumed[a1]; *exitFlag = false; // from receiver account
     action = [this, a2, chatid](){ megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ false); };
-    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving call resume from on hold at account A", maxTimeout, action);
+    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving call resume from on hold at account A", maxTimeout, action);
 
     // B enables audio monitor
     LOG_debug << "B enabling audio in the call";
     exitFlag = &mChatCallAudioEnabled[a1]; *exitFlag = false; // from receiver account
     action = [this, a2, chatid](){ megaChatApi[a2]->enableAudio(chatid); };
-    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving audio enabled at account A", maxTimeout, action);
+    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio enabled at account A", maxTimeout, action);
 
     // A enables audio monitor
     LOG_debug << "A enabling audio in the call";
     exitFlag = &mChatCallAudioEnabled[a2]; *exitFlag = false; // from receiver account
     action = [this, a1, chatid](){ megaChatApi[a1]->enableAudio(chatid); };
-    waitForCallAction(a1 /*performer*/, maxAttempts, exitFlag, "receiving audio enabled at account B", maxTimeout, action);
+    waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio enabled at account B", maxTimeout, action);
 
     // B disables audio monitor
     LOG_debug << "B disabling audio in the call";
     exitFlag = &mChatCallAudioDisabled[a1]; *exitFlag = false; // from receiver account
     action = [this, a2, chatid](){ megaChatApi[a2]->disableAudio(chatid); };
-    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "receiving audio disabled at account A", maxTimeout, action);
+    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio disabled at account A", maxTimeout, action);
 
     // A disables audio monitor
     LOG_debug << "A disabling audio in the call";
     exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // from receiver account
     action = [this, a1, chatid](){ megaChatApi[a1]->disableAudio(chatid); };
-    waitForCallAction(a1 /*performer*/, maxAttempts, exitFlag, "receiving audio disabled at account B", maxTimeout, action);
+    waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio disabled at account B", maxTimeout, action);
 
     // A forces reconnect
     LOG_debug << "A forcing a reconnect";
@@ -3833,7 +3829,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     LOG_debug << "B hangs up the call";
     exitFlag = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
     action = [this, a2](){ megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]); };
-    waitForCallAction(a2 /*performer*/, maxAttempts, exitFlag, "hanging up chat call at account B", maxTimeout, action);
+    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "hanging up chat call at account B", maxTimeout, action);
 
     // wait for session destruction checks
     waitForChatCallSessionDestroyedB();
@@ -3846,7 +3842,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     LOG_debug << "A hangs up the call";
     exitFlag = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
     action = [this, a1](){ megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]); };
-    waitForCallAction(a1 /*performer*/, maxAttempts, exitFlag, "hanging up chat call at account B", maxTimeout, action);
+    waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "hanging up chat call at account B", maxTimeout, action);
     ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: " + std::to_string(lastErrorChat[a1]));
     LOG_debug << "Call finished for A";
 
@@ -3941,16 +3937,19 @@ void MegaChatApiTest::TEST_RichLinkUserAttribute(unsigned int a1)
  */
 void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
 {
+    constexpr unsigned int timeoutUsec = maxTimeout * 1000000;
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
     // Enable rich link
     bool enableRichLink = true;
+    bool* richPreviewEnabled = &mUsersChanged[a1][MegaUser::CHANGE_TYPE_RICH_PREVIEWS]; *richPreviewEnabled = false;
     TestMegaRequestListener requestListener(megaApi[a1], nullptr);
     megaApi[a1]->enableRichPreviews(enableRichLink, &requestListener);
     ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
     int error = requestListener.getErrorCode();
     ASSERT_CHAT_TEST(!error, "Failed to enable rich preview. Error: " + std::to_string(error));
+    ASSERT_CHAT_TEST(waitForResponse(richPreviewEnabled), "Richlink previews attr change not received, account" + std::to_string(a1+1) + ", after timeout: " +  std::to_string(maxTimeout) + " seconds");
 
     MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
@@ -3992,7 +3991,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
                 unsigned int tWaited = 0;
                 while (((isRichLink && msgUpdated->getType() != MegaChatMessage::TYPE_CONTAINS_META) ||
                             (!isRichLink && msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META)) &&
-                        (tWaited < maxTimeout))
+                        (tWaited < timeoutUsec))
                 {
                     std::this_thread::sleep_for(std::chrono::microseconds(pollingT));
                     tWaited += pollingT;
@@ -4028,6 +4027,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 1. Send rich link message
     //=================================//
 
+    LOG_debug << "TEST 1. Send rich link message";
     std::string messageToSend = "Hello friend, http://mega.nz";
     // Need to do this for the first message as it's send and edited
     chatroomListener->msgEdited[a1] = false;
@@ -4039,6 +4039,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 2. Remove richlink (used to remove preview) from previous message with removeRichLink()
     //===============================================================================================//
 
+    LOG_debug << "TEST 2. Remove richlink";
     // No call to sendTextMessageOrUpdate, so we must manually waitForUpdate for msgEdited to be set to 'true'
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;
@@ -4049,6 +4050,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 3. Edit previous non-richlinked message by removing the URL.
     //===================================================================//
 
+    LOG_debug << "TEST 3. Edit previous non-richlinked message by removing the URL";
     std::string messageToUpdate2 = "Hello friend";
     MegaChatMessage* msgUpdated2 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate2, chatroomListener, msgUpdated1->getMsgId());
     checkMessages(msgUpdated2, messageToUpdate2, false);
@@ -4058,6 +4060,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 4. Edit previous message by adding a new URL.
     //======================================================//
 
+    LOG_debug << "TEST 4. Edit previous message by adding a new URL";
     std::string messageToUpdate3 = "Hello friend, sorry, the URL is https://mega.nz";
     MegaChatMessage* msgUpdated3 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate3, chatroomListener, msgUpdated2->getMsgId());
     checkMessages(msgUpdated3, messageToUpdate3, true);
@@ -4066,6 +4069,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 5. Edit previous message by modifying the previous URL.
     //===============================================================//
 
+    LOG_debug << "TEST 5. Edit previous message by modifying the previous URL";
     std::string messageToUpdate4 = "Argghhh!!! Sorry again!! I meant https://mega.io that's the good one!!!";
     MegaChatMessage* msgUpdated4 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate4, chatroomListener, msgUpdated3->getMsgId());
     checkMessages(msgUpdated4, messageToUpdate4, true);
@@ -4074,6 +4078,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     // TEST 6. Edit previous richlinked message by deleting the URL.
     //===============================================================//
 
+    LOG_debug << "TEST 6. Edit previous richlinked message by deleting the URL";
     std::string messageToUpdate5 = "No more richlinks please!!!!";
     MegaChatMessage* msgUpdated5 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate5, chatroomListener, msgUpdated4->getMsgId());
     checkMessages(msgUpdated5, messageToUpdate5, false);
@@ -4241,7 +4246,8 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     bool *flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
     *flagContactRequestUpdatedPrimary = false;
     auto replyContactRequestTracker = ::mega::make_unique<RequestTracker>(megaApi[a2]);
-    megaApi[a2]->replyContactRequest(mContactRequest[a2], MegaContactRequest::REPLY_ACTION_ACCEPT);
+    megaApi[a2]->replyContactRequest(mContactRequest[a2], MegaContactRequest::REPLY_ACTION_ACCEPT,
+                                     replyContactRequestTracker.get());
     ASSERT_CHAT_TEST(waitForResponse(flagReplyContactRequest), "Expired timeout for reply contact request");
     ErrorCodes replyContactRequestResult = replyContactRequestTracker->waitForResult();
     ASSERT_CHAT_TEST((replyContactRequestResult == API_OK), "Error reply contact request. Error: "
@@ -4734,7 +4740,7 @@ bool MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string 
     mNodeCopiedHandle[accountIndex] = INVALID_HANDLE;
     megaApi[accountIndex]->authorizeNode(node);
     MegaNode *parentNode = megaApi[accountIndex]->getRootNode();
-    auto copyNodeTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex], this);
+    auto copyNodeTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
     megaApi[accountIndex]->copyNode(node, parentNode, targetName.c_str(), copyNodeTracker.get());
     ErrorCodes copyNodeResult = copyNodeTracker->waitForResult();
     delete parentNode;
@@ -4994,6 +5000,28 @@ void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestLi
     mContactRequestUpdated[apiIndex] = true;
 }
 
+void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList)
+{
+    if (!userList) return;
+
+    unsigned int accountIndex = getMegaApiIndex(api);
+    for (int i = 0; i < userList->size(); i++)
+    {
+        ::mega::MegaUser* user = userList->get(i);
+        if (user->getHandle() != megaApi[accountIndex]->getMyUserHandleBinary())
+        {
+            // add here code to manage other users changes
+            continue;
+        }
+
+        // own user changes
+        if (user->hasChanged(MegaUser::CHANGE_TYPE_RICH_PREVIEWS))
+        {
+            mUsersChanged[accountIndex][MegaUser::CHANGE_TYPE_RICH_PREVIEWS] = true;
+        }
+    }
+}
+
 void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, MegaChatError *e)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
@@ -5247,7 +5275,7 @@ void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* /*api*/, m
     // TODO implement
 }
 
-void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)
+void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* /*api*/, MegaChatHandle /*chatid*/, bool append)
 {
     // TODO implement
 }
@@ -5842,7 +5870,7 @@ bool RequestListener::waitForResponse(unsigned int timeout)
     bool connRetried = false;
     while(!mFinished)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(pollingT));
+        std::this_thread::sleep_for(std::chrono::microseconds(pollingT));
 
         if (timeout)
         {

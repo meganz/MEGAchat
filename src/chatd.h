@@ -798,11 +798,18 @@ protected:
     /// we disable this range by setting mOldestKnownMsgId to 0, and recalculate
     /// range() only from the buffer items
     karere::Id mOldestKnownMsgId;
-    unsigned mLastServerHistFetchCount = 0; ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
+
+    ///< The number of history messages that have been fetched so far by the currently active or the last history fetch. It is reset upon new history fetch initiation
+    ///< It's incremented when received old messages from server
+    unsigned mLastServerHistFetchCount = 0;
+
     unsigned mLastHistDecryptCount = 0; ///< Similar to mLastServerHistFetchCount, but reflects the current number of message passed through the decrypt process, which may be less than mLastServerHistFetchCount at a given moment
 
     /** @brief The state of history fetching from server */
     ServerHistFetchState mServerFetchState = kHistNotFetching;
+
+    /** @brief The number of requested messages to server */
+    int mLastServerRequested = 0;
 
     /** @brief Whether we have more not-loaded history in db */
     bool mHasMoreHistoryInDb = false;

@@ -363,14 +363,13 @@ protected:
     // scheduled meetings map
     std::map<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeeting>> mScheduledMeetings;
 
-    // maps a scheduled meeting id to a scheduled meeting occurrence
+    // vector of scheduled meeting occurrences
     // a scheduled meetings ocurrence is an event based on a scheduled meeting
     // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
-    // (check ScheduledMeeting class documentation)
-    std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>> mScheduledMeetingsOcurrences;
+    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> mScheduledMeetingsOcurrences;
 
-    // this flag indicates if scheduled meeting occurrences have been loaded from Db for this chatroom
-    bool mDbOccurrencesLoaded = false;
+    // this flag indicates if all scheduled meeting occurrences (including latest updates from API) have been loaded in RAM from Db
+    bool mAllDbOccurrencesLoadedInRam = false;
 
     DbClientInterface& getClientDbInterface();
     ScheduledMeetingHandler& schedMeetingHandler();
@@ -380,7 +379,6 @@ protected:
     void updateSchedMeetings(const mega::MegaTextChat& chat);
     void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
     void loadSchedMeetingsFromDb();
-    void loadSchedMeetingsOccurrFromDb();
     bool syncMembers(const mega::MegaTextChat& chat);
     void loadTitleFromDb();
     promise::Promise<void> decryptTitle();
@@ -396,7 +394,7 @@ protected:
     void initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph = Id::inval());
     void notifyPreviewClosed();
     void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
-    void notifySchedMeetingOccurrencesUpdated();
+    void notifySchedMeetingOccurrencesUpdated(bool append);
     void setRemoved();
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
@@ -483,14 +481,11 @@ public:
     // a scheduled meetings allows the user to specify an event that will occur in the future
     const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& getScheduledMeetings() const;
 
-    // maps a scheduled meeting id to a scheduled meeting occurrence
-    // a scheduled meetings ocurrence is an event based on a scheduled meeting
-    // a scheduled meeting could have one or multiple ocurrences (unique key: <schedId, startdatetime>)
-    promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
-    getFutureScheduledMeetingsOccurrences() const;
+    // gets a vector of (count: if enough elements) pairs <> scheduled meetings beyond to since timestamp
+    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>
+    getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const;
 
-    const std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>>&
-    getScheduledMeetingsOccurrences() const;
+    const std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> &getScheduledMeetingsOccurrences() const;
 
     /** TODO
      *
@@ -516,7 +511,7 @@ public:
      * This method loads scheduled meeting occurrences from Db, if we haven't loaded yet
      * @returns the number of loaded scheduled meeting occurrences
      */
-    size_t loadSchedMeetingsOccurrFromLocal();
+    size_t loadOccurresInMemoryFromDb();
 
     unsigned long numMembers() const override;
 
@@ -1086,6 +1081,9 @@ public:
      */
     promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
 
+    /** sort the occurrences list by StartDateTime */
+    void sortOccurrences(std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>& occurrList) const;
+
     /**
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
      * @return The decrypted title of the chat
@@ -1103,6 +1101,10 @@ public:
     /** @brief This function invalidates the current public handle
      */
     promise::Promise<uint64_t> deleteChatLink(karere::Id chatid);
+
+    /** @brief This function allows to set the SFU server where all chat calls will be started
+     */
+    void setSFUid(int sfuid);
 
     /**
      * @brief Initializes karere, opening or creating the local db cache
@@ -1183,8 +1185,8 @@ public:
      * no title will be set and the room will be shown with the names of
      * the participants.
      */
-    promise::Promise<karere::Id>
-    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = NULL);
+    promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
+    createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = nullptr, std::shared_ptr<mega::MegaScheduledMeeting> sm = nullptr);
     void setCommitMode(bool commitEach);
     bool commitEach();
     void saveDb();  // forces a commit
@@ -1480,11 +1482,22 @@ private:
     std::unique_ptr<KarereScheduledRules> mRules;
 };
 
+/**
+ * @brief This class represents a scheduled meeting occurrence.
+ * A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
+ * A scheduled meeting can produce one or multiple scheduled meeting occurrences
+ *
+ * Important considerations:
+ *  - The way to uniquely identify an occurrence is by schedid AND startdatetime
+ *  - We only store schedid, startdatetime and enddatetime at local karere db in terms of efficiency.
+ *    The rest of the fields: parentSchedId, timezone, overrides and cancelled, are retrieved from scheduledMeetings table,
+ *    as none of the previously mentioned fields values for an occurrence, can differ from the values of it's associated scheduled meeting
+ */
 class KarereScheduledMeetingOccurr
 {
 public:
 
-    KarereScheduledMeetingOccurr(const karere::Id& schedId, const std::string& timezone, mega::m_time_t startDateTime, mega::m_time_t endDateTime, int cancelled = -1);
+    KarereScheduledMeetingOccurr(const karere::Id& schedId, const karere::Id& parentSchedId, const std::string& timezone, mega::m_time_t startDateTime, mega::m_time_t endDateTime, mega::m_time_t overrides, int cancelled = -1);
     KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* karereScheduledMeetingOccurr);
     KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* sm);
 
@@ -1492,15 +1505,23 @@ public:
     virtual ~KarereScheduledMeetingOccurr();
 
     karere::Id schedId() const;
+    karere::Id parentSchedId() const;
     const std::string& timezone() const;
     ::mega::m_time_t startDateTime() const;
     ::mega::m_time_t endDateTime() const;
+    ::mega::m_time_t overrides() const;
     int cancelled() const;
 
 private:
 
     // scheduled meeting handle
     karere::Id mSchedId;
+
+    // parent scheduled meeting handle
+    karere::Id mParentSchedId;
+
+    // start dateTime of the original meeting series event to be replaced (unix timestamp)
+    ::mega::m_time_t mOverrides;
 
     // timeZone
     std::string mTimezone;
@@ -1520,7 +1541,7 @@ class ScheduledMeetingHandler
 public:
     virtual ~ScheduledMeetingHandler(){}
     virtual void onSchedMeetingChange(const KarereScheduledMeeting* sm, unsigned long changed) = 0;
-    virtual void onSchedMeetingOccurrencesChange(const karere::Id& id) = 0;
+    virtual void onSchedMeetingOccurrencesChange(const karere::Id& id, bool append) = 0;
 };
 
 class DbClientInterface

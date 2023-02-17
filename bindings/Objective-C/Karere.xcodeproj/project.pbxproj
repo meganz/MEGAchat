@@ -12,6 +12,7 @@
 		77875CDA2097A69400B8340F /* MEGAChatContainsMeta.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CD92097A69400B8340F /* MEGAChatContainsMeta.mm */; };
 		77875CDD2097A80700B8340F /* MEGAChatRichPreview.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77875CDC2097A80700B8340F /* MEGAChatRichPreview.mm */; };
 		77CB2DCF2356FFD50095FF8C /* OBJCCaptureModule.mm in Sources */ = {isa = PBXBuildFile; fileRef = 77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */; };
+		836A04E629815791009C9405 /* MEGAChatScheduledMeetingOccurrence.mm in Sources */ = {isa = PBXBuildFile; fileRef = 836A04E029814E20009C9405 /* MEGAChatScheduledMeetingOccurrence.mm */; };
 		836B0909292230A10058D53C /* chatclientDb.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 836B0908292230A10058D53C /* chatclientDb.cpp */; };
 		8374E56B29279DAF00E0C473 /* MEGAChatScheduledMeeting.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8374E5672927977600E0C473 /* MEGAChatScheduledMeeting.mm */; };
 		8374E56E2927A0CA00E0C473 /* MEGAChatScheduledFlags.mm in Sources */ = {isa = PBXBuildFile; fileRef = 8374E56D2927A0CA00E0C473 /* MEGAChatScheduledFlags.mm */; };
@@ -74,6 +75,9 @@
 		77875CDE2099A6AF00B8340F /* MEGAChatContainsMeta+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatContainsMeta+init.h"; sourceTree = "<group>"; };
 		77875CDF2099A8E300B8340F /* MEGAChatRichPreview+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatRichPreview+init.h"; sourceTree = "<group>"; };
 		77CB2DCE2356FFD50095FF8C /* OBJCCaptureModule.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OBJCCaptureModule.mm; sourceTree = "<group>"; };
+		836A04DF29814E20009C9405 /* MEGAChatScheduledMeetingOccurrence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatScheduledMeetingOccurrence.h; sourceTree = "<group>"; };
+		836A04E029814E20009C9405 /* MEGAChatScheduledMeetingOccurrence.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatScheduledMeetingOccurrence.mm; sourceTree = "<group>"; };
+		836A04E5298155CD009C9405 /* MEGAChatScheduledMeetingOccurrence+init.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "MEGAChatScheduledMeetingOccurrence+init.h"; sourceTree = "<group>"; };
 		836B0908292230A10058D53C /* chatclientDb.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = chatclientDb.cpp; sourceTree = "<group>"; };
 		8374E5662927977600E0C473 /* MEGAChatScheduledMeeting.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatScheduledMeeting.h; sourceTree = "<group>"; };
 		8374E5672927977600E0C473 /* MEGAChatScheduledMeeting.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatScheduledMeeting.mm; sourceTree = "<group>"; };
@@ -422,6 +426,7 @@
 				8374E5732927A86E00E0C473 /* MEGAChatScheduledRules+init.h */,
 				8374E5742927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.h */,
 				8374E5752927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.mm */,
+				836A04E5298155CD009C9405 /* MEGAChatScheduledMeetingOccurrence+init.h */,
 			);
 			name = private;
 			path = Private;
@@ -480,6 +485,8 @@
 				8374E5702927A32B00E0C473 /* MEGAChatScheduledRules.h */,
 				8374E5712927A32B00E0C473 /* MEGAChatScheduledRules.mm */,
 				8374E5772927C89C00E0C473 /* MEGAChatScheduledMeetingDelegate.h */,
+				836A04DF29814E20009C9405 /* MEGAChatScheduledMeetingOccurrence.h */,
+				836A04E029814E20009C9405 /* MEGAChatScheduledMeetingOccurrence.mm */,
 			);
 			name = binding;
 			sourceTree = "<group>";
@@ -658,6 +665,7 @@
 				A879F3CA1F96685E007C5394 /* libuvWaiter.cpp in Sources */,
 				836B0909292230A10058D53C /* chatclientDb.cpp in Sources */,
 				A879F3C31F96683A007C5394 /* url.cpp in Sources */,
+				836A04E629815791009C9405 /* MEGAChatScheduledMeetingOccurrence.mm in Sources */,
 				8394CF9E211992A200A1634A /* MEGAChatSession.mm in Sources */,
 				A879F3C81F96683A007C5394 /* megachatapi_impl.cpp in Sources */,
 				A82750D71E9788A3007CD9E2 /* MEGAChatPresenceConfig.mm in Sources */,
@@ -711,6 +719,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -724,6 +733,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				ONLY_ACTIVE_ARCH = YES;
 				SDKROOT = iphoneos;
+				STRIP_INSTALLED_PRODUCT = NO;
 			};
 			name = Debug;
 		};
@@ -748,6 +758,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -758,6 +769,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				SDKROOT = iphoneos;
+				STRIP_INSTALLED_PRODUCT = NO;
 			};
 			name = Release;
 		};
@@ -767,7 +779,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -784,7 +796,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
 				DEVELOPMENT_TEAM = T9RH74Y7L9;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -869,7 +880,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -886,7 +897,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
 				DEVELOPMENT_TEAM = T9RH74Y7L9;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -981,6 +991,7 @@
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -991,6 +1002,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				SDKROOT = iphoneos;
+				STRIP_INSTALLED_PRODUCT = NO;
 			};
 			name = QA;
 		};
@@ -1000,7 +1012,7 @@
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
@@ -1017,7 +1029,6 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
-				COPY_PHASE_STRIP = NO;
 				DEVELOPMENT_TEAM = T9RH74Y7L9;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;

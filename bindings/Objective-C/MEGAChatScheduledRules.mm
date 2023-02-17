@@ -45,11 +45,13 @@ using namespace mega;
 }
 
 - (uint64_t)until {
+    if (!self.megaChatScheduledRules) { return 0; }
     return self.megaChatScheduledRules->until();
 }
 
 - (NSArray <NSNumber *>*)byWeekDay {
-    if (!self.megaChatScheduledRules) { return nil; }
+    if (!self.megaChatScheduledRules || !self.megaChatScheduledRules->byWeekDay()) { return nil; }
+    
     MegaIntegerList *integerList = self.megaChatScheduledRules->byWeekDay()->copy();
     NSMutableArray<NSNumber *> *integerArray = [NSMutableArray arrayWithCapacity:integerList->size()];
 
@@ -63,8 +65,8 @@ using namespace mega;
 }
 
 - (NSArray <NSNumber *>*)byMonthDay {
-    if (!self.megaChatScheduledRules) { return nil; }
-    
+    if (!self.megaChatScheduledRules || !self.megaChatScheduledRules->byMonthDay()) { return nil; }
+        
     MegaIntegerList *integerList = self.megaChatScheduledRules->byMonthDay()->copy();
     NSMutableArray<NSNumber *> *integerArray = [NSMutableArray arrayWithCapacity:integerList->size()];
 
@@ -78,19 +80,21 @@ using namespace mega;
 }
 
 - (NSMutableArray< NSMutableArray<NSNumber *> *> *)byMonthWeekDay {
-    if (!self.megaChatScheduledRules) { return nil; }
+    if (!self.megaChatScheduledRules || !self.megaChatScheduledRules->byMonthWeekDay()) { return nil; }
 
     MegaIntegerMap *integerMap = self.megaChatScheduledRules->byMonthWeekDay()->copy();
     NSMutableArray< NSMutableArray<NSNumber *> *> *integerArray = [NSMutableArray arrayWithCapacity:integerMap->size()];
     
     for (int i = 0; i < integerMap->size(); i++)
     {
-        long long key;
-        long long value;
-        integerMap->at(i, key, value);
-        
-        NSMutableArray<NSNumber *> *keyValueArray = @[[NSNumber.alloc initWithInt:key], [NSNumber.alloc initWithInt:value]];
-        [integerArray addObject:keyValueArray];
+        MegaIntegerList *keyList = integerMap->getKeys();
+        for (int i = 0; i < keyList->size(); i++)
+        {
+            uint64_t key = keyList->get(i);
+            MegaIntegerList *valueList = integerMap->get(key);
+            NSMutableArray<NSNumber *> *keyValueArray = @[[NSNumber.alloc initWithInt:key], [NSNumber.alloc initWithInt:valueList->get(0)]];
+            [integerArray addObject:keyValueArray];
+        }
     }
     
     delete integerMap;

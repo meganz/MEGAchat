@@ -152,7 +152,6 @@ public:
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
-    virtual void onLocalAudioDetected(const ICall& call) = 0;
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
@@ -167,7 +166,6 @@ public:
     virtual karere::Id getCallid() const = 0;
     virtual karere::Id getChatid() const = 0;
     virtual karere::Id getCallerid() const = 0;
-    virtual bool isAudioDetected() const = 0;
     virtual CallState getState() const = 0;
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
@@ -226,7 +224,6 @@ public:
     virtual int64_t getInitialOffsetinMs() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
-    virtual void setAudioDetected(bool audioDetected) = 0;
 };
 
 

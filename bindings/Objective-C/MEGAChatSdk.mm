@@ -1380,24 +1380,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 #pragma mark - Scheduled meetings
 
-- (void)createChatAndScheduledMeeting:(BOOL)isMeeting publicChat:(BOOL)publicChat speakRequest:(BOOL)speakRequest waitingRoom:(BOOL)waitingRoom openInvite:(BOOL)openInvite timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi -> createChatAndScheduledMeeting(isMeeting, publicChat, speakRequest, waitingRoom, openInvite, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency), attributes.UTF8String);
+    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, cancelled, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency));
 }
 
-- (void)createChatAndScheduledMeeting:(BOOL)isMeeting publicChat:(BOOL)publicChat speakRequest:(BOOL)speakRequest waitingRoom:(BOOL)waitingRoom openInvite:(BOOL)openInvite timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi -> createChatAndScheduledMeeting(isMeeting, publicChat, speakRequest, waitingRoom, openInvite, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency), attributes.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
-}
-
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
-    if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency));
-}
-
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency), [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, cancelled, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency), [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled {
@@ -1468,6 +1458,16 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 - (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
     self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since {
+    if (!self.megaChatApi) { return; }
+    self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, since);
+}
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (!self.megaChatApi) { return; }
+    self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, since, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 #pragma mark - Audio and video calls

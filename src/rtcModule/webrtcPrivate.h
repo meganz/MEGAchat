@@ -25,7 +25,7 @@ class AudioLevelMonitor : public webrtc::AudioTrackSinkInterface, public karere:
                         int bits_per_sample,
                         int sample_rate,
                         size_t number_of_channels,
-                        size_t number_of_frames) override;
+                        size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms) override;
     bool hasAudio();
     void onAudioDetected(bool audioDetected);
 
@@ -301,10 +301,8 @@ public:
     promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
-    // (for your own audio level)
     void enableAudioLevelMonitor(bool enable) override;
     bool isAudioLevelMonitorEnabled() const override;
-    bool isAudioDetected() const override;
 
     // called when the user wants to "mute" an incoming call (the call is kept in ringing state)
     void ignoreCall() override;
@@ -355,7 +353,6 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
-    void setAudioDetected(bool audioDetected) override;
 
     //
     // ------ end ICall methods -----
@@ -488,7 +485,7 @@ protected:
     int64_t mInitialTs = 0; // when we joined the call (seconds)
     int64_t mOffset = 0;    // duration of call when we joined (millis)
     int64_t mFinalTs = 0;   // end of the call (seconds)
-    bool mAudioDetected = false;
+    bool mAudioLevelMonitor = false;
 
     // Number of SFU->client audio tracks that the client must allocate. This is equal to the maximum number of simultaneous speakers the call supports.
     uint32_t mNumInputAudioTracks = 0;

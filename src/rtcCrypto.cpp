@@ -11,7 +11,6 @@
 #include <cryptopp/modes.h>
 #include <mega.h>
 using namespace mega;
-using namespace std;
 using namespace karere;
 using namespace CryptoPP;
 namespace rtcModule
@@ -73,7 +72,7 @@ std::shared_ptr<strongvelope::SendKey> RtcCryptoMeetings::generateSendKey()
 
 void RtcCryptoMeetings::xorWithCallKey(const strongvelope::SendKey &callKey, strongvelope::SendKey &sendKey)
 {
-    SymmCipher::xorblock(static_cast<const byte *> (callKey.ubuf()), static_cast<byte *>(sendKey.ubuf()));
+    SymmCipher::xorblock(static_cast<const ::byte *> (callKey.ubuf()), static_cast<::byte *>(sendKey.ubuf()));
 }
 
 std::string RtcCryptoMeetings::keyToStr(const strongvelope::SendKey& key)

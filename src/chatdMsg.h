@@ -144,6 +144,8 @@ enum Opcode
       *    of OLDMSGs, followed by a HISTDONE. Note that count is always negative.
       * Send: <chatid> <count>
       *
+      * @note count is limited to 256
+      *
       * This command is sent at the following situations:
       *  1. After a JOIN command to load last messages, when no local history.
       *  2. When the app requests to load more old messages and there's no more history
@@ -173,6 +175,11 @@ enum Opcode
       * @brief
       * S->C: The NEWMSG with msgxid was successfully written and now has the permanent
       *    msgid.
+      *
+      * Note: if incompatibility with the history is detected (current time is
+      * one hour greater than message timestamp). The command received will be
+      * OP_NEWMSGIDTIMESTAMP
+      *
       * Receive: <msgxid> <msgid>
       */
     OP_NEWMSGID = 10,
@@ -207,7 +214,8 @@ enum Opcode
       * S->C: Receive as result of HIST command, it notifies the end of history fetch.
       * Receive: <chatid>
       *
-      * @note There may be more history in server, but the HIST <count> is already satisfied.
+      * @note If we received less messages from chatd than requested <count>, we can assume that we have all history.
+      * Otherwise If HIST <count> is already satisfied, there may be more history in server.
       */
     OP_HISTDONE = 13,
 
@@ -257,6 +265,11 @@ enum Opcode
       * @brief
       * S->C: The NEWMSG with msgxid had been written previously, informs of the permanent
       *     msgid.
+      *
+      * Note: if incompatibility with the history is detected (current time is
+      * one hour greater than message timestamp). The command received will be
+      * OP_MSGIDTIMESTAMP
+      *
       * Receive: <msgxid> <msgid>
       */
     OP_MSGID = 21,
@@ -475,6 +488,9 @@ enum Opcode
       *     msgid. This command is similar to MSGID but furthermore update the ts sent in
       *     the NEWMSG due to incompatibility with the history
       *
+      * Note: incompatibility with the history is only detected if current time is
+      * one hour greater than message timestamp
+      *
       * Receive: <msgxid.8> <msgid.8> <ts.4>
       */
     OP_MSGIDTIMESTAMP = 49,
@@ -484,6 +500,9 @@ enum Opcode
       * S->C: The NEWMSG with msgxid was successfully written and now has the permanent
       *    msgid. This command is similar to MSGID but furthermore update the ts sent in
       *     the NEWMSGID due to incompatibility with the history
+      *
+      * Note: incompatibility with the history is only detected if current time is
+      * one hour greater than message timestamp
       *
       * Receive: <msgxid.8> <msgid.8> <ts.4>
       */

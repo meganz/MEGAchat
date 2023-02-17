@@ -18,7 +18,7 @@ else {
     DEFINES += NDEBUG
 }
 
-CONFIG += c++14
+CONFIG += c++17
 CONFIG += USE_LIBUV
 CONFIG += USE_MEGAAPI
 CONFIG += USE_MEDIAINFO
@@ -56,6 +56,9 @@ else {
 
 # include the configuration for MEGA SDK
 include(../../third-party/mega/bindings/qt/sdk.pri)
+contains(QMAKE_CXXFLAGS, -std=c++11) {
+    QMAKE_CXXFLAGS -= -std=c++11
+}
 
 MEGACHAT_BASE_PATH = $$PWD/../..
 

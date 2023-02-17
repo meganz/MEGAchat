@@ -123,9 +123,9 @@ void ChatListItemController::leaveGroupChat()
 void ChatListItemController::updateScheduledMeetingOccurrence()
 {
     MegaChatHandle schedId = mMegaApi->base64ToUserHandle(mMainWindow->mApp->getText("Sched Id of occurrence we want to modify (B64): ", false).c_str());
-    MegaChatTimeStamp overrides = atoi(mMainWindow->mApp->getText("Start date we want to modify (format: YYYYMMDDTHHMMSS)", true).c_str());
-    MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New start date (format: YYYYMMDDTHHMMSS)", true).c_str());
-    MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New end date (format: YYYYMMDDTHHMMSS)", true).c_str());
+    MegaChatTimeStamp overrides = atoi(mMainWindow->mApp->getText("Start date we want to modify (Unix timestamp)", true).c_str());
+    MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New start date (Unix timestamp)", true).c_str());
+    MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New end date (Unix timestamp)", true).c_str());
     int cancelled = atoi(mMainWindow->mApp->getText("Set occurrence as cancelled? Y=1 | N =0", true).c_str());
 
     mMegaChatApi->updateScheduledMeetingOccurrence(mItemId,
@@ -133,7 +133,7 @@ void ChatListItemController::updateScheduledMeetingOccurrence()
                                                    overrides,
                                                    newStartDate,
                                                    newEndDate,
-                                                   cancelled == 1 ? true : false /*newCancelled*/);
+                                                   cancelled == 1 ? true : false /*cancelled*/);
 }
 
 void ChatListItemController::updateScheduledMeeting()
@@ -149,6 +149,7 @@ void ChatListItemController::updateScheduledMeeting()
     MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New StartDate: ", true).c_str());
     MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New EndDate: ", true).c_str());
     std::string newTz = mMainWindow->mApp->getText("New TimeZone: ", true);
+    int cancelled = atoi(mMainWindow->mApp->getText("Set scheduled meeting as cancelled? Y=1 | N =0", true).c_str());
 
     mMegaChatApi->updateScheduledMeeting(mItemId, schedId,
                                          newTz.empty() ? nullptr : newTz.c_str(),
@@ -156,7 +157,7 @@ void ChatListItemController::updateScheduledMeeting()
                                          newEndDate,
                                          newTitle.empty() ? nullptr : newTitle.c_str(),
                                          newDesc.empty() ? nullptr : newDesc.c_str(),
-                                         sm->flags(), sm->rules());
+                                         cancelled, sm->flags(), sm->rules());
 }
 void ChatListItemController::removeScheduledMeeting()
 {
@@ -172,7 +173,8 @@ void ChatListItemController::fetchScheduledMeeting()
 
 void ChatListItemController::fetchScheduledMeetingEvents()
 {
-    mMegaApi->fetchScheduledMeetingEvents(mItemId, MEGACHAT_INVALID_TIMESTAMP, MEGACHAT_INVALID_TIMESTAMP, 0);
+    MegaChatTimeStamp since = atoi(mMainWindow->mApp->getText("Date from which we want to get occurrences (Unix timestamp)", true).c_str());
+    mMegaChatApi->fetchScheduledMeetingOccurrencesByChat(mItemId, since);
 }
 
 void ChatListItemController::setTitle()

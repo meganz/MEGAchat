@@ -1,7 +1,8 @@
 
 #import <Foundation/Foundation.h>
 
-@class MEGAChatScheduledFlags, MEGAChatScheduledRules;
+#import "MEGAChatScheduledFlags.h"
+#import "MEGAChatScheduledRules.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
