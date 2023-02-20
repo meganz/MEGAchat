@@ -14,7 +14,7 @@ public:
     QTMegaChatScheduledMeetingListener(MegaChatApi* megaChatApi, MegaChatScheduledMeetingListener* parent = NULL);
     virtual ~QTMegaChatScheduledMeetingListener();
     virtual void onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting* sm);
-    virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* api, MegaChatHandle chatid);
+    virtual void onSchedMeetingOccurrencesUpdate(MegaChatApi* api, MegaChatHandle chatid, bool append);
 
 protected:
     virtual void customEvent(QEvent* event);

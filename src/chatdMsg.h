@@ -144,6 +144,8 @@ enum Opcode
       *    of OLDMSGs, followed by a HISTDONE. Note that count is always negative.
       * Send: <chatid> <count>
       *
+      * @note count is limited to 256
+      *
       * This command is sent at the following situations:
       *  1. After a JOIN command to load last messages, when no local history.
       *  2. When the app requests to load more old messages and there's no more history

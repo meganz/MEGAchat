@@ -884,9 +884,16 @@ Client::fetchScheduledMeetingOccurrences(uint64_t chatid, ::mega::m_time_t since
         const mega::MegaScheduledMeetingList* l = result->getMegaScheduledMeetingList();
         if (l)
         {
+            ::mega::m_time_t prevTs = ::mega::mega_invalid_timestamp;
             for (unsigned long i = 0; i < l->size(); i++)
             {
+                if (prevTs != ::mega::mega_invalid_timestamp && prevTs > l->at(i)->startDateTime())
+                {
+                    assert(false);
+                    return ::promise::Error("Unordered occurrences list received", -1 /*internal error*/);
+                }
                 out.emplace_back(new KarereScheduledMeetingOccurr(l->at(i)));
+                prevTs = l->at(i)->startDateTime();
             }
         }
         return out;
@@ -1520,13 +1527,15 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
+        auto sid = std::make_shared<std::string>(api.sdk.dumpSession());
+        assert(sid);
 
 #ifndef NDEBUG
         dumpContactList(*contactList);
 #endif
 
         auto wptr = weakHandle();
-        marshallCall([wptr, this, state, scsn, contactList, chatList]()
+        marshallCall([wptr, this, state, scsn, contactList, chatList, sid]()
         {
             if (wptr.deleted())
                 return;
@@ -1534,11 +1543,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             if (state == kInitHasOfflineSession)
             {
 // disable this safety checkup, since dumpSession() differs from first-time login value
-//              std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-//              assert(sid);
 //              // we loaded our state from db
 //              // verify the SDK sid is the same as ours
-//              if (mSid != sid.get())
+//              if (mSid != *sid)
 //              {
 //                  setInitState(kInitErrSidMismatch);
 //                  return;
@@ -1552,9 +1559,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
-                std::unique_ptr<char[]> sid(api.sdk.dumpSession());
-                assert(sid);
-                initWithNewSession(sid.get(), scsn, contactList, chatList)
+                initWithNewSession(sid->c_str(), scsn, contactList, chatList)
                 .fail([this](const ::promise::Error& err)
                 {
                     setInitState(kInitErrGeneric);
@@ -2127,7 +2132,7 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
     }, appCtx);
 }
 
-promise::Promise<karere::Id>
+promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
 Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options, const char* title, std::shared_ptr<::mega::MegaScheduledMeeting> sm)
 {
     // prepare set of participants
@@ -2174,7 +2179,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
 
     // capture `users`, since it's used at strongvelope for encryption of unified-key in public chats
     auto wptr = getDelTracker();
-    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting, options, sm](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<karere::Id>
+    return pms.then([wptr, this, crypto, users, sdkPeers, publicchat, meeting, options, sm](const std::shared_ptr<Buffer>& encTitle) -> promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
     {
         if (wptr.deleted())
         {
@@ -2241,7 +2246,7 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
         }
 
         return createChatPromise
-        .then([this, wptr](ReqResult result) -> Promise<karere::Id>
+        .then([this, wptr](ReqResult result) -> Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
         {
             if (wptr.deleted())
                 return ::promise::Error("Chat created successfully, but instance was removed");
@@ -2255,7 +2260,13 @@ Client::createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, boo
                 return ::promise::Error("API created incorrect group");
 
             room->connect();
-            return karere::Id(room->chatid());
+
+            std::shared_ptr<KarereScheduledMeeting> sm;
+            if (result->getMegaScheduledMeetingList() && result->getMegaScheduledMeetingList()->size() == 1)
+            {
+                sm.reset(new KarereScheduledMeeting(result->getMegaScheduledMeetingList()->at(0)));
+            }
+            return std::make_pair(karere::Id(room->chatid()), sm);
         });
      });
 }
@@ -2514,8 +2525,11 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     // Add scheduled meeting list and notify app
     addSchedMeetings(aChat);
 
-    // pending add occurrences
-    addSchedMeetingsOccurrences(aChat);
+    if (aChat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
+            || aChat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
+    {
+        addSchedMeetingsOccurrences(aChat);
+    }
 }
 
 //Resume from cache
@@ -3167,11 +3181,11 @@ void GroupChatRoom::notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, 
     }, parent.mKarereClient.appCtx);
 }
 
-void GroupChatRoom::notifySchedMeetingOccurrencesUpdated()
+void GroupChatRoom::notifySchedMeetingOccurrencesUpdated(bool append)
 {
-    callAfterInit(this, [this]
+    callAfterInit(this, [this, append]
     {
-       schedMeetingHandler().onSchedMeetingOccurrencesChange(chatid());
+       schedMeetingHandler().onSchedMeetingOccurrencesChange(chatid(), append);
     }, parent.mKarereClient.appCtx);
 }
 
@@ -4103,14 +4117,15 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
          addSchedMeetings(chat);
     }
 
-    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_OCURR) ||
-            (chat.getScheduledMeetingOccurrencesList()
-                && chat.getScheduledMeetingOccurrencesList()->size()
-                && mScheduledMeetingsOcurrences.empty()))
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
+            || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
     {
-        // if scheduled meetings occurrences have changed, or chat from API have scheduled meetings occurrences,
-        // but we don't have those occurrences stored in karere
         addSchedMeetingsOccurrences(chat);
+    }
+    else if (chat.getUpdatedOccurrencesList() && chat.getUpdatedOccurrencesList()->size())
+    {
+        assert(false);
+        KR_LOG_WARNING("syncWithApi: Chat received from SDK contains updated occurrences, but no related change is set");
     }
 
     // Own privilege changed
@@ -4303,7 +4318,7 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
                 mScheduledMeetingsOcurrences.clear();
 
                 // set occurrences loaded flag to false
-                mDbOccurrencesLoaded = false;
+                mAllDbOccurrencesLoadedInRam = false;
                 // we don't need to notify with notifySchedMeetingOccurrencesUpdated as SDK will automatically fetch occurrences again
             }
             else // if scheduled meeting we want to remove, no longer exists in ram
@@ -4357,74 +4372,84 @@ const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& GroupChatRo
     return mScheduledMeetings;
 }
 
-const std::multimap<karere::Id/*schedId*/, std::unique_ptr<KarereScheduledMeetingOccurr>>&
+const std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>>&
 GroupChatRoom::getScheduledMeetingsOccurrences() const
 {
     return mScheduledMeetingsOcurrences;
 }
 
-
-promise::Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
-GroupChatRoom::getFutureScheduledMeetingsOccurrences() const
+std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> GroupChatRoom::sortOccurrences() const
 {
-    auto wptr = getDelTracker();
-    return parent.mKarereClient.api.call(&mega::MegaApi::fetchTimeZoneFromLocal)
-    .then([wptr, this](ReqResult result) -> Promise<std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>>>
+    auto cmp = [](std::shared_ptr<KarereScheduledMeetingOccurr>& a, std::shared_ptr<KarereScheduledMeetingOccurr>& b)
     {
-        wptr.throwIfDeleted();
-        if (!result->getMegaTimeZoneDetails())
+        return a->startDateTime() < b->startDateTime();
+    };
+
+    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> auxV;
+    for (const auto& it: mScheduledMeetingsOcurrences)
+    {
+        auxV.emplace_back(it->copy());
+    }
+
+    std::sort(auxV.begin(), auxV.end(), cmp);
+    return auxV;
+}
+
+std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>
+GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega::m_time_t since, ::mega::m_time_t until) const
+{
+    if (mScheduledMeetingsOcurrences.empty() || !count)
+    {
+        std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>();
+    }
+
+    std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> ocurrList;
+    auto&& occurrSorted = sortOccurrences();
+    for (auto it = occurrSorted.begin(); it != occurrSorted.end(); it++)
+    {
+        ::mega::m_time_t schedTs = (*it)->startDateTime();
+        ::mega::m_time_t sinceTs = since
+                ? since         /* provided by user (unix timestamp [UTC]) */
+                : time(nullptr) /* now (unix timestamp [UTC]) */;
+
+        if (schedTs > sinceTs && (until == ::mega::mega_invalid_timestamp || schedTs < until))
         {
-            return ::promise::Error("Empty timezone list returned from API");
+            ocurrList.emplace_back((*it)->copy());
+            if (ocurrList.size() >= count) { break; }
         }
-
-        std::multimap<karere::Id, std::shared_ptr<KarereScheduledMeetingOccurr>> m;
-        mega::MegaTimeZoneDetails* tzDetails = result->getMegaTimeZoneDetails();
-
-        const std::multimap<karere::Id, std::unique_ptr<KarereScheduledMeetingOccurr>>& map = mScheduledMeetingsOcurrences;
-        for (auto it = map.begin(); it != map.end(); it++)
-        {
-            for (int i = 0; i < tzDetails->getNumTimeZones(); i++)
-            {
-                if (!it->second.get()->timezone().compare(tzDetails->getTimeZone(i)))
-                {
-                    // convert ISO8601 string into unix timestamp, and apply offset relative to Scheduled meeting configured timezone
-                    ::mega::m_time_t schedTs = it->second.get()->startDateTime();
-                    schedTs += tzDetails->getTimeOffset(i);
-
-                    if (schedTs > time(nullptr) /*now (unix timestamp [UTC])*/)
-                    {
-                        m.emplace(it->second->schedId(), it->second->copy());
-                    }
-                }
-            }
-        }
-        return m;
-    });
+    }
+    return ocurrList;
 }
 
 void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
 {
-    // clear list of current scheduled meetings occurrences from db by chatid
-    // we want to remove all scheduled meeting for that chat due to API specs
-    getClientDbInterface().clearSchedMeetingOcurrByChatid(chat.getHandle());
+    assert(chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
+           || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR));
 
-    // clear list of current scheduled meetings occurrences
-    mScheduledMeetingsOcurrences.clear();
+    // set occurrences loaded flag to false, it doesn't matter if we are clearing current list,
+    // or appending newer ones, we can assume that we don't have all db occurrences loaded in ram
+    // this flag is set false upon every changes in ocurrences for this chatroom
+    mAllDbOccurrencesLoadedInRam = false;
 
-    // set occurrences loaded flag to false
-    mDbOccurrencesLoaded = false;
-
-    if (chat.getScheduledMeetingOccurrencesList())
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR))
     {
-        const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingOccurrencesList();
-        for (unsigned int i = 0; i < schedMeetings->size(); i++)
+        // important: just wipe current occurrences list (from db and RAM) if fetch was not triggered by user
+        getClientDbInterface().clearSchedMeetingOcurrByChatid(chat.getHandle());
+        mScheduledMeetingsOcurrences.clear();
+    }
+
+    // add received occurrences from SDK if any
+    if (chat.getUpdatedOccurrencesList() && chat.getUpdatedOccurrencesList()->size())
+    {
+        const mega::MegaScheduledMeetingList* schedMeetings = chat.getUpdatedOccurrencesList() ;
+        for (unsigned int i = 0; i < chat.getUpdatedOccurrencesList()->size(); i++)
         {
             std::unique_ptr<KarereScheduledMeetingOccurr> aux = mega::make_unique<KarereScheduledMeetingOccurr>(schedMeetings->at(i));
             getClientDbInterface().insertOrUpdateSchedMeetingOcurr(*aux);
         }
     }
 
-    notifySchedMeetingOccurrencesUpdated(); // notify scheduled meetings occurrences for this chat have changed
+    notifySchedMeetingOccurrencesUpdated(chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR)); // notify scheduled meetings occurrences for this chat have changed
 }
 
 void GroupChatRoom::loadSchedMeetingsFromDb()
@@ -4436,25 +4461,21 @@ void GroupChatRoom::loadSchedMeetingsFromDb()
     }
 }
 
-size_t GroupChatRoom::loadSchedMeetingsOccurrFromLocal()
+size_t GroupChatRoom::loadOccurresInMemoryFromDb()
 {
-    if (!mDbOccurrencesLoaded)
+    if (!mAllDbOccurrencesLoadedInRam)
     {
-        loadSchedMeetingsOccurrFromDb();
+        // only load occurrences from DB if occurrences in memory are not up to date
+        mScheduledMeetingsOcurrences.clear();
+        std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> schedMeetingsOccurr = getClientDbInterface().getSchedMeetingsOccurByChatId(chatid());
+        for (unsigned int i = 0; i < schedMeetingsOccurr.size(); i++)
+        {
+            std::unique_ptr<KarereScheduledMeetingOccurr> aux(new KarereScheduledMeetingOccurr((schedMeetingsOccurr.at(i)).get()));
+            mScheduledMeetingsOcurrences.emplace_back(std::move(aux));
+        }
+        mAllDbOccurrencesLoadedInRam = true; // set occurrences loaded flag true, to indicate that occurrences have been loaded from Db
     }
     return mScheduledMeetingsOcurrences.size();
-}
-
-void GroupChatRoom::loadSchedMeetingsOccurrFromDb()
-{
-    mScheduledMeetingsOcurrences.clear();
-    std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> schedMeetingsOccurr = getClientDbInterface().getSchedMeetingsOccurByChatId(chatid());
-    for (unsigned int i = 0; i < schedMeetingsOccurr.size(); i++)
-    {
-        std::unique_ptr<KarereScheduledMeetingOccurr> aux(new KarereScheduledMeetingOccurr((schedMeetingsOccurr.at(i)).get()));
-        mScheduledMeetingsOcurrences.emplace(aux->schedId(), std::move(aux));
-    }
-    mDbOccurrencesLoaded = true; // set occurrences loaded flag true, to indicate that occurrences have been loaded from Db
 }
 
 GroupChatRoom::Member::Member(GroupChatRoom& aRoom, const uint64_t& user, chatd::Priv aPriv)
@@ -5703,7 +5724,7 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
     std::string aux(in.buf(), in.dataSize());
     int freq = FREQ_INVALID;
     int interval = INTERVAL_INVALID;
-    ::mega::m_time_t until;
+    ::mega::m_time_t until = ::mega::mega_invalid_timestamp;
 
     karere_rules_vector byWeekDay;
     karere_rules_vector byMonthDay;
@@ -5956,8 +5977,10 @@ unsigned long KarereScheduledMeeting::deletedSchedMeetingFlagsValue()
 }
 
 /* class KarereScheduledMeetingOccurr */
-KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const Id& schedId, const std::string& timezone, ::mega::m_time_t startDateTime, mega::m_time_t endDateTime, int cancelled)
+KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const karere::Id& schedId, const karere::Id& parentSchedId, const std::string& timezone, mega::m_time_t startDateTime, mega::m_time_t endDateTime, mega::m_time_t overrides, int cancelled)
     : mSchedId(schedId),
+      mParentSchedId(parentSchedId),
+      mOverrides(overrides),
       mTimezone(timezone),
       mStartDateTime(startDateTime),
       mEndDateTime(endDateTime),
@@ -5967,6 +5990,8 @@ KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const Id& schedId, co
 
 KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const KarereScheduledMeetingOccurr* scheduledMeeting)
     : mSchedId(scheduledMeeting->schedId()),
+      mParentSchedId(scheduledMeeting->parentSchedId()),
+      mOverrides(scheduledMeeting->overrides()),
       mTimezone(scheduledMeeting->timezone()),
       mStartDateTime(scheduledMeeting->startDateTime()),
       mEndDateTime(scheduledMeeting->endDateTime()),
@@ -5976,6 +6001,8 @@ KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const KarereScheduled
 
 KarereScheduledMeetingOccurr::KarereScheduledMeetingOccurr(const mega::MegaScheduledMeeting* scheduledMeeting)
     : mSchedId(scheduledMeeting->schedId()),
+      mParentSchedId(scheduledMeeting->parentSchedId()),
+      mOverrides(scheduledMeeting->overrides()),
       mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
       mStartDateTime(scheduledMeeting->startDateTime()),
       mEndDateTime(scheduledMeeting->endDateTime()),
@@ -5993,8 +6020,10 @@ KarereScheduledMeetingOccurr::~KarereScheduledMeetingOccurr()
 }
 
 karere::Id KarereScheduledMeetingOccurr::schedId() const                        { return mSchedId; }
+karere::Id KarereScheduledMeetingOccurr::parentSchedId() const                  { return mParentSchedId; }
 const std::string& KarereScheduledMeetingOccurr::timezone() const               { return mTimezone; }
 ::mega::m_time_t KarereScheduledMeetingOccurr::startDateTime() const            { return mStartDateTime; }
 ::mega::m_time_t KarereScheduledMeetingOccurr::endDateTime() const              { return mEndDateTime; }
+::mega::m_time_t KarereScheduledMeetingOccurr::overrides() const                { return mOverrides; }
 int KarereScheduledMeetingOccurr::cancelled() const                             { return mCancelled; }
 }

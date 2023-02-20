@@ -373,11 +373,11 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 }
 
-void MainWindow::onChatSchedMeetingUpdate(MegaChatApi* api, MegaChatScheduledMeeting* sm)
+void MainWindow::onChatSchedMeetingUpdate(MegaChatApi* /*api*/, MegaChatScheduledMeeting* sm)
 {
 }
 
-void MainWindow::onSchedMeetingOccurrencesUpdate(MegaChatApi* api, MegaChatHandle chatid)
+void MainWindow::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid, bool append)
 {
 }
 

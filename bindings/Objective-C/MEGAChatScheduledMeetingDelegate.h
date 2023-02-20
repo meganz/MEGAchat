@@ -10,7 +10,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)onChatSchedMeetingUpdate:(MEGAChatSdk *)api scheduledMeeting:(MEGAChatScheduledMeeting *)scheduledMeeting;
 
-- (void)onSchedMeetingOccurrencesUpdate:(MEGAChatSdk *)api chatId:(uint64_t)chatId;
+- (void)onSchedMeetingOccurrencesUpdate:(MEGAChatSdk *)api chatId:(uint64_t)chatId append:(BOOL)append;
 
 @end
 
