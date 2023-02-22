@@ -2685,19 +2685,23 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_DEBUG("Fetching fresh scheduled meeting occurrences from API");
                 mClient->fetchScheduledMeetingOccurrences(chatid, since, until, numOccurrences)
-                .then([request, this](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
+                .then([request, chatid, since, until, numOccurrences, this](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
                 {
-                    if (!result.empty())
+                    const GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
+                    if (!chatroom)
                     {
-                        std::unique_ptr<MegaChatScheduledMeetingOccurrList> l(MegaChatScheduledMeetingOccurrList::createInstance());
-                        for (auto const& sm: result)
-                        {
-                            l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get()));
-                        }
-                        request->setMegaChatScheduledMeetingOccurrList(l.get());
+                        fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT));
+                        return;
                     }
-                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
+
+                    auto res = chatroom->getFutureScheduledMeetingsOccurrences(numOccurrences, since, until);
+                    std::unique_ptr<MegaChatScheduledMeetingOccurrList> l(MegaChatScheduledMeetingOccurrList::createInstance());
+                    for (auto const& sm: res)
+                    {
+                        l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get()));
+                    }
+                    request->setMegaChatScheduledMeetingOccurrList(l.get());
+                    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
                 })
                 .fail([request, this](const ::promise::Error& err)
                 {
