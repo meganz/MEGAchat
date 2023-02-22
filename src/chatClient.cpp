@@ -4407,7 +4407,8 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
     std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> ocurrList;
     for (const auto& it: mScheduledMeetingsOcurrences)
     {
-        ::mega::m_time_t schedTs = it->startDateTime();
+        assert(it->endDateTime() != ::mega::mega_invalid_timestamp);
+        ::mega::m_time_t schedTs = it->endDateTime();
         ::mega::m_time_t sinceTs = since
                 ? since         /* provided by user (unix timestamp [UTC]) */
                 : time(nullptr) /* now (unix timestamp [UTC]) */;
