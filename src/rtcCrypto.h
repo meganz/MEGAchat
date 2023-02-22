@@ -44,6 +44,12 @@ public:
      * @return a pointer to X25519KeyPair
      */
     X25519KeyPair* genX25519KeyPair();
+
+    /**
+     * @brief Get my user Ed25519 keypair (for EdDSA signature)
+     * @return My user Ed25519 keypair
+     */
+    std::pair<strongvelope::EcKey, strongvelope::EcKey> getEcKey();
 };
 }
 #endif // MEGACRYPTOFUNCTIONS_H

@@ -10,6 +10,8 @@
 #include <cryptopp/aes.h>
 #include <cryptopp/modes.h>
 #include <mega.h>
+#include "cryptofunctions.h"
+
 using namespace mega;
 using namespace karere;
 using namespace CryptoPP;
@@ -84,6 +86,15 @@ void RtcCryptoMeetings::strToKey(const std::string& keystr, strongvelope::SendKe
 {
     res.setDataSize(keystr.size());
     memcpy(res.ubuf(), keystr.data(), keystr.size());
+}
+
+std::pair<strongvelope::EcKey, strongvelope::EcKey>
+RtcCryptoMeetings::getEcKey()
+{
+    strongvelope::EcKey myPubEd25519;
+    strongvelope::EcKey myPrivEd25519(mClient.mMyPrivEd25519, 32);
+    getPubKeyFromPrivKey(myPrivEd25519, strongvelope::kKeyTypeEd25519, myPubEd25519);
+    return std::pair(myPrivEd25519, myPubEd25519);
 }
 
 X25519KeyPair* RtcCryptoMeetings::genX25519KeyPair()
