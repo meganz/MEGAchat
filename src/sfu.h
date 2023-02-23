@@ -640,7 +640,6 @@ public:
     void retryPendingConnections(bool disconnect);
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
-    const karere::Id& myHandle();
     void addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid);
     unsigned int getSfuVersion();
 

@@ -89,7 +89,7 @@ void RtcCryptoMeetings::strToKey(const std::string& keystr, strongvelope::SendKe
 }
 
 std::pair<strongvelope::EcKey, strongvelope::EcKey>
-RtcCryptoMeetings::getEcKey()
+RtcCryptoMeetings::getEd25519Keypair()
 {
     strongvelope::EcKey myPubEd25519;
     strongvelope::EcKey myPrivEd25519(mClient.mMyPrivEd25519, 32);

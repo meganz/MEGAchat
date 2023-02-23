@@ -49,7 +49,7 @@ public:
      * @brief Get my user Ed25519 keypair (for EdDSA signature)
      * @return My user Ed25519 keypair
      */
-    std::pair<strongvelope::EcKey, strongvelope::EcKey> getEcKey();
+    std::pair<strongvelope::EcKey, strongvelope::EcKey> getEd25519Keypair();
 };
 }
 #endif // MEGACRYPTOFUNCTIONS_H
