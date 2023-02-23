@@ -365,7 +365,12 @@ public:
 
     bool connectSfu(const std::string& sfuUrlStr);
     void joinSfu();
-    void generateSessionKeyPair();
+
+    // generate ephemeral ECDH X25519 keypair and a signature
+    std::string generateSessionKeyPair();
+
+    // sign string: sesskey|<callId>|<clientId>|<pubkey> with Ed25519 key and encode in B64
+    std::string signEphemeralKey(const std::string& str);
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
@@ -558,6 +563,9 @@ protected:
      *  - users with permission = 1 can enter the call directly by sending JOIN command to SFU
      */
     std::map<karere::Id, bool> mWaitingRoomUsers;
+
+    // ephemeral X25519 EC key pair for current session
+    std::unique_ptr<X25519KeyPair> mSessionKeyPair;
 
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey(bool reset = false);

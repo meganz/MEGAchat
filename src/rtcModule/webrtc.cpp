@@ -967,12 +967,34 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     }
 }
 
-void Call::generateSessionKeyPair()
+std::string Call::signEphemeralKey(const std::string& str)
 {
-    // generate ECDH X25519 keypair
-    std::unique_ptr<X25519KeyPair> keyPair(mSfuClient.getRtcCryptoMeetings()->genX25519KeyPair());
+    // get my user Ed25519 keypair (for EdDSA signature)
+    const auto res = mSfuClient.getRtcCryptoMeetings()->getEd25519Keypair();
+    const auto& myPrivEd25519 = res.first;
+    const auto& myPubEd25519 = res.second;
 
-    // TODO: complete when we continue implementing SFU v1 protocol
+    strongvelope::Signature signature;
+    Buffer bufToSign(str.data(), str.size());
+    Buffer eckey(myPrivEd25519.bufSize() + myPubEd25519.bufSize());
+    eckey.append(myPrivEd25519.buf()).append(myPubEd25519.buf());
+
+    // sign string: sesskey|<callId>|<clientId>|<pubkey> and encode in B64
+    crypto_sign_detached(signature.ubuf(), NULL, bufToSign.ubuf(), bufToSign.dataSize(), eckey.ubuf());
+    std::string signatureStr(signature.buf(), signature.bufSize());
+    return mega::Base64::btoa(signatureStr);
+}
+
+std::string Call::generateSessionKeyPair()
+{
+    // generate ephemeral ECDH X25519 keypair
+    mSessionKeyPair.reset(mSfuClient.getRtcCryptoMeetings()->genX25519KeyPair());
+    std::string X25519PubKey(reinterpret_cast<const char*>(mSessionKeyPair->pubKey), X25519_PUB_KEY_LEN);
+    std::string X25519PubKeyB64 = mega::Base64::btoa(X25519PubKey);
+
+    // Generate public key signature (using Ed25519), on the string: sesskey|<callId>|<clientId>|<pubkey>
+    std::string signature = "sesskey|" + mCallid.toString() + "|" + std::to_string(mMyPeer->getCid()) + X25519PubKeyB64;
+    return X25519PubKeyB64 + ":" + signEphemeralKey(signature); // -> publicKey:signature
 }
 
 void Call::getLocalStreams()
@@ -1328,7 +1350,6 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
         mOffset = duration;
         enableStats();
-        generateSessionKeyPair();
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
