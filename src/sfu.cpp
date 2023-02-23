@@ -1570,7 +1570,7 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
     return processCommandResult;
 }
 
-bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, int avFlags, Cid_t prevCid, int speaker, int vthumbs)
+bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int speaker, int vthumbs)
 {
     rapidjson::Document json(rapidjson::kObjectType);
 
@@ -1649,6 +1649,10 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
     {
         ivsValue.AddMember(rapidjson::Value(iv.first.c_str(), static_cast<rapidjson::SizeType>(iv.first.size())), rapidjson::Value(iv.second.c_str(), static_cast<rapidjson::SizeType>(iv.second.size())), json.GetAllocator());
     }
+
+    rapidjson::Value pubkey(rapidjson::kStringType);
+    pubkey.SetString(ephemeralKey.c_str(), static_cast<unsigned int>(ephemeralKey.length()), json.GetAllocator());
+    json.AddMember(rapidjson::Value("pubk"), pubkey, json.GetAllocator());
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
