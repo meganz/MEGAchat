@@ -390,10 +390,11 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     std::vector<Peer> peers;
+    std::map<Cid_t, std::string> keystrmap;
     rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
     if (peersIterator != command.MemberEnd() && peersIterator->value.IsArray())
     {
-        parsePeerObject(peers, moderators, peersIterator);
+        parsePeerObject(peers, keystrmap, moderators, peersIterator);
     }
 
     std::map<Cid_t, TrackDescriptor> speakers;
@@ -410,10 +411,10 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         parseTracks(peers, vthumbs, vthumbsIterator, false);
     }
 
-    return mComplete(cid, sdp, callDuration, peers, vthumbs, speakers, moderators, ownModerator);
+    return mComplete(cid, sdp, callDuration, peers, keystrmap, vthumbs, speakers, moderators, ownModerator);
 }
 
-void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
@@ -438,6 +439,13 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, const std::set<kar
 
             std::string userIdString = userIdIterator->value.GetString();
             ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+
+            rapidjson::Value::ConstMemberIterator pubkeyIterator = it->value[j].FindMember("pubk");
+            if (pubkeyIterator != it->value[j].MemberEnd() && pubkeyIterator->value.IsString())
+            {
+                 // clients with SFU protocol < 1 won't send ephemeral pubkey
+                 keystrmap.emplace(cid, userIdIterator->value.GetString());
+            }
 
             rapidjson::Value::ConstMemberIterator avIterator = it->value[j].FindMember("av");
             if (avIterator == it->value[j].MemberEnd() || !avIterator->value.IsUint())
@@ -1475,7 +1483,7 @@ const karere::Url& SfuConnection::getSfuUrl()
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
     commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8), call);
+    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9), call);
     commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
     commands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);

@@ -1277,6 +1277,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
 }
 
 bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, const std::vector<sfu::Peer>& peers,
+                               const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers
                                , std::set<karere::Id>& moderators, bool ownMod)
 {
