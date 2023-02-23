@@ -1627,7 +1627,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
 }
 
 
-bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av)
+bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {

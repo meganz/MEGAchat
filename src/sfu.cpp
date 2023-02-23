@@ -774,10 +774,16 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    unsigned int av = avIterator->value.GetUint();
+    std::string pubkeyStr;
+    rapidjson::Value::ConstMemberIterator pubkeyIterator = command.FindMember("pubk");
+    if (pubkeyIterator != command.MemberEnd() && pubkeyIterator->value.IsString())
+    {
+         // clients with SFU protocol < 1 won't send ephemeral pubkey
+         pubkeyStr = userIdIterator->value.GetString();
+    }
 
-    return mComplete(cid, userid, av);
-
+    int av = static_cast<int>(avIterator->value.GetUint());
+    return mComplete(cid, userid, av, pubkeyStr);
 }
 
 Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
@@ -1481,7 +1487,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
     commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
-    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);

@@ -185,7 +185,7 @@ public:
     virtual bool handleWrAllowReq(karere::Id user) = 0;
 
     // called when the connection to SFU is established
-    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
+    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual bool handleBye(unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
@@ -354,7 +354,7 @@ public:
     SpeakOffCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, uint64_t userid, int av)> PeerJoinCommandFunction;
+typedef std::function<bool(Cid_t cid, uint64_t userid, int av, std::string& keyStr)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
 {
 public:
