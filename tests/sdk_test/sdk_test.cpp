@@ -4045,6 +4045,13 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     // fetch scheduled meeting occurrences
     const auto fetchOccurrences = [this, a1](const unsigned int index, int expectedError, const SchedMeetingData& smData) -> void
     {
+        // check if occurrence is inside requested range
+        const MegaChatTimeStamp sinceTs = smData.startDate;
+        const auto isInRange = [&sinceTs](const MegaChatTimeStamp& ts)
+        {
+            return sinceTs <= ts;
+        };
+
         lastErrorChat[index] = MegaChatError::ERROR_OK; // reset last MegaChatRequest error
         mOccurrList[index].reset();                     // clear occurrences list
 
@@ -4062,6 +4069,11 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
                        });
 
         ASSERT_CHAT_TEST(lastErrorChat[a1] == expectedError, "Unexpected TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES request error: " + std::to_string(lastErrorChat[a1]) + " expected: " + std::to_string(expectedError));
+        for (size_t i =  0; i < mOccurrList[index]->size(); i++)
+        {
+             const auto occurr = mOccurrList[index]->at(i);
+             ASSERT_CHAT_TEST (isInRange(occurr->startDateTime()) && isInRange(occurr->endDateTime()), "Some of received occurrences are out of specified range" );
+        }
     };
 
     //================================================================================//
