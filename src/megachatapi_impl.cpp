@@ -2683,32 +2683,24 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (res.size() < numOccurrences) // fetch fresh occurrences from API
             {
+                std::shared_ptr<MegaChatScheduledMeetingOccurrList> l(MegaChatScheduledMeetingOccurrList::createInstance());
+                std::for_each(res.begin(), res.end(), [l](const auto &sm) { l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get())); });
+                const uint32_t pendingOccurrences= static_cast<uint32_t>(numOccurrences - res.size());
                 API_LOG_DEBUG("Fetching fresh scheduled meeting occurrences from API");
-                mClient->fetchScheduledMeetingOccurrences(chatid, since, until, numOccurrences)
-                .then([request, chatid, since, until, numOccurrences, this](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
-                {
-                    const GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
-                    if (!chatroom)
-                    {
-                        fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT));
-                        return;
-                    }
 
-                    auto res = chatroom->getFutureScheduledMeetingsOccurrences(numOccurrences, since, until);
-                    std::unique_ptr<MegaChatScheduledMeetingOccurrList> l(MegaChatScheduledMeetingOccurrList::createInstance());
-                    for (auto const& sm: res)
-                    {
-                        l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get()));
-                    }
+                mClient->fetchScheduledMeetingOccurrences(chatid, since, until, pendingOccurrences)
+                .then([request, l, this](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
+                {
+                    std::for_each(result.begin(), result.end(), [l](const auto &sm) { l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get())); });
                     request->setMegaChatScheduledMeetingOccurrList(l.get());
                     fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
                 })
                 .fail([request, this](const ::promise::Error& err)
                 {
                     API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
-
-                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
-                    fireOnChatRequestFinish(request, megaChatError);
+                    std::unique_ptr<MegaChatScheduledMeetingOccurrList> list(MegaChatScheduledMeetingOccurrList::createInstance());
+                    request->setMegaChatScheduledMeetingOccurrList(list.get());
+                    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(err.code()));
                 });
             }
             else
