@@ -4215,7 +4215,7 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     smDataTests127.cancelled = true;
     updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests127);
     fetchOccurrences(a1, MegaChatError::ERROR_OK, {.chatId = chatId, .startDate = MEGACHAT_INVALID_TIMESTAMP});
-    ASSERT_CHAT_TEST(!mOccurrList[a1], "No scheduled meeting occurrences for primary account should be received");
+    ASSERT_CHAT_TEST(mOccurrList[a1] && !mOccurrList[a1]->size(), "No scheduled meeting occurrences for primary account should be received");
 
     //================================================================================//
     // TEST 9. Delete scheduled meeting with invalid schedId (Error)
