@@ -2683,12 +2683,13 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (res.size() < numOccurrences) // fetch fresh occurrences from API
             {
+                const uint32_t pendingOccurrences = static_cast<uint32_t>(numOccurrences - res.size());
+                MegaChatTimeStamp newSince = !res.empty() ? res.back()->startDateTime() : since; // get since as startDateTime of newest local occurrence if any
                 std::shared_ptr<MegaChatScheduledMeetingOccurrList> l(MegaChatScheduledMeetingOccurrList::createInstance());
                 std::for_each(res.begin(), res.end(), [l](const auto &sm) { l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get())); });
-                const uint32_t pendingOccurrences= static_cast<uint32_t>(numOccurrences - res.size());
-                API_LOG_DEBUG("Fetching fresh scheduled meeting occurrences from API");
 
-                mClient->fetchScheduledMeetingOccurrences(chatid, since, until, pendingOccurrences)
+                API_LOG_DEBUG("Fetching fresh scheduled meeting occurrences from API");
+                mClient->fetchScheduledMeetingOccurrences(chatid, newSince, until, pendingOccurrences)
                 .then([request, l, this](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
                 {
                     std::for_each(result.begin(), result.end(), [l](const auto &sm) { l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get())); });
