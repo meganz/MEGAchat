@@ -416,6 +416,9 @@ public:
     void setDestroying(bool isDestroying);
     bool isDestroying();
 
+    // parse received ephemeral public key string (publickey:signature)
+    std::pair<std::string, std::string>splitPubKey(std::string& keyStr);
+
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod) override;

@@ -2524,6 +2524,18 @@ bool Call::isDestroying()
     return mIsDestroying;
 }
 
+std::pair<std::string, std::string>Call::splitPubKey(std::string& keyStr)
+{
+    auto pos = keyStr.find(":");
+    if (pos == std::string::npos)
+    {
+        return std::make_pair(std::string(), std::string());
+    }
+
+    std::string pubkey = keyStr.substr(0, pos);
+    std::string signature = keyStr.substr(pos + 1, keyStr.size());
+    return std::make_pair(pubkey, signature);
+}
 void Call::updateVideoTracks()
 {
     bool isOnHold = getLocalAvFlags().isOnHold();
