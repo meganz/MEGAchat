@@ -787,7 +787,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     if (pubkeyIterator != command.MemberEnd() && pubkeyIterator->value.IsString())
     {
          // clients with SFU protocol < 1 won't send ephemeral pubkey
-         pubkeyStr = userIdIterator->value.GetString();
+         pubkeyStr = pubkeyIterator->value.GetString();
     }
 
     int av = static_cast<int>(avIterator->value.GetUint());
