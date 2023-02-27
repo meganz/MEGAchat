@@ -97,6 +97,34 @@ RtcCryptoMeetings::getEd25519Keypair()
     return std::pair(myPrivEd25519, myPubEd25519);
 }
 
+promise::Promise<bool>
+RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string& recvsignature, const karere::Id& chatid, const karere::Id& peer)
+{
+    ChatRoomList::iterator it = mClient.chats->find(chatid);
+    if (it != mClient.chats->end())
+    {
+       const ChatRoom* chatroom = it->second;
+       return mClient.userAttrCache().getAttr(peer, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, chatroom->chat().getPublicHandle())
+       .then([ recvsignature, msg](Buffer* key) -> bool
+       {
+           std::string signatureBin =  mega::Base64::atob(recvsignature);
+           std::string pubUserED25519(key->buf(), key->dataSize());
+           int res = crypto_sign_verify_detached(reinterpret_cast<const unsigned char*>(signatureBin.data()),
+                                               reinterpret_cast<const unsigned char*>(msg.data()),
+                                               msg.size(),
+                                               reinterpret_cast<const unsigned char*>(pubUserED25519.data()));
+
+           return (res == 0); // if crypto_sign_verify_detached returns 0 signature has been verified
+       })
+       .fail([](const ::promise::Error& err)
+       {
+           return ::promise::Error(err);
+       });
+    }
+
+    return promise::Promise<bool>(false);
+}
+
 X25519KeyPair* RtcCryptoMeetings::genX25519KeyPair()
 {
     X25519KeyPair* keyPair = new X25519KeyPair();

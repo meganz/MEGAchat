@@ -46,6 +46,13 @@ public:
     X25519KeyPair* genX25519KeyPair();
 
     /**
+     * @brief Verify call participant ephemeral public key signature
+     * This method verify call participant ephemeral public key signature
+     */
+    promise::Promise<bool>
+    verifyKeySignature(const std::string& msg, const std::string& recvsignature, const karere::Id &chatid, const karere::Id& peer);
+
+    /**
      * @brief Get my user Ed25519 keypair (for EdDSA signature)
      * @return My user Ed25519 keypair
      */
