@@ -994,7 +994,7 @@ std::string Call::generateSessionKeyPair()
     std::string X25519PubKeyB64 = mega::Base64::btoa(X25519PubKey);
 
     // Generate public key signature (using Ed25519), on the string: sesskey|<callId>|<clientId>|<pubkey>
-    std::string signature = "sesskey|" + mCallid.toString() + "|" + std::to_string(mMyPeer->getCid()) + X25519PubKeyB64;
+    std::string signature = "sesskey|" + mCallid.toString() + "|" + std::to_string(mMyPeer->getCid()) + "|" + X25519PubKeyB64;
     return X25519PubKeyB64 + ":" + signEphemeralKey(signature); // -> publicKey:signature
 }
 
