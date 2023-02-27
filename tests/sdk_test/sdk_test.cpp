@@ -4089,10 +4089,6 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
         ASSERT_CHAT_TEST(user, "Secondary account is not a contact of primary account yet");
     }
 
-    // remove when scheduled meetings are deployed into API prod
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a2]->changeApiUrl("https://staging.api.mega.co.nz/");
-
     //================================================================================//
     // TEST 1. Create a meeting room and a recurrent scheduled meeting
     //================================================================================//
