@@ -1637,21 +1637,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
         return false;
     }
 
-    promise::Promise<bool> pms;
-    if (keyStr.empty())
-    {
-        pms.resolve(true);
-    }
-    else
-    {
-        // verify received ephemeral public key signature for joined user
-        auto parsedkey = splitPubKey(keyStr);
-        std::string msg = "sesskey|" + mCallid.toString() + "|" + std::to_string(cid) + "|" + parsedkey.first;
-        std::string recvsignature = parsedkey.second;
-        pms = verifySignature(msg, recvsignature, getChatid(), karere::Id(userid));
-    }
-
-    pms.then([&userid, &av, &cid, this](bool verified)
+    verifySignature(cid, userid, keyStr)
+    .then([&userid, &av, &cid, this](bool verified)
     {
         if (!verified)
         {
@@ -2566,9 +2553,23 @@ std::pair<std::string, std::string>Call::splitPubKey(std::string& keyStr)
 }
 
 promise::Promise<bool>
-Call::verifySignature(const std::string& msg, const std::string& recvsignature, const karere::Id& chatid, const karere::Id& peer)
+Call::verifySignature(Cid_t cid, uint64_t userid, std::string& keyStr)
+// const std::string& msg, const std::string& recvsignature, const karere::Id& chatid, const karere::Id& peer)
 {
-    return mSfuClient.getRtcCryptoMeetings()->verifyKeySignature(msg, recvsignature, chatid, peer);
+    promise::Promise<bool> pms;
+    if (keyStr.empty())
+    {
+        pms.resolve(true);
+    }
+    else
+    {
+        // verify received ephemeral public key signature for joined user
+        auto parsedkey = splitPubKey(keyStr);
+        std::string msg = "sesskey|" + mCallid.toString() + "|" + std::to_string(cid) + "|" + parsedkey.first;
+        std::string recvsignature = parsedkey.second;
+        pms = mSfuClient.getRtcCryptoMeetings()->verifyKeySignature(msg, recvsignature, getChatid(), karere::Id(userid));
+    }
+    return pms;
 }
 
 void Call::updateVideoTracks()
