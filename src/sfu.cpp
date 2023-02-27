@@ -444,7 +444,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
             if (pubkeyIterator != it->value[j].MemberEnd() && pubkeyIterator->value.IsString())
             {
                  // clients with SFU protocol < 1 won't send ephemeral pubkey
-                 keystrmap.emplace(cid, userIdIterator->value.GetString());
+                 keystrmap.emplace(cid, pubkeyIterator->value.GetString());
             }
 
             rapidjson::Value::ConstMemberIterator avIterator = it->value[j].FindMember("av");
