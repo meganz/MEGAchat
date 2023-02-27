@@ -1637,21 +1637,49 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
         return false;
     }
 
-    bool isModerator = mModerators.find(userid) != mModerators.end();
-    sfu::Peer peer(userid, static_cast<unsigned>(av), cid, isModerator);
-    mSessions[cid] = ::mega::make_unique<Session>(peer);
-    mCallHandler.onNewSession(*mSessions[cid], *this);
-
-    // update max peers seen in call
-    mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
-    generateAndSendNewkey();
-
-    if (mIsReconnectingToChatd && mParticipants.find(peer.getPeerid()) == mParticipants.end())
+    promise::Promise<bool> pms;
+    if (keyStr.empty())
     {
-        // if we are disconnected from chatd, but still connected to SFU and participating in a call
-        // we need to update participants list with SFU information
-        addParticipant(peer.getPeerid());
+        pms.resolve(true);
     }
+    else
+    {
+        // verify received ephemeral public key signature for joined user
+        auto parsedkey = splitPubKey(keyStr);
+        std::string msg = "sesskey|" + mCallid.toString() + "|" + std::to_string(cid) + "|" + parsedkey.first;
+        std::string recvsignature = parsedkey.second;
+        pms = verifySignature(msg, recvsignature, getChatid(), karere::Id(userid));
+    }
+
+    pms.then([&userid, &av, &cid, this](bool verified)
+    {
+        if (!verified)
+        {
+            assert(false);
+            RTCM_LOG_ERROR("Can't verify signature for user: %s", karere::Id(userid).toString().c_str());
+            return;
+        }
+
+        bool isModerator = mModerators.find(userid) != mModerators.end();
+        sfu::Peer peer(userid, static_cast<unsigned>(av), cid, isModerator);
+        mSessions[cid] = ::mega::make_unique<Session>(peer);
+        mCallHandler.onNewSession(*mSessions[cid], *this);
+
+        // update max peers seen in call
+        mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
+        generateAndSendNewkey();
+
+        if (mIsReconnectingToChatd && mParticipants.find(peer.getPeerid()) == mParticipants.end())
+        {
+            // if we are disconnected from chatd, but still connected to SFU and participating in a call
+            // we need to update participants list with SFU information
+            addParticipant(peer.getPeerid());
+        }
+    })
+    .fail([this, userid](const ::promise::Error&)
+    {
+        RTCM_LOG_ERROR("Can't retrieve public ED25519 attr for user %s", karere::Id(userid).toString().c_str());
+    });
 
     return true;
 }
@@ -2536,6 +2564,13 @@ std::pair<std::string, std::string>Call::splitPubKey(std::string& keyStr)
     std::string signature = keyStr.substr(pos + 1, keyStr.size());
     return std::make_pair(pubkey, signature);
 }
+
+promise::Promise<bool>
+Call::verifySignature(const std::string& msg, const std::string& recvsignature, const karere::Id& chatid, const karere::Id& peer)
+{
+    return mSfuClient.getRtcCryptoMeetings()->verifyKeySignature(msg, recvsignature, chatid, peer);
+}
+
 void Call::updateVideoTracks()
 {
     bool isOnHold = getLocalAvFlags().isOnHold();

@@ -419,6 +419,10 @@ public:
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(std::string& keyStr);
 
+    // verify signature for received ephemeral key
+    promise::Promise<bool>
+    verifySignature(const std::string& msg, const std::string& recvsignature, const karere::Id& chatid, const karere::Id& peer);
+
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod) override;
