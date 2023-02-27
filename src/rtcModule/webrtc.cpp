@@ -1300,9 +1300,29 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     std::set<Cid_t> cids;
     for (const sfu::Peer& peer : peers) // does not include own cid
     {
-        cids.insert(peer.getCid());
-        mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
-        mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
+        const auto& it = keystrmap.find(peer.getCid());
+        std::string keyStr = it != keystrmap.end()
+                ? it->second
+                : std::string();
+
+        verifySignature(peer.getCid(), peer.getPeerid(), keyStr)
+        .then([&peer, &cids, this](bool verified)
+        {
+            if (!verified)
+            {
+                assert(false);
+                RTCM_LOG_ERROR("Can't verify signature for user: %s", peer.getPeerid().toString().c_str());
+                return;
+            }
+
+            cids.insert(peer.getCid());
+            mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
+            mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
+        })
+        .fail([this, &peer](const ::promise::Error&)
+        {
+            RTCM_LOG_ERROR("Can't retrieve public ED25519 attr for user %s", peer.getPeerid().toString().c_str());
+        });
     }
 
     generateAndSendNewkey(true);
