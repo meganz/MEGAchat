@@ -1305,8 +1305,9 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                 ? it->second
                 : std::string();
 
-        verifySignature(peer.getCid(), peer.getPeerid(), keyStr)
-        .then([&peer, &cids, this](bool verified)
+        auto parsedkey = splitPubKey(keyStr);
+        verifySignature(peer.getCid(), peer.getPeerid(), parsedkey.first, parsedkey.second)
+        .then([&peer, &cids, &parsedkey, this](bool verified)
         {
             if (!verified)
             {
@@ -1657,8 +1658,9 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
         return false;
     }
 
-    verifySignature(cid, userid, keyStr)
-    .then([&userid, &av, &cid, this](bool verified)
+    auto parsedkey = splitPubKey(keyStr);
+    verifySignature(cid, userid, parsedkey.first, parsedkey.second)
+    .then([&userid, &av, &cid, &parsedkey, this](bool verified)
     {
         if (!verified)
         {
@@ -2573,21 +2575,19 @@ std::pair<std::string, std::string>Call::splitPubKey(std::string& keyStr)
 }
 
 promise::Promise<bool>
-Call::verifySignature(Cid_t cid, uint64_t userid, std::string& keyStr)
+Call::verifySignature(Cid_t cid, uint64_t userid, std::string& pubkey, std::string& signature)
 // const std::string& msg, const std::string& recvsignature, const karere::Id& chatid, const karere::Id& peer)
 {
     promise::Promise<bool> pms;
-    if (keyStr.empty())
+    if (pubkey.empty() || signature.empty())
     {
         pms.resolve(true);
     }
     else
     {
         // verify received ephemeral public key signature for joined user
-        auto parsedkey = splitPubKey(keyStr);
-        std::string msg = "sesskey|" + mCallid.toString() + "|" + std::to_string(cid) + "|" + parsedkey.first;
-        std::string recvsignature = parsedkey.second;
-        pms = mSfuClient.getRtcCryptoMeetings()->verifyKeySignature(msg, recvsignature, getChatid(), karere::Id(userid));
+        std::string msg = "sesskey|" + mCallid.toString() + "|" + std::to_string(cid) + "|" + pubkey;
+        pms = mSfuClient.getRtcCryptoMeetings()->verifyKeySignature(msg, signature, getChatid(), karere::Id(userid));
     }
     return pms;
 }
