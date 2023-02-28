@@ -4045,6 +4045,13 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     // fetch scheduled meeting occurrences
     const auto fetchOccurrences = [this, a1](const unsigned int index, int expectedError, const SchedMeetingData& smData) -> void
     {
+        // check if occurrence is inside requested range
+        const MegaChatTimeStamp sinceTs = smData.startDate;
+        const auto isValidOccurr = [&sinceTs](const MegaChatTimeStamp& ts)
+        {
+            return sinceTs <= ts; // check until limit in this method when apps can filter ocurrences by that field
+        };
+
         lastErrorChat[index] = MegaChatError::ERROR_OK; // reset last MegaChatRequest error
         mOccurrList[index].reset();                     // clear occurrences list
 
@@ -4062,6 +4069,11 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
                        });
 
         ASSERT_CHAT_TEST(lastErrorChat[a1] == expectedError, "Unexpected TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES request error: " + std::to_string(lastErrorChat[a1]) + " expected: " + std::to_string(expectedError));
+        for (size_t i =  0; i < mOccurrList[index]->size(); ++i)
+        {
+             const auto occurr = mOccurrList[index]->at(i);
+             ASSERT_CHAT_TEST (isValidOccurr(occurr->startDateTime()) && isValidOccurr(occurr->endDateTime()), "Some of received occurrences are out of specified range" );
+        }
     };
 
     //================================================================================//
@@ -4076,10 +4088,6 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
         user.reset(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
         ASSERT_CHAT_TEST(user, "Secondary account is not a contact of primary account yet");
     }
-
-    // remove when scheduled meetings are deployed into API prod
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a2]->changeApiUrl("https://staging.api.mega.co.nz/");
 
     //================================================================================//
     // TEST 1. Create a meeting room and a recurrent scheduled meeting
@@ -4215,7 +4223,7 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     smDataTests127.cancelled = true;
     updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests127);
     fetchOccurrences(a1, MegaChatError::ERROR_OK, {.chatId = chatId, .startDate = MEGACHAT_INVALID_TIMESTAMP});
-    ASSERT_CHAT_TEST(!mOccurrList[a1], "No scheduled meeting occurrences for primary account should be received");
+    ASSERT_CHAT_TEST(mOccurrList[a1] && !mOccurrList[a1]->size(), "No scheduled meeting occurrences for primary account should be received");
 
     //================================================================================//
     // TEST 9. Delete scheduled meeting with invalid schedId (Error)
