@@ -175,6 +175,11 @@ const std::vector<std::string>& Peer::getIvs() const
     return mIvs;
 }
 
+void Peer::setIvs(const std::vector<std::string>& ivs)
+{
+    mIvs = ivs;
+}
+
 void Peer::setAvFlags(karere::AvFlags flags)
 {
     mAvFlags = flags;

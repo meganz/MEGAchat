@@ -915,6 +915,8 @@ void Call::joinSfu()
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
+        mMyPeer->setIvs(std::vector<std::string> { ivs["0"], ivs["1"], ivs["2"] });
+
         std::string ephemeralKey = generateSessionKeyPair();
         mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getOwnCid(), mSpeakerState, kInitialvthumbCount);
     })

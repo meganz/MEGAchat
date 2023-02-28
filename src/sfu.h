@@ -62,6 +62,7 @@ public:
     void setOwnEphemeralKeyPair(rtcModule::X25519KeyPair* keypair);
     const rtcModule::X25519KeyPair* getOwnEphemeralKeyPair();
     const std::vector<std::string>& getIvs() const;
+    void setIvs(const std::vector<std::string>& ivs);
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid
