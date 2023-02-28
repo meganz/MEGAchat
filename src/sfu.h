@@ -59,6 +59,8 @@ public:
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void resetKeys();
+    void setOwnEphemeralKeyPair(rtcModule::X25519KeyPair* keypair);
+    const rtcModule::X25519KeyPair* getOwnEphemeralKeyPair();
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid
@@ -66,6 +68,9 @@ protected:
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
+
+    // ephemeral X25519 EC key pair for current session
+    std::unique_ptr<rtcModule::X25519KeyPair> mEphemeralKeyPair;
 
     /*
      * Moderator role for this call

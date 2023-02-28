@@ -158,6 +158,16 @@ void Peer::resetKeys()
     mKeyMap.clear();
 }
 
+void Peer::setOwnEphemeralKeyPair(rtcModule::X25519KeyPair* keypair)
+{
+    mEphemeralKeyPair.reset(keypair);
+}
+
+const rtcModule::X25519KeyPair* Peer::getOwnEphemeralKeyPair()
+{
+    return mEphemeralKeyPair.get();
+}
+
 void Peer::setAvFlags(karere::AvFlags flags)
 {
     mAvFlags = flags;
