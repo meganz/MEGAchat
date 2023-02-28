@@ -436,7 +436,7 @@ public:
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(unsigned termcode) override;
     void onSfuConnected() override;

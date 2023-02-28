@@ -67,7 +67,8 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mIsJoining(false)
     , mRtc(rtc)
 {
-    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), avflags.value()));
+    std::vector<std::string> ivs;
+    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), avflags.value(), ivs));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
@@ -1652,7 +1653,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
 }
 
 
-bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr)
+bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string>& ivs)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
@@ -1663,7 +1664,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
 
     auto parsedkey = splitPubKey(keyStr);
     verifySignature(cid, userid, parsedkey.first, parsedkey.second)
-    .then([&userid, &av, &cid, &parsedkey, this](bool verified)
+    .then([&userid, &av, &cid, &parsedkey, &ivs, this](bool verified)
     {
         if (!verified)
         {
@@ -1673,7 +1674,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
         }
 
         bool isModerator = mModerators.find(userid) != mModerators.end();
-        sfu::Peer peer(userid, static_cast<unsigned>(av), cid, isModerator);
+        sfu::Peer peer(userid, static_cast<unsigned>(av), ivs, cid, isModerator);
         mSessions[cid] = ::mega::make_unique<Session>(peer);
         mCallHandler.onNewSession(*mSessions[cid], *this);
 

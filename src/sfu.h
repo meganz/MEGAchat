@@ -40,7 +40,7 @@ public:
 class Peer
 {
 public:
-    Peer(karere::Id peerid, unsigned avFlags, Cid_t cid = 0, bool isModerator = false);
+    Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string>& ivs, Cid_t cid = 0, bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -61,6 +61,7 @@ public:
     void resetKeys();
     void setOwnEphemeralKeyPair(rtcModule::X25519KeyPair* keypair);
     const rtcModule::X25519KeyPair* getOwnEphemeralKeyPair();
+    const std::vector<std::string>& getIvs() const;
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid
@@ -71,6 +72,9 @@ protected:
 
     // ephemeral X25519 EC key pair for current session
     std::unique_ptr<rtcModule::X25519KeyPair> mEphemeralKeyPair;
+
+    // initialization vector
+    std::vector<std::string> mIvs;
 
     /*
      * Moderator role for this call
@@ -190,7 +194,7 @@ public:
     virtual bool handleWrAllowReq(karere::Id user) = 0;
 
     // called when the connection to SFU is established
-    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr) = 0;
+    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual bool handleBye(unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
@@ -359,7 +363,7 @@ public:
     SpeakOffCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, uint64_t userid, int av, std::string& keyStr)> PeerJoinCommandFunction;
+typedef std::function<bool(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
 {
 public:

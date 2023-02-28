@@ -89,10 +89,11 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid, bool isModerator)
+Peer::Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string> &ivs, Cid_t cid, bool isModerator)
     : mCid(cid),
       mPeerid(peerid),
       mAvFlags(static_cast<uint8_t>(avFlags)),
+      mIvs(ivs),
       mIsModerator(isModerator)
 {
 }
@@ -101,6 +102,7 @@ Peer::Peer(const Peer &peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
+    , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
 {
 }
@@ -166,6 +168,11 @@ void Peer::setOwnEphemeralKeyPair(rtcModule::X25519KeyPair* keypair)
 const rtcModule::X25519KeyPair* Peer::getOwnEphemeralKeyPair()
 {
     return mEphemeralKeyPair.get();
+}
+
+const std::vector<std::string>& Peer::getIvs() const
+{
+    return mIvs;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
@@ -457,6 +464,22 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
                  keystrmap.emplace(cid, pubkeyIterator->value.GetString());
             }
 
+            std::vector<std::string> ivs;
+            rapidjson::Value::ConstMemberIterator ivsIterator = it->value[j].FindMember("ivs");
+            if (ivsIterator != it->value[j].MemberEnd() && ivsIterator->value.IsArray())
+            {
+                for (unsigned int i = 0; i < ivsIterator->value.Capacity(); i++)
+                {
+                    if (!ivsIterator->value[i].IsString())
+                    {
+                        SFU_LOG_ERROR("parse invalid ivs");
+                        ivs.clear();
+                        break;
+                    }
+                    ivs.emplace_back(ivsIterator->value[i].GetString());
+                }
+            }
+
             rapidjson::Value::ConstMemberIterator avIterator = it->value[j].FindMember("av");
             if (avIterator == it->value[j].MemberEnd() || !avIterator->value.IsUint())
             {
@@ -466,7 +489,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
 
             bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
-            peers.push_back(Peer(userId, av, cid, isModerator));
+            peers.push_back(Peer(userId, av, ivs, cid, isModerator));
         }
         else
         {
@@ -800,8 +823,24 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
          pubkeyStr = pubkeyIterator->value.GetString();
     }
 
+    std::vector<std::string> ivs;
+    rapidjson::Value::ConstMemberIterator ivsIterator = command.FindMember("ivs");
+    if (ivsIterator != command.MemberEnd() && ivsIterator->value.IsArray())
+    {
+        for (unsigned int i = 0; i < ivsIterator->value.Capacity(); i++)
+        {
+            if (!ivsIterator->value[i].IsString())
+            {
+                SFU_LOG_ERROR("parse invalid ivs");
+                ivs.clear();
+                break;
+            }
+            ivs.emplace_back(ivsIterator->value[i].GetString());
+        }
+    }
+
     int av = static_cast<int>(avIterator->value.GetUint());
-    return mComplete(cid, userid, av, pubkeyStr);
+    return mComplete(cid, userid, av, pubkeyStr, ivs);
 }
 
 Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
@@ -1505,7 +1544,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
     commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
-    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4), call);
+    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
