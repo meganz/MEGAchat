@@ -46,6 +46,11 @@ public:
     X25519KeyPair* genX25519KeyPair();
 
     /**
+     * @brief Derive user public ephemeral key with own user private ephemeral key (SHA256 - based HKDF transform)
+     */
+    bool deriveEphemeralKey(std::string& peerEphemeralPubkey, const unsigned char* privEphemeral, strongvelope::EcKey &output, const std::vector<std::string>& peerIvs, const std::vector<std::string> &myIvs);
+
+    /**
      * @brief Verify call participant ephemeral public key signature
      * This method verify call participant ephemeral public key signature
      */

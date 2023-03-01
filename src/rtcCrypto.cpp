@@ -11,6 +11,7 @@
 #include <cryptopp/modes.h>
 #include <mega.h>
 #include "cryptofunctions.h"
+#include <cryptopp/hkdf.h> // required for key derivation
 
 using namespace mega;
 using namespace karere;
@@ -123,6 +124,34 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
     }
 
     return promise::Promise<bool>(false);
+}
+
+bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, const unsigned char* privEphemeral, strongvelope::EcKey& output,
+                                           const std::vector<std::string>& peerIvs,  const std::vector<std::string>& myIvs)
+{
+    if (peerIvs.size() < 2 || myIvs.size() < 2)
+    {
+        return false;
+    }
+
+    std::string salt;
+    vector<string> v { peerIvs[0], peerIvs[1], myIvs[0], myIvs[1] };
+    sort(v.begin(), v.end());
+    std::for_each(v.begin(), v.end(), [&salt](std::string &s){ salt += s; });
+
+    std::string pubkeyBin =  mega::Base64::atob(peerEphemeralPubkey);
+    strongvelope::Key<crypto_scalarmult_BYTES> sharedSecret;
+    if (crypto_scalarmult(sharedSecret.ubuf(), privEphemeral, reinterpret_cast<const unsigned char*>(pubkeyBin.data())))
+    {
+        return false;
+    }
+
+    HKDF<CryptoPP::SHA256> hkdf;
+    hkdf.DeriveKey(output.ubuf(), output.bufSize(), sharedSecret.ubuf(), sharedSecret.bufSize(),
+                   reinterpret_cast<const unsigned char*>(salt.data()),
+                   salt.size(), nullptr, 0);
+
+    return true;
 }
 
 X25519KeyPair* RtcCryptoMeetings::genX25519KeyPair()
