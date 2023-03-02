@@ -3,6 +3,8 @@
 #import "MEGAChatCall.h"
 #import "MEGAChatError.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @class MEGAChatSdk;
 
 @protocol MEGAChatCallDelegate <NSObject>
@@ -14,3 +16,5 @@
 - (void)onChatSessionUpdate:(MEGAChatSdk *)api chatId:(uint64_t)chatId callId:(uint64_t)callId session:(MEGAChatSession *)session;
 
 @end
+
+NS_ASSUME_NONNULL_END
