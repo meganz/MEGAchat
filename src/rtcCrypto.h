@@ -17,6 +17,24 @@ struct X25519KeyPair
 {
     unsigned char privKey[X25519_PRIV_KEY_LEN];
     unsigned char pubKey[X25519_PUB_KEY_LEN];
+
+    X25519KeyPair() = default;
+    X25519KeyPair(const X25519KeyPair &aux)
+    {
+        memcpy(privKey, aux.privKey, X25519_PRIV_KEY_LEN);
+        memcpy(pubKey, aux.pubKey, X25519_PUB_KEY_LEN);
+    }
+
+    X25519KeyPair(const strongvelope::EcKey& priv, const strongvelope::EcKey& pub)
+    {
+        memcpy(privKey, priv.ubuf(), priv.bufSize());
+        memcpy(pubKey, pub.ubuf(), pub.bufSize());
+    }
+
+    X25519KeyPair* copy() const
+    {
+        return new X25519KeyPair(*this);
+    }
 };
 
 class RtcCryptoMeetings: public rtcModule::IRtcCryptoMeetings

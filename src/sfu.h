@@ -59,8 +59,8 @@ public:
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void resetKeys();
-    void setOwnEphemeralKeyPair(rtcModule::X25519KeyPair* keypair);
-    const rtcModule::X25519KeyPair* getOwnEphemeralKeyPair();
+    void setEphemeralKeyPair(const rtcModule::X25519KeyPair *keypair);
+    const rtcModule::X25519KeyPair* getEphemeralKeyPair() const;
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
 

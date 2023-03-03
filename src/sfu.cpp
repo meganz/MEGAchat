@@ -102,6 +102,7 @@ Peer::Peer(const Peer &peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
+    , mEphemeralKeyPair(peer.mEphemeralKeyPair ? peer.mEphemeralKeyPair->copy() : nullptr)
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
 {
@@ -160,12 +161,18 @@ void Peer::resetKeys()
     mKeyMap.clear();
 }
 
-void Peer::setOwnEphemeralKeyPair(rtcModule::X25519KeyPair* keypair)
+void Peer::setEphemeralKeyPair(const rtcModule::X25519KeyPair* keypair)
 {
-    mEphemeralKeyPair.reset(keypair);
+    if (!keypair)
+    {
+        mEphemeralKeyPair.reset();
+        return;
+    }
+
+    mEphemeralKeyPair.reset(new rtcModule::X25519KeyPair(*keypair));
 }
 
-const rtcModule::X25519KeyPair* Peer::getOwnEphemeralKeyPair()
+const rtcModule::X25519KeyPair* Peer::getEphemeralKeyPair() const
 {
     return mEphemeralKeyPair.get();
 }

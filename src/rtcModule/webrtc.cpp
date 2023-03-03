@@ -992,12 +992,12 @@ std::string Call::signEphemeralKey(const std::string& str)
 std::string Call::generateSessionKeyPair()
 {
     // generate ephemeral ECDH X25519 keypair
-    rtcModule::X25519KeyPair* ephemeralKeyPair = mSfuClient.getRtcCryptoMeetings()->genX25519KeyPair();
-    std::string X25519PubKey(reinterpret_cast<const char*>(ephemeralKeyPair->pubKey), X25519_PUB_KEY_LEN);
-    std::string X25519PubKeyB64 = mega::Base64::btoa(X25519PubKey);
+    std::unique_ptr<rtcModule::X25519KeyPair> ephemeralKeyPair(mSfuClient.getRtcCryptoMeetings()->genX25519KeyPair());
 
     // store ephemeral keypair in our peer (check if neccesary to store public key probably not)
-    mMyPeer->setOwnEphemeralKeyPair(ephemeralKeyPair);
+    mMyPeer->setEphemeralKeyPair(ephemeralKeyPair.get());
+    std::string X25519PubKey(reinterpret_cast<const char*>(ephemeralKeyPair->pubKey), X25519_PUB_KEY_LEN);
+    std::string X25519PubKeyB64 = mega::Base64::btoa(X25519PubKey);
 
     // Generate public key signature (using Ed25519), on the string: sesskey|<callId>|<clientId>|<pubkey>
     std::string signature = "sesskey|" + mCallid.toString() + "|" + std::to_string(mMyPeer->getCid()) + "|" + X25519PubKeyB64;
