@@ -106,6 +106,7 @@ Peer::Peer(const Peer &peer)
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
 {
+    std::copy(peer.mKeyEncryptIv, peer.mKeyEncryptIv + sizeof (peer.mKeyEncryptIv), mKeyEncryptIv);
 }
 
 void Peer::setCid(Cid_t cid)
@@ -185,6 +186,22 @@ const std::vector<std::string>& Peer::getIvs() const
 void Peer::setIvs(const std::vector<std::string>& ivs)
 {
     mIvs = ivs;
+}
+
+void Peer::makeKeyEncryptIv(IvStatic_t vthumbIv, IvStatic_t hiresIv)
+{
+    // First 8 bytes are taken from the vthumb track IV,
+    std::copy(static_cast<const char*>(static_cast<const void*>(&vthumbIv)),
+              static_cast<const char*>(static_cast<const void*>(&vthumbIv)) + sizeof vthumbIv, mKeyEncryptIv);
+
+    // The rest 4 bytes are the first from the hi-res video track IV
+    std::copy(static_cast<const char*>(static_cast<const void*>(&hiresIv)),
+              static_cast<const char*>(static_cast<const void*>(&hiresIv)) + 4, mKeyEncryptIv + 8);
+}
+
+const byte* Peer::getKeyEncryptIv()
+{
+    return mKeyEncryptIv;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)

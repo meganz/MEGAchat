@@ -10,6 +10,9 @@ namespace karere { class Client; }
 namespace strongvelope { template<size_t L> class Key; typedef Key<16> SendKey; }
 namespace rtcModule
 {
+
+const static uint8_t KEY_ENCRYPT_IV_LENGTH = 12;
+
 // Asymmetric cryptography using ECDH X25519.
 static constexpr int X25519_PRIV_KEY_LEN = crypto_box_SECRETKEYBYTES;
 static constexpr int X25519_PUB_KEY_LEN  = crypto_box_PUBLICKEYBYTES;

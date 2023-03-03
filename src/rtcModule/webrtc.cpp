@@ -915,6 +915,9 @@ void Call::joinSfu()
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
+        mMyPeer->makeKeyEncryptIv(mVThumb->getIv(), mHiRes->getIv());
+
+        // store ivs in MyPeer
         mMyPeer->setIvs(std::vector<std::string> { ivs["0"], ivs["1"], ivs["2"] });
 
         std::string ephemeralKey = generateSessionKeyPair();
