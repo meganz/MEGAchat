@@ -2,6 +2,8 @@
 #import "MEGAChatRequest.h"
 #import "MEGAChatError.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @class MEGAChatSdk;
 
 @protocol MEGAChatRequestDelegate <NSObject>
@@ -15,3 +17,4 @@
 
 @end
 
+NS_ASSUME_NONNULL_END
