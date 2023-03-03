@@ -975,13 +975,13 @@ std::string Call::signEphemeralKey(const std::string& str)
 {
     // get my user Ed25519 keypair (for EdDSA signature)
     const auto res = mSfuClient.getRtcCryptoMeetings()->getEd25519Keypair();
-    const auto& myPrivEd25519 = res.first;
-    const auto& myPubEd25519 = res.second;
+    const strongvelope::EcKey& myPrivEd25519 = res.first;
+    const strongvelope::EcKey& myPubEd25519 = res.second;
 
-    strongvelope::Signature signature;
     Buffer bufToSign(str.data(), str.size());
-    Buffer eckey(myPrivEd25519.bufSize() + myPubEd25519.bufSize());
-    eckey.append(myPrivEd25519.buf()).append(myPubEd25519.buf());
+    strongvelope::Signature signature;
+    Buffer eckey(myPrivEd25519.dataSize()+myPubEd25519.dataSize());
+    eckey.append(myPrivEd25519).append(myPubEd25519);
 
     // sign string: sesskey|<callId>|<clientId>|<pubkey> and encode in B64
     crypto_sign_detached(signature.ubuf(), NULL, bufToSign.ubuf(), bufToSign.dataSize(), eckey.ubuf());

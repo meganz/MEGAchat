@@ -92,10 +92,10 @@ void RtcCryptoMeetings::strToKey(const std::string& keystr, strongvelope::SendKe
 std::pair<strongvelope::EcKey, strongvelope::EcKey>
 RtcCryptoMeetings::getEd25519Keypair()
 {
-    strongvelope::EcKey myPubEd25519;
-    strongvelope::EcKey myPrivEd25519(mClient.mMyPrivEd25519, 32);
-    getPubKeyFromPrivKey(myPrivEd25519, strongvelope::kKeyTypeEd25519, myPubEd25519);
-    return std::pair(myPrivEd25519, myPubEd25519);
+    std::pair<strongvelope::EcKey, strongvelope::EcKey> keypair;
+    keypair.first.assign(mClient.mMyPrivEd25519, 32);
+    getPubKeyFromPrivKey(keypair.first, strongvelope::kKeyTypeEd25519, keypair.second);
+    return keypair;
 }
 
 promise::Promise<bool>
