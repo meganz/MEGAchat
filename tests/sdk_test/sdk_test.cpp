@@ -8,7 +8,9 @@
 #ifndef KARERE_DISABLE_WEBRTC
 #include "../../src/net/libwebsocketsIO.h"
 #endif
-
+#ifdef USE_CRYPTOPP
+#include "mega/crypto/cryptopp.h"
+#endif
 
 #include <signal.h>
 #include <stdio.h>
@@ -93,6 +95,11 @@ int main(int argc, char **argv)
 #ifndef KARERE_DISABLE_WEBRTC
     unitaryTest.UNITARYTEST_SfuDataReception();
 #endif
+
+#ifdef USE_CRYPTOPP
+    unitaryTest.UNITARYTEST_EncryptMediaKeyWithEphemKey();
+#endif
+
     std::cout << "[========] End Unitary tests " << std::endl;
 
     return t.mFailedTests + unitaryTest.mFailedTests;
@@ -5773,6 +5780,41 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     }
 
     std::cout << "          TEST - SfuConnection::handleIncomingData() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
+    return !failedTest;
+}
+#endif
+
+#ifdef USE_CRYPTOPP
+bool MegaChatApiUnitaryTest::UNITARYTEST_EncryptMediaKeyWithEphemKey()
+{
+    std::cout << "          TEST - EncryptMediaKeyWithEphemKey" << std::endl;
+    std::string expectedKey = "IsynMDLBwlKQ3CSQcxQtqzZ";
+    ::mega::byte keyEncryptIv[12] = {109,34,21,158,236,55,249,210,179,177,244,93};
+    ::mega::byte mediaKey[16]     = {60,181,43,125,112,4,248,203,228,50,177,231,232,185,172,194};
+    ::mega::byte ephemKey[32]     = {129,216,111,114,44,70,116,227,184,43,159,102,5,134,9,84,125,16,221,217,31,4,37,11,89,137,120,133,205,7,141,247};
+    int failedTest = 0, executedTests = 0;
+    ++executedTests;
+
+    // arm cypher with ephemeral key
+    ::mega::SymmCipher mSymCipher;
+    std::string ephemeralkeyStr(ephemKey, ephemKey + 32);
+    mSymCipher.setkey(&ephemeralkeyStr);
+
+    // Encrypt media key
+    std::string outputTest;
+    std::string mediaKeyStr(mediaKey, mediaKey + 16);
+    mSymCipher.gcm_encrypt(&mediaKeyStr, keyEncryptIv, 12, 4, &outputTest);
+
+    // Base64 encode
+    std::string outTest64Key = ::mega::Base64::btoa(outputTest);
+
+    if (outTest64Key.compare(expectedKey) != 0)
+    {
+        ++failedTest;
+        ++mFailedTests;
+        std::cout << "          TEST - EncryptMediaKeyWithEphemKey : - Expected encrypted key: " << expectedKey << "  doesn't match with obtained : " << outTest64Key << std::endl;
+    }
+    std::cout << "          TEST - EncryptMediaKeyWithEphemKey : - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
     return !failedTest;
 }
 #endif

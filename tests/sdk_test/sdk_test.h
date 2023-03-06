@@ -504,6 +504,9 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     bool UNITARYTEST_SfuDataReception();
 #endif
+#ifdef USE_CRYPTOPP
+    bool UNITARYTEST_EncryptMediaKeyWithEphemKey();
+#endif
 
     unsigned mOKTests = 0;
     unsigned mFailedTests = 0;
