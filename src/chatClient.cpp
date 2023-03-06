@@ -4407,12 +4407,20 @@ GroupChatRoom::getFutureScheduledMeetingsOccurrences(unsigned int count, ::mega:
     std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> ocurrList;
     for (const auto& it: mScheduledMeetingsOcurrences)
     {
-        ::mega::m_time_t schedTs = it->startDateTime();
-        ::mega::m_time_t sinceTs = since
+        assert(it->endDateTime() != ::mega::mega_invalid_timestamp);
+        const ::mega::m_time_t startOcurrTs = it->startDateTime();
+        const ::mega::m_time_t endOcurrTs = it->endDateTime();
+        const ::mega::m_time_t sinceTs = since
                 ? since         /* provided by user (unix timestamp [UTC]) */
                 : time(nullptr) /* now (unix timestamp [UTC]) */;
 
-        if (schedTs > sinceTs && (until == ::mega::mega_invalid_timestamp || schedTs < until))
+        const auto isInRange = [&sinceTs, &until](::mega::m_time_t ts)
+        {
+            const bool hasuntil = until != ::mega::mega_invalid_timestamp;
+            return sinceTs < ts && (!hasuntil || until > ts);
+        };
+
+        if (isInRange(startOcurrTs) || isInRange(endOcurrTs))
         {
             ocurrList.emplace_back(it->copy());
         }
