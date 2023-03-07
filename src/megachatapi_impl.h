@@ -857,8 +857,10 @@ public:
     bool emailsDisabled() const override;
     bool isEmpty() const override;
 
+    std::unique_ptr<karere::KarereScheduledFlags> getKarereScheduledFlags() const;
+
 private:
-    std::bitset<FLAGS_SIZE> mFlags = 0;
+    std::unique_ptr<karere::KarereScheduledFlags> mKScheduledFlags;
 };
 
 class MegaChatScheduledRulesPrivate : public MegaChatScheduledRules
@@ -893,24 +895,15 @@ public:
     static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
     static bool isValidUntil(mega::m_time_t until) { return until > MEGACHAT_INVALID_TIMESTAMP; }
 
+    std::unique_ptr<karere::KarereScheduledRules> getKarereScheduledRules() const;
+
 private:
-    // scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
-    int mFreq = FREQ_INVALID;
+    std::unique_ptr<karere::KarereScheduledRules> mKScheduledRules;
 
-    // repetition interval in relation to the frequency
-    int mInterval = INTERVAL_INVALID;
-
-    // specifies when the repetitions should end
-    ::mega::m_time_t mUntil = MEGACHAT_INVALID_TIMESTAMP;
-
-    // allows us to specify that an event will only occur on given week day/s
-    std::unique_ptr<mega::MegaIntegerList> mByWeekDay;
-
-    // allows us to specify that an event will only occur on a given day/s of the month
-    std::unique_ptr<mega::MegaIntegerList> mByMonthDay;
-
-    // allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
-    std::unique_ptr<mega::MegaIntegerMap> mByMonthWeekDay;
+    // temp memory must be held somewhere since there is a data transformation and ownership is not returned in the getters
+    mutable std::unique_ptr<mega::MegaIntegerList> mTransformedByWeekDay;
+    mutable std::unique_ptr<mega::MegaIntegerList> mTransformedByMonthDay;
+    mutable std::unique_ptr<mega::MegaIntegerMap> mTransformedByMonthWeekDay;
 };
 
 class MegaChatScheduledMeetingPrivate: public MegaChatScheduledMeeting
@@ -958,50 +951,14 @@ public:
     MegaChatScheduledRules* rules() const override;
 
 private:
-    // chat handle
-    MegaChatHandle mChatid;
-
-    // scheduled meeting handle
-    MegaChatHandle mSchedId;
-
-    // parent scheduled meeting handle
-    MegaChatHandle mParentSchedId;
-
-    // organizer user handle
-    MegaChatHandle mOrganizerUserId;
-
-    // timeZone
-    std::string mTimezone;
-
-    // start dateTime (unix timestamp)
-    ::mega::m_time_t mStartDateTime;
-
-    // end dateTime (unix timestamp)
-    ::mega::m_time_t mEndDateTime;
-
-    // meeting title
-    std::string mTitle;
-
-    // meeting description
-    std::string mDescription;
-
-    // attributes to store any additional data
-    std::string mAttributes;
-
-    // start dateTime of the original meeting series event to be replaced (unix timestamp)
-    MegaChatTimeStamp mOverrides;
-
-    // cancelled flag
-    int mCancelled;
-
-    // flags bitmask (used to store additional boolean settings as a bitmask)
-    std::unique_ptr<MegaChatScheduledFlags> mFlags;
-
-    // scheduled meetings rules
-    std::unique_ptr<MegaChatScheduledRules> mRules;
-
     // changed bitmap
     megachat_sched_bs_t mChanged;
+
+    std::unique_ptr<karere::KarereScheduledMeeting> mKScheduledMeeting;
+
+    // temp memory must be held somewhere since there is a data transformation and ownership is not returned in the getters
+    mutable std::unique_ptr<MegaChatScheduledFlags> mTransformedMCSFlags;
+    mutable std::unique_ptr<MegaChatScheduledRules> mTransformedMCSRules;
 };
 
 

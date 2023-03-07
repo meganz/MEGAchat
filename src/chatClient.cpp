@@ -5483,6 +5483,7 @@ void KarereScheduledFlags::reset()
     mFlags.reset();
 }
 
+void KarereScheduledFlags::setEmailsDisabled(const bool enabled)  { mFlags[FLAGS_DONT_SEND_EMAILS] = enabled; }
 bool KarereScheduledFlags::emailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
 unsigned long KarereScheduledFlags::getNumericValue() const       { return mFlags.to_ulong(); }
 bool KarereScheduledFlags::isEmpty() const                        { return mFlags.none(); }
@@ -5567,6 +5568,22 @@ KarereScheduledRules::~KarereScheduledRules()
 KarereScheduledRules* KarereScheduledRules::copy() const
 {
     return new KarereScheduledRules(this);
+}
+
+void KarereScheduledRules::setFreq(const int freq)              { mFreq = freq; }
+void KarereScheduledRules::setInterval(const int interval)      { mInterval = interval; }
+void KarereScheduledRules::setUntil(const mega::m_time_t until) { mUntil = until; }
+void KarereScheduledRules::setByWeekDay(const karere_rules_vector* byWD)
+{
+    mByWeekDay.reset(byWD ? new karere_rules_vector(*byWD) : nullptr);
+}
+void KarereScheduledRules::setByMonthDay(const karere_rules_vector* byMD)
+{
+    mByMonthDay.reset(byMD ? new karere_rules_vector(*byMD) : nullptr);
+}
+void KarereScheduledRules::setByMonthWeekDay(const karere_rules_map* byMWD)
+{
+    mByMonthWeekDay.reset(byMWD ? new karere_rules_map(*byMWD) : nullptr);
 }
 
 int KarereScheduledRules::freq() const                                                      { return mFreq; }

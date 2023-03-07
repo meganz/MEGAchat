@@ -1309,6 +1309,8 @@ public:
     virtual ~KarereScheduledFlags();
     KarereScheduledFlags* copy();
 
+    void setEmailsDisabled(const bool enabled);
+
     // --- setters ---
     void reset();
     bool emailsDisabled() const;
@@ -1347,6 +1349,13 @@ public:
     KarereScheduledRules(const ::mega::MegaScheduledRules* rules);
     virtual ~KarereScheduledRules();
     KarereScheduledRules* copy() const;
+
+    void setFreq(const int freq);
+    void setInterval(const int interval);
+    void setUntil(const mega::m_time_t until);
+    void setByWeekDay(const karere_rules_vector* byWD);
+    void setByMonthDay(const karere_rules_vector* byMD);
+    void setByMonthWeekDay(const karere_rules_map* byMWD);
 
     // --- getters ---
     int freq() const;
