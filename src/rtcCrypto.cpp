@@ -135,7 +135,7 @@ bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, con
     }
 
     std::string salt;
-    vector<string> v { peerIvs[0], peerIvs[1], myIvs[0], myIvs[1] };
+    vector<string> v { peerIvs[1], peerIvs[2], myIvs[1], myIvs[2] };
     sort(v.begin(), v.end());
     std::for_each(v.begin(), v.end(), [&salt](std::string &s){ salt += s; });
 

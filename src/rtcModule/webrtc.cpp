@@ -1325,8 +1325,38 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                 return;
             }
 
+            sfu::Peer auxPeer(peer);
+            strongvelope::EcKey out;
+            const rtcModule::X25519KeyPair* ephkeypair = mMyPeer->getEphemeralKeyPair();
+            if (ephkeypair)
+            {
+                // derive peer public ephemeral key with our private ephemeral key
+                if (mSfuClient.getRtcCryptoMeetings()->deriveEphemeralKey(parsedkey.first, ephkeypair->privKey, out, peer.getIvs(), mMyPeer->getIvs()))
+                {
+                    if (out.bufSize() == X25519_PUB_KEY_LEN)
+                    {
+                        rtcModule::X25519KeyPair derivedKeyPair(strongvelope::EcKey(), out);
+                        auxPeer.setEphemeralKeyPair(&derivedKeyPair);
+                    }
+                    else
+                    {
+                        RTCM_LOG_ERROR("SFU_V1: derived ephemeral key is ill-formed");
+                    }
+                }
+                else
+                {
+                    RTCM_LOG_ERROR("SFU_V1: Could not derive ephemeral key for peer Cid: %d PeerId: %s", peer.getCid(), peer.getPeerid().toString().c_str());
+                    return;
+                }
+            }
+            else if (mSfuClient.getSfuVersion() >= 1)
+            {
+                assert(false);
+                RTCM_LOG_ERROR("SFU protocol is V1 or greater and we don't have private ephemeral key stored");
+                return;
+            }
             cids.insert(peer.getCid());
-            mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
+            mSessions[peer.getCid()] = ::mega::make_unique<Session>(auxPeer);
             mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
         })
         .fail([this, &peer](const ::promise::Error&)
