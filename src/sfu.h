@@ -224,6 +224,7 @@ public:
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
+    static std::vector<byte> hexToByteArray(const std::string &hex);
     void parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
 
 protected:

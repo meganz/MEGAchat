@@ -324,6 +324,21 @@ uint64_t Command::hexToBinary(const std::string &hex)
     return value;
 }
 
+std::vector<byte> Command::hexToByteArray(const std::string &hex)
+{
+    unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
+    std::vector<byte> res(bufferSize);
+    unsigned int binPos = 0;
+    for (unsigned int i = 0; i< hex.length(); binPos++)
+    {
+        // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
+        res[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
+        res[binPos] |= static_cast<uint8_t>(hexDigitVal(hex[i++]));
+    }
+
+    return res;
+}
+
 uint8_t Command::hexDigitVal(char value)
 {
     if (value <= 57)

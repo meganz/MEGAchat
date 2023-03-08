@@ -134,23 +134,22 @@ bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, con
         return false;
     }
 
-    std::string salt;
-    vector<string> v { peerIvs[1], peerIvs[2], myIvs[1], myIvs[2] };
-    sort(v.begin(), v.end());
-    std::for_each(v.begin(), v.end(), [&salt](std::string &s){ salt += s; });
-
-    std::string pubkeyBin =  mega::Base64::atob(peerEphemeralPubkey);
     strongvelope::Key<crypto_scalarmult_BYTES> sharedSecret;
+    std::string pubkeyBin =  mega::Base64::atob(peerEphemeralPubkey);
     if (crypto_scalarmult(sharedSecret.ubuf(), privEphemeral, reinterpret_cast<const unsigned char*>(pubkeyBin.data())))
     {
         return false;
     }
 
-    HKDF<CryptoPP::SHA256> hkdf;
-    hkdf.DeriveKey(output.ubuf(), output.bufSize(), sharedSecret.ubuf(), sharedSecret.bufSize(),
-                   reinterpret_cast<const unsigned char*>(salt.data()),
-                   salt.size(), nullptr, 0);
+    // generate salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
+    std::string salt;
+    vector<string> v { peerIvs[1], peerIvs[2], myIvs[1], myIvs[2] };
+    sort(v.begin(), v.end());
+    std::for_each(v.begin(), v.end(), [&salt](std::string &s){ salt += s; });
+    std::vector<byte> saltBin = sfu::Command::hexToByteArray(salt);
 
+    HKDF<CryptoPP::SHA256> hkdf;
+    hkdf.DeriveKey(output.ubuf(), output.bufSize(), sharedSecret.ubuf(), sharedSecret.bufSize(), saltBin.data(), saltBin.size(), nullptr, 0);
     return true;
 }
 
