@@ -18,6 +18,7 @@
 #endif
 #include "stringUtils.h"
 #include <mega/types.h>
+#include <mega/textchat.h>
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -1291,52 +1292,29 @@ protected:
     friend class ChatRoomList;
 };
 
-class KarereScheduledFlags
+class KarereScheduledFlags : public mega::ScheduledFlags
 {
 public:
-    typedef enum
-    {
-        FLAGS_DONT_SEND_EMAILS = 0, // API won't send out calendar emails for this meeting if it's enabled
-        FLAGS_SIZE             = 1, // size in bits of flags bitmask
-    } scheduled_flags_t;
-
-    // TODO remove
-    typedef std::bitset<FLAGS_SIZE> karereScheduledFlagsBitSet;
-
     KarereScheduledFlags (unsigned long numericValue);
     KarereScheduledFlags (const KarereScheduledFlags* flags);
     KarereScheduledFlags(const ::mega::MegaScheduledFlags* flags);
-    virtual ~KarereScheduledFlags();
-    KarereScheduledFlags* copy();
+    ~KarereScheduledFlags() override;
+    virtual KarereScheduledFlags* copy() const override;
 
     void setEmailsDisabled(const bool enabled);
-
-    // --- setters ---
     void reset();
-    bool emailsDisabled() const;
-    unsigned long getNumericValue() const;
-    bool isEmpty() const;
-    bool equalTo(::mega::MegaScheduledFlags* aux) const;
 
-private:
-    karereScheduledFlagsBitSet mFlags = 0;
+    bool emailsDisabled() const;
+
+    bool equalTo(::mega::MegaScheduledFlags* aux) const;
 };
 
-class KarereScheduledRules
+class KarereScheduledRules : public mega::ScheduledRules
 {
 public:
-    typedef enum {
-        FREQ_INVALID    = -1,
-        FREQ_DAILY      = 0,
-        FREQ_WEEKLY     = 1,
-        FREQ_MONTHLY    = 2,
-    } freq_type;
-
-    constexpr static int INTERVAL_INVALID = 0;
-
     // just for karere internal usage
-    typedef std::vector<int8_t> karere_rules_vector;
-    typedef std::multimap<int8_t, int8_t> karere_rules_map;
+    using karere_rules_vector = mega::ScheduledRules::rules_vector;
+    using karere_rules_map = mega::ScheduledRules::rules_map;
 
     KarereScheduledRules(int freq,
                    int interval = INTERVAL_INVALID,
@@ -1347,8 +1325,8 @@ public:
 
     KarereScheduledRules(const KarereScheduledRules* rules);
     KarereScheduledRules(const ::mega::MegaScheduledRules* rules);
-    virtual ~KarereScheduledRules();
-    KarereScheduledRules* copy() const;
+    ~KarereScheduledRules() override;
+    virtual KarereScheduledRules* copy() const override;
 
     void setFreq(const int freq);
     void setInterval(const int interval);
@@ -1358,43 +1336,14 @@ public:
     void setByMonthWeekDay(const karere_rules_map* byMWD);
 
     // --- getters ---
-    int freq() const;
-    int interval() const;
-    ::mega::m_time_t until() const;
-    const karere_rules_vector* byWeekDay() const;
-    const karere_rules_vector* byMonthDay() const;
-    const karere_rules_map* byMonthWeekDay() const;
     bool equalTo (const mega::MegaScheduledRules *r) const;
 
     // get a MegaScheduledRules object from KarereScheduledRules
     mega::MegaScheduledRules *getMegaScheduledRules() const;
 
-    static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
-    static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
-    static bool isValidUntil(::mega::m_time_t until) { return until > ::mega::mega_invalid_timestamp; }
-
     // --- methods to un/serialize ---
     bool serialize(Buffer& out) const;
     static KarereScheduledRules* unserialize(const Buffer& in);
-
-private:
-    // scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
-    int mFreq;
-
-    // repetition interval in relation to the frequency
-    int mInterval = 0;
-
-    // specifies when the repetitions should end
-    ::mega::m_time_t mUntil;
-
-    // allows us to specify that an event will only occur on given week day/s
-    std::unique_ptr<karere_rules_vector> mByWeekDay;
-
-    // allows us to specify that an event will only occur on a given day/s of the month
-    std::unique_ptr<karere_rules_vector> mByMonthDay;
-
-    // allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
-    std::unique_ptr<karere_rules_map> mByMonthWeekDay;
 };
 
 class KarereScheduledMeeting
@@ -1489,6 +1438,8 @@ private:
 
     // scheduled meetings rules
     std::unique_ptr<KarereScheduledRules> mRules;
+
+    std::unique_ptr<mega::ScheduledMeeting> mScheduledMeeting;
 };
 
 /**

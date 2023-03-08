@@ -5455,17 +5455,17 @@ std::string InitStats::toJson()
 }
 
 KarereScheduledFlags::KarereScheduledFlags(unsigned long numericValue)
-    : mFlags(numericValue)
+    : mega::ScheduledFlags(numericValue)
 {
 }
 
 KarereScheduledFlags::KarereScheduledFlags(const KarereScheduledFlags *flags)
-    : mFlags(flags ? flags->getNumericValue() : 0)
+    : mega::ScheduledFlags(flags ? flags->getNumericValue() : 0)
 {
 }
 
 KarereScheduledFlags::KarereScheduledFlags(const mega::MegaScheduledFlags *flags)
- : mFlags(flags ? flags->getNumericValue() : 0)
+    : mega::ScheduledFlags(flags ? flags->getNumericValue() : 0)
 {
 }
 
@@ -5473,22 +5473,16 @@ KarereScheduledFlags::~KarereScheduledFlags()
 {
 }
 
-KarereScheduledFlags* KarereScheduledFlags::copy()
+KarereScheduledFlags* KarereScheduledFlags::copy() const
 {
     return new KarereScheduledFlags(this);
 }
 
-void KarereScheduledFlags::reset()
-{
-    mFlags.reset();
-}
-
+void KarereScheduledFlags::reset()                                { mFlags.reset(); }
 void KarereScheduledFlags::setEmailsDisabled(const bool enabled)  { mFlags[FLAGS_DONT_SEND_EMAILS] = enabled; }
 bool KarereScheduledFlags::emailsDisabled() const                 { return mFlags[FLAGS_DONT_SEND_EMAILS]; }
-unsigned long KarereScheduledFlags::getNumericValue() const       { return mFlags.to_ulong(); }
-bool KarereScheduledFlags::isEmpty() const                        { return mFlags.none(); }
 
-bool KarereScheduledFlags::equalTo(::mega::MegaScheduledFlags* aux) const
+bool KarereScheduledFlags::equalTo(mega::MegaScheduledFlags* aux) const
 {
     if (!aux) { return false; }
     return getNumericValue() == aux->getNumericValue();
@@ -5501,64 +5495,34 @@ KarereScheduledRules::KarereScheduledRules(int freq,
                               const karere_rules_vector* byWeekDay,
                               const karere_rules_vector* byMonthDay,
                               const karere_rules_map* byMonthWeekDay)
-    : mFreq(isValidFreq(freq) ? freq : FREQ_INVALID),
-      mInterval(isValidInterval(interval) ? interval : INTERVAL_INVALID),
-      mUntil(isValidUntil(until) ? until : ::mega::mega_invalid_timestamp),
-      mByWeekDay(byWeekDay ? new karere_rules_vector(*byWeekDay) : nullptr),
-      mByMonthDay (byMonthDay ? new karere_rules_vector(*byMonthDay) : nullptr),
-      mByMonthWeekDay(byMonthWeekDay ? new karere_rules_map(byMonthWeekDay->begin(), byMonthWeekDay->end()) : nullptr)
+    : mega::ScheduledRules(freq, interval, until, byWeekDay, byMonthDay, byMonthWeekDay)
 {
 }
 
 KarereScheduledRules::KarereScheduledRules(const KarereScheduledRules *rules)
-    : mFreq(isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID),
-      mInterval(isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID),
-      mUntil(rules->until()),
-      mByWeekDay(rules->byWeekDay() ? new karere_rules_vector(*rules->byWeekDay()) : nullptr),
-      mByMonthDay (rules->byMonthDay() ? new karere_rules_vector(*rules->byMonthDay()) : nullptr),
-      mByMonthWeekDay(rules->byMonthWeekDay() ? new karere_rules_map(rules->byMonthWeekDay()->begin(), rules->byMonthWeekDay()->end()) : nullptr)
+    : mega::ScheduledRules(rules->freq(), rules->interval(), rules->until(),
+                           rules->byWeekDay(), rules->byMonthDay(), rules->byMonthWeekDay())
 {
 }
 
 KarereScheduledRules::KarereScheduledRules(const mega::MegaScheduledRules *rules)
+    : mega::ScheduledRules(rules->freq(), rules->interval(), rules->until(),
+                           rules->byWeekDay()
+                               ? std::unique_ptr<mega::MegaSmallIntVector>(
+                                   dynamic_cast<const mega::MegaIntegerListPrivate*>(rules->byWeekDay())->toByteList()
+                                   ).get()
+                               : nullptr,
+                           rules->byMonthDay()
+                               ? std::unique_ptr<mega::MegaSmallIntVector>(
+                                   dynamic_cast<const mega::MegaIntegerListPrivate*>(rules->byMonthDay())->toByteList()
+                                   ).get()
+                               : nullptr,
+                           rules->byMonthWeekDay()
+                               ? std::unique_ptr<mega::MegaSmallIntMap>(
+                                   dynamic_cast<const mega::MegaIntegerMapPrivate*>(rules->byMonthWeekDay())->toByteMap()
+                                   ).get()
+                               : nullptr)
 {
-    mFreq = isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID;
-    mInterval = isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID;
-    mUntil = isValidUntil(rules->until()) ? rules->until() : ::mega::mega_invalid_timestamp;
-
-    if (rules->byWeekDay() && rules->byWeekDay()->size())
-    {
-        mByWeekDay.reset(new karere_rules_vector());
-        for (int i = 0; i < rules->byWeekDay()->size(); i++)
-        {
-            mByWeekDay->emplace_back(rules->byWeekDay()->get(i));
-        }
-    }
-
-    if (rules->byMonthDay() && rules->byMonthDay()->size())
-    {
-        mByMonthDay.reset(new karere_rules_vector());
-        for (int i = 0; i < rules->byMonthDay()->size(); i++)
-        {
-            mByMonthDay->emplace_back(rules->byMonthDay()->get(i));
-        }
-    }
-
-    if (rules->byMonthWeekDay() && rules->byMonthWeekDay()->size())
-    {
-        mByMonthWeekDay.reset(new karere_rules_map());
-        std::unique_ptr<::mega::MegaIntegerList> keys(rules->byMonthWeekDay()->getKeys());
-        for (auto i = 0 ; i < keys->size(); i++)
-        {
-            int64_t key = keys->get(i);
-            std::unique_ptr<::mega::MegaIntegerList> values(rules->byMonthWeekDay()->get(key));
-            for (auto j = 0 ; j < values->size(); j++)
-            {
-                int64_t value = values->get(j);
-                mByMonthWeekDay->emplace(key, value);
-            }
-        }
-    }
 }
 
 KarereScheduledRules::~KarereScheduledRules()
@@ -5570,7 +5534,7 @@ KarereScheduledRules* KarereScheduledRules::copy() const
     return new KarereScheduledRules(this);
 }
 
-void KarereScheduledRules::setFreq(const int freq)              { mFreq = freq; }
+void KarereScheduledRules::setFreq(const int freq)              { mFreq = static_cast<mega::ScheduledRules::freq_type_t>(freq); }
 void KarereScheduledRules::setInterval(const int interval)      { mInterval = interval; }
 void KarereScheduledRules::setUntil(const mega::m_time_t until) { mUntil = until; }
 void KarereScheduledRules::setByWeekDay(const karere_rules_vector* byWD)
@@ -5585,13 +5549,6 @@ void KarereScheduledRules::setByMonthWeekDay(const karere_rules_map* byMWD)
 {
     mByMonthWeekDay.reset(byMWD ? new karere_rules_map(*byMWD) : nullptr);
 }
-
-int KarereScheduledRules::freq() const                                                      { return mFreq; }
-int KarereScheduledRules::interval() const                                                  { return mInterval; }
-mega::m_time_t KarereScheduledRules::until() const                                          { return mUntil; }
-const KarereScheduledRules::karere_rules_vector* KarereScheduledRules::byWeekDay() const    { return mByWeekDay.get(); }
-const KarereScheduledRules::karere_rules_vector* KarereScheduledRules::byMonthDay() const   { return mByMonthDay.get(); }
-const KarereScheduledRules::karere_rules_map* KarereScheduledRules::byMonthWeekDay() const  { return mByMonthWeekDay.get(); }
 
 bool KarereScheduledRules::equalTo(const ::mega::MegaScheduledRules* r) const
 {
@@ -5899,6 +5856,23 @@ KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id org
       mFlags(flags ? flags->copy() : nullptr),
       mRules(rules ? rules->copy() : nullptr)
 {
+    // mScheduledMeeting.reset(new mega::ScheduledMeeting(chatid,
+    //                                                    timezone,
+    //                                                    startDateTime,
+    //                                                    endDateTime,
+    //                                                    title,
+    //                                                    description,
+    //                                                    organizerid,
+    //                                                    schedId,
+    //                                                    parentSchedId,
+    //                                                    cancelled,
+    //                                                    attributes,
+    //                                                    overrides,
+    //                                                    nullptr,
+    //                                                    nullptr
+    //                                                    // flags,
+    //                                                    // rules
+    //                             ));
 }
 
 KarereScheduledMeeting::KarereScheduledMeeting(const KarereScheduledMeeting *scheduledMeeting)
@@ -5917,6 +5891,23 @@ KarereScheduledMeeting::KarereScheduledMeeting(const KarereScheduledMeeting *sch
       mFlags(scheduledMeeting->flags() ? new KarereScheduledFlags(scheduledMeeting->flags()) : nullptr),
       mRules(scheduledMeeting->rules() ? new KarereScheduledRules(scheduledMeeting->rules()) : nullptr)
 {
+    // mScheduledMeeting.reset(new mega::ScheduledMeeting(scheduledMeeting->chatid(),
+    //                                                    scheduledMeeting->timezone(),
+    //                                                    scheduledMeeting->startDateTime(),
+    //                                                    scheduledMeeting->endDateTime(),
+    //                                                    scheduledMeeting->title(),
+    //                                                    scheduledMeeting->description(),
+    //                                                    scheduledMeeting->organizerUserid(),
+    //                                                    scheduledMeeting->schedId(),
+    //                                                    scheduledMeeting->parentSchedId(),
+    //                                                    scheduledMeeting->cancelled(),
+    //                                                    scheduledMeeting->attributes(),
+    //                                                    scheduledMeeting->overrides(),
+    //                                                    nullptr,
+    //                                                    nullptr
+    //                                                    // scheduledMeeting->flags(),
+    //                                                    // scheduledMeeting->rules()
+    //                             ));
 }
 
 KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting *scheduledMeeting)
@@ -5938,6 +5929,28 @@ KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting 
 
     std::unique_ptr<mega::MegaScheduledRules> rules(scheduledMeeting->rules());
     mRules.reset(rules ? new KarereScheduledRules(rules.get()) : nullptr);
+
+    // mScheduledMeeting.reset(new mega::ScheduledMeeting(scheduledMeeting->chatid(),
+    //                                                    scheduledMeeting->timezone(),
+    //                                                    scheduledMeeting->startDateTime(),
+    //                                                    scheduledMeeting->endDateTime(),
+    //                                                    scheduledMeeting->title(),
+    //                                                    scheduledMeeting->description(),
+    //                                                    scheduledMeeting->organizerUserid(),
+    //                                                    scheduledMeeting->schedId(),
+    //                                                    scheduledMeeting->parentSchedId(),
+    //                                                    scheduledMeeting->cancelled(),
+    //                                                    scheduledMeeting->attributes(),
+    //                                                    scheduledMeeting->overrides(),
+    //                                                    nullptr,
+    //                                                    nullptr
+    //                                                    // scheduledMeeting->flags()
+    //                                                    // ? std::unique_ptr<KarereScheduledFlags>(new KarereScheduledFlags(scheduledMeeting->flags())).get()
+    //                                                    // : nullptr,
+    //                                                    // scheduledMeeting->rules()
+    //                                                    // ? std::unique_ptr<KarereScheduledRules>(new KarereScheduledRules(scheduledMeeting->rules())).get()
+    //                                                    // : nullptr
+    //                             ));
 }
 
 KarereScheduledMeeting* KarereScheduledMeeting::copy() const
