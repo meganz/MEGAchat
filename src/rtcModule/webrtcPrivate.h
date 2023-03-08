@@ -573,6 +573,9 @@ protected:
     // ephemeral X25519 EC key pair for current session
     std::unique_ptr<X25519KeyPair> mSessionKeyPair;
 
+    // symetric cipher for media key encryption
+    mega::SymmCipher mSymCipher;
+
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey(bool reset = false);
     // associate slots with their corresponding sessions (video)

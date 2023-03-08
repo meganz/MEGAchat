@@ -2265,15 +2265,26 @@ void Call::generateAndSendNewkey(bool reset)
         {
             // get peer Cid
             Cid_t sessionCid = session.first;
+            const sfu::Peer& peer = session.second->getPeer();
+            const rtcModule::X25519KeyPair* ephemeralKeypair = peer.getEphemeralKeyPair();
+            if (!ephemeralKeypair) // key encryption for protocol < V1
+            {
+                // encrypt key to participant
+                strongvelope::SendKey encryptedKey;
+                mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peer.getPeerid(), *newPlainKey.get(), encryptedKey);
+                keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
+            }
+            else
+            {
+                // Encrypt key for participant with it's public ephemeral key
+                mSymCipher.setkey(ephemeralKeypair->pubKey); // Arm SymCipher with public ephemeral key of peer
+                const byte* keyEncryptIv = mMyPeer->getKeyEncryptIv();
 
-            // get peer id
-            karere::Id peerId = session.second->getPeer().getPeerid();
-
-            // encrypt key to participant
-            strongvelope::SendKey encryptedKey;
-            mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peerId, *newPlainKey.get(), encryptedKey);
-
-            keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
+                std::string output;
+                std::string input (newPlainKey->buf(), newPlainKey->bufSize());
+                mSymCipher.gcm_encrypt(&input, keyEncryptIv, 12, 4 /*Bytes FRAME_GCM_TAG_LENGTH*/, &output);
+                keys[sessionCid] = mega::Base64::btoa(output);
+            }
         }
 
         mSfuConnection->sendKey(newKeyId, keys);
