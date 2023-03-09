@@ -127,7 +127,7 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
 }
 
 bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, const unsigned char* privEphemeral, strongvelope::EcKey& output,
-                                           const std::vector<std::string>& peerIvs,  const std::vector<std::string>& myIvs)
+                                           const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs)
 {
     if (peerIvs.size() < 2 || myIvs.size() < 2)
     {

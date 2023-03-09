@@ -2277,13 +2277,11 @@ void Call::generateAndSendNewkey(bool reset)
             else
             {
                 // Encrypt key for participant with it's public ephemeral key
-                mSymCipher.setkey(ephemeralKeypair->pubKey); // Arm SymCipher with public ephemeral key of peer
+                std::string encryptedKey;
                 const byte* keyEncryptIv = mMyPeer->getKeyEncryptIv();
-
-                std::string output;
-                std::string input (newPlainKey->buf(), newPlainKey->bufSize());
-                mSymCipher.gcm_encrypt(&input, keyEncryptIv, 12, 4 /*Bytes FRAME_GCM_TAG_LENGTH*/, &output);
-                keys[sessionCid] = mega::Base64::btoa(output);
+                std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
+                mSymCipher.gcm_encrypt(plainKey, ephemeralKeypair->pubKey, 32, keyEncryptIv, 12, 4, encryptedKey);
+                keys[sessionCid] = mega::Base64::btoa(encryptedKey);
             }
         }
 
