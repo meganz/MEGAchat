@@ -915,7 +915,7 @@ void Call::joinSfu()
         ivs["0"] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs["1"] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs["2"] = sfu::Command::binaryToHex(mAudio->getIv());
-        mMyPeer->makeKeyEncryptIv(mVThumb->getIv(), mHiRes->getIv());
+        mMyPeer->makeKeyEncryptIv(ivs["0"], ivs["1"]);
 
         // store ivs in MyPeer
         mMyPeer->setIvs(std::vector<std::string> { ivs["0"], ivs["1"], ivs["2"] });
@@ -2310,9 +2310,10 @@ void Call::generateAndSendNewkey(bool reset)
             {
                 // Encrypt key for participant with it's public ephemeral key
                 std::string encryptedKey;
-                const byte* keyEncryptIv = mMyPeer->getKeyEncryptIv();
                 std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                mSymCipher.gcm_encrypt(plainKey, ephemeralKeypair->pubKey, 32, keyEncryptIv, 12, 4, encryptedKey);
+                mSymCipher.gcm_encrypt(plainKey, ephemeralKeypair->pubKey, 32,
+                                       mMyPeer->getKeyEncryptIv().data(), mMyPeer->getKeyEncryptIv().size(),
+                                       kGcmTagLen, encryptedKey);
                 keys[sessionCid] = mega::Base64::btoa(encryptedKey);
             }
         }

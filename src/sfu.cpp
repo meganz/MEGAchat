@@ -104,9 +104,9 @@ Peer::Peer(const Peer &peer)
     , mAvFlags(peer.mAvFlags)
     , mEphemeralKeyPair(peer.mEphemeralKeyPair ? peer.mEphemeralKeyPair->copy() : nullptr)
     , mIvs(peer.mIvs)
+    , mKeyEncryptIv(peer.mKeyEncryptIv)
     , mIsModerator(peer.mIsModerator)
 {
-    std::copy(peer.mKeyEncryptIv, peer.mKeyEncryptIv + sizeof (peer.mKeyEncryptIv), mKeyEncryptIv);
 }
 
 void Peer::setCid(Cid_t cid)
@@ -188,18 +188,19 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
     mIvs = ivs;
 }
 
-void Peer::makeKeyEncryptIv(IvStatic_t vthumbIv, IvStatic_t hiresIv)
+void Peer::makeKeyEncryptIv(const std::string& vthumbIv, const std::string& hiresIv)
 {
-    // First 8 bytes are taken from the vthumb track IV,
-    std::copy(static_cast<const char*>(static_cast<const void*>(&vthumbIv)),
-              static_cast<const char*>(static_cast<const void*>(&vthumbIv)) + sizeof vthumbIv, mKeyEncryptIv);
+    // First 8 bytes are taken from the vthumb track IV
+    std::vector<byte> first = sfu::Command::hexToByteArray(vthumbIv);
+    std::copy(first.begin(), first.end(), std::back_inserter(mKeyEncryptIv));
 
     // The rest 4 bytes are the first from the hi-res video track IV
-    std::copy(static_cast<const char*>(static_cast<const void*>(&hiresIv)),
-              static_cast<const char*>(static_cast<const void*>(&hiresIv)) + 4, mKeyEncryptIv + 8);
+    std::vector<byte> second = sfu::Command::hexToByteArray(hiresIv);
+    std::copy(second.begin(), second.begin() + 4, std::back_inserter(mKeyEncryptIv));
+    assert(mKeyEncryptIv.size() == rtcModule::KEY_ENCRYPT_IV_LENGTH);
 }
 
-const byte* Peer::getKeyEncryptIv()
+const std::vector<byte>& Peer::getKeyEncryptIv()
 {
     return mKeyEncryptIv;
 }

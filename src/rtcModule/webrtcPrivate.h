@@ -258,6 +258,7 @@ public:
         kActive = 2,
     };
 
+    static constexpr unsigned int kGcmTagLen = 4; // length in Bytes of GCM-TAG
     static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
 
     Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);

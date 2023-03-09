@@ -63,8 +63,8 @@ public:
     const rtcModule::X25519KeyPair* getEphemeralKeyPair() const;
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
-    void makeKeyEncryptIv(IvStatic_t first, IvStatic_t second);
-    const byte* getKeyEncryptIv();
+    void makeKeyEncryptIv(const std::string &first, const std::string &second);
+    const std::vector<byte>& getKeyEncryptIv();
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid
@@ -80,7 +80,7 @@ protected:
     std::vector<std::string> mIvs;
 
     // Iv to encrypt ephemeral keys
-    byte mKeyEncryptIv[rtcModule::KEY_ENCRYPT_IV_LENGTH];
+    std::vector<byte> mKeyEncryptIv;
 
     /*
      * Moderator role for this call
