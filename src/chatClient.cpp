@@ -5837,120 +5837,65 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
 }
 
 /* class scheduledMeeting */
-KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, ::mega::m_time_t startDateTime,
-                                               ::mega::m_time_t endDateTime, const std::string& title, const std::string& description, karere::Id schedId,
-                                               karere::Id parentSchedId, int cancelled, const std::string& attributes, ::mega::m_time_t overrides,
-                                               KarereScheduledFlags* flags, KarereScheduledRules* rules)
-    : mChatid(chatid),
-      mSchedId(schedId),
-      mParentSchedId(parentSchedId),
-      mOrganizerUserId(organizerid),
-      mTimezone(timezone),
-      mStartDateTime(startDateTime),
-      mEndDateTime(endDateTime),
-      mTitle(title),
-      mDescription(description),
-      mAttributes(attributes),
-      mOverrides(overrides),
-      mCancelled(cancelled),
-      mFlags(flags ? flags->copy() : nullptr),
-      mRules(rules ? rules->copy() : nullptr)
+KarereScheduledMeeting::KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, mega::m_time_t startDateTime,
+                                               mega::m_time_t endDateTime, const std::string& title, const std::string& description, karere::Id schedId,
+                                               karere::Id parentSchedId, int cancelled, const std::string& attributes, mega::m_time_t overrides,
+                                               const KarereScheduledFlags* flags, const KarereScheduledRules* rules)
+    : mega::ScheduledMeeting(chatid,
+                             timezone,
+                             startDateTime,
+                             endDateTime,
+                             title,
+                             description,
+                             organizerid,
+                             schedId,
+                             parentSchedId,
+                             cancelled,
+                             attributes,
+                             overrides,
+                             flags,
+                             rules)
 {
-    // mScheduledMeeting.reset(new mega::ScheduledMeeting(chatid,
-    //                                                    timezone,
-    //                                                    startDateTime,
-    //                                                    endDateTime,
-    //                                                    title,
-    //                                                    description,
-    //                                                    organizerid,
-    //                                                    schedId,
-    //                                                    parentSchedId,
-    //                                                    cancelled,
-    //                                                    attributes,
-    //                                                    overrides,
-    //                                                    nullptr,
-    //                                                    nullptr
-    //                                                    // flags,
-    //                                                    // rules
-    //                             ));
 }
 
 KarereScheduledMeeting::KarereScheduledMeeting(const KarereScheduledMeeting *scheduledMeeting)
-    : mChatid(scheduledMeeting->chatid()),
-      mSchedId(scheduledMeeting->schedId()),
-      mParentSchedId(scheduledMeeting->parentSchedId()),
-      mOrganizerUserId(scheduledMeeting->organizerUserid()),
-      mTimezone(scheduledMeeting->timezone()),
-      mStartDateTime(scheduledMeeting->startDateTime()),
-      mEndDateTime(scheduledMeeting->endDateTime()),
-      mTitle(scheduledMeeting->title()),
-      mDescription(scheduledMeeting->description()),
-      mAttributes(scheduledMeeting->attributes()),
-      mOverrides(scheduledMeeting->overrides()),
-      mCancelled(scheduledMeeting->cancelled()),
-      mFlags(scheduledMeeting->flags() ? new KarereScheduledFlags(scheduledMeeting->flags()) : nullptr),
-      mRules(scheduledMeeting->rules() ? new KarereScheduledRules(scheduledMeeting->rules()) : nullptr)
+    : mega::ScheduledMeeting(scheduledMeeting->chatid(),
+                             scheduledMeeting->timezone(),
+                             scheduledMeeting->startDateTime(),
+                             scheduledMeeting->endDateTime(),
+                             scheduledMeeting->title(),
+                             scheduledMeeting->description(),
+                             scheduledMeeting->organizerUserid(),
+                             scheduledMeeting->schedId(),
+                             scheduledMeeting->parentSchedId(),
+                             scheduledMeeting->cancelled(),
+                             scheduledMeeting->attributes(),
+                             scheduledMeeting->overrides(),
+                             scheduledMeeting->flags(),
+                             scheduledMeeting->rules())
 {
-    // mScheduledMeeting.reset(new mega::ScheduledMeeting(scheduledMeeting->chatid(),
-    //                                                    scheduledMeeting->timezone(),
-    //                                                    scheduledMeeting->startDateTime(),
-    //                                                    scheduledMeeting->endDateTime(),
-    //                                                    scheduledMeeting->title(),
-    //                                                    scheduledMeeting->description(),
-    //                                                    scheduledMeeting->organizerUserid(),
-    //                                                    scheduledMeeting->schedId(),
-    //                                                    scheduledMeeting->parentSchedId(),
-    //                                                    scheduledMeeting->cancelled(),
-    //                                                    scheduledMeeting->attributes(),
-    //                                                    scheduledMeeting->overrides(),
-    //                                                    nullptr,
-    //                                                    nullptr
-    //                                                    // scheduledMeeting->flags(),
-    //                                                    // scheduledMeeting->rules()
-    //                             ));
 }
 
 KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting *scheduledMeeting)
-    : mChatid(scheduledMeeting->chatid()),
-      mSchedId(scheduledMeeting->schedId()),
-      mParentSchedId(scheduledMeeting->parentSchedId()),
-      mOrganizerUserId(scheduledMeeting->organizerUserid()),
-      mTimezone(scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string()),
-      mStartDateTime(scheduledMeeting->startDateTime()),
-      mEndDateTime(scheduledMeeting->endDateTime()),
-      mTitle(scheduledMeeting->title() ? scheduledMeeting->title() : std::string()),
-      mDescription(scheduledMeeting->description() ? scheduledMeeting->description() : std::string()),
-      mAttributes(scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string()),
-      mOverrides(scheduledMeeting->overrides()),
-      mCancelled(scheduledMeeting->cancelled())
+    : mega::ScheduledMeeting(scheduledMeeting->chatid(),
+                             scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string(),
+                             scheduledMeeting->startDateTime(),
+                             scheduledMeeting->endDateTime(),
+                             scheduledMeeting->title() ? scheduledMeeting->title() : std::string(),
+                             scheduledMeeting->description() ? scheduledMeeting->description() : std::string(),
+                             scheduledMeeting->organizerUserid(),
+                             scheduledMeeting->schedId(),
+                             scheduledMeeting->parentSchedId(),
+                             scheduledMeeting->cancelled(),
+                             scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string(),
+                             scheduledMeeting->overrides(),
+                             scheduledMeeting->flags()
+                             ? std::unique_ptr<KarereScheduledFlags>(new KarereScheduledFlags(scheduledMeeting->flags())).get()
+                             : nullptr,
+                             scheduledMeeting->rules()
+                             ? std::unique_ptr<KarereScheduledRules>(new KarereScheduledRules(scheduledMeeting->rules())).get()
+                             : nullptr)
 {
-    std::unique_ptr<mega::MegaScheduledFlags> flags(scheduledMeeting->flags());
-    mFlags.reset(flags ? new KarereScheduledFlags(flags.get()) : nullptr);
-
-    std::unique_ptr<mega::MegaScheduledRules> rules(scheduledMeeting->rules());
-    mRules.reset(rules ? new KarereScheduledRules(rules.get()) : nullptr);
-
-    // mScheduledMeeting.reset(new mega::ScheduledMeeting(scheduledMeeting->chatid(),
-    //                                                    scheduledMeeting->timezone(),
-    //                                                    scheduledMeeting->startDateTime(),
-    //                                                    scheduledMeeting->endDateTime(),
-    //                                                    scheduledMeeting->title(),
-    //                                                    scheduledMeeting->description(),
-    //                                                    scheduledMeeting->organizerUserid(),
-    //                                                    scheduledMeeting->schedId(),
-    //                                                    scheduledMeeting->parentSchedId(),
-    //                                                    scheduledMeeting->cancelled(),
-    //                                                    scheduledMeeting->attributes(),
-    //                                                    scheduledMeeting->overrides(),
-    //                                                    nullptr,
-    //                                                    nullptr
-    //                                                    // scheduledMeeting->flags()
-    //                                                    // ? std::unique_ptr<KarereScheduledFlags>(new KarereScheduledFlags(scheduledMeeting->flags())).get()
-    //                                                    // : nullptr,
-    //                                                    // scheduledMeeting->rules()
-    //                                                    // ? std::unique_ptr<KarereScheduledRules>(new KarereScheduledRules(scheduledMeeting->rules())).get()
-    //                                                    // : nullptr
-    //                             ));
 }
 
 KarereScheduledMeeting* KarereScheduledMeeting::copy() const
@@ -5962,47 +5907,35 @@ KarereScheduledMeeting::~KarereScheduledMeeting()
 {
 }
 
-karere::Id KarereScheduledMeeting::chatid() const                         { return mChatid; }
-karere::Id KarereScheduledMeeting::schedId() const                        { return mSchedId; }
-karere::Id KarereScheduledMeeting::parentSchedId() const                  { return mParentSchedId; }
-karere::Id KarereScheduledMeeting::organizerUserid() const                { return mOrganizerUserId; }
-const std::string& KarereScheduledMeeting::timezone() const               { return mTimezone; }
-::mega::m_time_t KarereScheduledMeeting::startDateTime() const            { return mStartDateTime; }
-::mega::m_time_t KarereScheduledMeeting::endDateTime() const              { return mEndDateTime; }
-const std::string& KarereScheduledMeeting::title() const                  { return mTitle; }
-const std::string& KarereScheduledMeeting::description() const            { return mDescription; }
-const std::string& KarereScheduledMeeting::attributes() const             { return mAttributes; }
-::mega::m_time_t KarereScheduledMeeting::overrides() const                { return mOverrides; }
-int KarereScheduledMeeting::cancelled() const                             { return mCancelled; }
-KarereScheduledFlags* KarereScheduledMeeting::flags() const               { return mFlags.get(); }
-KarereScheduledRules* KarereScheduledMeeting::rules() const               { return mRules.get(); }
+const KarereScheduledFlags* KarereScheduledMeeting::flags() const { return dynamic_cast<const KarereScheduledFlags*>(mega::ScheduledMeeting::flags()); }
+const KarereScheduledRules* KarereScheduledMeeting::rules() const { return dynamic_cast<const KarereScheduledRules*>(mega::ScheduledMeeting::rules()); }
 
 KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::MegaScheduledMeeting* sm) const
 {
     // scheduled meeting Handle and chatid can't change
     sched_bs_t bs = 0;
-    if (parentSchedId() != sm->parentSchedId())                                             { bs[SC_PARENT] = 1; }
-    if (timezone().compare(sm->timezone() ? sm->timezone() : std::string()))                { bs[SC_TZONE] = 1; }
-    if (cancelled() != sm->cancelled())                                                     { bs[SC_CANC] = 1; }
-    if (mStartDateTime != sm->startDateTime())                                              { bs[SC_START] = 1; }
-    if (mEndDateTime != sm->endDateTime())                                                  { bs[SC_END] = 1; }
-    if (mTitle.compare(sm->title() ? sm->title(): std::string()))                           { bs[SC_TITLE] = 1; }
-    if (mDescription.compare(sm->description() ? sm->description(): std::string()))         { bs[SC_DESC] = 1; }
-    if (mAttributes.compare(sm->attributes() ? sm->attributes(): std::string()))            { bs[SC_ATTR] = 1; }
-    if (mOverrides != sm->overrides())                                                      { bs[SC_OVERR] = 1; }
+    if (parentSchedId() != sm->parentSchedId())                                      { bs[SC_PARENT] = 1; }
+    if (timezone().compare(sm->timezone() ? sm->timezone() : std::string()))         { bs[SC_TZONE] = 1; }
+    if (cancelled() != sm->cancelled())                                              { bs[SC_CANC] = 1; }
+    if (startDateTime() != sm->startDateTime())                                      { bs[SC_START] = 1; }
+    if (endDateTime() != sm->endDateTime())                                          { bs[SC_END] = 1; }
+    if (title().compare(sm->title() ? sm->title(): std::string()))                   { bs[SC_TITLE] = 1; }
+    if (description().compare(sm->description() ? sm->description(): std::string())) { bs[SC_DESC] = 1; }
+    if (attributes().compare(sm->attributes() ? sm->attributes(): std::string()))    { bs[SC_ATTR] = 1; }
+    if (overrides() != sm->overrides())                                              { bs[SC_OVERR] = 1; }
 
     std::unique_ptr<mega::MegaScheduledFlags> smFlags(sm->flags());
     if (flags() || smFlags)
     {
-        if (!flags() || !smFlags)                                                           { bs[SC_FLAGS] = 1; }
-        else if (!flags()->equalTo(smFlags.get()))                                          { bs[SC_FLAGS] = 1; }
+        if (!flags() || !smFlags)                                                    { bs[SC_FLAGS] = 1; }
+        else if (!flags()->equalTo(smFlags.get()))                                   { bs[SC_FLAGS] = 1; }
     }
 
     std::unique_ptr<mega::MegaScheduledRules> smRules(sm->rules());
     if (rules() || smRules)
     {
-        if (!rules() || !smRules)                                                           { bs[SC_RULES] = 1; }
-        else if (!rules()->equalTo(smRules.get()))                                          { bs[SC_RULES] = 1; }
+        if (!rules() || !smRules)                                                    { bs[SC_RULES] = 1; }
+        else if (!rules()->equalTo(smRules.get()))                                   { bs[SC_RULES] = 1; }
     }
     return bs;
 }
