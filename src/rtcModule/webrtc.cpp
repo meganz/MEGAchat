@@ -1341,6 +1341,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                     else
                     {
                         RTCM_LOG_ERROR("SFU_V1: derived ephemeral key is ill-formed");
+                        return;
                     }
                 }
                 else
@@ -1710,6 +1711,37 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
 
         bool isModerator = mModerators.find(userid) != mModerators.end();
         sfu::Peer peer(userid, static_cast<unsigned>(av), ivs, cid, isModerator);
+        strongvelope::EcKey out;
+        const rtcModule::X25519KeyPair* ephkeypair = mMyPeer->getEphemeralKeyPair();
+        if (ephkeypair)
+        {
+            // derive peer public ephemeral key with our private ephemeral key
+            if (mSfuClient.getRtcCryptoMeetings()->deriveEphemeralKey(parsedkey.first, ephkeypair->privKey, out, ivs, mMyPeer->getIvs()))
+            {
+                if (out.bufSize() == X25519_PUB_KEY_LEN)
+                {
+                    rtcModule::X25519KeyPair derivedKeyPair(strongvelope::EcKey(), out);
+                    peer.setEphemeralKeyPair(&derivedKeyPair);
+                }
+                else
+                {
+                    RTCM_LOG_ERROR("SFU_V1: derived ephemeral key is ill-formed upon PEERJOIN");
+                    return;
+                }
+            }
+            else
+            {
+                RTCM_LOG_ERROR("SFU_V1: Could not derive ephemeral key (upon PEERJOIN) for peer Cid: %d PeerId: %s", peer.getCid(), peer.getPeerid().toString().c_str());
+                return;
+            }
+        }
+        else if (mSfuClient.getSfuVersion() >= 1)
+        {
+            assert(false);
+            RTCM_LOG_ERROR("SFU protocol is V1 or greater and we don't have private ephemeral key stored (PEERJOIN)");
+            return;
+        }
+
         mSessions[cid] = ::mega::make_unique<Session>(peer);
         mCallHandler.onNewSession(*mSessions[cid], *this);
 
