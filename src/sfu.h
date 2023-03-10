@@ -40,7 +40,7 @@ public:
 class Peer
 {
 public:
-    Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string>& ivs, Cid_t cid = 0, bool isModerator = false);
+    Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string>& ivs, bool ownPeer, Cid_t cid = 0, bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -64,6 +64,7 @@ public:
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
     void makeKeyEncryptIv(const std::string &first, const std::string &second);
+    void makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv);
     const std::vector<byte>& getKeyEncryptIv();
 
 protected:
@@ -81,6 +82,9 @@ protected:
 
     // Iv to encrypt ephemeral keys
     std::vector<byte> mKeyEncryptIv;
+
+    // Iv to decrcrypt ephemeral keys
+    std::vector<byte> mKeyDecryptIv;
 
     /*
      * Moderator role for this call

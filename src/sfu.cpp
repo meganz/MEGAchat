@@ -89,13 +89,17 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-Peer::Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string> &ivs, Cid_t cid, bool isModerator)
+Peer::Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string> &ivs, bool ownPeer, Cid_t cid, bool isModerator)
     : mCid(cid),
       mPeerid(peerid),
       mAvFlags(static_cast<uint8_t>(avFlags)),
       mIvs(ivs),
       mIsModerator(isModerator)
 {
+    if (!ownPeer)
+    {
+       makeKeyDecryptIv(ivs[0], ivs[1]);
+    }
 }
 
 Peer::Peer(const Peer &peer)
@@ -198,6 +202,18 @@ void Peer::makeKeyEncryptIv(const std::string& vthumbIv, const std::string& hire
     std::vector<byte> second = sfu::Command::hexToByteArray(hiresIv);
     std::copy(second.begin(), second.begin() + 4, std::back_inserter(mKeyEncryptIv));
     assert(mKeyEncryptIv.size() == rtcModule::KEY_ENCRYPT_IV_LENGTH);
+}
+
+void Peer::makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv)
+{
+    // First 8 bytes are taken from the vthumb track IV
+    std::vector<byte> first = sfu::Command::hexToByteArray(vthumbIv);
+    std::copy(first.begin(), first.end(), std::back_inserter(mKeyDecryptIv));
+
+    // The rest 4 bytes are the first from the hi-res video track IV
+    std::vector<byte> second = sfu::Command::hexToByteArray(hiresIv);
+    std::copy(second.begin(), second.begin() + 4, std::back_inserter(mKeyDecryptIv));
+    assert(mKeyDecryptIv.size() == rtcModule::KEY_ENCRYPT_IV_LENGTH);
 }
 
 const std::vector<byte>& Peer::getKeyEncryptIv()
@@ -534,7 +550,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
 
             bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
-            peers.push_back(Peer(userId, av, ivs, cid, isModerator));
+            peers.push_back(Peer(userId, av, ivs, false /*ownPeer*/, cid, isModerator));
         }
         else
         {
