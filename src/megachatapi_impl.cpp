@@ -8480,145 +8480,72 @@ void MegaChatRoomListPrivate::addChatRoom(MegaChatRoom *chat)
     mList.push_back(chat);
 }
 
-/* Class MegaChatScheduledFlagsPrivate */
 MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate()
-    : mKScheduledFlags(new karere::KarereScheduledFlags(0ul))
-{
-}
+    : mKScheduledFlags(std::make_unique<karere::KarereScheduledFlags>())
+{}
 
-MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(unsigned long numericValue)
-    : mKScheduledFlags(new karere::KarereScheduledFlags(numericValue))
-{
-}
+MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(const unsigned long numericValue)
+    : mKScheduledFlags(std::make_unique<karere::KarereScheduledFlags>(numericValue))
+{}
 
-MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(const MegaChatScheduledFlagsPrivate* flags)
-    : mKScheduledFlags(new karere::KarereScheduledFlags(flags ? flags->getNumericValue() : 0))
-{
-}
+MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(const MegaChatScheduledFlagsPrivate* mcsfp)
+    : mKScheduledFlags(mcsfp->getKarereScheduledFlags())
+{}
 
-MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(const karere::KarereScheduledFlags* flags)
-    : mKScheduledFlags(new karere::KarereScheduledFlags(flags ? flags->getNumericValue() : 0))
-{
-}
+MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(const karere::KarereScheduledFlags* ksf)
+    : mKScheduledFlags(ksf->copy())
+{}
 
-MegaChatScheduledFlagsPrivate::~MegaChatScheduledFlagsPrivate()
-{
+void MegaChatScheduledFlagsPrivate::reset()                          { mKScheduledFlags->reset(); }
+void MegaChatScheduledFlagsPrivate::setEmailsDisabled(bool enabled)  { mKScheduledFlags->setEmailsDisabled(enabled); }
 
-}
-
-MegaChatScheduledFlagsPrivate* MegaChatScheduledFlagsPrivate::copy() const
-{
-    return new MegaChatScheduledFlagsPrivate(this);
-}
-
-void MegaChatScheduledFlagsPrivate::reset()
-{
-    mKScheduledFlags->reset();
-}
-
-void MegaChatScheduledFlagsPrivate::setEmailsDisabled(bool enabled)
-{
-    mKScheduledFlags->setEmailsDisabled(enabled);
-}
-
-unsigned long MegaChatScheduledFlagsPrivate::getNumericValue() const       { return mKScheduledFlags->getNumericValue();}
-bool MegaChatScheduledFlagsPrivate::emailsDisabled() const                 { return mKScheduledFlags->emailsDisabled(); }
-bool MegaChatScheduledFlagsPrivate::isEmpty() const                        { return mKScheduledFlags->isEmpty(); }
+unsigned long MegaChatScheduledFlagsPrivate::getNumericValue() const { return mKScheduledFlags->getNumericValue();}
+bool MegaChatScheduledFlagsPrivate::emailsDisabled() const           { return mKScheduledFlags->emailsDisabled(); }
+bool MegaChatScheduledFlagsPrivate::isEmpty() const                  { return mKScheduledFlags->isEmpty(); }
 
 std::unique_ptr<karere::KarereScheduledFlags> MegaChatScheduledFlagsPrivate::getKarereScheduledFlags() const
 {
     return std::make_unique<karere::KarereScheduledFlags>(mKScheduledFlags.get());
 }
 
-/* Class MegaChatScheduledRulesPrivate */
-MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(int freq,
-                              int interval,
-                              MegaChatTimeStamp until,
-                              const mega::MegaIntegerList* byWeekDay,
-                              const mega::MegaIntegerList* byMonthDay,
-                              const mega::MegaIntegerMap* byMonthWeekDay)
-    : mKScheduledRules(new karere::KarereScheduledRules(
+MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const int freq, const int interval,
+                                                             const MegaChatTimeStamp until,
+                                                             const mega::MegaIntegerList* byWeekDay,
+                                                             const mega::MegaIntegerList* byMonthDay,
+                                                             const mega::MegaIntegerMap* byMonthWeekDay)
+    : mKScheduledRules(std::make_unique<karere::KarereScheduledRules>(
                            isValidFreq(freq) ? freq : FREQ_INVALID,
                            isValidInterval(interval) ? interval : INTERVAL_INVALID,
                            isValidUntil(until) ? until : MEGACHAT_INVALID_TIMESTAMP,
-                           byWeekDay
-                               ? std::unique_ptr<mega::MegaSmallIntVector>(
+                           byWeekDay ? std::unique_ptr<mega::MegaSmallIntVector>(
                                    dynamic_cast<const mega::MegaIntegerListPrivate*>(byWeekDay)->toByteList()
                                    ).get()
                                : nullptr,
-                           byMonthDay
-                               ? std::unique_ptr<mega::MegaSmallIntVector>(
+                           byMonthDay ? std::unique_ptr<mega::MegaSmallIntVector>(
                                    dynamic_cast<const mega::MegaIntegerListPrivate*>(byMonthDay)->toByteList()
                                    ).get()
                                : nullptr,
-                           byMonthWeekDay
-                               ? std::unique_ptr<mega::MegaSmallIntMap>(
+                           byMonthWeekDay ? std::unique_ptr<mega::MegaSmallIntMap>(
                                    dynamic_cast<const mega::MegaIntegerMapPrivate*>(byMonthWeekDay)->toByteMap()
                                    ).get()
                                : nullptr))
-{
-}
+{}
 
-MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const MegaChatScheduledRulesPrivate* rules)
-    : mKScheduledRules(new karere::KarereScheduledRules(
-                           isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID,
-                           isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID,
-                           isValidUntil(rules->until()) ? rules->until() : MEGACHAT_INVALID_TIMESTAMP,
-                           rules->byWeekDay()
-                               ? std::unique_ptr<mega::MegaSmallIntVector>(
-                                   dynamic_cast<const mega::MegaIntegerListPrivate*>(rules->byWeekDay())->toByteList()
-                                   ).get()
-                               : nullptr,
-                           rules->byMonthDay()
-                               ? std::unique_ptr<mega::MegaSmallIntVector>(
-                                   dynamic_cast<const mega::MegaIntegerListPrivate*>(rules->byMonthDay())->toByteList()
-                                   ).get()
-                               : nullptr,
-                           rules->byMonthWeekDay()
-                               ? std::unique_ptr<mega::MegaSmallIntMap>(
-                                   dynamic_cast<const mega::MegaIntegerMapPrivate*>(rules->byMonthWeekDay())->toByteMap()
-                                   ).get()
-                               : nullptr))
-{
-}
+MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const MegaChatScheduledRulesPrivate* mcsrp)
+    : mKScheduledRules(mcsrp->getKarereScheduledRules())
+{}
 
-MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const karere::KarereScheduledRules* rules)
-    : mKScheduledRules(new karere::KarereScheduledRules(
-                           isValidFreq(rules->freq()) ? rules->freq() : FREQ_INVALID,
-                           isValidInterval(rules->interval()) ? rules->interval() : INTERVAL_INVALID,
-                           isValidUntil(rules->until()) ? rules->until() : MEGACHAT_INVALID_TIMESTAMP,
-                           rules->byWeekDay(),
-                           rules->byMonthDay(),
-                           rules->byMonthWeekDay()))
-{
-}
+MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const karere::KarereScheduledRules* ksr)
+    : mKScheduledRules(ksr->copy())
+{}
 
-MegaChatScheduledRulesPrivate::~MegaChatScheduledRulesPrivate()
-{
-}
-
-MegaChatScheduledRulesPrivate* MegaChatScheduledRulesPrivate::copy() const
-{
-    return new MegaChatScheduledRulesPrivate(this);
-}
-
-void MegaChatScheduledRulesPrivate::setFreq(int freq)
-{
-    mKScheduledRules->setFreq(freq);
-}
-void MegaChatScheduledRulesPrivate::setInterval(int interval)
-{
-    mKScheduledRules->setInterval(interval);
-}
-void MegaChatScheduledRulesPrivate::setUntil(MegaChatTimeStamp until)
-{
-    mKScheduledRules->setUntil(until);
-}
+void MegaChatScheduledRulesPrivate::setFreq(int freq)                 { mKScheduledRules->setFreq(freq); }
+void MegaChatScheduledRulesPrivate::setInterval(int interval)         { mKScheduledRules->setInterval(interval); }
+void MegaChatScheduledRulesPrivate::setUntil(MegaChatTimeStamp until) { mKScheduledRules->setUntil(until); }
 
 void MegaChatScheduledRulesPrivate::setByWeekDay(const mega::MegaIntegerList* byWeekDay)
 {
-    mKScheduledRules->setByWeekDay(byWeekDay
-                                   ? std::unique_ptr<mega::MegaSmallIntVector>(
+    mKScheduledRules->setByWeekDay(byWeekDay ? std::unique_ptr<mega::MegaSmallIntVector>(
                                        dynamic_cast<const mega::MegaIntegerListPrivate*>(byWeekDay)->toByteList()
                                        ).get()
                                    : nullptr);
@@ -8626,8 +8553,7 @@ void MegaChatScheduledRulesPrivate::setByWeekDay(const mega::MegaIntegerList* by
 
 void MegaChatScheduledRulesPrivate::setByMonthDay(const mega::MegaIntegerList* byMonthDay)
 {
-    mKScheduledRules->setByMonthDay(byMonthDay
-                                    ? std::unique_ptr<mega::MegaSmallIntVector>(
+    mKScheduledRules->setByMonthDay(byMonthDay ? std::unique_ptr<mega::MegaSmallIntVector>(
                                         dynamic_cast<const mega::MegaIntegerListPrivate*>(byMonthDay)->toByteList()
                                         ).get()
                                     : nullptr);
@@ -8635,20 +8561,20 @@ void MegaChatScheduledRulesPrivate::setByMonthDay(const mega::MegaIntegerList* b
 
 void MegaChatScheduledRulesPrivate::setByMonthWeekDay(const mega::MegaIntegerMap* byMonthWeekDay)
 {
-    mKScheduledRules->setByMonthWeekDay(byMonthWeekDay
-                                        ? std::unique_ptr<mega::MegaSmallIntMap>(
+    mKScheduledRules->setByMonthWeekDay(byMonthWeekDay ? std::unique_ptr<mega::MegaSmallIntMap>(
                                             dynamic_cast<const mega::MegaIntegerMapPrivate*>(byMonthWeekDay)->toByteMap()
                                             ).get()
                                         : nullptr);
 }
 
-int MegaChatScheduledRulesPrivate::freq() const                                     { return mKScheduledRules->freq(); }
-int MegaChatScheduledRulesPrivate::interval() const                                 { return mKScheduledRules->interval(); }
-MegaChatTimeStamp MegaChatScheduledRulesPrivate::until() const                      { return mKScheduledRules->until(); }
+int MegaChatScheduledRulesPrivate::freq() const                { return mKScheduledRules->freq(); }
+int MegaChatScheduledRulesPrivate::interval() const            { return mKScheduledRules->interval(); }
+MegaChatTimeStamp MegaChatScheduledRulesPrivate::until() const { return mKScheduledRules->until(); }
 
+//// internal local utilities (to be removed once MegaChatAPI homogenizes with MegaAPI)
 template <typename T, typename P>
 bool areMegaIntegersEqual(const T& lhs, const P& rhs)
-{
+{   // int64_t because it's the type used in mega::MegaInteger{List|Map}
     if (lhs.size() != rhs.size()) { return false; }
 
     if constexpr (std::is_same<T, mega::MegaSmallIntVector>::value
@@ -8685,17 +8611,14 @@ bool areMegaIntegersEqual(const T& lhs, const P& rhs)
 template <typename T, typename P>
 void updateIfDifferent(const T* src, std::unique_ptr<P>& dst)
 {
-    if (!src)
-    {
-        dst.reset(nullptr);
-    }
+    if (!src) { dst.reset(nullptr); }
     else
     {
         if constexpr (std::is_same<P, mega::MegaIntegerList>::value)
         {
             const auto ilp = dynamic_cast<const mega::MegaIntegerListPrivate*>(dst.get());
             assert(ilp);
-            if (!dst || !areMegaIntegersEqual(*src, *(ilp->getList())))
+            if (ilp && (!dst || !areMegaIntegersEqual(*src, *(ilp->getList()))))
             {
                 dst.reset(new mega::MegaIntegerListPrivate(*src));
             }
@@ -8705,13 +8628,14 @@ void updateIfDifferent(const T* src, std::unique_ptr<P>& dst)
         {
             const auto imp = dynamic_cast<const mega::MegaIntegerMapPrivate*>(dst.get());
             assert(imp);
-            if (!dst || !areMegaIntegersEqual(*src, *(imp->getMap())))
+            if (imp && (!dst || !areMegaIntegersEqual(*src, *(imp->getMap()))))
             {
                 dst.reset(new mega::MegaIntegerMapPrivate(*src));
             }
         }
     }
 }
+////
 
 const mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byWeekDay()  const
 {
@@ -8739,95 +8663,36 @@ std::unique_ptr<karere::KarereScheduledRules> MegaChatScheduledRulesPrivate::get
     return std::make_unique<karere::KarereScheduledRules>(mKScheduledRules.get());
 }
 
-/* Class MegaChatScheduledMeetingPrivate */
-MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(MegaChatHandle chatid, const char* timezone, MegaChatTimeStamp startDateTime, MegaChatTimeStamp endDateTime,
-                                                                  const char* title, const char* description, MegaChatHandle schedId, MegaChatHandle parentSchedId,
-                                                                  MegaChatHandle organizerUserId, int cancelled, const char* attributes, MegaChatTimeStamp overrides,
-                                                                  const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules)
-    : mKScheduledMeeting(new karere::KarereScheduledMeeting(
-                             chatid,
-                             organizerUserId,
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatHandle chatid, const char* timezone,
+                                                                 const MegaChatTimeStamp startDateTime,
+                                                                 const MegaChatTimeStamp endDateTime, const char* title,
+                                                                 const char* description, const MegaChatHandle schedId,
+                                                                 const MegaChatHandle parentSchedId,
+                                                                 const MegaChatHandle organizerUserId, const int cancelled,
+                                                                 const char* attributes, const MegaChatTimeStamp overrides,
+                                                                 const MegaChatScheduledFlags *flags, const MegaChatScheduledRules *rules)
+    : mKScheduledMeeting(std::make_unique<karere::KarereScheduledMeeting>(
+                             chatid, organizerUserId,
                              timezone ? timezone : std::string(),
-                             startDateTime,
-                             endDateTime,
+                             startDateTime, endDateTime,
                              title ? title : std::string(),
                              description ? description : std::string(),
-                             schedId,
-                             parentSchedId,
-                             cancelled,
+                             schedId, parentSchedId, cancelled,
                              attributes ? attributes : std::string(),
                              overrides,
-                             flags
-                                 ? dynamic_cast<const MegaChatScheduledFlagsPrivate*>(flags)->getKarereScheduledFlags().get()
+                             flags ? dynamic_cast<const MegaChatScheduledFlagsPrivate*>(flags)->getKarereScheduledFlags().get()
                                  : nullptr,
-                             rules
-                                 ? dynamic_cast<const MegaChatScheduledRulesPrivate*>(rules)->getKarereScheduledRules().get()
+                             rules ? dynamic_cast<const MegaChatScheduledRulesPrivate*>(rules)->getKarereScheduledRules().get()
                                  : nullptr))
-{
-}
+{}
 
-MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate* scheduledMeeting)
-    : mKScheduledMeeting(new karere::KarereScheduledMeeting(
-                             scheduledMeeting->chatId(),
-                             scheduledMeeting->organizerUserId(),
-                             scheduledMeeting->timezone() ? scheduledMeeting->timezone() : std::string(),
-                             scheduledMeeting->startDateTime(),
-                             scheduledMeeting->endDateTime(),
-                             scheduledMeeting->title() ? scheduledMeeting->title() : std::string(),
-                             scheduledMeeting->description() ? scheduledMeeting->description() : std::string(),
-                             scheduledMeeting->schedId(),
-                             scheduledMeeting->parentSchedId(),
-                             scheduledMeeting->cancelled(),
-                             scheduledMeeting->attributes() ? scheduledMeeting->attributes() : std::string(),
-                             scheduledMeeting->overrides(),
-                             scheduledMeeting->flags()
-                                 ? dynamic_cast<const MegaChatScheduledFlagsPrivate*>(scheduledMeeting->flags()
-                                     )->getKarereScheduledFlags().get()
-                                 : nullptr,
-                             scheduledMeeting->rules()
-                                 ? dynamic_cast<const MegaChatScheduledRulesPrivate*>(scheduledMeeting->rules()
-                                     )->getKarereScheduledRules().get()
-                                 : nullptr))
-{
-}
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate* mcsmp)
+    : mKScheduledMeeting(mcsmp->mKScheduledMeeting->copy())
+{}
 
-MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* scheduledMeeting)
-    : mKScheduledMeeting(new karere::KarereScheduledMeeting(
-                             scheduledMeeting->chatid(),
-                             scheduledMeeting->organizerUserid(),
-                             scheduledMeeting->timezone(),
-                             scheduledMeeting->startDateTime(),
-                             scheduledMeeting->endDateTime(),
-                             scheduledMeeting->title(),
-                             scheduledMeeting->description(),
-                             scheduledMeeting->schedId(),
-                             scheduledMeeting->parentSchedId(),
-                             scheduledMeeting->cancelled(),
-                             scheduledMeeting->attributes(),
-                             scheduledMeeting->overrides(),
-                             scheduledMeeting->flags() ? scheduledMeeting->flags() : nullptr,
-                             scheduledMeeting->rules() ? scheduledMeeting->rules() : nullptr))
-{
-}
-
-MegaChatScheduledMeetingPrivate::~MegaChatScheduledMeetingPrivate()
-{
-}
-
-MegaChatScheduledMeetingPrivate* MegaChatScheduledMeetingPrivate::copy() const
-{
-   return new MegaChatScheduledMeetingPrivate(this);
-}
-
-void MegaChatScheduledMeetingPrivate::setChanged(unsigned long val)
-{
-    mChanged = megachat_sched_bs_t(val);
-}
-
-MegaChatScheduledMeetingPrivate::megachat_sched_bs_t MegaChatScheduledMeetingPrivate::getChanged() const
-{
-    return mChanged;
-}
+MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* ksm)
+    : mKScheduledMeeting(ksm->copy())
+{}
 
 MegaChatHandle MegaChatScheduledMeetingPrivate::chatId() const                { return mKScheduledMeeting->chatid();}
 MegaChatHandle MegaChatScheduledMeetingPrivate::schedId() const               { return mKScheduledMeeting->schedId();}
@@ -8847,6 +8712,7 @@ bool MegaChatScheduledMeetingPrivate::isDeleted() const                       { 
 
 MegaChatScheduledFlags* MegaChatScheduledMeetingPrivate::flags() const
 {
+    // flags can only be set during construction, we can choke the temporal value here instead of all the ctors
     const auto pKSF = mKScheduledMeeting->flags();
     if (pKSF && !mTransformedMCSFlags)
     {
@@ -8856,6 +8722,7 @@ MegaChatScheduledFlags* MegaChatScheduledMeetingPrivate::flags() const
 }
 MegaChatScheduledRules* MegaChatScheduledMeetingPrivate::rules() const
 {
+    // rules can only be set during construction, we can choke the temporal value here instead of all the ctors
     const auto pKSR = mKScheduledMeeting->rules();
     if (pKSR && !mTransformedMCSRules)
     {
