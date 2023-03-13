@@ -8510,23 +8510,23 @@ std::unique_ptr<karere::KarereScheduledFlags> MegaChatScheduledFlagsPrivate::get
 
 MegaChatScheduledRulesPrivate::MegaChatScheduledRulesPrivate(const int freq, const int interval,
                                                              const MegaChatTimeStamp until,
-                                                             const mega::MegaIntegerList* byWeekDay,
-                                                             const mega::MegaIntegerList* byMonthDay,
-                                                             const mega::MegaIntegerMap* byMonthWeekDay)
+                                                             const ::mega::MegaIntegerList* byWeekDay,
+                                                             const ::mega::MegaIntegerList* byMonthDay,
+                                                             const ::mega::MegaIntegerMap* byMonthWeekDay)
     : mKScheduledRules(std::make_unique<karere::KarereScheduledRules>(
                            isValidFreq(freq) ? freq : FREQ_INVALID,
                            isValidInterval(interval) ? interval : INTERVAL_INVALID,
                            isValidUntil(until) ? until : MEGACHAT_INVALID_TIMESTAMP,
-                           byWeekDay ? std::unique_ptr<mega::MegaSmallIntVector>(
-                                   dynamic_cast<const mega::MegaIntegerListPrivate*>(byWeekDay)->toByteList()
+                           byWeekDay ? std::unique_ptr<::mega::MegaSmallIntVector>(
+                                   dynamic_cast<const ::mega::MegaIntegerListPrivate*>(byWeekDay)->toByteList()
                                    ).get()
                                : nullptr,
-                           byMonthDay ? std::unique_ptr<mega::MegaSmallIntVector>(
-                                   dynamic_cast<const mega::MegaIntegerListPrivate*>(byMonthDay)->toByteList()
+                           byMonthDay ? std::unique_ptr<::mega::MegaSmallIntVector>(
+                                   dynamic_cast<const ::mega::MegaIntegerListPrivate*>(byMonthDay)->toByteList()
                                    ).get()
                                : nullptr,
-                           byMonthWeekDay ? std::unique_ptr<mega::MegaSmallIntMap>(
-                                   dynamic_cast<const mega::MegaIntegerMapPrivate*>(byMonthWeekDay)->toByteMap()
+                           byMonthWeekDay ? std::unique_ptr<::mega::MegaSmallIntMap>(
+                                   dynamic_cast<const ::mega::MegaIntegerMapPrivate*>(byMonthWeekDay)->toByteMap()
                                    ).get()
                                : nullptr))
 {}
@@ -8543,26 +8543,26 @@ void MegaChatScheduledRulesPrivate::setFreq(int freq)                 { mKSchedu
 void MegaChatScheduledRulesPrivate::setInterval(int interval)         { mKScheduledRules->setInterval(interval); }
 void MegaChatScheduledRulesPrivate::setUntil(MegaChatTimeStamp until) { mKScheduledRules->setUntil(until); }
 
-void MegaChatScheduledRulesPrivate::setByWeekDay(const mega::MegaIntegerList* byWeekDay)
+void MegaChatScheduledRulesPrivate::setByWeekDay(const ::mega::MegaIntegerList* byWeekDay)
 {
-    mKScheduledRules->setByWeekDay(byWeekDay ? std::unique_ptr<mega::MegaSmallIntVector>(
-                                       dynamic_cast<const mega::MegaIntegerListPrivate*>(byWeekDay)->toByteList()
+    mKScheduledRules->setByWeekDay(byWeekDay ? std::unique_ptr<::mega::MegaSmallIntVector>(
+                                       dynamic_cast<const ::mega::MegaIntegerListPrivate*>(byWeekDay)->toByteList()
                                        ).get()
                                    : nullptr);
 }
 
-void MegaChatScheduledRulesPrivate::setByMonthDay(const mega::MegaIntegerList* byMonthDay)
+void MegaChatScheduledRulesPrivate::setByMonthDay(const ::mega::MegaIntegerList* byMonthDay)
 {
-    mKScheduledRules->setByMonthDay(byMonthDay ? std::unique_ptr<mega::MegaSmallIntVector>(
-                                        dynamic_cast<const mega::MegaIntegerListPrivate*>(byMonthDay)->toByteList()
+    mKScheduledRules->setByMonthDay(byMonthDay ? std::unique_ptr<::mega::MegaSmallIntVector>(
+                                        dynamic_cast<const ::mega::MegaIntegerListPrivate*>(byMonthDay)->toByteList()
                                         ).get()
                                     : nullptr);
 }
 
-void MegaChatScheduledRulesPrivate::setByMonthWeekDay(const mega::MegaIntegerMap* byMonthWeekDay)
+void MegaChatScheduledRulesPrivate::setByMonthWeekDay(const ::mega::MegaIntegerMap* byMonthWeekDay)
 {
-    mKScheduledRules->setByMonthWeekDay(byMonthWeekDay ? std::unique_ptr<mega::MegaSmallIntMap>(
-                                            dynamic_cast<const mega::MegaIntegerMapPrivate*>(byMonthWeekDay)->toByteMap()
+    mKScheduledRules->setByMonthWeekDay(byMonthWeekDay ? std::unique_ptr<::mega::MegaSmallIntMap>(
+                                            dynamic_cast<const ::mega::MegaIntegerMapPrivate*>(byMonthWeekDay)->toByteMap()
                                             ).get()
                                         : nullptr);
 }
@@ -8577,8 +8577,8 @@ bool areMegaIntegersEqual(const T& lhs, const P& rhs)
 {   // int64_t because it's the type used in mega::MegaInteger{List|Map}
     if (lhs.size() != rhs.size()) { return false; }
 
-    if constexpr (std::is_same<T, mega::MegaSmallIntVector>::value
-                  || std::is_same<P, mega::MegaSmallIntVector>::value)
+    if constexpr (std::is_same<T, ::mega::MegaSmallIntVector>::value
+                  || std::is_same<P, ::mega::MegaSmallIntVector>::value)
     {
         for(size_t i = 0; i < lhs.size(); ++i)
         {
@@ -8590,12 +8590,12 @@ bool areMegaIntegersEqual(const T& lhs, const P& rhs)
         return true;
     }
 
-    if constexpr (std::is_same<T, mega::MegaSmallIntMap>::value
-                  || std::is_same<P, mega::MegaSmallIntMap>::value)
+    if constexpr (std::is_same<T, ::mega::MegaSmallIntMap>::value
+                  || std::is_same<P, ::mega::MegaSmallIntMap>::value)
     {
-        const auto transformMMap = [](const mega::MegaSmallIntMap& src) -> mega::integer_map
+        const auto transformMMap = [](const ::mega::MegaSmallIntMap& src) -> ::mega::integer_map
         {
-            mega::integer_map ret;
+            ::mega::integer_map ret;
             for(const auto& p : src)
                 ret.emplace(static_cast<int64_t>(p.first),
                             static_cast<int64_t>(p.second));
@@ -8614,44 +8614,44 @@ void updateIfDifferent(const T* src, std::unique_ptr<P>& dst)
     if (!src) { dst.reset(nullptr); }
     else
     {
-        if constexpr (std::is_same<P, mega::MegaIntegerList>::value)
+        if constexpr (std::is_same<P, ::mega::MegaIntegerList>::value)
         {
-            const auto ilp = dynamic_cast<const mega::MegaIntegerListPrivate*>(dst.get());
+            const auto ilp = dynamic_cast<const ::mega::MegaIntegerListPrivate*>(dst.get());
             assert(ilp);
             if (ilp && (!dst || !areMegaIntegersEqual(*src, *(ilp->getList()))))
             {
-                dst.reset(new mega::MegaIntegerListPrivate(*src));
+                dst.reset(new ::mega::MegaIntegerListPrivate(*src));
             }
         }
 
-        if constexpr (std::is_same<P, mega::MegaIntegerMap>::value)
+        if constexpr (std::is_same<P, ::mega::MegaIntegerMap>::value)
         {
-            const auto imp = dynamic_cast<const mega::MegaIntegerMapPrivate*>(dst.get());
+            const auto imp = dynamic_cast<const ::mega::MegaIntegerMapPrivate*>(dst.get());
             assert(imp);
             if (imp && (!dst || !areMegaIntegersEqual(*src, *(imp->getMap()))))
             {
-                dst.reset(new mega::MegaIntegerMapPrivate(*src));
+                dst.reset(new ::mega::MegaIntegerMapPrivate(*src));
             }
         }
     }
 }
 ////
 
-const mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byWeekDay()  const
+const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byWeekDay()  const
 {
     updateIfDifferent(mKScheduledRules->byWeekDay(), mTransformedByWeekDay);
 
     return mTransformedByWeekDay.get();
 }
 
-const mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byMonthDay()  const
+const ::mega::MegaIntegerList* MegaChatScheduledRulesPrivate::byMonthDay()  const
 {
     updateIfDifferent(mKScheduledRules->byMonthDay(), mTransformedByMonthDay);
 
     return mTransformedByMonthDay.get();
 }
 
-const mega::MegaIntegerMap* MegaChatScheduledRulesPrivate::byMonthWeekDay() const
+const ::mega::MegaIntegerMap* MegaChatScheduledRulesPrivate::byMonthWeekDay() const
 {
     updateIfDifferent(mKScheduledRules->byMonthWeekDay(), mTransformedByMonthWeekDay);
 
