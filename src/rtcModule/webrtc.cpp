@@ -1443,42 +1443,64 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
     }
 
     karere::Id peerid = session->getPeer().getPeerid();
+    const sfu::Peer& auxPeer = session->getPeer();
     auto wptr = weakHandle();
-    mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peerid)
-    .then([wptr, keyid, cid, key, this](Buffer*)
+
+    const rtcModule::X25519KeyPair* ephemeralKeypair = auxPeer.getEphemeralKeyPair();
+    if (ephemeralKeypair) // key decryption for protocol > V1
     {
-        if (wptr.deleted())
+        byte result[kMediaKeyLen];
+        std::string recvKeyBin = mega::Base64::atob(key);
+        std::string keyStr = recvKeyBin.substr(0, recvKeyBin.size() - kGcmTagLen);
+        std::string tagStr = recvKeyBin.substr(recvKeyBin.size() - kGcmTagLen);
+        mSymCipher.gcm_decrypt_with_key(reinterpret_cast<const unsigned char *>(keyStr.data()), keyStr.size(),
+                             reinterpret_cast<const byte*>(ephemeralKeypair->pubKey), X25519_PUB_KEY_LEN,
+                             reinterpret_cast<const unsigned char *> (tagStr.data()), kGcmTagLen,
+                             auxPeer.getKeyDecryptIv().data(), auxPeer.getKeyDecryptIv().size(),
+                             result, kMediaKeyLen);
+
+        std::string mediaKey(reinterpret_cast<char*>(result), kMediaKeyLen);
+        session->addKey(keyid, mediaKey);
+    }
+    else
+    {
+        mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peerid)
+        .then([wptr, keyid, cid, key, this](Buffer*)
         {
-            return;
-        }
+            if (wptr.deleted())
+            {
+                return;
+            }
 
-        Session *session = getSession(cid);
-        if (!session)
-        {
-            RTCM_LOG_WARNING("handleKeyCommand after get Cu25510 key: Received key for unknown peer cid %d", cid);
-            return;
-        }
+            Session *session = getSession(cid);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleKeyCommand after get Cu25510 key: Received key for unknown peer cid %d", cid);
+                return;
+            }
 
-        // decrypt received key
-        std::string binaryKey = mega::Base64::atob(key);
-        strongvelope::SendKey encryptedKey;
-        mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey, encryptedKey);
 
-        strongvelope::SendKey plainKey;
-        mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(session->getPeer().getPeerid(), encryptedKey, plainKey);
+            // decrypt received key
+            std::string binaryKey = mega::Base64::atob(key);
+            strongvelope::SendKey encryptedKey;
+            mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey, encryptedKey);
 
-        // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
-        if (hasCallKey())
-        {
-            strongvelope::SendKey callKey;
-            mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey, callKey);
-            mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
-        }
+            strongvelope::SendKey plainKey;
+            mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(session->getPeer().getPeerid(), encryptedKey, plainKey);
 
-        // add new key to peer key map
-        std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
-        session->addKey(keyid, newKey);
-    });
+            // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
+            if (hasCallKey())
+            {
+                strongvelope::SendKey callKey;
+                mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey, callKey);
+                mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
+            }
+
+            // add new key to peer key map
+            std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
+            session->addKey(keyid, newKey);
+        });
+    }
 
     return true;
 }
@@ -2311,7 +2333,7 @@ void Call::generateAndSendNewkey(bool reset)
                 // Encrypt key for participant with it's public ephemeral key
                 std::string encryptedKey;
                 std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                mSymCipher.gcm_encrypt(plainKey, ephemeralKeypair->pubKey, 32,
+                mSymCipher.gcm_encrypt_with_key(plainKey, ephemeralKeypair->pubKey, 32,
                                        mMyPeer->getKeyEncryptIv().data(), mMyPeer->getKeyEncryptIv().size(),
                                        kGcmTagLen, encryptedKey);
                 keys[sessionCid] = mega::Base64::btoa(encryptedKey);

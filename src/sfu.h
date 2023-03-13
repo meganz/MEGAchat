@@ -65,7 +65,8 @@ public:
     void setIvs(const std::vector<std::string>& ivs);
     void makeKeyEncryptIv(const std::string &first, const std::string &second);
     void makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv);
-    const std::vector<byte>& getKeyEncryptIv();
+    const std::vector<byte>& getKeyEncryptIv() const;
+    const std::vector<byte>& getKeyDecryptIv() const;
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid

@@ -109,6 +109,7 @@ Peer::Peer(const Peer &peer)
     , mEphemeralKeyPair(peer.mEphemeralKeyPair ? peer.mEphemeralKeyPair->copy() : nullptr)
     , mIvs(peer.mIvs)
     , mKeyEncryptIv(peer.mKeyEncryptIv)
+    , mKeyDecryptIv(peer.mKeyDecryptIv)
     , mIsModerator(peer.mIsModerator)
 {
 }
@@ -194,6 +195,7 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
 
 void Peer::makeKeyEncryptIv(const std::string& vthumbIv, const std::string& hiresIv)
 {
+    mKeyEncryptIv.clear();
     // First 8 bytes are taken from the vthumb track IV
     std::vector<byte> first = sfu::Command::hexToByteArray(vthumbIv);
     std::copy(first.begin(), first.end(), std::back_inserter(mKeyEncryptIv));
@@ -206,6 +208,7 @@ void Peer::makeKeyEncryptIv(const std::string& vthumbIv, const std::string& hire
 
 void Peer::makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv)
 {
+    mKeyDecryptIv.clear();
     // First 8 bytes are taken from the vthumb track IV
     std::vector<byte> first = sfu::Command::hexToByteArray(vthumbIv);
     std::copy(first.begin(), first.end(), std::back_inserter(mKeyDecryptIv));
@@ -216,9 +219,14 @@ void Peer::makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hire
     assert(mKeyDecryptIv.size() == rtcModule::KEY_ENCRYPT_IV_LENGTH);
 }
 
-const std::vector<byte>& Peer::getKeyEncryptIv()
+const std::vector<byte>& Peer::getKeyEncryptIv() const
 {
     return mKeyEncryptIv;
+}
+
+const std::vector<byte>& Peer::getKeyDecryptIv() const
+{
+    return mKeyDecryptIv;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
