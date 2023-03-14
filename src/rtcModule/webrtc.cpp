@@ -1001,7 +1001,7 @@ std::string Call::generateSessionKeyPair()
 
     // store ephemeral keypair in our peer (check if neccesary to store public key probably not)
     mMyPeer->setEphemeralKeyPair(ephemeralKeyPair.get());
-    std::string X25519PubKeyStr(reinterpret_cast<const char*>(ephemeralKeyPair->mPubKey.data()), X25519_PUB_KEY_LEN);
+    std::string X25519PubKeyStr(reinterpret_cast<const char*>(ephemeralKeyPair->getPubKey()), X25519_PUB_KEY_LEN);
     std::string X25519PubKeyB64 = mega::Base64::btoa(X25519PubKeyStr);
 
     // Generate public key signature (using Ed25519), on the string: sesskey|<callId>|<clientId>|<pubkey>
@@ -1333,9 +1333,9 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             {
                 // derive peer public ephemeral key with our private ephemeral key
                 X25519KeyPair out;
-                if (mSfuClient.getRtcCryptoMeetings()->deriveEphemeralKey(parsedkey.first, ephkeypair->mPrivKey, out, peer.getIvs(), mMyPeer->getIvs()))
+                if (mSfuClient.getRtcCryptoMeetings()->deriveEphemeralKey(parsedkey.first, ephkeypair->getPrivKey(), out, peer.getIvs(), mMyPeer->getIvs()))
                 {
-                    if (out.mPubKey.size() == X25519_PUB_KEY_LEN)
+                    if (out.hasValidPubKey())
                     {
                         auxPeer.setEphemeralKeyPair(&out);
                     }
@@ -1455,7 +1455,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
         std::string keyStr = recvKeyBin.substr(0, recvKeyBin.size() - kGcmTagLen);
         std::string tagStr = recvKeyBin.substr(recvKeyBin.size() - kGcmTagLen);
         mSymCipher.gcm_decrypt_with_key(reinterpret_cast<const unsigned char *>(keyStr.data()), keyStr.size(),
-                             ephemeralKeypair->mPubKey.data(), ephemeralKeypair->mPubKey.size() /*X25519_PUB_KEY_LEN*/,
+                             ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(),
                              reinterpret_cast<const unsigned char *> (tagStr.data()), kGcmTagLen,
                              auxPeer.getKeyDecryptIv().data(), auxPeer.getKeyDecryptIv().size(),
                              result, kMediaKeyLen);
@@ -1746,9 +1746,9 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
         {
             // derive peer public ephemeral key with our private ephemeral key
             X25519KeyPair out;
-            if (mSfuClient.getRtcCryptoMeetings()->deriveEphemeralKey(parsedkey.first, ephkeypair->mPrivKey, out, ivs, mMyPeer->getIvs()))
+            if (mSfuClient.getRtcCryptoMeetings()->deriveEphemeralKey(parsedkey.first, ephkeypair->getPrivKey(), out, ivs, mMyPeer->getIvs()))
             {
-                if (out.mPubKey.size() == X25519_PUB_KEY_LEN)
+                if (out.hasValidPubKey())
                 {
                     peer.setEphemeralKeyPair(&out);
                 }
@@ -2340,7 +2340,7 @@ void Call::generateAndSendNewkey(bool reset)
                 // Encrypt key for participant with it's public ephemeral key
                 std::string encryptedKey;
                 std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                mSymCipher.gcm_encrypt_with_key(plainKey, ephemeralKeypair->mPubKey.data(), ephemeralKeypair->mPubKey.size(),
+                mSymCipher.gcm_encrypt_with_key(plainKey, ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(),
                                        mMyPeer->getKeyEncryptIv().data(), mMyPeer->getKeyEncryptIv().size(),
                                        kGcmTagLen, encryptedKey);
                 keys[sessionCid] = mega::Base64::btoa(encryptedKey);

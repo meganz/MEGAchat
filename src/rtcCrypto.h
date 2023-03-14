@@ -19,18 +19,27 @@ static constexpr int X25519_PUB_KEY_LEN  = crypto_box_PUBLICKEYBYTES;
 
 struct X25519KeyPair
 {
+public:
+    X25519KeyPair() = default;
+    X25519KeyPair(const X25519KeyPair& aux);
+    X25519KeyPair(const std::vector<byte>& priv, const std::vector<byte>& pub);
+    X25519KeyPair* copy() const;
+
+    // setters
+    void setPubKey(const byte* key, size_t keylen);
+    void setPrivKey(const byte* key, size_t keylen);
+
+    // getters
+    const byte* getPubKey()     const;
+    const byte* getPrivKey()    const;
+    size_t pubKeySize()         const;
+    size_t privKeySize()        const;
+    bool hasValidPubKey()       const;
+    bool hasValidPrivKey()      const;
+
+private:
     std::vector<byte> mPrivKey;
     std::vector<byte> mPubKey;
-
-    X25519KeyPair() = default;
-
-    X25519KeyPair(const X25519KeyPair& aux)
-        : mPrivKey(aux.mPrivKey), mPubKey(aux.mPubKey) { }
-
-    X25519KeyPair(const std::vector<byte>& priv, const std::vector<byte>& pub)
-        :mPrivKey(priv), mPubKey(pub) { }
-
-    X25519KeyPair* copy() const { return new X25519KeyPair(*this); }
 };
 
 class RtcCryptoMeetings: public rtcModule::IRtcCryptoMeetings
@@ -63,7 +72,7 @@ public:
     /**
      * @brief Derive user public ephemeral key with own user private ephemeral key (SHA256 - based HKDF transform)
      */
-    bool deriveEphemeralKey(std::string& peerEphemeralPubkey, const std::vector<byte>& privEphemeral, X25519KeyPair& derivedKeyPair, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs);
+    bool deriveEphemeralKey(std::string& peerEphemeralPubkey, const byte* privEphemeral, X25519KeyPair& derivedKeyPair, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs);
 
     /**
      * @brief Verify call participant ephemeral public key signature
