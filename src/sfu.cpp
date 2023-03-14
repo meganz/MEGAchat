@@ -249,37 +249,6 @@ Command::Command(SfuInterface& call)
 {
 }
 
-bool Command::parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &it) const
-{
-    rapidjson::Value::ConstMemberIterator ivIterator = it->value.FindMember("iv");
-    if (ivIterator == it->value.MemberEnd() || !ivIterator->value.IsString())
-    {
-         SFU_LOG_ERROR("parseTrackDescriptor: 'iv' field not found");
-         return false;
-    }
-
-    std::string ivString = ivIterator->value.GetString();
-
-
-    rapidjson::Value::ConstMemberIterator midIterator = it->value.FindMember("mid");
-    if (midIterator == it->value.MemberEnd() || !midIterator->value.IsUint())
-    {
-         SFU_LOG_ERROR("parseTrackDescriptor: 'mid' field not found");
-         return false;
-    }
-
-    rapidjson::Value::ConstMemberIterator reuseIterator = it->value.FindMember("r");
-    if (reuseIterator != it->value.MemberEnd() && reuseIterator->value.IsUint())
-    {
-        // parse reuse flag in case it's found in trackDescriptor
-        trackDescriptor.mReuse = reuseIterator->value.GetUint();
-    }
-
-    trackDescriptor.mMid = midIterator->value.GetUint();
-    trackDescriptor.mIv = hexToBinary(ivString);
-    return true;
-}
-
 bool Command::parseUsersArray(std::map<karere::Id, bool>& wrUsers, const rapidjson::Value& obj) const
 {
     assert(obj.IsObject());
@@ -323,6 +292,42 @@ void Command::parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson:
         std::string userIdString = it->value[j].GetString();
         ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
         moderators.emplace(userId);
+    }
+}
+
+void Command::parseTracks(const rapidjson::Document& command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const
+{
+    // expected track array format: [[3 (cid), 2(mid), 1(reuse)]...]
+    rapidjson::Value::ConstMemberIterator it = command.FindMember(arrayName.c_str());
+    if (it != command.MemberEnd())
+    {
+        if (!it->value.IsArray())
+        {
+            SFU_LOG_ERROR("Received track ill-formed");
+            assert(false);
+            return;
+        }
+
+        for (unsigned int i = 0; i < it->value.Capacity(); ++i)
+        {
+            if (!it->value[i].IsArray())
+            {
+                SFU_LOG_ERROR("Received track ill-formed");
+                assert(false);
+                return;
+            }
+
+            Cid_t cid = 0;
+            TrackDescriptor td;
+            const auto& arr = it->value[i].GetArray();
+            for (unsigned int j = 0; j < arr.Capacity(); ++j)
+            {
+                if (j==0) { cid = arr[0].GetUint(); }
+                if (j==1) { td.mMid = arr[1].GetUint(); }
+                if (j==2) { td.mReuse = arr[2].GetUint(); }
+            }
+            tracks[cid] = td; // add entry to map <cid, trackDescriptor>
+        }
     }
 }
 
@@ -480,18 +485,10 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     std::map<Cid_t, TrackDescriptor> speakers;
-    rapidjson::Value::ConstMemberIterator speakersIterator = command.FindMember("speakers");    // peers allowed to speak
-    if (speakersIterator != command.MemberEnd() && speakersIterator->value.IsObject())
-    {
-        parseTracks(peers, speakers, speakersIterator, true);
-    }
+    parseTracks(command, "speakers", speakers);
 
     std::map<Cid_t, TrackDescriptor> vthumbs;
-    rapidjson::Value::ConstMemberIterator vthumbsIterator = command.FindMember("vthumbs");
-    if (vthumbsIterator != command.MemberEnd() && vthumbsIterator->value.IsObject())
-    {
-        parseTracks(peers, vthumbs, vthumbsIterator, false);
-    }
+    parseTracks(command, "vthumbs", vthumbs);
 
     return mComplete(cid, sdp, callDuration, peers, keystrmap, vthumbs, speakers, moderators, ownModerator);
 }
@@ -566,43 +563,6 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
     }
 }
 
-void AnswerCommand::parseTracks(const std::vector<Peer> &peers, std::map<Cid_t, TrackDescriptor>& tracks, rapidjson::Value::ConstMemberIterator &it, bool audio) const
-{
-    for (const Peer& peer : peers)
-    {
-        std::string cid = std::to_string(peer.getCid());
-        rapidjson::Value::ConstMemberIterator iterator = it->value.FindMember(cid.c_str());
-        if (iterator == it->value.MemberEnd() || !iterator->value.IsObject())
-        {
-             SFU_LOG_ERROR("parseTracks: invalid 'cid' value");
-             continue;
-        }
-
-        if (audio)
-        {
-            rapidjson::Value::ConstMemberIterator audioIterator = iterator->value.FindMember("audio");
-            if (audioIterator == iterator->value.MemberEnd() || !audioIterator->value.IsObject())
-            {
-                 SFU_LOG_ERROR("parseTracks: invalid 'audio' value");
-                 continue;
-            }
-
-            iterator = audioIterator;
-        }
-
-        TrackDescriptor track;
-        bool valid = parseTrackDescriptor(track, iterator);
-        if (valid)
-        {
-            tracks[peer.getCid()] = track;
-        }
-        else
-        {
-            continue;
-        }
-    }
-}
-
 KeyCommand::KeyCommand(const KeyCompleteFunction &complete, SfuInterface &call)
     : Command(call)
     , mComplete(complete)
@@ -650,21 +610,8 @@ VthumbsCommand::VthumbsCommand(const VtumbsCompleteFunction &complete, SfuInterf
 
 bool VthumbsCommand::processCommand(const rapidjson::Document &command)
 {
-    Cid_t cid = 0;
     std::map<Cid_t, TrackDescriptor> tracks;
-    rapidjson::Value::ConstMemberIterator it = command.FindMember("tracks");
-    if (it != command.MemberEnd())
-    {
-        assert(it->value.IsObject());
-        for (auto itMember = it->value.MemberBegin(); itMember != it->value.MemberEnd(); ++itMember)
-        {
-            assert(itMember->name.IsString() && itMember->value.IsObject());
-            cid = static_cast<Cid_t>(atoi(itMember->name.GetString()));
-            TrackDescriptor td;
-            parseTrackDescriptor(td, itMember);
-            tracks[cid] = td; // add entry to map <cid, trackDescriptor>
-        }
-    }
+    parseTracks(command, "tracks", tracks);
     return mComplete(tracks);
 }
 
@@ -700,22 +647,8 @@ HiResCommand::HiResCommand(const HiresCompleteFunction &complete, SfuInterface &
 
 bool HiResCommand::processCommand(const rapidjson::Document &command)
 {
-    Cid_t cid = 0;
     std::map<Cid_t, TrackDescriptor> tracks;
-    rapidjson::Value::ConstMemberIterator it = command.FindMember("tracks");
-    if (it != command.MemberEnd())
-    {
-        assert(it->value.IsObject());
-        for (auto itMember = it->value.MemberBegin(); itMember != it->value.MemberEnd(); ++itMember)
-        {
-            assert(itMember->name.IsString() && itMember->value.IsObject());
-            cid = static_cast<Cid_t>(atoi(itMember->name.GetString()));
-            TrackDescriptor td;
-            parseTrackDescriptor(td, itMember);
-            tracks[cid] = td; // add entry to map <cid, trackDescriptor>
-        }
-    }
-
+    parseTracks(command, "tracks", tracks);
     return mComplete(tracks);
 }
 
@@ -818,9 +751,17 @@ bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
             return false;
         }
 
-        TrackDescriptor descriptor;
-        parseTrackDescriptor(descriptor, audioIterator);
-        return mComplete(cid, descriptor);
+        std::map<Cid_t, TrackDescriptor> speakers;
+        parseTracks(command, "speakers", speakers);
+        if (speakers.size() != 1)
+        {
+            SFU_LOG_ERROR("SpeakOnCommand::processCommand: Received data contains unexpected number of audio tracks");
+            return false;
+        }
+        else
+        {
+            return mComplete(speakers.begin()->first, speakers.begin()->second);
+        }
     }
     else
     {

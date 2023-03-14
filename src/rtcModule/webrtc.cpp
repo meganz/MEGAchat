@@ -2415,7 +2415,8 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             continue;
         }
 
-        slot->assignVideoSlot(cid, trackDescriptor.second.mIv, videoResolution);
+        const std::vector<std::string> ivs = sess->getPeer().getIvs();
+        slot->assignVideoSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]), videoResolution);
         attachSlotToSession(cid, slot, false, videoResolution);
     }
 }
@@ -2474,7 +2475,8 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
-    slot->assignAudioSlot(cid, speaker.mIv);
+    const std::vector<std::string> ivs = sess->getPeer().getIvs();
+    slot->assignAudioSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
     attachSlotToSession(cid, slot, true, kUndefined);
 }
 

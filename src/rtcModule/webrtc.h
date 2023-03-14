@@ -95,9 +95,9 @@ enum CallQuality
 
 enum VideoResolution
 {
-    kUndefined = -1,
-    kLowRes = 0,
-    kHiRes = 1,
+    kUndefined  = kUndefinedTrack,
+    kLowRes     = kVthumbTrack,
+    kHiRes      = kHiResTrack,
 };
 
 enum TrackDirection

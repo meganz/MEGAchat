@@ -106,7 +106,6 @@ protected:
 class TrackDescriptor
 {
 public:
-    IvStatic_t mIv = 0;
     uint32_t mMid;
     bool mReuse = false;
 };
@@ -231,10 +230,10 @@ public:
     static uint64_t hexToBinary(const std::string& hex);
     static std::vector<byte> hexToByteArray(const std::string &hex);
     void parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
+    void parseTracks(const rapidjson::Document &command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const;
 
 protected:
     Command(SfuInterface& call);
-    bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
     bool parseUsersArray(std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
     static uint8_t hexDigitVal(char value);
 
@@ -262,7 +261,6 @@ public:
 
 private:
     void parsePeerObject(std::vector<Peer>& peers, std::map<Cid_t, std::string>& keystrmap, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
-    void parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio) const;
 };
 
 typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;

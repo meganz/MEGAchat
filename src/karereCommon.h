@@ -13,8 +13,9 @@ typedef uint32_t Cid_t;         // 24-bit client id (CID) for meetings (identifi
 typedef uint64_t IvStatic_t;    // IV static part (8 bytes)
 typedef uint32_t Ctr_t;         // packet Ctr (4 bytes)
 
-enum karereTracks: uint8_t
+enum karereTracks: int8_t
 {
+    kUndefinedTrack = -1,
     kVthumbTrack    = 0,
     kHiResTrack     = 1,
     kAudioTrack     = 2,
