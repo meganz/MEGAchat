@@ -16,28 +16,21 @@ const static uint8_t KEY_ENCRYPT_IV_LENGTH = 12;
 // Asymmetric cryptography using ECDH X25519.
 static constexpr int X25519_PRIV_KEY_LEN = crypto_box_SECRETKEYBYTES;
 static constexpr int X25519_PUB_KEY_LEN  = crypto_box_PUBLICKEYBYTES;
+
 struct X25519KeyPair
 {
-    unsigned char privKey[X25519_PRIV_KEY_LEN];
-    unsigned char pubKey[X25519_PUB_KEY_LEN];
+    std::vector<byte> mPrivKey;
+    std::vector<byte> mPubKey;
 
     X25519KeyPair() = default;
-    X25519KeyPair(const X25519KeyPair &aux)
-    {
-        memcpy(privKey, aux.privKey, X25519_PRIV_KEY_LEN);
-        memcpy(pubKey, aux.pubKey, X25519_PUB_KEY_LEN);
-    }
 
-    X25519KeyPair(const strongvelope::EcKey& priv, const strongvelope::EcKey& pub)
-    {
-        memcpy(privKey, priv.ubuf(), priv.bufSize());
-        memcpy(pubKey, pub.ubuf(), pub.bufSize());
-    }
+    X25519KeyPair(const X25519KeyPair& aux)
+        : mPrivKey(aux.mPrivKey), mPubKey(aux.mPubKey) { }
 
-    X25519KeyPair* copy() const
-    {
-        return new X25519KeyPair(*this);
-    }
+    X25519KeyPair(const std::vector<byte>& priv, const std::vector<byte>& pub)
+        :mPrivKey(priv), mPubKey(pub) { }
+
+    X25519KeyPair* copy() const { return new X25519KeyPair(*this); }
 };
 
 class RtcCryptoMeetings: public rtcModule::IRtcCryptoMeetings
@@ -70,7 +63,7 @@ public:
     /**
      * @brief Derive user public ephemeral key with own user private ephemeral key (SHA256 - based HKDF transform)
      */
-    bool deriveEphemeralKey(std::string& peerEphemeralPubkey, const unsigned char* privEphemeral, strongvelope::EcKey &output, const std::vector<std::string>& peerIvs, const std::vector<std::string> &myIvs);
+    bool deriveEphemeralKey(std::string& peerEphemeralPubkey, const std::vector<byte>& privEphemeral, X25519KeyPair& derivedKeyPair, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs);
 
     /**
      * @brief Verify call participant ephemeral public key signature

@@ -572,9 +572,6 @@ protected:
      */
     std::map<karere::Id, bool> mWaitingRoomUsers;
 
-    // ephemeral X25519 EC key pair for current session
-    std::unique_ptr<X25519KeyPair> mSessionKeyPair;
-
     // symetric cipher for media key encryption
     mega::SymmCipher mSymCipher;
 
