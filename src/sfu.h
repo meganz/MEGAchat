@@ -40,7 +40,7 @@ public:
 class Peer
 {
 public:
-    Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string>& ivs, bool ownPeer, Cid_t cid = 0, bool isModerator = false);
+    Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string>& ivs, Cid_t cid = 0, bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;

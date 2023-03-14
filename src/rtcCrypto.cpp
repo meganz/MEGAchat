@@ -148,7 +148,7 @@ bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, con
 
     // generate salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
     std::string salt;
-    vector<string> v { peerIvs[1], peerIvs[2], myIvs[1], myIvs[2] };
+    vector<string> v { peerIvs[kHiResTrack], peerIvs[kAudioTrack], myIvs[kHiResTrack], myIvs[kAudioTrack] };
     sort(v.begin(), v.end());
     std::for_each(v.begin(), v.end(), [&salt](std::string &s){ salt += s; });
     std::vector<byte> saltBin = sfu::Command::hexToByteArray(salt);

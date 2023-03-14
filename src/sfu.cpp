@@ -89,17 +89,13 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-Peer::Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string> &ivs, bool ownPeer, Cid_t cid, bool isModerator)
+Peer::Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string> &ivs, Cid_t cid, bool isModerator)
     : mCid(cid),
       mPeerid(peerid),
       mAvFlags(static_cast<uint8_t>(avFlags)),
       mIvs(ivs),
       mIsModerator(isModerator)
 {
-    if (!ownPeer)
-    {
-       makeKeyDecryptIv(ivs[0], ivs[1]);
-    }
 }
 
 Peer::Peer(const Peer &peer)
@@ -558,7 +554,9 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
 
             bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
-            peers.push_back(Peer(userId, av, ivs, false /*ownPeer*/, cid, isModerator));
+            Peer peer(userId, av, ivs, cid, isModerator);
+            peer.makeKeyDecryptIv(ivs[kVthumbTrack], ivs[kHiResTrack]);
+            peers.push_back(std::move(peer));
         }
         else
         {
