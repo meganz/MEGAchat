@@ -110,6 +110,7 @@ target_include_directories(karere PUBLIC ${KarereDir}/src )
 target_include_directories(karere PUBLIC $<${USE_WEBRTC}:${KarereDir}/src/rtcModule>  )
 target_compile_definitions(karere PUBLIC MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC> )
 target_link_libraries(karere PUBLIC Mega rapidjson websockets uv $<${USE_WEBRTC}:webrtc> )
+target_link_libraries(websockets INTERFACE cap) # websockets depends on cap
 if (WIN32)
 target_link_libraries(karere PUBLIC Iphlpapi.lib Psapi.lib Userenv.lib Msdmo.lib Strmiids.lib Dmoguids.lib Winmm.dll wmcodecdspuuid.lib Wldap32.lib)
 endif()
@@ -135,4 +136,4 @@ if (WIN32)
 
 endif()
 
-
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17") 

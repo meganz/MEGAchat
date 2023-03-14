@@ -5436,10 +5436,12 @@ void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request
                 break;
 
              case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES:
+#ifndef KARERE_DISABLE_WEBRTC
                 (mOccurrList[apiIndex]).reset(request->getMegaChatScheduledMeetingOccurrList()
                                                 ? request->getMegaChatScheduledMeetingOccurrList()->copy()
                                                 : nullptr);
-             break;
+#endif
+                break;
         }
     }
 
