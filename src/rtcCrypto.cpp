@@ -78,6 +78,11 @@ void RtcCryptoMeetings::xorWithCallKey(const strongvelope::SendKey &callKey, str
     SymmCipher::xorblock(static_cast<const ::byte *> (callKey.ubuf()), static_cast<::byte *>(sendKey.ubuf()));
 }
 
+void RtcCryptoMeetings::xorWithCallKey(const byte* callKey, byte* key)
+{
+    SymmCipher::xorblock(callKey, key);
+}
+
 std::string RtcCryptoMeetings::keyToStr(const strongvelope::SendKey& key)
 {
     return std::string(key.buf(), key.dataSize());
