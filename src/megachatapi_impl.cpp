@@ -8617,8 +8617,7 @@ void updateIfDifferent(const T* src, std::unique_ptr<P>& dst)
         if constexpr (std::is_same<P, ::mega::MegaIntegerList>::value)
         {
             const auto ilp = dynamic_cast<const ::mega::MegaIntegerListPrivate*>(dst.get());
-            assert(ilp);
-            if (ilp && (!dst || !areMegaIntegersEqual(*src, *(ilp->getList()))))
+            if (!ilp || !areMegaIntegersEqual(*src, *(ilp->getList())))
             {
                 dst.reset(new ::mega::MegaIntegerListPrivate(*src));
             }
@@ -8627,8 +8626,7 @@ void updateIfDifferent(const T* src, std::unique_ptr<P>& dst)
         if constexpr (std::is_same<P, ::mega::MegaIntegerMap>::value)
         {
             const auto imp = dynamic_cast<const ::mega::MegaIntegerMapPrivate*>(dst.get());
-            assert(imp);
-            if (imp && (!dst || !areMegaIntegersEqual(*src, *(imp->getMap()))))
+            if (!imp || !areMegaIntegersEqual(*src, *(imp->getMap())))
             {
                 dst.reset(new ::mega::MegaIntegerMapPrivate(*src));
             }
