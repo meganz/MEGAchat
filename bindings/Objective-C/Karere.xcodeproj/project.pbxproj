@@ -866,10 +866,10 @@
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = (
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/include/mega/posix,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/private,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/include,
 				);
 			};
 			name = Debug;
@@ -961,10 +961,10 @@
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = (
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/include/mega/posix,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/private,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/include,
 				);
 				VALIDATE_PRODUCT = YES;
 			};
@@ -1093,10 +1093,10 @@
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = (
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/include/mega/posix,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/private,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/include,
 				);
 				VALIDATE_PRODUCT = YES;
 			};
