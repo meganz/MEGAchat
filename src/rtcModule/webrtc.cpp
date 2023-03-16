@@ -2377,9 +2377,18 @@ void Call::generateAndSendNewkey(bool reset)
                 // Encrypt key for participant with it's public ephemeral key
                 std::string encryptedKey;
                 std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                mSymCipher.gcm_encrypt_with_key(plainKey, ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(),
-                                       mMyPeer->getKeyEncryptIv().data(), mMyPeer->getKeyEncryptIv().size(),
-                                       kGcmTagLen, encryptedKey);
+                bool result = mSymCipher.gcm_encrypt_with_key(newPlainKey->ubuf(), newPlainKey->bufSize(),
+                                                       ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(),
+                                                       mMyPeer->getKeyEncryptIv().data(), mMyPeer->getKeyEncryptIv().size(),
+                                                       kGcmTagLen, encryptedKey, 0);
+
+                if (!result)
+                {
+                    RTCM_LOG_WARNING("Failed Media key gcm_encrypt_aad encryption for peerId %s Cid %d",
+                                     peer.getPeerid().toString().c_str(), peer.getCid());
+                    return;
+                }
+
                 keys[sessionCid] = mega::Base64::btoa(encryptedKey);
             }
         }
