@@ -1306,7 +1306,7 @@ public:
     KarereScheduledFlags& operator=(const KarereScheduledFlags&&) = delete;
 
     virtual KarereScheduledFlags* copy() const override { return new KarereScheduledFlags(this); }
-    bool equalTo(mega::MegaScheduledFlags* msf) const
+    bool equalTo(const mega::MegaScheduledFlags* msf) const
     {
         return msf && (getNumericValue() == msf->getNumericValue());
     }
