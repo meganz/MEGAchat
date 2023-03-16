@@ -260,6 +260,7 @@ public:
     void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
     void TEST_RetentionHistory(unsigned int a1, unsigned int a2);
     void TEST_ChangeMyOwnName(unsigned int a1);
+    void TEST_GetChatFilters(unsigned int a1);
 #ifndef KARERE_DISABLE_WEBRTC
     void TEST_Calls(unsigned int a1, unsigned int a2);
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);

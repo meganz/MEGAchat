@@ -77,6 +77,7 @@ int main(int argc, char **argv)
     EXECUTE_TEST(t.TEST_Calls(0, 1), "TEST Signalling calls");
     EXECUTE_TEST(t.TEST_EstablishedCalls(0, 1), "TEST Groupal meeting without audio nor video");
     EXECUTE_TEST(t.TEST_ScheduledMeetings(0, 1), "TEST Scheduled meetings");
+    EXECUTE_TEST(t.TEST_GetChatFilters(0), "TEST Chats retreival filters");
 #endif
 
     // The tests below are manual tests. They require the call to be answered from another client
@@ -3059,6 +3060,122 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
 
     delete [] newSession;
     newSession = NULL;
+}
+
+/**
+ * @brief TEST_GetChatFilters
+ *
+ * This test does the following:
+ *
+ * - Test getChatListItems filters and masks results with previous interface (deprecated)
+ * - Compares the completion of the results by complementary options (e.g. total non-archived
+ * chats must be equal to non-archived reads + non-archived unread)
+ *
+ * Note: masks and filters values can be found at megachatapi.h documentation/comments
+ */
+void MegaChatApiTest::TEST_GetChatFilters(unsigned int accountIndex)
+{
+    std::unique_ptr<char[]> session(login(accountIndex));
+
+    const auto getLogTrace = [](const std::string& name, const auto& l) -> std::string
+    {
+        return std::string{name + ": " + std::to_string(l.size()) + " chats received\n"};
+    };
+    const auto equals = [](const auto& lhs, const auto& rhs) -> bool
+    {
+        if (!lhs && !rhs)               return true;
+        if (!lhs || !rhs)               return false;
+        if (lhs->size() != rhs->size()) return false;
+
+        const auto s = lhs->size();
+        for (unsigned int i = 0; i < s; ++i)
+        {
+            if (lhs->get(i)->getChatId() != rhs->get(i)->getChatId()) return false;
+        }
+
+        return true;
+    };
+
+    std::unique_ptr<MegaChatRoomList> chats(megaChatApi[accountIndex]->getChatRooms());
+    postLog(getLogTrace("getChatRooms()", *chats));
+    std::unique_ptr<MegaChatListItemList> allChats(megaChatApi[accountIndex]->getChatListItems(0, 0));
+    postLog(getLogTrace("getChatListItems(0, 0)", *allChats));
+    ASSERT_CHAT_TEST(equals(allChats, chats), "Filterless chat retrieval doesn't match");
+
+    const auto getErrMsg = [](const std::string& name) -> std::string
+    {
+        return std::string {"Error " + name + " [deprecated] chats retrieval"};
+    };
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedChatsDep(megaChatApi[accountIndex]->getChatListItems());
+    postLog(getLogTrace("[deprecated] getChatListItems()", *nonArchivedChatsDep));
+    std::unique_ptr<MegaChatListItemList> byTypeAllNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_ALL));
+    postLog(getLogTrace("[deprecated] getChatListItemsByType(CHAT_TYPE_ALL)", *byTypeAllNADep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedChats(megaChatApi[accountIndex]->getChatListItems(8, 0));
+    postLog(getLogTrace("getChatListItems(8, 0)", *nonArchivedChats));
+    ASSERT_CHAT_TEST(equals(nonArchivedChatsDep, byTypeAllNADep), getErrMsg("all non-archived"));
+    ASSERT_CHAT_TEST(equals(nonArchivedChats, byTypeAllNADep), getErrMsg("byType(CHAT_TYPE_ALL)"));
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedActiveChatsDep(megaChatApi[accountIndex]->getActiveChatListItems());
+    postLog(getLogTrace("getActiveChatListItems()", *nonArchivedActiveChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedActiveChats(megaChatApi[accountIndex]->getChatListItems(8+16, 16));
+    postLog(getLogTrace("getChatListItems(8+16, 16)", *nonArchivedChats));
+    ASSERT_CHAT_TEST(equals(nonArchivedChats, nonArchivedChatsDep), getErrMsg("non-archived active"));
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedInactiveChatsDep(megaChatApi[accountIndex]-> getInactiveChatListItems());
+    postLog(getLogTrace("getInactiveChatListItems()",*nonArchivedInactiveChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedInactiveChats(megaChatApi[accountIndex]->getChatListItems(8+16, 0));
+    postLog(getLogTrace("getChatListItems(8+16, 0)", *nonArchivedInactiveChats));
+    ASSERT_CHAT_TEST(equals(nonArchivedInactiveChats, nonArchivedInactiveChatsDep), getErrMsg("non-archived inactive"));
+    ASSERT_CHAT_TEST(nonArchivedInactiveChats->size() + nonArchivedActiveChats->size() == nonArchivedChats->size(),
+                     "Incomplete set non-archived active/non-active");
+
+    std::unique_ptr<MegaChatListItemList> archivedChatsDep(megaChatApi[accountIndex]->getArchivedChatListItems());
+    postLog(getLogTrace("getArchivedChatListItems()", *archivedChatsDep));
+    std::unique_ptr<MegaChatListItemList> archivedChats(megaChatApi[accountIndex]->getChatListItems(8, 8));
+    postLog(getLogTrace("getChatListItems(8, 8)", *archivedChats));
+    ASSERT_CHAT_TEST(equals(archivedChatsDep, archivedChats), getErrMsg("archived"));
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedUnreadChatsDep(megaChatApi[accountIndex]->getUnreadChatListItems());
+    postLog(getLogTrace("getUnreadChatListItems()", *nonArchivedUnreadChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedUnreadChats(megaChatApi[accountIndex]->getChatListItems(8+32, 0));
+    postLog(getLogTrace("getChatListItems(8+32, 0)", *nonArchivedUnreadChats));
+    ASSERT_CHAT_TEST(equals(nonArchivedUnreadChatsDep, nonArchivedUnreadChats), getErrMsg("non-archived unread"));
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedReadChats(megaChatApi[accountIndex]->getChatListItems(8+32, 32));
+    postLog(getLogTrace("getChatListItems(8+32, 32)", *nonArchivedReadChats));
+    ASSERT_CHAT_TEST(nonArchivedReadChats->size() + nonArchivedUnreadChats->size() == nonArchivedChats->size(),
+        "Error nonArchivedRead chats added to nonArchivedUnread don't equal nonArchived chats");
+
+    std::unique_ptr<MegaChatListItemList> byTypeIndividualNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_INDIVIDUAL));
+    std::unique_ptr<MegaChatListItemList> nonArchivedIndividual(megaChatApi[accountIndex]->getChatListItems(1+8, 1));
+    postLog(getLogTrace("getChatListItems(1+8, 1)", *nonArchivedIndividual));
+    ASSERT_CHAT_TEST(equals(byTypeIndividualNADep, nonArchivedIndividual), getErrMsg("byType(CHAT_TYPE_INDIVIDUAL)"));
+
+    std::unique_ptr<MegaChatListItemList> byTypeGroupNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP));
+    std::unique_ptr<MegaChatListItemList> nonArchivedGroups(megaChatApi[accountIndex]->getChatListItems(1+8, 0));
+    postLog(getLogTrace("getChatListItems(1+8, 0)", *nonArchivedGroups));
+    ASSERT_CHAT_TEST(equals(byTypeGroupNADep, nonArchivedGroups), getErrMsg("byType(CHAT_TYPE_GROUP)"));
+
+    std::unique_ptr<MegaChatListItemList> byTypePrivateNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP_PRIVATE));
+    std::unique_ptr<MegaChatListItemList> nonArchivedPrivate(megaChatApi[accountIndex]->getChatListItems(2+8, 0));
+    postLog(getLogTrace("getChatListItems(2+8, 0)", *nonArchivedPrivate));
+    ASSERT_CHAT_TEST(equals(byTypePrivateNADep, nonArchivedPrivate), getErrMsg("byType(CHAT_TYPE_PRIVATE)"));
+
+    std::unique_ptr<MegaChatListItemList> byTypePublicNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP_PUBLIC));
+    std::unique_ptr<MegaChatListItemList> nonArchivedPublic(megaChatApi[accountIndex]->getChatListItems(2+8, 2));
+    postLog(getLogTrace("getChatListItems(2+8, 2)", *nonArchivedPublic));
+    ASSERT_CHAT_TEST(equals(byTypePublicNADep, nonArchivedPublic), getErrMsg("byType(CHAT_TYPE_PUBLIC)"));
+
+    std::unique_ptr<MegaChatListItemList> byTypeMeetingNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_MEETING_ROOM));
+    std::unique_ptr<MegaChatListItemList> nonArchivedMeeting(megaChatApi[accountIndex]->getChatListItems(4+8, 4));
+    postLog(getLogTrace("getChatListItems(4+8, 4)", *nonArchivedMeeting));
+    ASSERT_CHAT_TEST(equals(byTypeMeetingNADep, nonArchivedMeeting), getErrMsg("byType(CHAT_TYPE_MEETING_ROOM)"));
+
+    std::unique_ptr<MegaChatListItemList> byTypeNonMeetingNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_NON_MEETING));
+    std::unique_ptr<MegaChatListItemList> nonArchivedNonMeeting(megaChatApi[accountIndex]->getChatListItems(4+8, 0));
+    postLog(getLogTrace("getChatListItems(4+8, 0)", *nonArchivedNonMeeting));
+    ASSERT_CHAT_TEST(equals(byTypeNonMeetingNADep, nonArchivedNonMeeting), getErrMsg("byType(CHAT_TYPE_NON_MEETING)"));
 }
 
 #ifndef KARERE_DISABLE_WEBRTC

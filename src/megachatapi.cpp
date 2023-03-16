@@ -618,7 +618,12 @@ MegaChatListItemList* MegaChatApi::getChatListItemsByType(int type)
     return pImpl->getChatListItemsByType(type);
 }
 
-MegaChatListItemList *MegaChatApi::getChatListItems()
+MegaChatListItemList* MegaChatApi::getChatListItems(const int mask, const int filter) const
+{
+    return pImpl->getChatListItems(mask, filter);
+}
+
+MegaChatListItemList* MegaChatApi::getChatListItems()
 {
     return pImpl->getChatListItems();
 }

@@ -3607,6 +3607,42 @@ public:
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
 
     /**
+     * @brief Get all chatrooms (individual and groupal) with limited information
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param mask represents which bits of the param filter should be applied
+     * - Bit 1: apply individual/group filter --> 0x01
+     * - Bit 2: apply public/private filter --> 0x02
+     * - Bit 3: apply meeting/non-meeting filter --> 0x04
+     * - Bit 4: apply archived/non-archived filter --> 0x08
+     * - Bit 5: apply active/non-active filter --> 0x16
+     * - Bit 6: apply read/unread (messages) filter --> 0x32
+     * A value of 0 in the mask will ignore any value in the param filter and return all chats
+     *
+     * @param filter represents a bit set where each bit represents a requirement to meet:
+     * - Bit 1: (true) individual | group --> 0x01
+     * - Bit 2: (true) public | private --> 0x02
+     * - Bit 3: (true) meeting | non-meeting --> 0x04
+     * - Bit 4: (true) archived | non-archived --> 0x08
+     * - Bit 5: (true) active | non-active (user participates in chat or not (he abandoned chat, he was expelled, contact deleted for individual chats) --> 0x16
+     * - Bit 6: (true) read | unread (messages) --> 0x32
+     * Multiple conditions will be applied using a logical AND operator
+     *
+     * In case you provide an invalid filter, this function returns an empty list
+     * @return List of MegaChatListItemList objects with all chatrooms of this account.
+     */
+    MegaChatListItemList* getChatListItems(const int mask, const int filter) const;
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) with limited information
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization
@@ -3622,6 +3658,7 @@ public:
      *
      * You take the ownership of the returned value
      *
+     * @deprecated use getChatListItems instead,
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
     MegaChatListItemList *getChatListItems();
@@ -3652,8 +3689,9 @@ public:
      * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
      * - MegaChatApi::CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
      *
-     * In case you provide an invalid value for type param, this method will returns an empty list
+     * In case you provide an invalid value for type param, this method returns an empty list
      *
+     * @deprecated use getChatListItems instead,
      * @return List of MegaChatListItemList objects with all chatrooms of this account filtered by type.
      */
     MegaChatListItemList* getChatListItemsByType(int type = CHAT_TYPE_ALL);
@@ -3714,8 +3752,11 @@ public:
     /**
      * @brief Return the chatrooms that are currently active
      *
+     * This function filters out archived chatrooms.
+     *
      * You take the onwership of the returned value.
      *
+     * @deprecated use getChatListItems instead,
      * @return MegaChatListItemList including all the active chatrooms
      */
     MegaChatListItemList *getActiveChatListItems();
@@ -3726,8 +3767,11 @@ public:
      * Chatrooms became inactive when you left a groupchat or you are removed by
      * a moderator. 1on1 chats do not become inactive, just read-only.
      *
+     * This function filters out archived chatrooms.
+     *
      * You take the onwership of the returned value.
      *
+     * @deprecated use getChatListItems instead,
      * @return MegaChatListItemList including all the active chatrooms
      */
     MegaChatListItemList *getInactiveChatListItems();
@@ -3737,6 +3781,7 @@ public:
      *
      * You take the onwership of the returned value.
      *
+     * @deprecated use getChatListItems instead,
      * @return MegaChatListItemList including all the archived chatrooms
      */
     MegaChatListItemList *getArchivedChatListItems();
@@ -3746,8 +3791,11 @@ public:
      *
      * Archived chatrooms with unread messages are not considered.
      *
+     * This function filters out archived chatrooms.
+     *
      * You take the onwership of the returned value.
      *
+     * @deprecated use getChatListItems instead,
      * @return MegaChatListItemList including all the chatrooms with unread messages
      */
     MegaChatListItemList *getUnreadChatListItems();
