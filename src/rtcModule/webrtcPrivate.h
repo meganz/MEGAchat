@@ -446,16 +446,16 @@ public:
     void onSendByeCommand() override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
-    bool handleHello (Cid_t cid, unsigned int nAudioTracks, unsigned int nVideoTracks,
-                                       std::set<karere::Id> mods, bool wr, bool allowed,
-                                       std::map<karere::Id, bool> wrUsers) override;
+    bool handleHello (const Cid_t cid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+                                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                                       const std::map<karere::Id, bool>& wrUsers) override;
 
-    bool handleWrDump(std::map<karere::Id, bool> users) override;
-    bool handleWrEnter(std::map<karere::Id, bool> users) override;
-    bool handleWrLeave(std::map<karere::Id, bool> users) override;
-    bool handleWrAllow(std::map<karere::Id, bool> users) override;
-    bool handleWrDeny(std::map<karere::Id, bool> users) override;
-    bool handleWrAllowReq(karere::Id user) override;
+    bool handleWrDump(const std::map<karere::Id, bool>& users) override;
+    bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
+    bool handleWrLeave(const std::map<karere::Id, bool>& users) override;
+    bool handleWrAllow(const std::map<karere::Id, bool>& users) override;
+    bool handleWrDeny(const std::map<karere::Id, bool>& users) override;
+    bool handleWrAllowReq(const karere::Id& user) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
@@ -469,7 +469,7 @@ public:
     // ---- IWaitingRoom methods ----
     void wrOnJoinAllowed() override;
     void wrOnJoinNotAllowed() override;
-    void wrOnUserDump(std::map<karere::Id, bool>& waitingRoomUsers) override;
+    void wrOnUserDump(const std::map<karere::Id, bool> &waitingRoomUsers) override;
 
 protected:
     /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands

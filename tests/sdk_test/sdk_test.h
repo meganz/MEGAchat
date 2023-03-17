@@ -625,16 +625,16 @@ public:
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     void logError(const char* error) override;
-    bool handleHello(Cid_t /*userid*/, unsigned int /*nAudioTracks*/, unsigned int /*nVideoTracks*/,
-                                       std::set<karere::Id> /*mods*/, bool /*wr*/, bool /*allowed*/,
-                                       std::map<karere::Id, bool> /*wrUsers*/) override;
+    bool handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
+                                       const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
+                                       const std::map<karere::Id, bool>& /*wrUsers*/) override;
 
-    bool handleWrDump(std::map<karere::Id, bool> /*users*/) override;
-    bool handleWrEnter(std::map<karere::Id, bool> /*users*/) override;
-    bool handleWrLeave(std::map<karere::Id, bool> /*users*/) override;
-    bool handleWrAllow(std::map<karere::Id, bool> /*users*/) override;
-    bool handleWrDeny(std::map<karere::Id, bool> /*users*/) override;
-    bool handleWrAllowReq(karere::Id /*user*/) override;
+    bool handleWrDump(const std::map<karere::Id, bool>& /*users*/) override;
+    bool handleWrEnter(const std::map<karere::Id, bool>& /*users*/) override;
+    bool handleWrLeave(const std::map<karere::Id, bool>& /*users*/) override;
+    bool handleWrAllow(const std::map<karere::Id, bool>& /*users*/) override;
+    bool handleWrDeny(const std::map<karere::Id, bool>& /*users*/) override;
+    bool handleWrAllowReq(const karere::Id& /*user*/) override;
 };
 #endif
 #endif // CHATTEST_H

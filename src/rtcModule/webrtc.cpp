@@ -1945,9 +1945,9 @@ bool Call::handleModDel(uint64_t userid)
     return true;
 }
 
-bool Call::handleHello(Cid_t cid, unsigned int nAudioTracks, unsigned int nVideoTracks,
-                                   std::set<karere::Id> mods, bool wr, bool allowed,
-                                   std::map<karere::Id, bool> wrUsers)
+bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+                                   const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                                   const std::map<karere::Id, bool>& wrUsers)
 {
     if (mSfuClient.getSfuVersion() < 1)
     {
@@ -1989,32 +1989,32 @@ bool Call::handleHello(Cid_t cid, unsigned int nAudioTracks, unsigned int nVideo
     return true;
 }
 
-bool Call::handleWrDump(std::map<karere::Id, bool> wrUsers)
+bool Call::handleWrDump(const std::map<karere::Id, bool>& wrUsers)
 {
     return true;
 }
 
-bool Call::handleWrEnter(std::map<karere::Id, bool> wrUsers)
+bool Call::handleWrEnter(const std::map<karere::Id, bool>& wrUsers)
 {
     return true;
 }
 
-bool Call::handleWrLeave(std::map<karere::Id, bool> wrUsers)
+bool Call::handleWrLeave(const std::map<karere::Id, bool>& wrUsers)
 {
     return true;
 }
 
-bool Call::handleWrAllow(std::map<karere::Id, bool> wrUsers)
+bool Call::handleWrAllow(const std::map<karere::Id, bool>& wrUsers)
 {
     return true;
 }
 
-bool Call::handleWrDeny(std::map<karere::Id, bool> wrUsers)
+bool Call::handleWrDeny(const std::map<karere::Id, bool>& wrUsers)
 {
     return true;
 }
 
-bool Call::handleWrAllowReq(karere::Id user)
+bool Call::handleWrAllowReq(const karere::Id& user)
 {
     return true;
 }
@@ -2300,7 +2300,7 @@ void Call::wrOnJoinNotAllowed()
 {
 }
 
-void Call::wrOnUserDump(std::map<karere::Id, bool>& waitingRoomUsers)
+void Call::wrOnUserDump(const std::map<karere::Id, bool>& waitingRoomUsers)
 {
     mWaitingRoomUsers = waitingRoomUsers;
 }

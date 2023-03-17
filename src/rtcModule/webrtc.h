@@ -231,7 +231,7 @@ class IWaitingRoom
 {
     virtual void wrOnJoinAllowed() = 0;
     virtual void wrOnJoinNotAllowed() = 0;
-    virtual void wrOnUserDump(std::map<karere::Id, bool>& waitingRoomUsers) = 0;
+    virtual void wrOnUserDump(const std::map<karere::Id, bool>& waitingRoomUsers) = 0;
 };
 
 

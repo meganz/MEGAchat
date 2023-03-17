@@ -199,15 +199,15 @@ public:
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
-    virtual bool handleHello (Cid_t userid, unsigned int nAudioTracks, unsigned int nVideoTracks,
-                                       std::set<karere::Id> mods, bool wr, bool allowed,
-                                       std::map<karere::Id, bool> wrUsers) = 0;
-    virtual bool handleWrDump(std::map<karere::Id, bool> users) = 0;
-    virtual bool handleWrEnter(std::map<karere::Id, bool> users) = 0;
-    virtual bool handleWrLeave(std::map<karere::Id, bool> users) = 0;
-    virtual bool handleWrAllow(std::map<karere::Id, bool> users) = 0;
-    virtual bool handleWrDeny(std::map<karere::Id, bool> users) = 0;
-    virtual bool handleWrAllowReq(karere::Id user) = 0;
+    virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+                                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                                       const std::map<karere::Id, bool>& wrUsers) = 0;
+    virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrLeave(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrAllow(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrDeny(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrAllowReq(const karere::Id& user) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -429,13 +429,13 @@ public:
     ModDelCommandFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t userid,
-                           unsigned int nAudioTracks,
-                           unsigned int nVideoTracks,
-                           std::set<karere::Id> mods,
-                           bool wr,
-                           bool allowed,
-                           std::map<karere::Id, bool> wrUsers)>HelloCommandFunction;
+typedef std::function<bool(const Cid_t userid,
+                           const unsigned int nAudioTracks,
+                           const unsigned int nVideoTracks,
+                           const std::set<karere::Id>& mods,
+                           const bool wr,
+                           const bool allowed,
+                           const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
 class HelloCommand : public Command
 {
 public:
@@ -445,7 +445,7 @@ public:
     HelloCommandFunction mComplete;
 };
 
-typedef std::function<bool(std::map<karere::Id, bool> users)>WrDumpCommandFunction;
+typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrDumpCommandFunction;
 class WrDumpCommand: public Command
 {
 public:
@@ -455,7 +455,7 @@ public:
     WrDumpCommandFunction mComplete;
 };
 
-typedef std::function<bool(std::map<karere::Id, bool> users)>WrEnterCommandFunction;
+typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrEnterCommandFunction;
 class WrEnterCommand: public Command
 {
 public:
@@ -465,7 +465,7 @@ public:
     WrEnterCommandFunction mComplete;
 };
 
-typedef std::function<bool(std::map<karere::Id, bool> users)>WrLeaveCommandFunction;
+typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrLeaveCommandFunction;
 class WrLeaveCommand: public Command
 {
 public:
@@ -475,7 +475,7 @@ public:
     WrLeaveCommandFunction mComplete;
 };
 
-typedef std::function<bool(std::map<karere::Id, bool> users)>WrAllowCommandFunction;
+typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrAllowCommandFunction;
 class WrAllowCommand: public Command
 {
 public:
@@ -485,7 +485,7 @@ public:
     WrAllowCommandFunction mComplete;
 };
 
-typedef std::function<bool(std::map<karere::Id, bool> users)>WrDenyCommandFunction;
+typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrDenyCommandFunction;
 class WrDenyCommand: public Command
 {
 public:
@@ -495,7 +495,7 @@ public:
     WrDenyCommandFunction mComplete;
 };
 
-typedef std::function<bool(karere::Id user)>WrAllowReqCommandFunction;
+typedef std::function<bool(const karere::Id& user)>WrAllowReqCommandFunction;
 class WrAllowReqCommand: public Command
 {
 public:

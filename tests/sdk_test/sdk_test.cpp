@@ -6066,39 +6066,39 @@ void MockupCall::logError(const char *error)
 
 }
 
-bool MockupCall::handleHello(Cid_t /*userid*/, unsigned int /*nAudioTracks*/, unsigned int /*nVideoTracks*/,
-                                   std::set<karere::Id> /*mods*/, bool /*wr*/, bool /*allowed*/,
-                                   std::map<karere::Id, bool> /*wrUsers*/)
+bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
+                                   const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
+                                   const std::map<karere::Id, bool>& /*wrUsers*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrDump(std::map<karere::Id, bool> /*wrUsers*/)
+bool MockupCall::handleWrDump(const std::map<karere::Id, bool>& /*wrUsers*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrEnter(std::map<karere::Id, bool> /*wrUsers*/)
+bool MockupCall::handleWrEnter(const std::map<karere::Id, bool>& /*wrUsers*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrLeave(std::map<karere::Id, bool> /*wrUsers*/)
+bool MockupCall::handleWrLeave(const std::map<karere::Id, bool>& /*wrUsers*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrAllow(std::map<karere::Id, bool> /*wrUsers*/)
+bool MockupCall::handleWrAllow(const std::map<karere::Id, bool>& /*wrUsers*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrDeny(std::map<karere::Id, bool> /*wrUsers*/)
+bool MockupCall::handleWrDeny(const std::map<karere::Id, bool>& /*wrUsers*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrAllowReq(karere::Id /*user*/)
+bool MockupCall::handleWrAllowReq(const karere::Id& /*user*/)
 {
     return false;
 }
