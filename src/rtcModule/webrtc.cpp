@@ -966,7 +966,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     mAudio->generateRandomIv();
 
     // create transceivers for receiving audio from peers
-    for (uint32_t i = 1; i < mNumInputAudioTracks; i++)
+    for (uint32_t i = 1; i < mNumInputAudioTracks; ++i)
     {
         webrtc::RtpTransceiverInit transceiverInit;
         transceiverInit.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
@@ -974,7 +974,7 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     }
 
     // create transceivers for receiving video from peers
-    for (uint32_t i = 2; i < mNumInputVideoTracks; i++)
+    for (uint32_t i = 2; i < mNumInputVideoTracks; ++i)
     {
         webrtc::RtpTransceiverInit transceiverInit;
         transceiverInit.direction = webrtc::RtpTransceiverDirection::kRecvOnly;
@@ -982,20 +982,19 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     }
 }
 
-std::string Call::signEphemeralKey(const std::string& str)
+std::string Call::signEphemeralKey(const std::string& str) const
 {
     // get my user Ed25519 keypair (for EdDSA signature)
     const auto res = mSfuClient.getRtcCryptoMeetings()->getEd25519Keypair();
     const strongvelope::EcKey& myPrivEd25519 = res.first;
     const strongvelope::EcKey& myPubEd25519 = res.second;
 
-    Buffer bufToSign(str.data(), str.size());
     strongvelope::Signature signature;
-    Buffer eckey(myPrivEd25519.dataSize()+myPubEd25519.dataSize());
+    Buffer eckey(myPrivEd25519.dataSize() + myPubEd25519.dataSize());
     eckey.append(myPrivEd25519).append(myPubEd25519);
 
     // sign string: sesskey|<callId>|<clientId>|<pubkey> and encode in B64
-    crypto_sign_detached(signature.ubuf(), NULL, bufToSign.ubuf(), bufToSign.dataSize(), eckey.ubuf());
+    crypto_sign_detached(signature.ubuf(), NULL, reinterpret_cast<const unsigned char*>(str.data()), str.size(), eckey.ubuf());
     std::string signatureStr(signature.buf(), signature.bufSize());
     return mega::Base64::btoa(signatureStr);
 }
@@ -1010,7 +1009,7 @@ std::string Call::generateSessionKeyPair()
         return std::string();
     }
 
-    // store ephemeral keypair in our peer (check if neccesary to store public key probably not)
+    // store ephemeral keypair in our peer
     mMyPeer->setEphemeralKeyPair(ephemeralKeyPair.get());
     std::string X25519PubKeyStr(reinterpret_cast<const char*>(ephemeralKeyPair->getPubKey()), X25519_PUB_KEY_LEN);
     std::string X25519PubKeyB64 = mega::Base64::btoa(X25519PubKeyStr);
@@ -1323,7 +1322,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     for (const sfu::Peer& peer : peers) // does not include own cid
     {
         const auto& it = keystrmap.find(peer.getCid());
-        std::string keyStr = it != keystrmap.end()
+        const auto& keyStr = it != keystrmap.end()
                 ? it->second
                 : std::string();
 
@@ -1454,14 +1453,14 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
         return false;
     }
 
-    Session *session = getSession(cid);
+    Session* session = getSession(cid);
     if (!session)
     {
         RTCM_LOG_ERROR("handleKeyCommand: Received key for unknown peer cid %d", cid);
         return false;
     }
 
-    karere::Id peerid = session->getPeer().getPeerid();
+    const karere::Id& peerid = session->getPeer().getPeerid();
     const sfu::Peer& auxPeer = session->getPeer();
     auto wptr = weakHandle();
 
@@ -1479,11 +1478,16 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
         std::string recvKeyBin = mega::Base64::atob(key);
         std::string keyStr = recvKeyBin.substr(0, recvKeyBin.size() - kGcmTagLen);
         std::string tagStr = recvKeyBin.substr(recvKeyBin.size() - kGcmTagLen);
-        mSymCipher.gcm_decrypt_with_key(reinterpret_cast<const unsigned char *>(keyStr.data()), keyStr.size(),
+        if (!mSymCipher.gcm_decrypt_with_key(reinterpret_cast<const unsigned char *>(keyStr.data()), keyStr.size(),
                              ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(),
                              reinterpret_cast<const unsigned char *> (tagStr.data()), kGcmTagLen,
                              auxPeer.getKeyDecryptIv().data(), auxPeer.getKeyDecryptIv().size(),
-                             result, kMediaKeyLen);
+                             result, kMediaKeyLen))
+        {
+
+            return false;
+        }
+
 
         // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
         if (hasCallKey())
@@ -2392,7 +2396,7 @@ void Call::generateAndSendNewkey(bool reset)
 
                 if (!result)
                 {
-                    RTCM_LOG_WARNING("Failed Media key gcm_encrypt_aad encryption for peerId %s Cid %d",
+                    RTCM_LOG_WARNING("Failed Media key gcm_encrypt for peerId %s Cid %d",
                                      peer.getPeerid().toString().c_str(), peer.getCid());
                     return;
                 }
@@ -2727,7 +2731,7 @@ bool Call::isDestroying()
     return mIsDestroying;
 }
 
-std::pair<std::string, std::string>Call::splitPubKey(std::string& keyStr)
+std::pair<std::string, std::string>Call::splitPubKey(const std::string& keyStr) const
 {
     auto pos = keyStr.find(":");
     if (pos == std::string::npos)

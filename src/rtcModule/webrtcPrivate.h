@@ -372,7 +372,7 @@ public:
     std::string generateSessionKeyPair();
 
     // sign string: sesskey|<callId>|<clientId>|<pubkey> with Ed25519 key and encode in B64
-    std::string signEphemeralKey(const std::string& str);
+    std::string signEphemeralKey(const std::string& str) const;
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
@@ -419,7 +419,7 @@ public:
     bool isDestroying();
 
     // parse received ephemeral public key string (publickey:signature)
-    std::pair<std::string, std::string>splitPubKey(std::string& keyStr);
+    std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
 
     // verify signature for received ephemeral key
     promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
