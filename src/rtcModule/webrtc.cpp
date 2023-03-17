@@ -67,8 +67,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mIsJoining(false)
     , mRtc(rtc)
 {
-    std::vector<std::string> ivs;
-    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), avflags.value(), ivs));
+    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
@@ -915,7 +914,10 @@ void Call::joinSfu()
         ivs[std::to_string(kVthumbTrack)] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs[std::to_string(kHiResTrack)] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs[std::to_string(kAudioTrack)] = sfu::Command::binaryToHex(mAudio->getIv());
-        mMyPeer->makeKeyEncryptIv(ivs[std::to_string(kVthumbTrack)], ivs[std::to_string(kHiResTrack)]);
+        if (!mMyPeer->makeKeyEncryptIv(ivs[std::to_string(kVthumbTrack)], ivs[std::to_string(kHiResTrack)]))
+        {
+            orderedCallDisconnect(TermCode::kErrClientGeneral, std::string("Error generating EncryptIv"));
+        }
 
         // store ivs in MyPeer
         mMyPeer->setIvs(std::vector<std::string> { ivs[std::to_string(kVthumbTrack)],
@@ -1762,8 +1764,14 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
         }
 
         bool isModerator = mModerators.find(userid) != mModerators.end();
-        sfu::Peer peer(userid, static_cast<unsigned>(av), ivs, cid, isModerator);
-        peer.makeKeyDecryptIv(ivs[kVthumbTrack], ivs[kHiResTrack]);
+        sfu::Peer peer(userid, static_cast<unsigned>(av), &ivs, cid, isModerator);
+        if (!peer.makeKeyDecryptIv(ivs[kVthumbTrack], ivs[kHiResTrack]))
+        {
+            RTCM_LOG_ERROR("Error generating DecryptIv");
+            assert(false);
+            return;
+        }
+
         const rtcModule::X25519KeyPair* ephkeypair = mMyPeer->getEphemeralKeyPair();
         if (ephkeypair)
         {

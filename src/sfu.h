@@ -40,7 +40,13 @@ public:
 class Peer
 {
 public:
-    Peer(karere::Id peerid, unsigned avFlags, std::vector<std::string>& ivs, Cid_t cid = 0, bool isModerator = false);
+    enum class mediaKeyIv: uint8_t
+    {
+      lenIvFirstPart  = 8,
+      lenIvSecondPart = 4,
+    };
+
+    Peer(const karere::Id peerid, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -63,8 +69,8 @@ public:
     const rtcModule::X25519KeyPair* getEphemeralKeyPair() const;
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
-    void makeKeyEncryptIv(const std::string &first, const std::string &second);
-    void makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv);
+    bool makeKeyEncryptIv(const std::string &first, const std::string &second);
+    bool makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv);
     const std::vector<byte>& getKeyEncryptIv() const;
     const std::vector<byte>& getKeyDecryptIv() const;
 
