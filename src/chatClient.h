@@ -18,6 +18,7 @@
 #endif
 #include "stringUtils.h"
 #include <mega/types.h>
+#include <mega/textchat.h>
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -1291,104 +1292,63 @@ protected:
     friend class ChatRoomList;
 };
 
-class KarereScheduledFlags
+class KarereScheduledFlags : public mega::ScheduledFlags
 {
 public:
-    typedef enum
+    KarereScheduledFlags() = default;
+    KarereScheduledFlags(const unsigned long numericValue);
+    KarereScheduledFlags(const KarereScheduledFlags* flags);
+    KarereScheduledFlags(const mega::MegaScheduledFlags* flags);
+    ~KarereScheduledFlags() override = default;
+    KarereScheduledFlags(const KarereScheduledFlags&) = delete;
+    KarereScheduledFlags(const KarereScheduledFlags&&) = delete;
+    KarereScheduledFlags& operator=(const KarereScheduledFlags&) = delete;
+    KarereScheduledFlags& operator=(const KarereScheduledFlags&&) = delete;
+
+    virtual KarereScheduledFlags* copy() const override { return new KarereScheduledFlags(this); }
+    bool equalTo(const mega::MegaScheduledFlags* msf) const
     {
-        FLAGS_DONT_SEND_EMAILS = 0, // API won't send out calendar emails for this meeting if it's enabled
-        FLAGS_SIZE             = 1, // size in bits of flags bitmask
-    } scheduled_flags_t;
-
-    // TODO remove
-    typedef std::bitset<FLAGS_SIZE> karereScheduledFlagsBitSet;
-
-    KarereScheduledFlags (unsigned long numericValue);
-    KarereScheduledFlags (const KarereScheduledFlags* flags);
-    KarereScheduledFlags(const ::mega::MegaScheduledFlags* flags);
-    virtual ~KarereScheduledFlags();
-    KarereScheduledFlags* copy();
-
-    // --- setters ---
-    void reset();
-    bool emailsDisabled() const;
-    unsigned long getNumericValue() const;
-    bool isEmpty() const;
-    bool equalTo(::mega::MegaScheduledFlags* aux) const;
-
-private:
-    karereScheduledFlagsBitSet mFlags = 0;
+        return msf && (getNumericValue() == msf->getNumericValue());
+    }
 };
 
-class KarereScheduledRules
+class KarereScheduledRules : public mega::ScheduledRules
 {
 public:
-    typedef enum {
-        FREQ_INVALID    = -1,
-        FREQ_DAILY      = 0,
-        FREQ_WEEKLY     = 1,
-        FREQ_MONTHLY    = 2,
-    } freq_type;
-
-    constexpr static int INTERVAL_INVALID = 0;
-
     // just for karere internal usage
-    typedef std::vector<int8_t> karere_rules_vector;
-    typedef std::multimap<int8_t, int8_t> karere_rules_map;
+    using karere_rules_vector = mega::ScheduledRules::rules_vector;
+    using karere_rules_map = mega::ScheduledRules::rules_map;
 
-    KarereScheduledRules(int freq,
-                   int interval = INTERVAL_INVALID,
-                   mega::m_time_t until = ::mega::mega_invalid_timestamp,
-                   const karere_rules_vector* byWeekDay = nullptr,
-                   const karere_rules_vector* byMonthDay = nullptr,
-                   const karere_rules_map* byMonthWeekDay = nullptr);
-
+    KarereScheduledRules(const int freq,
+                         const int interval = INTERVAL_INVALID,
+                         const mega::m_time_t until = mega::mega_invalid_timestamp,
+                         const karere_rules_vector* byWeekDay = nullptr,
+                         const karere_rules_vector* byMonthDay = nullptr,
+                         const karere_rules_map* byMonthWeekDay = nullptr);
     KarereScheduledRules(const KarereScheduledRules* rules);
-    KarereScheduledRules(const ::mega::MegaScheduledRules* rules);
-    virtual ~KarereScheduledRules();
-    KarereScheduledRules* copy() const;
+    KarereScheduledRules(const mega::MegaScheduledRules* rules);
+    ~KarereScheduledRules() override = default;
+    KarereScheduledRules(const KarereScheduledRules&) = delete;
+    KarereScheduledRules(const KarereScheduledRules&&) = delete;
+    KarereScheduledRules& operator=(const KarereScheduledRules&) = delete;
+    KarereScheduledRules& operator=(const KarereScheduledRules&&) = delete;
 
-    // --- getters ---
-    int freq() const;
-    int interval() const;
-    ::mega::m_time_t until() const;
-    const karere_rules_vector* byWeekDay() const;
-    const karere_rules_vector* byMonthDay() const;
-    const karere_rules_map* byMonthWeekDay() const;
+    void setFreq(const int freq)              { mFreq = static_cast<mega::ScheduledRules::freq_type_t>(freq); }
+    void setInterval(const int interval)      { mInterval = interval; }
+    void setUntil(const mega::m_time_t until) { mUntil = until; }
+    void setByWeekDay(const karere_rules_vector* byWD);
+    void setByMonthDay(const karere_rules_vector* byMD);
+    void setByMonthWeekDay(const karere_rules_map* byMWD);
+
+    virtual KarereScheduledRules* copy() const override { return new KarereScheduledRules(this); }
+    mega::MegaScheduledRules *getMegaScheduledRules() const;
     bool equalTo (const mega::MegaScheduledRules *r) const;
 
-    // get a MegaScheduledRules object from KarereScheduledRules
-    mega::MegaScheduledRules *getMegaScheduledRules() const;
-
-    static bool isValidFreq(int freq) { return (freq >= FREQ_DAILY && freq <= FREQ_MONTHLY); }
-    static bool isValidInterval(int interval) { return interval > INTERVAL_INVALID; }
-    static bool isValidUntil(::mega::m_time_t until) { return until > ::mega::mega_invalid_timestamp; }
-
-    // --- methods to un/serialize ---
     bool serialize(Buffer& out) const;
     static KarereScheduledRules* unserialize(const Buffer& in);
-
-private:
-    // scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval to allow for a repeatable skips in the event timeline
-    int mFreq;
-
-    // repetition interval in relation to the frequency
-    int mInterval = 0;
-
-    // specifies when the repetitions should end
-    ::mega::m_time_t mUntil;
-
-    // allows us to specify that an event will only occur on given week day/s
-    std::unique_ptr<karere_rules_vector> mByWeekDay;
-
-    // allows us to specify that an event will only occur on a given day/s of the month
-    std::unique_ptr<karere_rules_vector> mByMonthDay;
-
-    // allows us to specify that an event will only occurs on a specific weekday offset of the month. For example, every 2nd Sunday of each month
-    std::unique_ptr<karere_rules_map> mByMonthWeekDay;
 };
 
-class KarereScheduledMeeting
+class KarereScheduledMeeting : public mega::ScheduledMeeting
 {
 public:
     typedef enum
@@ -1409,77 +1369,38 @@ public:
     } scheduled_changed_flags_t;
     typedef std::bitset<SC_FLAGS_SIZE> sched_bs_t;
 
-    KarereScheduledMeeting(karere::Id chatid, karere::Id organizerid, const std::string& timezone, ::mega::m_time_t startDateTime, ::mega::m_time_t endDateTime,
-                                    const std::string& title, const std::string& description, karere::Id schedId = karere::Id::inval(),
-                                    karere::Id parentSchedId = karere::Id::inval(), int cancelled = -1, const std::string& attributes = std::string(),
-                                    mega::m_time_t overrides = ::mega::MEGA_INVALID_TIMESTAMP, KarereScheduledFlags* flags = nullptr, KarereScheduledRules* rules = nullptr);
-
+    KarereScheduledMeeting(const karere::Id chatid,
+                           const karere::Id organizerid,
+                           const std::string& timezone,
+                           const mega::m_time_t startDateTime,
+                           const mega::m_time_t endDateTime,
+                           const std::string& title,
+                           const std::string& description,
+                           const karere::Id schedId = karere::Id::inval(),
+                           const karere::Id parentSchedId = karere::Id::inval(),
+                           const int cancelled = -1,
+                           const std::string& attributes = std::string(),
+                           const mega::m_time_t _overrides = mega::MEGA_INVALID_TIMESTAMP,
+                           const KarereScheduledFlags* flags = nullptr,
+                           const KarereScheduledRules* rules = nullptr);
     KarereScheduledMeeting(const KarereScheduledMeeting* karereScheduledMeeting);
     KarereScheduledMeeting(const mega::MegaScheduledMeeting* sm);
+    ~KarereScheduledMeeting() override = default;
+    KarereScheduledMeeting(const KarereScheduledMeeting&) = delete;
+    KarereScheduledMeeting(const KarereScheduledMeeting&&) = delete;
+    KarereScheduledMeeting& operator=(const KarereScheduledMeeting&) = delete;
+    KarereScheduledMeeting& operator=(const KarereScheduledMeeting&&) = delete;
 
-    KarereScheduledMeeting* copy() const;
-    virtual ~KarereScheduledMeeting();
+    const KarereScheduledFlags* flags() const override;
+    const KarereScheduledRules* rules() const override;
 
-    karere::Id chatid() const;
-    karere::Id schedId() const;
-    karere::Id parentSchedId() const;
-    karere::Id organizerUserid() const;
-    const std::string& timezone() const;
-    ::mega::m_time_t startDateTime() const;
-    ::mega::m_time_t endDateTime() const;
-    const std::string& title() const;
-    const std::string& description() const;
-    const std::string& attributes() const;
-    mega::m_time_t overrides() const;
-    int cancelled() const;
-    KarereScheduledFlags* flags() const;
-    KarereScheduledRules* rules() const;
+    virtual KarereScheduledMeeting* copy() const override { return new KarereScheduledMeeting(this); }
     sched_bs_t compare(const mega::MegaScheduledMeeting* sm) const;
-    static unsigned long newSchedMeetingFlagsValue();
-    static unsigned long deletedSchedMeetingFlagsValue();
 
-private:
-    // chat handle
-    karere::Id mChatid;
-
-    // scheduled meeting handle
-    karere::Id mSchedId;
-
-    // parent scheduled meeting handle
-    karere::Id mParentSchedId;
-
-    // organizer user handle
-    karere::Id mOrganizerUserId;
-
-    // timeZone
-    std::string mTimezone;
-
-    // start dateTime (unix timestamp)
-    ::mega::m_time_t mStartDateTime;
-
-    // end dateTime (unix timestamp)
-    ::mega::m_time_t mEndDateTime;
-
-    // meeting title
-    std::string mTitle;
-
-    // meeting description
-    std::string mDescription;
-
-    // attributes to store any additional data
-    std::string mAttributes;
-
-    // start dateTime of the original meeting series event to be replaced (unix timestamp)
-    ::mega::m_time_t mOverrides;
-
-    // cancelled flag
-    int mCancelled;
-
-    // flags bitmask (used to store additional boolean settings as a bitmask)
-    std::unique_ptr<KarereScheduledFlags> mFlags;
-
-    // scheduled meetings rules
-    std::unique_ptr<KarereScheduledRules> mRules;
+    // first bit enabled in a sched_bs_t bitset, represents that scheduled meeting is new => same than 2^SC_NEW_SCHED
+    static constexpr unsigned long newSchedMeetingFlagsValue()     { return 1; }
+    // if none of bits are enabled in a sched_bs_t bitset, represents that scheduled meeting has been removed
+    static constexpr unsigned long deletedSchedMeetingFlagsValue() { return 0; }
 };
 
 /**
