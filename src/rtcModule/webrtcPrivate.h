@@ -618,6 +618,7 @@ public:
     void releaseDevice() override;
     void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
     void removeLocalVideoRenderer(karere::Id chatid) override;
+    void onMediaKeyDecryptionFailed(const std::string& err);
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;

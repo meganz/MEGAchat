@@ -1485,6 +1485,13 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
                              result, kMediaKeyLen))
         {
 
+            std::string err = "Failed gcm_decrypt received key. Cid: "
+                    + std::to_string(auxPeer.getCid())
+                    + "PeerId: " + auxPeer.getPeerid().toString()
+                    + "KeyId: " + std::to_string(keyid);
+
+            mRtc.onMediaKeyDecryptionFailed(err);
+            RTCM_LOG_WARNING("%s", err.c_str());
             return false;
         }
 
@@ -3136,6 +3143,11 @@ void RtcModuleSfu::addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *vide
 void RtcModuleSfu::removeLocalVideoRenderer(karere::Id chatid)
 {
     mRenderers.erase(chatid);
+}
+
+void RtcModuleSfu::onMediaKeyDecryptionFailed(const std::string& err)
+{
+    mMegaApi.callIgnoreResult(&::mega::MegaApi::sendEvent, 99794, err.c_str());
 }
 
 std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
