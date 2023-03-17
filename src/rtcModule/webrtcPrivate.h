@@ -422,7 +422,7 @@ public:
     std::pair<std::string, std::string>splitPubKey(std::string& keyStr);
 
     // verify signature for received ephemeral key
-    promise::Promise<bool> verifySignature(Cid_t cid, uint64_t userid, std::string& pubkey, std::string& signature);
+    promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;

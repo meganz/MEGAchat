@@ -2741,8 +2741,7 @@ std::pair<std::string, std::string>Call::splitPubKey(std::string& keyStr)
 }
 
 promise::Promise<bool>
-Call::verifySignature(Cid_t cid, uint64_t userid, std::string& pubkey, std::string& signature)
-// const std::string& msg, const std::string& recvsignature, const karere::Id& chatid, const karere::Id& peer)
+Call::verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature)
 {
     promise::Promise<bool> pms;
     if (pubkey.empty() || signature.empty())
