@@ -230,6 +230,7 @@ public:
     virtual bool processCommand(const rapidjson::Document& command) = 0;
     static std::string COMMAND_IDENTIFIER;
     static std::string ERROR_IDENTIFIER;
+    static std::string WARN_IDENTIFIER;
     static std::string ERROR_MESSAGE;
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
@@ -567,7 +568,7 @@ public:
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
-    static bool parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode);
+    static bool parseSfuData(const char* data, rapidjson::Document& document, std::string& command, std::string& warnMsg, std::string& errMsg, int32_t& errCode);
     static void setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands);
     bool handleIncomingData(const char *data, size_t len);
     void addNewCommand(const std::string &command);

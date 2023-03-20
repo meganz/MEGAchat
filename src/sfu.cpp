@@ -13,6 +13,7 @@ namespace sfu
 //
 std::string Command::COMMAND_IDENTIFIER     = "a";
 std::string Command::ERROR_IDENTIFIER       = "err";
+std::string Command::WARN_IDENTIFIER        = "warn";
 std::string Command::ERROR_MESSAGE          = "msg";
 
 const std::string AVCommand::COMMAND_NAME             = "AV";
@@ -1589,7 +1590,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[WrAllowReqCommand::COMMAND_NAME] = mega::make_unique<WrAllowReqCommand>(std::bind(&sfu::SfuInterface::handleWrAllowReq, &call, std::placeholders::_1), call);
 }
 
-bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode)
+bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& document, std::string& command, std::string& warnMsg, std::string& errMsg, int32_t& errCode)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
     rapidjson::StringStream stringStream(data);
@@ -1603,7 +1604,10 @@ bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document
 
     rapidjson::Value::ConstMemberIterator jsonIterator = document.FindMember(Command::COMMAND_IDENTIFIER.c_str());
     rapidjson::Value::ConstMemberIterator jsonErrIterator = document.FindMember(Command::ERROR_IDENTIFIER.c_str());
-    if ((jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString()) && (jsonErrIterator == document.MemberEnd()))
+    rapidjson::Value::ConstMemberIterator jsonWarnIterator = document.FindMember(Command::WARN_IDENTIFIER.c_str());
+    if ((jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString())
+            && (jsonErrIterator == document.MemberEnd())
+            && (jsonWarnIterator == document.MemberEnd()))
     {
         errMsg = "Received data doesn't have 'a' field";
         return false;
@@ -1621,6 +1625,12 @@ bool SfuConnection::parseSfuData(const char *data, rapidjson::Document &document
         return true;
     }
 
+    if (jsonWarnIterator != document.MemberEnd() && jsonWarnIterator->value.IsString())
+    {
+        warnMsg = jsonWarnIterator->value.GetString();
+        return true;
+    }
+
     command = jsonIterator->value.GetString();
     return true;
 }
@@ -1630,10 +1640,11 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
     // init errCode to invalid value, to check if a valid errCode has been returned by SFU
     int32_t errCode = INT32_MIN;
     std::string command;
+    std::string warnMsg;
     std::string errMsg;
     rapidjson::Document document;
 
-    if (!parseSfuData(data, document, command, errMsg, errCode))
+    if (!parseSfuData(data, document, command, warnMsg, errMsg, errCode))
     {
         // error parsing incoming data from SFU
         SFU_LOG_ERROR("%s", errMsg.c_str());
@@ -1644,6 +1655,12 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
     {
         // process errCode returned by SFU
         mCall.error(static_cast<unsigned int>(errCode), errMsg);
+        return true;
+    }
+
+    if (!warnMsg.empty())
+    {
+        SFU_LOG_WARNING("%s", warnMsg.c_str());
         return true;
     }
 

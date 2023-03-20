@@ -5751,9 +5751,10 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
         executedTests++;
         int32_t errCode = INT32_MIN; // init errCode to invalid value, to check if a valid errCode has been returned by SFU
         std::string command;
+        std::string warnMsg;
         std::string errMsg;
         rapidjson::Document document;
-        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, command, errMsg, errCode);
+        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, command, warnMsg, errMsg, errCode);
 
         /* Command processing is considered failed if:
          * 1) An error happened upon parsing "SFU" incoming data
@@ -5763,6 +5764,11 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
         bool commandProcSuccess = parseSuccess
                && (errCode != INT32_MIN
                     || (commands.find(command) != commands.end() && commands[command]->processCommand(document)));
+
+        if (!warnMsg.empty())
+        {
+            LOG_warn << warnMsg;
+        }
 
         if (commandProcSuccess != testCase.second)
         {
