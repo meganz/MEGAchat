@@ -598,6 +598,24 @@ void Call::stopSpeak(Cid_t cid)
     mSfuConnection->sendSpeakDel();
 }
 
+void Call::pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const
+{
+    assert(all || !users.empty());
+    mSfuConnection->sendWrPush(users, all);
+}
+
+void Call::allowUsersFromWaitingRoom(const std::set<karere::Id>& users, const bool all) const
+{
+    assert(all || !users.empty());
+    mSfuConnection->sendWrAllow(users, all);
+}
+
+void Call::kickUsersFromWaitingRoom(const std::set<karere::Id>& users) const
+{
+    assert(!users.empty());
+    mSfuConnection->sendWrKick(users);
+}
+
 std::vector<Cid_t> Call::getSpeakerRequested()
 {
     std::vector<Cid_t> speakerRequested;

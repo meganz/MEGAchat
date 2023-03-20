@@ -2597,6 +2597,71 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+        case MegaChatRequest::TYPE_WR_PUSH:
+        case MegaChatRequest::TYPE_WR_ALLOW:
+        {
+            auto res = getCallWithModPermissions(request->getChatHandle(), std::string("MegaChatRequest::TYPE_") + request->getRequestString());
+            if (res.first != MegaChatError::ERROR_OK)
+            {
+                errorCode = res.first;
+                break;
+            }
+
+            const auto handleList = request->getMegaHandleList();
+            bool allowAll = request->getFlag();
+            if (!allowAll && (!handleList || !handleList->size()))
+            {
+                request->getType() == MegaChatRequest::TYPE_WR_PUSH
+                    ? API_LOG_ERROR("MegaChatRequest::TYPE_WR_ALLOW - Invalid list of users to be allowed to JOIN")
+                    : API_LOG_ERROR("MegaChatRequest::TYPE_WR_PUSH - Invalid list of users to be pushed in the waiting room",
+                                    request->getRequestString());
+
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            std::set<karere::Id> users;
+            for (unsigned int i = 0; handleList->size(); ++i)
+            {
+                users.emplace(handleList->get(i));
+            }
+
+            rtcModule::ICall* call= res.second;
+            request->getType() == MegaChatRequest::TYPE_WR_PUSH
+                ? call->pushUsersIntoWaitingRoom(users, allowAll)
+                : call->allowUsersFromWaitingRoom(users, allowAll);
+
+            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+            break;
+        }
+        case MegaChatRequest::TYPE_WR_KICK:
+        {
+            auto res = getCallWithModPermissions(request->getChatHandle(), std::string("MegaChatRequest::TYPE_") + request->getRequestString());
+            if (res.first != MegaChatError::ERROR_OK)
+            {
+                errorCode = res.first;
+                break;
+            }
+
+            const auto handleList = request->getMegaHandleList();
+            if (!handleList || !handleList->size())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK - Empty list of users to be kicked off");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            std::set<karere::Id> users;
+            for (unsigned int i = 0; handleList->size(); ++i)
+            {
+                users.emplace(handleList->get(i));
+            }
+
+            rtcModule::ICall* call= res.second;
+            call->kickUsersFromWaitingRoom(users);
+            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+            break;
+        }
 
         case MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING:
         {
@@ -5533,6 +5598,32 @@ void MegaChatApiImpl::removeSpeaker(MegaChatHandle chatid, MegaChatHandle client
     waiter->notify();
 }
 
+void MegaChatApiImpl::pushUsersIntoWaitingRoom(MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_PUSH, listener);
+    request->setMegaHandleList(users);
+    request->setFlag(all);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::allowUsersFromWaitingRoom(MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_ALLOW, listener);
+    request->setMegaHandleList(users);
+    request->setFlag(all);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::kickUsersFromWaitingRoom(MegaHandleList* users, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_KICK, listener);
+    request->setMegaHandleList(users);
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CALL_ON_HOLD, listener);
@@ -5852,6 +5943,45 @@ void MegaChatApiImpl::stopLowResVideo(MegaChatHandle chatid, MegaHandleList *cli
     request->setMegaHandleList(clientIds);
     requestQueue.push(request);
     waiter->notify();
+}
+
+std::pair<int, rtcModule::ICall*>
+MegaChatApiImpl::getCallWithModPermissions(const MegaChatHandle chatid, const std::string& msg)
+{
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("%s - Invalid chatid", msg.c_str());
+        return std::make_pair (MegaChatError::ERROR_ARGS, nullptr);
+    }
+
+    const ChatRoom* chatroom = findChatRoom(chatid);
+    if (!chatroom)
+    {
+        API_LOG_ERROR("%s - There is not any chatroom with chatid: %s",
+                      msg.c_str(), karere::Id(chatid).toString().c_str());
+        return std::make_pair (MegaChatError::ERROR_NOENT, nullptr);
+    }
+
+    rtcModule::ICall* call = findCall(chatid);
+    if (!call)
+    {
+        API_LOG_ERROR("%s - There is not any call in that chatroom", msg.c_str());
+        return std::make_pair (MegaChatError::ERROR_NOENT, nullptr);
+    }
+
+    if (call->getState() != rtcModule::kStateInProgress)
+    {
+        API_LOG_ERROR("%s - Call isn't in progress state", msg.c_str());
+        return std::make_pair (MegaChatError::ERROR_ACCESS, nullptr);
+    }
+
+    if (!call->isOwnPrivModerator())
+    {
+        API_LOG_ERROR("%s - moderator role required to perform this action", msg.c_str());
+        return std::make_pair (MegaChatError::ERROR_ACCESS, nullptr);
+    }
+
+    return std::make_pair (MegaChatError::ERROR_OK, call);
 }
 
 #endif
@@ -6831,6 +6961,9 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES: return "FETCH_SCHEDULED_MEETING_OCCURRENCES";
         case TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE: return "UPDATE_SCHEDULED_MEETING_OCCURRENCE";
         case TYPE_UPDATE_SCHEDULED_MEETING: return "UPDATE_SCHEDULED_MEETING";
+        case TYPE_WR_PUSH: return "WR_PUSH";
+        case TYPE_WR_ALLOW: return "WR_ALLOW";
+        case TYPE_WR_KICK: return "WR_KICK";
     }
     return "UNKNOWN";
 }

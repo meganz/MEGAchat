@@ -332,6 +332,9 @@ public:
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     bool isSpeakAllow() const override; // true if request has been approved
     void stopSpeak(Cid_t cid = 0) override; // after been approved
+    void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
+    void allowUsersFromWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
+    void kickUsersFromWaitingRoom(const std::set<karere::Id>& users) const override;
 
     void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
