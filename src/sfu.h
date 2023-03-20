@@ -592,10 +592,10 @@ public:
     bool sendBye(int termCode);
 
     // Waiting room related commands
-    bool sendWrPush(std::set<karere::Id> users, bool all);
-    bool sendWrAllow(std::set<karere::Id> users, bool all);
-    bool sendWrKick(std::set<karere::Id> users);
-    bool addWrUsersArray(std::set<karere::Id> users, bool all, rapidjson::Document &json);
+    bool sendWrPush(const std::set<karere::Id>& users, const bool all);
+    bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
+    bool sendWrKick(const std::set<karere::Id>& users);
+    bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands

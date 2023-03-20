@@ -2041,12 +2041,12 @@ bool SfuConnection::sendBye(int termCode)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendWrPush(std::set<karere::Id> users, bool all)
+bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool all)
 {
     if (users.empty() && !all)
     {
         assert(false);
-        SFU_LOG_DEBUG("sendWrPush: invalid arguments provided");
+        SFU_LOG_WARNING("sendWrPush: invalid arguments provided");
         return false;
     }
     rapidjson::Document json(rapidjson::kObjectType);
@@ -2062,12 +2062,12 @@ bool SfuConnection::sendWrPush(std::set<karere::Id> users, bool all)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendWrAllow(std::set<karere::Id> users, bool all)
+bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool all)
 {
     if (users.empty() && !all)
     {
         assert(false);
-        SFU_LOG_DEBUG("sendWrAllow: invalid arguments provided");
+        SFU_LOG_WARNING("sendWrAllow: invalid arguments provided");
         return false;
     }
     rapidjson::Document json(rapidjson::kObjectType);
@@ -2083,12 +2083,12 @@ bool SfuConnection::sendWrAllow(std::set<karere::Id> users, bool all)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendWrKick(std::set<karere::Id> users)
+bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
 {
     if (users.empty())
     {
         assert(false);
-        SFU_LOG_DEBUG("sendWrKick: invalid arguments provided");
+        SFU_LOG_WARNING("sendWrKick: invalid arguments provided");
         return false;
     }
     rapidjson::Document json(rapidjson::kObjectType);
@@ -2104,7 +2104,7 @@ bool SfuConnection::sendWrKick(std::set<karere::Id> users)
     return sendCommand(command);
 }
 
-bool SfuConnection::addWrUsersArray(std::set<karere::Id> users, bool all, rapidjson::Document& json)
+bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json)
 {
     assert(!users.empty() || all);
     if (users.empty())
