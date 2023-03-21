@@ -10,58 +10,59 @@ namespace sfu
 {
 const std::string Sdp::endl = "\r\n";
 
-// notifications SFU -> client
+// SFU -> client (different types of notifications)
 std::string Command::COMMAND_IDENTIFIER                 = "a";
 std::string Command::ERROR_IDENTIFIER                   = "err";
 std::string Command::WARN_IDENTIFIER                    = "warn";
 std::string Command::ERROR_MESSAGE                      = "msg";
 
-// commands SFU -> client
-const std::string AVCommand::COMMAND_NAME               = "AV";
-const std::string AnswerCommand::COMMAND_NAME           = "ANSWER";
-const std::string KeyCommand::COMMAND_NAME              = "KEY";
-const std::string VthumbsCommand::COMMAND_NAME          = "VTHUMBS";
-const std::string VthumbsStartCommand::COMMAND_NAME     = "VTHUMB_START";
-const std::string VthumbsStopCommand::COMMAND_NAME      = "VTHUMB_STOP";
-const std::string HiResCommand::COMMAND_NAME            = "HIRES";
-const std::string HiResStartCommand::COMMAND_NAME       = "HIRES_START";
-const std::string HiResStopCommand::COMMAND_NAME        = "HIRES_STOP";
-const std::string SpeakReqsCommand::COMMAND_NAME        = "SPEAK_REQS";
-const std::string SpeakReqDelCommand::COMMAND_NAME      = "SPEAK_RQ_DEL";
-const std::string SpeakOnCommand::COMMAND_NAME          = "SPEAK_ON";
-const std::string SpeakOffCommand::COMMAND_NAME         = "SPEAK_OFF";
-const std::string PeerJoinCommand::COMMAND_NAME         = "PEERJOIN";
-const std::string PeerLeftCommand::COMMAND_NAME         = "PEERLEFT";
-const std::string ByeCommand::COMMAND_NAME              = "BYE";
-const std::string ModAddCommand::COMMAND_NAME           = "MOD_ADD";
-const std::string ModDelCommand::COMMAND_NAME           = "MOD_DEL";
-const std::string HelloCommand::COMMAND_NAME            = "HELLO";
-const std::string WrDumpCommand::COMMAND_NAME           = "WR_DUMP";
-const std::string WrEnterCommand::COMMAND_NAME          = "WR_ENTER";
-const std::string WrLeaveCommand::COMMAND_NAME          = "WR_LEAVE";
-const std::string WrAllowCommand::COMMAND_NAME          = "WR_ALLOW";
-const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";
-const std::string WrAllowReqCommand::COMMAND_NAME       = "WR_ALLOW_REQ";
-const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW";
-const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";
+// SFU -> client (commands)
 
-// commands client -> SFU
-const std::string SfuConnection::CSFU_JOIN              = "JOIN";
-const std::string SfuConnection::CSFU_SENDKEY           = "KEY";
-const std::string SfuConnection::CSFU_AV                = "AV";
-const std::string SfuConnection::CSFU_GET_VTHUMBS       = "GET_VTHUMBS";
-const std::string SfuConnection::CSFU_DEL_VTHUMBS       = "DEL_VTHUMBS";
-const std::string SfuConnection::CSFU_GET_HIRES         = "GET_HIRES";
-const std::string SfuConnection::CSFU_DEL_HIRES         = "DEL_HIRES";
-const std::string SfuConnection::CSFU_HIRES_SET_LO      = "HIRES_SET_LO";
-const std::string SfuConnection::CSFU_LAYER             = "LAYER";
-const std::string SfuConnection::CSFU_SPEAK_RQ          = "SPEAK_RQ";
-const std::string SfuConnection::CSFU_SPEAK_RQ_DEL      = "SPEAK_RQ_DEL";
-const std::string SfuConnection::CSFU_SPEAK_DEL         = "SPEAKER_DEL";
-const std::string SfuConnection::CSFU_BYE               = "BYE";
-const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";
-const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";
-const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";
+const std::string AVCommand::COMMAND_NAME               = "AV";             // Notifies changes in Av flags for a peer
+const std::string AnswerCommand::COMMAND_NAME           = "ANSWER";         // SFU response to JOIN command
+const std::string KeyCommand::COMMAND_NAME              = "KEY";            // Notifies about a new media key for a peer
+const std::string VthumbsCommand::COMMAND_NAME          = "VTHUMBS";        // Notifies that SFU started sending some peer video thumbnail tracks over the specified slots.
+const std::string VthumbsStartCommand::COMMAND_NAME     = "VTHUMB_START";   // Instruct client to start sending the video thumbnail tracks
+const std::string VthumbsStopCommand::COMMAND_NAME      = "VTHUMB_STOP";    // Instruct client to stop sending the video thumbnail tracks
+const std::string HiResCommand::COMMAND_NAME            = "HIRES";          // Notifies that SFU started sending some peer video hires tracks over the specified slots.
+const std::string HiResStartCommand::COMMAND_NAME       = "HIRES_START";    // Instruct client to start sending the video hires tracks
+const std::string HiResStopCommand::COMMAND_NAME        = "HIRES_STOP";     // Instruct client to stop sending the video hires tracks
+const std::string SpeakReqsCommand::COMMAND_NAME        = "SPEAK_REQS";     // Notifies that one or more speak requests have been added to the pending list, waiting for approval
+const std::string SpeakReqDelCommand::COMMAND_NAME      = "SPEAK_RQ_DEL";   // Cancels a pending speak request.
+const std::string SpeakOnCommand::COMMAND_NAME          = "SPEAK_ON";       // Notifies that a speak request has been approved
+const std::string SpeakOffCommand::COMMAND_NAME         = "SPEAK_OFF";      // Notifies that a client stopped being an active speaker
+const std::string PeerJoinCommand::COMMAND_NAME         = "PEERJOIN";       // Notifies that a peer has joined to the call
+const std::string PeerLeftCommand::COMMAND_NAME         = "PEERLEFT";       // Notifies that a peer has left the call
+const std::string ByeCommand::COMMAND_NAME              = "BYE";            // Notifies that SFU disconnects a client from the call
+const std::string ModAddCommand::COMMAND_NAME           = "MOD_ADD";        // Notifies that a moderator has been added to the moderator list
+const std::string ModDelCommand::COMMAND_NAME           = "MOD_DEL";        // Notifies that a moderator has been removed from the moderator list
+const std::string HelloCommand::COMMAND_NAME            = "HELLO";          // First command received after connecting to the SFU
+const std::string WrDumpCommand::COMMAND_NAME           = "WR_DUMP";        // Notifies the current waiting room status
+const std::string WrEnterCommand::COMMAND_NAME          = "WR_ENTER";       // Notifies moderators about user(s) that entered/were pushed in the waiting room
+const std::string WrLeaveCommand::COMMAND_NAME          = "WR_LEAVE";       // Notifies moderators about user(s) who left the waiting room (either entered the call or disconnected)
+const std::string WrAllowCommand::COMMAND_NAME          = "WR_ALLOW";       // Notifies that our user permission to enter the call has been granted (from waiting room)
+const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";        // Notifies that our user permission to enter the call has been denied (from waiting room)
+const std::string WrAllowReqCommand::COMMAND_NAME       = "WR_ALLOW_REQ";   // Notification resulting from a client sending WR_ALLOW_REQ, relayed to all moderators.
+const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted permission to enter the call.
+const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied permission to enter the call
+
+// client -> SFU (commands)
+const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
+const std::string SfuConnection::CSFU_SENDKEY           = "KEY";            // Command sent to broadcast a new media key encrypted for all call participants
+const std::string SfuConnection::CSFU_AV                = "AV";             // Command sent to modify the current AV flags
+const std::string SfuConnection::CSFU_GET_VTHUMBS       = "GET_VTHUMBS";    // Command sent to request the low-res video thumbnails of specified peers
+const std::string SfuConnection::CSFU_DEL_VTHUMBS       = "DEL_VTHUMBS";    // Command sent to instruct the SFU to stop sending the video thumbnail tracks of the specified peers
+const std::string SfuConnection::CSFU_GET_HIRES         = "GET_HIRES";      // Command sent to request the hi-resolution track of a single peer
+const std::string SfuConnection::CSFU_DEL_HIRES         = "DEL_HIRES";      // Command sent to instruct the SFU to stop sending the hi-res track of the specified peer
+const std::string SfuConnection::CSFU_HIRES_SET_LO      = "HIRES_SET_LO";   // Command sent to instruct the SFU to send a lower spatial SVC layer of the hi-res stream of the specified peer
+const std::string SfuConnection::CSFU_LAYER             = "LAYER";          // Command sent to select the SVC spatial and layers for all hi-res video tracks that the client receives
+const std::string SfuConnection::CSFU_SPEAK_RQ          = "SPEAK_RQ";       // Command sent to request a client to become an active speaker
+const std::string SfuConnection::CSFU_SPEAK_RQ_DEL      = "SPEAK_RQ_DEL";   // Command sent to cancel a pending speak request
+const std::string SfuConnection::CSFU_SPEAK_DEL         = "SPEAKER_DEL";    // Command sent to request that an active speaker stops being one.
+const std::string SfuConnection::CSFU_BYE               = "BYE";            // Command sent to disconnect orderly from the call
+const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // Command sent to push all clients of sent peerId's (that are in the call) to the waiting roo
+const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // Command sent to grant the specified users the permission to enter the call from the waiting room
+const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";        // Command sent to disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room
 
 CommandsQueue::CommandsQueue():
     isSending(false)
