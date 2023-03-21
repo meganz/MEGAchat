@@ -158,6 +158,7 @@ public:
     virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
     virtual void onPermissionsChanged(const ICall& call) = 0;
+    virtual void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) = 0;
 };
 
 class ICall
@@ -232,9 +233,10 @@ public:
 
 class IWaitingRoom
 {
-    virtual void wrOnJoinAllowed() = 0;
-    virtual void wrOnJoinNotAllowed() = 0;
-    virtual void wrOnUserDump(const std::map<karere::Id, bool>& waitingRoomUsers) = 0;
+    virtual void onWrJoinAllowed() = 0;
+    virtual void onWrJoinNotAllowed() = 0;
+    virtual void onWrUserDump(const std::map<karere::Id, bool>& waitingRoomUsers) = 0;
+    virtual void onWrUserReqAllow(const karere::Id& user) = 0;
 };
 
 

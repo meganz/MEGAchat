@@ -625,6 +625,7 @@ public:
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
     void onPermissionsChanged(const rtcModule::ICall& call) override;
+    void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;

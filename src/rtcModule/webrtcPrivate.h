@@ -470,9 +470,10 @@ public:
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
 
     // ---- IWaitingRoom methods ----
-    void wrOnJoinAllowed() override;
-    void wrOnJoinNotAllowed() override;
-    void wrOnUserDump(const std::map<karere::Id, bool> &waitingRoomUsers) override;
+    void onWrJoinAllowed() override;
+    void onWrJoinNotAllowed() override;
+    void onWrUserDump(const std::map<karere::Id, bool> &waitingRoomUsers) override;
+    void onWrUserReqAllow(const karere::Id& user) override;
 
 protected:
     /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands

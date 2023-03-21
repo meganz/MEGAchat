@@ -2006,13 +2006,13 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     {
         setState(CallState::kInWaitingRoom);
         allowed
-               ? wrOnJoinAllowed()        // allowed to JOIN SFU
-               : wrOnJoinNotAllowed();    // must wait in waiting room until a moderator allow to access
+               ? onWrJoinAllowed()        // allowed to JOIN SFU
+               : onWrJoinNotAllowed();    // must wait in waiting room until a moderator allow to access
 
         if (!wrUsers.empty())
         {
             assert(isOwnPrivModerator()); // only mods should receive users in waiting room
-            wrOnUserDump(wrUsers);
+            onWrUserDump(wrUsers);
         }
     }
     return true;
@@ -2045,6 +2045,12 @@ bool Call::handleWrDeny(const std::map<karere::Id, bool>& wrUsers)
 
 bool Call::handleWrAllowReq(const karere::Id& user)
 {
+    if (!user.isValid())
+    {
+        RTCM_LOG_ERROR("WR_ALLOW_REQ: invalid user id received");
+        return false;
+    }
+    onWrUserReqAllow(user);
     return true;
 }
 
@@ -2320,18 +2326,23 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 }
 
 // ---- IWaitingRoom methods ----
-void Call::wrOnJoinAllowed()
+void Call::onWrJoinAllowed()
 {
     joinSfu();
 }
 
-void Call::wrOnJoinNotAllowed()
+void Call::onWrJoinNotAllowed()
 {
 }
 
-void Call::wrOnUserDump(const std::map<karere::Id, bool>& waitingRoomUsers)
+void Call::onWrUserDump(const std::map<karere::Id, bool>& waitingRoomUsers)
 {
     mWaitingRoomUsers = waitingRoomUsers;
+}
+
+void Call::onWrUserReqAllow(const karere::Id& user)
+{
+    mCallHandler.onWrUserReqAllow(*this, user);
 }
 
 Keyid_t Call::generateNextKeyId()
