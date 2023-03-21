@@ -1220,6 +1220,7 @@ void Call::setSessionModByUserId(uint64_t userid, bool isMod)
 
 void Call::setOwnModerator(bool isModerator)
 {
+    if (mMyPeer->isModerator() == isModerator) { return; }
     mMyPeer->setModerator(isModerator);
     mCallHandler.onPermissionsChanged(*this);
 }
