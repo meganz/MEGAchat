@@ -1527,8 +1527,8 @@ public:
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void pushUsersIntoWaitingRoom(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
-    void allowUsersFromWaitingRoom(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
-    void kickUsersFromWaitingRoom(mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
+    void allowUsersJoinCall(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
+    void kickUsersFromCall(mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);

@@ -2629,7 +2629,7 @@ void MegaChatApiImpl::sendPendingRequests()
             rtcModule::ICall* call= res.second;
             request->getType() == MegaChatRequest::TYPE_WR_PUSH
                 ? call->pushUsersIntoWaitingRoom(users, allowAll)
-                : call->allowUsersFromWaitingRoom(users, allowAll);
+                : call->allowUsersJoinCall(users, allowAll);
 
             fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
             break;
@@ -2658,7 +2658,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             rtcModule::ICall* call= res.second;
-            call->kickUsersFromWaitingRoom(users);
+            call->kickUsersFromCall(users);
             fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
             break;
         }
@@ -5607,7 +5607,7 @@ void MegaChatApiImpl::pushUsersIntoWaitingRoom(MegaHandleList* users, const bool
     waiter->notify();
 }
 
-void MegaChatApiImpl::allowUsersFromWaitingRoom(MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+void MegaChatApiImpl::allowUsersJoinCall(MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_ALLOW, listener);
     request->setMegaHandleList(users);
@@ -5616,7 +5616,7 @@ void MegaChatApiImpl::allowUsersFromWaitingRoom(MegaHandleList* users, const boo
     waiter->notify();
 }
 
-void MegaChatApiImpl::kickUsersFromWaitingRoom(MegaHandleList* users, MegaChatRequestListener* listener)
+void MegaChatApiImpl::kickUsersFromCall(MegaHandleList* users, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_KICK, listener);
     request->setMegaHandleList(users);

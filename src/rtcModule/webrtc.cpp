@@ -604,13 +604,13 @@ void Call::pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const boo
     mSfuConnection->sendWrPush(users, all);
 }
 
-void Call::allowUsersFromWaitingRoom(const std::set<karere::Id>& users, const bool all) const
+void Call::allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const
 {
     assert(all || !users.empty());
     mSfuConnection->sendWrAllow(users, all);
 }
 
-void Call::kickUsersFromWaitingRoom(const std::set<karere::Id>& users) const
+void Call::kickUsersFromCall(const std::set<karere::Id>& users) const
 {
     assert(!users.empty());
     mSfuConnection->sendWrKick(users);

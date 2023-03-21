@@ -5812,6 +5812,29 @@ public:
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief pushUsersIntoWaitingRoom
+     * @param users
+     * @param all
+     * @param listener
+     */
+    void pushUsersIntoWaitingRoom(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener);
+
+    /**
+     * @brief allowUsersJoinCall
+     * @param users
+     * @param all
+     * @param listener
+     */
+    void allowUsersJoinCall(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener);
+
+    /**
+     * @brief kickUsersFromCall
+     * @param users
+     * @param listener
+     */
+    void kickUsersFromCall(mega::MegaHandleList* users, MegaChatRequestListener* listener);
+
+    /**
      * @brief Set/unset a call on hold
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
