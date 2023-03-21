@@ -8,61 +8,60 @@
 
 namespace sfu
 {
-
-// notifications SFU -> client
-std::string Command::COMMAND_IDENTIFIER     = "a";
-std::string Command::ERROR_IDENTIFIER       = "err";
-std::string Command::WARN_IDENTIFIER        = "warn";
-std::string Command::ERROR_MESSAGE          = "msg";
-
-const std::string AVCommand::COMMAND_NAME             = "AV";
-const std::string AnswerCommand::COMMAND_NAME         = "ANSWER";
-const std::string KeyCommand::COMMAND_NAME            = "KEY";
-const std::string VthumbsCommand::COMMAND_NAME        = "VTHUMBS";
-const std::string VthumbsStartCommand::COMMAND_NAME   = "VTHUMB_START";
-const std::string VthumbsStopCommand::COMMAND_NAME    = "VTHUMB_STOP";
-const std::string HiResCommand::COMMAND_NAME          = "HIRES";
-const std::string HiResStartCommand::COMMAND_NAME     = "HIRES_START";
-const std::string HiResStopCommand::COMMAND_NAME      = "HIRES_STOP";
-const std::string SpeakReqsCommand::COMMAND_NAME      = "SPEAK_REQS";
-const std::string SpeakReqDelCommand::COMMAND_NAME    = "SPEAK_RQ_DEL";
-const std::string SpeakOnCommand::COMMAND_NAME        = "SPEAK_ON";
-const std::string SpeakOffCommand::COMMAND_NAME       = "SPEAK_OFF";
-const std::string PeerJoinCommand::COMMAND_NAME       = "PEERJOIN";
-const std::string PeerLeftCommand::COMMAND_NAME       = "PEERLEFT";
-const std::string ByeCommand::COMMAND_NAME            = "BYE";
-const std::string ModAddCommand::COMMAND_NAME         = "MOD_ADD";
-const std::string ModDelCommand::COMMAND_NAME         = "MOD_DEL";
-const std::string HelloCommand::COMMAND_NAME          = "HELLO";
-const std::string WrDumpCommand::COMMAND_NAME         = "WR_DUMP";
-const std::string WrEnterCommand::COMMAND_NAME        = "WR_ENTER";
-const std::string WrLeaveCommand::COMMAND_NAME        = "WR_LEAVE";
-const std::string WrAllowCommand::COMMAND_NAME        = "WR_ALLOW";
-const std::string WrDenyCommand::COMMAND_NAME         = "WR_DENY";
-const std::string WrAllowReqCommand::COMMAND_NAME     = "WR_ALLOW_REQ";
-const std::string WrUsersAllowCommand::COMMAND_NAME   = "WR_USERS_ALLOW";
-const std::string WrUsersDenyCommand::COMMAND_NAME    = "WR_USERS_DENY";
-
 const std::string Sdp::endl = "\r\n";
 
-// commands client -> SFU
-const std::string SfuConnection::CSFU_JOIN         = "JOIN";
-const std::string SfuConnection::CSFU_SENDKEY      = "KEY";
-const std::string SfuConnection::CSFU_AV           = "AV";
-const std::string SfuConnection::CSFU_GET_VTHUMBS  = "GET_VTHUMBS";
-const std::string SfuConnection::CSFU_DEL_VTHUMBS  = "DEL_VTHUMBS";
-const std::string SfuConnection::CSFU_GET_HIRES    = "GET_HIRES";
-const std::string SfuConnection::CSFU_DEL_HIRES    = "DEL_HIRES";
-const std::string SfuConnection::CSFU_HIRES_SET_LO = "HIRES_SET_LO";
-const std::string SfuConnection::CSFU_LAYER        = "LAYER";
-const std::string SfuConnection::CSFU_SPEAK_RQ     = "SPEAK_RQ";
-const std::string SfuConnection::CSFU_SPEAK_RQ_DEL = "SPEAK_RQ_DEL";
-const std::string SfuConnection::CSFU_SPEAK_DEL    = "SPEAKER_DEL";
-const std::string SfuConnection::CSFU_BYE          = "BYE";
-const std::string SfuConnection::CSFU_WR_PUSH      = "WR_PUSH";
-const std::string SfuConnection::CSFU_WR_ALLOW     = "WR_ALLOW";
-const std::string SfuConnection::CSFU_WR_KICK      = "WR_KICK";
+// notifications SFU -> client
+std::string Command::COMMAND_IDENTIFIER                 = "a";
+std::string Command::ERROR_IDENTIFIER                   = "err";
+std::string Command::WARN_IDENTIFIER                    = "warn";
+std::string Command::ERROR_MESSAGE                      = "msg";
 
+// commands SFU -> client
+const std::string AVCommand::COMMAND_NAME               = "AV";
+const std::string AnswerCommand::COMMAND_NAME           = "ANSWER";
+const std::string KeyCommand::COMMAND_NAME              = "KEY";
+const std::string VthumbsCommand::COMMAND_NAME          = "VTHUMBS";
+const std::string VthumbsStartCommand::COMMAND_NAME     = "VTHUMB_START";
+const std::string VthumbsStopCommand::COMMAND_NAME      = "VTHUMB_STOP";
+const std::string HiResCommand::COMMAND_NAME            = "HIRES";
+const std::string HiResStartCommand::COMMAND_NAME       = "HIRES_START";
+const std::string HiResStopCommand::COMMAND_NAME        = "HIRES_STOP";
+const std::string SpeakReqsCommand::COMMAND_NAME        = "SPEAK_REQS";
+const std::string SpeakReqDelCommand::COMMAND_NAME      = "SPEAK_RQ_DEL";
+const std::string SpeakOnCommand::COMMAND_NAME          = "SPEAK_ON";
+const std::string SpeakOffCommand::COMMAND_NAME         = "SPEAK_OFF";
+const std::string PeerJoinCommand::COMMAND_NAME         = "PEERJOIN";
+const std::string PeerLeftCommand::COMMAND_NAME         = "PEERLEFT";
+const std::string ByeCommand::COMMAND_NAME              = "BYE";
+const std::string ModAddCommand::COMMAND_NAME           = "MOD_ADD";
+const std::string ModDelCommand::COMMAND_NAME           = "MOD_DEL";
+const std::string HelloCommand::COMMAND_NAME            = "HELLO";
+const std::string WrDumpCommand::COMMAND_NAME           = "WR_DUMP";
+const std::string WrEnterCommand::COMMAND_NAME          = "WR_ENTER";
+const std::string WrLeaveCommand::COMMAND_NAME          = "WR_LEAVE";
+const std::string WrAllowCommand::COMMAND_NAME          = "WR_ALLOW";
+const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";
+const std::string WrAllowReqCommand::COMMAND_NAME       = "WR_ALLOW_REQ";
+const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW";
+const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";
+
+// commands client -> SFU
+const std::string SfuConnection::CSFU_JOIN              = "JOIN";
+const std::string SfuConnection::CSFU_SENDKEY           = "KEY";
+const std::string SfuConnection::CSFU_AV                = "AV";
+const std::string SfuConnection::CSFU_GET_VTHUMBS       = "GET_VTHUMBS";
+const std::string SfuConnection::CSFU_DEL_VTHUMBS       = "DEL_VTHUMBS";
+const std::string SfuConnection::CSFU_GET_HIRES         = "GET_HIRES";
+const std::string SfuConnection::CSFU_DEL_HIRES         = "DEL_HIRES";
+const std::string SfuConnection::CSFU_HIRES_SET_LO      = "HIRES_SET_LO";
+const std::string SfuConnection::CSFU_LAYER             = "LAYER";
+const std::string SfuConnection::CSFU_SPEAK_RQ          = "SPEAK_RQ";
+const std::string SfuConnection::CSFU_SPEAK_RQ_DEL      = "SPEAK_RQ_DEL";
+const std::string SfuConnection::CSFU_SPEAK_DEL         = "SPEAKER_DEL";
+const std::string SfuConnection::CSFU_BYE               = "BYE";
+const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";
+const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";
+const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";
 
 CommandsQueue::CommandsQueue():
     isSending(false)
