@@ -2018,28 +2018,51 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     return true;
 }
 
-bool Call::handleWrDump(const std::map<karere::Id, bool>& wrUsers)
+bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
 {
+    if (users.empty())
+    {
+        RTCM_LOG_ERROR("WR_DUMP: empty user list received");
+        assert(false);
+        return false;
+    }
+    onWrUserDump(users);
     return true;
 }
 
-bool Call::handleWrEnter(const std::map<karere::Id, bool>& wrUsers)
+bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
 {
+    if (users.empty())
+    {
+        RTCM_LOG_ERROR("WR_ENTER : empty user list received");
+        assert(false);
+        return false;
+    }
+    onWrEnter(users);
     return true;
 }
 
-bool Call::handleWrLeave(const std::map<karere::Id, bool>& wrUsers)
+bool Call::handleWrLeave(const std::set<karere::Id>& users)
 {
+    if (users.empty())
+    {
+        RTCM_LOG_ERROR("WR_LEAVE : empty user list received");
+        assert(false);
+        return false;
+    }
+    onWrLeave(users);
     return true;
 }
 
-bool Call::handleWrAllow(const std::map<karere::Id, bool>& wrUsers)
+bool Call::handleWrAllow()
 {
+    onWrAllow();
     return true;
 }
 
-bool Call::handleWrDeny(const std::map<karere::Id, bool>& wrUsers)
+bool Call::handleWrDeny()
 {
+    onWrDeny();
     return true;
 }
 
@@ -2048,9 +2071,34 @@ bool Call::handleWrAllowReq(const karere::Id& user)
     if (!user.isValid())
     {
         RTCM_LOG_ERROR("WR_ALLOW_REQ: invalid user id received");
+        assert(false);
         return false;
     }
     onWrUserReqAllow(user);
+    return true;
+}
+
+bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
+{
+    if (users.empty())
+    {
+        RTCM_LOG_ERROR("WR_USERS_ALLOW : empty user list received");
+        assert(false);
+        return false;
+    }
+    onWrUsersAllow(users);
+    return true;
+}
+
+bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
+{
+    if (users.empty())
+    {
+        RTCM_LOG_ERROR("WR_USERS_DENY : empty user list received");
+        assert(false);
+        return false;
+    }
+    onWrUsersDeny(users);
     return true;
 }
 
@@ -2340,9 +2388,35 @@ void Call::onWrUserDump(const std::map<karere::Id, bool>& waitingRoomUsers)
     mWaitingRoomUsers = waitingRoomUsers;
 }
 
+void Call::onWrEnter(const std::map<karere::Id, bool>& users)
+{
+}
+
+void Call::onWrLeave(const std::set<karere::Id>& users)
+{
+}
+
+void Call::onWrAllow()
+{
+}
+
+void Call::onWrDeny()
+{
+}
+
+void Call::onWrUsersAllow(const std::set<karere::Id>& users)
+{
+    mCallHandler.onWrUsersAllow(*this, users);
+}
+
 void Call::onWrUserReqAllow(const karere::Id& user)
 {
     mCallHandler.onWrUserReqAllow(*this, user);
+}
+
+void Call::onWrUsersDeny(const std::set<karere::Id>& users)
+{
+    mCallHandler.onWrUsersDeny(*this, users);
 }
 
 Keyid_t Call::generateNextKeyId()

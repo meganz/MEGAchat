@@ -204,10 +204,12 @@ public:
                                        const std::map<karere::Id, bool>& wrUsers) = 0;
     virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
     virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
-    virtual bool handleWrLeave(const std::map<karere::Id, bool>& users) = 0;
-    virtual bool handleWrAllow(const std::map<karere::Id, bool>& users) = 0;
-    virtual bool handleWrDeny(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrLeave(const std::set<karere::Id>& /*users*/) = 0;
+    virtual bool handleWrAllow() = 0;
+    virtual bool handleWrDeny() = 0;
     virtual bool handleWrAllowReq(const karere::Id& user) = 0;
+    virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
+    virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -236,12 +238,12 @@ public:
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
     static std::vector<byte> hexToByteArray(const std::string &hex);
-    void parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
+    void parseUsersArray(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
     void parseTracks(const rapidjson::Document &command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const;
 
 protected:
     Command(SfuInterface& call);
-    bool parseUsersArray(std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
+    bool parseUsersMap(std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
     static uint8_t hexDigitVal(char value);
 
     SfuInterface& mCall;
@@ -466,7 +468,7 @@ public:
     WrEnterCommandFunction mComplete;
 };
 
-typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrLeaveCommandFunction;
+typedef std::function<bool(const std::set<karere::Id>& users)>WrLeaveCommandFunction;
 class WrLeaveCommand: public Command
 {
 public:
@@ -476,7 +478,7 @@ public:
     WrLeaveCommandFunction mComplete;
 };
 
-typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrAllowCommandFunction;
+typedef std::function<bool()>WrAllowCommandFunction;
 class WrAllowCommand: public Command
 {
 public:
@@ -486,7 +488,7 @@ public:
     WrAllowCommandFunction mComplete;
 };
 
-typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrDenyCommandFunction;
+typedef std::function<bool()>WrDenyCommandFunction;
 class WrDenyCommand: public Command
 {
 public:
@@ -504,6 +506,26 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     WrAllowReqCommandFunction mComplete;
+};
+
+typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersAllowCommandFunction;
+class WrUsersAllowCommand: public Command
+{
+public:
+    WrUsersAllowCommand(const WrUsersAllowCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrUsersAllowCommandFunction mComplete;
+};
+
+typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersDenyCommandFunction;
+class WrUsersDenyCommand: public Command
+{
+public:
+    WrUsersDenyCommand(const WrUsersDenyCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrUsersDenyCommandFunction mComplete;
 };
 
 /**

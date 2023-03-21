@@ -6079,27 +6079,27 @@ bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudio
     return false;
 }
 
-bool MockupCall::handleWrDump(const std::map<karere::Id, bool>& /*wrUsers*/)
+bool MockupCall::handleWrDump(const std::map<karere::Id, bool>& /*users*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrEnter(const std::map<karere::Id, bool>& /*wrUsers*/)
+bool MockupCall::handleWrEnter(const std::map<karere::Id, bool>& /*users*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrLeave(const std::map<karere::Id, bool>& /*wrUsers*/)
+bool MockupCall::handleWrLeave(const std::set<karere::Id>& /*users*/)
 {
     return false;
 }
 
-bool MockupCall::handleWrAllow(const std::map<karere::Id, bool>& /*wrUsers*/)
+bool MockupCall::handleWrAllow()
 {
     return false;
 }
 
-bool MockupCall::handleWrDeny(const std::map<karere::Id, bool>& /*wrUsers*/)
+bool MockupCall::handleWrDeny()
 {
     return false;
 }
@@ -6108,4 +6108,15 @@ bool MockupCall::handleWrAllowReq(const karere::Id& /*user*/)
 {
     return false;
 }
+
+bool MockupCall::handleWrUsersAllow(const std::set<karere::Id>& /*users*/)
+{
+    return false;
+}
+
+bool MockupCall::handleWrUsersDeny(const std::set<karere::Id>& /*users*/)
+{
+    return false;
+}
+
 #endif

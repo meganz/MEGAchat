@@ -10622,6 +10622,18 @@ void MegaChatCallHandler::onPermissionsChanged(const rtcModule::ICall& call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+void MegaChatCallHandler::onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user)
+{
+}
+
+void MegaChatCallHandler::onWrUsersAllow(const rtcModule::ICall& call, const std::set<karere::Id>& users)
+{
+}
+
+void MegaChatCallHandler::onWrUsersDeny(const rtcModule::ICall& call, const std::set<karere::Id>& users)
+{
+}
+
 void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModule::ICall &call)
 {
     MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);

@@ -455,10 +455,12 @@ public:
 
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;
     bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
-    bool handleWrLeave(const std::map<karere::Id, bool>& users) override;
-    bool handleWrAllow(const std::map<karere::Id, bool>& users) override;
-    bool handleWrDeny(const std::map<karere::Id, bool>& users) override;
+    bool handleWrLeave(const std::set<karere::Id>& users) override;
+    bool handleWrAllow() override;
+    bool handleWrDeny() override;
     bool handleWrAllowReq(const karere::Id& user) override;
+    bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
+    bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
@@ -473,7 +475,13 @@ public:
     void onWrJoinAllowed() override;
     void onWrJoinNotAllowed() override;
     void onWrUserDump(const std::map<karere::Id, bool> &waitingRoomUsers) override;
+    void onWrEnter(const std::map<karere::Id, bool>& users) override;
+    void onWrLeave(const std::set<karere::Id>& users) override;
+    void onWrAllow() override;
+    void onWrDeny() override;
     void onWrUserReqAllow(const karere::Id& user) override;
+    void onWrUsersAllow(const std::set<karere::Id>& users) override;
+    void onWrUsersDeny(const std::set<karere::Id>& users) override;
 
 protected:
     /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands

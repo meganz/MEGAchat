@@ -159,6 +159,8 @@ public:
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
     virtual void onPermissionsChanged(const ICall& call) = 0;
     virtual void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) = 0;
+    virtual void onWrUsersAllow(const rtcModule::ICall& call, const std::set<karere::Id>& users) = 0;
+    virtual void onWrUsersDeny(const rtcModule::ICall& call, const std::set<karere::Id>& users) = 0;
 };
 
 class ICall
@@ -236,7 +238,13 @@ class IWaitingRoom
     virtual void onWrJoinAllowed() = 0;
     virtual void onWrJoinNotAllowed() = 0;
     virtual void onWrUserDump(const std::map<karere::Id, bool>& waitingRoomUsers) = 0;
+    virtual void onWrEnter(const std::map<karere::Id, bool>& users) = 0;
+    virtual void onWrLeave(const std::set<karere::Id>& users) = 0;
+    virtual void onWrAllow() = 0;
+    virtual void onWrDeny() = 0;
     virtual void onWrUserReqAllow(const karere::Id& user) = 0;
+    virtual void onWrUsersAllow(const std::set<karere::Id>& users) = 0;
+    virtual void onWrUsersDeny(const std::set<karere::Id>& users) = 0;
 };
 
 
