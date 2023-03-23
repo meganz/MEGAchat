@@ -504,9 +504,6 @@ public:
 #ifndef KARERE_DISABLE_WEBRTC
     bool UNITARYTEST_SfuDataReception();
 #endif
-#ifdef USE_CRYPTOPP
-    bool UNITARYTEST_EncryptMediaKeyWithEphemKey();
-#endif
 
     unsigned mOKTests = 0;
     unsigned mFailedTests = 0;
@@ -628,15 +625,6 @@ public:
     bool handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
                                        const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
                                        const std::map<karere::Id, bool>& /*wrUsers*/) override;
-
-    bool handleWrDump(const std::map<karere::Id, bool>& /*users*/) override;
-    bool handleWrEnter(const std::map<karere::Id, bool>& /*users*/) override;
-    bool handleWrLeave(const std::set<karere::Id>& /*users*/) override;
-    bool handleWrAllow() override;
-    bool handleWrDeny() override;
-    bool handleWrAllowReq(const karere::Id& /*user*/) override;
-    bool handleWrUsersAllow(const std::set<karere::Id>& /*users*/) override;
-    bool handleWrUsersDeny(const std::set<karere::Id>& /*users*/) override;
 };
 #endif
 #endif // CHATTEST_H

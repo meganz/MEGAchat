@@ -1090,21 +1090,6 @@ void MegaChatApi::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, 
     pImpl->removeSpeaker(chatid, clientId, listener);
 }
 
-void MegaChatApi::pushUsersIntoWaitingRoom(MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
-{
-    pImpl->pushUsersIntoWaitingRoom(users, all, listener);
-}
-
-void MegaChatApi::allowUsersJoinCall(MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
-{
-    pImpl->allowUsersJoinCall(users, all, listener);
-}
-
-void MegaChatApi::kickUsersFromCall(MegaHandleList* users, MegaChatRequestListener* listener)
-{
-    pImpl->kickUsersFromCall(users, listener);
-}
-
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     pImpl->setCallOnHold(chatid, setOnHold, listener);

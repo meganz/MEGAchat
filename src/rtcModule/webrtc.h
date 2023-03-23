@@ -62,7 +62,6 @@ enum CallState: uint8_t
     kStateClientNoParticipating,        // < User is not partipating in the call
     kStateConnecting,                   // < Connecting to SFU
     kStateJoining,                      // < Joining a call
-    kInWaitingRoom,                     // < In a waiting room
     kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
     kStateDestroyed,                    // < Call object is not valid anymore, the call is removed from the system
@@ -158,9 +157,6 @@ public:
     virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
     virtual void onPermissionsChanged(const ICall& call) = 0;
-    virtual void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) = 0;
-    virtual void onWrUsersAllow(const rtcModule::ICall& call, const std::set<karere::Id>& users) = 0;
-    virtual void onWrUsersDeny(const rtcModule::ICall& call, const std::set<karere::Id>& users) = 0;
 };
 
 class ICall
@@ -210,9 +206,6 @@ public:
     virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
     virtual void stopSpeak(Cid_t cid = 0) = 0;
-    virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
-    virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
-    virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
@@ -231,22 +224,6 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
 };
-
-
-class IWaitingRoom
-{
-    virtual void onWrJoinAllowed() = 0;
-    virtual void onWrJoinNotAllowed() = 0;
-    virtual void onWrUserDump(const std::map<karere::Id, bool>& waitingRoomUsers) = 0;
-    virtual void onWrEnter(const std::map<karere::Id, bool>& users) = 0;
-    virtual void onWrLeave(const std::set<karere::Id>& users) = 0;
-    virtual void onWrAllow() = 0;
-    virtual void onWrDeny() = 0;
-    virtual void onWrUserReqAllow(const karere::Id& user) = 0;
-    virtual void onWrUsersAllow(const std::set<karere::Id>& users) = 0;
-    virtual void onWrUsersDeny(const std::set<karere::Id>& users) = 0;
-};
-
 
 class RtcModule
 {

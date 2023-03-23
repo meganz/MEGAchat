@@ -509,7 +509,6 @@ const char *Call::stateToStr(CallState state)
         RET_ENUM_RTC_NAME(kStateClientNoParticipating);
         RET_ENUM_RTC_NAME(kStateConnecting);
         RET_ENUM_RTC_NAME(kStateJoining);    // < Joining a call
-        RET_ENUM_RTC_NAME(kInWaitingRoom);
         RET_ENUM_RTC_NAME(kStateInProgress);
         RET_ENUM_RTC_NAME(kStateTerminatingUserParticipation);
         RET_ENUM_RTC_NAME(kStateDestroyed);
@@ -596,24 +595,6 @@ void Call::stopSpeak(Cid_t cid)
     }
 
     mSfuConnection->sendSpeakDel();
-}
-
-void Call::pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const
-{
-    assert(all || !users.empty());
-    mSfuConnection->sendWrPush(users, all);
-}
-
-void Call::allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const
-{
-    assert(all || !users.empty());
-    mSfuConnection->sendWrAllow(users, all);
-}
-
-void Call::kickUsersFromCall(const std::set<karere::Id>& users) const
-{
-    assert(!users.empty());
-    mSfuConnection->sendWrKick(users);
 }
 
 std::vector<Cid_t> Call::getSpeakerRequested()
@@ -2005,101 +1986,10 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     }
     else
     {
-        setState(CallState::kInWaitingRoom);
-        allowed
-               ? onWrJoinAllowed()        // allowed to JOIN SFU
-               : onWrJoinNotAllowed();    // must wait in waiting room until a moderator allow to access
-
-        if (!wrUsers.empty())
-        {
-            assert(isOwnPrivModerator()); // only mods should receive users in waiting room
-            onWrUserDump(wrUsers);
-        }
-    }
-    return true;
-}
-
-bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
-{
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_DUMP: empty user list received");
         assert(false);
-        return false;
+        RTCM_LOG_ERROR("calls in chatrooms with waiting room enabled are not supported by this version");
+        orderedCallDisconnect(TermCode::kErrClientGeneral, "calls in chatrooms with waiting room enabled are not supported by this version");
     }
-    onWrUserDump(users);
-    return true;
-}
-
-bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
-{
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_ENTER : empty user list received");
-        assert(false);
-        return false;
-    }
-    onWrEnter(users);
-    return true;
-}
-
-bool Call::handleWrLeave(const std::set<karere::Id>& users)
-{
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_LEAVE : empty user list received");
-        assert(false);
-        return false;
-    }
-    onWrLeave(users);
-    return true;
-}
-
-bool Call::handleWrAllow()
-{
-    onWrAllow();
-    return true;
-}
-
-bool Call::handleWrDeny()
-{
-    onWrDeny();
-    return true;
-}
-
-bool Call::handleWrAllowReq(const karere::Id& user)
-{
-    if (!user.isValid())
-    {
-        RTCM_LOG_ERROR("WR_ALLOW_REQ: invalid user id received");
-        assert(false);
-        return false;
-    }
-    onWrUserReqAllow(user);
-    return true;
-}
-
-bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
-{
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_USERS_ALLOW : empty user list received");
-        assert(false);
-        return false;
-    }
-    onWrUsersAllow(users);
-    return true;
-}
-
-bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
-{
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_USERS_DENY : empty user list received");
-        assert(false);
-        return false;
-    }
-    onWrUsersDeny(users);
     return true;
 }
 
@@ -2372,52 +2262,6 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
         RTCM_LOG_DEBUG("onConnectionChange retryPendingConnection (reconnect) : %d", reconnect);
         mSfuConnection->retryPendingConnection(reconnect);
     }
-}
-
-// ---- IWaitingRoom methods ----
-void Call::onWrJoinAllowed()
-{
-    joinSfu();
-}
-
-void Call::onWrJoinNotAllowed()
-{
-}
-
-void Call::onWrUserDump(const std::map<karere::Id, bool>& waitingRoomUsers)
-{
-    mWaitingRoomUsers = waitingRoomUsers;
-}
-
-void Call::onWrEnter(const std::map<karere::Id, bool>& users)
-{
-}
-
-void Call::onWrLeave(const std::set<karere::Id>& users)
-{
-}
-
-void Call::onWrAllow()
-{
-}
-
-void Call::onWrDeny()
-{
-}
-
-void Call::onWrUsersAllow(const std::set<karere::Id>& users)
-{
-    mCallHandler.onWrUsersAllow(*this, users);
-}
-
-void Call::onWrUserReqAllow(const karere::Id& user)
-{
-    mCallHandler.onWrUserReqAllow(*this, user);
-}
-
-void Call::onWrUsersDeny(const std::set<karere::Id>& users)
-{
-    mCallHandler.onWrUsersDeny(*this, users);
 }
 
 Keyid_t Call::generateNextKeyId()
