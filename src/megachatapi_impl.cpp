@@ -1602,7 +1602,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             MegaChatHandle chatid = request->getChatHandle();
-            ChatRoom *chatroom = findChatRoom(chatid);
+            GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom*>(findChatRoom(chatid));
             if (!chatroom)
             {
                 API_LOG_ERROR("Start call - Chatroom has not been found");
@@ -1638,6 +1638,14 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatroom->chatdOnlineState() != kChatStateOnline)
             {
                 API_LOG_ERROR("Start call - chatroom isn't in online state");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            if (chatroom->isWaitingRoom())
+            {
+                // remove this block when waiting rooms are fully supported
+                API_LOG_ERROR("Start call - can't start a call in a chatroom with waiting room enabled");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -1736,8 +1744,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
         {
             MegaChatHandle chatid = request->getChatHandle();
-
-            ChatRoom *chatroom = findChatRoom(chatid);
+            GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom*>(findChatRoom(chatid));
             if (!chatroom)
             {
                 API_LOG_ERROR("Answer call - Chatroom has not been found");
@@ -1755,6 +1762,14 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatroom->chatdOnlineState() != kChatStateOnline)
             {
                 API_LOG_ERROR("Answer call - chatroom isn't in online state");
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            if (chatroom->isWaitingRoom())
+            {
+                // remove this block when waiting rooms are fully supported
+                API_LOG_ERROR("Answer call - can't answer a call in a chatroom with waiting room enabled");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }

@@ -5545,6 +5545,7 @@ public:
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
+     *  - if the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -5593,6 +5594,7 @@ public:
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
+     *  - if the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -5636,6 +5638,8 @@ public:
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS if the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
