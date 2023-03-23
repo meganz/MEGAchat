@@ -464,6 +464,7 @@ public:
         CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call or you haven't answered the call yet
         CALL_STATUS_CONNECTING,                         /// Intermediate state, while connection sfu is established
         CALL_STATUS_JOINING,                            /// In this state configure connection with SFU
+        CALL_STATUS_WAITING_ROOM,                       /// User is in the waiting room
         CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication with SFU
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
@@ -2098,7 +2099,7 @@ public:
         TYPE_CREATE_SCHEDULED_MEETING, // Deprecated
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
-        TYPE_UPDATE_SCHEDULED_MEETING,
+        TYPE_UPDATE_SCHEDULED_MEETING, TYPE_WR_PUSH, TYPE_WR_ALLOW, TYPE_WR_KICK,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -5809,6 +5810,29 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief pushUsersIntoWaitingRoom
+     * @param users
+     * @param all
+     * @param listener
+     */
+    void pushUsersIntoWaitingRoom(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener);
+
+    /**
+     * @brief allowUsersJoinCall
+     * @param users
+     * @param all
+     * @param listener
+     */
+    void allowUsersJoinCall(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener);
+
+    /**
+     * @brief kickUsersFromCall
+     * @param users
+     * @param listener
+     */
+    void kickUsersFromCall(mega::MegaHandleList* users, MegaChatRequestListener* listener);
 
     /**
      * @brief Set/unset a call on hold

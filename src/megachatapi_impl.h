@@ -625,6 +625,9 @@ public:
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
     void onPermissionsChanged(const rtcModule::ICall& call) override;
+    void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) override;
+    void onWrUsersAllow(const rtcModule::ICall& call, const std::set<karere::Id>& users) override;
+    void onWrUsersDeny(const rtcModule::ICall& call, const std::set<karere::Id>& users) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -1526,6 +1529,9 @@ public:
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void pushUsersIntoWaitingRoom(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
+    void allowUsersJoinCall(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
+    void kickUsersFromCall(mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);
@@ -1545,6 +1551,7 @@ public:
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
+    std::pair<int, rtcModule::ICall*> getCallWithModPermissions(const MegaChatHandle chatid, const std::string& msg);
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);

@@ -202,6 +202,14 @@ public:
     virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
                                        const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                        const std::map<karere::Id, bool>& wrUsers) = 0;
+    virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrLeave(const std::set<karere::Id>& /*users*/) = 0;
+    virtual bool handleWrAllow() = 0;
+    virtual bool handleWrDeny() = 0;
+    virtual bool handleWrAllowReq(const karere::Id& user) = 0;
+    virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
+    virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -440,6 +448,86 @@ public:
     HelloCommandFunction mComplete;
 };
 
+typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrDumpCommandFunction;
+class WrDumpCommand: public Command
+{
+public:
+    WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrDumpCommandFunction mComplete;
+};
+
+typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrEnterCommandFunction;
+class WrEnterCommand: public Command
+{
+public:
+    WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrEnterCommandFunction mComplete;
+};
+
+typedef std::function<bool(const std::set<karere::Id>& users)>WrLeaveCommandFunction;
+class WrLeaveCommand: public Command
+{
+public:
+    WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrLeaveCommandFunction mComplete;
+};
+
+typedef std::function<bool()>WrAllowCommandFunction;
+class WrAllowCommand: public Command
+{
+public:
+    WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrAllowCommandFunction mComplete;
+};
+
+typedef std::function<bool()>WrDenyCommandFunction;
+class WrDenyCommand: public Command
+{
+public:
+    WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrDenyCommandFunction mComplete;
+};
+
+typedef std::function<bool(const karere::Id& user)>WrAllowReqCommandFunction;
+class WrAllowReqCommand: public Command
+{
+public:
+    WrAllowReqCommand(const WrAllowReqCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrAllowReqCommandFunction mComplete;
+};
+
+typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersAllowCommandFunction;
+class WrUsersAllowCommand: public Command
+{
+public:
+    WrUsersAllowCommand(const WrUsersAllowCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrUsersAllowCommandFunction mComplete;
+};
+
+typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersDenyCommandFunction;
+class WrUsersDenyCommand: public Command
+{
+public:
+    WrUsersDenyCommand(const WrUsersDenyCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrUsersDenyCommandFunction mComplete;
+};
+
 /**
  * @brief This class allows to handle a connection to the SFU
  *
@@ -472,6 +560,9 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_SPEAK_RQ_DEL;
     static const std::string CSFU_SPEAK_DEL;
     static const std::string CSFU_BYE;
+    static const std::string CSFU_WR_PUSH;
+    static const std::string CSFU_WR_ALLOW;
+    static const std::string CSFU_WR_KICK;
 
 public:
     enum ConnState
@@ -521,6 +612,12 @@ public:
     bool sendSpeakReqDel(Cid_t cid = 0);
     bool sendSpeakDel(Cid_t cid = 0);
     bool sendBye(int termCode);
+
+    // Waiting room related commands
+    bool sendWrPush(const std::set<karere::Id>& users, const bool all);
+    bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
+    bool sendWrKick(const std::set<karere::Id>& users);
+    bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
@@ -604,6 +701,7 @@ private:
      * - Version 0: initial version
      * - Version 1:
      *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
+     *      + Waiting rooms
      *      + Dynamic audio routing
      */
     static const unsigned int mSfuVersion = 1;
