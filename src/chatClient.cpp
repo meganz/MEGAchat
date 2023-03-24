@@ -3641,7 +3641,11 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 
     if (userid == parent.mKarereClient.myHandle())
     {
-        syncOwnPriv(privilege);
+        bool hasChange = syncOwnPriv(privilege);
+        if (!hasChange) // There isn't change for own privilege, avoid to call 'onUserJoin'
+        {
+            return;
+        }
     }
     else
     {
