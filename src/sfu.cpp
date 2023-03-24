@@ -95,8 +95,6 @@ Peer::Peer(const Peer &peer)
     , mAvFlags(peer.mAvFlags)
     , mEphemeralKeyPair(peer.mEphemeralKeyPair ? peer.mEphemeralKeyPair->copy() : nullptr)
     , mIvs(peer.mIvs)
-    , mKeyEncryptIv(peer.mKeyEncryptIv)
-    , mKeyDecryptIv(peer.mKeyDecryptIv)
     , mIsModerator(peer.mIsModerator)
 {
 }
@@ -178,60 +176,6 @@ const std::vector<std::string>& Peer::getIvs() const
 void Peer::setIvs(const std::vector<std::string>& ivs)
 {
     mIvs = ivs;
-}
-
-bool Peer::makeKeyEncryptIv(const std::string& vthumbIv, const std::string& hiresIv)
-{
-    mKeyEncryptIv.clear();
-    uint8_t firstPartLen  = static_cast<uint8_t>(mediaKeyIv::lenIvFirstPart);
-    uint8_t secondPartLen = static_cast<uint8_t>(mediaKeyIv::lenIvSecondPart);
-    if (vthumbIv.size() == firstPartLen && hiresIv.size() == firstPartLen)
-    {
-        SFU_LOG_WARNING("makeKeyEncryptIv: ill-formed IV's");
-        assert(false);
-        return false;
-    }
-
-    // First 8 bytes are taken from the vthumb track IV
-    std::vector<byte> first = sfu::Command::hexToByteArray(vthumbIv);
-    std::copy(first.begin(), first.begin() + firstPartLen, std::back_inserter(mKeyEncryptIv));
-
-    // The rest 4 bytes are the first from the hi-res video track IV
-    std::vector<byte> second = sfu::Command::hexToByteArray(hiresIv);
-    std::copy(second.begin(), second.begin() + secondPartLen, std::back_inserter(mKeyEncryptIv));
-    return (mKeyEncryptIv.size() == rtcModule::KEY_ENCRYPT_IV_LENGTH);
-}
-
-bool Peer::makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv)
-{
-    mKeyDecryptIv.clear();
-    uint8_t firstPartLen  = static_cast<uint8_t>(mediaKeyIv::lenIvFirstPart);
-    uint8_t secondPartLen = static_cast<uint8_t>(mediaKeyIv::lenIvSecondPart);
-    if (vthumbIv.size() == firstPartLen && hiresIv.size() == firstPartLen)
-    {
-        SFU_LOG_WARNING("makeKeyDecryptIv: ill-formed IV's");
-        assert(false);
-        return false;
-    }
-
-    // First 8 bytes are taken from the vthumb track IV
-    std::vector<byte> first = sfu::Command::hexToByteArray(vthumbIv);
-    std::copy(first.begin(), first.begin() + firstPartLen, std::back_inserter(mKeyDecryptIv));
-
-    // The rest 4 bytes are the first from the hi-res video track IV
-    std::vector<byte> second = sfu::Command::hexToByteArray(hiresIv);
-    std::copy(second.begin(), second.begin() + secondPartLen, std::back_inserter(mKeyDecryptIv));
-    return (mKeyDecryptIv.size() == rtcModule::KEY_ENCRYPT_IV_LENGTH);
-}
-
-const std::vector<byte>& Peer::getKeyEncryptIv() const
-{
-    return mKeyEncryptIv;
-}
-
-const std::vector<byte>& Peer::getKeyDecryptIv() const
-{
-    return mKeyDecryptIv;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
@@ -560,12 +504,6 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
             bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
             Peer peer(userId, av, &ivs, cid, isModerator);
-            if (!peer.makeKeyDecryptIv(ivs[kVthumbTrack], ivs[kHiResTrack]))
-            {
-                SFU_LOG_ERROR("Error generating DecryptIv");
-                assert(false);
-                return;
-            }
             peers.push_back(std::move(peer));
         }
         else

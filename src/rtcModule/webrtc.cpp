@@ -913,10 +913,6 @@ void Call::joinSfu()
         ivs[std::to_string(kVthumbTrack)] = sfu::Command::binaryToHex(mVThumb->getIv());
         ivs[std::to_string(kHiResTrack)] = sfu::Command::binaryToHex(mHiRes->getIv());
         ivs[std::to_string(kAudioTrack)] = sfu::Command::binaryToHex(mAudio->getIv());
-        if (!mMyPeer->makeKeyEncryptIv(ivs[std::to_string(kVthumbTrack)], ivs[std::to_string(kHiResTrack)]))
-        {
-            orderedCallDisconnect(TermCode::kErrClientGeneral, std::string("Error generating EncryptIv"));
-        }
 
         // store ivs in MyPeer
         mMyPeer->setIvs(std::vector<std::string> { ivs[std::to_string(kVthumbTrack)],
@@ -1773,13 +1769,6 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
 
         bool isModerator = mModerators.find(userid) != mModerators.end();
         sfu::Peer peer(userid, static_cast<unsigned>(av), &ivs, cid, isModerator);
-        if (!peer.makeKeyDecryptIv(ivs[kVthumbTrack], ivs[kHiResTrack]))
-        {
-            RTCM_LOG_ERROR("Error generating DecryptIv");
-            assert(false);
-            return;
-        }
-
         const rtcModule::X25519KeyPair* ephkeypair = mMyPeer->getEphemeralKeyPair();
         if (ephkeypair)
         {
