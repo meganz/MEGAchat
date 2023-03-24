@@ -834,7 +834,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
         return false;
     }
 
-    if (mSfuClient.getSfuVersion() == 1)
+    if (mSfuClient.getSfuVersion() > 0)
     {
         mSfuClient.addVersionToUrl(sfuUrl, mMyPeer->getCid());
     }
@@ -1465,7 +1465,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
     auto wptr = weakHandle();
 
     const rtcModule::X25519KeyPair* ephemeralKeypair = auxPeer.getEphemeralKeyPair();
-    if (ephemeralKeypair) // key decryption for protocol > V1
+    if (ephemeralKeypair) // key decryption for protocol V2
     {
         if (!ephemeralKeypair->hasValidPubKey())
         {
@@ -1474,18 +1474,11 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
             return false;;
         }
 
-        byte result[kMediaKeyLen];
+        std::string result;
         std::string recvKeyBin = mega::Base64::atob(key);
-        std::string keyStr = recvKeyBin.substr(0, recvKeyBin.size() - kGcmTagLen);
-        std::string tagStr = recvKeyBin.substr(recvKeyBin.size() - kGcmTagLen);
-        if (!mSymCipher.gcm_decrypt_with_key(reinterpret_cast<const unsigned char *>(keyStr.data()), keyStr.size(),
-                             ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(),
-                             reinterpret_cast<const unsigned char *> (tagStr.data()), kGcmTagLen,
-                             auxPeer.getKeyDecryptIv().data(), auxPeer.getKeyDecryptIv().size(),
-                             result, kMediaKeyLen))
+        if (!mSymCipher.cbc_decrypt_with_key(recvKeyBin, result, ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(), nullptr))
         {
-
-            std::string err = "Failed gcm_decrypt received key. Cid: "
+            std::string err = "Failed cbc_decrypt received key. Cid: "
                     + std::to_string(auxPeer.getCid())
                     + "PeerId: " + auxPeer.getPeerid().toString()
                     + "KeyId: " + std::to_string(keyid);
@@ -1495,17 +1488,21 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
             return false;
         }
 
-
         // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
         if (hasCallKey())
         {
-            mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(reinterpret_cast<byte *>(mCallKey.data()), result);
+            mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(reinterpret_cast<byte*>(mCallKey.data()), reinterpret_cast<byte*>(result.data()));
         }
 
-        std::string mediaKey(reinterpret_cast<char*>(result), kMediaKeyLen);
-        session->addKey(keyid, mediaKey);
+        if (result.size() != kMediaKeyLen)
+        {
+            mRtc.onMediaKeyDecryptionFailed("Unexpected decrypted key size");
+            RTCM_LOG_ERROR("Unexpected decrypted key size");
+            return false;
+        }
+        session->addKey(keyid, result);
     }
-    else
+    else  // key encryption for protocol < V1
     {
         mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peerid)
         .then([wptr, keyid, cid, key, this](Buffer*)
@@ -2332,7 +2329,7 @@ void Call::generateAndSendNewkey(bool reset)
                 mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peer.getPeerid(), *newPlainKey.get(), encryptedKey);
                 keys[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
             }
-            else
+            else // key encryption for protocol V2
             {
                 if (!ephemeralKeypair->hasValidPubKey())
                 {
@@ -2344,12 +2341,7 @@ void Call::generateAndSendNewkey(bool reset)
                 // Encrypt key for participant with it's public ephemeral key
                 std::string encryptedKey;
                 std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                bool result = mSymCipher.gcm_encrypt_with_key(newPlainKey->ubuf(), newPlainKey->bufSize(),
-                                                       ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(),
-                                                       mMyPeer->getKeyEncryptIv().data(), mMyPeer->getKeyEncryptIv().size(),
-                                                       kGcmTagLen, encryptedKey, 0);
-
-                if (!result)
+                if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, ephemeralKeypair->getPubKey(), ephemeralKeypair->pubKeySize(), nullptr))
                 {
                     RTCM_LOG_WARNING("Failed Media key gcm_encrypt for peerId %s Cid %d",
                                      peer.getPeerid().toString().c_str(), peer.getCid());

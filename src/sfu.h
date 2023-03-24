@@ -602,11 +602,15 @@ private:
 
     /** SFU Version:
      * - Version 0: initial version
-     * - Version 1:
+     *
+     * - Version 1 (never implemented in native):
      *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
      *      + Dynamic audio routing
+     *
+     * - Version 2:
+     *      + Change AES-GCM by AES-CBC with Zero iv
      */
-    static const unsigned int mSfuVersion = 1;
+    static const unsigned int mSfuVersion = 2;
 };
 
 static inline const char* connStateToStr(SfuConnection::ConnState state)
