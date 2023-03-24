@@ -1602,7 +1602,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             MegaChatHandle chatid = request->getChatHandle();
-            GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom*>(findChatRoom(chatid));
+            ChatRoom* chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
                 API_LOG_ERROR("Start call - Chatroom has not been found");
@@ -1744,7 +1744,7 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
         {
             MegaChatHandle chatid = request->getChatHandle();
-            GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom*>(findChatRoom(chatid));
+            ChatRoom* chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
                 API_LOG_ERROR("Answer call - Chatroom has not been found");
