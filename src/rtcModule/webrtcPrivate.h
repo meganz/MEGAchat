@@ -370,6 +370,9 @@ public:
     // generate ephemeral ECDH X25519 keypair and a signature
     std::string generateSessionKeyPair();
 
+    // get ephemeral ECDH X25519 keypair for the current call session
+    const mega::ECDH* getMyEphemeralKeyPair() const;
+
     // sign string: sesskey|<callId>|<clientId>|<pubkey> with Ed25519 key and encode in B64
     std::string signEphemeralKey(const std::string& str) const;
 

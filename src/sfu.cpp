@@ -89,11 +89,12 @@ Peer::Peer(const karere::Id peerid, const unsigned avFlags, const std::vector<st
 {
 }
 
-Peer::Peer(const Peer &peer)
+Peer::Peer(const Peer& peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
     , mEphemeralKeyPair(peer.mEphemeralKeyPair ? peer.mEphemeralKeyPair->copy() : nullptr)
+    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived())
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
 {
@@ -152,18 +153,12 @@ void Peer::resetKeys()
     mKeyMap.clear();
 }
 
-void Peer::setEphemeralKeyPair(const mega::X25519KeyPair* keypair)
+void Peer::generateEphemeralKeyPair()
 {
-    if (!keypair)
-    {
-        mEphemeralKeyPair.reset();
-        return;
-    }
-
-    mEphemeralKeyPair.reset(new mega::X25519KeyPair(*keypair));
+    mEphemeralKeyPair.reset(new mega::ECDH());
 }
 
-const mega::X25519KeyPair *Peer::getEphemeralKeyPair() const
+const mega::ECDH* Peer::getEphemeralKeyPair() const
 {
     return mEphemeralKeyPair.get();
 }
@@ -176,6 +171,15 @@ const std::vector<std::string>& Peer::getIvs() const
 void Peer::setIvs(const std::vector<std::string>& ivs)
 {
     mIvs = ivs;
+}
+const std::string& Peer::getEphemeralPubKeyDerived() const
+{
+    return mEphemeralPubKeyDerived;
+}
+
+void Peer::setEphemeralPubKeyDerived(const std::string& key)
+{
+    mEphemeralPubKeyDerived = key;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)

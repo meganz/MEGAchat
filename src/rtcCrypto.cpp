@@ -132,7 +132,7 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
 }
 
 bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, const byte* privEphemeral,
-                                           mega::X25519KeyPair& output, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs)
+                                           std::string& output, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs)
 {
     if (peerIvs.size() < 2 || myIvs.size() < 2)
     {
@@ -154,18 +154,10 @@ bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, con
     std::vector<byte> saltBin = sfu::Command::hexToByteArray(salt);
 
     // derive EphemeralKey
-    byte auxderived[X25519_PUB_KEY_LEN];
+    char auxderived[mega::ECDH::PUBLIC_KEY_LENGTH];
     HKDF<CryptoPP::SHA256> hkdf;
-    hkdf.DeriveKey(auxderived, X25519_PUB_KEY_LEN, sharedSecret.ubuf(), sharedSecret.bufSize(), saltBin.data(), saltBin.size(), nullptr, 0);
-    output.importPubKey(auxderived, X25519_PUB_KEY_LEN);
+    hkdf.DeriveKey( reinterpret_cast<byte*>(auxderived), mega::ECDH::PUBLIC_KEY_LENGTH, sharedSecret.ubuf(), sharedSecret.bufSize(), saltBin.data(), saltBin.size(), nullptr, 0);
+    output = std::string(auxderived, auxderived + mega::ECDH::PUBLIC_KEY_LENGTH);
     return true;
-}
-
-X25519KeyPair* RtcCryptoMeetings::genX25519KeyPair()
-{
-    std::vector<byte> privkey(X25519_PRIV_KEY_LEN);
-    std::vector<byte> pubkey(X25519_PUB_KEY_LEN);
-    crypto_box_keypair(pubkey.data(), privkey.data());
-    return new X25519KeyPair(privkey, pubkey);
 }
 }

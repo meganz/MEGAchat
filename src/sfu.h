@@ -20,7 +20,6 @@
 
 namespace sfu
 {
-
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
@@ -65,10 +64,12 @@ public:
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void resetKeys();
-    void setEphemeralKeyPair(const mega::X25519KeyPair *keypair);
-    const mega::X25519KeyPair* getEphemeralKeyPair() const;
+    void generateEphemeralKeyPair();
+    const mega::ECDH* getEphemeralKeyPair() const;
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
+    const std::string& getEphemeralPubKeyDerived() const;
+    void setEphemeralPubKeyDerived(const std::string& key);
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid
@@ -78,7 +79,8 @@ protected:
     std::map<Keyid_t, std::string> mKeyMap;
 
     // ephemeral X25519 EC key pair for current session
-    std::unique_ptr<mega::X25519KeyPair> mEphemeralKeyPair;
+    std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
+    std::string mEphemeralPubKeyDerived;
 
     // initialization vector
     std::vector<std::string> mIvs;

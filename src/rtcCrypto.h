@@ -30,20 +30,10 @@ public:
     static strongvelope::SendKey strToKey(const std::string& keystr);
     static void strToKey(const std::string& keystr, strongvelope::SendKey &res);
 
-    /** Asymmetric cryptography using ECDH X25519. */
-    /**
-     * @brief Generates an X25519 EC key pair:
-     *  - The private key size in raw format is 32 bit
-     *  - The public  key size in raw format is 32 bit
-     *
-     * @return a pointer to X25519KeyPair
-     */
-    mega::X25519KeyPair* genX25519KeyPair();
-
     /**
      * @brief Derive user public ephemeral key with own user private ephemeral key (SHA256 - based HKDF transform)
      */
-    bool deriveEphemeralKey(std::string& peerEphemeralPubkey, const byte* privEphemeral, mega::X25519KeyPair& derivedKeyPair, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs);
+    bool deriveEphemeralKey(std::string& peerEphemeralPubkey, const byte* privEphemeral, std::string& derivedKeyPair, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs);
 
     /**
      * @brief Verify call participant ephemeral public key signature
