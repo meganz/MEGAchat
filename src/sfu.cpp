@@ -152,7 +152,7 @@ void Peer::resetKeys()
     mKeyMap.clear();
 }
 
-void Peer::setEphemeralKeyPair(const rtcModule::X25519KeyPair* keypair)
+void Peer::setEphemeralKeyPair(const mega::X25519KeyPair* keypair)
 {
     if (!keypair)
     {
@@ -160,10 +160,10 @@ void Peer::setEphemeralKeyPair(const rtcModule::X25519KeyPair* keypair)
         return;
     }
 
-    mEphemeralKeyPair.reset(new rtcModule::X25519KeyPair(*keypair));
+    mEphemeralKeyPair.reset(new mega::X25519KeyPair(*keypair));
 }
 
-const rtcModule::X25519KeyPair* Peer::getEphemeralKeyPair() const
+const mega::X25519KeyPair *Peer::getEphemeralKeyPair() const
 {
     return mEphemeralKeyPair.get();
 }

@@ -18,41 +18,6 @@ using namespace karere;
 using namespace CryptoPP;
 namespace rtcModule
 {
-X25519KeyPair::X25519KeyPair(const X25519KeyPair& aux)
-    : mPrivKey(aux.mPrivKey), mPubKey(aux.mPubKey) { }
-
-X25519KeyPair::X25519KeyPair(const std::vector<byte>& priv, const std::vector<byte>& pub)
-    :mPrivKey(priv), mPubKey(pub) { }
-
-X25519KeyPair* X25519KeyPair::copy() const { return new X25519KeyPair(*this); }
-
-void X25519KeyPair::setPubKey(const byte* key, size_t keylen)
-{
-    mPubKey.clear();
-    if (key && keylen == X25519_PUB_KEY_LEN)
-    {
-        mPubKey.reserve(keylen);
-        std::copy(key, key + keylen, std::back_inserter(mPubKey));
-    }
-}
-
-void X25519KeyPair::setPrivKey(const byte* key, size_t keylen)
-{
-    mPrivKey.clear();
-    if (key && keylen == X25519_PUB_KEY_LEN)
-    {
-        mPrivKey.reserve(keylen);
-        std::copy(key, key + keylen, std::back_inserter(mPrivKey));
-    }
-}
-
-const byte* X25519KeyPair::getPubKey()     const  { return mPubKey.data(); }
-const byte* X25519KeyPair::getPrivKey()    const  { return mPrivKey.data(); }
-size_t X25519KeyPair::pubKeySize()         const  { return mPubKey.size(); }
-size_t X25519KeyPair::privKeySize()        const  { return mPrivKey.size(); }
-bool X25519KeyPair::hasValidPubKey()       const  { return mPubKey.size() == X25519_PUB_KEY_LEN; }
-bool X25519KeyPair::hasValidPrivKey()      const  { return mPrivKey.size() == X25519_PRIV_KEY_LEN; }
-
 RtcCryptoMeetings::RtcCryptoMeetings(karere::Client& client)
 :mClient(client)
 {
@@ -167,7 +132,7 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
 }
 
 bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, const byte* privEphemeral,
-                                           X25519KeyPair& output, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs)
+                                           mega::X25519KeyPair& output, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs)
 {
     if (peerIvs.size() < 2 || myIvs.size() < 2)
     {

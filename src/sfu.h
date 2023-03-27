@@ -65,8 +65,8 @@ public:
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void resetKeys();
-    void setEphemeralKeyPair(const rtcModule::X25519KeyPair *keypair);
-    const rtcModule::X25519KeyPair* getEphemeralKeyPair() const;
+    void setEphemeralKeyPair(const mega::X25519KeyPair *keypair);
+    const mega::X25519KeyPair* getEphemeralKeyPair() const;
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
 
@@ -78,7 +78,7 @@ protected:
     std::map<Keyid_t, std::string> mKeyMap;
 
     // ephemeral X25519 EC key pair for current session
-    std::unique_ptr<rtcModule::X25519KeyPair> mEphemeralKeyPair;
+    std::unique_ptr<mega::X25519KeyPair> mEphemeralKeyPair;
 
     // initialization vector
     std::vector<std::string> mIvs;
