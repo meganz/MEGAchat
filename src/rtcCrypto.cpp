@@ -157,7 +157,7 @@ bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, con
     byte auxderived[X25519_PUB_KEY_LEN];
     HKDF<CryptoPP::SHA256> hkdf;
     hkdf.DeriveKey(auxderived, X25519_PUB_KEY_LEN, sharedSecret.ubuf(), sharedSecret.bufSize(), saltBin.data(), saltBin.size(), nullptr, 0);
-    output.setPubKey(auxderived, X25519_PUB_KEY_LEN);
+    output.importPubKey(auxderived, X25519_PUB_KEY_LEN);
     return true;
 }
 
