@@ -419,6 +419,8 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
+    void generateEphemeralKeyPair();
+    const mega::ECDH* getEphemeralKeyPair() const;
 
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
@@ -557,6 +559,9 @@ protected:
 
     // symetric cipher for media key encryption
     mega::SymmCipher mSymCipher;
+
+    // ephemeral X25519 EC key pair for current session
+    std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
 
     Keyid_t generateNextKeyId();
     void generateAndSendNewkey(bool reset = false);

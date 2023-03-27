@@ -93,7 +93,6 @@ Peer::Peer(const Peer& peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
-    , mEphemeralKeyPair(peer.mEphemeralKeyPair ? peer.mEphemeralKeyPair->copy() : nullptr)
     , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived())
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
@@ -151,16 +150,6 @@ void Peer::resetKeys()
 {
     mCurrentkeyId = 0;
     mKeyMap.clear();
-}
-
-void Peer::generateEphemeralKeyPair()
-{
-    mEphemeralKeyPair.reset(new mega::ECDH());
-}
-
-const mega::ECDH* Peer::getEphemeralKeyPair() const
-{
-    return mEphemeralKeyPair.get();
 }
 
 const std::vector<std::string>& Peer::getIvs() const

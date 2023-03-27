@@ -997,8 +997,8 @@ std::string Call::signEphemeralKey(const std::string& str) const
 std::string Call::generateSessionKeyPair()
 {
     // generate ephemeral ECDH X25519 keypair
-    mMyPeer->generateEphemeralKeyPair();
-    std::string X25519PubKeyStr(reinterpret_cast<const char*>(getMyEphemeralKeyPair()->getPubKey()), mega::ECDH::PUBLIC_KEY_LENGTH);
+    generateEphemeralKeyPair();
+    std::string X25519PubKeyStr(reinterpret_cast<const char*>(getEphemeralKeyPair()->getPubKey()), mega::ECDH::PUBLIC_KEY_LENGTH);
     std::string X25519PubKeyB64 = mega::Base64::btoa(X25519PubKeyStr);
 
     // Generate public key signature (using Ed25519), on the string: sesskey|<callId>|<clientId>|<pubkey>
@@ -1008,7 +1008,7 @@ std::string Call::generateSessionKeyPair()
 
 const mega::ECDH* Call::getMyEphemeralKeyPair() const
 {
-    return mMyPeer->getEphemeralKeyPair();
+    return mEphemeralKeyPair.get();
 }
 
 void Call::getLocalStreams()
@@ -1331,7 +1331,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             }
 
             sfu::Peer auxPeer(peer);
-            const mega::ECDH* ephkeypair = mMyPeer->getEphemeralKeyPair();
+            const mega::ECDH* ephkeypair = getEphemeralKeyPair();
             if (ephkeypair)
             {
                 // derive peer public ephemeral key with our private ephemeral key
@@ -1753,7 +1753,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
 
         bool isModerator = mModerators.find(userid) != mModerators.end();
         sfu::Peer peer(userid, static_cast<unsigned>(av), &ivs, cid, isModerator);
-        const mega::ECDH* ephkeypair = mMyPeer->getEphemeralKeyPair();
+        const mega::ECDH* ephkeypair = getEphemeralKeyPair();
         if (ephkeypair)
         {
             // derive peer public ephemeral key with our private ephemeral key
@@ -2635,6 +2635,16 @@ void Call::setDestroying(bool isDestroying)
 bool Call::isDestroying()
 {
     return mIsDestroying;
+}
+
+void Call::generateEphemeralKeyPair()
+{
+    mEphemeralKeyPair.reset(new mega::ECDH());
+}
+
+const mega::ECDH* Call::getEphemeralKeyPair() const
+{
+    return mEphemeralKeyPair.get();
 }
 
 std::pair<std::string, std::string>Call::splitPubKey(const std::string& keyStr) const

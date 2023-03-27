@@ -64,8 +64,6 @@ public:
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void resetKeys();
-    void generateEphemeralKeyPair();
-    const mega::ECDH* getEphemeralKeyPair() const;
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
     const std::string& getEphemeralPubKeyDerived() const;
@@ -78,8 +76,7 @@ protected:
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
 
-    // ephemeral X25519 EC key pair for current session
-    std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
+    // peer ephemeral key derived
     std::string mEphemeralPubKeyDerived;
 
     // initialization vector
