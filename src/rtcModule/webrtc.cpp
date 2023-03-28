@@ -1258,6 +1258,15 @@ std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
             : std::string();
 }
 
+std::vector<byte> Call::generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const
+{
+    std::string salt;
+    std::vector<std::string> v { peerIvs[kHiResTrack], peerIvs[kAudioTrack], myIvs[kHiResTrack], myIvs[kAudioTrack] };
+    sort(v.begin(), v.end());
+    std::for_each(v.begin(), v.end(), [&salt](std::string &s){ salt += s; });
+    return sfu::Command::hexToByteArray(salt);
+}
+
 bool Call::hasCallKey()
 {
     return !mCallKey.empty();
@@ -1336,7 +1345,9 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             {
                 // derive peer public ephemeral key with our private ephemeral key
                 std::string out;
-                if (mSfuClient.getRtcCryptoMeetings()->deriveEphemeralKey(parsedkey.first, ephkeypair->getPrivKey(), out, peer.getIvs(), mMyPeer->getIvs()))
+                const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
+                std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
+                if (ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out))
                 {
                     if (!out.empty())
                     {
@@ -1758,7 +1769,9 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
         {
             // derive peer public ephemeral key with our private ephemeral key
             std::string out;
-            if (mSfuClient.getRtcCryptoMeetings()->deriveEphemeralKey(parsedkey.first, ephkeypair->getPrivKey(), out, ivs, mMyPeer->getIvs()))
+            const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
+            std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
+            if (ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out))
             {
                 if (!out.empty())
                 {

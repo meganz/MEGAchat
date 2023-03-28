@@ -31,11 +31,6 @@ public:
     static void strToKey(const std::string& keystr, strongvelope::SendKey &res);
 
     /**
-     * @brief Derive user public ephemeral key with own user private ephemeral key (SHA256 - based HKDF transform)
-     */
-    bool deriveEphemeralKey(std::string& peerEphemeralPubkey, const byte* privEphemeral, std::string& derivedKeyPair, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs);
-
-    /**
      * @brief Verify call participant ephemeral public key signature
      * This method verify call participant ephemeral public key signature
      */

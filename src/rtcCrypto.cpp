@@ -130,34 +130,4 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
 
     return promise::Promise<bool>(false);
 }
-
-bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, const byte* privEphemeral,
-                                           std::string& output, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs)
-{
-    if (peerIvs.size() < 2 || myIvs.size() < 2)
-    {
-        return false;
-    }
-
-    strongvelope::Key<crypto_scalarmult_BYTES> sharedSecret;
-    std::string pubkeyBin =  mega::Base64::atob(peerEphemeralPubkey);
-    if (crypto_scalarmult(sharedSecret.ubuf(), privEphemeral, reinterpret_cast<const unsigned char*>(pubkeyBin.data())))
-    {
-        return false;
-    }
-
-    // generate salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
-    std::string salt;
-    vector<string> v { peerIvs[kHiResTrack], peerIvs[kAudioTrack], myIvs[kHiResTrack], myIvs[kAudioTrack] };
-    sort(v.begin(), v.end());
-    std::for_each(v.begin(), v.end(), [&salt](std::string &s){ salt += s; });
-    std::vector<byte> saltBin = sfu::Command::hexToByteArray(salt);
-
-    // derive EphemeralKey
-    char auxderived[mega::ECDH::PUBLIC_KEY_LENGTH];
-    HKDF<CryptoPP::SHA256> hkdf;
-    hkdf.DeriveKey( reinterpret_cast<byte*>(auxderived), mega::ECDH::PUBLIC_KEY_LENGTH, sharedSecret.ubuf(), sharedSecret.bufSize(), saltBin.data(), saltBin.size(), nullptr, 0);
-    output = std::string(auxderived, auxderived + mega::ECDH::PUBLIC_KEY_LENGTH);
-    return true;
-}
 }
