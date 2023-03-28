@@ -1048,7 +1048,7 @@ public:
      * @brief Performs karere-only login, assuming the Mega SDK is already logged
      * in with a new session
      */
-    promise::Promise<void> initWithNewSession(const char* sid, const std::string& scsn,
+    bool initWithNewSession(const char* sid, const std::string& scsn,
         const std::shared_ptr<::mega::MegaUserList>& contactList,
         const std::shared_ptr<::mega::MegaTextChatList>& chatList);
 
@@ -1246,7 +1246,7 @@ protected:
     std::string getMyEmailFromDb();
     std::string getMyEmailFromSdk();
     uint64_t getMyIdentityFromDb();
-    promise::Promise<void> loadOwnKeysFromApi();
+    bool loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
 
     strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid, bool isPublic,
