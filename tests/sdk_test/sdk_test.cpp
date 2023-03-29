@@ -1,23 +1,10 @@
 #include "sdk_test.h"
 
+#include <mega.h>
 #include <megaapi.h>
-#include "../../src/chatd.h"
-#include "../../src/megachatapi.h"
-#include "../../src/karereCommon.h" // for logging with karere facility
-#include "waiter/libuvWaiter.h"
-#ifndef KARERE_DISABLE_WEBRTC
-#include "../../src/net/libwebsocketsIO.h"
-#endif
 
-
-#include <signal.h>
-#include <stdio.h>
-#include <time.h>
-#include <sys/stat.h>
 #ifdef _WIN32
 #include <direct.h>
-#else
-#include <unistd.h>
 #endif
 
 using namespace mega;
@@ -64,24 +51,6 @@ int main(int argc, char **argv)
     std::cout << "[========] End Unitary tests " << std::endl;
 
     return rc;
-}
-
-ChatTestException::ChatTestException(const std::string &file, int line, const std::string &msg)
-    : mLine(line)
-    , mFile(file)
-    , mMsg(msg)
-{
-    mExceptionText = mFile + ":" + std::to_string(mLine) + ": Failure";
-}
-
-const char *ChatTestException::what() const throw()
-{
-    return mExceptionText.c_str();
-}
-
-const char *ChatTestException::msg() const throw()
-{
-    return !mMsg.empty() ? mMsg.c_str() : NULL;
 }
 
 Account::Account()

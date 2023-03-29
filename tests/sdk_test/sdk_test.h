@@ -22,17 +22,9 @@
 #ifndef CHATTEST_H
 #define CHATTEST_H
 
-#include <mega.h>
-#include <megaapi.h>
 #include "megachatapi.h"
 #include <chatClient.h>
-#include <iostream>
 #include <future>
-#include <fstream>
-
-#ifndef KARERE_DISABLE_WEBRTC
-#include <sfu.h>
-#endif
 #include "gtest/gtest.h"
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
@@ -41,64 +33,6 @@ static constexpr unsigned int MAX_ATTEMPTS = 3;
 static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
-
-class ChatTestException : public std::exception
-{
-public:
-    ChatTestException(const std::string& file, int line, const std::string &msg);
-
-    virtual const char *what() const throw();
-    virtual const char *msg() const throw();
-
-private:
-    int mLine;
-    std::string mFile;
-    std::string mExceptionText;
-    std::string mMsg;
-};
-
-// do-while is used to forze add semicolon at the end of sentence
-#define ASSERT_CHAT_TEST(a, msg) \
-    do { \
-        if (!(a) && !this->testHasFailed) \
-        { \
-            throw ChatTestException(__FILE__, __LINE__, msg); \
-        } \
-    } \
-    while(false) \
-
-#define EXECUTE_TEST(test, title) \
-    do { \
-        try \
-        { \
-            t.testHasFailed = false; \
-            LOG_debug << "Initializing test environment: " << title; \
-            t.SetUp(); \
-            LOG_debug << "Launching test: " << title; \
-            std::cout << "[" << " RUN    " << "] " << title << std::endl; \
-            test; \
-            std::cout << "[" << "     OK " << "] " << title << std::endl; \
-            LOG_debug << "Cleaning test environment: " << title; \
-            t.TearDown(); \
-            t.mOKTests ++; \
-            LOG_debug << "Finished test: " << title; \
-        } \
-        catch(const ChatTestException& e) \
-        { \
-            t.testHasFailed = true; \
-            std::cout << e.what() << std::endl; \
-            if (e.msg()) \
-            { \
-                std::cout << e.msg() << std::endl; \
-            } \
-            std::cout << "[" << " FAILED " << "] " << title << std::endl; \
-            LOG_debug << "Cleaning test environment after failure: " << title; \
-            t.TearDown(); \
-            t.mFailedTests ++; \
-            LOG_debug << "Failed test: " << title; \
-        } \
-    } \
-    while(false) \
 
 #define TEST_LOG_ERROR(a, message) \
     do { \
@@ -253,34 +187,6 @@ protected:
      * @param action function to be executed
      */
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
-
-    void TEST_ResumeSession(unsigned int accountIndex);
-    void TEST_SetOnlineStatus(unsigned int accountIndex);
-    void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
-    void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
-    void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
-    void TEST_PublicChatManagement(unsigned int a1, unsigned int a2);
-    void TEST_Reactions(unsigned int a1, unsigned int a2);
-    void TEST_OfflineMode(unsigned int a1, unsigned int a2);
-    void TEST_ClearHistory(unsigned int a1, unsigned int a2);
-    void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
-    void TEST_SendContact(unsigned int a1, unsigned int a2);
-    void TEST_Attachment(unsigned int a1, unsigned int a2);
-    void TEST_LastMessage(unsigned int a1, unsigned int a2);
-    void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
-    void TEST_RetentionHistory(unsigned int a1, unsigned int a2);
-    void TEST_ChangeMyOwnName(unsigned int a1);
-#ifndef KARERE_DISABLE_WEBRTC
-    void TEST_Calls(unsigned int a1, unsigned int a2);
-    void TEST_ManualCalls(unsigned int a1, unsigned int a2);
-    void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
-    void TEST_EstablishedCalls(unsigned int a1, unsigned int a2);
-    void TEST_ScheduledMeetings(unsigned int a1, unsigned int a2);
-#endif
-
-    void TEST_RichLinkUserAttribute(unsigned int a1);
-    void TEST_SendRichLink(unsigned int a1, unsigned int a2);
-    void TEST_SendGiphy(unsigned int a1, unsigned int a2);
 
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
