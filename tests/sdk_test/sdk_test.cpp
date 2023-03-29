@@ -3425,7 +3425,7 @@ TEST_F(MegaChatApiTest, DISABLED_ManualCalls)
 }
 
 /**
- * @brief TEST_Calls
+ * @brief MegaChatApiTest.ManualGroupCalls
  *
  * Requirements:
  *      - Both accounts should be conctacts
@@ -3441,8 +3441,11 @@ TEST_F(MegaChatApiTest, DISABLED_ManualCalls)
  * - A answers it
  * - A hangs the call
  */
-void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName)
+TEST_F(MegaChatApiTest, DISABLED_ManualGroupCalls)
 {
+    unsigned a1 = 0;
+    std::string chatRoomName("name_of_groupchat");
+
     char *primarySession = login(a1);
     megachat::MegaChatRoomList *chatRoomList = megaChatApi[a1]->getChatRooms();
 
@@ -3459,13 +3462,13 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
 
     delete chatRoomList;
 
-    ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Chat with title: " + chatRoomName + " not found.");
-    ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(chatid) == MegaChatApi::CHAT_CONNECTION_ONLINE),
-                     "Not connected to chatd for account " + std::to_string(a1+1) + ": " + mAccounts[a1].getEmail());
+    ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Chat with title: " << chatRoomName << " not found.";
+    ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatid), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
+                     "Not connected to chatd for account " << (a1+1) << ": " << account(a1).getEmail();
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
 
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account 1";
 
     loadHistory(a1, chatid, chatroomListener);
 
@@ -3479,19 +3482,19 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagRequest = false;
     std::cerr << "Start Call" << std::endl;
     megaChatApi[a1]->startChatCall(chatid, true);
-    ASSERT_CHAT_TEST(waitForResponse(flagRequest), "Timeout after start chat call " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_TRUE(waitForResponse(flagRequest)) << "Timeout after start chat call " << maxTimeout << " seconds";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to start chat call: " << lastErrorChat[a1];
     bool *callInProgress = &mCallInProgress[a1]; *callInProgress = false;
-    ASSERT_CHAT_TEST(waitForResponse(callInProgress), "Timeout expired for receiving a call");
+    ASSERT_TRUE(waitForResponse(callInProgress)) << "Timeout expired for receiving a call";
 
     std::cout << "Waiting for the other peer to answer the call..." << std::endl;
     sleep(60);
 
     MegaChatCall *chatCall = megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]);
-    ASSERT_CHAT_TEST(chatCall != NULL, "Invalid chat call at getChatCall (by chatid)");
+    ASSERT_TRUE(chatCall) << "Invalid chat call at getChatCall (by chatid)";
 
     MegaChatCall *chatCall2 = megaChatApi[a1]->getChatCallByCallId(chatCall->getCallId());
-    ASSERT_CHAT_TEST(chatCall2 != NULL, "Invalid chat call at getChatCall (by callid)");
+    ASSERT_TRUE(chatCall2) << "Invalid chat call at getChatCall (by callid)";
 
     delete chatCall;    chatCall = NULL;
     delete chatCall2;   chatCall2 = NULL;
@@ -3500,7 +3503,7 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     std::cerr << "Finish Call" << std::endl;
     megaChatApi[a1]->hangChatCall(mChatIdInProgressCall[a1]);
     std::cout << "Call finished." << std::endl;
-    ASSERT_CHAT_TEST(waitForResponse(callDestroyed), "The call must be already finished and it is not");
+    ASSERT_TRUE(waitForResponse(callDestroyed)) << "The call must be already finished and it is not";
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListener);
 
     // Receive call
@@ -3511,8 +3514,8 @@ void MegaChatApiTest::TEST_ManualGroupCalls(unsigned int a1, const std::string& 
     std::cout << "Ready to receive calls..." << std::endl;
     bool *callReceived = &mCallReceivedRinging[a1]; *callReceived = false;
     mChatIdRingInCall[a1] = MEGACHAT_INVALID_HANDLE;
-    ASSERT_CHAT_TEST(waitForResponse(callReceived), "Timeout expired for receiving a call");
-    ASSERT_CHAT_TEST(mChatIdRingInCall[a1] != MEGACHAT_INVALID_HANDLE, "Invalid Chatid from call emisor");
+    ASSERT_TRUE(waitForResponse(callReceived)) << "Timeout expired for receiving a call";
+    ASSERT_NE(mChatIdRingInCall[a1], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid from call emisor";
     megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
 
