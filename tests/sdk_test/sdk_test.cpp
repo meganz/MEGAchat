@@ -2427,7 +2427,7 @@ TEST_F(MegaChatApiTest, Attachment)
 }
 
 /**
- * @brief TEST_LastMessage
+ * @brief MegaChatApiTest.LastMessage
  *
  * Requirements:
  *      - Both accounts should be conctacts
@@ -2445,8 +2445,11 @@ TEST_F(MegaChatApiTest, Attachment)
  * + Receive message with attach node
  * Check if the last message content is equal to the node's name sent
  */
-void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, LastMessage)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
@@ -2461,8 +2464,8 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
     // Load some message to feed history
     loadHistory(a1, chatid, chatroomListener);
@@ -2475,16 +2478,16 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, formatDate, chatroomListener);
     MegaChatHandle msgId = msgSent->getMsgId();
     bool hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
-    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
+    ASSERT_TRUE(hasArrived) << "Id of sent message has not been received yet";
     MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
-                     "Content of last-message doesn't match.\n Sent: " + formatDate + " Received: " + itemAccount1->getLastMessage());
-    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
-    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
+    ASSERT_STREQ(formatDate.c_str(), itemAccount1->getLastMessage()) <<
+                     "Content of last-message doesn't match.\n Sent vs Received.";
+    ASSERT_EQ(itemAccount1->getLastMessageId(), msgId) << "Last message id is different from message sent id";
+    ASSERT_EQ(itemAccount2->getLastMessageId(), msgId) << "Last message id is different from message received id";
     MegaChatMessage *messageConfirm = megaChatApi[a1]->getMessage(chatid, msgId);
-    ASSERT_CHAT_TEST(strcmp(messageConfirm->getContent(), itemAccount1->getLastMessage()) == 0,
-                     "Content of last-message reported id is different than last-message reported content");
+    ASSERT_STREQ(messageConfirm->getContent(), itemAccount1->getLastMessage()) <<
+                     "Content of last-message reported id is different than last-message reported content";
 
     delete itemAccount1;
     itemAccount1 = NULL;
@@ -2507,13 +2510,13 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     MegaNode *nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
     msgId = msgSent->getMsgId();
     hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
-    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
+    ASSERT_TRUE(hasArrived) << "Id of sent message has not been received yet";
     itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(formatDate.c_str(), itemAccount1->getLastMessage()) == 0,
-                     "Last message content differs from content of message sent.\n Sent: " + formatDate + " Received: " + itemAccount1->getLastMessage());
-    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
-    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
+    ASSERT_STREQ(formatDate.c_str(), itemAccount1->getLastMessage()) <<
+                     "Last message content differs from content of message sent.\n Sent vs Received.";
+    ASSERT_EQ(itemAccount1->getLastMessageId(), msgId) << "Last message id is different from message sent id";
+    ASSERT_EQ(itemAccount2->getLastMessageId(), msgId) << "Last message id is different from message received id";
     delete itemAccount1;
     itemAccount1 = NULL;
     delete itemAccount2;
