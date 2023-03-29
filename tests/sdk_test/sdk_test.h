@@ -33,6 +33,7 @@
 #ifndef KARERE_DISABLE_WEBRTC
 #include <sfu.h>
 #endif
+#include "gtest/gtest.h"
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -195,6 +196,7 @@ private:
 };
 
 class MegaChatApiTest :
+        public ::testing::Test,
         public ::mega::MegaListener,
         public ::mega::MegaTransferListener,
         public ::mega::MegaLogger,
@@ -208,25 +210,33 @@ public:
     ~MegaChatApiTest();
 
     // Global test environment initialization
-    void init();
+    static void init();
     // Global test environment clear up
-    void terminate();
+    static void terminate();
+
+protected:
+    static Account& account(unsigned i) { return getEnv().account(i); }
+    static MegaLoggerTest* logger() { return getEnv().logger(); }
 
     // Specific test environment initialization for each test
-    void SetUp();
+    void SetUp() override;
     // Specific test environment clear up for each test
-    void TearDown();
+    void TearDown() override;
 
     // email and password parameter is used if you don't want to use default values for accountIndex
     char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
     void logout(unsigned int accountIndex, bool closeSession = false);
     void logoutAccounts(bool closeSession = false);
 
+public:
     static const char* printChatRoomInfo(const megachat::MegaChatRoom *);
     static const char* printMessageInfo(const megachat::MegaChatMessage *);
+protected:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
+public:
     void postLog(const std::string &msg);
 
+protected:
     bool exitWait(const std::vector<bool *>&responsesReceived, bool any) const;
     bool waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout = maxTimeout) const;
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
@@ -272,11 +282,6 @@ public:
     void TEST_SendRichLink(unsigned int a1, unsigned int a2);
     void TEST_SendGiphy(unsigned int a1, unsigned int a2);
 
-    unsigned mOKTests = 0;
-    unsigned mFailedTests = 0;
-    bool testHasFailed = false;
-
-private:
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
@@ -321,8 +326,6 @@ private:
     void removePendingContactRequest(unsigned int accountIndex);
     void changeLastName(unsigned int accountIndex, std::string lastName);
 
-    Account mAccounts[NUM_ACCOUNTS];
-
     ::mega::MegaApi* megaApi[NUM_ACCOUNTS];
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
@@ -357,8 +360,6 @@ private:
 
     ::mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
     ::mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
-
-    MegaLoggerTest *logger;
 
     bool mNotTransferRunning[NUM_ACCOUNTS];
     bool mPresenceConfigUpdated[NUM_ACCOUNTS];
@@ -409,7 +410,6 @@ private:
     static const std::string REMOTE_PATH;
     static const std::string DOWNLOAD_PATH;
 
-public:
     // implementation for MegaListener
     void onRequestStart(::mega::MegaApi *, ::mega::MegaRequest *) override {}
     void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e) override;
@@ -447,6 +447,22 @@ public:
     void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm) override;
     void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, bool append) override;
 #endif
+
+private:
+    class TestEnv
+    {
+    public:
+        void setLogFile(const std::string& f) { mLogger.reset(new MegaLoggerTest(f.c_str())); }
+        MegaLoggerTest* logger() const { return mLogger.get(); }
+        void addAccount(const std::string& email, const std::string& pswd) { mAccounts.emplace_back(email, pswd); }
+        Account& account(unsigned i) { assert(i < mAccounts.size()); return mAccounts[i]; }
+
+    private:
+        std::vector<Account> mAccounts;
+        std::unique_ptr<MegaLoggerTest> mLogger;
+    };
+
+    static TestEnv& getEnv() { static TestEnv env; return env; }
 };
 
 class TestChatRoomListener : public megachat::MegaChatRoomListener

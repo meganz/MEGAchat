@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     }
 
     MegaChatApiTest t;
-    t.init();
+    MegaChatApiTest::init();
 
 #ifndef KARERE_DISABLE_WEBRTC
     // Tests that requires a groupchat (start with public chat, converted into private)
@@ -85,8 +85,10 @@ int main(int argc, char **argv)
 
     // The test below is a manual test. It requires to stop the intenet conection
     //EXECUTE_TEST(t.TEST_OfflineMode(0), "TEST Offline mode");
+    testing::InitGoogleTest(&argc, argv);
+    int rc = RUN_ALL_TESTS();
 
-    t.terminate();
+    MegaChatApiTest::terminate();
 
     MegaChatApiUnitaryTest unitaryTest;
     std::cout << "[========] Unitary tests " << std::endl;
@@ -96,7 +98,7 @@ int main(int argc, char **argv)
 #endif
     std::cout << "[========] End Unitary tests " << std::endl;
 
-    return t.mFailedTests + unitaryTest.mFailedTests;
+    return rc;
 }
 
 ChatTestException::ChatTestException(const std::string &file, int line, const std::string &msg)
@@ -156,8 +158,8 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     std::string pwd;
     if (email == NULL || password == NULL)
     {
-        mail = mAccounts[accountIndex].getEmail();
-        pwd = mAccounts[accountIndex].getPassword();
+        mail = account(accountIndex).getEmail();
+        pwd = account(accountIndex).getPassword();
     }
     else
     {
@@ -169,7 +171,7 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     int initializationState = megaChatApi[accountIndex]->init(session);
     ASSERT_CHAT_TEST(initializationState >= 0, "MegaChatApiImpl::init returns MegaChatApi::INIT_ERROR");
-    MegaApi::removeLoggerObject(logger);
+    MegaApi::removeLoggerObject(logger());
     ASSERT_CHAT_TEST(waitForResponse(flagInit), "Initialization failed");
     int initStateValue = initState[accountIndex];
     if (!session)
@@ -244,7 +246,7 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 
     ASSERT_CHAT_TEST(waitForResponse(flagRequestLogoutChat), "Expired timeout for chat logout");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-    MegaApi::addLoggerObject(logger);   // need to restore customized logger
+    MegaApi::addLoggerObject(logger());   // need to restore customized logger
 
 }
 
@@ -252,12 +254,10 @@ void MegaChatApiTest::init()
 {
     std::cout << "[========] Global test environment initialization" << endl;
 
-    mOKTests = mFailedTests = 0;
-
-    logger = new MegaLoggerTest("test.log");
-    MegaApi::addLoggerObject(logger);
+    getEnv().setLogFile("test.log");
+    MegaApi::addLoggerObject(logger());
     MegaApi::setLogToConsole(false);    // already disabled by default
-    MegaChatApi::setLoggerObject(logger);
+    MegaChatApi::setLoggerObject(logger());
     MegaChatApi::setLogToConsole(false);
     MegaChatApi::setCatchException(false);
 
@@ -292,8 +292,7 @@ void MegaChatApiTest::init()
             exit(-1);
         }
 
-        Account accountPrimary(email, pwd);
-        mAccounts[i] = accountPrimary;
+        getEnv().addAccount(email, pwd);
     }
 }
 
@@ -301,15 +300,8 @@ void MegaChatApiTest::terminate()
 {
     std::cout << "[==========] Global test environment termination" << endl; \
 
-    std::cout << "[ PASSED ] " << mOKTests << " test/s." << endl;
-    if (mFailedTests)
-    {
-        std::cout << "[ FAILED ] " << mFailedTests << " test/s, see above." << endl;
-    }
-
-    MegaApi::removeLoggerObject(logger);
+    MegaApi::removeLoggerObject(logger());
     MegaChatApi::setLoggerObject(NULL);
-    delete logger;  logger = NULL;
 }
 
 void MegaChatApiTest::SetUp()
@@ -348,7 +340,7 @@ void MegaChatApiTest::SetUp()
 
         // kill all sessions to ensure no interferences from other tests running in parallel
         auto loginTracker = ::mega::make_unique<RequestTracker>(megaApi[i]);
-        megaApi[i]->login(mAccounts[i].getEmail().c_str(), mAccounts[i].getPassword().c_str(),
+        megaApi[i]->login(account(i).getEmail().c_str(), account(i).getPassword().c_str(),
                           loginTracker.get());
         ErrorCodes loginResult = loginTracker->waitForResult();
         ASSERT_CHAT_TEST((loginResult == API_OK), "Login failed in SetUp(). Error: "
@@ -443,7 +435,7 @@ void MegaChatApiTest::TearDown()
             {
                 int a2 = (i == 0) ? 1 : 0;  // FIXME: find solution for more than 2 accounts
                 MegaChatHandle chatToSkip = MEGACHAT_INVALID_HANDLE;
-                MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(mAccounts[a2].getEmail().c_str());
+                MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(account(a2).getEmail().c_str());
                 if (uh != MEGACHAT_INVALID_HANDLE)
                 {
                     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
@@ -459,7 +451,7 @@ void MegaChatApiTest::TearDown()
                 megaChatApi[i]->logout();
                 TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaChatApi logout");
                 TEST_LOG_ERROR(!lastErrorChat[i], "Failed to logout from Chat. Error: " + lastErrorMsgChat[i] + " (" + std::to_string(lastErrorChat[i]) + ")");
-                MegaApi::addLoggerObject(logger);   // need to restore customized logger
+                MegaApi::addLoggerObject(logger());   // need to restore customized logger
             }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -641,7 +633,7 @@ const char* MegaChatApiTest::printChatListItemInfo(const MegaChatListItem *item)
 
 void MegaChatApiTest::postLog(const std::string &msg)
 {
-    logger->postLog(msg.c_str());
+    logger()->postLog(msg.c_str());
 }
 
 bool MegaChatApiTest::exitWait(const std::vector<bool *>&responsesReceived, bool waitForAll) const
@@ -820,11 +812,11 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     megaChatApi[accountIndex]->logout();
     ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "Expired timeout for chat logout");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-    MegaApi::addLoggerObject(logger);   // need to restore customized logger
+    MegaApi::addLoggerObject(logger());   // need to restore customized logger
     // try to initialize chat engine with cache --> should fail
     ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
                      "Wrong chat initialization state. Expected " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
-    MegaApi::removeLoggerObject(logger);
+    MegaApi::removeLoggerObject(logger());
     megaApi[accountIndex]->invalidateCache();
 
     // ___ Re-create Karere cache without login out from SDK___
@@ -832,8 +824,8 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // login in SDK
     auto loginTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
     session ? megaApi[accountIndex]->fastLogin(session, loginTracker.get())
-            : megaApi[accountIndex]->login(mAccounts[accountIndex].getEmail().c_str(),
-                                           mAccounts[accountIndex].getPassword().c_str(),
+            : megaApi[accountIndex]->login(account(accountIndex).getEmail().c_str(),
+                                           account(accountIndex).getPassword().c_str(),
                                            loginTracker.get());
     ErrorCodes loginResult = loginTracker->waitForResult();
     ASSERT_CHAT_TEST((loginResult == API_OK), "Error sdk fast login. Error: "
@@ -867,19 +859,19 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     megaChatApi[accountIndex]->logout();
     ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "Expired timeout for megachat logout");
     ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error megachat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
-    MegaApi::addLoggerObject(logger);   // need to restore customized logger
+    MegaApi::addLoggerObject(logger());   // need to restore customized logger
     delete megaChatApi[accountIndex];
     // create a new MegaChatApi instance
     megaChatApi[accountIndex] = new MegaChatApi(megaApi[accountIndex]);
     megaChatApi[accountIndex]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
     megaChatApi[accountIndex]->addChatRequestListener(this);
     megaChatApi[accountIndex]->addChatListener(this);
-    MegaChatApi::setLoggerObject(logger);
+    MegaChatApi::setLoggerObject(logger());
     // back to enabled: init + fetchnodes + connect
     ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
                      "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
 
-    MegaApi::removeLoggerObject(logger);
+    MegaApi::removeLoggerObject(logger());
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     fetchNodesTracker.reset(new RequestTracker(megaApi[accountIndex]));
     megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
@@ -907,11 +899,11 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     megaChatApi[accountIndex]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
     megaChatApi[accountIndex]->addChatRequestListener(this);
     megaChatApi[accountIndex]->addChatListener(this);
-    MegaChatApi::setLoggerObject(logger);
+    MegaChatApi::setLoggerObject(logger());
     // login in SDK
     loginTracker.reset(new RequestTracker(megaApi[accountIndex]));
-    megaApi[accountIndex]->login(mAccounts[accountIndex].getEmail().c_str(),
-                                 mAccounts[accountIndex].getPassword().c_str(),
+    megaApi[accountIndex]->login(account(accountIndex).getEmail().c_str(),
+                                 account(accountIndex).getPassword().c_str(),
                                  loginTracker.get());
     loginResult = loginTracker->waitForResult();
     ASSERT_CHAT_TEST((loginResult == API_OK), "Error fast login. Error: "
@@ -926,7 +918,7 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     // init in Karere
     ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
                      "Bad Megachat state expected: " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
-    MegaApi::removeLoggerObject(logger);
+    MegaApi::removeLoggerObject(logger());
     // full-fetchndoes in SDK to regenerate cache in Karere
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     fetchNodesTracker.reset(new RequestTracker(megaApi[accountIndex]));
@@ -952,14 +944,14 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
         megaChatApi[accountIndex]->setBackgroundStatus(true);
         ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set background status after " + std::to_string(maxTimeout) + " seconds");
 
-        logger->postLog("========== Enter background status ================= ");
+        logger()->postLog("========== Enter background status ================= ");
         std::this_thread::sleep_for(std::chrono::seconds(15));
 
         flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_BACKGROUND_STATUS]; *flag = false;
         megaChatApi[accountIndex]->setBackgroundStatus(false);
         ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set background status after " + std::to_string(maxTimeout) + " seconds");
 
-        logger->postLog("========== Enter foreground status ================= ");
+        logger()->postLog("========== Enter foreground status ================= ");
         std::this_thread::sleep_for(std::chrono::seconds(5));
     }
 
@@ -1162,7 +1154,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
         chatroom = NULL;
     }
 
-    logger->postLog(buffer.str().c_str());
+    logger()->postLog(buffer.str().c_str());
 
     delete [] session;
     session = NULL;
@@ -1188,7 +1180,7 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
@@ -1208,11 +1200,11 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
     loadHistory(a1, chatid, chatroomListener);
     loadHistory(a2, chatid, chatroomListener);
 
-    std::string messageToSend = "HI " + mAccounts[a1].getEmail() + " - This is a testing message automatically sent to you";
+    std::string messageToSend = "HI " + account(a1).getEmail() + " - This is a testing message automatically sent to you";
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
 
     // edit the message
-    std::string messageToUpdate = "This is an edited message to " + mAccounts[a1].getEmail();
+    std::string messageToUpdate = "This is an edited message to " + account(a1).getEmail();
     MegaChatMessage *msgUpdated = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate, chatroomListener, msgSent->getMsgId());
     delete msgUpdated; msgUpdated = NULL;
     delete msgSent; msgSent = NULL;
@@ -1260,12 +1252,12 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
         delete user;
-        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
 
     MegaChatHandle uh = user->getHandle();
@@ -1431,7 +1423,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
 
     // --> Try to send a message without the right privilege
-    string msg1 = "HI " + mAccounts[a1].getEmail()+ " - This message can't be send because I'm read-only";
+    string msg1 = "HI " + account(a1).getEmail()+ " - This message can't be send because I'm read-only";
     bool *flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
     MegaChatMessage *msgSent = megaChatApi[a2]->sendMessage(chatid, msg1.c_str());
@@ -1483,7 +1475,7 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     }
 
     // --> Send a message and wait for reception by target user
-    string msg0 = "HI " + mAccounts[a1].getEmail() + " - Testing groupchats";
+    string msg0 = "HI " + account(a1).getEmail() + " - Testing groupchats";
     bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
     bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
     bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
@@ -1684,7 +1676,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
 
     // Send a message (ERR)
-    string msg = "HI " + mAccounts[a1].getEmail()+ " - This message will be rejected because now I'm a previewer";
+    string msg = "HI " + account(a1).getEmail()+ " - This message will be rejected because now I'm a previewer";
     bool *flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
     MegaChatMessage *msgSent = megaChatApi[a2]->sendMessage(chatid, msg.c_str());
@@ -1729,7 +1721,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
 
     // Make a1 and a2 contacts
     { // scope for 'user' local variable
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
@@ -1757,7 +1749,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
 
     // Try to send a message (ERR)
-    string msgaux = "HI " + mAccounts[a1].getEmail()+ " - This message can't be send because I'm in preview mode (read-only)";
+    string msgaux = "HI " + account(a1).getEmail()+ " - This message can't be send because I'm in preview mode (read-only)";
     flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
     msgSent = megaChatApi[a2]->sendMessage(chatid, msgaux.c_str());
@@ -1779,7 +1771,7 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     item = NULL;
 
     // Send a message
-    msgaux = "HI " + mAccounts[a1].getEmail()+ " - I have autojoined to this chat";
+    msgaux = "HI " + account(a1).getEmail()+ " - I have autojoined to this chat";
     flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
     msgSent = megaChatApi[a2]->sendMessage(chatid, msgaux.c_str());
@@ -1862,12 +1854,12 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
         delete user;
-        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
 
     // Get a group chatroom with both users
@@ -1909,7 +1901,7 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     }
 
     // Send a message and wait for reception by target user
-    string msg0 = "HI " + mAccounts[a1].getEmail() + " - Testing reactions";
+    string msg0 = "HI " + account(a1).getEmail() + " - Testing reactions";
     bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
     bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
     bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
@@ -2021,12 +2013,12 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int a1, unsigned int a2)
     char *sessionSecondary = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
         delete user;
-        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
 
     MegaChatHandle uh = user->getHandle();
@@ -2079,7 +2071,7 @@ void MegaChatApiTest::TEST_OfflineMode(unsigned int a1, unsigned int a2)
     logout(a1, false);
     bool *flagInit = &initStateChanged[a1]; *flagInit = false;
     megaChatApi[a1]->init(sessionPrimary);
-    MegaApi::removeLoggerObject(logger);
+    MegaApi::removeLoggerObject(logger());
     ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for initialization");
     int initStateValue = initState[a1];
     ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_OFFLINE_SESSION,
@@ -2167,7 +2159,7 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
@@ -2189,7 +2181,7 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     // Send 5 messages to have some history
     for (int i = 0; i < 5; i++)
     {
-        string msg0 = "HI " + mAccounts[a2].getEmail() + " - Testing clearhistory. This messages is the number " + std::to_string(i);
+        string msg0 = "HI " + account(a2).getEmail() + " - Testing clearhistory. This messages is the number " + std::to_string(i);
 
         MegaChatMessage *message = sendTextMessageOrUpdate(a1, a2, chatid, msg0, chatroomListener);
 
@@ -2291,7 +2283,7 @@ void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
     session = NULL;
 
     // Login over same index account but with other user
-    session = login(a1, NULL, mAccounts[a2].getEmail().c_str(), mAccounts[a2].getPassword().c_str());
+    session = login(a1, NULL, account(a2).getEmail().c_str(), account(a2).getPassword().c_str());
 
     delete [] session;
     session = NULL;
@@ -2326,7 +2318,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     char *secondarySession = login(a2);
 
     // 0. Ensure both accounts are contacts and there's a 1on1 chatroom
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
@@ -2475,7 +2467,7 @@ void MegaChatApiTest::TEST_LastMessage(unsigned int a1, unsigned int a2)
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
@@ -2583,7 +2575,7 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
@@ -2609,7 +2601,7 @@ void MegaChatApiTest::TEST_SendContact(unsigned int a1, unsigned int a2)
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
 
-    user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     ASSERT_CHAT_TEST(user, "Failed to get contact with email" + mAccounts[a2].getEmail());
     MegaChatHandle uh1 = user->getHandle();
     delete user;
@@ -2708,12 +2700,12 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     char *session1 = login(a2);
 
     // Prepare peers, privileges...
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
         delete user;
-        user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+        user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
 
     MegaChatHandle uh = user->getHandle();
@@ -2838,11 +2830,11 @@ void MegaChatApiTest::TEST_RetentionHistory(unsigned int a1, unsigned int a2)
     ::mega::unique_ptr<char[]>sessionSecondary(login(a2));
 
     // Prepare peers, privileges...
-    ::mega::unique_ptr<MegaUser>user(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
+    ::mega::unique_ptr<MegaUser>user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
-        user.reset(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
+        user.reset(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     }
 
     // Get a group chatroom with both users
@@ -2914,7 +2906,7 @@ void MegaChatApiTest::TEST_RetentionHistory(unsigned int a1, unsigned int a2)
     }
 
     // Send 5 messages
-    std::string messageToSend = "Msg from " +mAccounts[a1].getEmail();
+    std::string messageToSend = "Msg from " +account(a1).getEmail();
     for (int i = 0; i < 5; i++)
     {
         sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
@@ -2957,7 +2949,7 @@ void MegaChatApiTest::TEST_RetentionHistory(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
 
     // Send 5 messages
-    messageToSend = "Msg from " +mAccounts[a1].getEmail();
+    messageToSend = "Msg from " +account(a1).getEmail();
     for (int i = 0; i < 5; i++)
     {
         sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
@@ -3090,7 +3082,7 @@ void MegaChatApiTest::TEST_Calls(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
@@ -3327,7 +3319,7 @@ void MegaChatApiTest::TEST_ManualCalls(unsigned int a1, unsigned int a2)
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
@@ -3637,7 +3629,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
 
-    std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
+    std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
@@ -4081,11 +4073,11 @@ void MegaChatApiTest::TEST_ScheduledMeetings(unsigned int a1, unsigned int a2)
     //================================================================================//
     const std::unique_ptr <char[]> primarySession(login(a1));
     const std::unique_ptr <char[]> secondarySession(login(a2));
-    std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
+    std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         makeContact(a1, a2);
-        user.reset(megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str()));
+        user.reset(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
         ASSERT_CHAT_TEST(user, "Secondary account is not a contact of primary account yet");
     }
 
@@ -4325,7 +4317,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     ASSERT_CHAT_TEST(!error, "Failed to enable rich preview. Error: " + std::to_string(error));
     ASSERT_CHAT_TEST(waitForResponse(richPreviewEnabled), "Richlink previews attr change not received, account" + std::to_string(a1+1) + ", after timeout: " +  std::to_string(maxTimeout) + " seconds");
 
-    MegaUser *user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
@@ -4544,7 +4536,7 @@ void MegaChatApiTest::initChat(unsigned int a1, unsigned int a2, MegaUser*& user
     primarySession = login(a1);
     secondarySession = login(a2);
 
-    user = megaApi[a1]->getContact(mAccounts[a2].getEmail().c_str());
+    user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         makeContact(a1, a2);
@@ -4602,7 +4594,7 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     *flagContactRequestUpdatedSecondary = false;
     std::string contactRequestMessage = "Contact Request Message";
     auto inviteContactTracker = ::mega::make_unique<RequestTracker>(megaApi[a1]);
-    megaApi[a1]->inviteContact(mAccounts[a2].getEmail().c_str(),
+    megaApi[a1]->inviteContact(account(a2).getEmail().c_str(),
                                contactRequestMessage.c_str(),
                                MegaContactRequest::INVITE_ACTION_ADD,
                                inviteContactTracker.get());
@@ -5667,7 +5659,7 @@ void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megac
     }
 }
 
-void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, MegaChatHandle /*chatid*/, bool append)
+void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, MegaChatHandle /*chatid*/, bool /*append*/)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
     mSchedOccurrUpdated[apiIndex] = true;
@@ -6412,7 +6404,7 @@ bool MockupCall::error(unsigned int, const string &)
     return true;
 }
 
-void MockupCall::logError(const char *error)
+void MockupCall::logError(const char *)
 {
 
 }
