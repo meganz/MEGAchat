@@ -2977,7 +2977,7 @@ TEST_F(MegaChatApiTest, RetentionHistory)
 }
 
 /**
- * @brief TEST_ChangeMyOwnName
+ * @brief MegaChatApiTest.ChangeMyOwnName
  *
  * This test does the following:
  * - Get current name
@@ -2990,8 +2990,10 @@ TEST_F(MegaChatApiTest, RetentionHistory)
  *
  * Check if last name changed is the same at memory and at db
  */
-void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
+TEST_F(MegaChatApiTest, ChangeMyOwnName)
 {
+    unsigned a1 = 0;
+
     char *sessionPrimary = login(a1);
     std::string appendToLastName = "Test";
 
@@ -3032,12 +3034,10 @@ void MegaChatApiTest::TEST_ChangeMyOwnName(unsigned int a1)
     //Name comes back to old value.
     changeLastName(a1, myAccountLastName);
 
-    ASSERT_CHAT_TEST(newLastName == finalLastName,
-                     "Failed to change fullname (checked from memory) Name established: \""
-                     + newLastName + "\" Name in memory: \"" + finalLastName + "\"");
-    ASSERT_CHAT_TEST(lastNameAfterLogout == finalLastName,
-                     "Failed to change fullname (checked from DB) Name established: \""
-                     + finalLastName + "\" Name in DB: \"" + lastNameAfterLogout + "\"");
+    ASSERT_EQ(newLastName, finalLastName) <<
+                     "Failed to change fullname (checked from memory). Name established VS Name in memory";
+    ASSERT_EQ(lastNameAfterLogout, finalLastName) <<
+                     "Failed to change fullname (checked from DB) Name established VS Name in DB";
 
     delete [] sessionPrimary;
     sessionPrimary = NULL;
