@@ -1792,7 +1792,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
 }
 
 /**
- * @brief TEST_Reactions
+ * @brief MegaChatApiTest.Reactions
  *
  * Requirements:
  * - Both accounts should be conctacts
@@ -1817,8 +1817,11 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
  * - Remove reaction
  * - Remove non-existent reaction (error)
  */
-void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, Reactions)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     // Login both accounts
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
@@ -1844,11 +1847,11 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
 
     // Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
     ::mega::unique_ptr <MegaChatRoom> chatroom (megaChatApi[a1]->getChatRoom(chatid));
     ::mega::unique_ptr<char[]> chatidB64(megaApi[a1]->handleToBase64(chatid));
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::string(chatidB64.get()));
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatidB64.get();
 
     if (chatroom->getPeerPrivilegeByHandle(uh) != PRIV_RO)
     {
@@ -1861,13 +1864,13 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
         int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
         TestMegaChatRequestListener auxrequestListener(nullptr, megaChatApi[a1]);
         megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO, &auxrequestListener);
-        ASSERT_CHAT_TEST(auxrequestListener.waitForResponse(), "Timeout expired for update privilege of peer");
-        ASSERT_CHAT_TEST(!auxrequestListener.getErrorCode(), "Failed to update privilege of peer Error: " + std::to_string(auxrequestListener.getErrorCode()));
-        ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
-        ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
-        ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
-        ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
-        ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
+        ASSERT_TRUE(auxrequestListener.waitForResponse()) << "Timeout expired for update privilege of peer";
+        ASSERT_TRUE(!auxrequestListener.getErrorCode()) << "Failed to update privilege of peer Error: " << auxrequestListener.getErrorCode();
+        ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
+        ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
+        ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
+        ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
+        ASSERT_EQ(*priv, MegaChatRoom::PRIV_RO) << "Privilege is incorrect";
     }
 
     // Send a message and wait for reception by target user
@@ -1878,75 +1881,75 @@ void MegaChatApiTest::TEST_Reactions(unsigned int a1, unsigned int a2)
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
     std::unique_ptr<MegaChatMessage> messageSent(megaChatApi[a1]->sendMessage(chatid, msg0.c_str()));
-    ASSERT_CHAT_TEST(waitForResponse(msgConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
+    ASSERT_TRUE(waitForResponse(msgConfirmed)) << "Timeout expired for receiving confirmation by server";    // for confirmation, sendMessage() is synchronous
     MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
-    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId), "Message not received");
-    ASSERT_CHAT_TEST(msgId != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
-    ASSERT_CHAT_TEST(waitForResponse(msgReceived), "Timeout expired for receiving message by target user");    // for reception
-    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId), "Wrong message id at destination");
+    ASSERT_TRUE(chatroomListener->hasArrivedMessage(a1, msgId)) << "Message not received";
+    ASSERT_NE(msgId, MEGACHAT_INVALID_HANDLE) << "Wrong message id at origin";
+    ASSERT_TRUE(waitForResponse(msgReceived)) << "Timeout expired for receiving message by target user";    // for reception
+    ASSERT_TRUE(chatroomListener->hasArrivedMessage(a2, msgId)) << "Wrong message id at destination";
     MegaChatMessage *messageReceived = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
-    ASSERT_CHAT_TEST(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent()), "Content of message doesn't match");
+    ASSERT_TRUE(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent())) << "Content of message doesn't match";
 
     // Check reactions for the message sent above (It shouldn't exist any reaction)
     ::mega::unique_ptr <MegaStringList> reactionsList;
     reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
-    ASSERT_CHAT_TEST(!reactionsList->size(), "getMessageReactions Error: The message shouldn't have reactions");
+    ASSERT_FALSE(reactionsList->size()) << "getMessageReactions Error: The message shouldn't have reactions";
     int userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
-    ASSERT_CHAT_TEST(!userCount, "getReactionUsers Error: The reaction shouldn't exist");
+    ASSERT_FALSE(userCount) << "getReactionUsers Error: The reaction shouldn't exist";
 
     // Add invalid reaction (error)
     TestMegaChatRequestListener requestListener(nullptr, megaChatApi[a1]);
     megaChatApi[a1]->addReaction(chatid, msgId, nullptr, &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for add reaction");
-    ASSERT_CHAT_TEST(requestListener.getErrorCode() == MegaChatError::ERROR_ARGS, "addReaction: Unexpected error for NULL reaction param. Error:" + std::string(std::to_string(requestListener.getErrorCode())));
+    ASSERT_TRUE(requestListener.waitForResponse()) << "Timeout expired for add reaction";
+    ASSERT_EQ(requestListener.getErrorCode(), MegaChatError::ERROR_ARGS) << "addReaction: Unexpected error for NULL reaction param.";
 
     // Add reaction for invalid chat (error)
     requestListener = TestMegaChatRequestListener (nullptr, megaChatApi[a1]);
     megaChatApi[a1]->addReaction(MEGACHAT_INVALID_HANDLE, msgId, "😰", &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for add reaction");
-    ASSERT_CHAT_TEST(requestListener.getErrorCode() == MegaChatError::ERROR_NOENT, "addReaction: Unexpected error for invalid chat. Error:" + std::string(std::to_string(requestListener.getErrorCode())));
+    ASSERT_TRUE(requestListener.waitForResponse()) << "Timeout expired for add reaction";
+    ASSERT_EQ(requestListener.getErrorCode(), MegaChatError::ERROR_NOENT) << "addReaction: Unexpected error for invalid chat.";
 
     // Add reaction for invalid message (error)
     requestListener = TestMegaChatRequestListener (nullptr, megaChatApi[a1]);
     megaChatApi[a1]->addReaction(chatid, MEGACHAT_INVALID_HANDLE, "😰", &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for add reaction");
-    ASSERT_CHAT_TEST(requestListener.getErrorCode() == MegaChatError::ERROR_NOENT, "addReaction: Unexpected error for invalid message. Error:" + std::string(std::to_string(requestListener.getErrorCode())));
+    ASSERT_TRUE(requestListener.waitForResponse()) << "Timeout expired for add reaction";
+    ASSERT_EQ(requestListener.getErrorCode(), MegaChatError::ERROR_NOENT) << "addReaction: Unexpected error for invalid message.";
 
     // Add reaction without enough permissions (error)
     requestListener = TestMegaChatRequestListener (nullptr, megaChatApi[a2]);
     megaChatApi[a2]->addReaction(chatid, msgId, "😰", &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for add reaction");
-    ASSERT_CHAT_TEST(requestListener.getErrorCode() == MegaChatError::ERROR_ACCESS, "addReaction: Unexpected error adding reaction without enough permissions. Error:" + std::string(std::to_string(requestListener.getErrorCode())));
+    ASSERT_TRUE(requestListener.waitForResponse()) << "Timeout expired for add reaction";
+    ASSERT_EQ(requestListener.getErrorCode(), MegaChatError::ERROR_ACCESS) << "addReaction: Unexpected error adding reaction without enough permissions.";
 
     // Add reaction (ok)
     requestListener = TestMegaChatRequestListener (nullptr, megaChatApi[a1]);
     megaChatApi[a1]->addReaction(chatid, msgId, "😰", &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for add reaction");
-    ASSERT_CHAT_TEST(requestListener.getErrorCode() == MegaChatError::ERROR_OK, "addReaction: Unexpected error adding reaction. Error:" + std::string(std::to_string(requestListener.getErrorCode())));
+    ASSERT_TRUE(requestListener.waitForResponse()) << "Timeout expired for add reaction";
+    ASSERT_EQ(requestListener.getErrorCode(), MegaChatError::ERROR_OK) << "addReaction: Unexpected error adding reaction.";
 
     // Add existing reaction (error)
     requestListener = TestMegaChatRequestListener (nullptr, megaChatApi[a1]);
     megaChatApi[a1]->addReaction(chatid, msgId, "😰", &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for add reaction");
-    ASSERT_CHAT_TEST(requestListener.getErrorCode() == MegaChatError::ERROR_EXIST, "addReaction: Unexpected error for adding an existing reaction. Error:" + std::string(std::to_string(requestListener.getErrorCode())));
+    ASSERT_TRUE(requestListener.waitForResponse()) << "Timeout expired for add reaction";
+    ASSERT_EQ(requestListener.getErrorCode(), MegaChatError::ERROR_EXIST) << "addReaction: Unexpected error for adding an existing reaction.";
 
     // Check reactions
     reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
-    ASSERT_CHAT_TEST(reactionsList->size(), "getMessageReactions Error: The message doesn't have reactions");
+    ASSERT_TRUE(reactionsList->size()) << "getMessageReactions Error: The message doesn't have reactions";
     userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
-    ASSERT_CHAT_TEST(userCount, "getReactionUsers Error: The reaction doesn't exists");
+    ASSERT_TRUE(userCount) << "getReactionUsers Error: The reaction doesn't exists";
 
     // Remove reaction (ok)
     requestListener = TestMegaChatRequestListener (nullptr, megaChatApi[a1]);
     megaChatApi[a1]->delReaction(chatid, msgId, "😰", &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for del reaction");
-    ASSERT_CHAT_TEST(requestListener.getErrorCode() == MegaChatError::ERROR_OK, "delReaction: Unexpected error removing reaction. Error:" + std::string(std::to_string(requestListener.getErrorCode())));
+    ASSERT_TRUE(requestListener.waitForResponse()) << "Timeout expired for del reaction";
+    ASSERT_EQ(requestListener.getErrorCode(), MegaChatError::ERROR_OK) << "delReaction: Unexpected error removing reaction.";
 
     // Remove unexisting reaction (error)
     requestListener = TestMegaChatRequestListener (nullptr, megaChatApi[a1]);
     megaChatApi[a1]->delReaction(chatid, msgId, "😰", &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "Timeout expired for del reaction");
-    ASSERT_CHAT_TEST(requestListener.getErrorCode() == MegaChatError::ERROR_EXIST, "delReaction: Unexpected error for removing a non-existent reaction. Error:" + std::string(std::to_string(requestListener.getErrorCode())));
+    ASSERT_TRUE(requestListener.waitForResponse()) << "Timeout expired for del reaction";
+    ASSERT_EQ(requestListener.getErrorCode(), MegaChatError::ERROR_EXIST) << "delReaction: Unexpected error for removing a non-existent reaction.";
 
     // Close chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
