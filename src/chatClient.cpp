@@ -1185,8 +1185,8 @@ Client::InitState Client::initWithAnonymousSession()
 }
 
 bool Client::initWithNewSession(const char* sid, const std::string& scsn,
-    const std::shared_ptr<mega::MegaUserList>& contactList,
-    const std::shared_ptr<mega::MegaTextChatList>& chatList)
+    mega::MegaUserList& contactList,
+    mega::MegaTextChatList& chatList)
 {
     assert(sid);
 
@@ -1212,10 +1212,10 @@ bool Client::initWithNewSession(const char* sid, const std::string& scsn,
     }
 
     // Add users from API
-    mContactList->syncWithApi(*contactList);
+    mContactList->syncWithApi(contactList);
     mChatdClient.reset(new chatd::Client(this));
     assert(chats->empty());
-    chats->onChatsUpdate(*chatList);
+    chats->onChatsUpdate(chatList);
     commit(scsn);
 
     // Get aliases from cache
@@ -1575,7 +1575,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
-                if (initWithNewSession(sid->c_str(), scsn, contactList, chatList))
+                if (initWithNewSession(sid->c_str(), scsn, *contactList, *chatList))
                 {
                     setInitState(kInitHasOnlineSession);
                     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);

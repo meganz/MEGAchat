@@ -1049,8 +1049,8 @@ public:
      * in with a new session
      */
     bool initWithNewSession(const char* sid, const std::string& scsn,
-        const std::shared_ptr<::mega::MegaUserList>& contactList,
-        const std::shared_ptr<::mega::MegaTextChatList>& chatList);
+        mega::MegaUserList& contactList,
+        mega::MegaTextChatList& chatList);
 
     /**
      * @brief This function returns basic information about a public chat, to be able to open it in preview mode.
