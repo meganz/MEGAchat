@@ -2216,15 +2216,18 @@ TEST_F(MegaChatApiTest, ClearHistory)
 }
 
 /**
- * @brief TEST_SwitchAccounts
+ * @brief MegaChatApiTest.SwitchAccounts
  *
  * This test does the following:
  * - Login with accoun1 email and pasword
  * - Logout
  * - With the same megaApi and megaChatApi, login with account2
  */
-void MegaChatApiTest::TEST_SwitchAccounts(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, SwitchAccounts)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     char *session = login(a1);
 
     MegaChatListItemList *items = megaChatApi[a1]->getChatListItems();
