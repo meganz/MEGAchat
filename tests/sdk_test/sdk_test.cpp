@@ -1018,7 +1018,7 @@ TEST_F(MegaChatApiTest, SetOnlineStatus)
 }
 
 /**
- * @brief TEST_GetChatRoomsAndMessages
+ * @brief MegaChatApiTest.GetChatRoomsAndMessages
  *
  * This test does the following:
  *
@@ -1028,8 +1028,10 @@ TEST_F(MegaChatApiTest, SetOnlineStatus)
  * - Load history from cache
  *
  */
-void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
+TEST_F(MegaChatApiTest, GetChatRoomsAndMessages)
 {
+    unsigned accountIndex = 0;
+
     char *session = login(accountIndex);
 
     MegaChatRoomList *chats = megaChatApi[accountIndex]->getChatRooms();
@@ -1049,7 +1051,8 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
 
         MegaChatHandle chatid = chatroom->getChatId();
         TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-        ASSERT_CHAT_TEST(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(accountIndex+1));
+        ASSERT_TRUE(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener))
+                << "Can't open chatRoom account " << (accountIndex+1);
 
         // Print chatroom information and peers' names
         const char *info = MegaChatApiTest::printChatRoomInfo(chatroom);
@@ -1063,14 +1066,14 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
 
                 bool *flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_FIRSTNAME]; *flagNameReceived = false; mChatFirstname = "";
                 megaChatApi[accountIndex]->getUserFirstname(uh, NULL);
-                ASSERT_CHAT_TEST(waitForResponse(flagNameReceived), "Failed to retrieve firstname after " + std::to_string(maxTimeout) + " seconds");
-                ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve firstname. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+                ASSERT_TRUE(waitForResponse(flagNameReceived)) << "Failed to retrieve firstname after " << maxTimeout << " seconds";
+                ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to retrieve firstname. Error: " << lastErrorMsgChat[accountIndex] << " (" << lastErrorChat[accountIndex] << ")";
                 buffer << "Peer firstname (" << uh << "): " << mChatFirstname << " (len: " << mChatFirstname.length() << ")" << endl;
 
                 flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_LASTNAME]; *flagNameReceived = false; mChatLastname = "";
                 megaChatApi[0]->getUserLastname(uh, NULL);
-                ASSERT_CHAT_TEST(waitForResponse(flagNameReceived), "Failed to retrieve lastname after " + std::to_string(maxTimeout) + " seconds");
-                ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve lastname. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+                ASSERT_TRUE(waitForResponse(flagNameReceived)) << "Failed to retrieve lastname after " << maxTimeout << " seconds";
+                ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to retrieve lastname. Error: " << lastErrorMsgChat[accountIndex] << " (" << lastErrorChat[accountIndex] << ")";
                 buffer << "Peer lastname (" << uh << "): " << mChatLastname << " (len: " << mChatLastname.length() << ")" << endl;
 
                 char *email = megaChatApi[accountIndex]->getContactEmail(uh);
@@ -1083,8 +1086,8 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
                 {
                     flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_EMAIL]; *flagNameReceived = false; mChatEmail = "";
                     megaChatApi[accountIndex]->getUserEmail(uh);
-                    ASSERT_CHAT_TEST(waitForResponse(flagNameReceived), "Failed to retrieve email after " + std::to_string(maxTimeout) + " seconds");
-                    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Failed to retrieve email. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+                    ASSERT_TRUE(waitForResponse(flagNameReceived)) << "Failed to retrieve email after " << maxTimeout << " seconds";
+                    ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to retrieve email. Error: " << lastErrorMsgChat[accountIndex] << " (" << lastErrorChat[accountIndex] << ")";
                     buffer << "Peer email (" << uh << "): " << mChatEmail << " (len: " << mChatEmail.length() << ")" << endl;
                 }
             }
@@ -1100,7 +1103,7 @@ void MegaChatApiTest::TEST_GetChatRoomsAndMessages(unsigned int accountIndex)
 
         // Now, load history locally (it should be cached by now)
         chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-        ASSERT_CHAT_TEST(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(accountIndex+1));
+        ASSERT_TRUE(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (accountIndex+1);
         buffer << "Loading messages locally for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
         loadHistory(accountIndex, chatid, chatroomListener);
 
