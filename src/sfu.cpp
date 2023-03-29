@@ -2364,11 +2364,6 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid)
     }
 }
 
-unsigned int SfuClient::getMySfuVersion()
-{
-    return mSfuVersion;
-}
-
 void SfuClient::retryPendingConnections(bool disconnect)
 {
     for (auto it = mConnections.begin(); it != mConnections.end(); it++)

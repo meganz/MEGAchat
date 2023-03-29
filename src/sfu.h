@@ -20,6 +20,25 @@
 
 namespace sfu
 {
+/** SFU Protocol Version:
+ * - Version 0: initial version
+ *
+ * - Version 1 (never released for native clients):
+ *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
+ *      + Dynamic audio routing
+ *      + Waiting rooms
+ *
+ * - Version 2 (contains all features from V1):
+ *      + Change AES-GCM by AES-CBC with Zero iv
+ */
+static const unsigned int mSfuProtoVersion = 2;
+
+/* Invalid SFU protocol version */
+static constexpr uint32_t sfuInvalidProto = UINT32_MAX;
+
+/* Gets the current SFU protocol version for our client */
+static unsigned int getMySfuVersion() { return mSfuProtoVersion; }
+
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
@@ -581,7 +600,6 @@ public:
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
     void addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid);
-    static unsigned int getMySfuVersion();
 
 private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
@@ -589,17 +607,6 @@ private:
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
 
-    /** SFU Version:
-     * - Version 0: initial version
-     *
-     * - Version 1 (never implemented in native):
-     *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
-     *      + Dynamic audio routing
-     *
-     * - Version 2:
-     *      + Change AES-GCM by AES-CBC with Zero iv
-     */
-    static const unsigned int mSfuVersion = 2;
 };
 
 static inline const char* connStateToStr(SfuConnection::ConnState state)
