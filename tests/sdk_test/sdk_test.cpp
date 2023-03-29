@@ -4322,7 +4322,7 @@ TEST_F(MegaChatApiTest, RichLinkUserAttribute)
 }
 
 /**
- * @brief TEST_SendRichLink
+ * @brief MegaChatApiTest.SendRichLink
  *
  * This test does the following:
  *
@@ -4332,8 +4332,11 @@ TEST_F(MegaChatApiTest, RichLinkUserAttribute)
  * - Check if message has been updated with a rich link
  *
  */
-void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, SendRichLink)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     constexpr unsigned int timeoutUsec = maxTimeout * 1000000;
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
@@ -4343,10 +4346,10 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     bool* richPreviewEnabled = &mUsersChanged[a1][MegaUser::CHANGE_TYPE_RICH_PREVIEWS]; *richPreviewEnabled = false;
     TestMegaRequestListener requestListener(megaApi[a1], nullptr);
     megaApi[a1]->enableRichPreviews(enableRichLink, &requestListener);
-    ASSERT_CHAT_TEST(requestListener.waitForResponse(), "User attribute retrieval not finished after timeout");
+    ASSERT_TRUE(requestListener.waitForResponse()) << "User attribute retrieval not finished after timeout";
     int error = requestListener.getErrorCode();
-    ASSERT_CHAT_TEST(!error, "Failed to enable rich preview. Error: " + std::to_string(error));
-    ASSERT_CHAT_TEST(waitForResponse(richPreviewEnabled), "Richlink previews attr change not received, account" + std::to_string(a1+1) + ", after timeout: " +  std::to_string(maxTimeout) + " seconds");
+    ASSERT_FALSE(error) << "Failed to enable rich preview. Error: " << error;
+    ASSERT_TRUE(waitForResponse(richPreviewEnabled)) << "Richlink previews attr change not received, account" << (a1+1) << ", after timeout: " << maxTimeout << " seconds";
 
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
@@ -4359,8 +4362,8 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
     // Load some message to feed history
     loadHistory(a1, chatid, chatroomListener);
@@ -4376,7 +4379,7 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
         {
             for (auto& ai : an)
             {
-                ASSERT_CHAT_TEST(waitForResponse(&chatroomListener->msgEdited[ai]), "Message HAS NOT been fully updated after richlink edition, account" + std::to_string(ai+1) + ", after timeout: " +  std::to_string(maxTimeout) + " seconds");
+                ASSERT_TRUE(waitForResponse(&chatroomListener->msgEdited[ai])) << "Message HAS NOT been fully updated after richlink edition, account" << (ai+1) << ", after timeout: " << maxTimeout << " seconds";
             }
         }
         // Check if messages have been updated correctly
@@ -4400,16 +4403,16 @@ void MegaChatApiTest::TEST_SendRichLink(unsigned int a1, unsigned int a2)
                     }
                 }
             }
-            ASSERT_CHAT_TEST((isRichLink && msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META) ||
-                            (!isRichLink && msgUpdated->getType() != MegaChatMessage::TYPE_CONTAINS_META), "Invalid Message Type: " + std::to_string(msgUpdated->getType()) + ", it should " + std::string((isRichLink ? "" : "NOT ")) + "be " + std::to_string(MegaChatMessage::TYPE_CONTAINS_META) + " (account " + std::to_string(ai+1)+ ")");
-            ASSERT_CHAT_TEST((isRichLink && msgUpdated->getContainsMeta() &&
-                                            msgUpdated->getContainsMeta()->getRichPreview()) ||
-                            (!isRichLink && !msgUpdated->getContainsMeta()), "Rich link information HAS" + std::string(isRichLink ? " NOT" : "") + " been established (account " + std::to_string(ai+1)+ ")");
-            ASSERT_CHAT_TEST(!isRichLink || msgUpdated->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW, "Invalid ContainsMeta Type: " + (isRichLink ? std::to_string(msgUpdated->getContainsMeta()->getType()) : "NONE") + ", due to containsPreview = " + (isRichLink ? "true" : "false") + ", it should " + std::string((isRichLink ? "" : "NOT ")) + "be " + std::to_string(MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW) + " (account " + std::to_string(ai+1)+ ")");
+            ASSERT_TRUE((isRichLink && msgUpdated->getType() == MegaChatMessage::TYPE_CONTAINS_META) ||
+                        (!isRichLink && msgUpdated->getType() != MegaChatMessage::TYPE_CONTAINS_META)) << "Invalid Message Type: " << msgUpdated->getType() << ", it should " << (isRichLink ? "" : "NOT ") << "be " << MegaChatMessage::TYPE_CONTAINS_META << " (account " << (ai+1) << ")";
+            ASSERT_TRUE((isRichLink && msgUpdated->getContainsMeta() &&
+                         msgUpdated->getContainsMeta()->getRichPreview()) ||
+                        (!isRichLink && !msgUpdated->getContainsMeta())) << "Rich link information HAS" << (isRichLink ? " NOT" : "") << " been established (account " << (ai+1) << ")";
+            ASSERT_TRUE(!isRichLink || msgUpdated->getContainsMeta()->getType() == MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW) << "Invalid ContainsMeta Type: " << (isRichLink ? to_string(msgUpdated->getContainsMeta()->getType()) : "NONE") << ", due to containsPreview = " << (isRichLink ? "true" : "false") << ", it should " << (isRichLink ? "" : "NOT ") << "be " << MegaChatContainsMeta::CONTAINS_META_RICH_PREVIEW << " (account " << (ai+1) << ")";
 
             const char* updatedText = isRichLink ? msgUpdated->getContainsMeta()->getRichPreview()->getText() :
                                                    msgUpdated->getContent();
-            ASSERT_CHAT_TEST(updatedText == msgToSend , "Two strings have to have the same value (account " + std::to_string(ai+1)+ "): UpdatedText -> " + updatedText + " Message sent: " + msgToSend);
+            ASSERT_EQ(updatedText, msgToSend) << "Two strings have to have the same value (account " << (ai+1) << "): UpdatedText -> " << updatedText << " Message sent: " << msgToSend;
 
             if (senderOnly)
             {
