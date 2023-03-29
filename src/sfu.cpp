@@ -2356,7 +2356,7 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid)
                  : "?"; // add ? as append character
     }
 
-    sfuUrl.path.append(app).append("v=").append(std::to_string(getSfuVersion()));
+    sfuUrl.path.append(app).append("v=").append(std::to_string(getMySfuVersion()));
 
     if (myCid != 0) // in case of reconenct add cid (if valid)
     {
@@ -2364,7 +2364,7 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid)
     }
 }
 
-unsigned int SfuClient::getSfuVersion()
+unsigned int SfuClient::getMySfuVersion()
 {
     return mSfuVersion;
 }

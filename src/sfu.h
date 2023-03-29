@@ -581,7 +581,7 @@ public:
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
     void addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid);
-    unsigned int getSfuVersion();
+    static unsigned int getMySfuVersion();
 
 private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

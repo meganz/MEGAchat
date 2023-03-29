@@ -834,7 +834,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
         return false;
     }
 
-    if (mSfuClient.getSfuVersion() > 0)
+    if (mSfuClient.getMySfuVersion() > 0)
     {
         mSfuClient.addVersionToUrl(sfuUrl, mMyPeer->getCid());
     }
@@ -1365,7 +1365,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                     return;
                 }
             }
-            else if (mSfuClient.getSfuVersion() >= 1)
+            else if (mSfuClient.getMySfuVersion() >= 1)
             {
                 assert(false);
                 RTCM_LOG_ERROR("SFU protocol is V1 or greater and we don't have private ephemeral key stored");
@@ -1789,7 +1789,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
                 return;
             }
         }
-        else if (mSfuClient.getSfuVersion() >= 1)
+        else if (mSfuClient.getMySfuVersion() >= 1)
         {
             assert(false);
             RTCM_LOG_ERROR("SFU protocol is V1 or greater and we don't have private ephemeral key stored (PEERJOIN)");
@@ -1936,7 +1936,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
                                    const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                    const std::map<karere::Id, bool>& wrUsers)
 {
-    if (mSfuClient.getSfuVersion() < 1)
+    if (mSfuClient.getMySfuVersion() < 1)
     {
         assert(false);
         RTCM_LOG_ERROR("handleHello: we have received a HELLO command from SFU but our SFU protocol version is < 1");
@@ -1971,7 +1971,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
 
 void Call::onSfuConnected()
 {
-    if (mSfuClient.getSfuVersion() < 1)
+    if (mSfuClient.getMySfuVersion() < 1)
     {
         joinSfu(); // if SFU is >= v1, we need to wait for HELLO command before sending JOIN to SFU
     }
