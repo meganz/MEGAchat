@@ -4502,7 +4502,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
 }
 
 /**
- * @brief TEST_SendGiphy
+ * @brief MegaChatApiTest.SendGiphy
  *
  * This test does the following:
  *
@@ -4510,8 +4510,11 @@ TEST_F(MegaChatApiTest, SendRichLink)
  * - Check if the receiver can get get the message correctly
  * - Check if the json can be parsed correctly
  */
-void MegaChatApiTest::TEST_SendGiphy(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, SendGiphy)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     TestChatRoomListener* chatroomListener = nullptr;
     MegaUser* user = nullptr;
     MegaChatHandle chatid = 0;
@@ -4533,27 +4536,27 @@ void MegaChatApiTest::TEST_SendGiphy(unsigned int a1, unsigned int a2)
     long long sizeWebp = 159970;
     int giphyWidth = 200;
     int giphyHeight = 200;
-    const char* giphyTitle = "TEST_SendGiphy";
+    const char* giphyTitle = "MegaChatApiTest.SendGiphy";
 
     MegaChatMessage* msgSent = megaChatApi[a1]->sendGiphy(chatid, srcMp4, srcWebp, sizeMp4, sizeWebp, giphyWidth, giphyHeight, giphyTitle);
 
     // Wait for update
-    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server. Timeout: " +  std::to_string(maxTimeout) + " seconds");
+    ASSERT_TRUE(waitForResponse(flagConfirmed)) << "Timeout expired for receiving confirmation by server. Timeout: " << maxTimeout << " seconds";
 
     // Check if message has been received correctly
     MegaChatHandle msgId0 = chatroomListener->mConfirmedMessageHandle[a1];
     MegaChatMessage* msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);
-    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_CONTAINS_META, "Invalid Message Type: " + std::to_string(msgReceived->getType()) + "(account " + std::to_string(a1+1)+ ")");
+    ASSERT_EQ(msgReceived->getType(), MegaChatMessage::TYPE_CONTAINS_META) << "Invalid Message Type (account " << (a1+1) << ")";
     auto meta = msgReceived->getContainsMeta();
-    ASSERT_CHAT_TEST(meta && meta->getGiphy(), "Giphy information has not been established (account " + std::to_string(a1+1)+ ")");
+    ASSERT_TRUE(meta && meta->getGiphy()) << "Giphy information has not been established (account " << (a1+1) << ")";
     auto giphy = meta->getGiphy();
-    ASSERT_CHAT_TEST(!strcmp(giphy->getMp4Src(), srcMp4), "giphy mp4 src of message received doesn't match that of the message sent");
-    ASSERT_CHAT_TEST(!strcmp(giphy->getWebpSrc(), srcWebp), "giphy webp src of message received doesn't match that of the message sent");
-    ASSERT_CHAT_TEST(giphy->getMp4Size() == sizeMp4, "giphy mp4 size of message received doesn't match that of the message sent");
-    ASSERT_CHAT_TEST(giphy->getWebpSize() == sizeWebp, "giphy webp size of message received doesn't match that of the message sent");
-    ASSERT_CHAT_TEST(giphy->getWidth() == giphyWidth, "giphy width of message received doesn't match that of the message sent");
-    ASSERT_CHAT_TEST(giphy->getHeight() == giphyHeight, "giphy height size of message received doesn't match that of the message sent");
-    ASSERT_CHAT_TEST(!strcmp(giphy->getTitle(), giphyTitle), "giphy title of message received doesn't match that of the message sent");
+    ASSERT_STREQ(giphy->getMp4Src(), srcMp4) << "giphy mp4 src of message received doesn't match that of the message sent";
+    ASSERT_STREQ(giphy->getWebpSrc(), srcWebp) << "giphy webp src of message received doesn't match that of the message sent";
+    ASSERT_EQ(giphy->getMp4Size(), sizeMp4) << "giphy mp4 size of message received doesn't match that of the message sent";
+    ASSERT_EQ(giphy->getWebpSize(), sizeWebp) << "giphy webp size of message received doesn't match that of the message sent";
+    ASSERT_EQ(giphy->getWidth(), giphyWidth) << "giphy width of message received doesn't match that of the message sent";
+    ASSERT_EQ(giphy->getHeight(), giphyHeight) << "giphy height size of message received doesn't match that of the message sent";
+    ASSERT_STREQ(giphy->getTitle(), giphyTitle) << "giphy title of message received doesn't match that of the message sent";
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
