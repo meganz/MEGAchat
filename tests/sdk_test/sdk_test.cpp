@@ -2667,7 +2667,7 @@ TEST_F(MegaChatApiTest, SendContact)
 }
 
 /**
- * @brief TEST_GroupLastMessage
+ * @brief MegaChatApiTest.GroupLastMessage
  *
  * Requirements:
  *      - Both accounts should be conctacts
@@ -2683,8 +2683,11 @@ TEST_F(MegaChatApiTest, SendContact)
  * Check if the last message content is equal to the last message sent excluding
  * management messages, which are not to be shown as last message.
  */
-void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, GroupLastMessage)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     char *session0 = login(a1);
     char *session1 = login(a2);
 
@@ -2710,8 +2713,8 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 1");
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account 2");
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account 1";
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account 2";
 
     // Load some message to feed history
     loadHistory(a1, chatid, chatroomListener);
@@ -2724,11 +2727,11 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, textToSend, chatroomListener);
     MegaChatHandle msgId = msgSent->getMsgId();
     bool hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
-    ASSERT_CHAT_TEST(hasArrived, "Id of sent message has not been received yet");
+    ASSERT_TRUE(hasArrived) << "Id of sent message has not been received yet";
     MegaChatListItem *itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     MegaChatListItem *itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == msgId, "Last message id is different from message sent id");
-    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == msgId, "Last message id is different from message received id");
+    ASSERT_EQ(itemAccount1->getLastMessageId(), msgId) << "Last message id is different from message sent id";
+    ASSERT_EQ(itemAccount2->getLastMessageId(), msgId) << "Last message id is different from message received id";
     delete itemAccount1;
     itemAccount1 = NULL;
     delete itemAccount2;
@@ -2745,29 +2748,27 @@ void MegaChatApiTest::TEST_GroupLastMessage(unsigned int a1, unsigned int a2)
     bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     std::string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
     megaChatApi[a1]->setChatTitle(chatid, title.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName), "Timeout expired for changing name");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to change name. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0), "Timeout expired for receiving chat list title update for main account");
-    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged1), "Timeout expired for receiving chat list title update for auxiliar account");
-    ASSERT_CHAT_TEST(waitForResponse(titleChanged0), "Timeout expired for receiving chatroom title update for main account");
-    ASSERT_CHAT_TEST(waitForResponse(titleChanged1), "Timeout expired for receiving chatroom title update for auxiliar account");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management");
-    ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()),
-                     "Title name has not changed correctly.\nName established by a1: " + title + "\nName received in a2: " + *msgContent);
+    ASSERT_TRUE(waitForResponse(flagChatRoomName)) << "Timeout expired for changing name";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to change name. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(titleItemChanged0)) << "Timeout expired for receiving chat list title update for main account";
+    ASSERT_TRUE(waitForResponse(titleItemChanged1)) << "Timeout expired for receiving chat list title update for auxiliar account";
+    ASSERT_TRUE(waitForResponse(titleChanged0)) << "Timeout expired for receiving chatroom title update for main account";
+    ASSERT_TRUE(waitForResponse(titleChanged1)) << "Timeout expired for receiving chatroom title update for auxiliar account";
+    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management";
+    ASSERT_EQ(title, *msgContent) <<
+                     "Title name has not changed correctly. Name established by a1 VS name received in a2";
     MegaChatHandle managementMsg1 = chatroomListener->msgId[a1].back();
     MegaChatHandle managementMsg2 = chatroomListener->msgId[a2].back();
 
     itemAccount1 = megaChatApi[a1]->getChatListItem(chatid);
     itemAccount2 = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST(strcmp(title.c_str(), itemAccount1->getLastMessage()) == 0,
-                     "Last message content has not the tittle at account 1.\n Tittle: " + title + " .Last message: " + itemAccount1->getLastMessage());
+    ASSERT_STREQ(title.c_str(), itemAccount1->getLastMessage()) << "Last message content has not the tittle at account 1.";
 
-    ASSERT_CHAT_TEST(strcmp(title.c_str(), itemAccount2->getLastMessage()) == 0,
-                     "Last message content has not the tittle at account 2.\n Tittle: " + title + " .Last message: " + itemAccount2->getLastMessage());
+    ASSERT_STREQ(title.c_str(), itemAccount2->getLastMessage()) << "Last message content has not the tittle at account 2.";
 
-    ASSERT_CHAT_TEST(itemAccount1->getLastMessageId() == managementMsg1, "Last message id is different from management message id at account1");
-    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == managementMsg2, "Last message id is different from management message id at account2");
-    ASSERT_CHAT_TEST(itemAccount2->getLastMessageId() == itemAccount1->getLastMessageId(), "Last message id is different from account1 and account2");
+    ASSERT_EQ(itemAccount1->getLastMessageId(), managementMsg1) << "Last message id is different from management message id at account1";
+    ASSERT_EQ(itemAccount2->getLastMessageId(), managementMsg2) << "Last message id is different from management message id at account2";
+    ASSERT_EQ(itemAccount2->getLastMessageId(), itemAccount1->getLastMessageId()) << "Last message id is different from account1 and account2";
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
