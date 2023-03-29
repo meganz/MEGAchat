@@ -3534,7 +3534,7 @@ TEST_F(MegaChatApiTest, DISABLED_ManualGroupCalls)
 }
 
 /**
- * @brief TEST_EstablishedCalls
+ * @brief MegaChatApiTest.EstablishedCalls
  *
  * Requirements:
  *      - Both accounts should be conctacts
@@ -3553,8 +3553,11 @@ TEST_F(MegaChatApiTest, DISABLED_ManualGroupCalls)
  * - B hangs up call
  * + A hangs up call
  */
-void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, EstablishedCalls)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     /* lambda functions to simplify some recurrent operations */
     // gets a pointer to the local flag that indicates if we have reached an specific callstate
     std::function<bool*(unsigned int, int)> getChatCallStateFlag =
@@ -3568,7 +3571,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
             default:                                    break;
         }
 
-        ASSERT_CHAT_TEST(false, "Invalid account index");
+        ADD_FAILURE() << "Invalid account index";
         return nullptr;
     };
 
@@ -3587,9 +3590,9 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         bool* statusReceived = getChatCallStateFlag(index, state);
         if (statusReceived)
         {
-            ASSERT_CHAT_TEST(waitForResponse(statusReceived),
-                             "Timeout expired for receiving call state: " + std::to_string(state) +
-                             " for account index [" + std::to_string(index) + "]") ;
+            ASSERT_TRUE(waitForResponse(statusReceived)) <<
+                             "Timeout expired for receiving call state: " << state <<
+                             " for account index [" << index << "]";
         }
     };
 
@@ -3605,7 +3608,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         bool* callConnecting = getChatCallStateFlag(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
         while (!*exitFlag)
         {
-            ASSERT_CHAT_TEST(action, "waitForCallAction: no valid action provided");
+            ASSERT_TRUE(action) << "waitForCallAction: no valid action provided";
 
             // reset call state flags to false before executing the required action
             resetTestChatCallState(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
@@ -3613,12 +3616,12 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
             // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
             action();
-            ASSERT_CHAT_TEST(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout), "Timeout expired for " + errStr);
+            ASSERT_TRUE(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout)) << "Timeout expired for " << errStr;
 
             // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>
             if (*callConnecting)
             {
-               ASSERT_CHAT_TEST(++retries < maxAttempts, "Max attempts exceeded for " + errStr);
+               ASSERT_LT(++retries, maxAttempts) << "Max attempts exceeded for " << errStr;
                waitForChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS);
             }
         }
@@ -3641,20 +3644,19 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
     MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers.get());
-    ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE,
-                     "Common chat for both users not found.");
-    ASSERT_CHAT_TEST((megaChatApi[a1]->getChatConnectionState(chatid)
-                      == MegaChatApi::CHAT_CONNECTION_ONLINE),
-                     "Not connected to chatd for account " + std::to_string(a1+1) + ": "
-                     + mAccounts[a1].getEmail());
+    ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) <<
+                     "Common chat for both users not found.";
+    ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatid), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
+                     "Not connected to chatd for account " << (a1+1) << ": " <<
+                     account(a1).getEmail();
 
     std::unique_ptr<TestChatRoomListener>chatroomListener(new TestChatRoomListener(this,
                                                                                    megaChatApi,
                                                                                    chatid));
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener.get()),
-                     "Can't open chatRoom user A");
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener.get()),
-                     "Can't open chatRoom user B");
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener.get())) <<
+                     "Can't open chatRoom user A";
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener.get())) <<
+                     "Can't open chatRoom user B";
 
     loadHistory(a1, chatid, chatroomListener.get());
     loadHistory(a2, chatid, chatroomListener.get());
@@ -3680,7 +3682,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
                    maxTimeout,
                    [this, a1, chatid](){ megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
 
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to start chat call: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to start chat call: " << lastErrorChat[a1];
 
     // B picks up the call
     LOG_debug << "B picking up the call";
@@ -3691,13 +3693,13 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
         mCallIdExpectedReceived[a2] = auxCall->getCallId();
     }
 
-    ASSERT_CHAT_TEST(mChatIdRingInCall[a2] != MEGACHAT_INVALID_HANDLE,
-                     "Invalid Chatid from call emisor");
-    ASSERT_CHAT_TEST(((mCallIdJoining[a1] == mCallIdRingIn[a2])
+    ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) <<
+                     "Invalid Chatid from call emisor";
+    ASSERT_TRUE((mCallIdJoining[a1] == mCallIdRingIn[a2])
                       && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE))
-                     , "A and B are in different call");
-    ASSERT_CHAT_TEST(mChatIdRingInCall[a2] != MEGACHAT_INVALID_HANDLE,
-                     "Invalid Chatid for B from A (call emisor)");
+                     << "A and B are in different call";
+    ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) <<
+                     "Invalid Chatid for B from A (call emisor)";
     LOG_debug << "B received the call";
 
 
@@ -3784,19 +3786,19 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     std::function<void()> waitForChatCallReadyA =
       [this, &chatCallSessionStatusInProgressA, &chatCallSilenceReqA]()
       {
-          ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressA),
-                           "Timeout expired for A receiving chat call in progress");
-          ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqA),
-                           "Timeout expired for A receiving speak request to false");
+          ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressA)) <<
+                           "Timeout expired for A receiving chat call in progress";
+          ASSERT_TRUE(waitForResponse(chatCallSilenceReqA)) <<
+                           "Timeout expired for A receiving speak request to false";
       };
 
     std::function<void()> waitForChatCallReadyB =
       [this, &chatCallSessionStatusInProgressB, &chatCallSilenceReqB] ()
       {
-          ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressB),
-                           "Timeout expired for B receiving chat call in progress");
-          ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqB),
-                           "Timeout expired for B receiving speak request to false");
+          ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressB)) <<
+                           "Timeout expired for B receiving chat call in progress";
+          ASSERT_TRUE(waitForResponse(chatCallSilenceReqB)) <<
+                           "Timeout expired for B receiving speak request to false";
       };
 
     megaChatApi[a1]->retryPendingConnections(true);
@@ -3804,20 +3806,20 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     std::function<void()> waitForChatCallSessionDestroyedB =
         [this, &sessionWasDestroyedB]()
         {
-            ASSERT_CHAT_TEST(waitForResponse(sessionWasDestroyedB)
-                             ,"Timeout expired for B receiving session destroyed notification");
+            ASSERT_TRUE(waitForResponse(sessionWasDestroyedB))
+                             << "Timeout expired for B receiving session destroyed notification";
         };
     waitForChatCallSessionDestroyedB();
     std::function<void()> waitForChatCallSessionDestroyedA =
         [this, &sessionWasDestroyedA]()
         {
-            ASSERT_CHAT_TEST(waitForResponse(sessionWasDestroyedA)
-                             ,"Timeout expired for A receiving session destroyed notification");
+            ASSERT_TRUE(waitForResponse(sessionWasDestroyedA))
+                             << "Timeout expired for A receiving session destroyed notification";
         };
     waitForChatCallSessionDestroyedA();
     // Wait for request finish (i.e. disconnection confirmation)
-    ASSERT_CHAT_TEST(waitForResponse(chatCallReconnectA),
-                     "Timeout expired for A to received request completion for reconnection");
+    ASSERT_TRUE(waitForResponse(chatCallReconnectA)) <<
+                     "Timeout expired for A to received request completion for reconnection";
     // B confirms new mega chat session is ready
     waitForChatCallReadyB();
     // A confirms new mega chat session is ready
@@ -3835,7 +3837,7 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     // wait for session destruction checks
     waitForChatCallSessionDestroyedB();
     waitForChatCallSessionDestroyedA();
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to hang up chat call: " + std::to_string(lastErrorChat[a2]));
+    ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to hang up chat call: " << lastErrorChat[a2];
     LOG_debug << "Call finished for B";
 
     // A hangs up
@@ -3844,16 +3846,16 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     exitFlag = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
     action = [this, a1](){ megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]); };
     waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "hanging up chat call at account B", maxTimeout, action);
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to hang up A's chat call: " + std::to_string(lastErrorChat[a1]));
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to hang up A's chat call: " << lastErrorChat[a1];
     LOG_debug << "Call finished for A";
 
     // Check the call was destroyed at both ends
     LOG_debug << "Now that A and B hung up, we can check if the call is destroyed";
-    ASSERT_CHAT_TEST(waitForResponse(callDestroyedA),
-                     "The call for A should be already finished and it is not");
+    ASSERT_TRUE(waitForResponse(callDestroyedA)) <<
+                     "The call for A should be already finished and it is not";
     LOG_debug << "Destroyed for A is OK, checking for B";
-    ASSERT_CHAT_TEST(waitForResponse(callDestroyedB),
-                     "The call for B should be already finished and it is not");
+    ASSERT_TRUE(waitForResponse(callDestroyedB)) <<
+                     "The call for B should be already finished and it is not";
     LOG_debug << "Destroyed for B is OK.";
 
 
