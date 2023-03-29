@@ -1531,7 +1531,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
 
 
 /**
- * @brief TEST_PublicChatManagement
+ * @brief MegaChatApiTest.PublicChatManagement
  *
  * Requirements:
  * - Both accounts should be conctacts
@@ -1569,15 +1569,18 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
  * - Invite other account
  * - Leave chat room
 */
-void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, PublicChatManagement)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     /// Anonymous mode test
     // Login in primary account
     char *sessionPrimary = login(a1);
 
     // Init anonymous in secondary account and connect
     initState[a2] = megaChatApi[a2]->initAnonymous();
-    ASSERT_CHAT_TEST(initState[a2] == MegaChatApi::INIT_ANONYMOUS, "Init sesion in anonymous mode failed");
+    ASSERT_EQ(initState[a2], MegaChatApi::INIT_ANONYMOUS) << "Init sesion in anonymous mode failed";
     char *sessionAnonymous = megaApi[a2]->dumpSession();
 
     // Create a public chat with no peers nor title, this chat will be reused by the rest of the tests
@@ -1585,28 +1588,28 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     bool *flagCreateChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
     megaChatApi[a1]->createPublicChat(peers);
-    ASSERT_CHAT_TEST(waitForResponse(flagCreateChatRoom), "Expired timeout for creating public groupchat");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to create public groupchat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_TRUE(waitForResponse(flagCreateChatRoom)) << "Expired timeout for creating public groupchat";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to create public groupchat. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
     chatid = this->chatid[a1];
-    ASSERT_CHAT_TEST(chatid != MEGACHAT_INVALID_HANDLE, "Wrong chat id");
+    ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Wrong chat id";
     delete peers;
     peers = NULL;
 
     // Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
     bool *flagChatdOnline = &mChatConnectionOnline[a1]; *flagChatdOnline = false;
     while (megaChatApi[a1]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
         postLog("Waiting for connection to chatd...");
-        ASSERT_CHAT_TEST(waitForResponse(flagChatdOnline), "Timeout expired for connecting to chatd");
+        ASSERT_TRUE(waitForResponse(flagChatdOnline)) << "Timeout expired for connecting to chatd";
         *flagChatdOnline = false;
     }
 
     // Create chat link (ERR No title)
     bool *flagCreateChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagCreateChatLink = false;
     megaChatApi[a1]->createChatLink(chatid, this);
-    ASSERT_CHAT_TEST(waitForResponse(flagCreateChatLink), "Timeout expired for create chat link");
+    ASSERT_TRUE(waitForResponse(flagCreateChatLink)) << "Timeout expired for create chat link";
 
     // Set title
     string title = "TestPublicChatWithTitle_" + dateToString().substr(dateToString().length() - 5, 5);
@@ -1616,18 +1619,18 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
     megaChatApi[a1]->setChatTitle(chatid, title.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName), "Timeout expired for set chat title");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to set chat title. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0), "Timeout expired for receiving chat list item update");
-    ASSERT_CHAT_TEST(waitForResponse(titleChanged0), "Timeout expired for receiving chatroom update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
-    ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()), "Title received doesn't match the title set");
+    ASSERT_TRUE(waitForResponse(flagChatRoomName)) << "Timeout expired for set chat title";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to set chat title. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(titleItemChanged0)) << "Timeout expired for receiving chat list item update";
+    ASSERT_TRUE(waitForResponse(titleChanged0)) << "Timeout expired for receiving chatroom update";
+    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
+    ASSERT_EQ(title, *msgContent) << "Title received doesn't match the title set";
 
     // Create chat link
     flagCreateChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagCreateChatLink = false;
     megaChatApi[a1]->createChatLink(chatid, this);
-    ASSERT_CHAT_TEST(waitForResponse(flagCreateChatLink), "Timeout expired for create chat link");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error creating chat link. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_TRUE(waitForResponse(flagCreateChatLink)) << "Timeout expired for create chat link";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Error creating chat link. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
     std::string chatLink = this->chatLinks[a1];
     assert(!chatLink.empty());
 
@@ -1635,12 +1638,12 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     bool *flagPreviewChat = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_PREVIEW]; *flagPreviewChat = false;
     megaChatApi[a2]->openChatPreview(chatLink.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(flagPreviewChat), "Timeout expired for load chat link");
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to open chat preview. Error: " + lastErrorMsgChat[a2] + " (" + std::to_string(lastErrorChat[a2]) + ")");
+    ASSERT_TRUE(waitForResponse(flagPreviewChat)) << "Timeout expired for load chat link";
+    ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to open chat preview. Error: " << lastErrorMsgChat[a2] << " (" << lastErrorChat[a2] << ")";
 
     // Open chatroom
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
-    ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
+    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for update previewers";
 
     // Send a message (ERR)
     string msg = "HI " + account(a1).getEmail()+ " - This message will be rejected because now I'm a previewer";
@@ -1648,34 +1651,34 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     chatroomListener->clearMessages(a2);   // will be set at reception
     MegaChatMessage *msgSent = megaChatApi[a2]->sendMessage(chatid, msg.c_str());
     delete msgSent; msgSent = NULL;
-    ASSERT_CHAT_TEST(waitForResponse(flagRejected), "Timeout expired for rejection of message");    // for confirmation, sendMessage() is synchronous
-    ASSERT_CHAT_TEST(chatroomListener->mConfirmedMessageHandle[a2] == MEGACHAT_INVALID_HANDLE, "Message confirmed, when it should fail");
+    ASSERT_TRUE(waitForResponse(flagRejected)) << "Timeout expired for rejection of message";    // for confirmation, sendMessage() is synchronous
+    ASSERT_EQ(chatroomListener->mConfirmedMessageHandle[a2], MEGACHAT_INVALID_HANDLE) << "Message confirmed, when it should fail";
 
     // Send a message
     msg = "HI Anonymous user, This message will be sent";
     flagRejected = &chatroomListener->msgRejected[a1]; *flagRejected = false;
     chatroomListener->clearMessages(a1);   // will be set at reception
     msgSent = megaChatApi[a1]->sendMessage(chatid, msg.c_str());
-    ASSERT_CHAT_TEST(msgSent, "Succeed to send message");
+    ASSERT_TRUE(msgSent) << "Succeed to send message";
     delete msgSent; msgSent = NULL;
-    ASSERT_CHAT_TEST(chatroomListener->mConfirmedMessageHandle[a1] == MEGACHAT_INVALID_HANDLE, "Message confirmed, when it should fail");
+    ASSERT_EQ(chatroomListener->mConfirmedMessageHandle[a1], MEGACHAT_INVALID_HANDLE) << "Message confirmed, when it should fail";
 
     // Close preview
     previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     megaChatApi[a2]->closeChatPreview(chatid);
-    ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for close preview");
+    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for close preview";
 
     // Remove chat link
     bool *setRemoveChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *setRemoveChatLink = false;
     megaChatApi[a1]->removeChatLink(chatid, this);
-    ASSERT_CHAT_TEST(waitForResponse(setRemoveChatLink), "Timeout expired for close chat link");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to remove chat link. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_TRUE(waitForResponse(setRemoveChatLink)) << "Timeout expired for close chat link";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to remove chat link. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
 
     // Preview chat link (ERR)
     flagPreviewChat = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_PREVIEW]; *flagPreviewChat = false;
     megaChatApi[a2]->openChatPreview(chatLink.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(flagPreviewChat), "Timeout expired for load chat link");
-    ASSERT_CHAT_TEST(lastErrorChat[a2] == API_ENOENT, "Unexpected error loading an invalid chat-link: " + lastErrorMsgChat[a2] + " (" + std::to_string(lastErrorChat[a2]) + ")");
+    ASSERT_TRUE(waitForResponse(flagPreviewChat)) << "Timeout expired for load chat link";
+    ASSERT_EQ(lastErrorChat[a2], API_ENOENT) << "Unexpected error loading an invalid chat-link: " << lastErrorMsgChat[a2];
 
     // Logout in anonymous mode
     logout(a2);
@@ -1699,8 +1702,8 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     // Create chat link
     flagCreateChatLink = &requestFlagsChat[a1][MegaChatRequest::TYPE_CHAT_LINK_HANDLE]; *flagCreateChatLink = false;
     megaChatApi[a1]->createChatLink(chatid, this);
-    ASSERT_CHAT_TEST(waitForResponse(flagCreateChatLink), "Timeout expired for create chat link");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error creating chat link. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_TRUE(waitForResponse(flagCreateChatLink)) << "Timeout expired for create chat link";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Error creating chat link. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
     chatLink = this->chatLinks[a1];
     assert(!chatLink.empty());
 
@@ -1708,32 +1711,32 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     flagPreviewChat = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_PREVIEW]; *flagPreviewChat = false;
     megaChatApi[a2]->openChatPreview(chatLink.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(flagPreviewChat), "Timeout expired for load chat link");
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to open chat preview. Error: " + lastErrorMsgChat[a2] + " (" + std::to_string(lastErrorChat[a2]) + ")");
+    ASSERT_TRUE(waitForResponse(flagPreviewChat)) << "Timeout expired for load chat link";
+    ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to open chat preview. Error: " << lastErrorMsgChat[a2] << " (" << lastErrorChat[a2] << ")";
 
     // Open chatroom
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
-    ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
+    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for update previewers";
 
     // Try to send a message (ERR)
     string msgaux = "HI " + account(a1).getEmail()+ " - This message can't be send because I'm in preview mode (read-only)";
     flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
     msgSent = megaChatApi[a2]->sendMessage(chatid, msgaux.c_str());
-    ASSERT_CHAT_TEST(msgSent, "Fail to send message, when it should succeed");
+    ASSERT_TRUE(msgSent) << "Fail to send message, when it should succeed";
     delete msgSent; msgSent = NULL;
-    ASSERT_CHAT_TEST(waitForResponse(flagRejected), "Timeout expired for rejection of message");
-    ASSERT_CHAT_TEST(chatroomListener->mConfirmedMessageHandle[a2] == MEGACHAT_INVALID_HANDLE, "Message confirmed, when it should fail");
+    ASSERT_TRUE(waitForResponse(flagRejected)) << "Timeout expired for rejection of message";
+    ASSERT_EQ(chatroomListener->mConfirmedMessageHandle[a2], MEGACHAT_INVALID_HANDLE) << "Message confirmed, when it should fail";
 
     // Autojoin chat link
     bool *flagJoinChatLink = &requestFlagsChat[a2][MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT]; *flagJoinChatLink = false;
     previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     megaChatApi[a2]->autojoinPublicChat(chatid, this);
-    ASSERT_CHAT_TEST(waitForResponse(flagJoinChatLink), "Timeout expired for autojoin chat-link");
-    ASSERT_CHAT_TEST(!lastErrorChat[a2], "Failed to autojoin chat-link. Error: " + lastErrorMsgChat[a2] + " (" + std::to_string(lastErrorChat[a2]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(previewsUpdated), "Timeout expired for update previewers");
+    ASSERT_TRUE(waitForResponse(flagJoinChatLink)) << "Timeout expired for autojoin chat-link";
+    ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to autojoin chat-link. Error: " << lastErrorMsgChat[a2] << " (" << lastErrorChat[a2] << ")";
+    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for update previewers";
     MegaChatListItem *item = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_CHAT_TEST((item->getNumPreviewers() == 0), "Wrong number of previewers. Current: " + to_string(item->getNumPreviewers()));
+    ASSERT_EQ(item->getNumPreviewers(), 0) << "Wrong number of previewers.";
     delete item;
     item = NULL;
 
@@ -1742,40 +1745,40 @@ void MegaChatApiTest::TEST_PublicChatManagement(unsigned int a1, unsigned int a2
     flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
     msgSent = megaChatApi[a2]->sendMessage(chatid, msgaux.c_str());
-    ASSERT_CHAT_TEST(msgSent, "Succeed to send message, when it should fail");
+    ASSERT_TRUE(msgSent) << "Succeed to send message, when it should fail";
     delete msgSent; msgSent = NULL;
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
     // Set chat to private mode
     bool *setPublicChatToPrivate = &requestFlagsChat[a1][MegaChatRequest::TYPE_SET_PRIVATE_MODE]; *setPublicChatToPrivate = false;
     megaChatApi[a1]->setPublicChatToPrivate(chatid, this);
-    ASSERT_CHAT_TEST(waitForResponse(setPublicChatToPrivate), "Timeout expired for close chat link");
+    ASSERT_TRUE(waitForResponse(setPublicChatToPrivate)) << "Timeout expired for close chat link";
 
     // Remove peer from groupchat
     auto uh =  megaChatApi[a2]->getMyUserHandle();
     bool *flagRemoveFromChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChatRoom = false;
     bool *chatClosed = &chatItemClosed[a2]; *chatClosed = false;
     megaChatApi[a1]->removeFromChat(chatid, uh);
-    ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChatRoom), "Timeout expired for remove peer from chat");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error remove peer from group chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(chatClosed), "Timeout expired for remove peer from chat");
+    ASSERT_TRUE(waitForResponse(flagRemoveFromChatRoom)) << "Timeout expired for remove peer from chat";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Error remove peer from group chat. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(chatClosed)) << "Timeout expired for remove peer from chat";
 
     MegaChatRoom * auxchatroom = megaChatApi[a2]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(auxchatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-    ASSERT_CHAT_TEST(!auxchatroom->isActive(), "Chatroom should be inactive, but it's still active");
+    ASSERT_TRUE(auxchatroom) << "Cannot get chatroom for id " << chatid;
+    ASSERT_FALSE(auxchatroom->isActive()) << "Chatroom should be inactive, but it's still active";
     delete auxchatroom;    auxchatroom = NULL;
 
     // Preview chat link (ERR)
     flagPreviewChat = &requestFlagsChat[a2][MegaChatRequest::TYPE_LOAD_PREVIEW]; *flagPreviewChat = false;
     megaChatApi[a2]->openChatPreview(chatLink.c_str(), this);
-    ASSERT_CHAT_TEST(waitForResponse(flagPreviewChat), "Timeout expired for load chat link");
-    ASSERT_CHAT_TEST(lastErrorChat[a2] == API_ENOENT, "Unexpected error loading an invalid chat-link: " + lastErrorMsgChat[a2] + " (" + std::to_string(lastErrorChat[a2]) + ")");
+    ASSERT_TRUE(waitForResponse(flagPreviewChat)) << "Timeout expired for load chat link";
+    ASSERT_EQ(lastErrorChat[a2], API_ENOENT) << "Unexpected error loading an invalid chat-link: " << lastErrorMsgChat[a2];
 
     // --> Invite to chat
     bool *flagInviteToChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
-    ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_TRUE(waitForResponse(flagInviteToChatRoom)) << "Failed to invite a new peer after " << maxTimeout << " seconds";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to invite a new peer. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
 
     // Close chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
