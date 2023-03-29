@@ -2272,7 +2272,7 @@ TEST_F(MegaChatApiTest, SwitchAccounts)
 }
 
 /**
- * @brief TEST_Attachment
+ * @brief MegaChatApiTest.Attachment
  *
  * Requirements:
  * - Both accounts should be conctacts
@@ -2294,8 +2294,11 @@ TEST_F(MegaChatApiTest, SwitchAccounts)
  * + Download the thumbnail
  *
  */
-void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, Attachment)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
@@ -2311,8 +2314,8 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
 
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Cannot open chatroom");
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Cannot open chatroom");
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Cannot open chatroom";
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Cannot open chatroom";
 
     // Load some messages to feed history
     loadHistory(a1, chatid, chatroomListener);
@@ -2332,10 +2335,10 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     MegaNode *nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
 
     // B downloads the node
-    ASSERT_CHAT_TEST(downloadNode(a2, nodeReceived), "Cannot download node attached to message");
+    ASSERT_TRUE(downloadNode(a2, nodeReceived)) << "Cannot download node attached to message";
 
     // B imports the node
-    ASSERT_CHAT_TEST(importNode(a2, nodeReceived, FILE_IMAGE_NAME), "Cannot import node attached to message");
+    ASSERT_TRUE(importNode(a2, nodeReceived, FILE_IMAGE_NAME)) << "Cannot import node attached to message";
 
     // A revokes access to node
     bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE]; *flagRequest = false;
@@ -2346,20 +2349,20 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     chatroomListener->clearMessages(a2);   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
     megaChatApi[a1]->revokeAttachment(chatid, revokeAttachmentNode, this);
-    ASSERT_CHAT_TEST(waitForResponse(flagRequest), "Failed to revoke access to node after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to revoke access: " + std::to_string(lastErrorChat[a1]));
-    ASSERT_CHAT_TEST(waitForResponse(flagConfirmed), "Timeout expired for receiving confirmation by server");
+    ASSERT_TRUE(waitForResponse(flagRequest)) << "Failed to revoke access to node after " << maxTimeout << " seconds";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to revoke access: " << lastErrorChat[a1];
+    ASSERT_TRUE(waitForResponse(flagConfirmed)) << "Timeout expired for receiving confirmation by server";
     MegaChatHandle msgId0 = chatroomListener->mConfirmedMessageHandle[a1];
-    ASSERT_CHAT_TEST(msgId0 != MEGACHAT_INVALID_HANDLE, "Wrong message id");
+    ASSERT_NE(msgId0, MEGACHAT_INVALID_HANDLE) << "Wrong message id";
 
     // Wait for message recived has same id that message sent. It can fail if we receive a message
-    ASSERT_CHAT_TEST(waitForResponse(flagReceived), "Timeout expired for receiving message by target user");
+    ASSERT_TRUE(waitForResponse(flagReceived)) << "Timeout expired for receiving message by target user";
 
-    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId0), "Message ids don't match");
+    ASSERT_TRUE(chatroomListener->hasArrivedMessage(a2, msgId0)) << "Message ids don't match";
     MegaChatMessage *msgReceived = megaChatApi[a2]->getMessage(chatid, msgId0);   // message should be already received, so in RAM
-    ASSERT_CHAT_TEST(msgReceived, "Message not found");
-    ASSERT_CHAT_TEST(msgReceived->getType() == MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT, "Unexpected type of message");
-    ASSERT_CHAT_TEST(msgReceived->getHandleOfAction() == nodeSent->getHandle(), "Handle of attached nodes don't match");
+    ASSERT_TRUE(msgReceived) << "Message not found";
+    ASSERT_EQ(msgReceived->getType(), MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT) << "Unexpected type of message";
+    ASSERT_EQ(msgReceived->getHandleOfAction(), nodeSent->getHandle()) << "Handle of attached nodes don't match";
 
     // Remove the downloaded file to try to download it again after revoke
     std::string filePath = DOWNLOAD_PATH + std::string(formatDate);
@@ -2367,7 +2370,7 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     rename(filePath.c_str(), secondaryFilePath.c_str());
 
     // B attempt to download the file after access revocation
-    ASSERT_CHAT_TEST(!downloadNode(1, nodeReceived), "Download succeed, when it should fail");
+    ASSERT_FALSE(downloadNode(1, nodeReceived)) << "Download succeed, when it should fail";
 
     delete nodeReceived;
     nodeReceived = NULL;
@@ -2393,16 +2396,14 @@ void MegaChatApiTest::TEST_Attachment(unsigned int a1, unsigned int a2)
     auto getThumbnailTracker = ::mega::make_unique<RequestTracker>(megaApi[a1]);
     megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), getThumbnailTracker.get());
     ErrorCodes getThumbnailResult = getThumbnailTracker->waitForResult();
-    ASSERT_CHAT_TEST((getThumbnailResult == API_OK), "Failed to get thumbnail. Error: "
-                     + std::to_string(getThumbnailResult));
+    ASSERT_EQ(getThumbnailResult, API_OK) << "Failed to get thumbnail.";
 
     // B gets the thumbnail of the attached image
     thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
     getThumbnailTracker.reset(new RequestTracker(megaApi[a2]));
     megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), getThumbnailTracker.get());
     getThumbnailResult = getThumbnailTracker->waitForResult();
-    ASSERT_CHAT_TEST((getThumbnailResult == API_OK), "Failed to get thumbnail. Error: "
-                     + std::to_string(getThumbnailResult));
+    ASSERT_EQ(getThumbnailResult, API_OK) << "Failed to get thumbnail.";
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
