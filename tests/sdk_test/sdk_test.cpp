@@ -2115,7 +2115,7 @@ TEST_F(MegaChatApiTest, DISABLED_OfflineMode)
 }
 
 /**
- * @brief TEST_ClearHistory
+ * @brief MegaChatApiTest.ClearHistory
  *
  * Requirements:
  * - Both accounts should be conctacts
@@ -2130,8 +2130,11 @@ TEST_F(MegaChatApiTest, DISABLED_OfflineMode)
  * Check history has zero messages
  *
  */
-void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, ClearHistory)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
@@ -2147,8 +2150,8 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
 
     // Open chatrooms
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
     // Load some message to feed history
     loadHistory(a1, chatid, chatroomListener);
@@ -2172,15 +2175,15 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
 
     // Open chatrooms
     chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
     // --> Load some message to feed history
     int count = loadHistory(a1, chatid, chatroomListener);
     // we sent 5 messages, but if the chat already existed, there was a "Clear history" message already
-    ASSERT_CHAT_TEST(count == 5 || count == 6, "Wrong count of messages: " + std::to_string(count));
+    ASSERT_TRUE(count == 5 || count == 6) << "Wrong count of messages: " << count;
     count = loadHistory(a2, chatid, chatroomListener);
-    ASSERT_CHAT_TEST(count == 5 || count == 6, "Wrong count of messages: " + std::to_string(count));
+    ASSERT_TRUE(count == 5 || count == 6) << "Wrong count of messages: " << count;
 
     // Clear history
     clearHistory(a1, a2, chatid, chatroomListener);
@@ -2192,14 +2195,14 @@ void MegaChatApiTest::TEST_ClearHistory(unsigned int a1, unsigned int a2)
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
     delete chatroomListener;
     chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
     // --> Check history is been truncated
     count = loadHistory(a1, chatid, chatroomListener);
-    ASSERT_CHAT_TEST(count == 1, "Wrong count of messages: " + std::to_string(count));
+    ASSERT_EQ(count, 1) << "Wrong count of messages";
     count = loadHistory(a2, chatid, chatroomListener);
-    ASSERT_CHAT_TEST(count == 1, "Wrong count of messages: " + std::to_string(count));
+    ASSERT_EQ(count, 1) << "Wrong count of messages";
 
     // Close the chatrooms
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
