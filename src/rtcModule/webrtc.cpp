@@ -1306,7 +1306,14 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 {
     if (mState != kStateJoining)
     {
-        RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change");
+        RTCM_LOG_WARNING("handleAnswerCommand: get unexpected state change");
+        return false;
+    }
+
+    if (!getEphemeralKeyPair())
+    {
+        assert(sfu::getMySfuVersion() > 0);
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
         return false;
     }
 
@@ -1320,7 +1327,40 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
     setOwnModerator(ownMod);
     mModerators = moderators;
 
+    // this promise will be resolved when all ephemeral keys (for users with SFU > V0) have been verified and derived
+    // in case of any of the keys can't be verified or derived, the peer will be added anyway.
+    // the promise won't be resolved until all ephemeral keys have been processed (without taking account if the
+    // verification or derivation fails)
+
+    // we want to continue with call unless all ephemeral keys verification fails
+    // for those peers without a valid derived ephemeral key, our client won't be able to encrypt/decrypt any media key sent or received by that client
+    ::promise::Promise<void> keyDerivationPms = ::promise::Promise<void>();
+    if (peers.empty())
+    {
+        keyDerivationPms.resolve();
+    }
+
+    const auto max = peers.size();
     std::set<Cid_t> cids;
+    std::map <Cid_t, bool> keysVerified;
+    auto onKeyVerified = [max, &keysVerified, &keyDerivationPms](const Cid_t peerId, const bool verified) -> void
+    {
+        keysVerified.emplace(peerId, verified);
+        if (keysVerified.size() >= max)
+        {
+            keyDerivationPms.resolve();
+        }
+    };
+
+    auto addPeer = [this, &cids, &onKeyVerified](const sfu::Peer& peer, const bool keyVerified)
+    {
+        assert(keyVerified);
+        cids.insert(peer.getCid());
+        mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
+        mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
+        onKeyVerified(peer.getCid(), keyVerified);
+    };
+
     for (const sfu::Peer& peer : peers) // does not include own cid
     {
         const auto& it = keystrmap.find(peer.getCid());
@@ -1328,114 +1368,150 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                 ? it->second
                 : std::string();
 
-        auto parsedkey = splitPubKey(keyStr);
-        verifySignature(peer.getCid(), peer.getPeerid(), parsedkey.first, parsedkey.second)
-        .then([&peer, &cids, &parsedkey, this](bool verified)
+        if (peer.getPeerSfuVersion() == 0) // there's no ephemeral key, just add peer
         {
-            if (!verified)
+            addPeer(peer, true);
+        }
+        else // verify ephemeral key signature, derive it, and then add the peer
+        {
+            if (peer.getPeerSfuVersion() > 0 && keyStr.empty())
             {
-                assert(false);
-                RTCM_LOG_ERROR("Can't verify signature for user: %s", peer.getPeerid().toString().c_str());
-                return;
+                RTCM_LOG_ERROR("Empty Ephemeral key for user: %s, cid: %d, SFU protocol version: %d", peer.getPeerid().toString().c_str(), peer.getCid(), peer.getPeerSfuVersion());
+                addPeer(peer, false);
+                continue;
             }
 
-            sfu::Peer auxPeer(peer);
-            const mega::ECDH* ephkeypair = getEphemeralKeyPair();
-            if (ephkeypair)
+            try
             {
-                // derive peer public ephemeral key with our private ephemeral key
-                std::string out;
-                const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
-                std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
-                if (ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out))
+                auto wptr = weakHandle();
+                auto parsedkey = splitPubKey(keyStr);
+                verifySignature(peer.getCid(), peer.getPeerid(), parsedkey.first, parsedkey.second)
+                .then([&wptr, &peer, &addPeer, &parsedkey, this](bool verified)
                 {
-                    if (!out.empty())
+                    wptr.throwIfDeleted();
+                    const mega::ECDH* ephkeypair = getEphemeralKeyPair();
+                    if (!ephkeypair)
                     {
-                        auxPeer.setEphemeralPubKeyDerived(out);
-                    }
-                    else
-                    {
-                        RTCM_LOG_ERROR("SFU_V1: derived ephemeral key is ill-formed");
+                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
+                        addPeer(peer, false);
                         return;
                     }
-                }
-                else
+
+                    if (!verified)
+                    {
+                        RTCM_LOG_ERROR("Can't verify signature for user: %s", peer.getPeerid().toString().c_str());
+                        addPeer(peer, false);
+                        return;
+                    }
+
+                    // once peer public ephemeral key has been verified, derive it with our private ephemeral key
+                    sfu::Peer auxPeer(peer);
+                    std::string out;
+                    const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
+                    std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
+                    bool derived = false;
+                    if (ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out))
+                    {
+                        if (!out.empty())
+                        {
+                            derived = true;
+                            auxPeer.setEphemeralPubKeyDerived(out);
+                        }
+                    }
+
+                    if (!derived)
+                    {
+                        RTCM_LOG_ERROR("Can't derive ephemeral key for peer Cid: %d PeerId: %s",
+                                       peer.getCid(), peer.getPeerid().toString().c_str());
+                    }
+
+                    addPeer(auxPeer, derived);
+                })
+                .fail([this, &peer, &addPeer](const ::promise::Error&)
                 {
-                    RTCM_LOG_ERROR("SFU_V1: Could not derive ephemeral key for peer Cid: %d PeerId: %s", peer.getCid(), peer.getPeerid().toString().c_str());
-                    return;
-                }
+                    RTCM_LOG_ERROR("Error verifying ephemeral key signature for for user: %s, cid: %d", peer.getPeerid().toString().c_str(), peer.getCid());
+                    addPeer(peer, false);
+                });
             }
-            else if (sfu::getMySfuVersion() >= 1)
+            catch(std::runtime_error& e)
             {
-                assert(false);
-                RTCM_LOG_ERROR("SFU protocol is V1 or greater and we don't have private ephemeral key stored");
+                return false; // wprt doesn't exists
+            }
+        }
+    }
+
+    // wait until all peers ephemeral keys have been verified and derived
+    auto auxwptr = weakHandle();
+    keyDerivationPms
+    .then([auxwptr, &vthumbs, &speakers, &duration, &cids, &sdp, &keysVerified, this]
+    {
+        if (auxwptr.deleted())
+        {
+            return;
+        }
+
+        bool anyVerified = std::any_of(keysVerified.begin(), keysVerified.end(), [](const auto& kv) { return kv.second; });
+        if (!keysVerified.empty() && !anyVerified)
+        {
+            orderedCallDisconnect(TermCode::kErrGeneral, "Can't verify any of the ephemeral keys on any peer received in ANSWER command");
+            return;
+        }
+
+        generateAndSendNewkey(true);
+        std::string sdpUncompress = sdp.unCompress();
+        webrtc::SdpParseError error;
+        std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
+        if (!sdpInterface)
+        {
+            orderedCallDisconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
+            return;
+        }
+
+        assert(mRtcConn);
+        auto wptr = weakHandle();
+        mRtcConn.setRemoteDescription(move(sdpInterface))
+        .then([wptr, this, vthumbs, speakers, duration, cids]()
+        {
+            if (wptr.deleted())
+            {
                 return;
             }
-            cids.insert(peer.getCid());
-            mSessions[peer.getCid()] = ::mega::make_unique<Session>(auxPeer);
-            mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
+
+            if (mState != kStateJoining)
+            {
+                RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change at setRemoteDescription");
+                return;
+            }
+
+            // prepare parameters for low resolution video
+            double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
+            webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
+            assert(parameters.encodings.size());
+            parameters.encodings[0].scale_resolution_down_by = scale;
+            parameters.encodings[0].max_bitrate_bps = 100 * 1024;   // 100 Kbps
+            mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
+            handleIncomingVideo(vthumbs, kLowRes);
+
+            for (const auto& speak : speakers)  // current speakers in the call
+            {
+                Cid_t cid = speak.first;
+                const sfu::TrackDescriptor& speakerDecriptor = speak.second;
+                addSpeaker(cid, speakerDecriptor);
+            }
+
+            setState(CallState::kStateInProgress);
+
+            mOffset = static_cast<int64_t>(duration);
+            enableStats();
         })
-        .fail([this, &peer](const ::promise::Error&)
+        .fail([wptr, this](const ::promise::Error& err)
         {
-            RTCM_LOG_ERROR("Can't retrieve public ED25519 attr for user %s", peer.getPeerid().toString().c_str());
+            if (wptr.deleted())
+                return;
+
+            std::string msg = "Error setting SDP answer: " + err.msg();
+            orderedCallDisconnect(TermCode::kErrSdp, msg);
         });
-    }
-
-    generateAndSendNewkey(true);
-
-    std::string sdpUncompress = sdp.unCompress();
-    webrtc::SdpParseError error;
-    std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
-    if (!sdpInterface)
-    {
-        orderedCallDisconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
-        return false;
-    }
-
-    assert(mRtcConn);
-    auto wptr = weakHandle();
-    mRtcConn.setRemoteDescription(move(sdpInterface))
-    .then([wptr, this, vthumbs, speakers, duration, cids]()
-    {
-        if (wptr.deleted())
-        {
-            return;
-        }
-
-        if (mState != kStateJoining)
-        {
-            RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change at setRemoteDescription");
-            return;
-        }
-
-        // prepare parameters for low resolution video
-        double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
-        webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
-        assert(parameters.encodings.size());
-        parameters.encodings[0].scale_resolution_down_by = scale;
-        parameters.encodings[0].max_bitrate_bps = 100 * 1024;   // 100 Kbps
-        mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
-        handleIncomingVideo(vthumbs, kLowRes);
-
-        for (const auto& speak : speakers)  // current speakers in the call
-        {
-            Cid_t cid = speak.first;
-            const sfu::TrackDescriptor& speakerDecriptor = speak.second;
-            addSpeaker(cid, speakerDecriptor);
-        }
-
-        setState(CallState::kStateInProgress);
-
-        mOffset = duration;
-        enableStats();
-    })
-    .fail([wptr, this](const ::promise::Error& err)
-    {
-        if (wptr.deleted())
-            return;
-
-        std::string msg = "Error setting SDP answer: " + err.msg();
-        orderedCallDisconnect(TermCode::kErrSdp, msg);
     });
 
     return true;
@@ -1973,7 +2049,7 @@ void Call::onSfuConnected()
 {
     if (sfu::getMySfuVersion() < 1)
     {
-        joinSfu(); // if SFU is >= v1, we need to wait for HELLO command before sending JOIN to SFU
+        joinSfu(); // if SFU is > v0, we need to wait for HELLO command before sending JOIN to SFU
     }
 }
 
