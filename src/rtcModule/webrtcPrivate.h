@@ -424,7 +424,6 @@ public:
     void setDestroying(bool isDestroying);
     bool isDestroying();
     void generateEphemeralKeyPair();
-    const mega::ECDH* getEphemeralKeyPair() const;
 
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
@@ -568,7 +567,7 @@ protected:
     std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
 
     Keyid_t generateNextKeyId();
-    void generateAndSendNewkey(bool reset = false);
+    void generateAndSendNewMediakey(bool reset = false);
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)

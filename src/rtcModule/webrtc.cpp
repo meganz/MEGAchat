@@ -998,17 +998,12 @@ std::string Call::generateSessionKeyPair()
 {
     // generate ephemeral ECDH X25519 keypair
     generateEphemeralKeyPair();
-    std::string X25519PubKeyStr(reinterpret_cast<const char*>(getEphemeralKeyPair()->getPubKey()), mega::ECDH::PUBLIC_KEY_LENGTH);
+    std::string X25519PubKeyStr(reinterpret_cast<const char*>(getMyEphemeralKeyPair()->getPubKey()), mega::ECDH::PUBLIC_KEY_LENGTH);
     std::string X25519PubKeyB64 = mega::Base64::btoa(X25519PubKeyStr);
 
     // Generate public key signature (using Ed25519), on the string: sesskey|<callId>|<clientId>|<pubkey>
     std::string signature = "sesskey|" + mCallid.toString() + "|" + std::to_string(mMyPeer->getCid()) + "|" + X25519PubKeyB64;
     return X25519PubKeyB64 + ":" + signEphemeralKey(signature); // -> publicKey:signature
-}
-
-const mega::ECDH* Call::getMyEphemeralKeyPair() const
-{
-    return mEphemeralKeyPair.get();
 }
 
 void Call::getLocalStreams()
@@ -1310,7 +1305,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
         return false;
     }
 
-    if (!getEphemeralKeyPair())
+    if (!getMyEphemeralKeyPair())
     {
         assert(sfu::getMySfuVersion() > 0);
         RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
@@ -1389,7 +1384,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
                 .then([&wptr, &peer, &addPeer, &parsedkey, this](bool verified)
                 {
                     wptr.throwIfDeleted();
-                    const mega::ECDH* ephkeypair = getEphemeralKeyPair();
+                    const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
                     if (!ephkeypair)
                     {
                         RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
@@ -1457,7 +1452,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
             return;
         }
 
-        generateAndSendNewkey(true);
+        generateAndSendNewMediakey(true);
         std::string sdpUncompress = sdp.unCompress();
         webrtc::SdpParseError error;
         std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
@@ -1840,7 +1835,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
 
         bool isModerator = mModerators.find(userid) != mModerators.end();
         sfu::Peer peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, isModerator);
-        const mega::ECDH* ephkeypair = getEphemeralKeyPair();
+        const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
         if (ephkeypair)
         {
             // derive peer public ephemeral key with our private ephemeral key
@@ -1877,7 +1872,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
 
         // update max peers seen in call
         mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
-        generateAndSendNewkey();
+        generateAndSendNewMediakey();
 
         if (mIsReconnectingToChatd && mParticipants.find(peer.getPeerid()) == mParticipants.end())
         {
@@ -2331,7 +2326,7 @@ Keyid_t Call::generateNextKeyId()
     }
 }
 
-void Call::generateAndSendNewkey(bool reset)
+void Call::generateAndSendNewMediakey(bool reset)
 {
     if (reset)
     {
@@ -2731,7 +2726,7 @@ void Call::generateEphemeralKeyPair()
     mEphemeralKeyPair.reset(new mega::ECDH());
 }
 
-const mega::ECDH* Call::getEphemeralKeyPair() const
+const mega::ECDH* Call::getMyEphemeralKeyPair() const
 {
     return mEphemeralKeyPair.get();
 }
