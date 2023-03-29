@@ -1188,7 +1188,7 @@ TEST_F(MegaChatApiTest, EditAndDeleteMessages)
 }
 
 /**
- * @brief TEST_GroupChatManagement
+ * @brief MegaChatApiTest.GroupChatManagement
  *
  * Requirements:
  * - Both accounts should be conctacts
@@ -1210,8 +1210,11 @@ TEST_F(MegaChatApiTest, EditAndDeleteMessages)
  * - Remove peer from groupchat
  * - Invite another account
  */
-void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, GroupChatManagement)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     char *sessionPrimary = login(a1);
     char *sessionSecondary = login(a2);
 
@@ -1237,8 +1240,8 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
 
     // --> Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
     // --> Remove from chat
     bool *flagRemoveFromChat = &requestFlagsChat[a1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChat = false;
@@ -1253,34 +1256,34 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->removeFromChat(chatid, uh);
-    ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChat), "Failed to remove peer from chatroom " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to remove peer from chatroom" + std::to_string(lastErrorChat[a1]));
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Failed to receive management message " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
-    ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RM, "Privilege is incorrect");
-    ASSERT_CHAT_TEST(waitForResponse(flagChatsUpdated1), "Failed to receive onChatsUpdate " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(isChatroomUpdated(a2, chatid), "Chatroom " + std::to_string(chatid) + " is not included in onChatsUpdate");
+    ASSERT_TRUE(waitForResponse(flagRemoveFromChat)) << "Failed to remove peer from chatroom after " << maxTimeout << " seconds";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to remove peer from chatroom " << lastErrorChat[a1];
+    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Failed to receive management message after " << maxTimeout << " seconds";
+    ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
+    ASSERT_EQ(*priv, MegaChatRoom::PRIV_RM) << "Privilege is incorrect";
+    ASSERT_TRUE(waitForResponse(flagChatsUpdated1)) << "Failed to receive onChatsUpdate after " << maxTimeout << " seconds";
+    ASSERT_TRUE(isChatroomUpdated(a2, chatid)) << "Chatroom " << chatid << " is not included in onChatsUpdate";
     mChatListUpdated[a2].clear();
 
     MegaChatRoom *chatroom = megaChatApi[a2]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-    ASSERT_CHAT_TEST(chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_RM, "Invalid own privilege expected(PRIV_RM), current(" + std::to_string(chatroom->getOwnPrivilege())+ ")");
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
+    ASSERT_EQ(chatroom->getOwnPrivilege(), MegaChatRoom::PRIV_RM) << "Invalid own privilege";
     delete chatroom;
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-    ASSERT_CHAT_TEST(chatroom->getPeerCount() == 0, "Wrong number of peers in chatroom" + std::to_string(chatid));
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id" << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 0) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
-    ASSERT_CHAT_TEST(waitForResponse(chatItemLeft0), "Chat list item update not received for main account after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(waitForResponse(chatItemLeft1), "Chat list item update not received for auxiliar account after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(waitForResponse(chatItemClosed1), "Chat list item close notification for auxiliar account not received after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(waitForResponse(chatLeft0), "Chat list item leave notification for main account not received after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_TRUE(waitForResponse(chatItemLeft0)) << "Chat list item update not received for main account after " << maxTimeout << " seconds";
+    ASSERT_TRUE(waitForResponse(chatItemLeft1)) << "Chat list item update not received for auxiliar account after " << maxTimeout << " seconds";
+    ASSERT_TRUE(waitForResponse(chatItemClosed1)) << "Chat list item close notification for auxiliar account not received after " << maxTimeout << " seconds";
+    ASSERT_TRUE(waitForResponse(chatLeft0)) << "Chat list item leave notification for main account not received after " << maxTimeout << " seconds";
 
-    ASSERT_CHAT_TEST(waitForResponse(chatLeft1), "Chat list item leave notification for auxiliar account not received after " + std::to_string(maxTimeout) + " seconds");
+    ASSERT_TRUE(waitForResponse(chatLeft1)) << "Chat list item leave notification for auxiliar account not received after " << maxTimeout << " seconds";
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-    ASSERT_CHAT_TEST(chatroom->getPeerCount() == 0, "Wrong number of peers in chatroom" + std::to_string(chatid));
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 0) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
     // Close the chatroom, even if we've been removed from it
@@ -1298,37 +1301,37 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
-    ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(chatItemJoined0), "Chat list item update for main account not received after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(waitForResponse(chatItemJoined1), "Chat list item update for auxiliar account not received after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(waitForResponse(chatJoined0), "Chatroom update for main account not received after " + std::to_string(maxTimeout) + " seconds");
-//    ASSERT_CHAT_TEST(waitForResponse(chatJoined1), ""); --> account 1 haven't opened chat, won't receive callback
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Management message not received after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
-    ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_UNKNOWN, "Privilege is incorrect");    // the message doesn't report the new priv
-    ASSERT_CHAT_TEST(waitForResponse(flagChatsUpdated1), "Failed to receive onChatsUpdate " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(isChatroomUpdated(a2, chatid), "Chatroom " + std::to_string(chatid) + " is not included in onChatsUpdate");
+    ASSERT_TRUE(waitForResponse(flagInviteToChatRoom)) << "Failed to invite a new peer after " << maxTimeout << " seconds";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to invite a new peer. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(chatItemJoined0)) << "Chat list item update for main account not received after " << maxTimeout << " seconds";
+    ASSERT_TRUE(waitForResponse(chatItemJoined1)) << "Chat list item update for auxiliar account not received after " << maxTimeout << " seconds";
+    ASSERT_TRUE(waitForResponse(chatJoined0)) << "Chatroom update for main account not received after " << maxTimeout << " seconds";
+//    ASSERT_TRUE(waitForResponse(chatJoined1)); --> account 1 haven't opened chat, won't receive callback
+    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Management message not received after " << maxTimeout << " seconds";
+    ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
+    ASSERT_EQ(*priv, MegaChatRoom::PRIV_UNKNOWN) << "Privilege is incorrect";    // the message doesn't report the new priv
+    ASSERT_TRUE(waitForResponse(flagChatsUpdated1)) << "Failed to receive onChatsUpdate " << maxTimeout << " seconds";
+    ASSERT_TRUE(isChatroomUpdated(a2, chatid)) << "Chatroom " << chatid << " is not included in onChatsUpdate";
     mChatListUpdated[a2].clear();
 
     chatroom = megaChatApi[a2]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-    ASSERT_CHAT_TEST(chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_STANDARD, "Invalid own privilege expected(PRIV_RM), current(" + std::to_string(chatroom->getOwnPrivilege())+ ")");
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
+    ASSERT_EQ(chatroom->getOwnPrivilege(), MegaChatRoom::PRIV_STANDARD) << "Invalid own privilege";
     delete chatroom;
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-    ASSERT_CHAT_TEST(chatroom->getPeerCount() == 1, "Wrong number of peers in chatroom" + std::to_string(chatid));
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 1) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
     // since we were expulsed from chatroom, we need to open it again
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
     // invite again --> error
     flagInviteToChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
-    ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(lastErrorChat[a1] == MegaChatError::ERROR_EXIST, "Invitation should have failed, but it succeed");
+    ASSERT_TRUE(waitForResponse(flagInviteToChatRoom)) << "Failed to invite a new peer after " << maxTimeout << " seconds";
+    ASSERT_EQ(lastErrorChat[a1], MegaChatError::ERROR_EXIST) << "Invitation should have failed, but it succeed";
 
     // --> Set title
     string title = "Title " + std::to_string(time(NULL));
@@ -1340,18 +1343,18 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
     megaChatApi[a1]->setChatTitle(chatid, title.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(flagChatRoomName), "Timeout expired for set chat title");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to set chat title. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged0), "Timeout expired for receiving chat list item update");
-    ASSERT_CHAT_TEST(waitForResponse(titleItemChanged1), "Timeout expired for receiving chat list item update");
-    ASSERT_CHAT_TEST(waitForResponse(titleChanged0), "Timeout expired for receiving chatroom update");
-    ASSERT_CHAT_TEST(waitForResponse(titleChanged1), "Timeout expired for receiving chatroom update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
-    ASSERT_CHAT_TEST(!strcmp(title.c_str(), msgContent->c_str()), "Title received doesn't match the title set");
+    ASSERT_TRUE(waitForResponse(flagChatRoomName)) << "Timeout expired for set chat title";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to set chat title. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(titleItemChanged0)) << "Timeout expired for receiving chat list item update";
+    ASSERT_TRUE(waitForResponse(titleItemChanged1)) << "Timeout expired for receiving chat list item update";
+    ASSERT_TRUE(waitForResponse(titleChanged0)) << "Timeout expired for receiving chatroom update";
+    ASSERT_TRUE(waitForResponse(titleChanged1)) << "Timeout expired for receiving chatroom update";
+    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
+    ASSERT_EQ(title, *msgContent) << "Title received doesn't match the title set";
 
     chatroom = megaChatApi[a2]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-    ASSERT_CHAT_TEST(!strcmp(chatroom->getTitle(), title.c_str()), "Titles don't match");
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
+    ASSERT_STREQ(chatroom->getTitle(), title.c_str()) << "Titles don't match";
     delete chatroom;    chatroom = NULL;
 
     // --> Change peer privileges to Moderator
@@ -1362,13 +1365,13 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_MODERATOR);
-    ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");;
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
-    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
-    ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_MODERATOR, "Privilege is incorrect");
+    ASSERT_TRUE(waitForResponse(flagUpdatePeerPermision)) << "Timeout expired for update privilege of peer";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to update privilege of peer Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
+    ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
+    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
+    ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
+    ASSERT_EQ(*priv, MegaChatRoom::PRIV_MODERATOR) << "Privilege is incorrect";
 
     // --> Change peer privileges to Read-only
     flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
@@ -1378,23 +1381,23 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
     priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
     megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
-    ASSERT_CHAT_TEST(waitForResponse(flagUpdatePeerPermision), "Timeout expired for update privilege of peer");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to update privilege of peer Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated0), "Timeout expired for receiving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(peerUpdated1), "Timeout expired for receiving peer update");
-    ASSERT_CHAT_TEST(waitForResponse(mngMsgRecv), "Timeout expired for receiving management message");
-    ASSERT_CHAT_TEST(*uhAction == uh, "User handle from message doesn't match");
-    ASSERT_CHAT_TEST(*priv == MegaChatRoom::PRIV_RO, "Privilege is incorrect");
+    ASSERT_TRUE(waitForResponse(flagUpdatePeerPermision)) << "Timeout expired for update privilege of peer";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to update privilege of peer Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
+    ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
+    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
+    ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
+    ASSERT_EQ(*priv, MegaChatRoom::PRIV_RO) << "Privilege is incorrect";
 
     // --> Try to send a message without the right privilege
     string msg1 = "HI " + account(a1).getEmail()+ " - This message can't be send because I'm read-only";
     bool *flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
     MegaChatMessage *msgSent = megaChatApi[a2]->sendMessage(chatid, msg1.c_str());
-    ASSERT_CHAT_TEST(msgSent, "Succeed to send message, when it should fail");
+    ASSERT_TRUE(msgSent) << "Succeed to send message, when it should fail";
     delete msgSent; msgSent = NULL;
-    ASSERT_CHAT_TEST(waitForResponse(flagRejected), "Timeout expired for rejection of message");    // for confirmation, sendMessage() is synchronous
-    ASSERT_CHAT_TEST(chatroomListener->mConfirmedMessageHandle[a2] == MEGACHAT_INVALID_HANDLE, "Message confirmed, when it should fail");
+    ASSERT_TRUE(waitForResponse(flagRejected)) << "Timeout expired for rejection of message";    // for confirmation, sendMessage() is synchronous
+    ASSERT_EQ(chatroomListener->mConfirmedMessageHandle[a2], MEGACHAT_INVALID_HANDLE) << "Message confirmed, when it should fail";
 
     // --> Load some message to feed history
     loadHistory(a1, chatid, chatroomListener);
@@ -1404,17 +1407,17 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *flagTyping1 = &chatroomListener->userTyping[a2]; *flagTyping1 = false;
     uhAction = &chatroomListener->uhAction[a2]; *uhAction = MEGACHAT_INVALID_HANDLE;
     megaChatApi[a1]->sendTypingNotification(chatid);
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to send user typing: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(flagTyping1), "Timeout expired for sending typing notification");
-    ASSERT_CHAT_TEST(*uhAction == megaChatApi[a1]->getMyUserHandle(), "My user handle is wrong at typing");
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to send user typing: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(flagTyping1)) << "Timeout expired for sending typing notification";
+    ASSERT_EQ(*uhAction, megaChatApi[a1]->getMyUserHandle()) << "My user handle is wrong at typing";
 
     // --> Send stop typing notification
     flagTyping1 = &chatroomListener->userTyping[a2]; *flagTyping1 = false;
     uhAction = &chatroomListener->uhAction[a2]; *uhAction = MEGACHAT_INVALID_HANDLE;
     megaChatApi[a1]->sendStopTypingNotification(chatid);
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to send user has stopped typing: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(flagTyping1), "Timeout expired for sending stop typing notification");
-    ASSERT_CHAT_TEST(*uhAction == megaChatApi[a1]->getMyUserHandle(), "My user handle is wrong at stop typing");
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to send user has stopped typing: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(flagTyping1)) << "Timeout expired for sending stop typing notification";
+    ASSERT_EQ(*uhAction, megaChatApi[a1]->getMyUserHandle()) << "My user handle is wrong at stop typing";
 
     // --> Archive the chatroom
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
@@ -1423,12 +1426,12 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
     bool *chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
     megaChatApi[a1]->archiveChat(chatid, true);
-    ASSERT_CHAT_TEST(waitForResponse(flagChatArchived), "Timeout expired for archiving chat");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to archive chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update about archive");
-    ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update about archive (This time out is usually produced by missing api notification)");
+    ASSERT_TRUE(waitForResponse(flagChatArchived)) << "Timeout expired for archiving chat";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to archive chat. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list item update about archive";
+    ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving chatroom update about archive (This time out is usually produced by missing api notification)";
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom->isArchived(), "Chatroom is not archived when it should");
+    ASSERT_TRUE(chatroom->isArchived()) << "Chatroom is not archived when it should";
     delete chatroom; chatroom = NULL;
 
     // TODO: Redmine ticket: #10596
@@ -1448,19 +1451,19 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     chatroomListener->clearMessages(a1);
     chatroomListener->clearMessages(a2);
     MegaChatMessage *messageSent = megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
-    ASSERT_CHAT_TEST(waitForResponse(msgConfirmed), "Timeout expired for receiving confirmation by server");    // for confirmation, sendMessage() is synchronous
+    ASSERT_TRUE(waitForResponse(msgConfirmed)) << "Timeout expired for receiving confirmation by server";    // for confirmation, sendMessage() is synchronous
     MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
-    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a1, msgId), "Message not received");
-    ASSERT_CHAT_TEST(msgId != MEGACHAT_INVALID_HANDLE, "Wrong message id at origin");
-    ASSERT_CHAT_TEST(waitForResponse(msgReceived), "Timeout expired for receiving message by target user");    // for reception
-    ASSERT_CHAT_TEST(chatroomListener->hasArrivedMessage(a2, msgId), "Wrong message id at destination");
+    ASSERT_TRUE(chatroomListener->hasArrivedMessage(a1, msgId)) << "Message not received";
+    ASSERT_NE(msgId, MEGACHAT_INVALID_HANDLE) << "Wrong message id at origin";
+    ASSERT_TRUE(waitForResponse(msgReceived)) << "Timeout expired for receiving message by target user";    // for reception
+    ASSERT_TRUE(chatroomListener->hasArrivedMessage(a2, msgId)) << "Wrong message id at destination";
     MegaChatMessage *messageReceived = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
-    ASSERT_CHAT_TEST(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent()), "Content of message doesn't match");
+    ASSERT_TRUE(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent())) << "Content of message doesn't match";
     // now wait for automatic unarchive, due to new message
-    ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update after new message");
-    ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update after new message");
+    ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list item update after new message";
+    ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving chatroom update after new message";
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom->isArchived() == false, "Chatroom is not unarchived automatically upon new message");
+    ASSERT_FALSE(chatroom->isArchived()) << "Chatroom is not unarchived automatically upon new message";
     delete chatroom; chatroom = NULL;
 
 
@@ -1469,12 +1472,12 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
     chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
     megaChatApi[a1]->archiveChat(chatid, true);
-    ASSERT_CHAT_TEST(waitForResponse(flagChatArchived), "Timeout expired for archiving chat");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to archive chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update about archive");
-    ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update about archive");
+    ASSERT_TRUE(waitForResponse(flagChatArchived)) << "Timeout expired for archiving chat";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to archive chat. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list item update about archive";
+    ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving chatroom update about archive";
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom->isArchived(), "Chatroom is not archived when it should");
+    ASSERT_TRUE(chatroom->isArchived()) << "Chatroom is not archived when it should";
     delete chatroom; chatroom = NULL;
 
     // --> Unarchive the chatroom
@@ -1483,12 +1486,12 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
     chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
     megaChatApi[a1]->archiveChat(chatid, false);
-    ASSERT_CHAT_TEST(waitForResponse(flagChatArchived), "Timeout expired for archiving chat");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to archive chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(chatArchiveChanged), "Timeout expired for receiving chat list item update about archive");
-    ASSERT_CHAT_TEST(waitForResponse(chatroomArchiveChanged), "Timeout expired for receiving chatroom update about archive");
+    ASSERT_TRUE(waitForResponse(flagChatArchived)) << "Timeout expired for archiving chat";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to archive chat. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list item update about archive";
+    ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving chatroom update about archive";
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(!chatroom->isArchived(), "Chatroom is archived when it shouldn't");
+    ASSERT_FALSE(chatroom->isArchived()) << "Chatroom is archived when it shouldn't";
     delete chatroom; chatroom = NULL;
 
     delete messageSent;
@@ -1505,19 +1508,19 @@ void MegaChatApiTest::TEST_GroupChatManagement(unsigned int a1, unsigned int a2)
     bool *flagRemoveFromChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromChatRoom = false;
     bool *chatClosed = &chatItemClosed[a2]; *chatClosed = false;
     megaChatApi[a1]->removeFromChat(chatid, uh);
-    ASSERT_CHAT_TEST(waitForResponse(flagRemoveFromChatRoom), "Timeout expired for ");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Error remove peer from group chat. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
-    ASSERT_CHAT_TEST(waitForResponse(chatClosed), "Timeout expired for ");
+    ASSERT_TRUE(waitForResponse(flagRemoveFromChatRoom)) << "Timeout expired";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Error remove peer from group chat. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ASSERT_TRUE(waitForResponse(chatClosed)) << "Timeout expired";
     chatroom = megaChatApi[a2]->getChatRoom(chatid);
-    ASSERT_CHAT_TEST(chatroom, "Cannot get chatroom for id" + std::to_string(chatid));
-    ASSERT_CHAT_TEST(!chatroom->isActive(), "Chatroom should be inactive, but it's still active");
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
+    ASSERT_FALSE(chatroom->isActive()) << "Chatroom should be inactive, but it's still active";
     delete chatroom;    chatroom = NULL;
 
     // --> Invite to chat
     flagInviteToChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_INVITE_TO_CHATROOM]; *flagInviteToChatRoom = false;
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD);
-    ASSERT_CHAT_TEST(waitForResponse(flagInviteToChatRoom), "Failed to invite a new peer after " + std::to_string(maxTimeout) + " seconds");
-    ASSERT_CHAT_TEST(!lastErrorChat[a1], "Failed to invite a new peer. Error: " + lastErrorMsgChat[a1] + " (" + std::to_string(lastErrorChat[a1]) + ")");
+    ASSERT_TRUE(waitForResponse(flagInviteToChatRoom)) << "Failed to invite a new peer after " << maxTimeout << " seconds";
+    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to invite a new peer. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
 
     delete chatroomListener;
     delete [] sessionPrimary;
