@@ -716,7 +716,7 @@ void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlag
 }
 
 /**
- * @brief TEST_ResumeSession
+ * @brief MegaChatApiTest.ResumeSession
  *
  * This test does the following:
  *
@@ -731,8 +731,10 @@ void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlag
  * - Disconnect from chat server and reconnect
  *
  */
-void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
+TEST_F(MegaChatApiTest, ResumeSession)
 {
+    unsigned accountIndex = 0;
+
     // ___ Create a new session ___
     char *session = login(accountIndex);
 
@@ -745,14 +747,14 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
 //        // ---> NOW close session remotely ---
 //        sleep(30);
 //        // and wait for forced logout of megachatapi due to ESID
-//        ASSERT_CHAT_TEST(waitForResponse(flag), "");
+//        ASSERT_TRUE(waitForResponse(flag));
 //        session = login(0);
 //    }
 
     // ___ Resume an existing session ___
     logout(accountIndex, false); // keeps session alive
     char *tmpSession = login(accountIndex, session);
-    ASSERT_CHAT_TEST(!strcmp(session, tmpSession), "Bad session key");
+    ASSERT_STREQ(session, tmpSession) << "Bad session key";
     delete [] tmpSession;   tmpSession = NULL;
 
     checkEmail(accountIndex);
@@ -762,18 +764,18 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     auto logoutTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
     megaApi[accountIndex]->localLogout(logoutTracker.get());
     ErrorCodes logoutResult = logoutTracker->waitForResult();
-    ASSERT_CHAT_TEST((logoutResult == API_OK), "Error local sdk logout. Error: "
-                     + std::to_string(logoutResult));
+    ASSERT_EQ(logoutResult, API_OK) << "Error local sdk logout.";
 
     // logout from Karere removing cache
     bool *flagChatLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagChatLogout = false;
     megaChatApi[accountIndex]->logout();
-    ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "Expired timeout for chat logout");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error chat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    ASSERT_TRUE(waitForResponse(flagChatLogout)) << "Expired timeout for chat logout";
+    ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Error chat logout. Error: " << lastErrorMsgChat[accountIndex] <<
+                                                 " (" << lastErrorChat[accountIndex] << ")";
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
     // try to initialize chat engine with cache --> should fail
-    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
-                     "Wrong chat initialization state. Expected " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
+    ASSERT_EQ(megaChatApi[accountIndex]->init(session), MegaChatApi::INIT_NO_CACHE) <<
+                     "Wrong chat initialization state.";
     MegaApi::removeLoggerObject(logger());
     megaApi[accountIndex]->invalidateCache();
 
@@ -786,23 +788,20 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
                                            account(accountIndex).getPassword().c_str(),
                                            loginTracker.get());
     ErrorCodes loginResult = loginTracker->waitForResult();
-    ASSERT_CHAT_TEST((loginResult == API_OK), "Error sdk fast login. Error: "
-                     + std::to_string(loginResult));
+    ASSERT_EQ(loginResult, API_OK) << "Error sdk fast login.";
 
     // fetchnodes in SDK
     auto fetchNodesTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
     megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
     ErrorCodes fetchNodesResult = fetchNodesTracker->waitForResult();
-    ASSERT_CHAT_TEST((fetchNodesResult == API_OK), "Error fetchnodes. Error: "
-                     + std::to_string(fetchNodesResult));
-    ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
+    ASSERT_EQ(fetchNodesResult, API_OK) << "Error fetchnodes.";
+    ASSERT_TRUE(waitForResponse(flagInit)) << "Expired timeout for change init state";
     int initStateValue = initState[accountIndex];
-    ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
-                     "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
+    ASSERT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) << "Wrong chat initialization state.";
 
     // check there's a list of chats already available
     MegaChatListItemList *list = megaChatApi[accountIndex]->getChatListItems();
-    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
+    ASSERT_TRUE(list->size()) << "Chat list item is empty";
     delete list; list = NULL;
 
     // ___ Close session ___
@@ -811,12 +810,13 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
 
     // ___ Login with chat enabled, transition to disabled and back to enabled
     session = login(accountIndex);
-    ASSERT_CHAT_TEST(session, "Empty session key");
+    ASSERT_TRUE(session) << "Empty session key";
     // fully disable chat: logout + remove logger + delete MegaChatApi instance
     flagChatLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagChatLogout = false;
     megaChatApi[accountIndex]->logout();
-    ASSERT_CHAT_TEST(waitForResponse(flagChatLogout), "Expired timeout for megachat logout");
-    ASSERT_CHAT_TEST(!lastErrorChat[accountIndex], "Error megachat logout. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    ASSERT_TRUE(waitForResponse(flagChatLogout)) << "Expired timeout for megachat logout";
+    ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Error megachat logout. Error: " << lastErrorMsgChat[accountIndex] <<
+                                                 " (" << lastErrorChat[accountIndex] << ")";
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
     delete megaChatApi[accountIndex];
     // create a new MegaChatApi instance
@@ -826,24 +826,23 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     megaChatApi[accountIndex]->addChatListener(this);
     MegaChatApi::setLoggerObject(logger());
     // back to enabled: init + fetchnodes + connect
-    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
-                     "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
+    ASSERT_EQ(megaChatApi[accountIndex]->init(session), MegaChatApi::INIT_NO_CACHE) <<
+                     "Wrong chat initialization state.";
 
     MegaApi::removeLoggerObject(logger());
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     fetchNodesTracker.reset(new RequestTracker(megaApi[accountIndex]));
     megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
     fetchNodesResult = fetchNodesTracker->waitForResult();
-    ASSERT_CHAT_TEST((fetchNodesResult == API_OK), "Error fetchnodes. Error: "
-                     + std::to_string(fetchNodesResult));
-    ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
+    ASSERT_EQ(fetchNodesResult, API_OK) << "Error fetchnodes.";
+    ASSERT_TRUE(waitForResponse(flagInit)) << "Expired timeout for change init state";
     initStateValue = initState[accountIndex];
-    ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
-                     "Wrong chat initialization state. Expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
+    ASSERT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) <<
+                     "Wrong chat initialization state.";
 
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
-    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
+    ASSERT_TRUE(list->size()) << "Chat list item is empty";
     delete list; list = NULL;
     // close session and remove cache
     logout(accountIndex, true);
@@ -864,34 +863,29 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
                                  account(accountIndex).getPassword().c_str(),
                                  loginTracker.get());
     loginResult = loginTracker->waitForResult();
-    ASSERT_CHAT_TEST((loginResult == API_OK), "Error fast login. Error: "
-                     + std::to_string(loginResult));
+    ASSERT_EQ(loginResult, API_OK) << "Error fast login.";
     session = megaApi[accountIndex]->dumpSession();
     // fetchnodes in SDK
     fetchNodesTracker.reset(new RequestTracker(megaApi[accountIndex]));
     megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
     fetchNodesResult = fetchNodesTracker->waitForResult();
-    ASSERT_CHAT_TEST((fetchNodesResult == API_OK), "Error fetch nodes. Error: "
-                     + std::to_string(fetchNodesResult));
+    ASSERT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes.";
     // init in Karere
-    ASSERT_CHAT_TEST(megaChatApi[accountIndex]->init(session) == MegaChatApi::INIT_NO_CACHE,
-                     "Bad Megachat state expected: " + std::to_string(MegaChatApi::INIT_NO_CACHE) + "   Received: " + std::to_string(megaChatApi[accountIndex]->init(session)));
+    ASSERT_EQ(megaChatApi[accountIndex]->init(session), MegaChatApi::INIT_NO_CACHE) << "Bad Megachat state.";
     MegaApi::removeLoggerObject(logger());
     // full-fetchndoes in SDK to regenerate cache in Karere
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     fetchNodesTracker.reset(new RequestTracker(megaApi[accountIndex]));
     megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
     fetchNodesResult = fetchNodesTracker->waitForResult();
-    ASSERT_CHAT_TEST((fetchNodesResult == API_OK), "Error fetch nodes. Error: "
-                     + std::to_string(fetchNodesResult));
-    ASSERT_CHAT_TEST(waitForResponse(flagInit), "Expired timeout for change init state");
+    ASSERT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes.";
+    ASSERT_TRUE(waitForResponse(flagInit)) << "Expired timeout for change init state";
     initStateValue = initState[accountIndex];
-    ASSERT_CHAT_TEST(initStateValue == MegaChatApi::INIT_ONLINE_SESSION,
-                     "Bad Megachat state expected: " + std::to_string(MegaChatApi::INIT_ONLINE_SESSION) + "   Received: " + std::to_string(initStateValue));
+    ASSERT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) << "Bad Megachat state.";
 
     // check there's a list of chats already available
     list = megaChatApi[accountIndex]->getChatListItems();
-    ASSERT_CHAT_TEST(list->size(), "Chat list item is empty");
+    ASSERT_TRUE(list->size()) << "Chat list item is empty";
     delete list;
     list = NULL;
 
@@ -900,14 +894,14 @@ void MegaChatApiTest::TEST_ResumeSession(unsigned int accountIndex)
     {
         bool *flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_BACKGROUND_STATUS]; *flag = false;
         megaChatApi[accountIndex]->setBackgroundStatus(true);
-        ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set background status after " + std::to_string(maxTimeout) + " seconds");
+        ASSERT_TRUE(waitForResponse(flag)) << "Failed to set background status after " << maxTimeout << " seconds";
 
         logger()->postLog("========== Enter background status ================= ");
         std::this_thread::sleep_for(std::chrono::seconds(15));
 
         flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_BACKGROUND_STATUS]; *flag = false;
         megaChatApi[accountIndex]->setBackgroundStatus(false);
-        ASSERT_CHAT_TEST(waitForResponse(flag), "Failed to set background status after " + std::to_string(maxTimeout) + " seconds");
+        ASSERT_TRUE(waitForResponse(flag)) << "Failed to set background status after " << maxTimeout << " seconds";
 
         logger()->postLog("========== Enter foreground status ================= ");
         std::this_thread::sleep_for(std::chrono::seconds(5));
