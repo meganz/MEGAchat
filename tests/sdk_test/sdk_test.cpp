@@ -1122,7 +1122,7 @@ TEST_F(MegaChatApiTest, GetChatRoomsAndMessages)
 }
 
 /**
- * @brief TEST_EditAndDeleteMessages
+ * @brief MegaChatApiTest.EditAndDeleteMessages
  *
  * Requirements:
  * - Both accounts should be conctacts
@@ -1136,8 +1136,11 @@ TEST_F(MegaChatApiTest, GetChatRoomsAndMessages)
  * - Update the messages
  *
  */
-void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2)
+TEST_F(MegaChatApiTest, EditAndDeleteMessages)
 {
+    unsigned a1 = 0;
+    unsigned a2 = 1;
+
     char *primarySession = login(a1);
     char *secondarySession = login(a2);
 
@@ -1154,8 +1157,8 @@ void MegaChatApiTest::TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a
     // 1. A sends a message to B while B has the chat opened.
     // --> check the confirmed in A, the received message in B, the delivered in A
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
-    ASSERT_CHAT_TEST(megaChatApi[a1]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a1+1));
-    ASSERT_CHAT_TEST(megaChatApi[a2]->openChatRoom(chatid, chatroomListener), "Can't open chatRoom account " + std::to_string(a2+1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
     // Load some message to feed history
     loadHistory(a1, chatid, chatroomListener);
