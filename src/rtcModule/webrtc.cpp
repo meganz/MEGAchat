@@ -67,7 +67,7 @@ Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRin
     , mIsJoining(false)
     , mRtc(rtc)
 {
-    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), avflags.value()));
+    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), sfu::sfuInvalidProto, avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
@@ -1742,7 +1742,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
 }
 
 
-bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string>& ivs)
+bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
@@ -1753,7 +1753,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
 
     auto parsedkey = splitPubKey(keyStr);
     verifySignature(cid, userid, parsedkey.first, parsedkey.second)
-    .then([&userid, &av, &cid, &parsedkey, &ivs, this](bool verified)
+    .then([&userid, &av, &cid, &parsedkey, &ivs, &sfuProtoVersion, this](bool verified)
     {
         if (!verified)
         {
@@ -1763,7 +1763,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keySt
         }
 
         bool isModerator = mModerators.find(userid) != mModerators.end();
-        sfu::Peer peer(userid, static_cast<unsigned>(av), &ivs, cid, isModerator);
+        sfu::Peer peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, isModerator);
         const mega::ECDH* ephkeypair = getEphemeralKeyPair();
         if (ephkeypair)
         {

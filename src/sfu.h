@@ -34,7 +34,7 @@ namespace sfu
 static const unsigned int mSfuProtoVersion = 2;
 
 /* Invalid SFU protocol version */
-static constexpr uint32_t sfuInvalidProto = UINT32_MAX;
+static constexpr unsigned int sfuInvalidProto = UINT32_MAX;
 
 /* Gets the current SFU protocol version for our client */
 static unsigned int getMySfuVersion() { return mSfuProtoVersion; }
@@ -64,7 +64,7 @@ public:
       lenIvSecondPart = 4,
     };
 
-    Peer(const karere::Id peerid, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
+    Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -87,6 +87,9 @@ public:
     void setIvs(const std::vector<std::string>& ivs);
     const std::string& getEphemeralPubKeyDerived() const;
     void setEphemeralPubKeyDerived(const std::string& key);
+
+    // returns the SFU protocol version used by the peer
+    unsigned int getPeerSfuVersion() const { return mSfuProtoVersion; }
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid
@@ -115,6 +118,9 @@ protected:
      *  - Approve/reject speaker requests
      */
     bool mIsModerator = false;
+
+    // SFU protocol version used by the peer
+    unsigned int mSfuProtoVersion = sfu::sfuInvalidProto;
 };
 
 class TrackDescriptor
@@ -212,7 +218,7 @@ public:
                                        const std::map<karere::Id, bool>& wrUsers) = 0;
 
     // called when the connection to SFU is established
-    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
+    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual bool handleBye(unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
@@ -382,7 +388,7 @@ public:
     SpeakOffCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
+typedef std::function<bool(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
 {
 public:
