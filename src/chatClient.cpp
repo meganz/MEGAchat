@@ -1928,14 +1928,30 @@ bool Client::loadOwnKeysFromApi()
     std::unique_ptr<char[]> prEd255(api.sdk.getPrivateKey(mega::MegaApi::PRIVATE_KEY_ED25519));
     std::unique_ptr<char[]> prCu255(api.sdk.getPrivateKey(mega::MegaApi::PRIVATE_KEY_CU25519));
 
-    if (!prEd255 || (strlen(prEd255.get()) < sizeof(mMyPrivEd25519)) || !prCu255 || (strlen(prCu255.get()) < sizeof(mMyPrivCu25519)))
+    if (!prEd255 || !prCu255)
     {
         KR_LOG_ERROR("loadOwnKeysFromApi: failure loading keys from API");
         return false;
     }
 
-    strncpy(mMyPrivEd25519, prEd255.get(), sizeof(mMyPrivEd25519));
-    strncpy(mMyPrivCu25519, prCu255.get(), sizeof(mMyPrivCu25519));
+    auto b64len = strlen(prCu255.get());
+    if (b64len != 43)
+    {
+        KR_LOG_ERROR("loadOwnKeysFromApi: Invalid size for private cu255 key");
+        return false;
+    }
+
+    mega::Base64::atob(prCu255.get(), reinterpret_cast<byte*>(mMyPrivCu25519), sizeof(mMyPrivCu25519));
+    //base64urldecode(prCu255.get(), b64len, mMyPrivCu25519, sizeof(mMyPrivCu25519));
+
+    b64len = strlen(prEd255.get());
+    if (b64len != 43)
+    {
+        KR_LOG_ERROR("loadOwnKeysFromApi: Invalid size for private ed255 key");
+        return false;
+    }
+
+    mega::Base64::atob(prEd255.get(), reinterpret_cast<byte*>(mMyPrivEd25519), sizeof(mMyPrivEd25519));
 
     // write to db
     db.query("insert or replace into vars(name,value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
