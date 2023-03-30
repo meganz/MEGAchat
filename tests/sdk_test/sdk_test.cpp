@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     MegaChatApiTest::init();
 
     testing::InitGoogleTest(&argc, argv);
-    int rc = RUN_ALL_TESTS();
+    int rc = RUN_ALL_TESTS(); // returns 0 (success) or 1 (failed tests)
 
     MegaChatApiTest::terminate();
 
@@ -50,7 +50,7 @@ int main(int argc, char **argv)
 #endif
     std::cout << "[========] End Unitary tests " << std::endl;
 
-    return rc;
+    return rc + unitaryTest.mFailedTests;
 }
 
 Account::Account()
