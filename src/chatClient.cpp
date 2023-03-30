@@ -1226,6 +1226,7 @@ bool Client::initWithNewSession(const char* sid, const std::string& scsn,
         static_cast<Client*>(userp)->updateAliases(data);
     });
 
+    return true;
 }
 
 void Client::setCommitMode(bool commitEach)
