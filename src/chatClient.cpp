@@ -1942,8 +1942,7 @@ bool Client::loadOwnKeysFromApi()
         return false;
     }
 
-    mega::Base64::atob(prCu255.get(), reinterpret_cast<byte*>(mMyPrivCu25519), sizeof(mMyPrivCu25519));
-    //base64urldecode(prCu255.get(), b64len, mMyPrivCu25519, sizeof(mMyPrivCu25519));
+    base64urldecode(prCu255.get(), b64len, mMyPrivCu25519, sizeof(mMyPrivCu25519));
 
     b64len = strlen(prEd255.get());
     if (b64len != 43)
@@ -1952,7 +1951,7 @@ bool Client::loadOwnKeysFromApi()
         return false;
     }
 
-    mega::Base64::atob(prEd255.get(), reinterpret_cast<byte*>(mMyPrivEd25519), sizeof(mMyPrivEd25519));
+    base64urldecode(prEd255.get(), b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
 
     // write to db
     db.query("insert or replace into vars(name,value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
