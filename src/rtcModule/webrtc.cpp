@@ -836,7 +836,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 
     if (sfu::getMySfuVersion() > 0)
     {
-        mSfuClient.addVersionToUrl(sfuUrl, mMyPeer->getCid());
+        mSfuClient.addVersionToUrl(sfuUrl);
     }
 
     setState(CallState::kStateConnecting);
@@ -2037,6 +2037,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
 
     // set my own client-id (cid)
     mMyPeer->setCid(cid);
+    mSfuConnection->setMyCid(cid);
 
     if (!wr) // if waiting room is disabled => send JOIN command to SFU
     {

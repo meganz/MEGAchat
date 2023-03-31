@@ -512,6 +512,8 @@ public:
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     void setIsSendingBye(bool sending);
+    void setMyCid(const Cid_t& cid);
+    Cid_t getMyCid() const;
     bool isSendingByeCommand() const;
     bool isOnline() const;
     bool isJoined() const;
@@ -589,6 +591,8 @@ protected:
     // This flag is set true when BYE command is sent to SFU
     bool mIsSendingBye = false;
 
+    Cid_t mMyCid = 0; // 0 is an invalid Cid
+
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;
     CommandsQueue mCommandsQueue;
@@ -613,7 +617,7 @@ public:
     void retryPendingConnections(bool disconnect);
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
-    void addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid);
+    void addVersionToUrl(karere::Url& sfuUrl);
 
 private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

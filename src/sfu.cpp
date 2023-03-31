@@ -1277,6 +1277,16 @@ void SfuConnection::setIsSendingBye(bool sending)
     mIsSendingBye = sending;
 }
 
+void SfuConnection::setMyCid(const Cid_t& cid)
+{
+    mMyCid = cid;
+}
+
+Cid_t SfuConnection::getMyCid() const
+{
+    return mMyCid;
+}
+
 bool SfuConnection::isJoined() const
 {
     return (mConnState == kJoined);
@@ -1332,10 +1342,16 @@ void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
     setConnState(kConnecting);
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
+    std::string urlPath = mSfuUrl.path;
+    if (getMyCid() != 0) // add current cid for reconnection
+    {
+        urlPath.append("&cid=").append(std::to_string(getMyCid()));
+    }
+
     bool rt = wsConnect(&mWebsocketIO, mTargetIp.c_str(),
           mSfuUrl.host.c_str(),
           mSfuUrl.port,
-          mSfuUrl.path.c_str(),
+          urlPath.c_str(),
           mSfuUrl.isSecure);
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
@@ -1361,7 +1377,7 @@ void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
             if (wsConnect(&mWebsocketIO, mTargetIp.c_str(),
                           mSfuUrl.host.c_str(),
                           mSfuUrl.port,
-                          mSfuUrl.path.c_str(),
+                          urlPath.c_str(),
                           mSfuUrl.isSecure))
             {
                 return;
@@ -2387,7 +2403,7 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
     return mRtcCryptoMeetings;
 }
 
-void SfuClient::addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid)
+void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
 {
     std::string app;
     if (sfuUrl.path.back() != '?') // if last URL char is '?' => just add version
@@ -2398,11 +2414,6 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid)
     }
 
     sfuUrl.path.append(app).append("v=").append(std::to_string(getMySfuVersion()));
-
-    if (myCid != 0) // in case of reconenct add cid (if valid)
-    {
-        sfuUrl.path.append("&cid=").append(std::to_string(myCid));;
-    }
 }
 
 void SfuClient::retryPendingConnections(bool disconnect)
