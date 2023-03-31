@@ -18,41 +18,6 @@ using namespace karere;
 using namespace CryptoPP;
 namespace rtcModule
 {
-X25519KeyPair::X25519KeyPair(const X25519KeyPair& aux)
-    : mPrivKey(aux.mPrivKey), mPubKey(aux.mPubKey) { }
-
-X25519KeyPair::X25519KeyPair(const std::vector<byte>& priv, const std::vector<byte>& pub)
-    :mPrivKey(priv), mPubKey(pub) { }
-
-X25519KeyPair* X25519KeyPair::copy() const { return new X25519KeyPair(*this); }
-
-void X25519KeyPair::setPubKey(const byte* key, size_t keylen)
-{
-    mPubKey.clear();
-    if (key && keylen == X25519_PUB_KEY_LEN)
-    {
-        mPubKey.reserve(keylen);
-        std::copy(key, key + keylen, std::back_inserter(mPubKey));
-    }
-}
-
-void X25519KeyPair::setPrivKey(const byte* key, size_t keylen)
-{
-    mPrivKey.clear();
-    if (key && keylen == X25519_PUB_KEY_LEN)
-    {
-        mPrivKey.reserve(keylen);
-        std::copy(key, key + keylen, std::back_inserter(mPrivKey));
-    }
-}
-
-const byte* X25519KeyPair::getPubKey()     const  { return mPubKey.data(); }
-const byte* X25519KeyPair::getPrivKey()    const  { return mPrivKey.data(); }
-size_t X25519KeyPair::pubKeySize()         const  { return mPubKey.size(); }
-size_t X25519KeyPair::privKeySize()        const  { return mPrivKey.size(); }
-bool X25519KeyPair::hasValidPubKey()       const  { return mPubKey.size() == X25519_PUB_KEY_LEN; }
-bool X25519KeyPair::hasValidPrivKey()      const  { return mPrivKey.size() == X25519_PRIV_KEY_LEN; }
-
 RtcCryptoMeetings::RtcCryptoMeetings(karere::Client& client)
 :mClient(client)
 {
@@ -164,43 +129,5 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
     }
 
     return promise::Promise<bool>(false);
-}
-
-bool RtcCryptoMeetings::deriveEphemeralKey(std::string& peerEphemeralPubkey, const byte* privEphemeral,
-                                           X25519KeyPair& output, const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs)
-{
-    if (peerIvs.size() < 2 || myIvs.size() < 2)
-    {
-        return false;
-    }
-
-    strongvelope::Key<crypto_scalarmult_BYTES> sharedSecret;
-    std::string pubkeyBin =  mega::Base64::atob(peerEphemeralPubkey);
-    if (crypto_scalarmult(sharedSecret.ubuf(), privEphemeral, reinterpret_cast<const unsigned char*>(pubkeyBin.data())))
-    {
-        return false;
-    }
-
-    // generate salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
-    std::string salt;
-    vector<string> v { peerIvs[kHiResTrack], peerIvs[kAudioTrack], myIvs[kHiResTrack], myIvs[kAudioTrack] };
-    sort(v.begin(), v.end());
-    std::for_each(v.begin(), v.end(), [&salt](std::string &s){ salt += s; });
-    std::vector<byte> saltBin = sfu::Command::hexToByteArray(salt);
-
-    // derive EphemeralKey
-    byte auxderived[X25519_PUB_KEY_LEN];
-    HKDF<CryptoPP::SHA256> hkdf;
-    hkdf.DeriveKey(auxderived, X25519_PUB_KEY_LEN, sharedSecret.ubuf(), sharedSecret.bufSize(), saltBin.data(), saltBin.size(), nullptr, 0);
-    output.setPubKey(auxderived, X25519_PUB_KEY_LEN);
-    return true;
-}
-
-X25519KeyPair* RtcCryptoMeetings::genX25519KeyPair()
-{
-    std::vector<byte> privkey(X25519_PRIV_KEY_LEN);
-    std::vector<byte> pubkey(X25519_PUB_KEY_LEN);
-    crypto_box_keypair(pubkey.data(), privkey.data());
-    return new X25519KeyPair(privkey, pubkey);
 }
 }

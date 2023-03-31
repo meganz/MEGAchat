@@ -259,7 +259,6 @@ public:
     };
 
     static constexpr unsigned int kMediaKeyLen = 16; // length in Bytes of derived ephemeral key
-    static constexpr unsigned int kGcmTagLen = 4; // length in Bytes of GCM-TAG
     static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
 
     Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
@@ -371,6 +370,9 @@ public:
     // generate ephemeral ECDH X25519 keypair and a signature
     std::string generateSessionKeyPair();
 
+    // get ephemeral ECDH X25519 keypair for the current call session
+    const mega::ECDH* getMyEphemeralKeyPair() const;
+
     // sign string: sesskey|<callId>|<clientId>|<pubkey> with Ed25519 key and encode in B64
     std::string signEphemeralKey(const std::string& str) const;
 
@@ -404,6 +406,10 @@ public:
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
+
+    // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
+    std::vector<byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
+
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
@@ -417,6 +423,8 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
+    void generateEphemeralKeyPair();
+    void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
 
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
@@ -426,7 +434,7 @@ public:
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& spd, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
@@ -438,7 +446,7 @@ public:
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(unsigned termcode) override;
     void onSfuConnected() override;
@@ -556,8 +564,11 @@ protected:
     // symetric cipher for media key encryption
     mega::SymmCipher mSymCipher;
 
+    // ephemeral X25519 EC key pair for current session
+    std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
+
     Keyid_t generateNextKeyId();
-    void generateAndSendNewkey(bool reset = false);
+    void generateAndSendNewMediakey(bool reset = false);
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)

@@ -5920,7 +5920,7 @@ bool MockupCall::handleAvCommand(Cid_t, unsigned)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t, sfu::Sdp &, uint64_t, const std::vector<sfu::Peer> &, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor> &, const std::map<Cid_t, sfu::TrackDescriptor> &, std::set<karere::Id>&, bool)
+bool MockupCall::handleAnswerCommand(Cid_t, sfu::Sdp&, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::map<Cid_t, sfu::TrackDescriptor>&, std::set<karere::Id>&, bool)
 {
     return true;
 }
@@ -5981,7 +5981,7 @@ bool MockupCall::handleSpeakOffCommand(Cid_t)
 }
 
 
-bool MockupCall::handlePeerJoin(Cid_t, uint64_t, int, std::string&, std::vector<std::string>&)
+bool MockupCall::handlePeerJoin(Cid_t, uint64_t, unsigned int, int, std::string&, std::vector<std::string>&)
 {
     return true;
 }

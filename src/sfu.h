@@ -20,6 +20,24 @@
 
 namespace sfu
 {
+/** SFU Protocol Version:
+ * - Version 0: initial version
+ *
+ * - Version 1 (never released for native clients):
+ *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
+ *      + Dynamic audio routing
+ *      + Waiting rooms
+ *
+ * - Version 2 (contains all features from V1):
+ *      + Change AES-GCM by AES-CBC with Zero iv
+ */
+static const unsigned int mSfuProtoVersion = 2;
+
+/* Invalid SFU protocol version */
+static constexpr unsigned int sfuInvalidProto = UINT32_MAX;
+
+/* Gets the current SFU protocol version for our client */
+static unsigned int getMySfuVersion() { return mSfuProtoVersion; }
 
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
@@ -46,7 +64,7 @@ public:
       lenIvSecondPart = 4,
     };
 
-    Peer(const karere::Id peerid, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
+    Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -65,14 +83,18 @@ public:
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void resetKeys();
-    void setEphemeralKeyPair(const rtcModule::X25519KeyPair *keypair);
-    const rtcModule::X25519KeyPair* getEphemeralKeyPair() const;
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
-    bool makeKeyEncryptIv(const std::string &first, const std::string &second);
-    bool makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv);
-    const std::vector<byte>& getKeyEncryptIv() const;
-    const std::vector<byte>& getKeyDecryptIv() const;
+    void setEphemeralPubKeyDerived(const std::string& key);
+
+    // returns derived peer's ephemeral key if available
+    std::optional<std::string> getEphemeralPubKeyDerived() const;
+
+    // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
+    const promise::Promise<void>& getEphemeralPubKeyPms() const;
+
+    // returns the SFU protocol version used by the peer
+    unsigned int getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid
@@ -81,17 +103,8 @@ protected:
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
 
-    // ephemeral X25519 EC key pair for current session
-    std::unique_ptr<rtcModule::X25519KeyPair> mEphemeralKeyPair;
-
     // initialization vector
     std::vector<std::string> mIvs;
-
-    // Iv to encrypt ephemeral keys
-    std::vector<byte> mKeyEncryptIv;
-
-    // Iv to decrcrypt ephemeral keys
-    std::vector<byte> mKeyDecryptIv;
 
     /*
      * Moderator role for this call
@@ -107,6 +120,15 @@ protected:
      *  - Approve/reject speaker requests
      */
     bool mIsModerator = false;
+
+    // peer ephemeral key derived
+    std::string mEphemeralPubKeyDerived;
+
+    // this promise is resolved/rejected when peer's ephemeral key is verified and derived
+    mutable promise::Promise<void> mEphemeralKeyPms;
+
+    // SFU protocol version used by the peer
+    unsigned int mSfuPeerProtoVersion = sfu::sfuInvalidProto;
 };
 
 class TrackDescriptor
@@ -185,7 +207,7 @@ class SfuInterface
 public:
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
-    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, uint64_t, const std::vector<Peer>&peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, Sdp& spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
@@ -204,7 +226,7 @@ public:
                                        const std::map<karere::Id, bool>& wrUsers) = 0;
 
     // called when the connection to SFU is established
-    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
+    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual bool handleBye(unsigned termcode) = 0;
     virtual void onSfuConnected() = 0;
@@ -254,7 +276,7 @@ public:
 class AnswerCommand : public Command
 {
 public:
-    typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -374,7 +396,7 @@ public:
     SpeakOffCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
+typedef std::function<bool(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
 {
 public:
@@ -592,7 +614,6 @@ public:
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
     void addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid);
-    unsigned int getSfuVersion();
 
 private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
@@ -600,13 +621,6 @@ private:
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
 
-    /** SFU Version:
-     * - Version 0: initial version
-     * - Version 1:
-     *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
-     *      + Dynamic audio routing
-     */
-    static const unsigned int mSfuVersion = 1;
 };
 
 static inline const char* connStateToStr(SfuConnection::ConnState state)

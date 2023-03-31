@@ -80,24 +80,26 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-Peer::Peer(const karere::Id peerid, const unsigned avFlags, const std::vector<std::string>* ivs, const Cid_t cid, const bool isModerator)
+Peer::Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs, const Cid_t cid, const bool isModerator)
     : mCid(cid),
       mPeerid(peerid),
       mAvFlags(static_cast<uint8_t>(avFlags)),
       mIvs(ivs ? *ivs : std::vector<std::string>()),
-      mIsModerator(isModerator)
+      mIsModerator(isModerator),
+      mEphemeralKeyPms(promise::Promise<void>()),
+      mSfuPeerProtoVersion(sfuProtoVersion)
 {
 }
 
-Peer::Peer(const Peer &peer)
+Peer::Peer(const Peer& peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
-    , mEphemeralKeyPair(peer.mEphemeralKeyPair ? peer.mEphemeralKeyPair->copy() : nullptr)
     , mIvs(peer.mIvs)
-    , mKeyEncryptIv(peer.mKeyEncryptIv)
-    , mKeyDecryptIv(peer.mKeyDecryptIv)
     , mIsModerator(peer.mIsModerator)
+    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived().has_value() ? *peer.getEphemeralPubKeyDerived(): std::string())
+    , mEphemeralKeyPms(peer.getEphemeralPubKeyPms())
+    , mSfuPeerProtoVersion(peer.getPeerSfuVersion())
 {
 }
 
@@ -154,22 +156,6 @@ void Peer::resetKeys()
     mKeyMap.clear();
 }
 
-void Peer::setEphemeralKeyPair(const rtcModule::X25519KeyPair* keypair)
-{
-    if (!keypair)
-    {
-        mEphemeralKeyPair.reset();
-        return;
-    }
-
-    mEphemeralKeyPair.reset(new rtcModule::X25519KeyPair(*keypair));
-}
-
-const rtcModule::X25519KeyPair* Peer::getEphemeralKeyPair() const
-{
-    return mEphemeralKeyPair.get();
-}
-
 const std::vector<std::string>& Peer::getIvs() const
 {
     return mIvs;
@@ -180,58 +166,34 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
     mIvs = ivs;
 }
 
-bool Peer::makeKeyEncryptIv(const std::string& vthumbIv, const std::string& hiresIv)
+std::optional<std::string> Peer::getEphemeralPubKeyDerived() const
 {
-    mKeyEncryptIv.clear();
-    uint8_t firstPartLen  = static_cast<uint8_t>(mediaKeyIv::lenIvFirstPart);
-    uint8_t secondPartLen = static_cast<uint8_t>(mediaKeyIv::lenIvSecondPart);
-    if (vthumbIv.size() == firstPartLen && hiresIv.size() == firstPartLen)
+    if (mEphemeralKeyPms.done())
     {
-        SFU_LOG_WARNING("makeKeyEncryptIv: ill-formed IV's");
-        assert(false);
-        return false;
+        return mEphemeralPubKeyDerived;
     }
-
-    // First 8 bytes are taken from the vthumb track IV
-    std::vector<byte> first = sfu::Command::hexToByteArray(vthumbIv);
-    std::copy(first.begin(), first.begin() + firstPartLen, std::back_inserter(mKeyEncryptIv));
-
-    // The rest 4 bytes are the first from the hi-res video track IV
-    std::vector<byte> second = sfu::Command::hexToByteArray(hiresIv);
-    std::copy(second.begin(), second.begin() + secondPartLen, std::back_inserter(mKeyEncryptIv));
-    return (mKeyEncryptIv.size() == rtcModule::KEY_ENCRYPT_IV_LENGTH);
-}
-
-bool Peer::makeKeyDecryptIv(const std::string& vthumbIv, const std::string& hiresIv)
-{
-    mKeyDecryptIv.clear();
-    uint8_t firstPartLen  = static_cast<uint8_t>(mediaKeyIv::lenIvFirstPart);
-    uint8_t secondPartLen = static_cast<uint8_t>(mediaKeyIv::lenIvSecondPart);
-    if (vthumbIv.size() == firstPartLen && hiresIv.size() == firstPartLen)
+    else
     {
-        SFU_LOG_WARNING("makeKeyDecryptIv: ill-formed IV's");
-        assert(false);
-        return false;
+        return std::nullopt;
     }
-
-    // First 8 bytes are taken from the vthumb track IV
-    std::vector<byte> first = sfu::Command::hexToByteArray(vthumbIv);
-    std::copy(first.begin(), first.begin() + firstPartLen, std::back_inserter(mKeyDecryptIv));
-
-    // The rest 4 bytes are the first from the hi-res video track IV
-    std::vector<byte> second = sfu::Command::hexToByteArray(hiresIv);
-    std::copy(second.begin(), second.begin() + secondPartLen, std::back_inserter(mKeyDecryptIv));
-    return (mKeyDecryptIv.size() == rtcModule::KEY_ENCRYPT_IV_LENGTH);
 }
 
-const std::vector<byte>& Peer::getKeyEncryptIv() const
+const promise::Promise<void>& Peer::getEphemeralPubKeyPms() const
 {
-    return mKeyEncryptIv;
+    return mEphemeralKeyPms;
 }
 
-const std::vector<byte>& Peer::getKeyDecryptIv() const
+void Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
-    return mKeyDecryptIv;
+    if (key.empty() && getPeerSfuVersion() > 0)
+    {
+        mEphemeralKeyPms.reject("Empty ephemeral key");
+    }
+    else
+    {
+        mEphemeralPubKeyDerived = key;
+        mEphemeralKeyPms.resolve();
+    }
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
@@ -534,6 +496,14 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
                  keystrmap.emplace(cid, pubkeyIterator->value.GetString());
             }
 
+            rapidjson::Value::ConstMemberIterator sfuvIterator = it->value[j].FindMember("v");
+            if (sfuvIterator == it->value[j].MemberEnd() || !sfuvIterator->value.IsUint())
+            {
+                SFU_LOG_ERROR("AnswerCommand::parsePeerObject: Received data doesn't have 'v' field");
+                return;
+            }
+            unsigned int sfuVersion = sfuvIterator->value.GetUint();
+
             std::vector<std::string> ivs;
             rapidjson::Value::ConstMemberIterator ivsIterator = it->value[j].FindMember("ivs");
             if (ivsIterator != it->value[j].MemberEnd() && ivsIterator->value.IsArray())
@@ -559,13 +529,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
 
             bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
-            Peer peer(userId, av, &ivs, cid, isModerator);
-            if (!peer.makeKeyDecryptIv(ivs[kVthumbTrack], ivs[kHiResTrack]))
-            {
-                SFU_LOG_ERROR("Error generating DecryptIv");
-                assert(false);
-                return;
-            }
+            Peer peer(userId, sfuVersion, av, &ivs, cid, isModerator);
             peers.push_back(std::move(peer));
         }
         else
@@ -836,6 +800,13 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
+    rapidjson::Value::ConstMemberIterator sfuvIterator = command.FindMember("v");
+    if (sfuvIterator == command.MemberEnd() || !sfuvIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("PeerJoinCommand: Received data doesn't have 'v' field");
+        return false;
+    }
+
     std::string pubkeyStr;
     rapidjson::Value::ConstMemberIterator pubkeyIterator = command.FindMember("pubk");
     if (pubkeyIterator != command.MemberEnd() && pubkeyIterator->value.IsString())
@@ -861,7 +832,8 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     }
 
     int av = static_cast<int>(avIterator->value.GetUint());
-    return mComplete(cid, userid, av, pubkeyStr, ivs);
+    unsigned int sfuVersion = sfuvIterator->value.GetUint();
+    return mComplete(cid, userid, sfuVersion, av, pubkeyStr, ivs);
 }
 
 Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
@@ -1565,7 +1537,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
     commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
-    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5), call);
+    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
@@ -2425,17 +2397,12 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl, Cid_t myCid)
                  : "?"; // add ? as append character
     }
 
-    sfuUrl.path.append(app).append("v=").append(std::to_string(getSfuVersion()));
+    sfuUrl.path.append(app).append("v=").append(std::to_string(getMySfuVersion()));
 
     if (myCid != 0) // in case of reconenct add cid (if valid)
     {
         sfuUrl.path.append("&cid=").append(std::to_string(myCid));;
     }
-}
-
-unsigned int SfuClient::getSfuVersion()
-{
-    return mSfuVersion;
 }
 
 void SfuClient::retryPendingConnections(bool disconnect)
