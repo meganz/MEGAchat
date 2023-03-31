@@ -1343,7 +1343,7 @@ void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
     std::string urlPath = mSfuUrl.path;
-    if (getMyCid() != 0) // add current cid for reconnection
+    if (getMyCid() != kInvalidCid) // add current cid for reconnection
     {
         urlPath.append("&cid=").append(std::to_string(getMyCid()));
     }
@@ -2345,7 +2345,6 @@ promise::Promise<void> SfuConnection::reconnect()
                     return;
 
                 assert(isOnline());
-                mCall.onSfuConnected();
             });
         }, wptr, mAppCtx
                      , nullptr                              // cancel function
@@ -2405,6 +2404,7 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
 
 void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
 {
+    assert(getMySfuVersion() > 0);
     std::string app;
     if (sfuUrl.path.back() != '?') // if last URL char is '?' => just add version
     {

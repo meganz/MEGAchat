@@ -21,6 +21,8 @@ enum karereTracks: int8_t
     kAudioTrack     = 2,
 };
 
+constexpr unsigned int kInvalidCid = 0;
+
 /** @cond PRIVATE */
 
 #ifndef KARERE_SHARED

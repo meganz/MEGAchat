@@ -834,11 +834,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
         return false;
     }
 
-    if (sfu::getMySfuVersion() > 0)
-    {
-        mSfuClient.addVersionToUrl(sfuUrl);
-    }
-
+    mSfuClient.addVersionToUrl(sfuUrl);
     setState(CallState::kStateConnecting);
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
     return true;
@@ -1846,7 +1842,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
     if (!ephkeypair)
     {
-        assert(sfu::getMySfuVersion() >= 1);
+        assert(sfu::getMySfuVersion() > 0);
         RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
         orderedCallDisconnect(TermCode::kErrGeneral, "Can't retrieve Ephemeral key for our own user");
         return false;
@@ -2018,13 +2014,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
                                    const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                    const std::map<karere::Id, bool>& wrUsers)
 {
-    if (sfu::getMySfuVersion() < 1)
-    {
-        assert(false);
-        RTCM_LOG_ERROR("handleHello: we have received a HELLO command from SFU but our SFU protocol version is < 1");
-        return false;
-    }
-
+    assert(sfu::getMySfuVersion() > 0);
     // set number of SFU->client audio/video tracks that the client must allocate.
     // This is equal to the maximum number of simultaneous audio/video tracks the call supports
     // if no received nAudioTracks or nVideoTracks set as max default
@@ -2050,14 +2040,6 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
         orderedCallDisconnect(TermCode::kErrClientGeneral, "calls in chatrooms with waiting room enabled are not supported by this version");
     }
     return true;
-}
-
-void Call::onSfuConnected()
-{
-    if (sfu::getMySfuVersion() < 1)
-    {
-        joinSfu(); // if SFU is > v0, we need to wait for HELLO command before sending JOIN to SFU
-    }
 }
 
 void Call::onSfuDisconnected()

@@ -6006,11 +6006,6 @@ bool MockupCall::handleModDel(uint64_t)
     return false;
 }
 
-void MockupCall::onSfuConnected()
-{
-
-}
-
 void MockupCall::onSendByeCommand()
 {
 

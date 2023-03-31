@@ -97,7 +97,7 @@ public:
     unsigned int getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
 
 protected:
-    Cid_t mCid = 0; // 0 is an invalid Cid
+    Cid_t mCid = kInvalidCid;
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
@@ -229,7 +229,6 @@ public:
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual bool handleBye(unsigned termcode) = 0;
-    virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
     virtual void onSendByeCommand() = 0;
 
@@ -591,7 +590,7 @@ protected:
     // This flag is set true when BYE command is sent to SFU
     bool mIsSendingBye = false;
 
-    Cid_t mMyCid = 0; // 0 is an invalid Cid
+    Cid_t mMyCid = kInvalidCid;
 
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;

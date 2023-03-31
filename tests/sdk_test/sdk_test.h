@@ -617,7 +617,6 @@ public:
     bool handleBye(unsigned termcode) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
-    void onSfuConnected() override;
     void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
