@@ -86,8 +86,8 @@ Peer::Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned
       mAvFlags(static_cast<uint8_t>(avFlags)),
       mIvs(ivs ? *ivs : std::vector<std::string>()),
       mIsModerator(isModerator),
-      mSfuProtoVersion(sfuProtoVersion)
-
+      mEphemeralKeyPms(promise::Promise<void>()),
+      mSfuPeerProtoVersion(sfuProtoVersion)
 {
 }
 
@@ -95,10 +95,11 @@ Peer::Peer(const Peer& peer)
     : mCid(peer.mCid)
     , mPeerid(peer.mPeerid)
     , mAvFlags(peer.mAvFlags)
-    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived())
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
-    , mSfuProtoVersion(peer.getPeerSfuVersion())
+    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived().has_value() ? *peer.getEphemeralPubKeyDerived(): std::string())
+    , mEphemeralKeyPms(peer.getEphemeralPubKeyPms())
+    , mSfuPeerProtoVersion(peer.getPeerSfuVersion())
 {
 }
 
@@ -164,14 +165,35 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
 {
     mIvs = ivs;
 }
-const std::string& Peer::getEphemeralPubKeyDerived() const
+
+std::optional<std::string> Peer::getEphemeralPubKeyDerived() const
 {
-    return mEphemeralPubKeyDerived;
+    if (mEphemeralKeyPms.done())
+    {
+        return mEphemeralPubKeyDerived;
+    }
+    else
+    {
+        return std::nullopt;
+    }
+}
+
+const promise::Promise<void>& Peer::getEphemeralPubKeyPms() const
+{
+    return mEphemeralKeyPms;
 }
 
 void Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
-    mEphemeralPubKeyDerived = key;
+    if (key.empty() && getPeerSfuVersion() > 0)
+    {
+        mEphemeralKeyPms.reject("Empty ephemeral key");
+    }
+    else
+    {
+        mEphemeralPubKeyDerived = key;
+        mEphemeralKeyPms.resolve();
+    }
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)

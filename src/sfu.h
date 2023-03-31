@@ -85,11 +85,16 @@ public:
     void resetKeys();
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
-    const std::string& getEphemeralPubKeyDerived() const;
     void setEphemeralPubKeyDerived(const std::string& key);
 
+    // returns derived peer's ephemeral key if available
+    std::optional<std::string> getEphemeralPubKeyDerived() const;
+
+    // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
+    const promise::Promise<void>& getEphemeralPubKeyPms() const;
+
     // returns the SFU protocol version used by the peer
-    unsigned int getPeerSfuVersion() const { return mSfuProtoVersion; }
+    unsigned int getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
 
 protected:
     Cid_t mCid = 0; // 0 is an invalid Cid
@@ -97,9 +102,6 @@ protected:
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
-
-    // peer ephemeral key derived
-    std::string mEphemeralPubKeyDerived;
 
     // initialization vector
     std::vector<std::string> mIvs;
@@ -119,8 +121,14 @@ protected:
      */
     bool mIsModerator = false;
 
+    // peer ephemeral key derived
+    std::string mEphemeralPubKeyDerived;
+
+    // this promise is resolved/rejected when peer's ephemeral key is verified and derived
+    mutable promise::Promise<void> mEphemeralKeyPms;
+
     // SFU protocol version used by the peer
-    unsigned int mSfuProtoVersion = sfu::sfuInvalidProto;
+    unsigned int mSfuPeerProtoVersion = sfu::sfuInvalidProto;
 };
 
 class TrackDescriptor
@@ -199,7 +207,7 @@ class SfuInterface
 public:
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
-    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, uint64_t, const std::vector<Peer>&peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, Sdp& spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
@@ -268,7 +276,7 @@ public:
 class AnswerCommand : public Command
 {
 public:
-    typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;

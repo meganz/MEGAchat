@@ -424,6 +424,7 @@ public:
     void setDestroying(bool isDestroying);
     bool isDestroying();
     void generateEphemeralKeyPair();
+    void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
 
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;

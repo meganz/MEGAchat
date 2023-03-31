@@ -1336,27 +1336,23 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
     }
 
     const auto max = peers.size();
-    std::set<Cid_t> cids;
-    std::map <Cid_t, bool> keysVerified;
-    auto onKeyVerified = [max, &keysVerified, &keyDerivationPms](const Cid_t peerId, const bool verified) -> void
+    std::vector <bool> keysVerified;
+    auto onKeyVerified = [max, &keysVerified, &keyDerivationPms](const bool verified) -> void
     {
-        keysVerified.emplace(peerId, verified);
+        keysVerified.emplace_back(verified);
         if (keysVerified.size() >= max)
         {
             keyDerivationPms.resolve();
         }
     };
 
-    auto addPeer = [this, &cids, &onKeyVerified](const sfu::Peer& peer, const bool keyVerified)
+    auto addPeerWithEphemKey = [this, &onKeyVerified](sfu::Peer& peer, const bool keyVerified, const std::string& ephemeralPubKeyDerived) -> void
     {
-        assert(keyVerified);
-        cids.insert(peer.getCid());
-        mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
-        mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
-        onKeyVerified(peer.getCid(), keyVerified);
+        addPeer(peer, ephemeralPubKeyDerived);
+        onKeyVerified(keyVerified);
     };
 
-    for (const sfu::Peer& peer : peers) // does not include own cid
+    for (sfu::Peer& peer : peers) // does not include own cid
     {
         const auto& it = keystrmap.find(peer.getCid());
         const auto& keyStr = it != keystrmap.end()
@@ -1365,14 +1361,14 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
 
         if (peer.getPeerSfuVersion() == 0) // there's no ephemeral key, just add peer
         {
-            addPeer(peer, true);
+            addPeerWithEphemKey(peer, true, std::string());
         }
         else // verify ephemeral key signature, derive it, and then add the peer
         {
             if (peer.getPeerSfuVersion() > 0 && keyStr.empty())
             {
                 RTCM_LOG_ERROR("Empty Ephemeral key for user: %s, cid: %d, SFU protocol version: %d", peer.getPeerid().toString().c_str(), peer.getCid(), peer.getPeerSfuVersion());
-                addPeer(peer, false);
+                addPeerWithEphemKey(peer, false, std::string());
                 continue;
             }
 
@@ -1381,21 +1377,21 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
                 auto wptr = weakHandle();
                 auto parsedkey = splitPubKey(keyStr);
                 verifySignature(peer.getCid(), peer.getPeerid(), parsedkey.first, parsedkey.second)
-                .then([&wptr, &peer, &addPeer, &parsedkey, this](bool verified)
+                .then([&wptr, &peer, &addPeerWithEphemKey, &parsedkey, this](bool verified)
                 {
                     wptr.throwIfDeleted();
                     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
                     if (!ephkeypair)
                     {
                         RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
-                        addPeer(peer, false);
+                        addPeerWithEphemKey(peer, false, std::string());
                         return;
                     }
 
                     if (!verified)
                     {
                         RTCM_LOG_ERROR("Can't verify signature for user: %s", peer.getPeerid().toString().c_str());
-                        addPeer(peer, false);
+                        addPeerWithEphemKey(peer, false, std::string());
                         return;
                     }
 
@@ -1404,28 +1400,19 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
                     std::string out;
                     const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
                     std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
-                    bool derived = false;
-                    if (ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out))
-                    {
-                        if (!out.empty())
-                        {
-                            derived = true;
-                            auxPeer.setEphemeralPubKeyDerived(out);
-                        }
-                    }
-
+                    bool derived = ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out);
                     if (!derived)
                     {
                         RTCM_LOG_ERROR("Can't derive ephemeral key for peer Cid: %d PeerId: %s",
                                        peer.getCid(), peer.getPeerid().toString().c_str());
                     }
 
-                    addPeer(auxPeer, derived);
+                    addPeerWithEphemKey(auxPeer, derived, derived ? out : std::string());
                 })
-                .fail([this, &peer, &addPeer](const ::promise::Error&)
+                .fail([this, &peer, &addPeerWithEphemKey](const ::promise::Error&)
                 {
                     RTCM_LOG_ERROR("Error verifying ephemeral key signature for for user: %s, cid: %d", peer.getPeerid().toString().c_str(), peer.getCid());
-                    addPeer(peer, false);
+                    addPeerWithEphemKey(peer, false, std::string());
                 });
             }
             catch(std::runtime_error& e)
@@ -1438,14 +1425,14 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
     // wait until all peers ephemeral keys have been verified and derived
     auto auxwptr = weakHandle();
     keyDerivationPms
-    .then([auxwptr, &vthumbs, &speakers, &duration, &cids, &sdp, &keysVerified, this]
+    .then([auxwptr, &vthumbs, &speakers, &duration, &sdp, &keysVerified, this]
     {
         if (auxwptr.deleted())
         {
             return;
         }
 
-        bool anyVerified = std::any_of(keysVerified.begin(), keysVerified.end(), [](const auto& kv) { return kv.second; });
+        bool anyVerified = std::any_of(keysVerified.begin(), keysVerified.end(), [](const auto& kv) { return kv; });
         if (!keysVerified.empty() && !anyVerified)
         {
             orderedCallDisconnect(TermCode::kErrGeneral, "Can't verify any of the ephemeral keys on any peer received in ANSWER command");
@@ -1465,7 +1452,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
         assert(mRtcConn);
         auto wptr = weakHandle();
         mRtcConn.setRemoteDescription(move(sdpInterface))
-        .then([wptr, this, vthumbs, speakers, duration, cids]()
+        .then([wptr, this, vthumbs, speakers, duration]()
         {
             if (wptr.deleted())
             {
@@ -1524,7 +1511,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
     Session* session = getSession(cid);
     if (!session)
     {
-        RTCM_LOG_ERROR("handleKeyCommand: Received key for unknown peer cid %d", cid);
+        RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %d", cid);
         return false;
     }
 
@@ -1532,39 +1519,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
     const sfu::Peer& auxPeer = session->getPeer();
     auto wptr = weakHandle();
 
-    std::string ephemeralKeypair = auxPeer.getEphemeralPubKeyDerived();
-    if (!ephemeralKeypair.empty()) // key decryption for protocol V2
-    {
-        std::string result;
-        std::string recvKeyBin = mega::Base64::atob(key);
-        if (!mSymCipher.cbc_decrypt_with_key(recvKeyBin, result, reinterpret_cast<const unsigned char*>(ephemeralKeypair.data())
-                                             , ephemeralKeypair.size(), nullptr))
-        {
-            std::string err = "Failed cbc_decrypt received key. Cid: "
-                    + std::to_string(auxPeer.getCid())
-                    + "PeerId: " + auxPeer.getPeerid().toString()
-                    + "KeyId: " + std::to_string(keyid);
-
-            mRtc.onMediaKeyDecryptionFailed(err);
-            RTCM_LOG_WARNING("%s", err.c_str());
-            return false;
-        }
-
-        // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
-        if (hasCallKey())
-        {
-            mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(reinterpret_cast<byte*>(mCallKey.data()), reinterpret_cast<byte*>(result.data()));
-        }
-
-        if (result.size() != kMediaKeyLen)
-        {
-            mRtc.onMediaKeyDecryptionFailed("Unexpected decrypted key size");
-            RTCM_LOG_ERROR("Unexpected decrypted key size expected size: %d decrypted size: %d", kMediaKeyLen, static_cast<int>(result.size()));
-            return false;
-        }
-        session->addKey(keyid, result);
-    }
-    else  // key encryption for protocol < V1
+    if (auxPeer.getPeerSfuVersion() == 0)
     {
         mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peerid)
         .then([wptr, keyid, cid, key, this](Buffer*)
@@ -1574,13 +1529,12 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
                 return;
             }
 
-            Session *session = getSession(cid);
+            Session* session = getSession(cid);
             if (!session)
             {
-                RTCM_LOG_WARNING("handleKeyCommand after get Cu25510 key: Received key for unknown peer cid %d", cid);
+                RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %d", cid);
                 return;
             }
-
 
             // decrypt received key
             std::string binaryKey = mega::Base64::atob(key);
@@ -1601,6 +1555,58 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
             // add new key to peer key map
             std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
             session->addKey(keyid, newKey);
+        });
+    }
+    else
+    {
+        auto pms = auxPeer.getEphemeralPubKeyPms();
+        pms.then([this, &cid, &key, &keyid, &auxPeer]()
+        {
+            Session* session = getSession(cid);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %d", cid);
+                return false;
+            }
+            auto ephemeralPubKey = auxPeer.getEphemeralPubKeyDerived();
+            if (!ephemeralPubKey.has_value() || ephemeralPubKey->empty())
+            {
+                RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %d", auxPeer.getPeerid().toString().c_str(), cid);
+                return false;
+            }
+
+            std::string result;
+            std::string recvKeyBin = mega::Base64::atob(key);
+            if (!mSymCipher.cbc_decrypt_with_key(recvKeyBin, result, reinterpret_cast<const unsigned char*>(ephemeralPubKey->data())
+                                                 , ephemeralPubKey->size(), nullptr))
+            {
+                std::string err = "Failed cbc_decrypt received key. Cid: "
+                        + std::to_string(auxPeer.getCid())
+                        + "PeerId: " + auxPeer.getPeerid().toString()
+                        + "KeyId: " + std::to_string(keyid);
+
+                mRtc.onMediaKeyDecryptionFailed(err);
+                RTCM_LOG_WARNING("%s", err.c_str());
+                return false;
+            }
+
+            // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
+            if (hasCallKey())
+            {
+                mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(reinterpret_cast<byte*>(mCallKey.data()), reinterpret_cast<byte*>(result.data()));
+            }
+
+            if (result.size() != kMediaKeyLen)
+            {
+                mRtc.onMediaKeyDecryptionFailed("Unexpected decrypted key size");
+                RTCM_LOG_ERROR("Unexpected decrypted key size expected size: %d decrypted size: %d", kMediaKeyLen, static_cast<int>(result.size()));
+                return false;
+            }
+            session->addKey(keyid, result);
+        });
+        pms.fail([&auxPeer](const ::promise::Error&)
+        {
+            RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %d", karere::Id(auxPeer.getPeerid()).toString().c_str(), auxPeer.getCid());
         });
     }
 
@@ -1815,61 +1821,9 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
 
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs)
 {
-    if (mState != kStateInProgress && mState != kStateJoining)
+    auto addPeerWithEphemKey = [this](sfu::Peer& peer, const std::string& ephemeralPubKeyDerived) -> void
     {
-        RTCM_LOG_WARNING("handlePeerJoin: get unexpected state");
-        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
-        return false;
-    }
-
-    auto parsedkey = splitPubKey(keyStr);
-    verifySignature(cid, userid, parsedkey.first, parsedkey.second)
-    .then([&userid, &av, &cid, &parsedkey, &ivs, &sfuProtoVersion, this](bool verified)
-    {
-        if (!verified)
-        {
-            assert(false);
-            RTCM_LOG_ERROR("Can't verify signature for user: %s", karere::Id(userid).toString().c_str());
-            return;
-        }
-
-        bool isModerator = mModerators.find(userid) != mModerators.end();
-        sfu::Peer peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, isModerator);
-        const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
-        if (ephkeypair)
-        {
-            // derive peer public ephemeral key with our private ephemeral key
-            std::string out;
-            const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
-            std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
-            if (ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out))
-            {
-                if (!out.empty())
-                {
-                    peer.setEphemeralPubKeyDerived(out);
-                }
-                else
-                {
-                    RTCM_LOG_ERROR("SFU_V1: derived ephemeral key is ill-formed upon PEERJOIN");
-                    return;
-                }
-            }
-            else
-            {
-                RTCM_LOG_ERROR("SFU_V1: Could not derive ephemeral key (upon PEERJOIN) for peer Cid: %d PeerId: %s", peer.getCid(), peer.getPeerid().toString().c_str());
-                return;
-            }
-        }
-        else if (sfu::getMySfuVersion() >= 1)
-        {
-            assert(false);
-            RTCM_LOG_ERROR("SFU protocol is V1 or greater and we don't have private ephemeral key stored (PEERJOIN)");
-            return;
-        }
-
-        mSessions[cid] = ::mega::make_unique<Session>(peer);
-        mCallHandler.onNewSession(*mSessions[cid], *this);
-
+        addPeer(peer, ephemeralPubKeyDerived);
         // update max peers seen in call
         mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
         generateAndSendNewMediakey();
@@ -1880,12 +1834,69 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
             // we need to update participants list with SFU information
             addParticipant(peer.getPeerid());
         }
-    })
-    .fail([this, userid](const ::promise::Error&)
-    {
-        RTCM_LOG_ERROR("Can't retrieve public ED25519 attr for user %s", karere::Id(userid).toString().c_str());
-    });
+    };
 
+    if (mState != kStateInProgress && mState != kStateJoining)
+    {
+        RTCM_LOG_WARNING("handlePeerJoin: get unexpected state");
+        assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        return false;
+    }
+
+    const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
+    if (!ephkeypair)
+    {
+        assert(sfu::getMySfuVersion() >= 1);
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
+        orderedCallDisconnect(TermCode::kErrGeneral, "Can't retrieve Ephemeral key for our own user");
+        return false;
+    }
+
+    sfu::Peer peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (mModerators.find(userid) != mModerators.end()));
+    if (sfuProtoVersion == 0)
+    {
+        addPeerWithEphemKey(peer, std::string());
+    }
+    else
+    {
+        if (keyStr.empty())
+        {
+            RTCM_LOG_ERROR("handlePeerJoin: ephemeral key not received");
+            assert(false);
+            addPeerWithEphemKey(peer, std::string());
+            return false;
+        }
+
+        auto parsedkey = splitPubKey(keyStr);
+        verifySignature(cid, userid, parsedkey.first, parsedkey.second)
+        .then([&userid, &parsedkey, &peer, ephkeypair, addPeerWithEphemKey, this](bool verified)
+        {
+            if (!verified)
+            {
+                assert(false);
+                RTCM_LOG_WARNING("Can't verify signature for user: %s", karere::Id(userid).toString().c_str());
+                addPeerWithEphemKey(peer, std::string());
+                return;
+            }
+
+            // derive peer public ephemeral key with our private ephemeral key
+            std::string out;
+            const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
+            std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
+            bool derived = ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out);
+            if (!derived)
+            {
+                RTCM_LOG_WARNING("Can't derive ephemeral key for peer Cid: %d PeerId: %s",
+                               peer.getCid(), peer.getPeerid().toString().c_str());
+            }
+            addPeerWithEphemKey(peer, derived ? out : std::string());
+        })
+        .fail([this, userid, &peer, &addPeerWithEphemKey](const ::promise::Error&)
+        {
+            RTCM_LOG_ERROR("Can't retrieve public ED25519 attr for user %s", karere::Id(userid).toString().c_str());
+            addPeerWithEphemKey(peer, std::string());
+        });
+    }
     return true;
 }
 
@@ -2371,8 +2382,7 @@ void Call::generateAndSendNewMediakey(bool reset)
             // get peer Cid
             Cid_t sessionCid = session.first;
             const sfu::Peer& peer = session.second->getPeer();
-            std::string ephemeralPubKey = peer.getEphemeralPubKeyDerived();
-            if (ephemeralPubKey.empty()) // key encryption for protocol < V1
+            if (peer.getPeerSfuVersion() == 0)
             {
                 // encrypt key to participant
                 strongvelope::SendKey encryptedKey;
@@ -2381,17 +2391,32 @@ void Call::generateAndSendNewMediakey(bool reset)
             }
             else // key encryption for protocol V2
             {
-                // Encrypt key for participant with it's public ephemeral key
-                std::string encryptedKey;
-                std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey.data()), ephemeralPubKey.size(), nullptr))
+                auto pms = peer.getEphemeralPubKeyPms();
+                pms.then([this, &newPlainKey, &keys, &sessionCid, &peer]()
                 {
-                    RTCM_LOG_WARNING("Failed Media key gcm_encrypt for peerId %s Cid %d",
-                                     peer.getPeerid().toString().c_str(), peer.getCid());
-                    return;
-                }
+                    auto ephemeralPubKey = peer.getEphemeralPubKeyDerived();
+                    if (!ephemeralPubKey.has_value() || ephemeralPubKey->empty())
+                    {
+                        RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %d", peer.getPeerid().toString().c_str(), sessionCid);
+                        return;
+                    }
 
-                keys[sessionCid] = mega::Base64::btoa(encryptedKey);
+                    // Encrypt key for participant with it's public ephemeral key
+                    std::string encryptedKey;
+                    std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
+                    if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey->data()), ephemeralPubKey->size(), nullptr))
+                    {
+                        RTCM_LOG_WARNING("Failed Media key gcm_encrypt for peerId %s Cid %d",
+                                         peer.getPeerid().toString().c_str(), peer.getCid());
+                        return;
+                    }
+
+                    keys[sessionCid] = mega::Base64::btoa(encryptedKey);
+                 });
+                 pms.fail([&peer](const ::promise::Error&)
+                 {
+                    RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %d", karere::Id(peer.getPeerid()).toString().c_str(), peer.getCid());
+                 });
             }
         }
 
@@ -2729,6 +2754,13 @@ void Call::generateEphemeralKeyPair()
 const mega::ECDH* Call::getMyEphemeralKeyPair() const
 {
     return mEphemeralKeyPair.get();
+}
+
+void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
+{
+    peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
+    mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
+    mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
 }
 
 std::pair<std::string, std::string>Call::splitPubKey(const std::string& keyStr) const
