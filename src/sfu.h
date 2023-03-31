@@ -34,7 +34,7 @@ namespace sfu
 static const unsigned int mSfuProtoVersion = 2;
 
 /* Invalid SFU protocol version */
-static constexpr unsigned int sfuInvalidProto = UINT32_MAX;
+static constexpr unsigned int sfuInvalidProtocol = UINT32_MAX;
 
 /* Gets the current SFU protocol version for our client */
 static unsigned int getMySfuVersion() { return mSfuProtoVersion; }
@@ -128,7 +128,7 @@ protected:
     mutable promise::Promise<void> mEphemeralKeyPms;
 
     // SFU protocol version used by the peer
-    unsigned int mSfuPeerProtoVersion = sfu::sfuInvalidProto;
+    unsigned int mSfuPeerProtoVersion = sfu::sfuInvalidProtocol;
 };
 
 class TrackDescriptor

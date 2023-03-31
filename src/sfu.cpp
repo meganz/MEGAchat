@@ -189,7 +189,7 @@ void Peer::setEphemeralPubKeyDerived(const std::string& key)
     {
         mEphemeralKeyPms.reject("Empty ephemeral key");
     }
-    else
+    else // peers that uses sfu protocol V0, doesn't provide an ephemeral key
     {
         mEphemeralPubKeyDerived = key;
         mEphemeralKeyPms.resolve();
