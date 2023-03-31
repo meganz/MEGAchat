@@ -134,7 +134,8 @@ protected:
 class TrackDescriptor
 {
 public:
-    uint32_t mMid;
+    static constexpr uint32_t invalidMid = UINT32_MAX;
+    uint32_t mMid = invalidMid;
     bool mReuse = false;
 };
 

@@ -2451,6 +2451,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
 {
     for (auto trackDescriptor : videotrackDescriptors)
     {
+        if (trackDescriptor.second.mMid == sfu::TrackDescriptor::invalidMid)
+        {
+            RTCM_LOG_WARNING("handleIncomingVideo: missing track mid %d", trackDescriptor.second.mMid);
+            continue;
+        }
+
         auto it = mReceiverTracks.find(trackDescriptor.second.mMid);
         if (it == mReceiverTracks.end())
         {
@@ -2528,6 +2534,13 @@ void Call::attachSlotToSession (Cid_t cid, RemoteSlot* slot, bool audio, VideoRe
 
 void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
 {
+    if (speaker.mMid == sfu::TrackDescriptor::invalidMid)
+    {
+        // TODO: check when we fully support raise-to-speak requests (to avoid sending an unnecessary speak request)
+        RTCM_LOG_WARNING("AddSpeaker: missing track mid %d", speaker.mMid);
+        return;
+    }
+
     auto it = mReceiverTracks.find(speaker.mMid);
     if (it == mReceiverTracks.end())
     {

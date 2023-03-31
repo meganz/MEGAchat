@@ -273,28 +273,35 @@ void Command::parseTracks(const rapidjson::Document& command, const std::string&
     {
         if (!it->value.IsArray())
         {
-            SFU_LOG_ERROR("Received track ill-formed");
+            SFU_LOG_ERROR("Received ill-formed tracks");
             assert(false);
             return;
         }
 
         for (unsigned int i = 0; i < it->value.Capacity(); ++i)
         {
-            if (!it->value[i].IsArray())
-            {
-                SFU_LOG_ERROR("Received track ill-formed");
-                assert(false);
-                return;
-            }
-
             Cid_t cid = 0;
             TrackDescriptor td;
-            const auto& arr = it->value[i].GetArray();
-            for (unsigned int j = 0; j < arr.Capacity(); ++j)
+            if (!it->value[i].IsArray())
             {
-                if (j==0) { cid = arr[0].GetUint(); }
-                if (j==1) { td.mMid = arr[1].GetUint(); }
-                if (j==2) { td.mReuse = arr[2].GetUint(); }
+                if (!it->value[i].IsUint())
+                {
+                    SFU_LOG_ERROR("Received ill-formed track");
+                    assert(false);
+                    return;
+                }
+                cid = it->value[i].GetUint();
+                td.mMid = TrackDescriptor::invalidMid;
+            }
+            else
+            {
+                const auto& arr = it->value[i].GetArray();
+                for (unsigned int j = 0; j < arr.Capacity(); ++j)
+                {
+                    if (j==0) { cid = arr[0].GetUint(); }
+                    if (j==1) { td.mMid = arr[1].GetUint(); }
+                    if (j==2) { td.mReuse = arr[2].GetUint(); }
+                }
             }
             tracks[cid] = td; // add entry to map <cid, trackDescriptor>
         }
