@@ -408,7 +408,7 @@ public:
     bool hasCallKey();
 
     // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
-    std::vector<byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
+    std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
 
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();

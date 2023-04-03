@@ -1249,7 +1249,7 @@ std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
             : std::string();
 }
 
-std::vector<byte> Call::generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const
+std::vector<mega::byte> Call::generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const
 {
     std::string salt;
     std::vector<std::string> v { peerIvs[kHiResTrack], peerIvs[kAudioTrack], myIvs[kHiResTrack], myIvs[kAudioTrack] };
@@ -1395,7 +1395,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
                     sfu::Peer auxPeer(peer);
                     std::string out;
                     const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
-                    std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
+                    std::vector<::mega::byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
                     bool derived = ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out);
                     if (!derived)
                     {
@@ -1890,7 +1890,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
             // derive peer public ephemeral key with our private ephemeral key
             std::string out;
             const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
-            std::vector<byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
+            std::vector<::mega::byte> saltBin = generateEphemeralKeyIv(peer.getIvs(), mMyPeer->getIvs());
             bool derived = ephkeypair->deriveSharedKeyWithSalt(reinterpret_cast<const unsigned char *>(pubkeyBin.data()), saltBin.data(), saltBin.size(), out);
             if (!derived)
             {

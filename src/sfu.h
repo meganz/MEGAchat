@@ -251,7 +251,7 @@ public:
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
-    static std::vector<byte> hexToByteArray(const std::string &hex);
+    static std::vector<mega::byte> hexToByteArray(const std::string &hex);
     void parseUsersArray(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
     void parseTracks(const rapidjson::Document &command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const;
 

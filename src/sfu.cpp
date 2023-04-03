@@ -327,10 +327,10 @@ uint64_t Command::hexToBinary(const std::string &hex)
     return value;
 }
 
-std::vector<byte> Command::hexToByteArray(const std::string &hex)
+std::vector<mega::byte> Command::hexToByteArray(const std::string &hex)
 {
     unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
-    std::vector<byte> res(bufferSize);
+    std::vector<mega::byte> res(bufferSize);
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
