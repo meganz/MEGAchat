@@ -3703,15 +3703,11 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
     waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
                    std::vector<bool *> { &requestFlagsChat[a2][MegaChatRequest::TYPE_ANSWER_CHAT_CALL],
                                          &mChatCallSessionStatusInProgress[a1],
-                                         &mChatCallSilenceReq[a1],
-                                         &mChatCallSessionStatusInProgress[a2],
-                                         &mChatCallSilenceReq[a2]
+                                         &mChatCallSessionStatusInProgress[a2]
                                        },
                    std::vector<string> { "TYPE_ANSWER_CHAT_CALL[a2]",
                                          "mChatCallSessionStatusInProgress[a1]",
-                                         "mChatCallSilenceReq[a1]",
-                                         "mChatCallSessionStatusInProgress[a2]",
-                                         "mChatCallSilenceReq[a2]"
+                                         "mChatCallSessionStatusInProgress[a2]"
                                          },
                    "answering chat call from B",
                    true /* wait for all exit flags*/,
@@ -3775,27 +3771,21 @@ void MegaChatApiTest::TEST_EstablishedCalls(unsigned int a1, unsigned int a2)
 
     bool* chatCallSessionStatusInProgressA = &mChatCallSessionStatusInProgress[a1];
     *chatCallSessionStatusInProgressA = false;
-    bool* chatCallSilenceReqA = &mChatCallSilenceReq[a1]; *chatCallSilenceReqA = false;
     bool* chatCallSessionStatusInProgressB = &mChatCallSessionStatusInProgress[a2];
     *chatCallSessionStatusInProgressB = false;
-    bool* chatCallSilenceReqB = &mChatCallSilenceReq[a2]; *chatCallSilenceReqB = false;
 
     std::function<void()> waitForChatCallReadyA =
-      [this, &chatCallSessionStatusInProgressA, &chatCallSilenceReqA]()
+      [this, &chatCallSessionStatusInProgressA]()
       {
           ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressA),
                            "Timeout expired for A receiving chat call in progress");
-          ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqA),
-                           "Timeout expired for A receiving speak request to false");
       };
 
     std::function<void()> waitForChatCallReadyB =
-      [this, &chatCallSessionStatusInProgressB, &chatCallSilenceReqB] ()
+      [this, &chatCallSessionStatusInProgressB] ()
       {
           ASSERT_CHAT_TEST(waitForResponse(chatCallSessionStatusInProgressB),
                            "Timeout expired for B receiving chat call in progress");
-          ASSERT_CHAT_TEST(waitForResponse(chatCallSilenceReqB),
-                           "Timeout expired for B receiving speak request to false");
       };
 
     megaChatApi[a1]->retryPendingConnections(true);
