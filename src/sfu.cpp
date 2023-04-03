@@ -499,7 +499,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
             rapidjson::Value::ConstMemberIterator pubkeyIterator = it->value[j].FindMember("pubk");
             if (pubkeyIterator != it->value[j].MemberEnd() && pubkeyIterator->value.IsString())
             {
-                 // clients with SFU protocol < 1 won't send ephemeral pubkey
+                 // clients with SFU protocol = 0 won't send ephemeral pubkey
                  keystrmap.emplace(cid, pubkeyIterator->value.GetString());
             }
 
@@ -818,7 +818,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator pubkeyIterator = command.FindMember("pubk");
     if (pubkeyIterator != command.MemberEnd() && pubkeyIterator->value.IsString())
     {
-         // clients with SFU protocol < 1 won't send ephemeral pubkey
+         // clients with SFU protocol = 0 won't send ephemeral pubkey
          pubkeyStr = pubkeyIterator->value.GetString();
     }
 
@@ -2411,11 +2411,11 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
 
 void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
 {
-    assert(getMySfuVersion() > 0);
+    assert(getMySfuVersion() == 2); // expected SFU version for my client
     std::string app;
-    if (sfuUrl.path.back() != '?') // if last URL char is '?' => just add version
+    if (sfuUrl.path.back() != '?')  // if last URL char is '?' just add version, otherwise:
     {
-        app = !sfuUrl.path.find("?")
+        app = sfuUrl.path.find("?") != std::string::npos
                  ? "&"  // url already has parameters
                  : "?"; // add ? as append character
     }

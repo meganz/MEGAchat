@@ -10,9 +10,6 @@ namespace karere { class Client; }
 namespace strongvelope { template<size_t L> class Key; typedef Key<16> SendKey; }
 namespace rtcModule
 {
-
-const static uint8_t KEY_ENCRYPT_IV_LENGTH = 12;
-
 class RtcCryptoMeetings: public rtcModule::IRtcCryptoMeetings
 {
 protected:
