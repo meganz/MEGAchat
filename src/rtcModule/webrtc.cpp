@@ -1303,7 +1303,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
 
     if (!getMyEphemeralKeyPair())
     {
-        assert(sfu::getMySfuVersion() > 0);
+        assert(sfu::getMySfuVersion() == 2);
         RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
         return false;
     }
@@ -1854,7 +1854,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
     if (!ephkeypair)
     {
-        assert(sfu::getMySfuVersion() > 0);
+        assert(sfu::getMySfuVersion() == 2);
         RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
         orderedCallDisconnect(TermCode::kErrGeneral, "Can't retrieve Ephemeral key for our own user");
         return false;
@@ -2033,7 +2033,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
                                    const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                    const std::map<karere::Id, bool>& wrUsers)
 {
-    assert(sfu::getMySfuVersion() > 0);
+    assert(sfu::getMySfuVersion() == 2);
     // set number of SFU->client audio/video tracks that the client must allocate.
     // This is equal to the maximum number of simultaneous audio/video tracks the call supports
     // if no received nAudioTracks or nVideoTracks set as max default
@@ -2451,12 +2451,6 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
 {
     for (auto trackDescriptor : videotrackDescriptors)
     {
-        if (trackDescriptor.second.mMid == sfu::TrackDescriptor::invalidMid)
-        {
-            RTCM_LOG_WARNING("handleIncomingVideo: missing track mid %d", trackDescriptor.second.mMid);
-            continue;
-        }
-
         auto it = mReceiverTracks.find(trackDescriptor.second.mMid);
         if (it == mReceiverTracks.end())
         {
@@ -2536,8 +2530,8 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
 {
     if (speaker.mMid == sfu::TrackDescriptor::invalidMid)
     {
+        // peer notified as speaker from SFU, but track not provided yet (this happens if peer is muted)
         // TODO: check when we fully support raise-to-speak requests (to avoid sending an unnecessary speak request)
-        RTCM_LOG_WARNING("AddSpeaker: missing track mid %d", speaker.mMid);
         return;
     }
 

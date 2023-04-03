@@ -367,7 +367,7 @@ public:
     bool connectSfu(const std::string& sfuUrlStr);
     void joinSfu();
 
-    // generate ephemeral ECDH X25519 keypair and a signature
+    // generates an ephemeral ECDH X25519 keypair and a signature with format: sesskey|<callId>|<clientId>|<pubkey>
     std::string generateSessionKeyPair();
 
     // get ephemeral ECDH X25519 keypair for the current call session

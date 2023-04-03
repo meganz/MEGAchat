@@ -58,12 +58,6 @@ public:
 class Peer
 {
 public:
-    enum class mediaKeyIv: uint8_t
-    {
-      lenIvFirstPart  = 8,
-      lenIvSecondPart = 4,
-    };
-
     Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
     Peer(const Peer& peer);
 
