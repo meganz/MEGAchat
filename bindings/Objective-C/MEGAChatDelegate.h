@@ -4,6 +4,8 @@
 #import "MEGAChatPresenceConfig.h"
 #import "MEGAChatDBError.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 @class MEGAChatSdk;
 
 typedef NS_ENUM (NSInteger, MEGAChatInit);
@@ -21,3 +23,5 @@ typedef NS_ENUM (NSInteger, MEGAChatInit);
 - (void)onDbError:(MEGAChatSdk *)api error:(MEGAChatDBError)error message:(NSString *)message;
 
 @end
+
+NS_ASSUME_NONNULL_END
