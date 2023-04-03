@@ -123,20 +123,20 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     }
 
     // 2. login
-    auto loginTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
-    session ? megaApi[accountIndex]->fastLogin(session, loginTracker.get())
-              : megaApi[accountIndex]->login(mail.c_str(), pwd.c_str(), loginTracker.get());
-    ErrorCodes loginResult = loginTracker->waitForResult();
-    EXPECT_EQ(loginResult, API_OK) << "Login failed.";
+    RequestTracker loginTracker;
+    session ? megaApi[accountIndex]->fastLogin(session, &loginTracker)
+              : megaApi[accountIndex]->login(mail.c_str(), pwd.c_str(), &loginTracker);
+    int loginResult = loginTracker.waitForResult();
+    EXPECT_EQ(loginResult, API_OK) << "Login failed. Error: " << loginResult << ' ' << loginTracker.getErrorString();
     if (loginResult != API_OK) return nullptr;
 
     // 3. fetchnodes
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     bool *loggedInFlag = &mLoggedInAllChats[accountIndex]; *loggedInFlag = false;
-    auto fetchNodesTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
-    megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
-    ErrorCodes fetchNodesResult = fetchNodesTracker->waitForResult();
-    EXPECT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes.";
+    RequestTracker fetchNodesTracker;
+    megaApi[accountIndex]->fetchNodes(&fetchNodesTracker);
+    int fetchNodesResult = fetchNodesTracker.waitForResult();
+    EXPECT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes. Error: " << fetchNodesResult << ' ' << fetchNodesTracker.getErrorString();
     if (fetchNodesResult != API_OK) return nullptr;
     // after fetchnodes, karere should be ready for offline, at least
     responseOk = waitForResponse(flagInit);
@@ -161,23 +161,23 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 {
     bool *flagRequestLogoutChat = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogoutChat = false;
-    auto logoutTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
+    RequestTracker logoutTracker;
     if (closeSession)
     {
 #ifdef ENABLE_SYNC
-        megaApi[accountIndex]->logout(false, logoutTracker.get());
+        megaApi[accountIndex]->logout(false, &logoutTracker);
 #else
         megaApi[accountIndex]->logout(logoutTracker.get());
 #endif
     }
     else
     {
-        megaApi[accountIndex]->localLogout(logoutTracker.get());
+        megaApi[accountIndex]->localLogout(&logoutTracker);
     }
 
-    ErrorCodes logoutResult = logoutTracker->waitForResult();
+    int logoutResult = logoutTracker.waitForResult();
     ASSERT_TRUE(logoutResult == API_OK || logoutResult == API_ESID) <<
-                     "Error sdk logout. Error: " << logoutResult;
+                     "Error sdk logout. Error: " << logoutResult << ' ' << logoutTracker.getErrorString();
 
 
     if (!closeSession)  // for closed session, karere automatically logs out itself
@@ -281,25 +281,23 @@ void MegaChatApiTest::SetUp()
 #endif
 
         // kill all sessions to ensure no interferences from other tests running in parallel
-        auto loginTracker = ::mega::make_unique<RequestTracker>(megaApi[i]);
+        RequestTracker loginTracker;
         megaApi[i]->login(account(i).getEmail().c_str(), account(i).getPassword().c_str(),
-                          loginTracker.get());
-        ErrorCodes loginResult = loginTracker->waitForResult();
-        ASSERT_EQ(loginResult, API_OK) << "Login failed in SetUp().";
+                          &loginTracker);
+        ASSERT_EQ(loginTracker.waitForResult(), API_OK) << "Login failed in SetUp(). Error: " << loginTracker.getErrorString();
 
-        auto killSessionTracker = ::mega::make_unique<RequestTracker>(megaApi[i]);
-        megaApi[i]->killSession(INVALID_HANDLE, killSessionTracker.get());
-        ErrorCodes killsessionResult = killSessionTracker->waitForResult();
-        ASSERT_EQ(killsessionResult, API_OK) << "Kill sessions failed in SetUp().";
-        auto logoutTracker = ::mega::make_unique<RequestTracker>(megaApi[i]);
+        RequestTracker killSessionTracker;
+        megaApi[i]->killSession(INVALID_HANDLE, &killSessionTracker);
+        ASSERT_EQ(killSessionTracker.waitForResult(), API_OK) << "Kill sessions failed in SetUp(). Error: " << killSessionTracker.getErrorString();
+        RequestTracker logoutTracker;
 #ifdef ENABLE_SYNC
-        megaApi[i]->logout(false, logoutTracker.get());
+        megaApi[i]->logout(false, &logoutTracker);
 #else
-        megaApi[i]->logout(logoutTracker.get());
+        megaApi[i]->logout(&logoutTracker);
 #endif
-        ErrorCodes logoutResult = logoutTracker->waitForResult();
+        int logoutResult = logoutTracker.waitForResult();
         ASSERT_TRUE(logoutResult == API_OK || logoutResult == API_ESID) <<
-                         "Logout failed in SetUp(). Error: " << logoutResult;
+                         "Logout failed in SetUp(). Error: " << logoutResult << ' ' << logoutTracker.getErrorString();
 
         for (int j = 0; j < ::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
@@ -419,14 +417,13 @@ void MegaChatApiTest::TearDown()
 
                 removePendingContactRequest(i);
 
-                auto logoutTracker = ::mega::make_unique<RequestTracker>(megaApi[i]);
+                RequestTracker logoutTracker;
 #ifdef ENABLE_SYNC
-                megaApi[i]->logout(false, logoutTracker.get());
+                megaApi[i]->logout(false, &logoutTracker);
 #else
-                megaApi[i]->logout(logoutTracker.get());
+                megaApi[i]->logout(&logoutTracker);
 #endif
-                ErrorCodes logoutResult = logoutTracker->waitForResult();
-                ASSERT_EQ(logoutResult, API_OK) << "Failed to logout from SDK.";
+                TEST_LOG_ERROR(logoutTracker.waitForResult() == API_OK, "Failed to logout from SDK. Error: " + logoutTracker.getErrorString());
             }
 
             delete megaApi[i];
@@ -733,10 +730,9 @@ TEST_F(MegaChatApiTest, ResumeSession)
 
     // ___ Resume an existing session without karere cache ___
     // logout from SDK keeping cache
-    auto logoutTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
-    megaApi[accountIndex]->localLogout(logoutTracker.get());
-    ErrorCodes logoutResult = logoutTracker->waitForResult();
-    ASSERT_EQ(logoutResult, API_OK) << "Error local sdk logout.";
+    RequestTracker logoutTracker;
+    megaApi[accountIndex]->localLogout(&logoutTracker);
+    ASSERT_EQ(logoutTracker.waitForResult(), API_OK) << "Error local sdk logout. Error: " << logoutTracker.getErrorString();
 
     // logout from Karere removing cache
     bool *flagChatLogout = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagChatLogout = false;
@@ -754,19 +750,17 @@ TEST_F(MegaChatApiTest, ResumeSession)
     // ___ Re-create Karere cache without login out from SDK___
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     // login in SDK
-    auto loginTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
-    session ? megaApi[accountIndex]->fastLogin(session, loginTracker.get())
+    RequestTracker loginTracker;
+    session ? megaApi[accountIndex]->fastLogin(session, &loginTracker)
             : megaApi[accountIndex]->login(account(accountIndex).getEmail().c_str(),
                                            account(accountIndex).getPassword().c_str(),
-                                           loginTracker.get());
-    ErrorCodes loginResult = loginTracker->waitForResult();
-    ASSERT_EQ(loginResult, API_OK) << "Error sdk fast login.";
+                                           &loginTracker);
+    ASSERT_EQ(loginTracker.waitForResult(), API_OK) << "Error sdk fast login. Error: " << loginTracker.getErrorString();
 
     // fetchnodes in SDK
-    auto fetchNodesTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
-    megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
-    ErrorCodes fetchNodesResult = fetchNodesTracker->waitForResult();
-    ASSERT_EQ(fetchNodesResult, API_OK) << "Error fetchnodes.";
+    RequestTracker fetchNodesTracker;
+    megaApi[accountIndex]->fetchNodes(&fetchNodesTracker);
+    ASSERT_EQ(fetchNodesTracker.waitForResult(), API_OK) << "Error fetchnodes. Error: " << fetchNodesTracker.getErrorString();
     ASSERT_TRUE(waitForResponse(flagInit)) << "Expired timeout for change init state";
     int initStateValue = initState[accountIndex];
     ASSERT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) << "Wrong chat initialization state.";
@@ -803,10 +797,9 @@ TEST_F(MegaChatApiTest, ResumeSession)
 
     MegaApi::removeLoggerObject(logger());
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
-    fetchNodesTracker.reset(new RequestTracker(megaApi[accountIndex]));
-    megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
-    fetchNodesResult = fetchNodesTracker->waitForResult();
-    ASSERT_EQ(fetchNodesResult, API_OK) << "Error fetchnodes.";
+    RequestTracker fetchNodesTracker2;
+    megaApi[accountIndex]->fetchNodes(&fetchNodesTracker2);
+    ASSERT_EQ(fetchNodesTracker2.waitForResult(), API_OK) << "Error fetchnodes. Error: " << fetchNodesTracker2.getErrorString();
     ASSERT_TRUE(waitForResponse(flagInit)) << "Expired timeout for change init state";
     initStateValue = initState[accountIndex];
     ASSERT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) <<
@@ -830,27 +823,24 @@ TEST_F(MegaChatApiTest, ResumeSession)
     megaChatApi[accountIndex]->addChatListener(this);
     MegaChatApi::setLoggerObject(logger());
     // login in SDK
-    loginTracker.reset(new RequestTracker(megaApi[accountIndex]));
+    RequestTracker loginTracker2;
     megaApi[accountIndex]->login(account(accountIndex).getEmail().c_str(),
                                  account(accountIndex).getPassword().c_str(),
-                                 loginTracker.get());
-    loginResult = loginTracker->waitForResult();
-    ASSERT_EQ(loginResult, API_OK) << "Error fast login.";
+                                 &loginTracker2);
+    ASSERT_EQ(loginTracker2.waitForResult(), API_OK) << "Error fast login. Error: " << loginTracker2.getErrorString();
     session = megaApi[accountIndex]->dumpSession();
     // fetchnodes in SDK
-    fetchNodesTracker.reset(new RequestTracker(megaApi[accountIndex]));
-    megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
-    fetchNodesResult = fetchNodesTracker->waitForResult();
-    ASSERT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes.";
+    RequestTracker fetchNodesTracker3;
+    megaApi[accountIndex]->fetchNodes(&fetchNodesTracker3);
+    ASSERT_EQ(fetchNodesTracker3.waitForResult(), API_OK) << "Error fetch nodes. Error: " << fetchNodesTracker3.getErrorString();
     // init in Karere
     ASSERT_EQ(megaChatApi[accountIndex]->init(session), MegaChatApi::INIT_NO_CACHE) << "Bad Megachat state.";
     MegaApi::removeLoggerObject(logger());
     // full-fetchndoes in SDK to regenerate cache in Karere
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
-    fetchNodesTracker.reset(new RequestTracker(megaApi[accountIndex]));
-    megaApi[accountIndex]->fetchNodes(fetchNodesTracker.get());
-    fetchNodesResult = fetchNodesTracker->waitForResult();
-    ASSERT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes.";
+    RequestTracker fetchNodesTracker4;
+    megaApi[accountIndex]->fetchNodes(&fetchNodesTracker4);
+    ASSERT_EQ(fetchNodesTracker4.waitForResult(), API_OK) << "Error fetch nodes. Error: " << fetchNodesTracker4.getErrorString();
     ASSERT_TRUE(waitForResponse(flagInit)) << "Expired timeout for change init state";
     initStateValue = initState[accountIndex];
     ASSERT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) << "Bad Megachat state.";
@@ -2395,17 +2385,15 @@ TEST_F(MegaChatApiTest, Attachment)
 
     // A gets the thumbnail of the uploaded image
     std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
-    auto getThumbnailTracker = ::mega::make_unique<RequestTracker>(megaApi[a1]);
-    megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), getThumbnailTracker.get());
-    ErrorCodes getThumbnailResult = getThumbnailTracker->waitForResult();
-    ASSERT_EQ(getThumbnailResult, API_OK) << "Failed to get thumbnail.";
+    RequestTracker getThumbnailTracker;
+    megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), &getThumbnailTracker);
+    ASSERT_EQ(getThumbnailTracker.waitForResult(), API_OK) << "Failed to get thumbnail. Error: " << getThumbnailTracker.getErrorString();
 
     // B gets the thumbnail of the attached image
     thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
-    getThumbnailTracker.reset(new RequestTracker(megaApi[a2]));
-    megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), getThumbnailTracker.get());
-    getThumbnailResult = getThumbnailTracker->waitForResult();
-    ASSERT_EQ(getThumbnailResult, API_OK) << "Failed to get thumbnail.";
+    RequestTracker getThumbnailTracker2;
+    megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), &getThumbnailTracker2);
+    ASSERT_EQ(getThumbnailTracker2.waitForResult(), API_OK) << "Failed to get thumbnail (2). Error: " << getThumbnailTracker2.getErrorString();
 
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
@@ -4696,15 +4684,14 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     bool *flagContactRequestUpdatedSecondary = &mContactRequestUpdated[a2];
     *flagContactRequestUpdatedSecondary = false;
     std::string contactRequestMessage = "Contact Request Message";
-    auto inviteContactTracker = ::mega::make_unique<RequestTracker>(megaApi[a1]);
+    RequestTracker inviteContactTracker;
     megaApi[a1]->inviteContact(account(a2).getEmail().c_str(),
                                contactRequestMessage.c_str(),
                                MegaContactRequest::INVITE_ACTION_ADD,
-                               inviteContactTracker.get());
+                               &inviteContactTracker);
 
     ASSERT_TRUE(waitForResponse(flagRequestInviteContact)) << "Expired timeout for invite contact request";
-    ErrorCodes inviteContactResult = inviteContactTracker->waitForResult();
-    ASSERT_EQ(inviteContactResult, API_OK) << "Error invite contact.";
+    ASSERT_EQ(inviteContactTracker.waitForResult(), API_OK) << "Error invite contact. Error: " << inviteContactTracker.getErrorString();
     ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedSecondary)) << "Expired timeout for receive contact request";
 
     ASSERT_NO_FATAL_FAILURE({ getContactRequest(a2, false); });
@@ -4713,12 +4700,11 @@ void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
     *flagReplyContactRequest = false;
     bool *flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
     *flagContactRequestUpdatedPrimary = false;
-    auto replyContactRequestTracker = ::mega::make_unique<RequestTracker>(megaApi[a2]);
+    RequestTracker replyContactRequestTracker;
     megaApi[a2]->replyContactRequest(mContactRequest[a2], MegaContactRequest::REPLY_ACTION_ACCEPT,
-                                     replyContactRequestTracker.get());
+                                     &replyContactRequestTracker);
     ASSERT_TRUE(waitForResponse(flagReplyContactRequest)) << "Expired timeout for reply contact request";
-    ErrorCodes replyContactRequestResult = replyContactRequestTracker->waitForResult();
-    ASSERT_EQ(replyContactRequestResult, API_OK) << "Error reply contact request.";
+    ASSERT_EQ(replyContactRequestTracker.waitForResult(), API_OK) << "Error reply contact request. Error: " << replyContactRequestTracker.getErrorString();
     ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedPrimary)) << "Expired timeout for receive contact request reply";
 
     delete mContactRequest[a2];
@@ -5269,14 +5255,11 @@ bool MegaChatApiTest::importNode(int accountIndex, MegaNode *node, const string 
 {
     mNodeCopiedHandle[accountIndex] = INVALID_HANDLE;
     megaApi[accountIndex]->authorizeNode(node);
-    MegaNode *parentNode = megaApi[accountIndex]->getRootNode();
-    auto copyNodeTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
-    megaApi[accountIndex]->copyNode(node, parentNode, targetName.c_str(), copyNodeTracker.get());
-    ErrorCodes copyNodeResult = copyNodeTracker->waitForResult();
-    delete parentNode;
-    parentNode = NULL;
+    unique_ptr<MegaNode> parentNode(megaApi[accountIndex]->getRootNode());
+    RequestTracker copyNodeTracker;
+    megaApi[accountIndex]->copyNode(node, parentNode.get(), targetName.c_str(), &copyNodeTracker);
 
-    return copyNodeResult == API_OK;
+    return copyNodeTracker.waitForResult() == API_OK;
 }
 
 void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize)
@@ -5384,11 +5367,11 @@ void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
             purgeCloudTree(accountIndex, childrenNode);
         }
 
-        auto removeTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
-        megaApi[accountIndex]->remove(childrenNode, removeTracker.get());
-        ErrorCodes removeResult = removeTracker->waitForResult();
+        RequestTracker removeTracker;
+        megaApi[accountIndex]->remove(childrenNode, &removeTracker);
+        int removeResult = removeTracker.waitForResult();
         TEST_LOG_ERROR((removeResult == API_OK), "Failed to remove node. Error: "
-                       + std::to_string(removeResult));
+                       + std::to_string(removeResult) + ' ' + removeTracker.getErrorString());
     }
 
     delete children;
@@ -5427,14 +5410,14 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
     for (int i = 0; i < contactRequests->size(); i++)
     {
         MegaContactRequest *contactRequest = contactRequests->get(i);
-        auto inviteContactTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
+        RequestTracker inviteContactTracker;
         megaApi[accountIndex]->inviteContact(contactRequest->getTargetEmail(),
                                              "Removing you",
                                              MegaContactRequest::INVITE_ACTION_DELETE,
-                                             inviteContactTracker.get());
-        ErrorCodes inviteContactResult = inviteContactTracker->waitForResult();
+                                             &inviteContactTracker);
+        int inviteContactResult = inviteContactTracker.waitForResult();
         TEST_LOG_ERROR((inviteContactResult == API_OK), "Failed to remove peer. Error: "
-                       + std::to_string(inviteContactResult));
+                       + std::to_string(inviteContactResult) + ' ' + inviteContactTracker.getErrorString());
     }
 
     delete contactRequests;
@@ -5443,24 +5426,18 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
 
 void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string lastName)
 {
-    auto setUserAttributeTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
+    RequestTracker setUserAttributeTracker;
     megaApi[accountIndex]->setUserAttribute(MegaApi::USER_ATTR_LASTNAME, lastName.c_str(),
-                                            setUserAttributeTracker.get());
-    ErrorCodes setUserAttributeResult = setUserAttributeTracker->waitForResult();
-    ASSERT_EQ(setUserAttributeResult, API_OK) << "Failed SDK request to change lastname.";
+                                            &setUserAttributeTracker);
+    ASSERT_EQ(setUserAttributeTracker.waitForResult(), API_OK)
+            << "Failed SDK request to change lastname. Error: " << setUserAttributeTracker.getErrorString();
 
-    auto getUserAttributeTracker = ::mega::make_unique<RequestTracker>(megaApi[accountIndex]);
+    RequestTracker getUserAttributeTracker;
     megaApi[accountIndex]->getUserAttribute(MegaApi::USER_ATTR_LASTNAME,
-                                            getUserAttributeTracker.get());
-    ErrorCodes getUserAttributeResult = getUserAttributeTracker->waitForResult();
-
-    ASSERT_NE(getUserAttributeResult, static_cast<ErrorCodes>(-999)) <<
-                     "Expired timeout to get last name after own change ("
-                      << maxTimeout << " seconds)";
-    ASSERT_EQ(getUserAttributeResult, API_OK) << "Failed SDK to get lastname.";
-
-    std::string currentUserLastName {getUserAttributeTracker->request->getText()};
-    ASSERT_EQ(currentUserLastName, lastName) << "Failed SDK last name update.";
+                                            &getUserAttributeTracker);
+    ASSERT_EQ(getUserAttributeTracker.waitForResult(), API_OK)
+            << "Failed SDK to get lastname. Error: " << getUserAttributeTracker.getErrorString();
+    ASSERT_EQ(getUserAttributeTracker.getText(), lastName) << "Failed SDK last name update.";
 
 
     // This sleep is necessary to allow execute the two listeners (MegaChatApi and MegaChatApiTest) for
