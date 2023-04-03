@@ -1184,9 +1184,9 @@ Client::InitState Client::initWithAnonymousSession()
     return mInitState;
 }
 
-promise::Promise<void> Client::initWithNewSession(const char* sid, const std::string& scsn,
-    const std::shared_ptr<mega::MegaUserList>& contactList,
-    const std::shared_ptr<mega::MegaTextChatList>& chatList)
+bool Client::initWithNewSession(const char* sid, const std::string& scsn,
+    mega::MegaUserList& contactList,
+    mega::MegaTextChatList& chatList)
 {
     assert(sid);
 
@@ -1206,28 +1206,27 @@ promise::Promise<void> Client::initWithNewSession(const char* sid, const std::st
     mUserAttrCache.reset(new UserAttrCache(*this));
     api.sdk.addGlobalListener(this);
 
-    auto wptr = weakHandle();
-    return loadOwnKeysFromApi()
-    .then([this, scsn, contactList, chatList, wptr]()
+    if (!loadOwnKeysFromApi())
     {
-        if (wptr.deleted())
-            return;
+        return false;
+    }
 
-        // Add users from API
-        mContactList->syncWithApi(*contactList);
-        mChatdClient.reset(new chatd::Client(this));
-        assert(chats->empty());
-        chats->onChatsUpdate(*chatList);
-        commit(scsn);
+    // Add users from API
+    mContactList->syncWithApi(contactList);
+    mChatdClient.reset(new chatd::Client(this));
+    assert(chats->empty());
+    chats->onChatsUpdate(chatList);
+    commit(scsn);
 
-        // Get aliases from cache
-        mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
-        ::mega::MegaApi::USER_ATTR_ALIAS, this,
-        [](Buffer *data, void *userp)
-        {
-            static_cast<Client*>(userp)->updateAliases(data);
-        });
+    // Get aliases from cache
+    mAliasAttrHandle = mUserAttrCache->getAttr(mMyHandle,
+    ::mega::MegaApi::USER_ATTR_ALIAS, this,
+    [](Buffer *data, void *userp)
+    {
+        static_cast<Client*>(userp)->updateAliases(data);
     });
+
+    return true;
 }
 
 void Client::setCommitMode(bool commitEach)
@@ -1577,22 +1576,20 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
-                initWithNewSession(sid->c_str(), scsn, contactList, chatList)
-                .fail([this](const ::promise::Error& err)
-                {
-                    setInitState(kInitErrGeneric);
-                    KR_LOG_ERROR("Failed to initialize MEGAchat");
-                    api.sdk.resumeActionPackets();
-                    return err;
-                })
-                .then([this]()
+                if (initWithNewSession(sid->c_str(), scsn, *contactList, *chatList))
                 {
                     setInitState(kInitHasOnlineSession);
                     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
 
                     connect();
-                });
+                }
+                else
+                {
+                    setInitState(kInitErrGeneric);
+                    KR_LOG_ERROR("Failed to initialize MEGAchat");
+                    api.sdk.resumeActionPackets();
+                }
             }
             else    // a full reload happened (triggered by API or by the user)
             {
@@ -1927,35 +1924,41 @@ uint64_t Client::initMyIdentity()
     return result;
 }
 
-promise::Promise<void> Client::loadOwnKeysFromApi()
+bool Client::loadOwnKeysFromApi()
 {
-    return api.call(&::mega::MegaApi::getUserAttribute, (int)mega::MegaApi::USER_ATTR_KEYRING)
-    .then([this](ReqResult result) -> promise::Promise<void>
+    std::unique_ptr<char[]> prEd255(api.sdk.getPrivateKey(mega::MegaApi::PRIVATE_KEY_ED25519));
+    std::unique_ptr<char[]> prCu255(api.sdk.getPrivateKey(mega::MegaApi::PRIVATE_KEY_CU25519));
+
+    if (!prEd255 || !prCu255)
     {
-        auto keys = result->getMegaStringMap();
-        auto cu25519 = keys->get("prCu255");
-        if (!cu25519)
-            return ::promise::Error("prCu255 private key missing in keyring from API");
-        auto ed25519 = keys->get("prEd255");
-        if (!ed25519)
-            return ::promise::Error("prEd255 private key missing in keyring from API");
+        KR_LOG_ERROR("loadOwnKeysFromApi: failure loading keys from API");
+        return false;
+    }
 
-        auto b64len = strlen(cu25519);
-        if (b64len != 43)
-            return ::promise::Error("prCu255 base64 key length is not 43 bytes");
-        base64urldecode(cu25519, b64len, mMyPrivCu25519, sizeof(mMyPrivCu25519));
+    auto b64len = strlen(prCu255.get());
+    if (b64len != 43)
+    {
+        KR_LOG_ERROR("loadOwnKeysFromApi: Invalid size for private cu255 key");
+        return false;
+    }
 
-        b64len = strlen(ed25519);
-        if (b64len != 43)
-            return ::promise::Error("prEd255 base64 key length is not 43 bytes");
-        base64urldecode(ed25519, b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
+    base64urldecode(prCu255.get(), b64len, mMyPrivCu25519, sizeof(mMyPrivCu25519));
 
-        // write to db
-        db.query("insert or replace into vars(name,value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
-        db.query("insert or replace into vars(name,value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
-        KR_LOG_DEBUG("loadOwnKeysFromApi: success");
-        return promise::_Void();
-    });
+    b64len = strlen(prEd255.get());
+    if (b64len != 43)
+    {
+        KR_LOG_ERROR("loadOwnKeysFromApi: Invalid size for private ed255 key");
+        return false;
+    }
+
+    base64urldecode(prEd255.get(), b64len, mMyPrivEd25519, sizeof(mMyPrivEd25519));
+
+    // write to db
+    db.query("insert or replace into vars(name,value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
+    db.query("insert or replace into vars(name,value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
+    KR_LOG_DEBUG("loadOwnKeysFromApi: success");
+
+    return true;
 }
 
 void Client::loadOwnKeysFromDb()
