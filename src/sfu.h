@@ -201,7 +201,7 @@ class SfuInterface
 {
 public:
     // SFU -> Client commands
-    virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
+    virtual bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) = 0;   // audio/video/on-hold flags
     virtual bool handleAnswerCommand(Cid_t cid, Sdp& spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
     virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
@@ -257,7 +257,7 @@ protected:
     SfuInterface& mCall;
 };
 
-typedef std::function<bool(karere::Id, unsigned)> AvCompleteFunction;
+typedef std::function<bool(karere::Id, unsigned, uint32_t)> AvCompleteFunction;
 class AVCommand : public Command
 {
 public:

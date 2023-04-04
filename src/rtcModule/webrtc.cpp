@@ -1263,7 +1263,7 @@ bool Call::hasCallKey()
     return !mCallKey.empty();
 }
 
-bool Call::handleAvCommand(Cid_t cid, unsigned av)
+bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
 {
     if (mState != kStateJoining && mState != kStateInProgress)
     {
@@ -1285,8 +1285,25 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
         return false;
     }
 
+    bool oldAudioFlag = session->getAvFlags().audio();
+
     // update session flags
     session->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
+
+    if (aMid != sfu::TrackDescriptor::invalidMid)
+    {
+        assert(session->getAvFlags().audio());
+        sfu::TrackDescriptor trackDescriptor;
+        trackDescriptor.mMid = aMid;
+        trackDescriptor.mReuse = true;
+
+        addSpeaker(cid, trackDescriptor);
+    }
+    else if (oldAudioFlag && !session->getAvFlags().audio())
+    {
+        removeSpeaker(cid);
+    }
+
     return true;
 }
 

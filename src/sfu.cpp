@@ -399,7 +399,15 @@ bool AVCommand::processCommand(const rapidjson::Document &command)
     }
 
     unsigned av = avIterator->value.GetUint();
-    return mComplete(cid, av);
+
+    rapidjson::Value::ConstMemberIterator amidIterator = command.FindMember("amid");
+    int audioMid = TrackDescriptor::invalidMid;
+    if (amidIterator != command.MemberEnd() && amidIterator->value.IsInt()) // It's optional
+    {
+        audioMid = amidIterator->value.GetUint();
+    }
+
+    return mComplete(cid, av, audioMid);
 }
 
 AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete, SfuInterface &call)
@@ -1547,7 +1555,7 @@ const karere::Url& SfuConnection::getSfuUrl()
 
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
-    commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9), call);
     commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);

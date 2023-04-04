@@ -6298,7 +6298,7 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-bool MockupCall::handleAvCommand(Cid_t, unsigned)
+bool MockupCall::handleAvCommand(Cid_t, unsigned, uint32_t)
 {
     return true;
 }
