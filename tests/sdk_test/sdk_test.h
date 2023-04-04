@@ -265,6 +265,7 @@ public:
     void TEST_ManualCalls(unsigned int a1, unsigned int a2);
     void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
     void TEST_EstablishedCalls(unsigned int a1, unsigned int a2);
+    void TEST_ScheduledMeetings(unsigned int a1, unsigned int a2);
 #endif
 
     void TEST_RichLinkUserAttribute(unsigned int a1);
@@ -380,6 +381,8 @@ private:
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mSchedIdUpdated[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mSchedIdRemoved[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
     bool mChatCallOnHold[NUM_ACCOUNTS];
@@ -390,6 +393,9 @@ private:
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
     bool mChatCallReconnection[NUM_ACCOUNTS];
+    bool mSchedMeetingUpdated[NUM_ACCOUNTS];
+    bool mSchedOccurrUpdated[NUM_ACCOUNTS];
+    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> mOccurrList[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -603,7 +609,7 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
+    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
@@ -615,12 +621,11 @@ public:
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(unsigned termcode) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
-    void onSfuConnected() override;
     void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
