@@ -2101,7 +2101,7 @@ bool Call::handleDeny(const std::string& cmd, const std::string& msg)
                            mState, kStateJoining, msg.c_str());
             return false;
         }
-        // add support with Waiting rooms and then call orderedCallDisconnect with TermCode::orderedCallDisconnect
+        orderedCallDisconnect(TermCode::kErrorProtocolVersion, "Client doesn't supports waiting rooms");
     }
     else
     {
