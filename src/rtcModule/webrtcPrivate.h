@@ -354,6 +354,7 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    bool isAllowSpeak() const override;
 
     //
     // ------ end ICall methods -----

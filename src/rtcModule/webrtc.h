@@ -223,6 +223,8 @@ public:
     virtual int64_t getInitialOffsetinMs() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
+
+    virtual bool isAllowSpeak() const = 0;
 };
 
 class RtcModule

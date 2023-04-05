@@ -1916,7 +1916,15 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 if (enable)
                 {
-                    requestedFlags.add(karere::AvFlags::kAudio);
+                    if (call->isAllowSpeak())
+                    {
+                        requestedFlags.add(karere::AvFlags::kAudio);
+                    }
+                    else
+                    {
+                        API_LOG_WARNING("Enable audio - isn't allow, peer doesn't have speaker permission");
+                        errorCode = MegaChatError::ERROR_ACCESS;
+                    }
                 }
                 else
                 {

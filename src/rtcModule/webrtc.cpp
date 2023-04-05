@@ -551,6 +551,11 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     }
 }
 
+bool Call::isAllowSpeak() const
+{
+    return mSpeakerState == SpeakerState::kActive;
+}
+
 void Call::requestSpeaker(bool add)
 {
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
