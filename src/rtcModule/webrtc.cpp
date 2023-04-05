@@ -2078,6 +2078,40 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     return true;
 }
 
+bool Call::handleDeny(const std::string& cmd, const std::string& msg)
+{
+    // TODO notify about the deny of the command in an appropriate callback
+    if (cmd == "audio")
+    {
+        if (getLocalAvFlags().audio())
+        {
+            // update and send local AV flags
+            karere::AvFlags currentFlags = getLocalAvFlags();
+            currentFlags.remove(karere::AvFlags::kAudio);
+            mMyPeer->setAvFlags(currentFlags);
+            updateAudioTracks();
+            mCallHandler.onLocalFlagsChanged(*this);
+        }
+    }
+    else if (cmd == "JOIN")
+    {
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_ERROR("Deny 'JOIN' received. Current call state: %d, expected call state: %d. %s",
+                           mState, kStateJoining, msg.c_str());
+            return false;
+        }
+        // add support with Waiting rooms and then call orderedCallDisconnect with TermCode::orderedCallDisconnect
+    }
+    else
+    {
+        assert(false);
+        RTCM_LOG_ERROR("Deny cmd received for unexpected command: %s", msg.c_str());
+        return false;
+    }
+    return true;
+}
+
 void Call::onSfuDisconnected()
 {
 

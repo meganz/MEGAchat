@@ -220,6 +220,8 @@ public:
                                        const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                        const std::map<karere::Id, bool>& wrUsers) = 0;
 
+    virtual bool handleDeny(const std::string& cmd, const std::string& msg) = 0;
+
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
@@ -454,6 +456,19 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HelloCommandFunction mComplete;
+};
+
+
+typedef std::function<bool(const std::string& cmd,
+                           const std::string& msg)>DenyCommandFunction;
+
+class DenyCommand : public Command
+{
+public:
+    DenyCommand(const DenyCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    DenyCommandFunction mComplete;
 };
 
 /**

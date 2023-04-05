@@ -6414,4 +6414,10 @@ bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudio
 {
     return false;
 }
+
+bool MockupCall::handleDeny(const std::string& /*cmd*/, const std::string& /*msg*/)
+{
+    return false;
+}
+
 #endif

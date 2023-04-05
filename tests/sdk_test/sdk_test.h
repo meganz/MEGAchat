@@ -630,6 +630,8 @@ public:
     bool handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
                                        const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
                                        const std::map<karere::Id, bool>& /*wrUsers*/) override;
+
+    bool handleDeny(const std::string& /*cmd*/, const std::string& /*msg*/) override;
 };
 #endif
 #endif // CHATTEST_H

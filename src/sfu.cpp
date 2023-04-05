@@ -37,6 +37,7 @@ const std::string ByeCommand::COMMAND_NAME              = "BYE";            // N
 const std::string ModAddCommand::COMMAND_NAME           = "MOD_ADD";        // Notifies that a moderator has been added to the moderator list
 const std::string ModDelCommand::COMMAND_NAME           = "MOD_DEL";        // Notifies that a moderator has been removed from the moderator list
 const std::string HelloCommand::COMMAND_NAME            = "HELLO";          // First command received after connecting to the SFU
+const std::string DenyCommand::COMMAND_NAME             = "DENY";           // Notifies that a command previously sent to SFU has been denied
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
@@ -1574,6 +1575,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
     commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
     commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
+    commands[DenyCommand::COMMAND_NAME] = mega::make_unique<DenyCommand>(std::bind(&sfu::SfuInterface::handleDeny, &call, std::placeholders::_1, std::placeholders::_2), call);
 }
 
 bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& document, std::string& command, std::string& warnMsg, std::string& errMsg, int32_t& errCode)
@@ -2602,6 +2604,32 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         }
     }
     return mComplete(cid, nAudioTracks, nVideoTracks, moderators, wr, allowed, wrUsers);
+}
+
+DenyCommand::DenyCommand(const DenyCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool DenyCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator cmdIterator = command.FindMember("deny");
+    if (cmdIterator == command.MemberEnd() || !cmdIterator->value.IsString())
+    {
+        assert(false);
+        SFU_LOG_ERROR("DenyCommand: Received data doesn't have 'deny' field");
+        return false;
+    }
+    std::string cmd = cmdIterator->value.GetString();
+
+    std::string msg;
+    rapidjson::Value::ConstMemberIterator msgIterator = command.FindMember("msg");
+    if (msgIterator != command.MemberEnd() && msgIterator->value.IsString())
+    {
+        msg = cmdIterator->value.GetString();
+    }
+    return mComplete(cmd, msg);
 }
 }
 #endif
