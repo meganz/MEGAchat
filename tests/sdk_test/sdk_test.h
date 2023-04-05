@@ -626,12 +626,11 @@ public:
     void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
+    bool processDeny(const std::string& cmd, const std::string& msg) override;
     void logError(const char* error) override;
     bool handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
                                        const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
                                        const std::map<karere::Id, bool>& /*wrUsers*/) override;
-
-    bool handleDeny(const std::string& /*cmd*/, const std::string& /*msg*/) override;
 };
 #endif
 #endif // CHATTEST_H

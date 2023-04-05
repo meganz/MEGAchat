@@ -2078,40 +2078,6 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     return true;
 }
 
-bool Call::handleDeny(const std::string& cmd, const std::string& msg)
-{
-    mCallHandler.onCallDeny(*this, cmd, msg); // notify apps about the denied command
-
-    if (cmd == "audio") // audio ummute has been denied by SFU
-    {
-        if (getLocalAvFlags().audio())
-        {
-            karere::AvFlags currentFlags = getLocalAvFlags();
-            currentFlags.remove(karere::AvFlags::kAudio);
-            mMyPeer->setAvFlags(currentFlags);
-            updateAudioTracks();
-            mCallHandler.onLocalFlagsChanged(*this);
-        }
-    }
-    else if (cmd == "JOIN")
-    {
-        if (mState != kStateJoining)
-        {
-            RTCM_LOG_ERROR("Deny 'JOIN' received. Current call state: %d, expected call state: %d. %s",
-                           mState, kStateJoining, msg.c_str());
-            return false;
-        }
-        orderedCallDisconnect(TermCode::kErrorProtocolVersion, "Client doesn't supports waiting rooms");
-    }
-    else
-    {
-        assert(false);
-        RTCM_LOG_ERROR("Deny cmd received for unexpected command: %s", msg.c_str());
-        return false;
-    }
-    return true;
-}
-
 void Call::onSfuDisconnected()
 {
 
@@ -2232,6 +2198,40 @@ void Call::onSendByeCommand()
             mTempTermCode = kInvalidTermCode;
         }
     }, mRtc.getAppCtx());
+}
+
+bool Call::processDeny(const std::string& cmd, const std::string& msg)
+{
+    mCallHandler.onCallDeny(*this, cmd, msg); // notify apps about the denied command
+
+    if (cmd == "audio") // audio ummute has been denied by SFU
+    {
+        if (getLocalAvFlags().audio())
+        {
+            karere::AvFlags currentFlags = getLocalAvFlags();
+            currentFlags.remove(karere::AvFlags::kAudio);
+            mMyPeer->setAvFlags(currentFlags);
+            updateAudioTracks();
+            mCallHandler.onLocalFlagsChanged(*this);
+        }
+    }
+    else if (cmd == "JOIN")
+    {
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_ERROR("Deny 'JOIN' received. Current call state: %d, expected call state: %d. %s",
+                           mState, kStateJoining, msg.c_str());
+            return false;
+        }
+        orderedCallDisconnect(TermCode::kErrorProtocolVersion, "Client doesn't supports waiting rooms");
+    }
+    else
+    {
+        assert(false);
+        RTCM_LOG_ERROR("Deny cmd received for unexpected command: %s", msg.c_str());
+        return false;
+    }
+    return true;
 }
 
 bool Call::error(unsigned int code, const std::string &errMsg)

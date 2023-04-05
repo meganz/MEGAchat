@@ -457,8 +457,8 @@ public:
                                        const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                        const std::map<karere::Id, bool>& wrUsers) override;
 
-    bool handleDeny(const std::string& cmd, const std::string& msg) override;
     bool error(unsigned int code, const std::string& errMsg) override;
+    bool processDeny(const std::string& cmd, const std::string& msg) override;
     void logError(const char* error) override;
 
     // PeerConnectionInterface events

@@ -11,13 +11,12 @@ namespace sfu
 const std::string Sdp::endl = "\r\n";
 
 // SFU -> client (different types of notifications)
-std::string Command::COMMAND_IDENTIFIER                 = "a";
-std::string Command::ERROR_IDENTIFIER                   = "err";
-std::string Command::WARN_IDENTIFIER                    = "warn";
-std::string Command::ERROR_MESSAGE                      = "msg";
+std::string Command::COMMAND_IDENTIFIER                 = "a";              // Command sent from SFU
+std::string Command::ERROR_IDENTIFIER                   = "err";            // Error sent from SFU
+std::string Command::WARN_IDENTIFIER                    = "warn";           // Warning sent from SFU
+std::string Command::DENY_IDENTIFIER                    = "deny";           // Notifies that a command previously sent to SFU has been denied
 
 // SFU -> client (commands)
-
 const std::string AVCommand::COMMAND_NAME               = "AV";             // Notifies changes in Av flags for a peer
 const std::string AnswerCommand::COMMAND_NAME           = "ANSWER";         // SFU response to JOIN command
 const std::string KeyCommand::COMMAND_NAME              = "KEY";            // Notifies about a new media key for a peer
@@ -37,7 +36,6 @@ const std::string ByeCommand::COMMAND_NAME              = "BYE";            // N
 const std::string ModAddCommand::COMMAND_NAME           = "MOD_ADD";        // Notifies that a moderator has been added to the moderator list
 const std::string ModDelCommand::COMMAND_NAME           = "MOD_DEL";        // Notifies that a moderator has been removed from the moderator list
 const std::string HelloCommand::COMMAND_NAME            = "HELLO";          // First command received after connecting to the SFU
-const std::string DenyCommand::COMMAND_NAME             = "DENY";           // Notifies that a command previously sent to SFU has been denied
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
@@ -1575,98 +1573,126 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
     commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
     commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
-    commands[DenyCommand::COMMAND_NAME] = mega::make_unique<DenyCommand>(std::bind(&sfu::SfuInterface::handleDeny, &call, std::placeholders::_1, std::placeholders::_2), call);
 }
 
-bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& document, std::string& command, std::string& warnMsg, std::string& errMsg, int32_t& errCode)
+bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
     rapidjson::StringStream stringStream(data);
-    document.ParseStream(stringStream);
+    jsonDoc.ParseStream(stringStream);
 
-    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    if (jsonDoc.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
     {
-        errMsg = "Failure at: Parser json error";
+        parsedData.msg = "Failure at: Parser json error";
         return false;
     }
 
-    rapidjson::Value::ConstMemberIterator jsonIterator = document.FindMember(Command::COMMAND_IDENTIFIER.c_str());
-    rapidjson::Value::ConstMemberIterator jsonErrIterator = document.FindMember(Command::ERROR_IDENTIFIER.c_str());
-    rapidjson::Value::ConstMemberIterator jsonWarnIterator = document.FindMember(Command::WARN_IDENTIFIER.c_str());
-    if ((jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString())
-            && (jsonErrIterator == document.MemberEnd())
-            && (jsonWarnIterator == document.MemberEnd()))
+    // command received {"a": "command", ...}
+    rapidjson::Value::ConstMemberIterator jsonCommandIterator = jsonDoc.FindMember(Command::COMMAND_IDENTIFIER.c_str());
+    if (jsonCommandIterator != jsonDoc.MemberEnd() && !jsonCommandIterator->value.IsString())
     {
-        errMsg = "Received data doesn't have 'a' field";
-        return false;
+        parsedData.notificationType = SfuData::SFU_COMMAND;
+        parsedData.notification = jsonCommandIterator->value.GetString();
+        return true;
     }
 
-    if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
+    // warn received {"warn": "message"}
+    rapidjson::Value::ConstMemberIterator jsonWarnIterator = jsonDoc.FindMember(Command::WARN_IDENTIFIER.c_str());
+    if (jsonWarnIterator != jsonDoc.MemberEnd() && jsonWarnIterator->value.IsString())
     {
-        errMsg = "Unknown reason";
-        rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
-        if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
+        parsedData.notificationType = SfuData::SFU_WARN;
+        parsedData.msg = jsonWarnIterator->value.GetString();
+        return true;
+    }
+
+    // deny received {"deny": "command", "msg": "message"}
+    rapidjson::Value::ConstMemberIterator jsonDenyIterator = jsonDoc.FindMember(Command::DENY_IDENTIFIER.c_str());
+    if (jsonDenyIterator != jsonDoc.MemberEnd() && jsonDenyIterator->value.IsString())
+    {
+        parsedData.notificationType = SfuData::SFU_WARN;
+        parsedData.notification = jsonDenyIterator->value.GetString();
+
+        rapidjson::Value::ConstMemberIterator jsonMsgIterator = jsonDoc.FindMember("msg");
+        if (jsonMsgIterator != jsonDoc.MemberEnd() && jsonMsgIterator->value.IsString())
         {
-            errMsg = jsonErrMsgIterator->value.GetString();
+            parsedData.msg = jsonMsgIterator->value.GetString();
         }
-        errCode = jsonErrIterator->value.GetInt();
         return true;
     }
 
-    if (jsonWarnIterator != document.MemberEnd() && jsonWarnIterator->value.IsString())
+    // err received {"err": "errCode", "msg": "message"}
+    rapidjson::Value::ConstMemberIterator jsonErrIterator = jsonDoc.FindMember(Command::ERROR_IDENTIFIER.c_str());
+    if (jsonErrIterator != jsonDoc.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        warnMsg = jsonWarnIterator->value.GetString();
+        parsedData.notificationType = SfuData::SFU_ERROR;
+        parsedData.errCode = jsonErrIterator->value.GetInt();
+        parsedData.msg = "Unknown reason";
+
+        rapidjson::Value::ConstMemberIterator jsonMsgIterator = jsonDoc.FindMember("msg");
+        if (jsonMsgIterator != jsonDoc.MemberEnd() && jsonMsgIterator->value.IsString())
+        {
+            parsedData.msg = jsonMsgIterator->value.GetString();
+        }
+
         return true;
     }
 
-    command = jsonIterator->value.GetString();
-    return true;
+    assert(false);
+    parsedData.msg = "Invalid Received data doesn't match without any of expected SFU notifications format";
+    return false;
 }
 
 bool SfuConnection::handleIncomingData(const char *data, size_t len)
 {
     // init errCode to invalid value, to check if a valid errCode has been returned by SFU
-    int32_t errCode = INT32_MIN;
-    std::string command;
-    std::string warnMsg;
-    std::string errMsg;
-    rapidjson::Document document;
 
-    if (!parseSfuData(data, document, command, warnMsg, errMsg, errCode))
+    std::string command;
+    rapidjson::Document jsonDoc;
+    SfuData outdata;
+    if (!parseSfuData(data, jsonDoc, outdata))
     {
         // error parsing incoming data from SFU
-        SFU_LOG_ERROR("%s", errMsg.c_str());
+        SFU_LOG_ERROR("%s", outdata.msg.c_str());
         return false;
     }
 
-    if (errCode != INT32_MIN)
+    switch (outdata.notificationType)
     {
-        // process errCode returned by SFU
-        mCall.error(static_cast<unsigned int>(errCode), errMsg);
-        return true;
+        case SfuData::SFU_ERROR:
+                mCall.error(static_cast<unsigned int>(outdata.errCode), outdata.msg);
+                break;
+        case SfuData::SFU_WARN:
+                SFU_LOG_WARNING("%s", outdata.msg.c_str());
+                break;
+        case SfuData::SFU_DENY:
+                mCall.processDeny(outdata.notification, outdata.msg);
+                break;
+        case SfuData::SFU_COMMAND: {
+                const std::string& command = outdata.notification;
+                auto commandIterator = mCommands.find(command);
+                if (commandIterator == mCommands.end())
+                {
+                    SFU_LOG_ERROR("Command is not defined yet");
+                    return false;
+                }
+
+                SFU_LOG_DEBUG("Received Command: %s, Bytes: %d", command.c_str(), len);
+                bool processCommandResult = mCommands[command]->processCommand(jsonDoc);
+                if (processCommandResult && command == AnswerCommand::COMMAND_NAME)
+                {
+                    setConnState(SfuConnection::kJoined);
+                }
+
+                return processCommandResult;
+                }
+        default: {
+                assert (false);
+                SFU_LOG_ERROR("Invalid data received from SFU");
+                return false;
+                }
     }
 
-    if (!warnMsg.empty())
-    {
-        SFU_LOG_WARNING("%s", warnMsg.c_str());
-        return true;
-    }
-
-    auto commandIterator = mCommands.find(command);
-    if (commandIterator == mCommands.end())
-    {
-        SFU_LOG_ERROR("Command is not defined yet");
-        return false;
-    }
-
-    SFU_LOG_DEBUG("Received Command: %s, Bytes: %d", command.c_str(), len);
-    bool processCommandResult = mCommands[command]->processCommand(document);
-    if (processCommandResult && command == AnswerCommand::COMMAND_NAME)
-    {
-        setConnState(SfuConnection::kJoined);
-    }
-
-    return processCommandResult;
+    return true;
 }
 
 bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int speaker, int vthumbs)
@@ -2604,32 +2630,6 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         }
     }
     return mComplete(cid, nAudioTracks, nVideoTracks, moderators, wr, allowed, wrUsers);
-}
-
-DenyCommand::DenyCommand(const DenyCommandFunction& complete, SfuInterface& call)
-    : Command(call)
-    , mComplete(complete)
-{
-}
-
-bool DenyCommand::processCommand(const rapidjson::Document& command)
-{
-    rapidjson::Value::ConstMemberIterator cmdIterator = command.FindMember("deny");
-    if (cmdIterator == command.MemberEnd() || !cmdIterator->value.IsString())
-    {
-        assert(false);
-        SFU_LOG_ERROR("DenyCommand: Received data doesn't have 'deny' field");
-        return false;
-    }
-    std::string cmd = cmdIterator->value.GetString();
-
-    std::string msg;
-    rapidjson::Value::ConstMemberIterator msgIterator = command.FindMember("msg");
-    if (msgIterator != command.MemberEnd() && msgIterator->value.IsString())
-    {
-        msg = cmdIterator->value.GetString();
-    }
-    return mComplete(cmd, msg);
 }
 }
 #endif
