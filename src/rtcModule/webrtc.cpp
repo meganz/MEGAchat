@@ -2080,12 +2080,12 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
 
 bool Call::handleDeny(const std::string& cmd, const std::string& msg)
 {
-    // TODO notify about the deny of the command in an appropriate callback
-    if (cmd == "audio")
+    mCallHandler.onCallDeny(*this, cmd, msg); // notify apps about the denied command
+
+    if (cmd == "audio") // audio ummute has been denied by SFU
     {
         if (getLocalAvFlags().audio())
         {
-            // update and send local AV flags
             karere::AvFlags currentFlags = getLocalAvFlags();
             currentFlags.remove(karere::AvFlags::kAudio);
             mMyPeer->setAvFlags(currentFlags);

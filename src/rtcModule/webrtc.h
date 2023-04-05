@@ -160,6 +160,7 @@ public:
     virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
     virtual void onPermissionsChanged(const ICall& call) = 0;
+    virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
 };
 
 class ICall
