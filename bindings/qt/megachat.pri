@@ -18,7 +18,7 @@ else {
     DEFINES += NDEBUG
 }
 
-CONFIG += c++14
+CONFIG += c++17
 CONFIG += USE_LIBUV
 CONFIG += USE_MEGAAPI
 CONFIG += USE_MEDIAINFO
@@ -56,6 +56,9 @@ else {
 
 # include the configuration for MEGA SDK
 include(../../third-party/mega/bindings/qt/sdk.pri)
+contains(QMAKE_CXXFLAGS, -std=c++11) {
+    QMAKE_CXXFLAGS -= -std=c++11
+}
 
 MEGACHAT_BASE_PATH = $$PWD/../..
 
@@ -77,7 +80,8 @@ SOURCES += megachatapi.cpp \
             karereDbSchema.cpp \
             net/libwebsocketsIO.cpp \
             waiter/libuvWaiter.cpp \
-            kareredb.cpp
+            kareredb.cpp \
+            chatclientDb.cpp
 
 HEADERS  += asyncTest-framework.h \
             buffer.h \
@@ -111,6 +115,7 @@ HEADERS  += asyncTest-framework.h \
             ../bindings/qt/QTMegaChatVideoListener.h \
             ../bindings/qt/QTMegaChatNotificationListener.h \
             ../bindings/qt/QTMegaChatNodeHistoryListener.h \
+            ../bindings/qt/QTMegaChatSchedMeetListener.h \
             base/asyncTools.h \
             base/addrinfo.hpp \
             base/cservices-thread.h \
@@ -142,7 +147,8 @@ HEADERS  += asyncTest-framework.h \
             strongvelope/tlvstore.h \
             strongvelope/strongvelope.h \
             strongvelope/cryptofunctions.h \
-            waiter/libuvWaiter.h
+            waiter/libuvWaiter.h \
+            chatclientDb.h
 
 CONFIG(qt) {
   SOURCES += ../bindings/qt/QTMegaChatEvent.cpp \
@@ -152,7 +158,8 @@ CONFIG(qt) {
             ../bindings/qt/QTMegaChatCallListener.cpp \
             ../bindings/qt/QTMegaChatVideoListener.cpp \
             ../bindings/qt/QTMegaChatNotificationListener.cpp \
-            ../bindings/qt/QTMegaChatNodeHistoryListener.cpp
+            ../bindings/qt/QTMegaChatNodeHistoryListener.cpp \
+            ../bindings/qt/QTMegaChatSchedMeetListener.cpp
 }
 
 CONFIG(USE_WEBRTC) {

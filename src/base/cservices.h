@@ -6,7 +6,7 @@ typedef uv_loop_t eventloop;
 typedef uv_timer_t timerevent;
 
 /* Plain C interface of the services library */
-#include <logger.h>
+#include "base/logger.h"
 
 struct event_base;
 struct event;

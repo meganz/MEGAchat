@@ -152,7 +152,6 @@ public:
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
-    virtual void onLocalAudioDetected(const ICall& call) = 0;
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
@@ -167,7 +166,6 @@ public:
     virtual karere::Id getCallid() const = 0;
     virtual karere::Id getChatid() const = 0;
     virtual karere::Id getCallerid() const = 0;
-    virtual bool isAudioDetected() const = 0;
     virtual CallState getState() const = 0;
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
@@ -223,10 +221,9 @@ public:
     virtual bool isOutgoing() const = 0;
     virtual int64_t getInitialTimeStamp() const = 0;
     virtual int64_t getFinalTimeStamp() const = 0;
-    virtual int64_t getInitialOffset() const = 0;
+    virtual int64_t getInitialOffsetinMs() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
-    virtual void setAudioDetected(bool audioDetected) = 0;
 };
 
 class RtcModule
@@ -238,7 +235,7 @@ public:
     virtual bool isCallStartInProgress(const karere::Id &chatid) const = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
-    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
+    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
     virtual void takeDevice() = 0;
     virtual void releaseDevice() = 0;
     virtual void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) = 0;
@@ -256,6 +253,7 @@ public:
     virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) = 0;
     virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
+
 
 
 void globalCleanup();

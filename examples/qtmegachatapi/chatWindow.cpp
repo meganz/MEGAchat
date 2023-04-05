@@ -1089,6 +1089,13 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
+void ChatWindow::onAudioCallNoRingBtn()
+{
+    std::string schedIdStr = mMainWin->mApp->getText("Get scheduled meeting id");
+    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
+    mMegaChatApi->startChatCallNoRinging(mChatRoom->getChatId(), schedId, false, false);
+}
+
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
     delete this;

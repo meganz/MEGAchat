@@ -12,22 +12,6 @@ void ConnStatsCallBack::removeStats()
     mStats = nullptr;
 }
 
-void ConnStatsCallBack::AddRef() const
-{
-    mRefCount.IncRef();
-}
-
-rtc::RefCountReleaseStatus ConnStatsCallBack::Release() const
-{
-    const auto status = mRefCount.DecRef();
-    if (status == rtc::RefCountReleaseStatus::kDroppedLastRef)
-    {
-        delete this;
-    }
-
-    return status;
-}
-
 std::string Stats::getJson()
 {
     rapidjson::Document json(rapidjson::kObjectType);
@@ -41,7 +25,7 @@ std::string Stats::getJson()
     rapidjson::Value callid(rapidjson::kStringType);
     callid.SetString(mCallid.toString().c_str(), json.GetAllocator());
     json.AddMember("callid", callid, json.GetAllocator());
-    json.AddMember("toffs", mTimeOffset, json.GetAllocator());
+    json.AddMember("toffs", mTimeOffset, json.GetAllocator()); // must be in milliseconds
     json.AddMember("dur", mDuration, json.GetAllocator());
     rapidjson::Value device(rapidjson::kStringType);
     device.SetString(mDevice.c_str(), json.GetAllocator());
@@ -246,7 +230,6 @@ ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lo
     , mLowResId(lowResId)
     , mAppCtx(appCtx)
 {
-    AddRef();
 }
 
 ConnStatsCallBack::~ConnStatsCallBack()
@@ -385,8 +368,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             }
         }
     }, mAppCtx);
-
-    Release();
 }
 
 void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend)

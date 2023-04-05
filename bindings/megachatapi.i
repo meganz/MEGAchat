@@ -115,6 +115,7 @@ extern int sdkVersion;
 %feature("director") megachat::MegaChatRoomListener;
 %feature("director") megachat::MegaChatNotificationListener;
 %feature("director") megachat::MegaChatNodeHistoryListener;
+%feature("director") megachat::MegaChatScheduledMeetingListener;
 
 typedef long long time_t;
 typedef long long uint64_t;

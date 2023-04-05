@@ -98,11 +98,6 @@ karere::Id Call::getCallerid() const
     return mCallerId;
 }
 
-bool Call::isAudioDetected() const
-{
-    return mAudioDetected;
-}
-
 void Call::setState(CallState newState)
 {
     if (newState == mState)
@@ -356,36 +351,10 @@ bool Call::isJoining() const
 
 void Call::enableAudioLevelMonitor(bool enable)
 {
-    if ( (enable && mVoiceDetectionTimer != 0)          // already enabled
-        || (!enable && mVoiceDetectionTimer == 0) )     // already disabled
+    mAudioLevelMonitor = enable;
+    for (auto& itSession : mSessions)
     {
-        return;
-    }
-
-    RTCM_LOG_DEBUG("Audio level monitor %s", enable ? "enabled" : "disabled");
-
-    if (enable)
-    {
-        mAudioDetected = false;
-        auto wptr = weakHandle();
-        mVoiceDetectionTimer = karere::setInterval([this, wptr]()
-        {
-            if (wptr.deleted())
-                return;
-
-            webrtc::AudioProcessingStats audioStats = artc::gAudioProcessing->GetStatistics(false);
-
-            if (audioStats.voice_detected && mAudioDetected != audioStats.voice_detected.value())
-            {
-                setAudioDetected(audioStats.voice_detected.value());
-            }
-        }, kAudioMonitorTimeout, mRtc.getAppCtx());
-    }
-    else
-    {
-        setAudioDetected(false);
-        karere::cancelInterval(mVoiceDetectionTimer, mRtc.getAppCtx());
-        mVoiceDetectionTimer = 0;
+        itSession.second->getAudioSlot()->enableAudioMonitor(enable);
     }
 }
 
@@ -458,7 +427,7 @@ bool Call::isIgnored() const
 
 bool Call::isAudioLevelMonitorEnabled() const
 {
-    return mVoiceDetectionTimer;
+    return mAudioLevelMonitor;
 }
 
 bool Call::hasVideoSlot(Cid_t cid, bool highRes) const
@@ -527,7 +496,7 @@ int64_t Call::getFinalTimeStamp() const
     return mFinalTs;
 }
 
-int64_t Call::getInitialOffset() const
+int64_t Call::getInitialOffsetinMs() const
 {
     return mOffset;
 }
@@ -580,12 +549,6 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
         updateVideoTracks();
         mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
     }
-}
-
-void Call::setAudioDetected(bool audioDetected)
-{
-    mAudioDetected = audioDetected;
-    mCallHandler.onLocalAudioDetected(*this);
 }
 
 void Call::requestSpeaker(bool add)
@@ -1049,7 +1012,6 @@ void Call::clearResources(const TermCode& termCode)
 {
     RTCM_LOG_DEBUG("clearResources, termcode (%d): %s", termCode, connectionTermCodeToString(termCode).c_str());
     disableStats();
-    enableAudioLevelMonitor(false); // disable local audio level monitor
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
 
     mModerators.clear();            // clear moderators list and ownModerator
@@ -1150,7 +1112,7 @@ bool Call::isUdpDisconnected() const
 {
     return (mInitialTs
             && mStats.mSamples.mT.empty()
-            && (time(nullptr) - (mInitialTs - mOffset) > sfu::SfuConnection::kNoMediaPathTimeout));
+            && (time(nullptr) - (mInitialTs - mOffset/1000) > sfu::SfuConnection::kNoMediaPathTimeout));
 }
 
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
@@ -1350,7 +1312,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, cons
 
         setState(CallState::kStateInProgress);
 
-        mOffset = duration / 1000;
+        mOffset = duration;
         enableStats();
     })
     .fail([wptr, this](const ::promise::Error& err)
@@ -1868,7 +1830,7 @@ void Call::onSendByeCommand()
 
         if (!mSfuConnection)
         {
-            RTCM_LOG_DEBUG("onSendByeCommand: SFU connection doesn't exists anymore");
+            RTCM_LOG_DEBUG("onSendByeCommand: SFU connection no longer exists");
             return;
         }
 
@@ -2450,7 +2412,7 @@ void Call::updateVideoTracks()
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                mHiRes->getTransceiver()->sender()->SetTrack(videoTrack);
+                mHiRes->getTransceiver()->sender()->SetTrack(videoTrack.get());
             }
             else if (!mHiResActive)
             {
@@ -2466,7 +2428,7 @@ void Call::updateVideoTracks()
             {
                 rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                mVThumb->getTransceiver()->sender()->SetTrack(videoTrack);
+                mVThumb->getTransceiver()->sender()->SetTrack(videoTrack.get());
             }
             else if (!mVThumbActive)
             {
@@ -2616,9 +2578,9 @@ void Call::updateAudioTracks()
         if (!track) // create audio track only if not exists
         {
             rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
-                    artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()));
+                    artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()).get());
 
-            mAudio->getTransceiver()->sender()->SetTrack(audioTrack);
+            mAudio->getTransceiver()->sender()->SetTrack(audioTrack.get());
             audioTrack->set_enabled(true);
         }
         else
@@ -2732,7 +2694,7 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, std::shared_ptr<std::string> unifiedKey)
+promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey)
 {
     // add chatid to CallsAttempts to avoid multiple start call attempts
     mCallStartAttempts.insert(chatid);
@@ -2740,7 +2702,7 @@ promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlag
     // we need a temp string to avoid issues with lambda shared pointer capture
     std::string auxCallKey = unifiedKey ? (*unifiedKey.get()) : std::string();
     auto wptr = weakHandle();
-    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid)
+    return mMegaApi.call(&::mega::MegaApi::startChatCall, chatid, schedId)
     .then([wptr, this, chatid, avFlags, isGroup, auxCallKey](ReqResult result) -> promise::Promise<void>
     {
         if (wptr.deleted())
@@ -2850,7 +2812,7 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
     Call *call = static_cast<Call*>(iCall);
     if (!call)
     {
-        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call doesn't exists anymore");
+        RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call no longer exists");
         return;
     }
 
@@ -2876,7 +2838,7 @@ void RtcModuleSfu::immediateRemoveCall(Call* call, uint8_t reason, TermCode conn
     assert(reason != kInvalidReason);
     if (!call)
     {
-        RTCM_LOG_WARNING("removeCall: call doesn't exists anymore");
+        RTCM_LOG_WARNING("removeCall: call no longer exists");
         return;
     }
 
@@ -2951,7 +2913,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 
 artc::VideoManager *RtcModuleSfu::getVideoDevice()
 {
-    return mVideoDevice;
+    return mVideoDevice.get();
 }
 
 void RtcModuleSfu::changeDevice(const std::string &device, bool shouldOpen)
@@ -3151,9 +3113,9 @@ void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
         return;
     }
 
-    mTransceiver->receiver()->SetFrameDecryptor(new artc::MegaDecryptor(it->second->getPeer(),
+    mTransceiver->receiver()->SetFrameDecryptor(rtc::scoped_refptr<webrtc::FrameDecryptorInterface>(new artc::MegaDecryptor(it->second->getPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, getTransceiverMid()));
+                                                                      mIv, getTransceiverMid())));
 }
 
 RemoteSlot::RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx)
@@ -3181,9 +3143,9 @@ LocalSlot::LocalSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterf
 
 void LocalSlot::createEncryptor()
 {
-    mTransceiver->sender()->SetFrameEncryptor(new artc::MegaEncryptor(mCall.getMyPeer(),
+    mTransceiver->sender()->SetFrameEncryptor(rtc::scoped_refptr<webrtc::FrameEncryptorInterface>(new artc::MegaEncryptor(mCall.getMyPeer(),
                                                                       mCall.getSfuClient().getRtcCryptoMeetings(),
-                                                                      mIv, getTransceiverMid()));
+                                                                      mIv, getTransceiverMid())));
 }
 
 void LocalSlot::generateRandomIv()
@@ -3278,7 +3240,7 @@ bool RemoteVideoSlot::hasTrack()
 
     if (mTransceiver->receiver())
     {
-        return  mTransceiver->receiver()->track();
+        return  mTransceiver->receiver()->track().get() != nullptr;
     }
 
     return false;
@@ -3300,7 +3262,10 @@ RemoteAudioSlot::RemoteAudioSlot(Call &call, rtc::scoped_refptr<webrtc::RtpTrans
 void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
 {
     assign(cid, iv);
-    enableAudioMonitor(true);   // Enable audio monitor
+    if (mCall.isAudioLevelMonitorEnabled())
+    {
+        enableAudioMonitor(true);   // Enable audio monitor
+    }
 }
 
 void RemoteAudioSlot::enableAudioMonitor(bool enable)
@@ -3311,11 +3276,13 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
     if (enable && !mAudioLevelMonitorEnabled)
     {
         mAudioLevelMonitorEnabled = true;
+        mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
     }
     else if (!enable && mAudioLevelMonitorEnabled)
     {
         mAudioLevelMonitorEnabled = false;
+        mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
     }
 }
@@ -3565,7 +3532,7 @@ AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)
 {
 }
 
-void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames)
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms)
 {
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);
@@ -3611,7 +3578,7 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
 
             if (audioDetected != mAudioDetected)
             {
-                onAudioDetected(mAudioDetected);
+                onAudioDetected(audioDetected);
             }
 
         }, mAppCtx);
@@ -3631,9 +3598,15 @@ bool AudioLevelMonitor::hasAudio()
 void AudioLevelMonitor::onAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
-    assert(mCall.getSession(static_cast<Cid_t>(mCid)));
-    Session *sess = mCall.getSession(static_cast<Cid_t>(mCid));
-    sess->setAudioDetected(mAudioDetected);
+    Session* sess = mCall.getSession(static_cast<Cid_t>(mCid));
+    if (sess)
+    {
+        sess->setAudioDetected(mAudioDetected);
+    }
+    else
+    {
+        RTCM_LOG_WARNING("AudioLevelMonitor::onAudioDetected: session with Cid: %d not found", mCid);
+    }
 }
 }
 #endif

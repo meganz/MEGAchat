@@ -5,7 +5,11 @@
 #include <string>
 #include <buffer.h>
 #include <memory>
+#include <map>
 #include "karereId.h"
+#include <rapidjson/document.h>
+#include <rapidjson/stringbuffer.h>
+#include <karereCommon.h>
 
 enum
 {
@@ -140,6 +144,8 @@ enum Opcode
       *    of OLDMSGs, followed by a HISTDONE. Note that count is always negative.
       * Send: <chatid> <count>
       *
+      * @note count is limited to 256
+      *
       * This command is sent at the following situations:
       *  1. After a JOIN command to load last messages, when no local history.
       *  2. When the app requests to load more old messages and there's no more history
@@ -169,6 +175,11 @@ enum Opcode
       * @brief
       * S->C: The NEWMSG with msgxid was successfully written and now has the permanent
       *    msgid.
+      *
+      * Note: if incompatibility with the history is detected (current time is
+      * one hour greater than message timestamp). The command received will be
+      * OP_NEWMSGIDTIMESTAMP
+      *
       * Receive: <msgxid> <msgid>
       */
     OP_NEWMSGID = 10,
@@ -203,7 +214,8 @@ enum Opcode
       * S->C: Receive as result of HIST command, it notifies the end of history fetch.
       * Receive: <chatid>
       *
-      * @note There may be more history in server, but the HIST <count> is already satisfied.
+      * @note If we received less messages from chatd than requested <count>, we can assume that we have all history.
+      * Otherwise If HIST <count> is already satisfied, there may be more history in server.
       */
     OP_HISTDONE = 13,
 
@@ -253,6 +265,11 @@ enum Opcode
       * @brief
       * S->C: The NEWMSG with msgxid had been written previously, informs of the permanent
       *     msgid.
+      *
+      * Note: if incompatibility with the history is detected (current time is
+      * one hour greater than message timestamp). The command received will be
+      * OP_MSGIDTIMESTAMP
+      *
       * Receive: <msgxid> <msgid>
       */
     OP_MSGID = 21,
@@ -471,6 +488,9 @@ enum Opcode
       *     msgid. This command is similar to MSGID but furthermore update the ts sent in
       *     the NEWMSG due to incompatibility with the history
       *
+      * Note: incompatibility with the history is only detected if current time is
+      * one hour greater than message timestamp
+      *
       * Receive: <msgxid.8> <msgid.8> <ts.4>
       */
     OP_MSGIDTIMESTAMP = 49,
@@ -480,6 +500,9 @@ enum Opcode
       * S->C: The NEWMSG with msgxid was successfully written and now has the permanent
       *    msgid. This command is similar to MSGID but furthermore update the ts sent in
       *     the NEWMSGID due to incompatibility with the history
+      *
+      * Note: incompatibility with the history is only detected if current time is
+      * one hour greater than message timestamp
       *
       * Receive: <msgxid.8> <msgid.8> <ts.4>
       */
@@ -557,7 +580,8 @@ public:
         kMsgPublicHandleDelete  = 0x09,
         kMsgSetPrivateMode      = 0x0A,
         kMsgSetRetentionTime    = 0x0B,
-        kMsgManagementHighest   = 0x0B,
+        kMsgSchedMeeting        = 0x0C,
+        kMsgManagementHighest   = 0x0C,
         kMsgOffset              = 0x55,   // Offset between old message types and new message types
         kMsgUserFirst           = 0x65,
         kMsgAttachment          = 0x65,   // kMsgNormal's subtype = 0x10
@@ -663,6 +687,87 @@ public:
         {
             return userIndex(userId) != -1;
         }
+    };
+
+    class SchedMeetingInfo
+    {
+        public:
+            // scheduled meeting id
+            karere::Id mSchedId;
+
+            // bitmask with the changed fields
+            unsigned long mSchedChanged;
+
+            // maps a field id to a pair of strings <old value, new value>
+            std::unique_ptr<std::map<unsigned int, std::pair<std::string, std::string>>> mSchedInfo;
+
+            static SchedMeetingInfo* fromBuffer(const char* buffer, size_t len)
+            {
+                if (!buffer || len < (sizeof (karere::Id) /*lenSchedId*/ + sizeof (karere::Id)/*lenJson*/))
+                {
+                    return NULL;
+                }
+
+                // read schedId
+                unsigned int position = 0;
+                karere::Id schedId;
+                unsigned int idDataSize = sizeof(karere::Id);
+                memcpy(&schedId, &buffer[position], idDataSize);
+                position += idDataSize;
+
+                // read json length
+                size_t changedLen = 0;
+                unsigned int lenDataSize = sizeof(size_t);
+                memcpy(&changedLen, &buffer[position], lenDataSize);
+                position += lenDataSize;
+
+                if (len < (position + changedLen))
+                {
+                    return NULL;
+                }
+
+                // read changed fields in json format
+                std::unique_ptr<char[]> changedJson(new char[changedLen + 1]);
+                memcpy(changedJson.get(), &buffer[position], changedLen);
+                changedJson[changedLen] = '\0';
+                position += (unsigned)changedLen;
+
+                rapidjson::StringStream stringStream(changedJson.get());
+                rapidjson::Document document;
+                document.ParseStream(stringStream);
+                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                {
+                   return NULL;
+                }
+
+                SchedMeetingInfo* info = new SchedMeetingInfo;
+                karere::karere_sched_bs_t bs = 0;
+                if (document.FindMember("tz") != document.MemberEnd())  { bs[karere::SC_TZONE] = 1; }
+                if (document.FindMember("s") != document.MemberEnd())   { bs[karere::SC_START] = 1; }
+                if (document.FindMember("e") != document.MemberEnd())   { bs[karere::SC_END] = 1; }
+                if (document.FindMember("d") != document.MemberEnd())   { bs[karere::SC_DESC] = 1; }
+                if (document.FindMember("p") != document.MemberEnd())   { bs[karere::SC_PARENT] = 1; }
+                if (document.FindMember("c") != document.MemberEnd())   { bs[karere::SC_CANC] = 1; }
+                if (document.FindMember("o") != document.MemberEnd())   { bs[karere::SC_OVERR] = 1; }
+                if (document.FindMember("f") != document.MemberEnd())   { bs[karere::SC_FLAGS] = 1; }
+                if (document.FindMember("r") != document.MemberEnd())   { bs[karere::SC_RULES] = 1; }
+                if (document.FindMember("at") != document.MemberEnd())  { bs[karere::SC_ATTR] = 1; }
+
+                rapidjson::Value::ConstMemberIterator itTitle = document.FindMember("t");
+                if (itTitle != document.MemberEnd())
+                {
+                    bs[karere::SC_TITLE] = 1;
+                    if (itTitle->value.IsArray() && itTitle->value.Size() == 2)
+                    {
+                        info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
+                        info->mSchedInfo->emplace(karere::SC_TITLE,
+                                    std::pair<std::string, std::string>(itTitle->value[0].GetString(), itTitle->value[1].GetString()));
+                    }
+                }
+                info->mSchedId = schedId;
+                info->mSchedChanged = bs.to_ulong();
+                return info;
+            }
     };
 
     class CallEndedInfo
@@ -805,6 +910,15 @@ public:
         {
             append(&src.participants[i], sizeof(src.participants[i]));
         }
+    }
+
+    void createSchedMeetingInfo(const karere::Id& id, const Buffer& changedJson)
+    {
+        assert(empty());
+        append(&id, sizeof(karere::Id));
+        size_t changedSize = changedJson.dataSize();
+        append(&changedSize, sizeof(size_t));
+        append(changedJson.buf(), changedJson.dataSize());
     }
 
     static const char* statusToStr(unsigned status)

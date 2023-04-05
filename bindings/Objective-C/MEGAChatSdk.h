@@ -17,7 +17,9 @@
 #import "MEGAChatNotificationDelegate.h"
 #import "MEGAChatNodeHistoryDelegate.h"
 #import "MEGAChatLogLevel.h"
-
+#import "MEGAChatScheduledMeetingDelegate.h"
+#import "ListenerDispatch.h"
+#import "MEGAChatScheduledRules.h"
 
 #import "MEGASdk.h"
 
@@ -145,10 +147,15 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)removeChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate;
+- (void)addChatDelegate:(id<MEGAChatDelegate>)delegate queueType:(ListenerQueueType)queueType;
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate;
 
 - (void)addChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
 - (void)removeChatNotificationDelegate:(id<MEGAChatNotificationDelegate>)delegate;
+
+- (void)addChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate;
+- (void)addChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate queueType:(ListenerQueueType)queueType;
+- (void)removeChatScheduledMeetingDelegate:(id<MEGAChatScheduledMeetingDelegate>)delegate;
 
 #ifndef KARERE_DISABLE_WEBRTC
 
@@ -192,6 +199,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (uint64_t)userHandleByEmail:(NSString *)email;
 
 - (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)loadUserAttributesForChatId:(uint64_t)chatId
+                       usersHandles:(NSArray<NSNumber *> *)usersHandles
+                           delegate:(id<MEGAChatRequestDelegate>)delegate
+                          queueType:(ListenerQueueType)queueType;
 - (void)loadUserAttributesForChatId:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles;
 
 #pragma mark - Chat management
@@ -506,6 +517,125 @@ NS_ASSUME_NONNULL_BEGIN
  */
 - (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask;
 
+#pragma mark - Scheduled meetings
+
+
+/**
+ * @brief Creates a chatroom and a scheduled meeting for that chatroom
+ *
+ * @param isMeeting True to create a meeting room, otherwise false
+ * @param isPublicChat True to create a public chat, otherwise false
+ * @param title Scheduled meeting title.
+ * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+ * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+ * A moderator user must grant each user access to the call.
+ * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+ * @param timezone Timezone where we want to schedule the meeting
+ * @param startDate start date time of the meeting with the format (unix timestamp UTC)
+ * @param endDate end date time of the meeting with the format (unix timestamp UTC)
+ * @param description scheduled meeting description.
+ * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MEGAChatScheduledFlags class)
+ * @param rules Repetition rules for creating a recurrent meeting (Check MEGAChatScheduledRules class)
+ * @param attributes - not supported yet
+ */
+- (void)createChatroomAndSchedMeetingWithPeers:(MEGAChatPeerList *)peers
+                                     isMeeting:(BOOL)isMeeting
+                                  isPublicChat:(BOOL)isPublicChat
+                                         title:(NSString *)title
+                                  speakRequest:(BOOL)speakRequest
+                                   waitingRoom:(BOOL)waitingRoom
+                                    openInvite:(BOOL)openInvite
+                                      timezone:(NSString *)timezone
+                                     startDate:(NSInteger)startDate
+                                       endDate:(NSInteger)endDate
+                                   description:(NSString *)description
+                                         flags:(MEGAChatScheduledFlags *)flags
+                                         rules:(MEGAChatScheduledRules *)rules
+                                    attributes:(NSString *)attributes;
+/**
+ * @brief Creates a chatroom and a scheduled meeting for that chatroom
+ *
+ * The associated request type with this request is MEGAChatRequestTypeCreateChatRoom
+ * Valid data in the MegaChatRequest object received on callbacks:
+ * - [MegaChatRequest flag] - Returns always true as we are going to create a new chatroom
+ * - [MegaChatRequest number] - Returns true if new chat is going to be a Meeting room
+ * - [MegaChatRequest privilege] - Returns true is new chat is going to be a public chat room
+ * - [MegaChatRequest paramType] - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
+ *  + To check if speakRequest was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionSpeakRequest
+ *  + To check if waitingRoom was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionWaitingRoom
+ *  + To check if openInvite was true you need to call [MEGAChatSdk hasChatOptionEnabledForChatOption:chatOptionsBitMask:] with option as MEGAChatOptionOpenInvite
+ * - [MegaChatRequest scheduledMeetingList] - returns a MEGAChatScheduledMeetingList instance with a MEGAChatScheduledMeeting
+ *   (containing the params provided by user), or NULL in case request finished with an error.
+ *
+ * Valid data in the MEGAChatRequest object received in onRequestFinish when the error code
+ * is MEGAChatErrorTypeOk:
+ * - [MegaChatRequest scheduledMeetingList] - returns a MEGAChatScheduledMeetingList instance with a MEGAChatScheduledMeeting
+ * (with definitive ScheduledMeeting updated from API)
+ *
+ * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+ * - MEGAChatErrorTypeArgs  - if no peerlist is provided
+ * - MEGAChatErrorTypeArgs  - if timezone, startDate, endDate, title, or description are invalid
+ * - MEGAChatErrorTypeArgs  - if isMeeting is set true but publicChat is set to false
+ * - MEGAChatErrorTypeArgs  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
+ * - MEGAChatErrorTypeAccess  - if no user privilege is provided or no peers are provided for a group chatroom
+ *
+ * @param isMeeting True to create a meeting room, otherwise false
+ * @param isPublicChat True to create a public chat, otherwise false
+ * @param title Scheduled meeting title.
+ * @param speakRequest True to set that during calls non moderator users, must request permission to speak
+ * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
+ * A moderator user must grant each user access to the call.
+ * @param openInvite to set that users with MegaChatRoom::PRIV_STANDARD privilege, can invite other users into the chat
+ * @param timezone Timezone where we want to schedule the meeting
+ * @param startDate start date time of the meeting with the format (unix timestamp UTC)
+ * @param endDate end date time of the meeting with the format (unix timestamp UTC)
+ * @param description scheduled meeting description.
+ * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MEGAChatScheduledFlags class)
+ * @param rules Repetition rules for creating a recurrent meeting (Check MEGAChatScheduledRules class)
+ * @param attributes - not supported yet
+ * @param delegate MEGAChatRequestDelegate to track this request
+ */
+- (void)createChatroomAndSchedMeetingWithPeers:(MEGAChatPeerList *)peers
+                                     isMeeting:(BOOL)isMeeting
+                                  isPublicChat:(BOOL)isPublicChat
+                                         title:(NSString *)title
+                                  speakRequest:(BOOL)speakRequest
+                                   waitingRoom:(BOOL)waitingRoom
+                                    openInvite:(BOOL)openInvite
+                                      timezone:(NSString *)timezone
+                                     startDate:(NSInteger)startDate
+                                       endDate:(NSInteger)endDate
+                                   description:(NSString *)description
+                                         flags:(MEGAChatScheduledFlags *)flags
+                                         rules:(MEGAChatScheduledRules *)rules
+                                    attributes:(nullable NSString *)attributes
+                                      delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes;
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled;
+
+- (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
+
+- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingsByChat:(uint64_t)chatId;
+
+- (MEGAChatScheduledMeeting *)scheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
+
+- (NSArray<MEGAChatScheduledMeeting *> *)getAllScheduledMeetings;
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId;
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since;
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since delegate:(id<MEGAChatRequestDelegate>)delegate;
+
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -516,6 +646,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (NSString *)videoDeviceSelected;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
+- (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo;
 - (void)hangChatCall:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
