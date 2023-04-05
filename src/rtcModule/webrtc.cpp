@@ -1831,6 +1831,11 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     {
         mSpeakerState = SpeakerState::kNoSpeaker;
         updateAudioTracks();
+        karere::AvFlags flags = getLocalAvFlags();
+        flags.remove(karere::AvFlags::kAudio);
+        mMyPeer->setAvFlags(flags);
+        mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
+
     }
     else    // own cid, but SpeakerState is not kActive
     {
