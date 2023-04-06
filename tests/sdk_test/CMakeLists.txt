@@ -27,7 +27,7 @@ endif()
 add_executable(sdk_test ${SRCS})
 
 target_link_libraries(sdk_test
-    karere
+    karere gmock gtest
     ${SYSLIBS}
 )
 
