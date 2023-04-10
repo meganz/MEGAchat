@@ -425,6 +425,8 @@ public:
     bool isDestroying();
     void generateEphemeralKeyPair();
     void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
+    // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
+    void muteMyClientFromSfu();
 
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
