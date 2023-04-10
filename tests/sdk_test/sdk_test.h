@@ -514,6 +514,50 @@ private:
     std::unique_ptr<::mega::MegaRequest> request;
 };
 
+class ChatRequestTracker : public megachat::MegaChatRequestListener, public ResultHandler
+{
+    std::unique_ptr<::megachat::MegaChatRequest> request;
+
+public:
+    void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
+                         ::megachat::MegaChatError* e) override
+    {
+        if (req)
+        {
+            request.reset(req->copy());
+        }
+        request.reset(req ? req->copy() : nullptr);
+        finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+    }
+
+    std::string getText() const
+    {
+        return (finished() && request && request->getText()) ? request->getText() : std::string();
+    }
+
+    bool getFlag() const
+    {
+        return (finished() && request) ? request->getFlag() : false;
+    }
+
+    ::megachat::MegaChatHandle getChatHandle() const
+    {
+        return (finished() && request) ? request->getChatHandle() : ::megachat::MEGACHAT_INVALID_HANDLE;
+    }
+
+    int getParamType() const
+    {
+        return (finished() && request) ? request->getParamType() : 0;
+    }
+
+    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> getScheduledMeetings() const
+    {
+        return (finished() && request)
+                  ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
+                  : nullptr;
+    }
+};
+
 #ifndef KARERE_DISABLE_WEBRTC
 class MockupCall : public sfu::SfuInterface
 {
