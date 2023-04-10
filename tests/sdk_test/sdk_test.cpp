@@ -2358,16 +2358,15 @@ TEST_F(MegaChatApiTest, Attachment)
     ASSERT_TRUE(importNode(a2, nodeReceived, FILE_IMAGE_NAME)) << "Cannot import node attached to message";
 
     // A revokes access to node
-    bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE]; *flagRequest = false;
     bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
     chatroomListener->mConfirmedMessageHandle[a1] = MEGACHAT_INVALID_HANDLE;
     chatroomListener->clearMessages(a1);   // will be set at confirmation
     chatroomListener->clearMessages(a2);   // will be set at reception
     megachat::MegaChatHandle revokeAttachmentNode = nodeSent->getHandle();
-    megaChatApi[a1]->revokeAttachment(chatid, revokeAttachmentNode, this);
-    ASSERT_TRUE(waitForResponse(flagRequest)) << "Failed to revoke access to node after " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to revoke access: " << lastErrorChat[a1];
+    ChatRequestTracker crtRevokeAttachment;
+    megaChatApi[a1]->revokeAttachment(chatid, revokeAttachmentNode, &crtRevokeAttachment);
+    ASSERT_EQ(crtRevokeAttachment.waitForResult(), MegaChatError::ERROR_OK) << "Failed to revoke access to node. Error: " << crtRevokeAttachment.getErrorString();
     ASSERT_TRUE(waitForResponse(flagConfirmed)) << "Timeout expired for receiving confirmation by server";
     MegaChatHandle msgId0 = chatroomListener->mConfirmedMessageHandle[a1];
     ASSERT_NE(msgId0, MEGACHAT_INVALID_HANDLE) << "Wrong message id";
