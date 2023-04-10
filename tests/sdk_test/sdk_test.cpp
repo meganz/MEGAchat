@@ -19,6 +19,40 @@ const std::string MegaChatApiTest::LOCAL_PATH = "./tmp"; // no ending slash
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 
+class GTestLogger : public ::testing::EmptyTestEventListener
+{
+public:
+    void OnTestStart(const ::testing::TestInfo& info) override
+    {
+        LOG_info << "GTEST: " << info.test_suite_name() << '.' << info.name() << " RUNNING";
+    }
+
+    void OnTestEnd(const ::testing::TestInfo& info) override
+    {
+        LOG_info << "GTEST: " << info.test_suite_name() << '.' << info.name() << ' '
+                 << (info.result()->Passed() ? "PASSED" : "FAILED");
+    }
+
+    void OnTestPartResult(const ::testing::TestPartResult& result) override
+    {
+        if (result.type() == ::testing::TestPartResult::kSuccess) return;
+
+        std::string location = result.file_name() ? result.file_name() : "unknown";
+        if (result.line_number() >= 0)
+        {
+            location += ':' + std::to_string(result.line_number());
+        }
+
+        LOG_info << "GTEST: " << location << ": Failure";
+
+        std::istringstream istream(result.message());
+        for (std::string s; std::getline(istream, s); )
+        {
+            LOG_info << "GTEST: " << s;
+        }
+    }
+}; // GTestLogger
+
 int main(int argc, char **argv)
 {
     remove("test.log");
@@ -38,6 +72,8 @@ int main(int argc, char **argv)
     MegaChatApiTest::init();
 
     testing::InitGoogleTest(&argc, argv);
+    testing::UnitTest::GetInstance()->listeners().Append(new GTestLogger());
+
     int rc = RUN_ALL_TESTS(); // returns 0 (success) or 1 (failed tests)
 
     MegaChatApiTest::terminate();
@@ -248,6 +284,10 @@ void MegaChatApiTest::terminate()
 
 void MegaChatApiTest::SetUp()
 {
+    const ::testing::TestInfo* ti = ::testing::UnitTest::GetInstance()->current_test_info();
+    string name = string(ti->test_suite_name()) + '.' + ti->name();
+    LOG_info << "Test " << name << ": SetUp starting.";
+
     struct stat st = {}; // init all members to default values (0)
     if (stat(LOCAL_PATH.c_str(), &st) == -1)
     {
@@ -360,10 +400,16 @@ void MegaChatApiTest::SetUp()
         mChatLastname = "";
         mChatEmail = "";
     }
+
+    LOG_info << "Test " << name << ": SetUp finished.";
 }
 
 void MegaChatApiTest::TearDown()
 {
+    const ::testing::TestInfo* ti = ::testing::UnitTest::GetInstance()->current_test_info();
+    string name = string(ti->test_suite_name()) + '.' + ti->name();
+    LOG_info << "Test " << name << ": TearDown starting.";
+
     for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
     {
         if (megaChatApi[i])
@@ -432,6 +478,8 @@ void MegaChatApiTest::TearDown()
     }
 
     purgeLocalTree(LOCAL_PATH);
+
+    LOG_info << "Test " << name << ": TearDown finished.";
 }
 
 const char* MegaChatApiTest::printChatRoomInfo(const MegaChatRoom *chat)
