@@ -1618,7 +1618,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
             // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
             if (hasCallKey())
             {
-                mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(reinterpret_cast<byte*>(mCallKey.data()), reinterpret_cast<byte*>(result.data()));
+                mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(reinterpret_cast<::mega::byte*>(mCallKey.data()), reinterpret_cast<::mega::byte*>(result.data()));
             }
 
             if (result.size() != kMediaKeyLen)
