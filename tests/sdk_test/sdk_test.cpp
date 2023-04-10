@@ -950,34 +950,27 @@ TEST_F(MegaChatApiTest, SetOnlineStatus)
     ASSERT_TRUE(waitForResponse(flagPresence)) << "Presence config not received after " << maxTimeout << " seconds";
 
     // Reset status to online before starting the test
-    bool *flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
-    bool *flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
     if (megaChatApi[accountIndex]->getPresenceConfig()->getOnlineStatus() != MegaChatApi::STATUS_ONLINE)
     {
-        megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
-        ASSERT_TRUE(waitForResponse(flag)) << "Failed to set online status after " << maxTimeout << " seconds";
-        ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to set online status. Error: " << lastErrorMsgChat[accountIndex]
-                                                     << " (" << lastErrorChat[accountIndex] << ")";
+        ChatRequestTracker crtOnline;
+        megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE, &crtOnline);
+        ASSERT_EQ(crtOnline.waitForResult(), MegaChatError::ERROR_OK) << "Failed to set online status. Error: " << crtOnline.getErrorString();
     }
 
     flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
-    flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
-    flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
-    megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_BUSY);
-    ASSERT_TRUE(waitForResponse(flag)) << "Failed to set online status after " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to set online status. Error: " << lastErrorMsgChat[accountIndex]
-                                                 << " (" << lastErrorChat[accountIndex] << ")";
+    bool* flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
+    ChatRequestTracker crtBusy;
+    megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_BUSY, &crtBusy);
+    ASSERT_EQ(crtBusy.waitForResult(), MegaChatError::ERROR_OK) << "Failed to set busy status. Error: " << crtBusy.getErrorString();
     ASSERT_TRUE(waitForResponse(flagPresence)) << "Presence config not received after " << maxTimeout << " seconds";
     ASSERT_TRUE(waitForResponse(flagStatus)) << "Online status not received after " << maxTimeout << " seconds";
 
     // set online status
     flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
     flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
-    flag = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_SET_ONLINE_STATUS]; *flag = false;
-    megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE);
-    ASSERT_TRUE(waitForResponse(flag)) << "Failed to set online status after " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to set online status. Error: " << lastErrorMsgChat[accountIndex]
-                                                 << " (" << lastErrorChat[accountIndex] << ")";
+    ChatRequestTracker crtOnline;
+    megaChatApi[accountIndex]->setOnlineStatus(MegaChatApi::STATUS_ONLINE, &crtOnline);
+    ASSERT_EQ(crtOnline.waitForResult(), MegaChatError::ERROR_OK) << "Failed to set online status (2). Error: " << crtOnline.getErrorString();
     ASSERT_TRUE(waitForResponse(flagPresence)) << "Presence config not received after " << maxTimeout << " seconds";
     ASSERT_TRUE(waitForResponse(flagStatus)) << "Online status not received after " << maxTimeout << " seconds";
 
@@ -990,25 +983,27 @@ TEST_F(MegaChatApiTest, SetOnlineStatus)
 
     // enable auto-away with 5 seconds timeout
     flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
-    megaChatApi[accountIndex]->setPresenceAutoaway(true, autowayTimeout);
+    ChatRequestTracker crtAutoaway;
+    megaChatApi[accountIndex]->setPresenceAutoaway(true, autowayTimeout, &crtAutoaway);
+    ASSERT_EQ(crtAutoaway.waitForResult(), MegaChatError::ERROR_OK) << "Failed to set presence autoaway. Error: " << crtAutoaway.getErrorString();
     ASSERT_TRUE(waitForResponse(flagPresence)) << "Presence config not received after " << maxTimeout << " seconds";
 
     // disable persist
     if (megaChatApi[accountIndex]->getPresenceConfig()->isPersist())
     {
         flagPresence = &mPresenceConfigUpdated[accountIndex]; *flagPresence = false;
-        megaChatApi[accountIndex]->setPresencePersist(false);
+        ChatRequestTracker crtUAutoaway;
+        megaChatApi[accountIndex]->setPresencePersist(false, &crtUAutoaway);
+        ASSERT_EQ(crtUAutoaway.waitForResult(), MegaChatError::ERROR_OK) << "Failed to unset presence autoaway. Error: " << crtUAutoaway.getErrorString();
         ASSERT_TRUE(waitForResponse(flagPresence)) << "Presence config not received after " << maxTimeout << " seconds";
     }
 
     // Set signal activity true, signal activity to false is sent automatically by presenced client
-    megaChatApi[accountIndex]->signalPresenceActivity();
-    ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to set activity. Error: " << lastErrorMsgChat[accountIndex]
-                                                 << " (" << lastErrorChat[accountIndex] << ")";
+    ChatRequestTracker crtActivity;
+    megaChatApi[accountIndex]->signalPresenceActivity(&crtActivity);
+    ASSERT_EQ(crtActivity.waitForResult(), MegaChatError::ERROR_OK) << "Failed to signal presence activity. Error: " << crtActivity.getErrorString();
 
     // now wait for timeout to expire
-    flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
-
     LOG_debug << "Going to sleep for longer than autoaway timeout";
     MegaChatPresenceConfig *config = megaChatApi[accountIndex]->getPresenceConfig();
     std::this_thread::sleep_for(std::chrono::seconds(static_cast<unsigned int>(config->getAutoawayTimeout() + 12)));   // +12 to ensure at least one heartbeat (every 10s), where the `USERACTIVE 0` is sent for transition to Away
@@ -1022,7 +1017,9 @@ TEST_F(MegaChatApiTest, SetOnlineStatus)
 
     // now signal user's activity to become online again
     flagStatus = &mOnlineStatusUpdated[accountIndex]; *flagStatus = false;
-    megaChatApi[accountIndex]->signalPresenceActivity();
+    ChatRequestTracker crtActivity2;
+    megaChatApi[accountIndex]->signalPresenceActivity(&crtActivity2);
+    ASSERT_EQ(crtActivity2.waitForResult(), MegaChatError::ERROR_OK) << "Failed to signal presence activity (2). Error: " << crtActivity2.getErrorString();
     ASSERT_TRUE(waitForResponse(flagStatus)) << "Online status not received after " << maxTimeout << " seconds";
 
     // and check the status is online
