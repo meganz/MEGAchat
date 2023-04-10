@@ -7,6 +7,7 @@
 #import "MEGANodeList+init.h"
 #import "MEGAHandleList+init.h"
 #import "MEGAChatScheduledMeetingOccurrence+init.h"
+#import "MEGAChatScheduledMeetingList+init.h"
 
 using namespace megachat;
 
@@ -115,6 +116,10 @@ using namespace megachat;
 
 - (MEGAHandleList *)megaHandleListForChat:(uint64_t)chatId {
     return self.megaChatRequest->getMegaHandleListByChat(chatId) ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleListByChat(chatId)->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAChatScheduledMeetingList *)scheduledMeetingList {
+    return self.megaChatRequest ? [[MEGAChatScheduledMeetingList alloc] initWithMegaChatScheduledMeetingList:self.megaChatRequest->getMegaChatScheduledMeetingList() cMemoryOwn:YES] : nil;
 }
 
 - (NSArray<MEGAChatScheduledMeetingOccurrence *> *)chatScheduledMeetingOccurrences {
