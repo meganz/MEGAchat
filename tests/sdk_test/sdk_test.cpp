@@ -318,7 +318,6 @@ void MegaChatApiTest::SetUp()
 
         megaChatApi[i] = new MegaChatApi(megaApi[i]);
         megaChatApi[i]->setLogLevel(MegaChatApi::LOG_LEVEL_DEBUG);
-        megaChatApi[i]->addChatRequestListener(this);
         megaChatApi[i]->addChatListener(this);
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -350,22 +349,14 @@ void MegaChatApiTest::SetUp()
             requestFlags[i][j] = false;
         }
 
-        for (int j = 0; j < megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES; ++j)
-        {
-            requestFlagsChat[i][j] = false;
-        }
-
         initStateChanged[i] = false;
         initState[i] = -1;
         mChatConnectionOnline[i] = false;
         mLoggedInAllChats[i] = false;
         mChatsUpdated[i] = false;
         mChatListUpdated[i].clear();
-        lastErrorChat[i] = -1;
-        lastErrorMsgChat[i].clear();
         lastErrorTransfer[i] = -1;
 
-        chatid[i] = MEGACHAT_INVALID_HANDLE;  // chatroom id from request
         chatroom[i] = NULL;
         chatUpdated[i] = false;
         chatItemUpdated[i] = false;
@@ -373,11 +364,6 @@ void MegaChatApiTest::SetUp()
         peersUpdated[i] = false;
         titleUpdated[i] = false;
         chatArchived[i] = false;
-
-        mFirstname = "";
-        mLastname = "";
-        mEmail = "";
-        nameReceived[i] = false;
 
         mNotTransferRunning[i] = true;
         mPresenceConfigUpdated[i] = false;
@@ -401,10 +387,6 @@ void MegaChatApiTest::SetUp()
         mLocalVideoListener[i] = NULL;
         mRemoteVideoListener[i] = NULL;
 #endif
-
-        mChatFirstname = "";
-        mChatLastname = "";
-        mChatEmail = "";
     }
 
     LOG_info << "Test " << name << ": SetUp finished.";
@@ -446,7 +428,6 @@ void MegaChatApiTest::TearDown()
             megaChatApi[i]->removeChatCallListener(this);
             megaChatApi[i]->removeSchedMeetingListener(this);
 #endif
-            megaChatApi[i]->removeChatRequestListener(this);
             megaChatApi[i]->removeChatListener(this);
 
             delete megaChatApi[i];
@@ -5718,17 +5699,6 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
         switch(request->getType())
         {
             case MegaRequest::TYPE_GET_ATTR_USER:
-                if (request->getParamType() ==  MegaApi::USER_ATTR_FIRSTNAME)
-                {
-                    mFirstname = request->getText() ? request->getText() : "";
-                    nameReceived[apiIndex] = true;
-                }
-                else if (request->getParamType() == MegaApi::USER_ATTR_LASTNAME)
-                {
-                    mLastname = request->getText() ? request->getText() : "";
-                    nameReceived[apiIndex] = true;
-                }
-
                 break;
 
             case MegaRequest::TYPE_COPY:
@@ -5785,59 +5755,6 @@ void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* 
             mUsersChanged[accountIndex][MegaUser::CHANGE_TYPE_RICH_PREVIEWS] = true;
         }
     }
-}
-
-void MegaChatApiTest::onRequestFinish(MegaChatApi *api, MegaChatRequest *request, MegaChatError *e)
-{
-    unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onRequestFinish(MegaChatApi *api, ...)";
-
-    lastErrorChat[apiIndex] = e->getErrorCode();
-    lastErrorMsgChat[apiIndex] = e->getErrorString();
-    if (!lastErrorChat[apiIndex])
-    {
-        switch(request->getType())
-        {
-            case MegaChatRequest::TYPE_CREATE_CHATROOM:
-                chatid[apiIndex] = request->getChatHandle();
-                break;
-
-            case MegaChatRequest::TYPE_GET_FIRSTNAME:
-                mChatFirstname = request->getText() ? request->getText() : "";
-                break;
-
-            case MegaChatRequest::TYPE_GET_LASTNAME:
-                mChatLastname = request->getText() ? request->getText() : "";
-                break;
-
-            case MegaChatRequest::TYPE_GET_EMAIL:
-                mChatEmail = request->getText() ? request->getText() : "";
-                break;
-
-            case MegaChatRequest::TYPE_CHAT_LINK_HANDLE:
-                if (!request->getFlag())
-                {
-                    chatLinks[apiIndex] = request->getText();
-                }
-                break;
-            case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
-#ifndef KARERE_DISABLE_WEBRTC
-                mChatCallReconnection[apiIndex] = request->getFlag() &&
-                    !static_cast<bool>(request->getParamType());
-#endif
-                break;
-
-             case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES:
-#ifndef KARERE_DISABLE_WEBRTC
-                (mOccurrList[apiIndex]).reset(request->getMegaChatScheduledMeetingOccurrList()
-                                                ? request->getMegaChatScheduledMeetingOccurrList()->copy()
-                                                : nullptr);
-#endif
-                break;
-        }
-    }
-
-    requestFlagsChat[apiIndex][request->getType()] = true;
 }
 
 void MegaChatApiTest::onChatInitStateUpdate(MegaChatApi *api, int newState)
