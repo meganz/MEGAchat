@@ -7680,6 +7680,13 @@ int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)
     return state;
 }
 
+int MegaChatCallPrivate::convertSfuCmdToCode(const std::string& cmd) const
+{
+    if (cmd == "audio") {return SFU_DENY_AUDIO;}
+    if (cmd == "JOIN")  {return SFU_DENY_JOIN;}
+    return SFU_DENY_INVALID;
+}
+
 int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
 {
     switch (termCode)
@@ -10556,6 +10563,17 @@ void MegaChatCallHandler::onPermissionsChanged(const rtcModule::ICall& call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg)
+{
+    // set manually Notification type, Denied command and message, as we are notifying an SFU denied command, and that information
+    // is temporary, and shouldn't be preserved in original Call object
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setNotificationType(MegaChatCall::NOTIFICATION_TYPE_SFU_DENY);                         // Notification type
+    chatCall->setTermCode(chatCall->convertSfuCmdToCode(cmd));                                       // SFU denied command
+    chatCall->setMessage(msg);                                                                       // SFU err message
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

@@ -1829,15 +1829,11 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     }
     else if (mSpeakerState == SpeakerState::kActive)
     {
+        // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
         mSpeakerState = SpeakerState::kNoSpeaker;
-        updateAudioTracks();
-        karere::AvFlags flags = getLocalAvFlags();
-        flags.remove(karere::AvFlags::kAudio);
-        mMyPeer->setAvFlags(flags);
-        mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
-
+        muteMyClientFromSfu();
     }
-    else    // own cid, but SpeakerState is not kActive
+    else // SPEAK_OFF received own cid, but SpeakerState is not kActive
     {
         RTCM_LOG_ERROR("handleSpeakOffCommand: Received speak off for own cid %d without being active", cid);
         assert(false);
@@ -2202,6 +2198,33 @@ void Call::onSendByeCommand()
             mTempTermCode = kInvalidTermCode;
         }
     }, mRtc.getAppCtx());
+}
+
+bool Call::processDeny(const std::string& cmd, const std::string& msg)
+{
+    mCallHandler.onCallDeny(*this, cmd, msg); // notify apps about the denied command
+
+    if (cmd == "audio") // audio ummute has been denied by SFU
+    {
+        muteMyClientFromSfu();
+    }
+    else if (cmd == "JOIN")
+    {
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_ERROR("Deny 'JOIN' received. Current call state: %d, expected call state: %d. %s",
+                           mState, kStateJoining, msg.c_str());
+            return false;
+        }
+        orderedCallDisconnect(TermCode::kErrorProtocolVersion, "Client doesn't supports waiting rooms");
+    }
+    else
+    {
+        assert(false);
+        RTCM_LOG_ERROR("Deny cmd received for unexpected command: %s", msg.c_str());
+        return false;
+    }
+    return true;
 }
 
 bool Call::error(unsigned int code, const std::string &errMsg)
@@ -2793,6 +2816,20 @@ void Call::generateEphemeralKeyPair()
 const mega::ECDH* Call::getMyEphemeralKeyPair() const
 {
     return mEphemeralKeyPair.get();
+}
+
+void Call::muteMyClientFromSfu()
+{
+    if (!getLocalAvFlags().audio())
+    {
+        return;
+    }
+
+    karere::AvFlags currentFlags = getLocalAvFlags();
+    currentFlags.remove(karere::AvFlags::kAudio);
+    mMyPeer->setAvFlags(currentFlags);
+    mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
+    updateAudioTracks();
 }
 
 void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)

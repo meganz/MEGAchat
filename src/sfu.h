@@ -230,6 +230,9 @@ public:
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
 
+    // process Deny notification from SFU
+    virtual bool processDeny(const std::string& cmd, const std::string& msg) = 0;
+
     // send error to server, for debugging purposes
     virtual void logError(const char* error) = 0;
 };
@@ -241,7 +244,7 @@ public:
     static std::string COMMAND_IDENTIFIER;
     static std::string ERROR_IDENTIFIER;
     static std::string WARN_IDENTIFIER;
-    static std::string ERROR_MESSAGE;
+    static std::string DENY_IDENTIFIER;
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
@@ -490,6 +493,24 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_BYE;
 
 public:
+    struct SfuData
+    {
+        public:
+            enum
+            {
+                SFU_INVALID         = -1,
+                SFU_COMMAND         = 0,
+                SFU_ERROR           = 1,
+                SFU_WARN            = 2,
+                SFU_DENY            = 3,
+            };
+
+            int32_t notificationType = SFU_INVALID;
+            std::string notification;
+            std::string msg;
+            int32_t errCode;
+    };
+
     enum ConnState
     {
         kConnNew = 0,
@@ -517,7 +538,7 @@ public:
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
-    static bool parseSfuData(const char* data, rapidjson::Document& document, std::string& command, std::string& warnMsg, std::string& errMsg, int32_t& errCode);
+    static bool parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& outdata);
     static void setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands);
     bool handleIncomingData(const char *data, size_t len);
     void addNewCommand(const std::string &command);

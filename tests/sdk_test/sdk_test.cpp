@@ -6297,31 +6297,20 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     for (const auto& testCase : checkCommands)
     {
         executedTests++;
-        int32_t errCode = INT32_MIN; // init errCode to invalid value, to check if a valid errCode has been returned by SFU
-        std::string command;
-        std::string warnMsg;
-        std::string errMsg;
         rapidjson::Document document;
-        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, command, warnMsg, errMsg, errCode);
+        sfu::SfuConnection::SfuData outdata;
+        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, outdata);
 
         /* Command processing is considered failed if:
          * 1) An error happened upon parsing "SFU" incoming data
          * 2) Parsed command could not be found at commands
          * 3) An error happened processing parsed command (processCommand)
          */
-        bool commandProcSuccess = parseSuccess
-               && (errCode != INT32_MIN
-                    || (commands.find(command) != commands.end() && commands[command]->processCommand(document)));
-
-        if (!warnMsg.empty())
-        {
-            LOG_warn << warnMsg;
-        }
-
+        bool commandProcSuccess = parseSuccess && (commands.find(outdata.notification) != commands.end() && commands[outdata.notification]->processCommand(document));
         if (commandProcSuccess != testCase.second)
         {
             std::string errStr = "          [FAILED processing SFU command] :";
-            errStr.append(testCase.first).append(". ").append(errMsg);
+            errStr.append(testCase.first).append(". ").append(outdata.msg);
             failedTest++;
             std::cout << errStr << std::endl;
             LOG_debug << errStr;
@@ -6572,7 +6561,12 @@ void MockupCall::onSfuDisconnected()
 }
 bool MockupCall::error(unsigned int, const string &)
 {
-    return true;
+    return false;
+}
+
+bool MockupCall::processDeny(const std::string& cmd, const std::string& msg)
+{
+    return false;
 }
 
 void MockupCall::logError(const char *)
