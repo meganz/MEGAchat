@@ -1591,7 +1591,7 @@ bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc,
     rapidjson::Value::ConstMemberIterator jsonDenyIterator = jsonDoc.FindMember(Command::DENY_IDENTIFIER.c_str());
     if (jsonDenyIterator != jsonDoc.MemberEnd() && jsonDenyIterator->value.IsString())
     {
-        parsedData.notificationType = SfuData::SFU_WARN;
+        parsedData.notificationType = SfuData::SFU_DENY;
         parsedData.notification = jsonDenyIterator->value.GetString();
 
         rapidjson::Value::ConstMemberIterator jsonMsgIterator = jsonDoc.FindMember("msg");
