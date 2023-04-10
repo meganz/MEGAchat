@@ -2448,7 +2448,7 @@ int MegaChatScheduledMeeting::isValidTitleLength(const char* title)
 
 int MegaChatScheduledMeeting::isValidDescriptionLength(const char* desc)
 {
-    return desc && strlen(desc) <= MegaChatScheduledMeeting::MAX_DESC_LENGTH;
+    return !desc || strlen(desc) <= MegaChatScheduledMeeting::MAX_DESC_LENGTH;
 }
 
 /* Class MegaChatScheduledMeetingOccurr */

@@ -4149,6 +4149,7 @@ public:
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
+     * Note that description is a mandatory field, so in case you want to set an empty description, please provide an empty string with Null-terminated character at the end
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet

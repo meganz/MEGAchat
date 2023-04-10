@@ -425,7 +425,7 @@ void MegaChatApiImpl::sendPendingRequests()
                         break;
                     }
 
-                    if (!sm->timezone() || !sm->title() || !sm->description()
+                    if (!sm->timezone() || !sm->title()
                                || sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP
                                || sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP)
                     {
