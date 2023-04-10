@@ -1852,14 +1852,13 @@ TEST_F(MegaChatApiTest, Reactions)
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
-    ::mega::unique_ptr <MegaChatRoom> chatroom (megaChatApi[a1]->getChatRoom(chatid));
-    ::mega::unique_ptr<char[]> chatidB64(megaApi[a1]->handleToBase64(chatid));
+    std::unique_ptr<MegaChatRoom> chatroom (megaChatApi[a1]->getChatRoom(chatid));
+    std::unique_ptr<char[]> chatidB64(megaApi[a1]->handleToBase64(chatid));
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatidB64.get();
 
     if (chatroom->getPeerPrivilegeByHandle(uh) != PRIV_RO)
     {
         // Change peer privileges to Read-only
-        bool *flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
         bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
         bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
         bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
@@ -1894,7 +1893,7 @@ TEST_F(MegaChatApiTest, Reactions)
     ASSERT_TRUE(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent())) << "Content of message doesn't match";
 
     // Check reactions for the message sent above (It shouldn't exist any reaction)
-    ::mega::unique_ptr <MegaStringList> reactionsList;
+    std::unique_ptr<MegaStringList> reactionsList;
     reactionsList.reset(megaChatApi[a1]->getMessageReactions(chatid, msgId));
     ASSERT_FALSE(reactionsList->size()) << "getMessageReactions Error: The message shouldn't have reactions";
     int userCount = megaChatApi[a1]->getMessageReactionCount(chatid, msgId, "😰");
