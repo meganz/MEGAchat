@@ -1082,17 +1082,16 @@ TEST_F(MegaChatApiTest, GetChatRoomsAndMessages)
             {
                 MegaChatHandle uh = chatroom->getPeerHandle(i);
 
-                bool *flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_FIRSTNAME]; *flagNameReceived = false; mChatFirstname = "";
-                megaChatApi[accountIndex]->getUserFirstname(uh, NULL);
-                ASSERT_TRUE(waitForResponse(flagNameReceived)) << "Failed to retrieve firstname after " << maxTimeout << " seconds";
-                ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to retrieve firstname. Error: " << lastErrorMsgChat[accountIndex] << " (" << lastErrorChat[accountIndex] << ")";
-                buffer << "Peer firstname (" << uh << "): " << mChatFirstname << " (len: " << mChatFirstname.length() << ")" << endl;
+                ChatRequestTracker fnTracker;
+                megaChatApi[accountIndex]->getUserFirstname(uh, nullptr, &fnTracker);
 
-                flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_LASTNAME]; *flagNameReceived = false; mChatLastname = "";
-                megaChatApi[0]->getUserLastname(uh, NULL);
-                ASSERT_TRUE(waitForResponse(flagNameReceived)) << "Failed to retrieve lastname after " << maxTimeout << " seconds";
-                ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to retrieve lastname. Error: " << lastErrorMsgChat[accountIndex] << " (" << lastErrorChat[accountIndex] << ")";
-                buffer << "Peer lastname (" << uh << "): " << mChatLastname << " (len: " << mChatLastname.length() << ")" << endl;
+                ChatRequestTracker lnTracker;
+                megaChatApi[accountIndex]->getUserLastname(uh, nullptr, &lnTracker);
+
+                ASSERT_EQ(fnTracker.waitForResult(), MegaChatError::ERROR_OK) << "Failed to retrieve first name. Error: " << fnTracker.getErrorString();
+                buffer << "Peer firstname (" << uh << "): '" << fnTracker.getText() << '\'' << endl;
+                ASSERT_EQ(lnTracker.waitForResult(), MegaChatError::ERROR_OK) << "Failed to retrieve last name. Error: " << lnTracker.getErrorString();
+                buffer << "Peer lastname (" << uh << "): '" << lnTracker.getText() << '\'' << endl;
 
                 char *email = megaChatApi[accountIndex]->getContactEmail(uh);
                 if (email)
@@ -1102,11 +1101,10 @@ TEST_F(MegaChatApiTest, GetChatRoomsAndMessages)
                 }
                 else
                 {
-                    flagNameReceived = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_GET_EMAIL]; *flagNameReceived = false; mChatEmail = "";
-                    megaChatApi[accountIndex]->getUserEmail(uh);
-                    ASSERT_TRUE(waitForResponse(flagNameReceived)) << "Failed to retrieve email after " << maxTimeout << " seconds";
-                    ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Failed to retrieve email. Error: " << lastErrorMsgChat[accountIndex] << " (" << lastErrorChat[accountIndex] << ")";
-                    buffer << "Peer email (" << uh << "): " << mChatEmail << " (len: " << mChatEmail.length() << ")" << endl;
+                    ChatRequestTracker emailTracker;
+                    megaChatApi[accountIndex]->getUserEmail(uh, &emailTracker);
+                    ASSERT_EQ(emailTracker.waitForResult(), MegaChatError::ERROR_OK) << "Failed to retrieve email. Error: " << emailTracker.getErrorString();
+                    buffer << "Peer email (" << uh << "): '" << emailTracker.getText() << '\'' << endl;
                 }
             }
         }
