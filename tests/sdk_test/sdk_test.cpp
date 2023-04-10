@@ -2034,7 +2034,6 @@ TEST_F(MegaChatApiTest, DISABLED_OfflineMode)
     bool *flagHistoryLoaded = &chatroomListener->historyLoaded[a1]; *flagHistoryLoaded = false;
     megaChatApi[a1]->loadMessages(chatid, 16);
     ASSERT_TRUE(waitForResponse(flagHistoryLoaded)) << "Expired timeout for loading history";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to load history. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
 
     std::stringstream buffer;
     buffer << endl << endl << "Disconnect from the Internet now" << endl << endl;
@@ -2058,7 +2057,7 @@ TEST_F(MegaChatApiTest, DISABLED_OfflineMode)
     ASSERT_TRUE(waitForResponse(flagInit)) << "Expired timeout for initialization";
     int initStateValue = initState[a1];
     ASSERT_EQ(initStateValue, MegaChatApi::INIT_OFFLINE_SESSION) <<
-                     "Wrong chat initialization state.";
+                     "Wrong chat initialization state (8).";
 
     // check the unsent message is properly loaded
     flagHistoryLoaded = &chatroomListener->historyLoaded[a1]; *flagHistoryLoaded = false;
@@ -2085,10 +2084,9 @@ TEST_F(MegaChatApiTest, DISABLED_OfflineMode)
 
 //        system("pause");
 
-    bool *flagRetry = &requestFlagsChat[a1][MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS]; *flagRetry = false;
-    megaChatApi[a1]->retryPendingConnections();
-    ASSERT_TRUE(waitForResponse(flagRetry)) << "Timeout expired for retry pending connections";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to retry pending connections";
+    ChatRequestTracker crtRetryConn;
+    megaChatApi[a1]->retryPendingConnections(false, &crtRetryConn);
+    ASSERT_EQ(crtRetryConn.waitForResult(), MegaChatError::ERROR_OK) << "Failed to retry pending connections. Error: " << crtRetryConn.getErrorString();
 
     flagHistoryLoaded = &chatroomListener->historyLoaded[a1]; *flagHistoryLoaded = false;
     bool *msgSentLoaded = &chatroomListener->msgLoaded[a1]; *msgSentLoaded = false;
