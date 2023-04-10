@@ -3716,11 +3716,10 @@ TEST_F(MegaChatApiTest, DISABLED_ManualGroupCalls)
 
     // Start call
 
-    bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagRequest = false;
     std::cerr << "Start Call" << std::endl;
-    megaChatApi[a1]->startChatCall(chatid, true);
-    ASSERT_TRUE(waitForResponse(flagRequest)) << "Timeout after start chat call " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to start chat call: " << lastErrorChat[a1];
+    ChatRequestTracker crtCall;
+    megaChatApi[a1]->startChatCall(chatid, true, true, &crtCall);
+    ASSERT_EQ(crtCall.waitForResult(), MegaChatError::ERROR_OK) << "Failed to start chat call: " << crtCall.getErrorString();
     bool *callInProgress = &mCallInProgress[a1]; *callInProgress = false;
     ASSERT_TRUE(waitForResponse(callInProgress)) << "Timeout expired for receiving a call";
 
