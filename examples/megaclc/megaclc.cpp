@@ -1087,23 +1087,6 @@ std::string msgStatusToString(const int msgStatus)
 #endif
 }
 
-std::string callTermCodeToString(const int termCode)
-{
-    switch (termCode)
-    {
-        case c::MegaChatMessage::END_CALL_REASON_ENDED: return "END_CALL_REASON_ENDED";
-        case c::MegaChatMessage::END_CALL_REASON_REJECTED: return "END_CALL_REASON_REJECTED";
-        case c::MegaChatMessage::END_CALL_REASON_NO_ANSWER: return "END_CALL_REASON_NO_ANSWER";
-        case c::MegaChatMessage::END_CALL_REASON_FAILED: return "END_CALL_REASON_FAILED";
-        case c::MegaChatMessage::END_CALL_REASON_CANCELLED: return "END_CALL_REASON_CANCELLED";
-        case c::MegaChatMessage::END_CALL_REASON_BY_MODERATOR: return "END_CALL_REASON_BY_MODERATOR";
-        default: assert(false); return "Invalid Call Term Code (" + std::to_string(termCode) + ")";
-    }
-#ifndef WIN32
-    return {}; // warning C4702: unreachable code
-#endif
-}
-
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
 {
     if (!msg)
@@ -1202,7 +1185,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         {
             return std::string{"<Not an ending call>"};
         }
-        return "Call ended: " + callTermCodeToString(termCode) + " - " + std::to_string(duration);
+        return "Call ended: " + std::string(::megachat::MegaChatCall::termcodeToString(termCode)) + " - " + std::to_string(duration);
     };
 
     std::ostringstream os;

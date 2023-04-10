@@ -72,6 +72,7 @@ enum {
 @class MEGANodeList;
 @class MEGAHandleList;
 @class MEGAChatScheduledMeetingOccurrence;
+@class MEGAChatScheduledMeetingList;
 
 @interface MEGAChatRequest : NSObject
 
@@ -90,6 +91,7 @@ enum {
 @property (readonly, nonatomic) MEGANodeList *nodeList;
 @property (readonly, nonatomic) NSInteger paramType;
 @property (readonly, nonatomic) MEGAHandleList *megaHandleList;
+@property (readonly, nonatomic) MEGAChatScheduledMeetingList *scheduledMeetingList;
 @property (readonly, nonatomic) NSArray<MEGAChatScheduledMeetingOccurrence *> *chatScheduledMeetingOccurrences;
 
 - (instancetype)clone;

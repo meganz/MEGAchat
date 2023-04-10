@@ -60,6 +60,7 @@
 		A879F3D91F966D8E007C5394 /* rtcCrypto.cpp in Sources */ = {isa = PBXBuildFile; fileRef = A879F3D81F966D8E007C5394 /* rtcCrypto.cpp */; };
 		A8AA1BF92195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm in Sources */ = {isa = PBXBuildFile; fileRef = A8AA1BF82195B21800E15B60 /* DelegateMEGAChatNodeHistoryListener.mm */; };
 		A8F96C1A219DE3A2005A3EB6 /* MEGAChatGeolocation.mm in Sources */ = {isa = PBXBuildFile; fileRef = A8F96C19219DE3A2005A3EB6 /* MEGAChatGeolocation.mm */; };
+		BF69396329D3CCE400EDDEEF /* MEGAChatScheduledMeetingList.mm in Sources */ = {isa = PBXBuildFile; fileRef = BF69396229D3CCE400EDDEEF /* MEGAChatScheduledMeetingList.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -242,6 +243,9 @@
 		B5371A1327E0229D00B2A6E5 /* MEGAChatDBError.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatDBError.h; sourceTree = "<group>"; };
 		BF1146FC26AD60CD006E30F5 /* RTCAudioSessionConfiguration.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCAudioSessionConfiguration.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/components/audio/RTCAudioSessionConfiguration.h; sourceTree = "<group>"; };
 		BF1146FD26AD60F3006E30F5 /* RTCDispatcher.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCDispatcher.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/helpers/RTCDispatcher.h; sourceTree = "<group>"; };
+		BF69396129D3CCE400EDDEEF /* MEGAChatScheduledMeetingList.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MEGAChatScheduledMeetingList.h; sourceTree = "<group>"; };
+		BF69396229D3CCE400EDDEEF /* MEGAChatScheduledMeetingList.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = MEGAChatScheduledMeetingList.mm; sourceTree = "<group>"; };
+		BF69396429D3CD8900EDDEEF /* MEGAChatScheduledMeetingList+init.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "MEGAChatScheduledMeetingList+init.h"; sourceTree = "<group>"; };
 		BF959683269715090076E5F6 /* RTCAudioSession.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RTCAudioSession.h; path = ../../../SDK/bindings/ios/3rdparty/webrtc/sdk/objc/components/audio/RTCAudioSession.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -422,6 +426,7 @@
 				A819DE8D219EE12E00EA9C22 /* MEGAChatGeolocation+init.h */,
 				2F59F4A2251C5F9100DDD2D0 /* MEGAChatGiphy+init.h */,
 				8374E56A2927980400E0C473 /* MEGAChatScheduledMeeting+init.h */,
+				BF69396429D3CD8900EDDEEF /* MEGAChatScheduledMeetingList+init.h */,
 				8374E56F2927A20100E0C473 /* MEGAChatScheduledFlags+init.h */,
 				8374E5732927A86E00E0C473 /* MEGAChatScheduledRules+init.h */,
 				8374E5742927C7ED00E0C473 /* DelegateMEGAChatScheduledMeetingListener.h */,
@@ -480,6 +485,8 @@
 				B5371A1327E0229D00B2A6E5 /* MEGAChatDBError.h */,
 				8374E5662927977600E0C473 /* MEGAChatScheduledMeeting.h */,
 				8374E5672927977600E0C473 /* MEGAChatScheduledMeeting.mm */,
+				BF69396129D3CCE400EDDEEF /* MEGAChatScheduledMeetingList.h */,
+				BF69396229D3CCE400EDDEEF /* MEGAChatScheduledMeetingList.mm */,
 				8374E56C2927A0CA00E0C473 /* MEGAChatScheduledFlags.h */,
 				8374E56D2927A0CA00E0C473 /* MEGAChatScheduledFlags.mm */,
 				8374E5702927A32B00E0C473 /* MEGAChatScheduledRules.h */,
@@ -652,6 +659,7 @@
 				A82750EE1E9788D8007CD9E2 /* DelegateMEGAChatListener.mm in Sources */,
 				2F59F49F251C5B3600DDD2D0 /* MEGAChatGiphy.mm in Sources */,
 				A82750D81E9788A3007CD9E2 /* MEGAChatRequest.mm in Sources */,
+				BF69396329D3CCE400EDDEEF /* MEGAChatScheduledMeetingList.mm in Sources */,
 				A8F96C1A219DE3A2005A3EB6 /* MEGAChatGeolocation.mm in Sources */,
 				A82750DB1E9788A3007CD9E2 /* MEGAChatSdk.mm in Sources */,
 				A83D5BF61F974AF900A038F7 /* webrtcAdapter.cpp in Sources */,

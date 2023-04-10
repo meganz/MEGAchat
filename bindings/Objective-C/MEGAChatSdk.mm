@@ -24,6 +24,8 @@
 #import "DelegateMEGAChatNotificationListener.h"
 #import "DelegateMEGAChatNodeHistoryListener.h"
 #import "DelegateMEGAChatScheduledMeetingListener.h"
+#import "MEGAChatScheduledRules+init.h"
+#import "MEGAChatScheduledFlags+init.h"
 
 #import <set>
 #import <pthread.h>
@@ -1379,6 +1381,76 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 #pragma mark - Scheduled meetings
+
+- (void)createChatroomAndSchedMeetingWithPeers:(MEGAChatPeerList *)peers
+                                     isMeeting:(BOOL)isMeeting
+                                  isPublicChat:(BOOL)isPublicChat
+                                         title:(NSString *)title
+                                  speakRequest:(BOOL)speakRequest
+                                   waitingRoom:(BOOL)waitingRoom
+                                    openInvite:(BOOL)openInvite
+                                      timezone:(NSString *)timezone
+                                     startDate:(NSInteger)startDate
+                                       endDate:(NSInteger)endDate
+                                   description:(NSString *)description
+                                         flags:(MEGAChatScheduledFlags *)flags
+                                         rules:(MEGAChatScheduledRules *)rules
+                                    attributes:(NSString *)attributes {
+    if (self.megaChatApi) {
+        self.megaChatApi->createChatroomAndSchedMeeting(peers.getCPtr,
+                                                        isMeeting,
+                                                        isPublicChat,
+                                                        title.UTF8String,
+                                                        speakRequest,
+                                                        waitingRoom,
+                                                        openInvite,
+                                                        timezone.UTF8String,
+                                                        (int)startDate,
+                                                        (int)endDate,
+                                                        description.UTF8String,
+                                                        flags.getCPtr,
+                                                        rules.getCPtr,
+                                                        attributes.UTF8String);
+    }
+
+}
+
+- (void)createChatroomAndSchedMeetingWithPeers:(MEGAChatPeerList *)peers
+                                     isMeeting:(BOOL)isMeeting
+                                  isPublicChat:(BOOL)isPublicChat
+                                         title:(NSString *)title
+                                  speakRequest:(BOOL)speakRequest
+                                   waitingRoom:(BOOL)waitingRoom
+                                    openInvite:(BOOL)openInvite
+                                      timezone:(NSString *)timezone
+                                     startDate:(NSInteger)startDate
+                                       endDate:(NSInteger)endDate
+                                   description:(NSString *)description
+                                         flags:(MEGAChatScheduledFlags *)flags
+                                         rules:(MEGAChatScheduledRules *)rules
+                                    attributes:(NSString *)attributes
+                                      delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->createChatroomAndSchedMeeting(peers.getCPtr,
+                                                        isMeeting,
+                                                        isPublicChat,
+                                                        title.UTF8String,
+                                                        speakRequest,
+                                                        waitingRoom,
+                                                        openInvite,
+                                                        timezone.UTF8String,
+                                                        (int)startDate,
+                                                        (int)endDate,
+                                                        description.UTF8String,
+                                                        flags.getCPtr,
+                                                        rules.getCPtr,
+                                                        attributes.UTF8String,
+                                                        [self createDelegateMEGAChatRequestListener:delegate
+                                                                                     singleListener:YES
+                                                                                          queueType:ListenerQueueTypeGlobalBackground]);
+    }
+
+}
 
 - (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
     if (!self.megaChatApi) { return; }
