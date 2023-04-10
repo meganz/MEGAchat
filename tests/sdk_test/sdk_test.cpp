@@ -204,7 +204,6 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 
 void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 {
-    bool *flagRequestLogoutChat = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogoutChat = false;
     RequestTracker logoutTracker;
     if (closeSession)
     {
@@ -226,14 +225,13 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
 
     if (!closeSession)  // for closed session, karere automatically logs out itself
     {
-        megaChatApi[accountIndex]->localLogout();
-
+        ChatRequestTracker crt;
+        megaChatApi[accountIndex]->localLogout(&crt);
+        ASSERT_EQ(crt.waitForResult(), MegaChatError::ERROR_OK) << "Error chat logout. Error: " << crt.getErrorString();
     }
 
-    ASSERT_TRUE(waitForResponse(flagRequestLogoutChat)) << "Expired timeout for chat logout";
-    ASSERT_TRUE(!lastErrorChat[accountIndex]) << "Error chat logout. Error: " << lastErrorMsgChat[accountIndex] << " (" << lastErrorChat[accountIndex] << ")";
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
-
+    std::this_thread::sleep_for(std::chrono::milliseconds(300)); // allow some time for MegaChatApiImpl::mClient to be deleted
 }
 
 void MegaChatApiTest::init()
