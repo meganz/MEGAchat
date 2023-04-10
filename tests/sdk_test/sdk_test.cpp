@@ -4747,7 +4747,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
     chatroomListener->msgEdited[a2] = false;
     MegaChatMessage* msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
     ASSERT_TRUE(msgSent);
-    checkMessages(msgSent, messageToSend, true);
+    ASSERT_NO_FATAL_FAILURE({ checkMessages(msgSent, messageToSend, true); });
 
     //===============================================================================================//
     // TEST 2. Remove richlink (used to remove preview) from previous message with removeRichLink()
@@ -4758,7 +4758,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
     chatroomListener->msgEdited[a1] = false;
     chatroomListener->msgEdited[a2] = false;
     MegaChatMessage* msgUpdated1 = megaChatApi[a1]->removeRichLink(chatid, msgSent->getMsgId());
-    checkMessages(msgUpdated1, messageToSend, false, true);
+    ASSERT_NO_FATAL_FAILURE({ checkMessages(msgUpdated1, messageToSend, false, true); });
 
     //===================================================================//
     // TEST 3. Edit previous non-richlinked message by removing the URL.
@@ -4768,7 +4768,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
     std::string messageToUpdate2 = "Hello friend";
     MegaChatMessage* msgUpdated2 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate2, chatroomListener, msgUpdated1->getMsgId());
     ASSERT_TRUE(msgUpdated2);
-    checkMessages(msgUpdated2, messageToUpdate2, false);
+    ASSERT_NO_FATAL_FAILURE({ checkMessages(msgUpdated2, messageToUpdate2, false); });
 
 
     //======================================================//
@@ -4779,7 +4779,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
     std::string messageToUpdate3 = "Hello friend, sorry, the URL is https://mega.nz";
     MegaChatMessage* msgUpdated3 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate3, chatroomListener, msgUpdated2->getMsgId());
     ASSERT_TRUE(msgUpdated3);
-    checkMessages(msgUpdated3, messageToUpdate3, true);
+    ASSERT_NO_FATAL_FAILURE({ checkMessages(msgUpdated3, messageToUpdate3, true); });
 
     //===============================================================//
     // TEST 5. Edit previous message by modifying the previous URL.
@@ -4789,7 +4789,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
     std::string messageToUpdate4 = "Argghhh!!! Sorry again!! I meant https://mega.io that's the good one!!!";
     MegaChatMessage* msgUpdated4 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate4, chatroomListener, msgUpdated3->getMsgId());
     ASSERT_TRUE(msgUpdated4);
-    checkMessages(msgUpdated4, messageToUpdate4, true);
+    ASSERT_NO_FATAL_FAILURE({ checkMessages(msgUpdated4, messageToUpdate4, true); });
 
     //===============================================================//
     // TEST 6. Edit previous richlinked message by deleting the URL.
@@ -4799,7 +4799,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
     std::string messageToUpdate5 = "No more richlinks please!!!!";
     MegaChatMessage* msgUpdated5 = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate5, chatroomListener, msgUpdated4->getMsgId());
     ASSERT_TRUE(msgUpdated5);
-    checkMessages(msgUpdated5, messageToUpdate5, false);
+    ASSERT_NO_FATAL_FAILURE({ checkMessages(msgUpdated5, messageToUpdate5, false); });
 
 
     // Close chat rooms and free up memory
