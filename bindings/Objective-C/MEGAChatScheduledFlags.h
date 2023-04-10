@@ -17,6 +17,8 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledFlagsType) {
 - (void)setEmailsDisabled:(BOOL)disable;
 - (void)reset;
 
+- (instancetype)initWith:(BOOL)emailsDisabled;
+
 @end
 
 NS_ASSUME_NONNULL_END
