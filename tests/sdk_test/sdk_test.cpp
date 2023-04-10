@@ -3842,6 +3842,7 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
         int retries = 0;
         std::string errStr = errMsg ? errMsg : "executing provided action";
         bool* callConnecting = getChatCallStateFlag(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
+        ASSERT_TRUE(callConnecting) << "Unknown flag CALL_STATUS_CONNECTING";
         while (!*exitFlag)
         {
             ASSERT_TRUE(action) << "waitForCallAction: no valid action provided";
@@ -3851,14 +3852,14 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
             resetTestChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS);
 
             // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
-            action();
+            ASSERT_NO_FATAL_FAILURE({ action(); });
             ASSERT_TRUE(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout)) << "Timeout expired for " << errStr;
 
             // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>
             if (*callConnecting)
             {
                ASSERT_LT(++retries, maxAttempts) << "Max attempts exceeded for " << errStr;
-               waitForChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS);
+               ASSERT_NO_FATAL_FAILURE({ waitForChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS); });
             }
         }
     };
@@ -3913,16 +3914,20 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
     ASSERT_NO_FATAL_FAILURE({
     waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
-                   std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL], &mCallInProgress[a1], &mCallReceivedRinging[a2]},
-                   std::vector<string> { "TYPE_START_CHAT_CALL[a1]", "mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
+                   std::vector<bool *> { &mCallInProgress[a1], &mCallReceivedRinging[a2]},
+                   std::vector<string> { "mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
                    "starting chat call from A",
                    true /* wait for all exit flags*/,
                    true /*reset flags*/,
                    maxTimeout,
-                   [this, a1, chatid](){ megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
+                   [this, a1, chatid]()
+                                {
+                                    ChatRequestTracker crtCall;
+                                    megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtCall);
+                                    ASSERT_EQ(crtCall.waitForResult(), MegaChatError::ERROR_OK)
+                                    << "Failed to start call. Error: " << crtCall.getErrorString();
+                                });
     });
-
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to start chat call: " << lastErrorChat[a1];
 
     // B picks up the call
     LOG_debug << "B picking up the call";
@@ -3945,72 +3950,91 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
     ASSERT_NO_FATAL_FAILURE({
     waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
-                   std::vector<bool *> { &requestFlagsChat[a2][MegaChatRequest::TYPE_ANSWER_CHAT_CALL],
-                                         &mChatCallSessionStatusInProgress[a1],
+                   std::vector<bool *> { &mChatCallSessionStatusInProgress[a1],
                                          &mChatCallSessionStatusInProgress[a2]
                                        },
-                   std::vector<string> { "TYPE_ANSWER_CHAT_CALL[a2]",
-                                         "mChatCallSessionStatusInProgress[a1]",
+                   std::vector<string> { "mChatCallSessionStatusInProgress[a1]",
                                          "mChatCallSessionStatusInProgress[a2]"
-                                         },
+                                       },
                    "answering chat call from B",
                    true /* wait for all exit flags*/,
                    true /*reset flags*/,
                    maxTimeout,
-                   [this, a2, chatid](){ megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false); });
+                   [this, a2, chatid]()
+                                {
+                                    ChatRequestTracker crtAnswerCall;
+                                    megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtAnswerCall);
+                                    ASSERT_EQ(crtAnswerCall.waitForResult(), MegaChatError::ERROR_OK)
+                                    << "Failed to answer call. Error: " << crtAnswerCall.getErrorString();
+                                });
     });
 
     // B puts the call on hold
     LOG_debug << "B setting the call on hold";
     exitFlag = &mChatCallOnHold[a1]; *exitFlag = false;  // from receiver account
     action = [this, a2, chatid](){ megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ true); };
+    ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving call on hold at account A", maxTimeout, action);
+                            });
 
     // A puts the call on hold
     LOG_debug << "A setting the call on hold";
     exitFlag = &mChatCallOnHold[a2]; *exitFlag = false; // from receiver account
     action = [this, a1, chatid](){ megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ true); };
+    ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving call on hold at account B", maxTimeout, action);
+                            });
 
     // A releases on hold
     LOG_debug << "A releasing on hold";
     exitFlag = &mChatCallOnHoldResumed[a2]; *exitFlag = false; // from receiver account
     action = [this, a1, chatid](){ megaChatApi[a1]->setCallOnHold(chatid, /*setOnHold*/ false); };
+    ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving call resume from on hold at account B", maxTimeout, action);
+                            });
 
     // B releases on hold
     LOG_debug << "B releasing on hold";
     exitFlag = &mChatCallOnHoldResumed[a1]; *exitFlag = false; // from receiver account
     action = [this, a2, chatid](){ megaChatApi[a2]->setCallOnHold(chatid, /*setOnHold*/ false); };
+    ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving call resume from on hold at account A", maxTimeout, action);
+                            });
 
     // B enables audio monitor
     LOG_debug << "B enabling audio in the call";
     exitFlag = &mChatCallAudioEnabled[a1]; *exitFlag = false; // from receiver account
     action = [this, a2, chatid](){ megaChatApi[a2]->enableAudio(chatid); };
+    ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio enabled at account A", maxTimeout, action);
+                            });
 
     // A enables audio monitor
     LOG_debug << "A enabling audio in the call";
     exitFlag = &mChatCallAudioEnabled[a2]; *exitFlag = false; // from receiver account
     action = [this, a1, chatid](){ megaChatApi[a1]->enableAudio(chatid); };
+    ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio enabled at account B", maxTimeout, action);
+                            });
 
     // B disables audio monitor
     LOG_debug << "B disabling audio in the call";
     exitFlag = &mChatCallAudioDisabled[a1]; *exitFlag = false; // from receiver account
     action = [this, a2, chatid](){ megaChatApi[a2]->disableAudio(chatid); };
+    ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio disabled at account A", maxTimeout, action);
+                            });
 
     // A disables audio monitor
     LOG_debug << "A disabling audio in the call";
     exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // from receiver account
     action = [this, a1, chatid](){ megaChatApi[a1]->disableAudio(chatid); };
+    ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio disabled at account B", maxTimeout, action);
+                            });
 
     // A forces reconnect
     LOG_debug << "A forcing a reconnect";
-    bool* chatCallReconnectA = &mChatCallReconnection[a1]; *chatCallReconnectA = false;
     bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1]; *sessionWasDestroyedA = false;
     bool* sessionWasDestroyedB = &mChatSessionWasDestroyed[a2]; *sessionWasDestroyedB = false;
 
@@ -4033,7 +4057,8 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
                            "Timeout expired for B receiving chat call in progress";
       };
 
-    megaChatApi[a1]->retryPendingConnections(true);
+    ChatRequestTracker crtRetryConn;
+    megaChatApi[a1]->retryPendingConnections(true, &crtRetryConn);
     // wait for session destruction checks
     std::function<void()> waitForChatCallSessionDestroyedB =
         [this, &sessionWasDestroyedB]()
@@ -4041,44 +4066,62 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
             ASSERT_TRUE(waitForResponse(sessionWasDestroyedB))
                              << "Timeout expired for B receiving session destroyed notification";
         };
-    waitForChatCallSessionDestroyedB();
+    ASSERT_NO_FATAL_FAILURE({ waitForChatCallSessionDestroyedB(); });
     std::function<void()> waitForChatCallSessionDestroyedA =
         [this, &sessionWasDestroyedA]()
         {
             ASSERT_TRUE(waitForResponse(sessionWasDestroyedA))
                              << "Timeout expired for A receiving session destroyed notification";
         };
-    waitForChatCallSessionDestroyedA();
+    ASSERT_NO_FATAL_FAILURE({ waitForChatCallSessionDestroyedA(); });
     // Wait for request finish (i.e. disconnection confirmation)
-    ASSERT_TRUE(waitForResponse(chatCallReconnectA)) <<
-                     "Timeout expired for A to received request completion for reconnection";
+    ASSERT_EQ(crtRetryConn.waitForResult(), MegaChatError::ERROR_OK) << "Client A failed to reconnect. Error: " << crtRetryConn.getErrorString();
+    ASSERT_TRUE(crtRetryConn.getFlag());
+    ASSERT_FALSE(crtRetryConn.getParamType());
+
     // B confirms new mega chat session is ready
-    waitForChatCallReadyB();
+    ASSERT_NO_FATAL_FAILURE({ waitForChatCallReadyB(); });
     // A confirms new mega chat session is ready
-    waitForChatCallReadyA();
+    ASSERT_NO_FATAL_FAILURE({ waitForChatCallReadyA(); });
 
     // B hangs up
     bool* callDestroyedB = &mCallDestroyed[a2]; *callDestroyedB = false;
     *sessionWasDestroyedB = false; *sessionWasDestroyedA = false; // reset flags of session destruction
 
     LOG_debug << "B hangs up the call";
-    exitFlag = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
-    action = [this, a2](){ megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]); };
-    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, exitFlag, "hanging up chat call at account B", maxTimeout, action);
+    bool hangupCallExitFlag = false;
+    action = [&api = megaChatApi[a2], &ringInHandle = mCallIdRingIn[a2], &hangupCallExitFlag]()
+    {
+        ChatRequestTracker crtHangup;
+        api->hangChatCall(ringInHandle, &crtHangup);
+        ASSERT_EQ(crtHangup.waitForResult(), MegaChatError::ERROR_OK)
+                << "Failed to hangup call (B). Error: " << crtHangup.getErrorString();
+        hangupCallExitFlag = true;
+    };
+    ASSERT_NO_FATAL_FAILURE({
+    waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, &hangupCallExitFlag, "hanging up chat call at account B", maxTimeout, action);
+                            });
 
     // wait for session destruction checks
-    waitForChatCallSessionDestroyedB();
-    waitForChatCallSessionDestroyedA();
-    ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to hang up chat call: " << lastErrorChat[a2];
+    ASSERT_NO_FATAL_FAILURE({ waitForChatCallSessionDestroyedB(); });
+    ASSERT_NO_FATAL_FAILURE({ waitForChatCallSessionDestroyedA(); });
     LOG_debug << "Call finished for B";
 
     // A hangs up
     bool* callDestroyedA = &mCallDestroyed[a1]; *callDestroyedA = false;
     LOG_debug << "A hangs up the call";
-    exitFlag = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *exitFlag = false; // from receiver account
-    action = [this, a1](){ megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]); };
-    waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "hanging up chat call at account B", maxTimeout, action);
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to hang up A's chat call: " << lastErrorChat[a1];
+    hangupCallExitFlag = false;
+    action = [&api = megaChatApi[a1], &joinIdHandle = mCallIdJoining[a1], &hangupCallExitFlag]()
+    {
+        ChatRequestTracker crtHangup;
+        api->hangChatCall(joinIdHandle, &crtHangup);
+        ASSERT_EQ(crtHangup.waitForResult(), MegaChatError::ERROR_OK)
+                << "Failed to hangup call (A). Error: " << crtHangup.getErrorString();
+        hangupCallExitFlag = true;
+    };
+    ASSERT_NO_FATAL_FAILURE({
+    waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, &hangupCallExitFlag, "hanging up chat call at account A", maxTimeout, action);
+                            });
     LOG_debug << "Call finished for A";
 
     // Check the call was destroyed at both ends
