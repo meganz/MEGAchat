@@ -2768,16 +2768,15 @@ TEST_F(MegaChatApiTest, GroupLastMessage)
 
     // --> Set title
     std::string title = "Title " + std::to_string(time(NULL));
-    bool *flagChatRoomName = &requestFlagsChat[a1][MegaChatRequest::TYPE_EDIT_CHATROOM_NAME]; *flagChatRoomName = false;
     bool *titleItemChanged0 = &titleUpdated[a1]; *titleItemChanged0 = false;
     bool *titleItemChanged1 = &titleUpdated[a2]; *titleItemChanged1 = false;
     bool *titleChanged0 = &chatroomListener->titleUpdated[a1]; *titleChanged0 = false;
     bool *titleChanged1 = &chatroomListener->titleUpdated[a2]; *titleChanged1 = false;
     bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     std::string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
-    megaChatApi[a1]->setChatTitle(chatid, title.c_str());
-    ASSERT_TRUE(waitForResponse(flagChatRoomName)) << "Timeout expired for changing name";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to change name. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ChatRequestTracker crtSetTitle;
+    megaChatApi[a1]->setChatTitle(chatid, title.c_str(),&crtSetTitle);
+    ASSERT_EQ(crtSetTitle.waitForResult(), MegaChatError::ERROR_OK) << "Failed to change name. Error: " << crtSetTitle.getErrorString();
     ASSERT_TRUE(waitForResponse(titleItemChanged0)) << "Timeout expired for receiving chat list title update for main account";
     ASSERT_TRUE(waitForResponse(titleItemChanged1)) << "Timeout expired for receiving chat list title update for auxiliar account";
     ASSERT_TRUE(waitForResponse(titleChanged0)) << "Timeout expired for receiving chatroom title update for main account";
