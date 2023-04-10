@@ -436,10 +436,9 @@ void MegaChatApiTest::TearDown()
 
                 clearAndLeaveChats(i, chatToSkip);
 
-                bool *flagRequestLogout = &requestFlagsChat[i][MegaChatRequest::TYPE_LOGOUT]; *flagRequestLogout = false;
-                megaChatApi[i]->logout();
-                TEST_LOG_ERROR(waitForResponse(flagRequestLogout), "Time out MegaChatApi logout");
-                TEST_LOG_ERROR(!lastErrorChat[i], "Failed to logout from Chat. Error: " + lastErrorMsgChat[i] + " (" + std::to_string(lastErrorChat[i]) + ")");
+                ChatRequestTracker crtLogout;
+                megaChatApi[i]->logout(&crtLogout);
+                TEST_LOG_ERROR(crtLogout.waitForResult(60) == MegaChatError::ERROR_OK, "Failed to logout from Chat. Error: " + crtLogout.getErrorString());
                 MegaApi::addLoggerObject(logger());   // need to restore customized logger
             }
 
@@ -475,7 +474,7 @@ void MegaChatApiTest::TearDown()
 #else
                 megaApi[i]->logout(&logoutTracker);
 #endif
-                TEST_LOG_ERROR(logoutTracker.waitForResult() == API_OK, "Failed to logout from SDK. Error: " + logoutTracker.getErrorString());
+                TEST_LOG_ERROR(logoutTracker.waitForResult(60) == API_OK, "Failed to logout from SDK. Error: " + logoutTracker.getErrorString());
             }
 
             delete megaApi[i];
@@ -5054,24 +5053,21 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a
 
     if (!chatroomExist && create)
     {
-        bool *flagCreateChatRoom = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flagCreateChatRoom = false;
         bool *chatItemPrimaryReceived = &chatItemUpdated[a1]; *chatItemPrimaryReceived = false;
         bool *chatItemSecondaryReceived = &chatItemUpdated[a2]; *chatItemSecondaryReceived = false;
-        chatid[a1] = MEGACHAT_INVALID_HANDLE;
         bool *flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
         bool *flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
 
-        megaChatApi[a1]->createChat(true, peers, this);
-        bool responseOk = waitForResponse(flagCreateChatRoom);
-        EXPECT_TRUE(responseOk) << "Expired timeout for creating groupchat";
-        if (!responseOk) return MEGACHAT_INVALID_HANDLE;
-        EXPECT_FALSE(lastErrorChat[a1]) << "Failed to create groupchat. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
-        if (lastErrorChat[a1]) return MEGACHAT_INVALID_HANDLE;
-        targetChatid = chatid[a1];
+        ChatRequestTracker crtCreateChat;
+        megaChatApi[a1]->createChat(true, peers, &crtCreateChat);
+        auto result = crtCreateChat.waitForResult();
+        EXPECT_EQ(result, MegaChatError::ERROR_OK) << "Failed to create groupchat. Error: " << crtCreateChat.getErrorString();
+        if (result != MegaChatError::ERROR_OK) return MEGACHAT_INVALID_HANDLE;
+        targetChatid = crtCreateChat.getChatHandle();
         EXPECT_NE(targetChatid, MEGACHAT_INVALID_HANDLE) << "Wrong chat id";
         if (targetChatid == MEGACHAT_INVALID_HANDLE) return MEGACHAT_INVALID_HANDLE;
 
-        responseOk = waitForResponse(chatItemPrimaryReceived);
+        bool responseOk = waitForResponse(chatItemPrimaryReceived);
         EXPECT_TRUE(responseOk) << "Expired timeout for receiving the new chat list item";
         if (!responseOk) return MEGACHAT_INVALID_HANDLE;
 
@@ -5141,18 +5137,16 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
         MegaChatPeerList *peers = MegaChatPeerList::createInstance();
         peers->addPeer(peerPrimary->getHandle(), MegaChatPeerList::PRIV_STANDARD);
 
-        bool *flag = &requestFlagsChat[a1][MegaChatRequest::TYPE_CREATE_CHATROOM]; *flag = false;
         bool *chatCreated = &chatItemUpdated[a1]; *chatCreated = false;
         bool *chatReceived = &chatItemUpdated[a2]; *chatReceived = false;
         bool *flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
         bool *flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
-        megaChatApi[a1]->createChat(false, peers, this);
-        bool responseOk = waitForResponse(flag);
-        EXPECT_TRUE(responseOk) << "Expired timeout for create new chatroom request";
-        if (!responseOk) return MEGACHAT_INVALID_HANDLE;
-        EXPECT_FALSE(lastErrorChat[a1]) << "Error create new chatroom request. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
-        if (lastErrorChat[a1]) return MEGACHAT_INVALID_HANDLE;
-        responseOk = waitForResponse(chatCreated);
+        ChatRequestTracker crtCreateChat;
+        megaChatApi[a1]->createChat(true, peers, &crtCreateChat);
+        auto result = crtCreateChat.waitForResult();
+        EXPECT_EQ(result, MegaChatError::ERROR_OK) << "Failed to create new chatroom. Error: " << crtCreateChat.getErrorString();
+        if (result != MegaChatError::ERROR_OK) return MEGACHAT_INVALID_HANDLE;
+        bool responseOk = waitForResponse(chatCreated);
         EXPECT_TRUE(responseOk) << "Expired timeout for  create new chatroom";
         if (!responseOk) return MEGACHAT_INVALID_HANDLE;
         responseOk = waitForResponse(chatReceived);
@@ -5323,19 +5317,17 @@ MegaChatMessage *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, M
     MegaNodeList *megaNodeList = MegaNodeList::createInstance();
     megaNodeList->addNode(nodeToSend);
 
-    bool *flagRequest = &requestFlagsChat[a1][MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE]; *flagRequest = false;
     bool *flagConfirmed = &chatroomListener->msgConfirmed[a1]; *flagConfirmed = false;
     bool *flagReceived = &chatroomListener->msgReceived[a2]; *flagReceived = false;
 
-    megaChatApi[a1]->attachNodes(chatid, megaNodeList, this);
-    bool responseOk = waitForResponse(flagRequest);
-    EXPECT_TRUE(responseOk) << "Expired timeout for attaching node";
-    if (!responseOk) return nullptr;
-    EXPECT_FALSE(lastErrorChat[a1]) << "Failed to attach node. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ChatRequestTracker crtAttach;
+    megaChatApi[a1]->attachNodes(chatid, megaNodeList, &crtAttach);
+    auto result = crtAttach.waitForResult();
+    EXPECT_EQ(result, MegaChatError::ERROR_OK) << "Failed to attach node. Error: " << crtAttach.getErrorString();
+    if (result != MegaChatError::ERROR_OK) return nullptr;
     delete megaNodeList;
-    if (lastErrorChat[a1]) return nullptr;
 
-    responseOk = waitForResponse(flagConfirmed);
+    bool responseOk = waitForResponse(flagConfirmed);
     EXPECT_TRUE(responseOk) << "Timeout expired for receiving confirmation by server";
     if (!responseOk) return nullptr;
     MegaChatHandle msgId0 = chatroomListener->mConfirmedMessageHandle[a1];
@@ -5369,14 +5361,13 @@ MegaChatMessage *MegaChatApiTest::attachNode(unsigned int a1, unsigned int a2, M
 
 void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
 {
-    bool *flagTruncateHistory = &requestFlagsChat[a1][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
     bool *flagTruncatedPrimary = &chatroomListener->historyTruncated[a1]; *flagTruncatedPrimary = false;
     bool *flagTruncatedSecondary = &chatroomListener->historyTruncated[a2]; *flagTruncatedSecondary = false;
     bool *chatItemUpdated0 = &chatItemUpdated[a1]; *chatItemUpdated0 = false;
     bool *chatItemUpdated1 = &chatItemUpdated[a2]; *chatItemUpdated1 = false;
-    megaChatApi[a1]->clearChatHistory(chatid);
-    ASSERT_TRUE(waitForResponse(flagTruncateHistory)) << "Expired timeout for truncating history";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to truncate history. Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+    ChatRequestTracker crtClearHist;
+    megaChatApi[a1]->clearChatHistory(chatid, &crtClearHist);
+    ASSERT_EQ(crtClearHist.waitForResult(), MegaChatError::ERROR_OK) << "Failed to truncate history. Error: " << crtClearHist.getErrorString();
     ASSERT_TRUE(waitForResponse(flagTruncatedPrimary)) << "Expired timeout for truncating history for primary account";
     ASSERT_TRUE(waitForResponse(flagTruncatedSecondary)) << "Expired timeout for truncating history for secondary account";
     ASSERT_TRUE(waitForResponse(chatItemUpdated0)) << "Expired timeout for receiving chat list item update for primary account";
@@ -5398,11 +5389,10 @@ void MegaChatApiTest::clearHistory(unsigned int a1, unsigned int a2, MegaChatHan
 
 void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid)
 {
-    bool *flagRemoveFromchatRoom = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_REMOVE_FROM_CHATROOM]; *flagRemoveFromchatRoom = false;
     bool *chatClosed = &chatItemClosed[accountIndex]; *chatClosed = false;
-    megaChatApi[accountIndex]->leaveChat(chatid);
-    TEST_LOG_ERROR(waitForResponse(flagRemoveFromchatRoom), "Expired timeout for MegaChatApi remove from chatroom");
-    TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to leave chatroom. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+    ChatRequestTracker crtLeaveChat;
+    megaChatApi[accountIndex]->leaveChat(chatid, &crtLeaveChat);
+    TEST_LOG_ERROR(crtLeaveChat.waitForResult() == MegaChatError::ERROR_OK, "Failed to leave chatroom. Error: " + crtLeaveChat.getErrorString());
     TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
     MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
     if (chatroom->isGroup())
@@ -5660,10 +5650,9 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHand
 
         if (chatroom->isActive() && chatroom->getOwnPrivilege() == MegaChatRoom::PRIV_MODERATOR)
         {
-            bool *flagTruncateHistory = &requestFlagsChat[accountIndex][MegaChatRequest::TYPE_TRUNCATE_HISTORY]; *flagTruncateHistory = false;
-            megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId());
-            TEST_LOG_ERROR(waitForResponse(flagTruncateHistory), "Expired timeout for truncate history");
-            TEST_LOG_ERROR(!lastErrorChat[accountIndex], "Failed to truncate history. Error: " + lastErrorMsgChat[accountIndex] + " (" + std::to_string(lastErrorChat[accountIndex]) + ")");
+            ChatRequestTracker crtClearHist;
+            megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId(), &crtClearHist);
+            TEST_LOG_ERROR(crtClearHist.waitForResult() == MegaChatError::ERROR_OK, "Failed to truncate history. Error: " + crtClearHist.getErrorString());
         }
 
         if (chatroom->isGroup() && chatroom->isActive() && chatroom->getChatId() != skipChatId)
