@@ -141,22 +141,29 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     EXPECT_GE(initializationState, 0) << "MegaChatApiImpl::init returned error";
     if (initializationState < 0) return nullptr;
     MegaApi::removeLoggerObject(logger());
-    bool responseOk = waitForResponse(flagInit);
-    EXPECT_TRUE(responseOk) << "Initialization failed";
-    if (!responseOk) return nullptr;
-    int initStateValue = initState[accountIndex];
-    if (!session)
+
+    // MegaChatApi::INIT_TERMINATED will not be notified. Do not wait for state-change in that case.
+    // Worth asking: why is MegaChatApi::init() returning that undocumented value?!
+    if (initializationState != MegaChatApi::INIT_TERMINATED)
     {
-        EXPECT_EQ(initStateValue, MegaChatApi::INIT_WAITING_NEW_SESSION) << "Wrong chat initialization state.";
-        if (initStateValue != MegaChatApi::INIT_WAITING_NEW_SESSION) return nullptr;
-    }
-    else
-    {
-        EXPECT_EQ(initStateValue, MegaChatApi::INIT_OFFLINE_SESSION) << "Wrong chat initialization state.";
-        if (initStateValue != MegaChatApi::INIT_OFFLINE_SESSION) return nullptr;
+        bool responseOk = waitForResponse(flagInit);
+        EXPECT_TRUE(responseOk) << "Initialization failed";
+        if (!responseOk) return nullptr;
+        int initStateValue = initState[accountIndex];
+        if (!session)
+        {
+            EXPECT_EQ(initStateValue, MegaChatApi::INIT_WAITING_NEW_SESSION) << "Wrong chat initialization state (1).";
+            if (initStateValue != MegaChatApi::INIT_WAITING_NEW_SESSION) return nullptr;
+        }
+        else
+        {
+            EXPECT_EQ(initStateValue, MegaChatApi::INIT_OFFLINE_SESSION) << "Wrong chat initialization state (2).";
+            if (initStateValue != MegaChatApi::INIT_OFFLINE_SESSION) return nullptr;
+        }
     }
 
     // 2. login
+    flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     RequestTracker loginTracker;
     session ? megaApi[accountIndex]->fastLogin(session, &loginTracker)
               : megaApi[accountIndex]->login(mail.c_str(), pwd.c_str(), &loginTracker);
@@ -165,7 +172,6 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     if (loginResult != API_OK) return nullptr;
 
     // 3. fetchnodes
-    flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     bool *loggedInFlag = &mLoggedInAllChats[accountIndex]; *loggedInFlag = false;
     RequestTracker fetchNodesTracker;
     megaApi[accountIndex]->fetchNodes(&fetchNodesTracker);
@@ -173,18 +179,22 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     EXPECT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes. Error: " << fetchNodesResult << ' ' << fetchNodesTracker.getErrorString();
     if (fetchNodesResult != API_OK) return nullptr;
     // after fetchnodes, karere should be ready for offline, at least
-    responseOk = waitForResponse(flagInit);
-    EXPECT_TRUE(responseOk) << "Expired timeout for change init state";
-    if (!responseOk) return nullptr;
-    initStateValue = initState[accountIndex];
-    EXPECT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) << "Wrong chat initialization state.";
+    int initStateValue = initState[accountIndex];
+    if (initStateValue == MegaChatApi::INIT_WAITING_NEW_SESSION || initStateValue == MegaChatApi::INIT_OFFLINE_SESSION)
+    {
+        bool responseOk = waitForResponse(flagInit);
+        EXPECT_TRUE(responseOk) << "Expired timeout for change init state";
+        if (!responseOk) return nullptr;
+        initStateValue = initState[accountIndex];
+    }
+    EXPECT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) << "Wrong chat initialization state (3).";
     if (initStateValue != MegaChatApi::INIT_ONLINE_SESSION) return nullptr;
 
     // if there are chatrooms in this account, wait to be joined to all of them
     std::unique_ptr<MegaChatListItemList> items(megaChatApi[accountIndex]->getChatListItems());
     if (items->size())
     {
-        responseOk = waitForResponse(loggedInFlag, 120);
+        bool responseOk = waitForResponse(loggedInFlag, 120);
         EXPECT_TRUE(responseOk) << "Expired timeout for login to all chats in account '" << mail << "'. (DDOS protection triggered?)";
         if (!responseOk) return nullptr;
     }
