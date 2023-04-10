@@ -551,6 +551,11 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     }
 }
 
+bool Call::isAllowSpeak() const
+{
+    return mSpeakerState == SpeakerState::kActive;
+}
+
 void Call::requestSpeaker(bool add)
 {
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
@@ -1783,7 +1788,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
     return true;
 }
 
-bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
+bool Call::handleSpeakOnCommand(Cid_t cid)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
@@ -1792,18 +1797,12 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
         return false;
     }
 
-    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
-    if (cid)
-    {
-        assert(cid != getOwnCid());
-        addSpeaker(cid, speaker);
-    }
-    else if (mSpeakerState == SpeakerState::kPending)
+    if (!cid && mSpeakerState == SpeakerState::kPending)
     {
         mSpeakerState = SpeakerState::kActive;
         updateAudioTracks();
     }
-    else    // own cid, but SpeakerState is not kPending
+    else if (!cid)    // own cid, but SpeakerState is not kPending
     {
         RTCM_LOG_ERROR("handleSpeakOnCommand: Received speak on for own cid %d without a pending requests", cid);
         assert(false);

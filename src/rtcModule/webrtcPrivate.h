@@ -354,6 +354,7 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    bool isAllowSpeak() const override;
 
     //
     // ------ end ICall methods -----
@@ -446,7 +447,7 @@ public:
     bool handleHiResStopCommand() override;
     bool handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests) override;
     bool handleSpeakReqDelCommand(Cid_t cid) override;
-    bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
+    bool handleSpeakOnCommand(Cid_t cid) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;

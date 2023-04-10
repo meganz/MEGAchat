@@ -6342,7 +6342,7 @@ bool MockupCall::handleSpeakReqDelCommand(Cid_t)
     return true;
 }
 
-bool MockupCall::handleSpeakOnCommand(Cid_t, sfu::TrackDescriptor)
+bool MockupCall::handleSpeakOnCommand(Cid_t)
 {
     return true;
 }

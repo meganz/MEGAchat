@@ -212,7 +212,7 @@ public:
     virtual bool handleHiResStopCommand() = 0;
     virtual bool handleSpeakReqsCommand(const std::vector<Cid_t>&) = 0;
     virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
-    virtual bool handleSpeakOnCommand(Cid_t cid, TrackDescriptor speaker) = 0;
+    virtual bool handleSpeakOnCommand(Cid_t cid) = 0;
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
@@ -373,7 +373,7 @@ public:
     SpeakReqDelCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, TrackDescriptor speaker)> SpeakOnCompleteFunction;
+typedef std::function<bool(Cid_t cid)> SpeakOnCompleteFunction;
 class SpeakOnCommand : public Command
 {
 public:

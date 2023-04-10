@@ -734,29 +734,11 @@ bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
         cid = cidIterator->value.GetUint();
-
-        rapidjson::Value::ConstMemberIterator audioIterator = command.FindMember("audio");
-        if (audioIterator == command.MemberEnd() || !audioIterator->value.IsObject())
-        {
-            SFU_LOG_ERROR("SpeakOnCommand::processCommand: Received data doesn't have 'audio' field");
-            return false;
-        }
-
-        std::map<Cid_t, TrackDescriptor> speakers;
-        parseTracks(command, "speakers", speakers);
-        if (speakers.size() != 1)
-        {
-            SFU_LOG_ERROR("SpeakOnCommand::processCommand: Received data contains unexpected number of audio tracks");
-            return false;
-        }
-        else
-        {
-            return mComplete(speakers.begin()->first, speakers.begin()->second);
-        }
+        return mComplete(cid);
     }
     else
     {
-        return mComplete(cid, sfu::TrackDescriptor());
+        return mComplete(cid);
     }
 }
 
@@ -1565,7 +1547,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
     commands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
     commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
-    commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1), call);
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
