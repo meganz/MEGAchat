@@ -2846,13 +2846,13 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     unsigned a2 = 1;
 
     // Login both accounts
-    ::mega::unique_ptr<char[]>sessionPrimary(login(a1));
+    std::unique_ptr<char[]>sessionPrimary(login(a1));
     ASSERT_TRUE(sessionPrimary);
-    ::mega::unique_ptr<char[]>sessionSecondary(login(a2));
+    std::unique_ptr<char[]>sessionSecondary(login(a2));
     ASSERT_TRUE(sessionSecondary);
 
     // Prepare peers, privileges...
-    ::mega::unique_ptr<MegaUser>user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
+    std::unique_ptr<MegaUser>user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
         ASSERT_NO_FATAL_FAILURE({ makeContact(a1, a2); });
@@ -2861,7 +2861,7 @@ TEST_F(MegaChatApiTest, RetentionHistory)
 
     // Get a group chatroom with both users
     MegaChatHandle uh = user->getHandle();
-    ::mega::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
+    std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
     MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers.get());
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE);
@@ -2870,23 +2870,22 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
-    ::mega::unique_ptr <MegaChatRoom> chatroom (megaChatApi[a1]->getChatRoom(chatid));
-    ::mega::unique_ptr<char[]> chatidB64(megaApi[a1]->handleToBase64(chatid));
+    std::unique_ptr<MegaChatRoom> chatroom (megaChatApi[a1]->getChatRoom(chatid));
+    std::unique_ptr<char[]> chatidB64(megaApi[a1]->handleToBase64(chatid));
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatidB64.get();
 
     // Set secondary account priv to READ ONLY
     if (chatroom->getPeerPrivilegeByHandle(uh) != PRIV_RO)
     {
         // Change peer privileges to Read-only
-        bool *flagUpdatePeerPermision = &requestFlagsChat[a1][MegaChatRequest::TYPE_UPDATE_PEER_PERMISSIONS]; *flagUpdatePeerPermision = false;
         bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
         bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
         bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
         MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
         int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-        megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO);
-        ASSERT_TRUE(waitForResponse(flagUpdatePeerPermision)) << "Timeout expired for update privilege of peer";
-        ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to update privilege of peer Error: " << lastErrorMsgChat[a1] << " (" << lastErrorChat[a1] << ")";
+        ChatRequestTracker crtSetReadonly;
+        megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO, &crtSetReadonly);
+        ASSERT_EQ(crtSetReadonly.waitForResult(), MegaChatError::ERROR_OK) << "Failed to update privilege of peer. Error: " << crtSetReadonly.getErrorString();
         ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
         ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
         ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
@@ -2895,22 +2894,19 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     }
 
     // Set retention time for an invalid handle
-    bool *flagChatRetentionTime = &requestFlagsChat[a2][MegaChatRequest::TYPE_SET_RETENTION_TIME]; *flagChatRetentionTime = false;
-    megaChatApi[a2]->setChatRetentionTime(MEGACHAT_INVALID_HANDLE, 1);
-    ASSERT_TRUE(waitForResponse(flagChatRetentionTime)) << "Timeout expired set chat retention time";
-    ASSERT_EQ(lastErrorChat[a2], MegaChatError::ERROR_ARGS) << "Set retention time: Unexpected error for Invalid handle. Error: " << lastErrorMsgChat[a2];
+    ChatRequestTracker crtSetRetention;
+    megaChatApi[a2]->setChatRetentionTime(MEGACHAT_INVALID_HANDLE, 1, &crtSetRetention);
+    ASSERT_EQ(crtSetRetention.waitForResult(), MegaChatError::ERROR_ARGS) << "Set retention time: Unexpected error for Invalid handle. Error: " << crtSetRetention.getErrorString();
 
     // Set retention time for a not found chatroom
-    flagChatRetentionTime = &requestFlagsChat[a2][MegaChatRequest::TYPE_SET_RETENTION_TIME]; *flagChatRetentionTime = false;
-    megaChatApi[a2]->setChatRetentionTime(123456, 1);
-    ASSERT_TRUE(waitForResponse(flagChatRetentionTime)) << "Timeout expired set chat retention time";
-    ASSERT_EQ(lastErrorChat[a2], MegaChatError::ERROR_NOENT) << "Set retention time: Unexpected error for a not found chatroom. Error: " << lastErrorMsgChat[a2];
+    ChatRequestTracker crtSetRetention2;
+    megaChatApi[a2]->setChatRetentionTime(123456, 1, &crtSetRetention2);
+    ASSERT_EQ(crtSetRetention2.waitForResult(), MegaChatError::ERROR_NOENT) << "Set retention time: Unexpected error for a not found chatroom. Error: " << crtSetRetention2.getErrorString();
 
     // Set retention time without enough permissions
-    flagChatRetentionTime = &requestFlagsChat[a2][MegaChatRequest::TYPE_SET_RETENTION_TIME]; *flagChatRetentionTime = false;
-    megaChatApi[a2]->setChatRetentionTime(chatid, 1);
-    ASSERT_TRUE(waitForResponse(flagChatRetentionTime)) << "Timeout expired set chat retention time";
-    ASSERT_EQ(lastErrorChat[a2], MegaChatError::ERROR_ACCESS) << "Set retention time: Unexpected error for not enough permissions. Error: " << lastErrorMsgChat[a2];
+    ChatRequestTracker crtSetRetention3;
+    megaChatApi[a2]->setChatRetentionTime(chatid, 1, &crtSetRetention3);
+    ASSERT_EQ(crtSetRetention3.waitForResult(), MegaChatError::ERROR_ACCESS) << "Set retention time: Unexpected error for not enough permissions. Error: " << crtSetRetention3.getErrorString();
 
     // Disable retention time
     if (chatroom->getRetentionTime() != 0)
@@ -2919,10 +2915,9 @@ TEST_F(MegaChatApiTest, RetentionHistory)
         bool *retentionTimeChanged0 = &chatroomListener->retentionTimeUpdated[a1]; *retentionTimeChanged0 = false;
         bool *retentionTimeChanged1 = &chatroomListener->retentionTimeUpdated[a2]; *retentionTimeChanged1 = false;
         bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-        flagChatRetentionTime = &requestFlagsChat[a1][MegaChatRequest::TYPE_SET_RETENTION_TIME]; *flagChatRetentionTime = false;
-        megaChatApi[a1]->setChatRetentionTime(chatid, 0);
-        ASSERT_TRUE(waitForResponse(flagChatRetentionTime)) << "Timeout expired set chat retention time";
-        ASSERT_EQ(lastErrorChat[a1], MegaChatError::ERROR_OK) << "Set retention time: Unexpected error. Error: " << lastErrorMsgChat[a1];
+        ChatRequestTracker crtSetRetention4;
+        megaChatApi[a1]->setChatRetentionTime(chatid, 0, &crtSetRetention4);
+        ASSERT_EQ(crtSetRetention4.waitForResult(), MegaChatError::ERROR_OK) << "Set retention time: Unexpected error. Error: " << crtSetRetention4.getErrorString();
         ASSERT_TRUE(waitForResponse(retentionTimeChanged0)) << "Timeout expired for receiving chatroom update";
         ASSERT_TRUE(waitForResponse(retentionTimeChanged1)) << "Timeout expired for receiving chatroom update";
         ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
@@ -2944,10 +2939,9 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     MegaChatHandle *msgId0 = &chatroomListener->mRetentionMessageHandle[a1]; *msgId0 = MEGACHAT_INVALID_HANDLE;
     bool *flagConfirmed1 = &chatroomListener->retentionHistoryTruncated[a2]; *flagConfirmed1 = false;
     MegaChatHandle *msgId1 = &chatroomListener->mRetentionMessageHandle[a2]; *msgId1 = MEGACHAT_INVALID_HANDLE;
-    flagChatRetentionTime = &requestFlagsChat[a1][MegaChatRequest::TYPE_SET_RETENTION_TIME]; *flagChatRetentionTime = false;
-    megaChatApi[a1]->setChatRetentionTime(chatid, 5);
-    ASSERT_TRUE(waitForResponse(flagChatRetentionTime)) << "Timeout expired set chat retention time";
-    ASSERT_EQ(lastErrorChat[a1], MegaChatError::ERROR_OK) << "Set retention time: Unexpected error. Error: " << lastErrorMsgChat[a1];
+    ChatRequestTracker crtSetRetention5;
+    megaChatApi[a1]->setChatRetentionTime(chatid, 5, &crtSetRetention5);
+    ASSERT_EQ(crtSetRetention5.waitForResult(), MegaChatError::ERROR_OK) << "Set retention time: Unexpected error (5). Error: " << crtSetRetention5.getErrorString();
     ASSERT_TRUE(waitForResponse(retentionTimeChanged0)) << "Timeout expired for receiving chatroom update";
     ASSERT_TRUE(waitForResponse(retentionTimeChanged1)) << "Timeout expired for receiving chatroom update";
     ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
@@ -2964,10 +2958,9 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     retentionTimeChanged0 = &chatroomListener->retentionTimeUpdated[a1]; *retentionTimeChanged0 = false;
     retentionTimeChanged1 = &chatroomListener->retentionTimeUpdated[a2]; *retentionTimeChanged1 = false;
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-    flagChatRetentionTime = &requestFlagsChat[a1][MegaChatRequest::TYPE_SET_RETENTION_TIME]; *flagChatRetentionTime = false;
-    megaChatApi[a1]->setChatRetentionTime(chatid, 0);
-    ASSERT_TRUE(waitForResponse(flagChatRetentionTime)) << "Timeout expired set chat retention time";
-    ASSERT_EQ(lastErrorChat[a1], MegaChatError::ERROR_OK) << "Set retention time: Unexpected error. Error: " << lastErrorMsgChat[a1];
+    ChatRequestTracker crtSetRetention6;
+    megaChatApi[a1]->setChatRetentionTime(chatid, 0, &crtSetRetention6);
+    ASSERT_EQ(crtSetRetention6.waitForResult(), MegaChatError::ERROR_OK) << "Set retention time: Unexpected error (6). Error: " << crtSetRetention6.getErrorString();
     ASSERT_TRUE(waitForResponse(retentionTimeChanged0)) << "Timeout expired for receiving chatroom update";
     ASSERT_TRUE(waitForResponse(retentionTimeChanged1)) << "Timeout expired for receiving chatroom update";
     ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
@@ -2987,9 +2980,9 @@ TEST_F(MegaChatApiTest, RetentionHistory)
 
     // Logout and login
     ASSERT_NO_FATAL_FAILURE({ logout(a1, true); });
+    ASSERT_NO_FATAL_FAILURE({ logout(a2, true); });
     sessionPrimary.reset(login(a1));
     ASSERT_TRUE(sessionPrimary);
-    ASSERT_NO_FATAL_FAILURE({ logout(a2, true); });
     sessionSecondary.reset(login(a2));
     ASSERT_TRUE(sessionSecondary);
 
