@@ -3343,7 +3343,6 @@ TEST_F(MegaChatApiTest, Calls)
 
     // A calls B and B hangs up the call
     bool *callInProgress = &mCallInProgress[a1]; *callInProgress = false;
-    bool *flagStartCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagStartCall = false;
     bool *callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
     mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
@@ -3351,12 +3350,11 @@ TEST_F(MegaChatApiTest, Calls)
     bool *callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
     int *termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
     int *termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
-    bool *flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
-    megaChatApi[a1]->startChatCall(chatid, false, false);
-    ASSERT_TRUE(waitForResponse(flagStartCall)) << "Timeout after start chat call " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to start chat call: " << lastErrorChat[a1];
+    ChatRequestTracker crtCall;
+    megaChatApi[a1]->startChatCall(chatid, false, false, &crtCall);
+    ASSERT_EQ(crtCall.waitForResult(), MegaChatError::ERROR_OK) << "Failed to start chat call: " << crtCall.getErrorString();
     ASSERT_TRUE(waitForResponse(callInProgress)) << "Timeout expired for receiving a call";
     unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall)
@@ -3373,15 +3371,14 @@ TEST_F(MegaChatApiTest, Calls)
 
     sleep(5);
 
-    megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2]);
-    ASSERT_TRUE(waitForResponse(flagHangUpCall)) << "Timeout after hang up chat call " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to hang up chat call: " << lastErrorChat[a2];
+    ChatRequestTracker crtHangup;
+    megaChatApi[a2]->hangChatCall(mCallIdRingIn[a2], &crtHangup);
+    ASSERT_EQ(crtHangup.waitForResult(), MegaChatError::ERROR_OK) << "Failed to hang up chat call: " << crtHangup.getErrorString();
     ASSERT_TRUE(waitForResponse(callDestroyed0)) << "The call has to be finished account 1";
     ASSERT_TRUE(waitForResponse(callDestroyed1)) << "The call has to be finished account 2";
 
 
     // A calls B and A hangs up the call before B answers
-    flagStartCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagStartCall = false;
     callInProgress = &mCallInProgress[a1]; *callInProgress = false;
     callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
     mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
@@ -3390,12 +3387,11 @@ TEST_F(MegaChatApiTest, Calls)
     callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
     termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
     termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
-    flagHangUpCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
-    megaChatApi[a1]->startChatCall(chatid, false, false);
-    ASSERT_TRUE(waitForResponse(flagStartCall)) << "Timeout after start chat call " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to start chat call: " << lastErrorChat[a1];
+    ChatRequestTracker crtCall2;
+    megaChatApi[a1]->startChatCall(chatid, false, false, &crtCall2);
+    ASSERT_EQ(crtCall2.waitForResult(), MegaChatError::ERROR_OK) << "Failed to start chat call (2): " << crtCall2.getErrorString();
     ASSERT_TRUE(waitForResponse(callInProgress)) << "Timeout expired for receiving a call";
     auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall)
@@ -3412,16 +3408,15 @@ TEST_F(MegaChatApiTest, Calls)
 
     sleep(5);
 
-    megaChatApi[a1]->hangChatCall(mCallIdJoining[a1]);
-    ASSERT_TRUE(waitForResponse(flagHangUpCall)) << "Timeout after hang up chat call " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to hang up chat call: " << lastErrorChat[a1];
+    ChatRequestTracker crtHangup2;
+    megaChatApi[a1]->hangChatCall(mCallIdJoining[a1], &crtHangup2);
+    ASSERT_EQ(crtHangup2.waitForResult(), MegaChatError::ERROR_OK) << "Failed to hang up chat call (2): " << crtHangup2.getErrorString();
     ASSERT_TRUE(waitForResponse(callDestroyed0)) << "The call has to be finished account 1";
     ASSERT_TRUE(waitForResponse(callDestroyed1)) << "The call has to be finished account 2";
 
     // A calls B(B is logged out), B logins, B receives the call and B hangs up the call
     ASSERT_NO_FATAL_FAILURE({ logout(a2); });
     callInProgress = &mCallInProgress[a1]; *callInProgress = false;
-    flagStartCall = &requestFlagsChat[a1][MegaChatRequest::TYPE_START_CHAT_CALL]; *flagStartCall = false;
     bool *callReceived = &mCallReceived[a2]; *callReceived = false;
     callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
@@ -3430,13 +3425,12 @@ TEST_F(MegaChatApiTest, Calls)
     callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
     termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
     termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
-    flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
 
-    megaChatApi[a1]->startChatCall(chatid, false, false);
-    ASSERT_TRUE(waitForResponse(flagStartCall)) << "Timeout after start chat call " << maxTimeout << " seconds";
-    ASSERT_TRUE(!lastErrorChat[a1]) << "Failed to start chat call: " << lastErrorChat[a1];
+    ChatRequestTracker crtCall3;
+    megaChatApi[a1]->startChatCall(chatid, false, false, &crtCall3);
+    ASSERT_EQ(crtCall3.waitForResult(), MegaChatError::ERROR_OK) << "Failed to start chat call (3): " << crtCall3.getErrorString();
     ASSERT_TRUE(waitForResponse(callInProgress)) << "Timeout expired for receiving a call";
     auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall)
@@ -3488,10 +3482,9 @@ TEST_F(MegaChatApiTest, Calls)
          * this is a very corner case, as call must stop ringing in the period between the ringing checkup above and the process
          * of CALL_STATUS_DESTROYED request.
         */
-        flagHangUpCall = &requestFlagsChat[a2][MegaChatRequest::TYPE_HANG_CHAT_CALL]; *flagHangUpCall = false;
-        megaChatApi[a2]->hangChatCall(ringingCallId);
-        ASSERT_TRUE(waitForResponse(flagHangUpCall)) << "Timeout after hang up chat call " << maxTimeout << " seconds";
-        ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to hang up chat call: " << lastErrorChat[a2];
+        ChatRequestTracker crtHangup3;
+        megaChatApi[a2]->hangChatCall(ringingCallId, &crtHangup3);
+        ASSERT_EQ(crtHangup3.waitForResult(), MegaChatError::ERROR_OK) << "Failed to hang up chat call (3): " << crtHangup3.getErrorString();
 
         // in case of any of these asserts fails, logs can be checked to find a CALLSTATE with a ringing state change
         ASSERT_TRUE(waitForResponse(callDestroyed0)) << "call not finished for account 1 (possible corner case where call stops ringing before request is processed)";
