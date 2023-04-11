@@ -1,6 +1,7 @@
 #ifndef KARERE_DISABLE_WEBRTC
 #ifndef SFU_H
 #define SFU_H
+#include <optional>
 #include <thread>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
