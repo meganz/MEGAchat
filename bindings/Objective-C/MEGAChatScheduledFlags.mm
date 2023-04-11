@@ -13,7 +13,7 @@ using namespace megachat;
 
 @implementation MEGAChatScheduledFlags
 
-- (instancetype)initWith:(BOOL)emailsDisabled {
+- (instancetype)initWithEmailsDisabled:(BOOL)emailsDisabled {
     self = [super init];
     
     MegaChatScheduledFlags *megaChatScheduledFlags = MegaChatScheduledFlags::createInstance();
