@@ -291,6 +291,7 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     KeyCompleteFunction mComplete;
+    constexpr static Keyid_t maxKeyId = static_cast<Keyid_t>(~0);
 };
 
 typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompleteFunction;

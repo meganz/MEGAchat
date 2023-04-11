@@ -570,7 +570,13 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    Keyid_t id = static_cast<Keyid_t>(idIterator->value.GetUint());
+    unsigned int auxid = idIterator->value.GetUint();
+    if (auxid > maxKeyId)
+    {
+        SFU_LOG_ERROR("KeyCommand: keyId exceeds max allowed value (%d): %d", maxKeyId, auxid);
+        return false;
+    }
+    Keyid_t id = static_cast<Keyid_t>(auxid);
 
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("from");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
