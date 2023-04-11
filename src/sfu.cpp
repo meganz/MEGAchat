@@ -1571,7 +1571,7 @@ bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc,
 
     // command received {"a": "command", ...}
     rapidjson::Value::ConstMemberIterator jsonCommandIterator = jsonDoc.FindMember(Command::COMMAND_IDENTIFIER.c_str());
-    if (jsonCommandIterator != jsonDoc.MemberEnd() && !jsonCommandIterator->value.IsString())
+    if (jsonCommandIterator != jsonDoc.MemberEnd() && jsonCommandIterator->value.IsString())
     {
         parsedData.notificationType = SfuData::SFU_COMMAND;
         parsedData.notification = jsonCommandIterator->value.GetString();
