@@ -7303,6 +7303,7 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kPeerJoinTimeout:
         case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kKickedFromWaitingRoom:
+        case rtcModule::TermCode::kTooManyUserClients:
         case rtcModule::TermCode::kSfuShuttingDown:
         case rtcModule::TermCode::kChatDisconn:
         case rtcModule::TermCode::kNoMediaPath:
@@ -7311,6 +7312,7 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrAuth:
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrSdp:
+        case rtcModule::TermCode::kErrorProtocolVersion:
         case rtcModule::TermCode::kErrClientGeneral:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kUnKnownTermCode:
@@ -7707,6 +7709,7 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kChatDisconn:
         case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
+        case rtcModule::TermCode::kErrorProtocolVersion:
         case rtcModule::TermCode::kCallEndedByModerator:
         case rtcModule::TermCode::kUnKnownTermCode:
             return TERM_CODE_ERROR;
@@ -7717,10 +7720,13 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kLeavingRoom:
             return TERM_CODE_NO_PARTICIPATE;
 
-       case rtcModule::TermCode::kTooManyParticipants:
+        case rtcModule::TermCode::kTooManyUserClients:
+            return TERM_CODE_TOO_MANY_CLIENTS;
+
+        case rtcModule::TermCode::kTooManyParticipants:
             return TERM_CODE_TOO_MANY_PARTICIPANTS;
 
-       case rtcModule::TermCode::kInvalidTermCode:
+        case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
 
        // TODO: Check kPushedToWaitingRoom and kKickedFromWaitingRoom when we add support for these termcodes

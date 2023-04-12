@@ -524,6 +524,7 @@ public:
         TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before nobody answered the call
         TERM_CODE_ERROR                     = 3,    // Call error has been received
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
+        TERM_CODE_TOO_MANY_CLIENTS          = 5,    // Too many clients of same user connected
     };
 
     enum
