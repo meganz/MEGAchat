@@ -6277,44 +6277,58 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
 #ifndef KARERE_DISABLE_WEBRTC
 bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 {
+    int failedTest = 0;
+    const auto onTestFailed = [&failedTest](const std::string& cmd, const std::string& msg){
+        std::string errStr = "          [FAILED processing SFU command] :";
+        errStr.append(cmd).append(". ").append(msg);
+        failedTest++;
+        std::cout << errStr << std::endl;
+        LOG_debug << errStr;
+    };
+
     std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
     mOKTests++;
     MockupCall call;
     std::map<std::string, std::unique_ptr<sfu::Command>> commands;
     sfu::SfuConnection::setCallbackToCommands(call, commands);
     std::map<std::string, bool> checkCommands;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"]     = false;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"]                            = false;
+    checkCommands["{\"warn\":\"warn msg\"}"]                                                    = true;
+    checkCommands["{\"deny\":\"audio\",\"msg\":\"deny msg\"}"]                                  = true;
+    checkCommands["{\"err\":129,\"msg\":\"Error\"}"]                                            = true;
     checkCommands["{\"a\":\"HIRES_STOP\"}"]                                                     = true;
     checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2,\"rsn\":65}"]                                  = true;
     checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0,\"v\":2}"] = true;
     checkCommands["{\"a\":\"HIRES_START\"}"]                                                    = true;
-    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"]                             = false;
-    checkCommands["{\"err\":129}"]                                                              = true;
+    checkCommands["{\"a\":\"HELLO\",\"cid\":1,\"na\":20,\"mods\":[\"amECEsVQJQ8\"]}"]           = true;
+    checkCommands["{\"a\":\"AV\",\"cid\":3,\"av\":1}"]                                          = true;
+    checkCommands["{\"a\":\"VTHUMBS\",\"tracks\":[[2,0]]}"]                                     = true;
+    checkCommands["{\"a\":\"HIRES\",\"tracks\":[[2,0,1]]}"]                                     = true;
+    checkCommands["{\"a\":\"VTHUMB_START\"}"]                                                   = true;
+    checkCommands["{\"a\":\"VTHUMB_STOP\"}"]                                                    = true;
+    checkCommands["{\"a\":\"KEY\",\"id\":0,\"from\":2,"
+                  "\"key\":\"RE8HjOLZl8ITM7FMIbAcigPWxq7i6DGqLQm-aNLAkEk\"}"]                   = true;
 
-    int failedTest = 0;
     int executedTests = 0;
     for (const auto& testCase : checkCommands)
     {
         executedTests++;
         rapidjson::Document document;
         sfu::SfuConnection::SfuData outdata;
-        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, outdata);
-
-        /* Command processing is considered failed if:
-         * 1) An error happened upon parsing "SFU" incoming data
-         * 2) Parsed command could not be found at commands
-         * 3) An error happened processing parsed command (processCommand)
-         */
-        bool commandProcSuccess = parseSuccess && (commands.find(outdata.notification) != commands.end() && commands[outdata.notification]->processCommand(document));
-        if (commandProcSuccess != testCase.second)
+        if (!sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, outdata))
         {
-            std::string errStr = "          [FAILED processing SFU command] :";
-            errStr.append(testCase.first).append(". ").append(outdata.msg);
-            failedTest++;
-            std::cout << errStr << std::endl;
-            LOG_debug << errStr;
+            onTestFailed(testCase.first, outdata.msg);
         }
+
+        if (outdata.notificationType == sfu::SfuConnection::SfuData::SFU_COMMAND)
+        {
+            bool commandProcSuccess = (commands.find(outdata.notification) != commands.end()
+                    && commands[outdata.notification]->processCommand(document));
+            if (commandProcSuccess != testCase.second)
+            {
+                onTestFailed(testCase.first, outdata.msg);
+            }
+        }
+        // else => SFU_WARN | SFU_ERROR | SFU_DENY
     }
 
     if (failedTest > 0)
@@ -6537,17 +6551,17 @@ bool MockupCall::handlePeerLeft(Cid_t, unsigned)
 
 bool MockupCall::handleBye(unsigned)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleModAdd(uint64_t)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleModDel(uint64_t)
 {
-    return false;
+    return true;
 }
 
 void MockupCall::onSendByeCommand()
@@ -6561,12 +6575,12 @@ void MockupCall::onSfuDisconnected()
 }
 bool MockupCall::error(unsigned int, const string &)
 {
-    return false;
+    return true;
 }
 
-bool MockupCall::processDeny(const std::string& cmd, const std::string& msg)
+bool MockupCall::processDeny(const std::string&, const std::string&)
 {
-    return false;
+    return true;
 }
 
 void MockupCall::logError(const char *)
@@ -6578,6 +6592,6 @@ bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudio
                                    const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
                                    const std::map<karere::Id, bool>& /*wrUsers*/)
 {
-    return false;
+    return true;
 }
 #endif

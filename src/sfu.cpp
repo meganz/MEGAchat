@@ -1632,9 +1632,6 @@ bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc,
 
 bool SfuConnection::handleIncomingData(const char *data, size_t len)
 {
-    // init errCode to invalid value, to check if a valid errCode has been returned by SFU
-
-    std::string command;
     rapidjson::Document jsonDoc;
     SfuData outdata;
     if (!parseSfuData(data, jsonDoc, outdata))
