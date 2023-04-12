@@ -1297,7 +1297,21 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
     // update session flags
     session->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
 
-    if (aMid != sfu::TrackDescriptor::invalidMid)
+    if (aMid == sfu::TrackDescriptor::invalidMid)
+    {
+        if (oldAudioFlag != session->getAvFlags().audio() && session->getAvFlags().audio())
+        {
+            assert(false);
+            RTCM_LOG_WARNING("handleAvCommand: invalid amid received for peer cid %d", cid);
+            return false;
+        }
+
+        if (oldAudioFlag && !session->getAvFlags().audio())
+        {
+            removeSpeaker(cid);
+        }
+    }
+    else
     {
         assert(session->getAvFlags().audio());
         sfu::TrackDescriptor trackDescriptor;
@@ -1305,10 +1319,6 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
         trackDescriptor.mReuse = true;
 
         addSpeaker(cid, trackDescriptor);
-    }
-    else if (oldAudioFlag && !session->getAvFlags().audio())
-    {
-        removeSpeaker(cid);
     }
 
     return true;
