@@ -1833,7 +1833,6 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         return false;
     }
 
-    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
         assert(cid != getOwnCid());
