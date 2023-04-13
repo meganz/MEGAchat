@@ -425,7 +425,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    Sdp sdp(sdpIterator->value);
+    std::shared_ptr<Sdp> sdp(new Sdp(sdpIterator->value));
 
     rapidjson::Value::ConstMemberIterator tsIterator = command.FindMember("t"); // time elapsed since the start of the call
     if (tsIterator == command.MemberEnd() || !tsIterator->value.IsUint64())
