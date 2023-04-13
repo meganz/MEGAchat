@@ -15,7 +15,9 @@ void ConnStatsCallBack::removeStats()
 std::string Stats::getJson()
 {
     rapidjson::Document json(rapidjson::kObjectType);
-
+    rapidjson::Value sfuv(rapidjson::kNumberType);
+    sfuv.SetUint(sfu::getMySfuVersion());
+    json.AddMember("v", sfuv, json.GetAllocator());
     rapidjson::Value userid(rapidjson::kStringType);
     userid.SetString(mPeerId.toString().c_str(), json.GetAllocator());
     json.AddMember("userid", userid, json.GetAllocator());
