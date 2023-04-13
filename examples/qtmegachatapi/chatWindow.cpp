@@ -1164,7 +1164,7 @@ void ChatWindow::onAttachGiphy()
     long long sizeWebp = 159970;
     int giphyWidth = 200;
     int giphyHeight = 200;
-    const char* giphyTitle = "TEST_SendGiphy";
+    const char* giphyTitle = "MegaChatApiTest.SendGiphy";
     mMegaChatApi->sendGiphy(mChatRoom->getChatId(), srcMp4, srcWebp, sizeMp4, sizeWebp, giphyWidth, giphyHeight, giphyTitle);
 }
 

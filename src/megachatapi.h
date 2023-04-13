@@ -482,6 +482,13 @@ public:
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
         CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call (1on1) outgoing ringing has stopped (only valid if our own client has started the call)
         CHANGE_TYPE_OWN_PERMISSIONS = 0x200,        /// Indicates that own peer moderator role status has changed
+        CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400,   /// Generic notification
+    };
+
+    enum
+    {
+        NOTIFICATION_TYPE_INVALID   = 0,            /// Invalid notification type
+        NOTIFICATION_TYPE_SFU_ERROR = 1,            /// Error received from SFU
     };
 
     enum
@@ -513,8 +520,8 @@ public:
         TERM_CODE_INVALID                   = -1,   // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
         TERM_CODE_HANGUP                    = 0,    // Call has been finished by user
         TERM_CODE_TOO_MANY_PARTICIPANTS     = 1,    // No possible to join the call, too many participants
-        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before no body answer the call
-        TERM_CODE_ERROR                     = 3,    // Call has been finished by error
+        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before nobody answered the call
+        TERM_CODE_ERROR                     = 3,    // Call error has been received
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
     };
 
@@ -543,6 +550,13 @@ public:
      * @return Copy of the MegaChatCall object
      */
     virtual MegaChatCall *copy();
+
+    /**
+     * @brief Returns a readable string that represents a termcode
+     *
+     * @return A readable string that represents a termcode
+     */
+    static const char* termcodeToString(int termcode);
 
     /**
      * @brief Returns the status of the call
@@ -740,6 +754,20 @@ public:
     virtual int getEndCallReason() const;
 
     /**
+     * @brief Return the notification type, when a call notification is forwarded to the apps
+     *
+     * @note this value only will be valid in the following scenarios:
+     *      - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION is notified via MegaChatCallListener::onChatCallUpdate
+     *
+     * Valid values returned by this method are:
+     *      - MegaChatCall::NOTIFICATION_TYPE_INVALID   = 0
+     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR = 1
+     *
+     * @return the notification type, when a call notification is forwarded to the apps
+     */
+    virtual int getNotificationType() const;
+
+    /**
      * @brief Returns the status of the remote call
      *
      * Only valid for outgoing calls. It becomes true when the receiver of the call
@@ -905,6 +933,18 @@ public:
      * @return true if call is on hold
      */
     virtual bool isOnHold() const;
+
+    /**
+     * @brief getGenericMessage Returns a generic message string
+     *
+     * This function only returns a non empty string in the following scenarios:
+     *      - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION is notified via MegaChatCallListener::onChatCallUpdate
+     *
+     * The MegaChatCall retains the ownership of the returned string
+     *
+     * @return a generic message string
+     */
+    virtual const char* getGenericMessage() const;
 
     /**
      * @brief Returns if user can speak in a call
@@ -5593,6 +5633,7 @@ public:
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
+     *  - if the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -5641,6 +5682,7 @@ public:
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
+     *  - if the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -5684,6 +5726,8 @@ public:
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS if the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
