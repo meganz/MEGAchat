@@ -838,7 +838,6 @@ public class MegaChatApiJava {
         megaChatApi.createMeeting(title, speakRequest, waitingRoom, openInvite, createDelegateRequestListener(listener));
     }
 
-
     /**
      * Creates a chatroom and a scheduled meeting for that chatroom
      *
