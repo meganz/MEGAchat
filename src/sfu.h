@@ -204,7 +204,7 @@ public:
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
     virtual bool handleAnswerCommand(Cid_t cid, Sdp& spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
-    virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
+    virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
     virtual bool handleVThumbsStopCommand() = 0;
@@ -281,7 +281,7 @@ private:
     void parsePeerObject(std::vector<Peer>& peers, std::map<Cid_t, std::string>& keystrmap, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
 };
 
-typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
+typedef std::function<bool(const Keyid_t&, const Cid_t&, const std::string&)> KeyCompleteFunction;
 class KeyCommand : public Command
 {
 public:

@@ -1502,7 +1502,7 @@ bool Call::handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t duration, std:
     return true;
 }
 
-bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
+bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
@@ -1563,7 +1563,7 @@ bool Call::handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string &key)
     else if (auxPeer.getPeerSfuVersion() == 2)
     {
         auto pms = auxPeer.getEphemeralPubKeyPms();
-        pms.then([this, &cid, &key, &keyid, &auxPeer]()
+        pms.then([this, cid, key, keyid, &auxPeer]()
         {
             Session* session = getSession(cid);
             if (!session)

@@ -6480,7 +6480,7 @@ bool MockupCall::handleAnswerCommand(Cid_t, sfu::Sdp&, uint64_t, std::vector<sfu
     return true;
 }
 
-bool MockupCall::handleKeyCommand(Keyid_t, Cid_t, const std::string &)
+bool MockupCall::handleKeyCommand(const Keyid_t&, const Cid_t&, const std::string &)
 {
     return true;
 }

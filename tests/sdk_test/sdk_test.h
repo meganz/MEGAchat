@@ -528,7 +528,7 @@ class MockupCall : public sfu::SfuInterface
 public:
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
-    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
+    bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
     bool handleVThumbsStopCommand() override;
