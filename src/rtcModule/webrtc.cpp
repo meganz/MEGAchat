@@ -1405,10 +1405,10 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
                     addPeerWithEphemKey(*auxPeer, derived, derived ? out : std::string());
                 })
-                .fail([this, &peer, &addPeerWithEphemKey](const ::promise::Error&)
+                .fail([this, auxPeer, addPeerWithEphemKey](const ::promise::Error&)
                 {
-                    RTCM_LOG_ERROR("Error verifying ephemeral key signature for for user: %s, cid: %d", peer.getPeerid().toString().c_str(), peer.getCid());
-                    addPeerWithEphemKey(peer, false, std::string());
+                    RTCM_LOG_ERROR("Error verifying ephemeral key signature for for user: %s, cid: %d", auxPeer->getPeerid().toString().c_str(), auxPeer->getCid());
+                    addPeerWithEphemKey(*auxPeer, false, std::string());
                 });
             }
             catch(std::runtime_error& e)
@@ -1899,7 +1899,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
             }
             addPeerWithEphemKey(*peer, derived ? out : std::string());
         })
-        .fail([this, userid, &peer, &addPeerWithEphemKey](const ::promise::Error&)
+        .fail([this, userid, peer, addPeerWithEphemKey](const ::promise::Error&)
         {
             RTCM_LOG_ERROR("Can't retrieve public ED25519 attr for user %s", karere::Id(userid).toString().c_str());
             addPeerWithEphemKey(*peer, std::string());
