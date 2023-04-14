@@ -22,17 +22,10 @@
 #ifndef CHATTEST_H
 #define CHATTEST_H
 
-#include <mega.h>
-#include <megaapi.h>
 #include "megachatapi.h"
 #include <chatClient.h>
-#include <iostream>
 #include <future>
-#include <fstream>
-
-#ifndef KARERE_DISABLE_WEBRTC
-#include <sfu.h>
-#endif
+#include "gtest/gtest.h"
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -40,64 +33,6 @@ static constexpr unsigned int MAX_ATTEMPTS = 3;
 static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 2;
-
-class ChatTestException : public std::exception
-{
-public:
-    ChatTestException(const std::string& file, int line, const std::string &msg);
-
-    virtual const char *what() const throw();
-    virtual const char *msg() const throw();
-
-private:
-    int mLine;
-    std::string mFile;
-    std::string mExceptionText;
-    std::string mMsg;
-};
-
-// do-while is used to forze add semicolon at the end of sentence
-#define ASSERT_CHAT_TEST(a, msg) \
-    do { \
-        if (!(a) && !this->testHasFailed) \
-        { \
-            throw ChatTestException(__FILE__, __LINE__, msg); \
-        } \
-    } \
-    while(false) \
-
-#define EXECUTE_TEST(test, title) \
-    do { \
-        try \
-        { \
-            t.testHasFailed = false; \
-            LOG_debug << "Initializing test environment: " << title; \
-            t.SetUp(); \
-            LOG_debug << "Launching test: " << title; \
-            std::cout << "[" << " RUN    " << "] " << title << std::endl; \
-            test; \
-            std::cout << "[" << "     OK " << "] " << title << std::endl; \
-            LOG_debug << "Cleaning test environment: " << title; \
-            t.TearDown(); \
-            t.mOKTests ++; \
-            LOG_debug << "Finished test: " << title; \
-        } \
-        catch(const ChatTestException& e) \
-        { \
-            t.testHasFailed = true; \
-            std::cout << e.what() << std::endl; \
-            if (e.msg()) \
-            { \
-                std::cout << e.msg() << std::endl; \
-            } \
-            std::cout << "[" << " FAILED " << "] " << title << std::endl; \
-            LOG_debug << "Cleaning test environment after failure: " << title; \
-            t.TearDown(); \
-            t.mFailedTests ++; \
-            LOG_debug << "Failed test: " << title; \
-        } \
-    } \
-    while(false) \
 
 #define TEST_LOG_ERROR(a, message) \
     do { \
@@ -195,6 +130,7 @@ private:
 };
 
 class MegaChatApiTest :
+        public ::testing::Test,
         public ::mega::MegaListener,
         public ::mega::MegaTransferListener,
         public ::mega::MegaLogger,
@@ -208,25 +144,32 @@ public:
     ~MegaChatApiTest();
 
     // Global test environment initialization
-    void init();
+    static void init();
     // Global test environment clear up
-    void terminate();
+    static void terminate();
+
+protected:
+    static Account& account(unsigned i) { return getEnv().account(i); }
+    static MegaLoggerTest* logger() { return getEnv().logger(); }
 
     // Specific test environment initialization for each test
-    void SetUp();
+    void SetUp() override;
     // Specific test environment clear up for each test
-    void TearDown();
+    void TearDown() override;
 
     // email and password parameter is used if you don't want to use default values for accountIndex
     char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
     void logout(unsigned int accountIndex, bool closeSession = false);
-    void logoutAccounts(bool closeSession = false);
 
+public:
     static const char* printChatRoomInfo(const megachat::MegaChatRoom *);
     static const char* printMessageInfo(const megachat::MegaChatMessage *);
+protected:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
+public:
     void postLog(const std::string &msg);
 
+protected:
     bool exitWait(const std::vector<bool *>&responsesReceived, bool any) const;
     bool waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout = maxTimeout) const;
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
@@ -244,39 +187,6 @@ public:
      */
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
 
-    void TEST_ResumeSession(unsigned int accountIndex);
-    void TEST_SetOnlineStatus(unsigned int accountIndex);
-    void TEST_GetChatRoomsAndMessages(unsigned int accountIndex);
-    void TEST_EditAndDeleteMessages(unsigned int a1, unsigned int a2);
-    void TEST_GroupChatManagement(unsigned int a1, unsigned int a2);
-    void TEST_PublicChatManagement(unsigned int a1, unsigned int a2);
-    void TEST_Reactions(unsigned int a1, unsigned int a2);
-    void TEST_OfflineMode(unsigned int a1, unsigned int a2);
-    void TEST_ClearHistory(unsigned int a1, unsigned int a2);
-    void TEST_SwitchAccounts(unsigned int a1, unsigned int a2);
-    void TEST_SendContact(unsigned int a1, unsigned int a2);
-    void TEST_Attachment(unsigned int a1, unsigned int a2);
-    void TEST_LastMessage(unsigned int a1, unsigned int a2);
-    void TEST_GroupLastMessage(unsigned int a1, unsigned int a2);
-    void TEST_RetentionHistory(unsigned int a1, unsigned int a2);
-    void TEST_ChangeMyOwnName(unsigned int a1);
-#ifndef KARERE_DISABLE_WEBRTC
-    void TEST_Calls(unsigned int a1, unsigned int a2);
-    void TEST_ManualCalls(unsigned int a1, unsigned int a2);
-    void TEST_ManualGroupCalls(unsigned int a1, const std::string& chatRoomName);
-    void TEST_EstablishedCalls(unsigned int a1, unsigned int a2);
-    void TEST_ScheduledMeetings(unsigned int a1, unsigned int a2);
-#endif
-
-    void TEST_RichLinkUserAttribute(unsigned int a1);
-    void TEST_SendRichLink(unsigned int a1, unsigned int a2);
-    void TEST_SendGiphy(unsigned int a1, unsigned int a2);
-
-    unsigned mOKTests = 0;
-    unsigned mFailedTests = 0;
-    bool testHasFailed = false;
-
-private:
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
@@ -321,8 +231,6 @@ private:
     void removePendingContactRequest(unsigned int accountIndex);
     void changeLastName(unsigned int accountIndex, std::string lastName);
 
-    Account mAccounts[NUM_ACCOUNTS];
-
     ::mega::MegaApi* megaApi[NUM_ACCOUNTS];
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
@@ -357,8 +265,6 @@ private:
 
     ::mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
     ::mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
-
-    MegaLoggerTest *logger;
 
     bool mNotTransferRunning[NUM_ACCOUNTS];
     bool mPresenceConfigUpdated[NUM_ACCOUNTS];
@@ -409,7 +315,6 @@ private:
     static const std::string REMOTE_PATH;
     static const std::string DOWNLOAD_PATH;
 
-public:
     // implementation for MegaListener
     void onRequestStart(::mega::MegaApi *, ::mega::MegaRequest *) override {}
     void onRequestFinish(::mega::MegaApi *api, ::mega::MegaRequest *request, ::mega::MegaError *e) override;
@@ -447,6 +352,22 @@ public:
     void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm) override;
     void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, bool append) override;
 #endif
+
+private:
+    class TestEnv
+    {
+    public:
+        void setLogFile(const std::string& f) { mLogger.reset(new MegaLoggerTest(f.c_str())); }
+        MegaLoggerTest* logger() const { return mLogger.get(); }
+        void addAccount(const std::string& email, const std::string& pswd) { mAccounts.emplace_back(email, pswd); }
+        Account& account(unsigned i) { assert(i < mAccounts.size()); return mAccounts[i]; }
+
+    private:
+        std::vector<Account> mAccounts;
+        std::unique_ptr<MegaLoggerTest> mLogger;
+    };
+
+    static TestEnv& getEnv() { static TestEnv env; return env; }
 };
 
 class TestChatRoomListener : public megachat::MegaChatRoomListener
@@ -610,7 +531,7 @@ class MockupCall : public sfu::SfuInterface
 public:
     bool handleAvCommand(Cid_t cid, unsigned av) override;
     bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
-    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
+    bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
     bool handleVThumbsStopCommand() override;

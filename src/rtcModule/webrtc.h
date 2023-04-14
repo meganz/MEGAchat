@@ -148,6 +148,7 @@ class CallHandler
 public:
     virtual ~CallHandler(){}
     virtual void onCallStateChange(ICall& call) = 0;
+    virtual void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) = 0;
     virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
     virtual void onAudioApproved(const ICall& call) = 0;

@@ -5470,7 +5470,7 @@ KarereScheduledFlags::KarereScheduledFlags(const KarereScheduledFlags *ksf)
 {}
 
 KarereScheduledFlags::KarereScheduledFlags(const mega::MegaScheduledFlags *msf)
-    : mega::ScheduledFlags(msf ? msf->getNumericValue() : 0)
+    : mega::ScheduledFlags(msf ? msf->getNumericValue() : mega::ScheduledFlags::schedEmptyFlags)
 {}
 
 KarereScheduledRules::KarereScheduledRules(const int freq, const int interval, const mega::m_time_t until,

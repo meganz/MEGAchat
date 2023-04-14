@@ -474,7 +474,7 @@ if [[ -z "$MEGASDK_BRANCH" ]]; then
     MEGASDK_BRANCH=develop
 fi
 
-fetchInstall megasdk "https://github.com/meganz/sdk.git" "--enable-chat --without-freeimage --disable-sync --disable-examples --disable-tests" $MEGASDK_BRANCH
+fetchInstall megasdk "https://github.com/meganz/sdk.git" "--enable-chat --without-freeimage --disable-sync --disable-examples --enable-tests" $MEGASDK_BRANCH
 
 if [[ "$buildqt" == '1' ]]; then
   fetchInstall qt "http://download.qt.io/official_releases/qt/5.6/5.6.0/single/qt-everywhere-opensource-src-5.6.0.zip"

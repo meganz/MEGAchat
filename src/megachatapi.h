@@ -483,6 +483,13 @@ public:
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
         CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call (1on1) outgoing ringing has stopped (only valid if our own client has started the call)
         CHANGE_TYPE_OWN_PERMISSIONS = 0x200,        /// Indicates that own peer moderator role status has changed
+        CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400,   /// Generic notification
+    };
+
+    enum
+    {
+        NOTIFICATION_TYPE_INVALID   = 0,            /// Invalid notification type
+        NOTIFICATION_TYPE_SFU_ERROR = 1,            /// Error received from SFU
     };
 
     enum
@@ -514,8 +521,8 @@ public:
         TERM_CODE_INVALID                   = -1,   // This value is returned while call is in states < CALL_STATUS_IN_PROGRESS
         TERM_CODE_HANGUP                    = 0,    // Call has been finished by user
         TERM_CODE_TOO_MANY_PARTICIPANTS     = 1,    // No possible to join the call, too many participants
-        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before no body answer the call
-        TERM_CODE_ERROR                     = 3,    // Call has been finished by error
+        TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before nobody answered the call
+        TERM_CODE_ERROR                     = 3,    // Call error has been received
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
     };
 
@@ -544,6 +551,13 @@ public:
      * @return Copy of the MegaChatCall object
      */
     virtual MegaChatCall *copy();
+
+    /**
+     * @brief Returns a readable string that represents a termcode
+     *
+     * @return A readable string that represents a termcode
+     */
+    static const char* termcodeToString(int termcode);
 
     /**
      * @brief Returns the status of the call
@@ -741,6 +755,20 @@ public:
     virtual int getEndCallReason() const;
 
     /**
+     * @brief Return the notification type, when a call notification is forwarded to the apps
+     *
+     * @note this value only will be valid in the following scenarios:
+     *      - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION is notified via MegaChatCallListener::onChatCallUpdate
+     *
+     * Valid values returned by this method are:
+     *      - MegaChatCall::NOTIFICATION_TYPE_INVALID   = 0
+     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR = 1
+     *
+     * @return the notification type, when a call notification is forwarded to the apps
+     */
+    virtual int getNotificationType() const;
+
+    /**
      * @brief Returns the status of the remote call
      *
      * Only valid for outgoing calls. It becomes true when the receiver of the call
@@ -906,6 +934,18 @@ public:
      * @return true if call is on hold
      */
     virtual bool isOnHold() const;
+
+    /**
+     * @brief getGenericMessage Returns a generic message string
+     *
+     * This function only returns a non empty string in the following scenarios:
+     *      - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION is notified via MegaChatCallListener::onChatCallUpdate
+     *
+     * The MegaChatCall retains the ownership of the returned string
+     *
+     * @return a generic message string
+     */
+    virtual const char* getGenericMessage() const;
 
     /**
      * @brief Returns if user can speak in a call
@@ -4110,6 +4150,7 @@ public:
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
+     * Note that description is a mandatory field, so in case you want to set an empty description, please provide an empty string with Null-terminated character at the end
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
@@ -7646,12 +7687,24 @@ public:
     /**
      * @brief Creates a new instance of MegaChatScheduledRules
      *
-     * @param freq           : scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval
-     * @param interval       : repetition interval in relation to the frequency
-     * @param until          : specifies when the repetitions should end
-     * @param byWeekDay      : allows us to specify that an event will only occur on given week day/s
-     * @param byMonthDay     : allows us to specify that an event will only occur on a given day/s of the month
-     * @param byMonthWeekDay : allows us to specify that an event will only occurs on a specific weekday offset of the month. (i.e every 2nd Sunday of each month)
+     * @param freq: scheduled meeting frequency, this is used in conjunction with interval
+     * valid values for this param:
+     *  + MegaChatScheduledRules::FREQ_DAILY
+     *  + MegaChatScheduledRules::FREQ_WEEKLY
+     *  + MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * @param interval: repetition interval in relation to the frequency
+     * @param until: specifies when the repetitions should end
+     * @param byWeekDay: allows us to specify that an event will only occur on given week day/s.
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_WEEKLY
+     *
+     * @param byMonthDay: allows us to specify that an event will only occur on a given day/s of the month
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * @param byMonthWeekDay: allows us to specify that an event will only occurs on a specific weekday offset of the month. (i.e every 2nd Sunday of each month)
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * Important: byWeekDay, byMonthDay and byMonthWeekDay are not compatible between them, so only one of these values, can be set at the same time.
      *
      * @return A pointer to the superclass of the private object
      */
