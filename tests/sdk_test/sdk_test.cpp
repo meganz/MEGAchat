@@ -4172,8 +4172,8 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests127.timeZone = timeZone;
     smDataTests127.startDate = startDate;
     smDataTests127.endDate = endDate;
-    smDataTests127.description = description;
-    smDataTests127.flags = flags;
+    smDataTests127.description = ""; // description is not a mandatory field
+    smDataTests127.flags = nullptr;  // flags is not a mandatory field
     smDataTests127.rules = rules;
     createChatroomAndSchedMeeting (a1, smDataTests127);
 
@@ -4184,8 +4184,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     SchedMeetingData smData; // Designated initializers generate too many warnings (gcc)
     smData.chatId = chatid[a1];
     smData.schedId = MEGACHAT_INVALID_HANDLE;
-    ASSERT_TRUE(getSchedMeeting(a1, smData)) <<
-                     "Can't retrieve scheduled meeting for new chat " << (chatIdB64 ? chatIdB64.get() : "INVALID chatId");
+
+    const auto  schedMeet = getSchedMeeting(a1, smData);
+    ASSERT_TRUE(schedMeet) << "Can't retrieve scheduled meeting for new chat " << (chatIdB64 ? chatIdB64.get() : "INVALID chatId");
+    ASSERT_TRUE(!(*schedMeet)->flags() && !(*schedMeet)->description()) << "Scheduled meeting flags must be unset and description must be an empty string" ;
 
     //================================================================================//
     // TEST 2. Update a recurrent scheduled meeting with invalid TimeZone (Error)

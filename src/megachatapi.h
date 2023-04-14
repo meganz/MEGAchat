@@ -4149,6 +4149,7 @@ public:
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
+     * Note that description is a mandatory field, so in case you want to set an empty description, please provide an empty string with Null-terminated character at the end
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
@@ -7662,12 +7663,24 @@ public:
     /**
      * @brief Creates a new instance of MegaChatScheduledRules
      *
-     * @param freq           : scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval
-     * @param interval       : repetition interval in relation to the frequency
-     * @param until          : specifies when the repetitions should end
-     * @param byWeekDay      : allows us to specify that an event will only occur on given week day/s
-     * @param byMonthDay     : allows us to specify that an event will only occur on a given day/s of the month
-     * @param byMonthWeekDay : allows us to specify that an event will only occurs on a specific weekday offset of the month. (i.e every 2nd Sunday of each month)
+     * @param freq: scheduled meeting frequency, this is used in conjunction with interval
+     * valid values for this param:
+     *  + MegaChatScheduledRules::FREQ_DAILY
+     *  + MegaChatScheduledRules::FREQ_WEEKLY
+     *  + MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * @param interval: repetition interval in relation to the frequency
+     * @param until: specifies when the repetitions should end
+     * @param byWeekDay: allows us to specify that an event will only occur on given week day/s.
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_WEEKLY
+     *
+     * @param byMonthDay: allows us to specify that an event will only occur on a given day/s of the month
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * @param byMonthWeekDay: allows us to specify that an event will only occurs on a specific weekday offset of the month. (i.e every 2nd Sunday of each month)
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * Important: byWeekDay, byMonthDay and byMonthWeekDay are not compatible between them, so only one of these values, can be set at the same time.
      *
      * @return A pointer to the superclass of the private object
      */
