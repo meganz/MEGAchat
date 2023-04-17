@@ -1518,13 +1518,12 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
         return false;
     }
 
-    const karere::Id& peerid = session->getPeer().getPeerid();
-    const sfu::Peer& auxPeer = session->getPeer();
+    const sfu::Peer& peer = session->getPeer();
     auto wptr = weakHandle();
 
-    if (auxPeer.getPeerSfuVersion() == 0)
+    if (peer.getPeerSfuVersion() == 0)
     {
-        mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peerid)
+        mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peer.getPeerid())
         .then([wptr, keyid, cid, key, this](Buffer*)
         {
             if (wptr.deleted())
@@ -1560,10 +1559,10 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
             session->addKey(keyid, newKey);
         });
     }
-    else if (auxPeer.getPeerSfuVersion() == 2)
+    else if (peer.getPeerSfuVersion() == 2)
     {
-        auto pms = auxPeer.getEphemeralPubKeyPms();
-        pms.then([this, cid, key, keyid, &auxPeer]()
+        auto pms = peer.getEphemeralPubKeyPms();
+        pms.then([this, cid, key, keyid]()
         {
             Session* session = getSession(cid);
             if (!session)
@@ -1571,6 +1570,8 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
                 RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %d", cid);
                 return false;
             }
+
+            const sfu::Peer& auxPeer = session->getPeer();
             auto ephemeralPubKey = auxPeer.getEphemeralPubKeyDerived();
             if (!ephemeralPubKey.has_value() || ephemeralPubKey->empty())
             {
@@ -1607,15 +1608,15 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
             }
             session->addKey(keyid, result);
         });
-        pms.fail([&auxPeer](const ::promise::Error&)
+        pms.fail([peerId = peer.getPeerid(), peerCid = peer.getCid()](const ::promise::Error&)
         {
-            RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %d", karere::Id(auxPeer.getPeerid()).toString().c_str(), auxPeer.getCid());
+            RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %d", karere::Id(peerId).toString().c_str(),peerCid);
         });
     }
     else
     {
         RTCM_LOG_ERROR("handleKeyCommand: unknown SFU protocol version [%d] for user: %s, cid: %d",
-                                  auxPeer.getPeerSfuVersion(), auxPeer.getPeerid().toString().c_str(), auxPeer.getCid());
+                                  peer.getPeerSfuVersion(), peer.getPeerid().toString().c_str(), peer.getCid());
     }
 
     return true;
@@ -2419,9 +2420,9 @@ void Call::generateAndSendNewMediakey(bool reset)
 
                     (*keys)[sessionCid] = mega::Base64::btoa(encryptedKey);
                  });
-                 pms.fail([&peer](const ::promise::Error&)
+                 pms.fail([peerId = peer.getPeerid(), peerCid = peer.getCid()](const ::promise::Error&)
                  {
-                    RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %d", karere::Id(peer.getPeerid()).toString().c_str(), peer.getCid());
+                    RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %d", karere::Id(peerId).toString().c_str(), peerCid);
                  });
             }
             else
