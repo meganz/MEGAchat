@@ -1,7 +1,6 @@
 #ifndef KARERE_DISABLE_WEBRTC
 #ifndef SFU_H
 #define SFU_H
-#include <optional>
 #include <thread>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
@@ -83,7 +82,7 @@ public:
     void setEphemeralPubKeyDerived(const std::string& key);
 
     // returns derived peer's ephemeral key if available
-    std::optional<std::string> getEphemeralPubKeyDerived() const;
+    std::shared_ptr<std::string> getEphemeralPubKeyDerived() const;
 
     // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
     const promise::Promise<void>& getEphemeralPubKeyPms() const;
