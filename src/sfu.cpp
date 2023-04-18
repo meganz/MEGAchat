@@ -97,7 +97,7 @@ Peer::Peer(const Peer& peer)
     , mAvFlags(peer.mAvFlags)
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
-    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived().has_value() ? *peer.getEphemeralPubKeyDerived(): std::string())
+    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived() ? *peer.getEphemeralPubKeyDerived(): std::string())
     , mEphemeralKeyPms(peer.getEphemeralPubKeyPms())
     , mSfuPeerProtoVersion(peer.getPeerSfuVersion())
 {
@@ -166,15 +166,15 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
     mIvs = ivs;
 }
 
-std::optional<std::string> Peer::getEphemeralPubKeyDerived() const
+std::shared_ptr<std::string> Peer::getEphemeralPubKeyDerived() const
 {
     if (mEphemeralKeyPms.done())
     {
-        return mEphemeralPubKeyDerived;
+        return std::make_shared<std::string>(mEphemeralPubKeyDerived);
     }
     else
     {
-        return std::nullopt;
+        return nullptr;
     }
 }
 
@@ -425,7 +425,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    Sdp sdp(sdpIterator->value);
+    std::shared_ptr<Sdp> sdp(new Sdp(sdpIterator->value));
 
     rapidjson::Value::ConstMemberIterator tsIterator = command.FindMember("t"); // time elapsed since the start of the call
     if (tsIterator == command.MemberEnd() || !tsIterator->value.IsUint64())
