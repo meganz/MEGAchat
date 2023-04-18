@@ -481,8 +481,6 @@ private:
 
 class RequestTracker : public ::mega::MegaRequestListener, public ResultHandler
 {
-    std::unique_ptr<::mega::MegaRequest> request;
-
 public:
     void onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest* req,
                          ::mega::MegaError* e) override
@@ -512,6 +510,9 @@ public:
     {
         return (finished() && request && request->getText()) ? request->getText() : std::string();
     }
+
+private:
+    std::unique_ptr<::mega::MegaRequest> request;
 };
 
 #ifndef KARERE_DISABLE_WEBRTC
