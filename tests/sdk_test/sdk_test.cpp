@@ -4189,7 +4189,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
     // create MegaChatScheduledFlags
     std::shared_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance());
-    flags->setEmailsDisabled(false);
+    flags->setSendEmails(true);
 
     // create MegaChatScheduledRules
     std::shared_ptr<::mega::MegaIntegerList> byWeekDay(::mega::MegaIntegerList::createInstance());
@@ -4224,6 +4224,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     const auto  schedMeet = getSchedMeeting(a1, smData);
     ASSERT_TRUE(schedMeet) << "Can't retrieve scheduled meeting for new chat " << (chatIdB64 ? chatIdB64.get() : "INVALID chatId");
     ASSERT_TRUE(!(*schedMeet)->flags() && !(*schedMeet)->description()) << "Scheduled meeting flags must be unset and description must be an empty string" ;
+    ASSERT_TRUE(flags->sendEmails()) << "Scheduled meeting created doesn't have send emails flag enabled but it was set on creation";
 
     //================================================================================//
     // TEST 2. Update a recurrent scheduled meeting with invalid TimeZone (Error)

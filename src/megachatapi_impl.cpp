@@ -8540,10 +8540,10 @@ MegaChatScheduledFlagsPrivate::MegaChatScheduledFlagsPrivate(const karere::Karer
 {}
 
 void MegaChatScheduledFlagsPrivate::reset()                          { mKScheduledFlags->reset(); }
-void MegaChatScheduledFlagsPrivate::setEmailsDisabled(bool enabled)  { mKScheduledFlags->setEmailsDisabled(enabled); }
+void MegaChatScheduledFlagsPrivate::setSendEmails(bool enabled)      { mKScheduledFlags->setSendEmails(enabled); }
 
 unsigned long MegaChatScheduledFlagsPrivate::getNumericValue() const { return mKScheduledFlags->getNumericValue();}
-bool MegaChatScheduledFlagsPrivate::emailsDisabled() const           { return mKScheduledFlags->emailsDisabled(); }
+bool MegaChatScheduledFlagsPrivate::sendEmails() const               { return mKScheduledFlags->sendEmails(); }
 bool MegaChatScheduledFlagsPrivate::isEmpty() const                  { return mKScheduledFlags->isEmpty(); }
 
 std::unique_ptr<karere::KarereScheduledFlags> MegaChatScheduledFlagsPrivate::getKarereScheduledFlags() const

@@ -2378,8 +2378,8 @@ MegaChatScheduledFlags::~MegaChatScheduledFlags()
 }
 
 void MegaChatScheduledFlags::reset()                                {}
-void MegaChatScheduledFlags::setEmailsDisabled(bool /*enabled*/)    {}
-bool MegaChatScheduledFlags::emailsDisabled() const                 { return false; }
+void MegaChatScheduledFlags::setSendEmails(bool /*enabled*/)        {}
+bool MegaChatScheduledFlags::sendEmails() const                     { return false; }
 bool MegaChatScheduledFlags::isEmpty() const                        { return false; }
 
 /* Class MegaChatScheduledRules */
