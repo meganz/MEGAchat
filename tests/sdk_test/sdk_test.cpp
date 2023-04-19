@@ -3127,6 +3127,7 @@ TEST_F(MegaChatApiTest, GetChatFilters)
     std::unique_ptr<MegaChatListItemList> nonArchivedActiveChats(megaChatApi[accountIndex]->getChatListItems(8+16, 16));
     postLog(getLogTrace("getChatListItems(8+16, 16)", *nonArchivedChats));
     ASSERT_TRUE(equals(nonArchivedChats, nonArchivedChatsDep)) << getErrMsg("non-archived active");
+    ASSERT_TRUE(equals(nonArchivedActiveChats, nonArchivedActiveChatsDep)) << getErrMsg("non-archived active");
 
     std::unique_ptr<MegaChatListItemList> nonArchivedInactiveChatsDep(megaChatApi[accountIndex]-> getInactiveChatListItems());
     postLog(getLogTrace("getInactiveChatListItems()",*nonArchivedInactiveChatsDep));
