@@ -499,10 +499,6 @@ public:
     void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
                          ::megachat::MegaChatError* e) override
     {
-        if (req)
-        {
-            request.reset(req->copy());
-        }
         request.reset(req ? req->copy() : nullptr);
         finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
     }
