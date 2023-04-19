@@ -2760,6 +2760,27 @@ public:
         CHAT_OPTION_OPEN_INVITE      = 0x04,   /// Open invite
     };
 
+    enum
+    {
+        CHAT_FILTER_BY_NO_FILTER                = 0,
+        CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP      = 1,
+        CHAT_FILTER_BY_PUBLIC_OR_PRIVATE        = 2,
+        CHAT_FILTER_BY_MEETING_OR_NON_MEETING   = 4,
+        CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED = 8,
+        CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE     = 16,
+        CHAT_FILTER_BY_READ_OR_UNREAD           = 32,
+    };
+
+    enum
+    {
+        CHAT_GET_INDIVIDUAL = 1,  CHAT_GET_GROUP        = 0,
+        CHAT_GET_PUBLIC     = 2,  CHAT_GET_PRIVATE      = 0,
+        CHAT_GET_MEETING    = 4,  CHAT_GET_NON_MEETING  = 0,
+        CHAT_GET_ARCHIVED   = 8,  CHAT_GET_NON_ARCHIVED = 0,
+        CHAT_GET_ACTIVE     = 16, CHAT_GET_NON_ACTIVE   = 0,
+        CHAT_GET_READ       = 32, CHAT_GET_UNREAD       = 0,
+    };
+
     // SFUID default value. API will start calls in SFU server it consider
     static constexpr int SFU_ID_DEFAULT = -1;
 
@@ -3659,25 +3680,34 @@ public:
      *
      * You take the ownership of the returned value
      *
-     * @param mask represents which bits of the param filter should be applied
-     * - Bit 1: apply individual/group filter --> 0x01
-     * - Bit 2: apply public/private filter --> 0x02
-     * - Bit 3: apply meeting/non-meeting filter --> 0x04
-     * - Bit 4: apply archived/non-archived filter --> 0x08
-     * - Bit 5: apply active/non-active filter --> 0x16
-     * - Bit 6: apply read/unread (messages) filter --> 0x32
-     * A value of 0 in the mask will ignore any value in the param filter and return all chats
+     * @param mask represents what filters to apply to the list of chats
+     * - To apply individual/group filter use       CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP
+     * - To apply public/private filter use         CHAT_FILTER_BY_PUBLIC_OR_PRIVATE
+     * - To apply meeting/non-meeting filter use    CHAT_FILTER_BY_MEETING_OR_NON_MEETING
+     * - To apply archived/non-archived filter use  CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+     * - To apply active/non-active filter use      CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE
+     * - To apply read/unread (messages) filter use CHAT_FILTER_BY_READ_OR_UNREAD
+     * To combine different masks in any order use the + operator
+     * CHAT_FILTER_BY_NO_FILTER mask should be used alone and it will ignore any value in the param filter
      *
-     * @param filter represents a bit set where each bit represents a requirement to meet:
-     * - Bit 1: (true) individual | group --> 0x01
-     * - Bit 2: (true) public | private --> 0x02
-     * - Bit 3: (true) meeting | non-meeting --> 0x04
-     * - Bit 4: (true) archived | non-archived --> 0x08
-     * - Bit 5: (true) active | non-active (user participates in chat or not (he abandoned chat, he was expelled, contact deleted for individual chats) --> 0x16
-     * - Bit 6: (true) read | unread (messages) --> 0x32
-     * Multiple conditions will be applied using a logical AND operator
+     * @param filter represents the values to apply in the filter
+     * To select individual chats use   CHAT_GET_INDIVIDUAL
+     * To select group chats use        CHAT_GET_GROUP
+     * To select public chats use       CHAT_GET_PUBLIC
+     * To select private chats use      CHAT_GET_PRIVATE
+     * To select meeting chats use      CHAT_GET_MEETING
+     * To select non-meeting chats use  CHAT_GET_NON_MEETING
+     * To select archived chats use     CHAT_GET_ARCHIVED
+     * To select non-archived chats use CHAT_GET_NON_ARCHIVED
+     * To select active chats use       CHAT_GET_ACTIVE
+     * To select non-active chats use   CHAT_GET_NON_ACTIVE
+     * To select read chats use         CHAT_GET_READ
+     * To select unread chats use       CHAT_GET_UNREAD
+     * Multiple conditions in any order may be applied using the + operator to combine them
      *
-     * In case you provide an invalid filter, this function returns an empty list
+     * In case you provide an invalid filter (i.e. combination of mask and filter params), this function
+     * returns an empty list
+     *
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
     MegaChatListItemList* getChatListItems(const int mask, const int filter) const;
