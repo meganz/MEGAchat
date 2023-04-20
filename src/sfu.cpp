@@ -79,7 +79,7 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-Peer::Peer(karere::Id peerid, unsigned avFlags, Cid_t cid, bool isModerator)
+Peer::Peer(const karere::Id& peerid, unsigned avFlags, Cid_t cid, bool isModerator)
     : mCid(cid),
       mPeerid(peerid),
       mAvFlags(static_cast<uint8_t>(avFlags)),
@@ -105,7 +105,7 @@ Cid_t Peer::getCid() const
     return mCid;
 }
 
-karere::Id Peer::getPeerid() const
+const karere::Id& Peer::getPeerid() const
 {
     return mPeerid;
 }
@@ -2250,7 +2250,7 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 
 }
 
-SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
+SfuConnection* SfuClient::createSfuConnection(const karere::Id& chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
 {
     assert(mConnections.find(chatid) == mConnections.end());
     mConnections[chatid] = mega::make_unique<SfuConnection>(std::move(sfuUrl), mWebsocketIO, mAppCtx, call, dnsCache);
@@ -2259,7 +2259,7 @@ SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, karere::Url&& s
     return sfuConnection;
 }
 
-void SfuClient::closeSfuConnection(karere::Id chatid)
+void SfuClient::closeSfuConnection(const karere::Id& chatid)
 {
     mConnections[chatid]->disconnect();
     mConnections.erase(chatid);

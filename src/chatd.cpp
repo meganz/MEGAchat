@@ -194,7 +194,7 @@ Client::Client(karere::Client *aKarereClient) :
     }
 }
 
-Chat& Client::createChat(Id chatid, int shardNo,
+Chat& Client::createChat(const Id& chatid, int shardNo,
     Listener* listener, const karere::SetOfIds& users, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup)
 {
     auto chatit = mChatForChatId.find(chatid);
@@ -309,13 +309,13 @@ uint8_t Client::keepaliveType()
     return mKarereClient->isInBackground() ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
 }
 
-std::shared_ptr<Chat> Client::chatFromId(Id chatid) const
+std::shared_ptr<Chat> Client::chatFromId(const Id& chatid) const
 {
     auto it = mChatForChatId.find(chatid);
     return (it == mChatForChatId.end()) ? nullptr : it->second;
 }
 
-Chat &Client::chats(Id chatid) const
+Chat &Client::chats(const Id& chatid) const
 {
     auto it = mChatForChatId.find(chatid);
     if (it == mChatForChatId.end())
@@ -353,7 +353,7 @@ bool Client::isMessageReceivedConfirmationActive() const
     return mMessageReceivedConfirmation;
 }
 
-::mega::m_time_t Client::getLastMsgTs(Id userid) const
+::mega::m_time_t Client::getLastMsgTs(const Id& userid) const
 {
     std::map<karere::Id, ::mega::m_time_t>::const_iterator it = mLastMsgTs.find(userid);
     if (it != mLastMsgTs.end())
@@ -363,7 +363,7 @@ bool Client::isMessageReceivedConfirmationActive() const
     return 0;
 }
 
-void Client::setLastMsgTs(Id userid, ::mega::m_time_t lastMsgTs)
+void Client::setLastMsgTs(const Id& userid, ::mega::m_time_t lastMsgTs)
 {
     mLastMsgTs[userid] = lastMsgTs;
 }
@@ -1450,7 +1450,8 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id ph;
-            memcpy(&ph, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
+            void* voidmem = &ph; // avoid compiler warnings
+            memcpy(voidmem, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
             karere::Id userId = data.read<uint64_t>(7);
             uint8_t priv = data.read<uint8_t>(15);
 
@@ -1468,7 +1469,8 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id ph;
-            memcpy(&ph, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
+            void* voidmem = &ph;
+            memcpy(voidmem, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
 
             tmpString.append("HANDLELEAVE ph: ");
             tmpString.append(ph.toString(Id::CHATLINKHANDLE).c_str());
@@ -1479,7 +1481,8 @@ string Command::toString(const StaticBuffer& data)
         {
             string tmpString;
             karere::Id ph;
-            memcpy(&ph, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
+            void* voidmem = &ph;
+            memcpy(voidmem, data.readPtr(1, Id::CHATLINKHANDLE), Id::CHATLINKHANDLE);
             karere::Id oldestMsgid = data.read<uint64_t>(7);
             karere::Id newestId = data.read<uint64_t>(15);
 
@@ -1887,7 +1890,7 @@ Message *Chat::newest() const
     return NULL;
 }
 
-Chat::Chat(Connection& conn, Id chatid, Listener* listener,
+Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     const karere::SetOfIds& initialUsers, uint32_t chatCreationTs,
     ICrypto* crypto, bool isGroup)
     : mChatdClient(conn.mChatdClient), mConnection(conn), mChatId(chatid),
@@ -2996,7 +2999,7 @@ int Chat::getPendingReactionStatus(const string &reaction, Id msgId) const
     return -1;
 }
 
-void Chat::addPendingReaction(const std::string &reaction, const std::string &encReaction, Id msgId, uint8_t status)
+void Chat::addPendingReaction(const std::string &reaction, const std::string &encReaction, const Id& msgId, uint8_t status)
 {
     for (auto &auxReaction : mPendingReactions)
     {
@@ -3012,7 +3015,7 @@ void Chat::addPendingReaction(const std::string &reaction, const std::string &en
     mPendingReactions.emplace_back(PendingReaction(reaction, encReaction, msgId, status));
 }
 
-void Chat::removePendingReaction(const string &reaction, Id msgId)
+void Chat::removePendingReaction(const string &reaction, const Id& msgId)
 {
     for (auto it = mPendingReactions.begin(); it != mPendingReactions.end(); it++)
     {
@@ -3224,7 +3227,7 @@ void Chat::requestRichLink(Message &message)
         }
 
         auto wptr = weakHandle();
-        karere::Id msgId = message.id();
+        const karere::Id& msgId = message.id();
         uint16_t updated = message.updated;
         client().mKarereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
         .then([wptr, this, msgId, updated](ReqResult result)
@@ -3343,7 +3346,7 @@ void Chat::requestPendingRichLinks()
          it != mMsgsToUpdateWithRichLink.end();
          it++)
     {
-        karere::Id msgid = *it;
+        const karere::Id& msgid = *it;
         Idx index = msgIndexFromId(msgid);
         if (index != CHATD_IDX_INVALID)     // only confirmed messages have index
         {
@@ -3375,7 +3378,7 @@ void Chat::removePendingRichLinks(Idx idx)
 {
     for (std::set<karere::Id>::iterator it = mMsgsToUpdateWithRichLink.begin(); it != mMsgsToUpdateWithRichLink.end(); )
     {
-        karere::Id msgid = *it;
+        const karere::Id& msgid = *it;
         it++;
         Idx index = msgIndexFromId(msgid);
         assert(index != CHATD_IDX_INVALID);
@@ -3429,7 +3432,7 @@ void Chat::attachmentHistDone()
     mAttachmentNodes->finishFetchingFromServer();
 }
 
-promise::Promise<void> Chat::requestUserAttributes(Id sender)
+promise::Promise<void> Chat::requestUserAttributes(const Id& sender)
 {
     return mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, getPublicHandle());
 }
@@ -3863,7 +3866,7 @@ void Chat::keyImport(KeyId keyid, Id userid, const char *key, uint16_t keylen)
     CALL_CRYPTO(onKeyReceived, keyid, userid, mChatdClient.myHandle(), key, keylen, false);
 }
 
-void Chat::onLastReceived(Id msgid)
+void Chat::onLastReceived(const Id& msgid)
 {
     mLastReceivedId = msgid;
     CALL_DB(setLastReceived, msgid);
@@ -3948,7 +3951,7 @@ bool Chat::previewMode()
     return crypto()->previewMode();
 }
 
-void Chat::onLastSeen(Id msgid, bool resend)
+void Chat::onLastSeen(const Id& msgid, bool resend)
 {
     Idx idx = CHATD_IDX_INVALID;
 
@@ -4046,7 +4049,7 @@ bool Chat::setMessageSeen(Idx idx)
     }
 
     auto wptr = weakHandle();
-    karere::Id id = msg.id();
+    const karere::Id& id = msg.id();
     megaHandle seenTimer = 0;
     seenTimer = karere::setTimeout([this, wptr, idx, id, seenTimer]()
     {
@@ -4189,12 +4192,12 @@ Client::~Client()
     mKarereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
 }
 
-const Id Client::myHandle() const
+const Id& Client::myHandle() const
 {
     return mMyHandle;
 }
 
-Id Client::chatidFromPh(Id ph)
+Id Client::chatidFromPh(const Id& ph)
 {
     Id chatid = Id::inval();
 
@@ -4210,7 +4213,7 @@ Id Client::chatidFromPh(Id ph)
     return chatid;
 }
 
-void Client::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
+void Client::msgConfirm(const Id& msgxid, const Id& msgid, uint32_t timestamp)
 {
     // TODO: maybe it's more efficient to keep a separate mapping of msgxid to messages?
     for (auto& chat: mChatForChatId)
@@ -4222,7 +4225,7 @@ void Client::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
 }
 
 //called when MSGID is received
-bool Client::onMsgAlreadySent(Id msgxid, Id msgid)
+bool Client::onMsgAlreadySent(const Id& msgxid, const Id& msgid)
 {
     for (auto& chat: mChatForChatId)
     {
@@ -4232,7 +4235,7 @@ bool Client::onMsgAlreadySent(Id msgxid, Id msgid)
     return false;
 }
 
-bool Chat::msgAlreadySent(Id msgxid, Id msgid)
+bool Chat::msgAlreadySent(const Id& msgxid, const Id& msgid)
 {
     auto msg = msgRemoveFromSending(msgxid, msgid);
     if (!msg)
@@ -4244,7 +4247,7 @@ bool Chat::msgAlreadySent(Id msgxid, Id msgid)
     return true;
 }
 
-Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
+Message* Chat::msgRemoveFromSending(const Id& msgxid, const Id& msgid)
 {
     // as msgConfirm() is tried on all chatids, it's normal that we don't have
     // the message, so no error logging of error, just return invalid index
@@ -4288,7 +4291,7 @@ Message* Chat::msgRemoveFromSending(Id msgxid, Id msgid)
 }
 
 // msgid can be 0 in case of rejections
-Idx Chat::msgConfirm(Id msgxid, Id msgid, uint32_t timestamp)
+Idx Chat::msgConfirm(const Id& msgxid, const Id& msgid, uint32_t timestamp)
 {
     Message* msg = msgRemoveFromSending(msgxid, msgid);
     if (!msg)
@@ -4458,7 +4461,7 @@ void Chat::onHistReject()
     CALL_LISTENER(onHistoryDone, kHistSourceNotLoggedIn);
 }
 
-void Chat::rejectMsgupd(Id id, uint8_t serverReason)
+void Chat::rejectMsgupd(const Id& id, uint8_t serverReason)
 {
     if (mSending.empty())
     {
@@ -5635,7 +5638,7 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
     }
 }
 
-void Chat::handleLastReceivedSeen(Id msgid)
+void Chat::handleLastReceivedSeen(const Id& msgid)
 {
     //normally the indices will not be set if mLastXXXId == msgid, as there will be only
     //one chance to set the idx (we receive the msg only once).
@@ -5655,7 +5658,7 @@ void Chat::handleLastReceivedSeen(Id msgid)
     }
 }
 
-void Chat::onUserJoin(Id userid, Priv priv)
+void Chat::onUserJoin(const Id& userid, Priv priv)
 {
     if (mOnlineState < kChatStateJoining)
         throw std::runtime_error("onUserJoin received while not joining and not online");
@@ -5674,7 +5677,7 @@ void Chat::onUserJoin(Id userid, Priv priv)
     CALL_LISTENER(onUserJoin, userid, priv);
 }
 
-void Chat::onUserLeave(Id userid)
+void Chat::onUserLeave(const Id& userid)
 {
     assert(mOnlineState >= kChatStateJoining);
 
@@ -5718,7 +5721,7 @@ void Chat::onUserLeave(Id userid)
     }
 }
 
-void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
+void Chat::onAddReaction(const Id& msgId, const Id& userId, const string& reaction)
 {
     if (reaction.empty())
     {
@@ -5788,7 +5791,7 @@ void Chat::onAddReaction(Id msgId, Id userId, std::string reaction)
     });
 }
 
-void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
+void Chat::onDelReaction(const Id& msgId, const Id& userId, const string& reaction)
 {
     if (reaction.empty())
     {
@@ -5858,7 +5861,7 @@ void Chat::onDelReaction(Id msgId, Id userId, std::string reaction)
     });
 }
 
-void Chat::onReactionSn(Id rsn)
+void Chat::onReactionSn(const Id& rsn)
 {
     if (mReactionSn != rsn)
     {
@@ -6123,7 +6126,7 @@ void Chat::sendStopTypingNotification()
     sendCommand(Command(OP_BROADCAST) + mChatId + karere::Id::null() +(uint8_t)Command::kBroadcastUserStopTyping);
 }
 
-void Chat::handleBroadcast(karere::Id from, uint8_t type)
+void Chat::handleBroadcast(const karere::Id& from, uint8_t type)
 {
     if (type == Command::kBroadcastUserTyping)
     {
@@ -6156,7 +6159,7 @@ Priv Chat::getOwnprivilege() const
     return mOwnPrivilege;
 }
 
-void Client::leave(Id chatid)
+void Client::leave(const Id& chatid)
 {
     auto conn = mConnectionForChatId.find(chatid);
     if (conn == mConnectionForChatId.end())
@@ -6469,7 +6472,7 @@ void FilteredHistory::deleteMessage(const Message &msg)
     CALL_DB_FH(deleteMsgFromNodeHistory, msg);
 }
 
-void FilteredHistory::truncateHistory(Id id)
+void FilteredHistory::truncateHistory(const Id& id)
 {
     if (id.isValid())
     {
@@ -6622,7 +6625,7 @@ void FilteredHistory::finishFetchingFromServer()
     mFetchingFromServer = false;
 }
 
-Message *FilteredHistory::getMessage(Id id)
+Message *FilteredHistory::getMessage(const Id& id) const
 {
     Message *msg = NULL;
     auto msgItetrator = mIdToMsgMap.find(id);
@@ -6634,7 +6637,7 @@ Message *FilteredHistory::getMessage(Id id)
     return msg;
 }
 
-Idx FilteredHistory::getMessageIdx(Id id)
+Idx FilteredHistory::getMessageIdx(const Id& id)
 {
     return mDb->getIdxOfMsgidFromNodeHistory(id);
 }

@@ -670,7 +670,7 @@ public:
         }
 
          /** @brief Returns the userId index in case that exists. Otherwise returns -1 **/
-        int userIndex(karere::Id userId) const
+        int userIndex(const karere::Id& userId) const
         {
             int i = 0;
             for (auto &it : mUsers)
@@ -683,7 +683,7 @@ public:
             }
             return -1;
         }
-        bool hasReacted(karere::Id userId) const
+        bool hasReacted(const karere::Id& userId) const
         {
             return userIndex(userId) != -1;
         }
@@ -711,8 +711,9 @@ public:
                 // read schedId
                 unsigned int position = 0;
                 karere::Id schedId;
+                void* voidmem = &schedId;
                 unsigned int idDataSize = sizeof(karere::Id);
-                memcpy(&schedId, &buffer[position], idDataSize);
+                memcpy(voidmem, &buffer[position], idDataSize);
                 position += idDataSize;
 
                 // read json length
@@ -795,7 +796,8 @@ public:
             }
 
             unsigned int position = 0;
-            memcpy(&info->callid, &buffer[position], lenCallid);
+            void* voidmem = &info->callid;
+            memcpy(voidmem, &buffer[position], lenCallid);
             position += lenCallid;
             memcpy(&info->duration, &buffer[position], lenDuration);
             position += lenDuration;
@@ -813,7 +815,8 @@ public:
             for (size_t i = 0; i < numParticipants; i++)
             {
                 karere::Id id;
-                memcpy(&id, &buffer[position], lenId);
+                void* voidmem = &id;
+                memcpy(voidmem, &buffer[position], lenId);
                 position += lenId;
                 info->participants.push_back(id);
             }
@@ -846,8 +849,8 @@ public:
     mutable uint8_t userFlags = 0;
     bool richLinkRemoved = 0;
 
-    karere::Id id() const { return mId; }
-    void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
+    const karere::Id& id() const { return mId; }
+    void setId(const karere::Id& aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     bool isSending() const { return mIdIsXid; }
 
     bool isLocalKeyid() const { return isLocalKeyId(keyid); }
@@ -858,13 +861,13 @@ public:
     bool isUndecryptable() const { return (mIsEncrypted == kEncryptedMalformed || mIsEncrypted == kEncryptedSignature); }
     void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
 
-    explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
+    explicit Message(const karere::Id& aMsgid, const karere::Id& aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
           unsigned char aType=kMsgNormal, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
 
-    explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
+    explicit Message(const karere::Id& aMsgid, const karere::Id& aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
             KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr,
             BackRefId aBackRefId = 0, std::vector<BackRefId> aBackRefs = std::vector<BackRefId>())
@@ -948,7 +951,7 @@ public:
         return (type >= Message::kMsgManagementLowest
                 && type <= Message::kMsgManagementHighest);
     }
-    bool isOwnMessage(karere::Id myHandle) const { return (userid == myHandle); }
+    bool isOwnMessage(const karere::Id& myHandle) const { return (userid == myHandle); }
     bool isDeleted() const { return (updated && !size() && type != kMsgTruncate); } // returns false for truncate
     bool isValidLastMessage() const
     {
@@ -960,7 +963,7 @@ public:
     }
     // conditions to consider unread messages should match the
     // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
-    bool isValidUnread(karere::Id myHandle) const
+    bool isValidUnread(const karere::Id& myHandle) const
     {
         return (!isOwnMessage(myHandle)             // exclude own messages
                 && !isDeleted()                     // exclude deleted messages
@@ -983,7 +986,7 @@ public:
         return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
     }
 
-    bool isMissingCall(karere::Id myHandle) const
+    bool isMissingCall(const karere::Id& myHandle) const
     {
         if (type != kMsgCallEnd || isOwnMessage(myHandle))
         {
@@ -1218,7 +1221,7 @@ public:
         append(val);
         return std::move(*this);
     }
-    Command&& operator+(karere::Id id)
+    Command&& operator+(const karere::Id& id)
     {
         append(id.val);
         return std::move(*this);
@@ -1265,7 +1268,7 @@ private:
     KeyId mLocalKeyid;
 
 public:
-    explicit KeyCommand(karere::Id chatid, KeyId aLocalkeyid, size_t reserve=128)
+    explicit KeyCommand(const karere::Id& chatid, KeyId aLocalkeyid, size_t reserve=128)
     : Command(OP_NEWKEY, reserve), mLocalKeyid(aLocalkeyid)
     {
         assert(isValidKeyxId(mLocalKeyid) || mLocalKeyid == CHATD_KEYID_INVALID);
@@ -1274,9 +1277,9 @@ public:
 
     KeyId localKeyid() const { return mLocalKeyid; }
     KeyId keyId() const { return read<KeyId>(9); }
-    void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
+    void setChatId(const karere::Id& aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(KeyId keyid) { write(9, keyid); }
-    void addKey(karere::Id userid, void* keydata, uint16_t keylen)
+    void addKey(const karere::Id& userid, void* keydata, uint16_t keylen)
     {
         assert(keydata && (keylen != 0));
         uint32_t& payloadSize = mapRef<uint32_t>(13);
@@ -1285,7 +1288,7 @@ public:
         append(keydata, keylen);
     }
 
-    std::shared_ptr<Buffer> getKeyByUserId (karere::Id userId)
+    std::shared_ptr<Buffer> getKeyByUserId (const karere::Id& userId) const
     {
         karere::Id receiver;
         const char *pos = buf() + 17;
@@ -1337,8 +1340,8 @@ public:
 class MsgCommand: public Command
 {
 public:
-    explicit MsgCommand(uint8_t opcode, karere::Id chatid, karere::Id userid,
-        karere::Id msgid, uint32_t ts, uint16_t updated, KeyId keyid=CHATD_KEYID_INVALID)
+    explicit MsgCommand(uint8_t opcode, const karere::Id& chatid, const karere::Id& userid,
+        const karere::Id& msgid, uint32_t ts, uint16_t updated, KeyId keyid=CHATD_KEYID_INVALID)
     :Command(opcode)
     {
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
@@ -1347,7 +1350,7 @@ public:
     MsgCommand(size_t reserve): Command(OP_INVALIDCODE, reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     karere::Id userId() const { return read<uint64_t>(9); }
-    void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
+    void setId(const karere::Id& aMsgid) { write(17, aMsgid.val); }
     KeyId keyId() const { return read<KeyId>(31); }
     void setKeyId(KeyId aKeyid) { write(31, aKeyid); }
     StaticBuffer msg() const
@@ -1374,19 +1377,6 @@ public:
         write<uint32_t>(35, static_cast<uint32_t>(dataSize()-39));
     }
 };
-
-//for exception message purposes
-static inline std::string operator+(const char* str, karere::Id id)
-{
-    std::string result(str);
-    result.append(id.toString());
-    return result;
-}
-static inline std::string& operator+(std::string&& str, karere::Id id)
-{
-    str.append(id.toString());
-    return str;
-}
 
 enum ChatState
 {

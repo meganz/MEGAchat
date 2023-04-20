@@ -929,7 +929,7 @@ promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t 
     });
 }
 
-promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, karere::Id ph)
+promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, const karere::Id& ph)
 {
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);
     Buffer buf(encTitle.size());
@@ -967,7 +967,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
     }
 }
 
-promise::Promise<void> Client::setPublicChatToPrivate(karere::Id chatid)
+promise::Promise<void> Client::setPublicChatToPrivate(const karere::Id& chatid)
 {
     GroupChatRoom *room = (GroupChatRoom *) chats->at(chatid);
     promise::Promise<std::shared_ptr<Buffer>> pms;
@@ -991,7 +991,7 @@ promise::Promise<void> Client::setPublicChatToPrivate(karere::Id chatid)
         const char *enctitleB64 = encTitle->dataSize() ? auxbuf.c_str() : NULL;
 
         return api.call(&::mega::MegaApi::chatLinkClose, chatid, enctitleB64)
-        .then([this, room, wptr, chatid](ReqResult) -> promise::Promise<void>
+        .then([room, wptr](ReqResult) -> promise::Promise<void>
         {
             if (wptr.deleted())
                 return promise::_Void();
@@ -1007,16 +1007,16 @@ void Client::setSFUid(int sfuid)
     api.sdk.setSFUid(sfuid);
 }
 
-promise::Promise<uint64_t> Client::deleteChatLink(karere::Id chatid)
+promise::Promise<uint64_t> Client::deleteChatLink(const karere::Id& chatid)
 {
     return api.call(&::mega::MegaApi::chatLinkDelete, chatid)
-    .then([this, chatid](ReqResult) -> promise::Promise<uint64_t>
+    .then([](ReqResult) -> promise::Promise<uint64_t>
     {
         return Id::inval().val;
     });
 }
 
-promise::Promise<uint64_t> Client::getPublicHandle(Id chatid, bool createifmissing)
+promise::Promise<uint64_t> Client::getPublicHandle(const Id& chatid, bool createifmissing)
 {
     ApiPromise pms;
     if (createifmissing)
@@ -1029,7 +1029,7 @@ promise::Promise<uint64_t> Client::getPublicHandle(Id chatid, bool createifmissi
     }
 
     auto wptr = weakHandle();
-    return pms.then([this, chatid, wptr](ReqResult result) -> promise::Promise<uint64_t>
+    return pms.then([wptr](ReqResult result) -> promise::Promise<uint64_t>
     {
         if (wptr.deleted())
             return Id::inval().val;
@@ -1038,7 +1038,7 @@ promise::Promise<uint64_t> Client::getPublicHandle(Id chatid, bool createifmissi
     });
 }
 
-void Client::onSyncReceived(Id chatid)
+void Client::onSyncReceived(const Id& chatid)
 {
     if (mSyncCount <= 0)
     {
@@ -1056,7 +1056,7 @@ void Client::onSyncReceived(Id chatid)
     }
 }
 
-bool Client::isChatRoomOpened(Id chatid)
+bool Client::isChatRoomOpened(const Id& chatid)
 {
     auto it = chats->find(chatid);
     if (it != chats->end())
@@ -2001,7 +2001,7 @@ void Client::onPresenceLastGreenUpdated(Id userid)
     updateAndNotifyLastGreen(userid.val);
 }
 
-void Client::updateAndNotifyLastGreen(Id userid)
+void Client::updateAndNotifyLastGreen(const Id& userid)
 {
     mega::m_time_t lastGreenTs = mPresencedClient.getLastGreen(userid);
     if (!lastGreenTs)
@@ -2339,8 +2339,8 @@ bool ChatRoom::isChatdChatInitialized()
     return mChat;
 }
 
-strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid, bool isPublic,
-        std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph)
+strongvelope::ProtocolHandler* Client::newStrongvelope(const karere::Id& chatid, bool isPublic,
+        std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const karere::Id& ph)
 {
     return new strongvelope::ProtocolHandler(mMyHandle,
          StaticBuffer(mMyPrivCu25519, 32), StaticBuffer(mMyPrivEd25519, 32),
@@ -2349,7 +2349,7 @@ strongvelope::ProtocolHandler* Client::newStrongvelope(karere::Id chatid, bool i
 }
 
 void ChatRoom::createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic,
-        std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const karere::Id ph)
+        std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const karere::Id& ph)
 {
     mChat = &parent.mKarereClient.mChatdClient->createChat(
         mChatid, mShardNo, this, initialUsers,
@@ -2773,7 +2773,7 @@ void PeerChatRoom::updateChatRoomTitle()
     }
 }
 
-bool PeerChatRoom::isMember(Id peerid) const
+bool PeerChatRoom::isMember(const Id& peerid) const
 {
     return peerid == mPeer;
 }
@@ -2938,7 +2938,7 @@ promise::Promise<void> GroupChatRoom::setChatRoomOption(int option, bool enabled
     });
 }
 
-promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Priv priv)
+promise::Promise<void> GroupChatRoom::setPrivilege(const karere::Id& userid, chatd::Priv priv)
 {
     auto wptr = getDelTracker();
     return parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::updateChatPermissions, chatid(), userid.val, priv)
@@ -2956,14 +2956,14 @@ promise::Promise<void> GroupChatRoom::setPrivilege(karere::Id userid, chatd::Pri
     });
 }
 
-promise::Promise<void> ChatRoom::truncateHistory(karere::Id msgId)
+promise::Promise<void> ChatRoom::truncateHistory(const karere::Id& msgId)
 {
     auto wptr = getDelTracker();
     return parent.mKarereClient.api.callIgnoreResult(
                 &::mega::MegaApi::truncateChat,
                 chatid(),
                 msgId)
-    .then([this, wptr]()
+    .then([wptr]()
     {
         wptr.throwIfDeleted();
         // TODO: update indexes, last message and so on
@@ -3784,7 +3784,7 @@ void GroupChatRoom::handleTitleChange(const std::string &title, bool saveToDB)
     notifyTitleChanged();
 }
 
-bool GroupChatRoom::isMember(Id peerid) const
+bool GroupChatRoom::isMember(const Id& peerid) const
 {
     return mPeers.find(peerid.val) != mPeers.end();
 }
@@ -4934,7 +4934,7 @@ const char* Client::connStateToStr(ConnState state)
     }
 }
 
-bool Client::isCallActive(Id chatid) const
+bool Client::isCallActive(const Id& chatid) const
 {
     bool callActive = false;
 
@@ -4952,7 +4952,7 @@ bool Client::isCallActive(Id chatid) const
     return callActive;
 }
 
-bool Client::isCallInProgress(karere::Id chatid) const
+bool Client::isCallInProgress(const karere::Id& chatid) const
 {
     bool participantingInCall = false;
 
@@ -5554,11 +5554,11 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
                                     sr->byWeekDay(), sr->byMonthDay(), sr->byMonthWeekDay());
 }
 
-KarereScheduledMeeting::KarereScheduledMeeting(const karere::Id chatid, const karere::Id organizerid,
+KarereScheduledMeeting::KarereScheduledMeeting(const karere::Id& chatid, const karere::Id& organizerid,
                                                const std::string& timezone, const mega::m_time_t startDateTime,
                                                const mega::m_time_t endDateTime, const std::string& title,
-                                               const std::string& description, const karere::Id schedId,
-                                               const karere::Id parentSchedId, const int cancelled,
+                                               const std::string& description, const karere::Id& schedId,
+                                               const karere::Id& parentSchedId, const int cancelled,
                                                const std::string& attributes, const mega::m_time_t overrides,
                                                const KarereScheduledFlags* flags, const KarereScheduledRules* rules)
     : mega::ScheduledMeeting(chatid, timezone, startDateTime, endDateTime, title, description, organizerid, schedId,
@@ -5658,8 +5658,8 @@ KarereScheduledMeetingOccurr::~KarereScheduledMeetingOccurr()
 {
 }
 
-karere::Id KarereScheduledMeetingOccurr::schedId() const                        { return mSchedId; }
-karere::Id KarereScheduledMeetingOccurr::parentSchedId() const                  { return mParentSchedId; }
+const karere::Id& KarereScheduledMeetingOccurr::schedId() const                 { return mSchedId; }
+const karere::Id& KarereScheduledMeetingOccurr::parentSchedId() const           { return mParentSchedId; }
 const std::string& KarereScheduledMeetingOccurr::timezone() const               { return mTimezone; }
 ::mega::m_time_t KarereScheduledMeetingOccurr::startDateTime() const            { return mStartDateTime; }
 ::mega::m_time_t KarereScheduledMeetingOccurr::endDateTime() const              { return mEndDateTime; }
