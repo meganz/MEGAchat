@@ -270,7 +270,7 @@ promise::Promise<void> Client::sendKeepalive()
     }
 
     return mKeepalivePromise
-    .fail([this, wptr](const ::promise::Error&)
+    .fail([wptr](const ::promise::Error&)
     {
         if (wptr.deleted())
             return;
@@ -2659,8 +2659,8 @@ void Connection::execCommand(const StaticBuffer& buf)
                 CHATDS_LOG_DEBUG("recv %s chatid: %s, callid %s - reason %d", opcode == OP_CALLEND ? "CALLEND" : "DELCALLREASON",
                                  ID_CSTR(chatid), ID_CSTR(callid), opcode == OP_CALLEND ? -1 : recvReason);
 #ifndef KARERE_DISABLE_WEBRTC
-                rtcModule::EndCallReason endCallReason = static_cast<rtcModule::EndCallReason>
-                        (opcode == OP_DELCALLREASON ? recvReason :rtcModule::EndCallReason::kEnded);
+                rtcModule::EndCallReason endCallReason = opcode == OP_DELCALLREASON ?
+                        static_cast<rtcModule::EndCallReason>(recvReason) :rtcModule::EndCallReason::kEnded;
 
                 rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatid);
                 if (call && mChatdClient.mKarereClient->rtc)
