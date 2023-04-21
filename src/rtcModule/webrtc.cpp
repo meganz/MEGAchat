@@ -1175,14 +1175,14 @@ void Call::sendStats(const TermCode& termCode)
 
 EndCallReason Call::getEndCallReasonFromTermcode(const TermCode& termCode)
 {
-    if (kUserHangup)                    { return kEnded; }
-    if (kTooManyParticipants)           { return kFailed; }
-    if (kLeavingRoom)                   { return kEnded; }
-    if (kCallEndedByModerator)          { return kEndedByMod; }
-    if (kApiEndCall)                    { return kFailed; }
-    if (kPeerJoinTimeout)               { return kFailed; }
-    if (kPushedToWaitingRoom)           { return kFailed; }
-    if (kKickedFromWaitingRoom)         { return kFailed; }
+    if (termCode == kUserHangup)            { return kEnded; }
+    if (termCode == kTooManyParticipants)   { return kFailed; }
+    if (termCode == kLeavingRoom)           { return kEnded; }
+    if (termCode == kCallEndedByModerator)  { return kEndedByMod; }
+    if (termCode == kApiEndCall)            { return kFailed; }
+    if (termCode == kPeerJoinTimeout)       { return kFailed; }
+    if (termCode == kPushedToWaitingRoom)   { return kFailed; }
+    if (termCode == kKickedFromWaitingRoom) { return kFailed; }
     if (termCode & kFlagDisconn)        { return kFailed; }
     if (termCode & kFlagError)          { return kFailed; }
 
@@ -3532,7 +3532,7 @@ AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)
 {
 }
 
-void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms)
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> /*absolute_capture_timestamp_ms*/)
 {
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);
