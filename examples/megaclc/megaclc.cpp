@@ -879,10 +879,7 @@ public:
         }
     }
 
-    void onNodesUpdate(m::MegaApi* , m::MegaNodeList* /*nodes*/) override
-    {
-        //conlock(cout) << "Node list updated:  " << (nodes ? nodes->size() : -1) << endl;
-    }
+    void onNodesUpdate(m::MegaApi*, m::MegaNodeList*) override {}
 
     void onAccountUpdate(m::MegaApi *) override
     {
