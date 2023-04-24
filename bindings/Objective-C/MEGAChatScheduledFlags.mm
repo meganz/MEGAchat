@@ -13,11 +13,11 @@ using namespace megachat;
 
 @implementation MEGAChatScheduledFlags
 
-- (instancetype)initWithEmailsDisabled:(BOOL)emailsDisabled {
+- (instancetype)initWithSendEmails:(BOOL)sendEmails {
     self = [super init];
     
     MegaChatScheduledFlags *megaChatScheduledFlags = MegaChatScheduledFlags::createInstance();
-    megaChatScheduledFlags->setEmailsDisabled(emailsDisabled);
+    megaChatScheduledFlags->setSendEmails(sendEmails);
     
     return [self initWithMegaChatScheduledFlags:megaChatScheduledFlags cMemoryOwn:YES];
 }
@@ -52,14 +52,14 @@ using namespace megachat;
     return self.megaChatScheduledFlags->isEmpty();
 }
 
-- (BOOL)emailsDisabled {
+- (BOOL)emailsEnabled {
     if (!self.megaChatScheduledFlags) { return NO; };
-    return self.megaChatScheduledFlags->emailsDisabled();
+    return self.megaChatScheduledFlags->sendEmails();
 }
 
-- (void)setEmailsDisabled:(BOOL)disable {
+- (void)setEmailsEnabled:(BOOL)sendEmails {
     if (self.megaChatScheduledFlags) {
-        self.megaChatScheduledFlags->setEmailsDisabled(disable);
+        self.megaChatScheduledFlags->setSendEmails(sendEmails);
     };
 }
 
