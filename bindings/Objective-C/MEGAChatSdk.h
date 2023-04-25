@@ -144,7 +144,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)removeChatRoomDelegate:(uint64_t)chatId delegate:(id<MEGAChatRoomDelegate>)delegate;
 
 - (void)addChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)addChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate queueType:(ListenerQueueType)queueType;
 - (void)removeChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate;
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate;
