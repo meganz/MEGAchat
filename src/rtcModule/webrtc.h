@@ -45,7 +45,7 @@ enum TermCode: uint8_t
     kNoMediaPath                = kFlagDisconn | 4,     // 68 < webRTC connection failed, no UDP connectivity
     //==============================================================================================
 
-    kErrSignaling               = kFlagError | 0,       // 128 < signalling error
+    kErrSignaling               = kFlagError | 0,       // 128 < signalling error | if client doesn't supports waiting rooms
     kErrNoCall                  = kFlagError | 1,       // 129 < attempted to join non-existing call
     kErrAuth                    = kFlagError | 2,       // 130 < authentication error
     kErrApiTimeout              = kFlagError | 3,       // 131 < ping timeout between SFU and API
@@ -162,6 +162,7 @@ public:
     virtual void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) = 0;
     virtual void onWrUsersAllow(const rtcModule::ICall& call, const std::set<karere::Id>& users) = 0;
     virtual void onWrUsersDeny(const rtcModule::ICall& call, const std::set<karere::Id>& users) = 0;
+    virtual void onWrUserDump(const rtcModule::ICall& call) = 0;
 };
 
 class ICall
@@ -238,7 +239,7 @@ class IWaitingRoom
 {
     virtual void onWrJoinAllowed() = 0;
     virtual void onWrJoinNotAllowed() = 0;
-    virtual void onWrUserDump(const std::map<karere::Id, bool>& waitingRoomUsers) = 0;
+    virtual void onWrUserDump(const std::map<karere::Id, bool>& users) = 0;
     virtual void onWrEnter(const std::map<karere::Id, bool>& users) = 0;
     virtual void onWrLeave(const karere::Id& user) = 0;
     virtual void onWrAllow() = 0;

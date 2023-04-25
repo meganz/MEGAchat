@@ -2080,8 +2080,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
 
         if (!wrUsers.empty())
         {
-            assert(isOwnPrivModerator()); // only mods should receive users in waiting room
-            onWrUserDump(wrUsers);
+            onWrUserDump(wrUsers);        // store moderators list and notify app
         }
     }
     return true;
@@ -2448,7 +2447,7 @@ void Call::onWrJoinNotAllowed()
 {
 }
 
-void Call::onWrUserDump(const std::map<karere::Id, bool>& waitingRoomUsers)
+void Call::onWrUserDump(const std::map<karere::Id, bool>& users)
 {
     mWaitingRoomUsers = waitingRoomUsers;
 }

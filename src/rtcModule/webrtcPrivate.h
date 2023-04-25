@@ -481,7 +481,7 @@ public:
     // ---- IWaitingRoom methods ----
     void onWrJoinAllowed() override;
     void onWrJoinNotAllowed() override;
-    void onWrUserDump(const std::map<karere::Id, bool> &waitingRoomUsers) override;
+    void onWrUserDump(const std::map<karere::Id, bool> &users) override;
     void onWrEnter(const std::map<karere::Id, bool>& users) override;
     void onWrLeave(const karere::Id& user) override;
     void onWrAllow() override;

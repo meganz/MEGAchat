@@ -637,6 +637,7 @@ public:
     void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) override;
     void onWrUsersAllow(const rtcModule::ICall& call, const std::set<karere::Id>& users) override;
     void onWrUsersDeny(const rtcModule::ICall& call, const std::set<karere::Id>& users) override;
+    void onWrUserDump(const rtcModule::ICall& call) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
