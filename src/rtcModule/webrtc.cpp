@@ -1175,16 +1175,16 @@ void Call::sendStats(const TermCode& termCode)
 
 EndCallReason Call::getEndCallReasonFromTermcode(const TermCode& termCode)
 {
-    if (termCode == kUserHangup)            { return kEnded; }
-    if (termCode == kTooManyParticipants)   { return kFailed; }
-    if (termCode == kLeavingRoom)           { return kEnded; }
-    if (termCode == kCallEndedByModerator)  { return kEndedByMod; }
-    if (termCode == kApiEndCall)            { return kFailed; }
-    if (termCode == kPeerJoinTimeout)       { return kFailed; }
-    if (termCode == kPushedToWaitingRoom)   { return kFailed; }
-    if (termCode == kKickedFromWaitingRoom) { return kFailed; }
-    if (termCode & kFlagDisconn)        { return kFailed; }
-    if (termCode & kFlagError)          { return kFailed; }
+    if (termCode == kUserHangup)                    { return kEnded; }
+    if (termCode == kTooManyParticipants)           { return kFailed; }
+    if (termCode == kLeavingRoom)                   { return kEnded; }
+    if (termCode == kCallEndedByModerator)          { return kEndedByMod; }
+    if (termCode == kApiEndCall)                    { return kFailed; }
+    if (termCode == kPeerJoinTimeout)               { return kFailed; }
+    if (termCode == kPushedToWaitingRoom)           { return kFailed; }
+    if (termCode == kKickedFromWaitingRoom)         { return kFailed; }
+    if (termCode & kFlagDisconn)                    { return kFailed; }
+    if (termCode & kFlagError)                      { return kFailed; }
 
     // TODO review returned value (in case we need a new one) for kPushedToWaitingRoom and kKickedFromWaitingRoom, when we add support for them
     return kInvalidReason;

@@ -7591,7 +7591,7 @@ class MegaChatScheduledFlags
 public:
     enum
     {
-        FLAGS_DONT_SEND_EMAILS = 0, // API won't send out calendar emails for this meeting if it's enabled
+        FLAGS_SEND_EMAILS      = 0, // API will send out calendar emails for this meeting if it's enabled
         FLAGS_SIZE             = 1, // size in bits of flags bitmask
     };
 
@@ -7623,18 +7623,18 @@ public:
     virtual void reset();
 
     /**
-     * @brief Enables or disables the value of emails disabled flag.
-     * If this flag is enabled, API won't send out calendar emails for this meeting
+     * @brief Enables or disables the value of sending emails flag.
+     * If this flag is enabled, API will send out calendar emails for this meeting
      */
-    virtual void setEmailsDisabled(bool /*enabled*/);
+    virtual void setSendEmails(bool /*enabled*/);
 
     /**
-     * @brief Returns true if emails disabled flag is enabled
-     * If this flag is enabled, API won't send out calendar emails for this meeting
+     * @brief Returns true if sending emails flag is enabled
+     * If this flag is enabled, API will send out calendar emails for this meeting
      *
-     * @return True if emails disabled flag is enabled, otherwise returns false.
+     * @return True if sending emails flag is enabled, otherwise returns false.
      */
-    virtual bool emailsDisabled() const;
+    virtual bool sendEmails() const;
 
     /**
      * @brief Returns true if all flags are disabled

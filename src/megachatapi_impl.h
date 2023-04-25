@@ -864,10 +864,10 @@ public:
     MegaChatScheduledFlagsPrivate& operator=(const MegaChatScheduledFlagsPrivate&&) = delete;
 
     void reset() override;
-    void setEmailsDisabled(bool enabled) override;
+    void setSendEmails(bool enabled) override;
 
     unsigned long getNumericValue() const;
-    bool emailsDisabled() const override;
+    bool sendEmails() const override;
     bool isEmpty() const override;
 
     MegaChatScheduledFlagsPrivate* copy() const override { return new MegaChatScheduledFlagsPrivate(this); }
