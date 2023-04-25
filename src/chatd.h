@@ -359,7 +359,7 @@ struct EndpointId
     karere::Id userid;
     uint32_t clientid;
     unsigned char buffer[kBufferSize];
-    EndpointId(karere::Id aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid)
+    EndpointId(const karere::Id& aUserid, uint32_t aClientid): userid(aUserid), clientid(aClientid)
     {
         memcpy(buffer, &userid.val , 8);
         memcpy(buffer + 8, &clientid, 4);
@@ -494,8 +494,8 @@ protected:
     bool sendBuf(Buffer&& buf);
     bool rejoinExistingChats();
     void resendPending();
-    void join(karere::Id chatid);
-    void hist(karere::Id chatid, long count);
+    void join(const karere::Id& chatid);
+    void hist(const karere::Id& chatid, long count);
     bool sendCommand(Command&& cmd); // used internally only for OP_HELLO
     void execCommand(const StaticBuffer& buf);
     promise::Promise<void> sendKeepalive();
@@ -552,7 +552,7 @@ enum ServerHistFetchState
 struct LastTextMsg
 {
     /** @brief The sender of the message */
-    karere::Id sender() const { return mSender; }
+    const karere::Id& sender() const { return mSender; }
     /**
      * @brief Type of the last message
      *
@@ -574,8 +574,8 @@ struct LastTextMsg
     const std::string& contents() const { return mContents; }
 
     Idx idx() const { return mIdx; }
-    karere::Id id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
-    karere::Id xid() const { assert(mIdx == CHATD_IDX_INVALID); return mId; }
+    const karere::Id& id() const { assert(mIdx != CHATD_IDX_INVALID); return mId; }
+    const karere::Id& xid() const { assert(mIdx == CHATD_IDX_INVALID); return mId; }
 
 protected:
     uint8_t mType = Message::kMsgInvalid;
@@ -600,7 +600,7 @@ struct LastTextMsgState: public LastTextMsg
     {
         assign(from, from.type, from.id(), idx, from.userid);
     }
-    void assign(const Buffer& buf, uint8_t type, karere::Id id, Idx idx, karere::Id sender)
+    void assign(const Buffer& buf, uint8_t type, const karere::Id& id, Idx idx, const karere::Id& sender)
     {
         mType = type;
         mIdx = idx;
@@ -611,7 +611,7 @@ struct LastTextMsgState: public LastTextMsg
         mIsNotified = false;
     }
     //assign both idx and proper msgid (was msgxid until now)
-    void confirm(Idx idx, karere::Id msgid)
+    void confirm(Idx idx, const karere::Id& msgid)
     {
         assert(mIdx == CHATD_IDX_INVALID);
         mIdx = idx;
@@ -654,7 +654,7 @@ public:
 
     void addMessage(Message &msg, bool isNew, bool isLocal);
     void deleteMessage(const Message &msg);
-    void truncateHistory(karere::Id id);
+    void truncateHistory(const karere::Id& id);
     void clear();
 
     HistSource getHistory(uint32_t count);
@@ -664,8 +664,8 @@ public:
     void setHandler(FilteredHistoryHandler *handler);
     void unsetHandler();
     void finishFetchingFromServer();
-    Message *getMessage(karere::Id id);
-    Idx getMessageIdx(karere::Id id);
+    Message *getMessage(const karere::Id& id) const;
+    Idx getMessageIdx(const karere::Id& id);
 
 protected:
     DbInterface *mDb;
@@ -879,7 +879,7 @@ protected:
     // ====
     std::map<karere::Id, Message*> mPendingEdits;
     std::map<BackRefId, Idx> mRefidToIdxMap;
-    Chat(Connection& conn, karere::Id chatid, Listener* listener,
+    Chat(Connection& conn, const karere::Id& chatid, Listener* listener,
     const karere::SetOfIds& users, uint32_t chatCreationTs, ICrypto* crypto, bool isGroup);
     void push_forward(Message* msg) { mForwardList.emplace_back(msg); }
     void push_back(Message* msg) { mBackwardList.emplace_back(msg); }
@@ -889,29 +889,29 @@ protected:
         mForwardList.clear();
     }
     // msgid can be 0 in case of rejections
-    Idx msgConfirm(karere::Id msgxid, karere::Id msgid, uint32_t timestamp = 0);
-    bool msgAlreadySent(karere::Id msgxid, karere::Id msgid);
-    Message* msgRemoveFromSending(karere::Id msgxid, karere::Id msgid);
+    Idx msgConfirm(const karere::Id& msgxid, const karere::Id& msgid, uint32_t timestamp = 0);
+    bool msgAlreadySent(const karere::Id& msgxid, const karere::Id& msgid);
+    Message* msgRemoveFromSending(const karere::Id& msgxid, const karere::Id& msgid);
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
     bool msgNodeHistIncoming(Message* msg);
-    void onUserJoin(karere::Id userid, Priv priv);
-    void onUserLeave(karere::Id userid);
-    void onAddReaction(karere::Id msgId, karere::Id userId, std::string reaction);
-    void onDelReaction(karere::Id msgId, karere::Id userId, std::string reaction);
-    void onReactionSn(karere::Id rsn);
+    void onUserJoin(const karere::Id& userid, Priv priv);
+    void onUserLeave(const karere::Id& userid);
+    void onAddReaction(const karere::Id& msgId, const karere::Id& userId, const std::string& reaction);
+    void onDelReaction(const karere::Id& msgId, const karere::Id& userId, const std::string& reaction);
+    void onReactionSn(const karere::Id& rsn);
     void onPreviewersUpdate(uint32_t numPrev);
     void onJoinComplete();
     void onRetentionTimeUpdated(uint32_t period);
     void loadAndProcessUnsent();
-    void initialFetchHistory(karere::Id serverNewest);
+    void initialFetchHistory(const karere::Id& serverNewest);
     void requestHistoryFromServer(int32_t count);
     Idx getHistoryFromDb(unsigned count);
     HistSource getHistoryFromDbOrServer(unsigned count);
-    void onLastReceived(karere::Id msgid);
-    void onLastSeen(karere::Id msgid, bool resend = true);
-    void handleLastReceivedSeen(karere::Id msgid);
+    void onLastReceived(const karere::Id& msgid);
+    void onLastSeen(const karere::Id& msgid, bool resend = true);
+    void handleLastReceivedSeen(const karere::Id& msgid);
     bool msgSend(const Message& message);
     void setOnlineState(ChatState state);
     SendingItem* postMsgToSending(uint8_t opcode, Message* msg, karere::SetOfIds recipients);
@@ -929,11 +929,11 @@ protected:
     void onFetchHistDone(); //called by onHistDone() if we are receiving old history (not new, and not via JOINRANGEHIST)
     void onNewKeys(StaticBuffer&& keybuf);
     void logSend(const Command& cmd) const;
-    void handleBroadcast(karere::Id userid, uint8_t type);
+    void handleBroadcast(const karere::Id& userid, uint8_t type);
     void findAndNotifyLastTextMsg();
     void notifyLastTextMsg();
-    void onInCall(karere::Id userid, uint32_t clientid);
-    void onEndCall(karere::Id userid, uint32_t clientid);
+    void onInCall(const karere::Id& userid, uint32_t clientid);
+    void onEndCall(const karere::Id& userid, uint32_t clientid);
     void initChat();
     void requestRichLink(Message &message);
     void requestPendingRichLinks();
@@ -951,7 +951,7 @@ public:
     const karere::SetOfIds& users() const { return mUsers; }
     ~Chat();
     /** @brief The chatid of this chat */
-    karere::Id chatId() const { return mChatId; }
+    const karere::Id& chatId() const { return mChatId; }
     /** @brief The chatd client */
     Client& client() const { return mChatdClient; }
     Connection& connection() const { return mConnection; }
@@ -1361,8 +1361,8 @@ public:
     void sendSync();
     void manageReaction(const Message &message, const std::string &reaction, Opcode opcode);
     const PendingReactions &getPendingReactions() const;
-    void addPendingReaction(const std::string &reaction, const std::string &encReaction, karere::Id msgId, uint8_t status);
-    void removePendingReaction(const std::string &reaction, karere::Id msgId);
+    void addPendingReaction(const std::string &reaction, const std::string &encReaction, const karere::Id& msgId, uint8_t status);
+    void removePendingReaction(const std::string &reaction, const karere::Id& msgId);
     void retryPendingReactions();
     void sendReactionSn();
 
@@ -1421,7 +1421,7 @@ public:
     bool isFetchingHistory() const;
     void setNodeHistoryHandler(FilteredHistoryHandler *handler);
     void unsetHandlerToNodeHistory();
-    promise::Promise<void> requestUserAttributes(karere::Id sender);
+    promise::Promise<void> requestUserAttributes(const karere::Id& sender);
     uint32_t getRetentionTime() const;
     Priv getOwnprivilege() const;
 
@@ -1436,7 +1436,7 @@ protected:
     void keyConfirm(KeyId keyxid, KeyId keyid);
     void onKeyReject();
     void onHistReject();
-    void rejectMsgupd(karere::Id id, uint8_t serverReason);
+    void rejectMsgupd(const karere::Id& id, uint8_t serverReason);
     void rejectGeneric(uint8_t opcode, uint8_t reason);
     void moveItemToManualSending(OutputQueue::iterator it, ManualSendReason reason);
     void handleTruncate(const Message& msg, Idx idx);
@@ -1518,8 +1518,8 @@ protected:
     promise::Promise<void> mKeepalivePromise;   // resolved when all keepalive have been sent (or failed)
     void onKeepaliveSent();
 
-    bool onMsgAlreadySent(karere::Id msgxid, karere::Id msgid);
-    void msgConfirm(karere::Id msgxid, karere::Id msgid, uint32_t timestamp = 0);
+    bool onMsgAlreadySent(const karere::Id& msgxid, const karere::Id& msgid);
+    void msgConfirm(const karere::Id& msgxid, const karere::Id& msgid, uint32_t timestamp = 0);
     promise::Promise<void> sendKeepalive();
     void sendEcho();
 
@@ -1566,10 +1566,10 @@ public:
     karere::Client *mKarereClient;
 
     /* --- getters --- */
-    const karere::Id myHandle() const;
-    std::shared_ptr<Chat> chatFromId(karere::Id chatid) const;
-    Chat& chats(karere::Id chatid) const;
-    karere::Id chatidFromPh(karere::Id ph);
+    const karere::Id& myHandle() const;
+    std::shared_ptr<Chat> chatFromId(const karere::Id& chatid) const;
+    Chat& chats(const karere::Id& chatid) const;
+    karere::Id chatidFromPh(const karere::Id& ph);
     uint8_t richLinkState() const;
     bool areAllChatsLoggedIn(int shard = -1);
 
@@ -1579,11 +1579,11 @@ public:
     /** @brief Joins the specifed chatroom on the specified shard, using the specified url, and
      * associates the specified Listener and ICrypto instances with the newly created Chat object.
      */
-    Chat& createChat(karere::Id chatid, int shardNo,
+    Chat& createChat(const karere::Id& chatid, int shardNo,
     Listener* listener, const karere::SetOfIds& initialUsers, ICrypto* crypto, uint32_t chatCreationTs, bool isGroup);
 
     /** @brief Leaves the specified chatroom */
-    void leave(karere::Id chatid);
+    void leave(const karere::Id& chatid);
 
     void disconnect();
     void retryPendingConnections(bool disconnect, bool refreshURL = false);
@@ -1598,8 +1598,8 @@ public:
     bool isMessageReceivedConfirmationActive() const;
 
     // The timestamps of the most recent message from userid
-    mega::m_time_t getLastMsgTs(karere::Id userid) const;
-    void setLastMsgTs(karere::Id userid, mega::m_time_t lastMsgTs);
+    mega::m_time_t getLastMsgTs(const karere::Id& userid) const;
+    void setLastMsgTs(const karere::Id& userid, mega::m_time_t lastMsgTs);
 
     // Update mRetentionCheckTs if force is true or nextCheck is smaller than current value
     /**
@@ -1732,7 +1732,7 @@ public:
 
     virtual void addMsgToNodeHistory(const Message &msg, Idx &idx) = 0;
     virtual void deleteMsgFromNodeHistory(const Message& msg) = 0;
-    virtual void truncateNodeHistory(karere::Id id) = 0;
+    virtual void truncateNodeHistory(const karere::Id& id) = 0;
     virtual void getNodeHistoryInfo(Idx &newest, Idx &oldest) = 0;
     virtual void clearNodeHistory() = 0;
     virtual void fetchDbNodeHistory(Idx idx, unsigned count, std::vector<chatd::Message*>& messages) = 0;
@@ -1742,8 +1742,8 @@ public:
 
     virtual void getHistoryInfo(ChatDbInfo& info) = 0;
 
-    virtual void setLastSeen(karere::Id msgid) = 0;
-    virtual void setLastReceived(karere::Id msgid) = 0;
+    virtual void setLastSeen(const karere::Id& msgid) = 0;
+    virtual void setLastReceived(const karere::Id& msgid) = 0;
 
     virtual void setChatVar (const char *name, bool value) = 0;
     virtual bool chatVar (const char *name) = 0;
@@ -1751,10 +1751,10 @@ public:
 
     virtual Idx getOldestIdx() = 0;
     virtual uint32_t getOldestMsgTs() = 0;
-    virtual Idx getIdxOfMsgidFromHistory(karere::Id msgid) = 0;
+    virtual Idx getIdxOfMsgidFromHistory(const karere::Id& msgid) = 0;
     virtual Idx getUnreadMsgCountAfterIdx(Idx idx) = 0;
     virtual void getLastTextMessage(Idx from, chatd::LastTextMsgState& msg, uint32_t& lastTs) = 0;
-    virtual void getMessageDelta(karere::Id msgid, uint16_t *updated) = 0;
+    virtual void getMessageDelta(const karere::Id& msgid, uint16_t *updated) = 0;
     virtual void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) = 0;
     virtual bool isValidReactedMessage(const karere::Id &msgid, chatd::Idx &idx) = 0;
 
@@ -1762,18 +1762,18 @@ public:
     virtual void truncateHistory(const chatd::Message& msg) = 0;
     virtual void clearHistory() = 0;
 
-    virtual Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) = 0;
+    virtual Idx getIdxOfMsgidFromNodeHistory(const karere::Id& msgid) = 0;
 
     //  <<<--- Reaction methods --->>>
     virtual const std::string getReactionSn() const = 0;
     virtual void setReactionSn(const std::string &rsn) = 0;
-    virtual void cleanReactions(karere::Id msgId) = 0;
-    virtual void cleanPendingReactions(karere::Id msgId) = 0;
-    virtual void addReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) = 0;
-    virtual void addPendingReaction(karere::Id msgId, const std::string &reaction, const std::string &encReaction, uint8_t status) = 0;
-    virtual void delReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) = 0;
-    virtual void delPendingReaction(karere::Id msgId, const std::string &reaction) = 0;
-    virtual void getReactions(karere::Id msgId,std::vector<std::pair<std::string, karere::Id>> &reactions) const = 0;
+    virtual void cleanReactions(const karere::Id& msgId) = 0;
+    virtual void cleanPendingReactions(const karere::Id& msgId) = 0;
+    virtual void addReaction(const karere::Id& msgId, const karere::Id& userId, const std::string &reaction) = 0;
+    virtual void addPendingReaction(const karere::Id& msgId, const std::string &reaction, const std::string &encReaction, uint8_t status) = 0;
+    virtual void delReaction(const karere::Id& msgId, const karere::Id& userId, const std::string &reaction) = 0;
+    virtual void delPendingReaction(const karere::Id& msgId, const std::string &reaction) = 0;
+    virtual void getReactions(const karere::Id& msgId,std::vector<std::pair<std::string, karere::Id>> &reactions) const = 0;
     virtual void getPendingReactions(std::vector<chatd::Chat::PendingReaction>& reactions) const = 0;
     virtual bool hasPendingReactions() = 0;
 

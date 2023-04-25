@@ -7730,7 +7730,7 @@ int MegaChatCallPrivate::availableVideoSlots()
     return 0;
 }
 
-void MegaChatCallPrivate::setPeerid(Id peerid, bool added)
+void MegaChatCallPrivate::setPeerid(const Id& peerid, bool added)
 {
     mPeerId = peerid;
     mChanged = MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION;
@@ -7744,17 +7744,17 @@ void MegaChatCallPrivate::setPeerid(Id peerid, bool added)
     }
 }
 
-bool MegaChatCallPrivate::isParticipating(Id userid)
+bool MegaChatCallPrivate::isParticipating(const Id& userid) const
 {
     return std::find(mParticipants.begin(), mParticipants.end(), userid) != mParticipants.end();
 }
 
-void MegaChatCallPrivate::setId(Id callid)
+void MegaChatCallPrivate::setId(const Id& callid)
 {
     mCallId = callid;
 }
 
-void MegaChatCallPrivate::setCaller(Id caller)
+void MegaChatCallPrivate::setCaller(const Id& caller)
 {
     mCallerId = caller;
 }
@@ -7781,7 +7781,7 @@ void MegaChatCallPrivate::setOnHold(bool onHold)
     mChanged |= MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD;
 }
 
-MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, rtcModule::VideoResolution videoResolution, uint32_t clientId)
+MegaChatVideoReceiver::MegaChatVideoReceiver(MegaChatApiImpl *chatApi, const karere::Id& chatid, rtcModule::VideoResolution videoResolution, uint32_t clientId)
 {
     mChatApi = chatApi;
     mChatid = chatid;
@@ -12043,7 +12043,7 @@ void MegaChatNodeHistoryHandler::fireOnAttachmentLoaded(MegaChatMessage *message
     delete message;
 }
 
-void MegaChatNodeHistoryHandler::fireOnAttachmentDeleted(Id id)
+void MegaChatNodeHistoryHandler::fireOnAttachmentDeleted(const Id& id)
 {
     for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
     {
@@ -12051,7 +12051,7 @@ void MegaChatNodeHistoryHandler::fireOnAttachmentDeleted(Id id)
     }
 }
 
-void MegaChatNodeHistoryHandler::fireOnTruncate(Id id)
+void MegaChatNodeHistoryHandler::fireOnTruncate(const Id& id)
 {
     for(set<MegaChatNodeHistoryListener *>::iterator it = nodeHistoryListeners.begin(); it != nodeHistoryListeners.end() ; it++)
     {

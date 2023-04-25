@@ -100,7 +100,7 @@ protected:
     void notifyChatOptionsChanged(int option);
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
-            std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
+            std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id& = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
     void notifyExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv priv);
@@ -117,7 +117,7 @@ public:
     virtual unsigned int getNumPreviewers() const { return 0; }
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
-    virtual bool isMember(karere::Id peerid) const = 0;
+    virtual bool isMember(const karere::Id& peerid) const = 0;
     virtual bool isMeeting() const { return false; }
     virtual bool isWaitingRoom() const { return false; }
     virtual bool isSpeakRequest() const { return false; }
@@ -237,7 +237,7 @@ public:
     //IApp::IChatHandler implementation
     virtual void onArchivedChanged(bool archived);
 
-    promise::Promise<void> truncateHistory(karere::Id msgId);
+    promise::Promise<void> truncateHistory(const karere::Id& msgId);
     promise::Promise<void> archiveChat(bool archive);
     promise::Promise<void> setChatRetentionTime(unsigned period);
 
@@ -296,7 +296,7 @@ public:
     void initContact(const uint64_t& peer);
     void updateChatRoomTitle();
 
-    bool isMember(karere::Id peerid) const override;
+    bool isMember(const karere::Id& peerid) const override;
 
     unsigned long numMembers() const override;
 
@@ -467,7 +467,7 @@ public:
      * @param priv
      * @returns A void promise, which will fail if the MegaApi request fails.
      */
-    promise::Promise<void> setPrivilege(karere::Id userid, chatd::Priv priv);
+    promise::Promise<void> setPrivilege(const karere::Id& userid, chatd::Priv priv);
 
     /**
      * @brief Allow to enable/disable one of the following chatroom options: (openInvite, speakRequest, waitingRoom)
@@ -505,7 +505,7 @@ public:
     promise::Promise<std::shared_ptr<std::string>> unifiedKey();
 
     void handleTitleChange(const std::string &title, bool saveToDb = false);
-    bool isMember(karere::Id peerid) const override;
+    bool isMember(const karere::Id& peerid) const override;
 
     /**
      * @brief Load scheduled meeting occurrences locally
@@ -1024,7 +1024,7 @@ public:
 
     virtual ~Client();
 
-    const Id myHandle() const { return mMyHandle; }
+    const Id& myHandle() const { return mMyHandle; }
     const std::string& myName() const { return mMyName; }
     const std::string& myEmail() const { return mMyEmail; }
     uint64_t myIdentity() const { return mMyIdentity; }
@@ -1089,19 +1089,19 @@ public:
      * @brief This function returns the decrypted title of a chat. We must provide the decrypt key.
      * @return The decrypted title of the chat
      */
-    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, Id ph = Id::inval());
+    promise::Promise<std::string> decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, const Id& ph = Id::inval());
 
     /** @brief This function invalidates the current public handle and set the chat mode to private
      */
-    promise::Promise<void> setPublicChatToPrivate(karere::Id chatid);
+    promise::Promise<void> setPublicChatToPrivate(const karere::Id& chatid);
 
     /** @brief This function creates a public handle if not exists
      */
-    promise::Promise<uint64_t> getPublicHandle(karere::Id chatid, bool createifmissing);
+    promise::Promise<uint64_t> getPublicHandle(const karere::Id& chatid, bool createifmissing);
 
     /** @brief This function invalidates the current public handle
      */
-    promise::Promise<uint64_t> deleteChatLink(karere::Id chatid);
+    promise::Promise<uint64_t> deleteChatLink(const karere::Id& chatid);
 
     /** @brief This function allows to set the SFU server where all chat calls will be started
      */
@@ -1200,20 +1200,20 @@ public:
     int importMessages(const char *externalDbPath);
 
     /** @brief There is a call active in the chatroom*/
-    bool isCallActive(karere::Id chatid = karere::Id::inval()) const;
+    bool isCallActive(const karere::Id& chatid = karere::Id::inval()) const;
 
     /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
-    bool isCallInProgress(karere::Id chatid = karere::Id::inval()) const;
+    bool isCallInProgress(const karere::Id& chatid = karere::Id::inval()) const;
 
     /** @brief Catch up with API for pending actionpackets*/
     promise::Promise<void> pushReceived(Id chatid);
-    void onSyncReceived(karere::Id chatid); // called upon SYNC reception
+    void onSyncReceived(const karere::Id& chatid); // called upon SYNC reception
 
     void dumpChatrooms(::mega::MegaTextChatList& chatRooms);
     void dumpContactList(::mega::MegaUserList& clist);
     bool anonymousMode() const;
-    bool isChatRoomOpened(Id chatid);
-    void updateAndNotifyLastGreen(Id userid);
+    bool isChatRoomOpened(const Id& chatid);
+    void updateAndNotifyLastGreen(const Id& userid);
     InitStats &initStats();
     void sendStats();
     void resetMyIdentity();
@@ -1249,8 +1249,8 @@ protected:
     bool loadOwnKeysFromApi();
     void loadOwnKeysFromDb();
 
-    strongvelope::ProtocolHandler* newStrongvelope(karere::Id chatid, bool isPublic,
-            std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, karere::Id ph);
+    strongvelope::ProtocolHandler* newStrongvelope(const karere::Id& chatid, bool isPublic,
+            std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const karere::Id& ph);
 
     // connection-related methods
     void connectToChatd();
@@ -1369,15 +1369,15 @@ public:
     } scheduled_changed_flags_t;
     typedef std::bitset<SC_FLAGS_SIZE> sched_bs_t;
 
-    KarereScheduledMeeting(const karere::Id chatid,
-                           const karere::Id organizerid,
+    KarereScheduledMeeting(const karere::Id& chatid,
+                           const karere::Id& organizerid,
                            const std::string& timezone,
                            const mega::m_time_t startDateTime,
                            const mega::m_time_t endDateTime,
                            const std::string& title,
                            const std::string& description,
-                           const karere::Id schedId = karere::Id::inval(),
-                           const karere::Id parentSchedId = karere::Id::inval(),
+                           const karere::Id& schedId = karere::Id::inval(),
+                           const karere::Id& parentSchedId = karere::Id::inval(),
                            const int cancelled = -1,
                            const std::string& attributes = std::string(),
                            const mega::m_time_t _overrides = mega::MEGA_INVALID_TIMESTAMP,
@@ -1425,8 +1425,8 @@ public:
     KarereScheduledMeetingOccurr* copy() const;
     virtual ~KarereScheduledMeetingOccurr();
 
-    karere::Id schedId() const;
-    karere::Id parentSchedId() const;
+    const karere::Id& schedId() const;
+    const karere::Id& parentSchedId() const;
     const std::string& timezone() const;
     ::mega::m_time_t startDateTime() const;
     ::mega::m_time_t endDateTime() const;
