@@ -6638,7 +6638,7 @@ bool MockupCall::handleWrEnter(const std::map<karere::Id, bool>& /*users*/)
     return false;
 }
 
-bool MockupCall::handleWrLeave(const std::set<karere::Id>& /*users*/)
+bool MockupCall::handleWrLeave(const karere::Id& /*user*/)
 {
     return false;
 }

@@ -2748,16 +2748,15 @@ WrLeaveCommand::WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterf
 
 bool WrLeaveCommand::processCommand(const rapidjson::Document& command)
 {
-    std::set<karere::Id> users;
-    rapidjson::Value::ConstMemberIterator usersIterator = command.FindMember("users");
-    if (usersIterator == command.MemberEnd() || !usersIterator->value.IsArray())
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
     {
-        SFU_LOG_ERROR("WrLeaveCommand: Received data doesn't have 'users' array");
+        SFU_LOG_ERROR("WrLeaveCommand: Received data doesn't have 'user' field");
         return false;
     }
-
-    parseUsersArray(users, usersIterator);
-    return mComplete(users);
+    std::string userIdString = reasonIterator->value.GetString();
+    ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+    return mComplete(userId /*userid*/);
 }
 
 WrAllowCommand::WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call)

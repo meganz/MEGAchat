@@ -2111,15 +2111,15 @@ bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
     return true;
 }
 
-bool Call::handleWrLeave(const std::set<karere::Id>& users)
+bool Call::handleWrLeave(const karere::Id& user)
 {
-    if (users.empty())
+    if (user.inval())
     {
         RTCM_LOG_ERROR("WR_LEAVE : empty user list received");
         assert(false);
         return false;
     }
-    onWrLeave(users);
+    onWrLeave(user);
     return true;
 }
 
@@ -2457,7 +2457,7 @@ void Call::onWrEnter(const std::map<karere::Id, bool>& users)
 {
 }
 
-void Call::onWrLeave(const std::set<karere::Id>& users)
+void Call::onWrLeave(const karere::Id& user)
 {
 }
 
