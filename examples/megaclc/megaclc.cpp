@@ -2789,12 +2789,12 @@ string toBinary(const string& hex)
     for (string::const_iterator i = hex.cbegin(); i != hex.cend(); ++i)
     {
         unsigned char c = toBinary(static_cast<unsigned char>(*i));
-        c = static_cast<unsigned char>(c << 4); // arithmetic ops promote the result to int
+        c <<= 4; // note: upon update to GCC > 9 this warning should disappear
         ++i;
         if (i != hex.cend())
         {
-            // arithmetic ops promote the result to int; avoid warning
-            c = static_cast<unsigned char>(c | toBinary(static_cast<unsigned char>(*i)));
+            // note: upon update to GCC > 9 this warning should disappear
+            c |= toBinary(static_cast<unsigned char>(*i));
         }
         bin.push_back(static_cast<char>(c));
     }
