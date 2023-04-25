@@ -317,12 +317,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (void)addChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate queueType:(ListenerQueueType)queueType {
-    if (self.megaChatApi) {
-        self.megaChatApi->addChatRequestListener([self createDelegateMEGAChatRequestListener:delegate singleListener:NO queueType:queueType]);
-    }
-}
-
 - (void)removeChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate {
     std::vector<DelegateMEGAChatRequestListener *> listenersToRemove;
     
@@ -357,7 +351,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate queueType:(ListenerQueueType)queueType {
     if (self.megaChatApi) {
-        self.megaChatApi->addChatListener([self createDelegateMEGAChatListener:delegate singleListener:NO queueType:queueType]);
+        self.megaChatApi->addChatListener([self createDelegateMEGAChatListener:delegate singleListener:NO queueType:ListenerQueueTypeGlobalBackground]);
     }
 }
 

@@ -17,7 +17,7 @@ public:
     
 private:
     __weak MEGAChatSdk *megaChatSDK;
-    __weak id<MEGAChatRequestDelegate>listener;
+    id<MEGAChatRequestDelegate>listener;
     bool singleListener;
     ListenerQueueType queueType;
 };
