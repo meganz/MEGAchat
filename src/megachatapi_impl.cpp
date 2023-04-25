@@ -4206,7 +4206,77 @@ MegaChatRoom *MegaChatApiImpl::getChatRoomByUser(MegaChatHandle userhandle)
     return chat;
 }
 
-MegaChatListItemList *MegaChatApiImpl::getChatListItems()
+MegaChatListItemList* MegaChatApiImpl::getChatListItems(const int mask, const int filter) const
+{
+    LOG_verbose << "MegaChatApiImpl::getChatListItems with mask " << mask << " and filter " << filter;
+
+    if (mask < 0 || filter < 0)
+    {
+        LOG_warn << "getChatListItems: invalid arguments";
+        return new MegaChatListItemListPrivate();
+    }
+
+    enum BitOrder
+    {
+        IndivOrGroup = 0,
+        PubOrPriv,
+        MeetingsOrNon,
+        ArchivedOrNon,
+        ActiveOrNon,
+        ReadOrUnread,
+        TotalBits
+    };
+    constexpr std::size_t bsSize = BitOrder::TotalBits;
+    const std::bitset<bsSize> bsMask {static_cast<unsigned long long>(mask)};
+    const std::bitset<bsSize> bsFilter {static_cast<unsigned long long>(filter)};
+
+    const auto passFilter = [this, &bsMask, &bsFilter](ChatRoom* cr) -> bool
+    {
+        const bool individualRequested = bsFilter[BitOrder::IndivOrGroup];
+        if (bsMask[BitOrder::IndivOrGroup] &&
+            !isChatroomFromType(*cr, individualRequested ? MegaChatApi::CHAT_TYPE_INDIVIDUAL : MegaChatApi::CHAT_TYPE_GROUP))
+        { return false; }
+
+        const bool publicRequested = bsFilter[BitOrder::PubOrPriv];
+        if (bsMask[BitOrder::PubOrPriv] &&
+            !isChatroomFromType(*cr, publicRequested ? MegaChatApi::CHAT_TYPE_GROUP_PUBLIC : MegaChatApi::CHAT_TYPE_GROUP_PRIVATE))
+        { return false; }
+
+        const bool meetingsRequested = bsFilter[BitOrder::MeetingsOrNon];
+        if (bsMask[BitOrder::MeetingsOrNon] &&
+            !isChatroomFromType(*cr, meetingsRequested ? MegaChatApi::CHAT_TYPE_MEETING_ROOM : MegaChatApi::CHAT_TYPE_NON_MEETING))
+        { return false; }
+
+        const bool archivedRequested = bsFilter[BitOrder::ArchivedOrNon];
+        if (bsMask[BitOrder::ArchivedOrNon] && archivedRequested != cr->isArchived())
+        { return false; }
+
+        const bool activeRequested = bsFilter[BitOrder::ActiveOrNon];
+        if (bsMask[BitOrder::ActiveOrNon] && activeRequested != cr->isActive())
+        { return false; }
+
+        const bool readRequested = bsFilter[BitOrder::ReadOrUnread];
+        if (bsMask[BitOrder::ReadOrUnread] && readRequested == cr->chat().unreadMsgCount())
+        { return false; }
+
+        return true;
+    };
+
+    auto ret = new MegaChatListItemListPrivate();
+    std::lock_guard<std::recursive_mutex> g {sdkMutex};
+
+    if (mClient && !mTerminating)
+    {
+        for (const auto& [crId, cr] : *(mClient->chats))
+        {
+            if (passFilter(cr)) { ret->addChatListItem(new MegaChatListItemPrivate(*cr)); }
+        }
+    }
+
+    return ret;
+}
+
+MegaChatListItemList *MegaChatApiImpl::getChatListItems() const
 {
     MegaChatListItemListPrivate *items = new MegaChatListItemListPrivate();
 
@@ -6465,7 +6535,7 @@ int MegaChatApiImpl::convertChatConnectionState(ChatState state)
     return state;
 }
 
-bool MegaChatApiImpl::isChatroomFromType(const ChatRoom& chat, int type)
+bool MegaChatApiImpl::isChatroomFromType(const ChatRoom& chat, int type) const
 {
     switch (type)
     {

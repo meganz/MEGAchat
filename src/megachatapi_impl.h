@@ -1190,7 +1190,7 @@ public:
     virtual ~MegaChatApiImpl();
 
     using SdkMutexGuard = std::unique_lock<std::recursive_mutex>;   // (equivalent to typedef)
-    std::recursive_mutex sdkMutex;
+    mutable std::recursive_mutex sdkMutex;
     std::recursive_mutex videoMutex;
     mega::Waiter *waiter;
 private:
@@ -1242,7 +1242,7 @@ private:
 
     static int convertInitState(int state);
     static int convertDbError(int errCode);
-    bool isChatroomFromType(const karere::ChatRoom& chat, int type);
+    bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);
@@ -1390,7 +1390,8 @@ public:
     MegaChatRoomList* getChatRoomsByType(int type);
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
-    MegaChatListItemList *getChatListItems();
+    MegaChatListItemList* getChatListItems(const int mask, const int filter) const;
+    MegaChatListItemList *getChatListItems() const;
     MegaChatListItemList* getChatListItemsByType(int type);
     MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);

@@ -68,9 +68,7 @@ int main(int argc, char **argv)
                 g_APIURL_default += '/';
         }
     }
-
     MegaChatApiTest::init();
-
     testing::InitGoogleTest(&argc, argv);
     testing::UnitTest::GetInstance()->listeners().Append(new GTestLogger());
 
@@ -3105,6 +3103,214 @@ TEST_F(MegaChatApiTest, ChangeMyOwnName)
     newSession = NULL;
 }
 
+/**
+ * @brief MegaChatApiTest.GetChatFilters
+ *
+ * This test does the following:
+ *
+ * - Test getChatListItems filters and masks results with previous interface (deprecated)
+ * - Compares the completion of the results by complementary options (e.g. total non-archived
+ * chats must be equal to non-archived reads + non-archived unread)
+ *
+ * Note: masks and filters values can be found at megachatapi.h documentation/comments
+ */
+TEST_F(MegaChatApiTest, GetChatFilters)
+{
+    static constexpr unsigned int accountIndex = 0;
+    std::unique_ptr<char[]> session(login(accountIndex));
+
+    const auto getLogTrace = [](const std::string& name, const auto& l) -> std::string
+    {
+        return std::string{name + ": " + std::to_string(l.size()) + " chats received\n"};
+    };
+    const auto equals = [](const auto& lhs, const auto& rhs) -> bool
+    {
+        if (!lhs && !rhs)               return true;
+        if (!lhs || !rhs)               return false;
+        if (lhs->size() != rhs->size()) return false;
+
+        const auto s = lhs->size();
+        for (unsigned int i = 0; i < s; ++i)
+        {
+            if (lhs->get(i)->getChatId() != rhs->get(i)->getChatId()) return false;
+        }
+
+        return true;
+    };
+
+    std::unique_ptr<MegaChatRoomList> chats(megaChatApi[accountIndex]->getChatRooms());
+    postLog(getLogTrace("getChatRooms()", *chats));
+    std::unique_ptr<MegaChatListItemList> allChats(megaChatApi[accountIndex]->getChatListItems(0, 0));
+    postLog(getLogTrace("getChatListItems(0, 0)", *allChats));
+    ASSERT_TRUE(equals(allChats, chats)) << "Filterless chat retrieval doesn't match";
+
+    const auto getErrMsg = [](const std::string& name) -> std::string
+    {
+        return std::string {"Error " + name + " [deprecated] chats retrieval"};
+    };
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedChatsDep(megaChatApi[accountIndex]->getChatListItems());
+    postLog(getLogTrace("[deprecated] getChatListItems()", *nonArchivedChatsDep));
+    std::unique_ptr<MegaChatListItemList> byTypeAllNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_ALL));
+    postLog(getLogTrace("[deprecated] getChatListItemsByType(CHAT_TYPE_ALL)", *byTypeAllNADep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedChats(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED,
+                                                    MegaChatApi::CHAT_GET_NON_ARCHIVED));
+    static const std::string pref = "getChatListItems(";
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + ", "+ std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + ")", *nonArchivedChats));
+    ASSERT_TRUE(equals(nonArchivedChatsDep, byTypeAllNADep)) << getErrMsg("all non-archived");
+    ASSERT_TRUE(equals(nonArchivedChats, byTypeAllNADep)) << getErrMsg("byType(CHAT_TYPE_ALL)");
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedActiveChatsDep(megaChatApi[accountIndex]->getActiveChatListItems());
+    postLog(getLogTrace("getActiveChatListItems()", *nonArchivedActiveChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedActiveChats(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_ACTIVE));
+
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+"+ std::to_string(MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_ACTIVE)
+                        + ")", *nonArchivedActiveChats));
+    ASSERT_TRUE(equals(nonArchivedActiveChats, nonArchivedActiveChatsDep)) << getErrMsg("non-archived active");
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedInactiveChatsDep(megaChatApi[accountIndex]-> getInactiveChatListItems());
+    postLog(getLogTrace("getInactiveChatListItems()",*nonArchivedInactiveChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedInactiveChats(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_NON_ACTIVE));
+
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_NON_ACTIVE)
+                        + ")", *nonArchivedInactiveChats));
+    ASSERT_TRUE(equals(nonArchivedInactiveChats, nonArchivedInactiveChatsDep)) << getErrMsg("non-archived inactive");
+    ASSERT_EQ(nonArchivedInactiveChats->size() + nonArchivedActiveChats->size(), nonArchivedChats->size())
+                     << "Incomplete set non-archived active/non-active";
+
+    std::unique_ptr<MegaChatListItemList> archivedChatsDep(megaChatApi[accountIndex]->getArchivedChatListItems());
+    postLog(getLogTrace("getArchivedChatListItems()", *archivedChatsDep));
+    std::unique_ptr<MegaChatListItemList> archivedChats(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    , MegaChatApi::CHAT_GET_ARCHIVED));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_ARCHIVED)
+                        + ")", *archivedChats));
+    ASSERT_TRUE(equals(archivedChatsDep, archivedChats)) << getErrMsg("archived");
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedUnreadChatsDep(megaChatApi[accountIndex]->getUnreadChatListItems());
+    postLog(getLogTrace("getUnreadChatListItems()", *nonArchivedUnreadChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedUnreadChats(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_UNREAD));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_UNREAD)
+                        + ")", *nonArchivedUnreadChats));
+    ASSERT_TRUE(equals(nonArchivedUnreadChatsDep, nonArchivedUnreadChats)) << getErrMsg("non-archived unread");
+
+    std::unique_ptr<MegaChatListItemList> nonArchivedReadChats(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_READ));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_READ)
+                        + ")", *nonArchivedReadChats));
+    ASSERT_EQ(nonArchivedReadChats->size() + nonArchivedUnreadChats->size(), nonArchivedChats->size())
+        << "Error nonArchivedRead chats added to nonArchivedUnread don't equal nonArchived chats";
+
+    std::unique_ptr<MegaChatListItemList> byTypeIndividualNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_INDIVIDUAL));
+    std::unique_ptr<MegaChatListItemList> nonArchivedIndividual(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_INDIVIDUAL));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_INDIVIDUAL)
+                        + ")", *nonArchivedIndividual));
+    ASSERT_TRUE(equals(byTypeIndividualNADep, nonArchivedIndividual)) << getErrMsg("byType(CHAT_TYPE_INDIVIDUAL)");
+
+    std::unique_ptr<MegaChatListItemList> byTypeGroupNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP));
+    std::unique_ptr<MegaChatListItemList> nonArchivedGroups(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_GROUP));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_GROUP)
+                        + ")",  *nonArchivedGroups));
+    ASSERT_TRUE(equals(byTypeGroupNADep, nonArchivedGroups)) << getErrMsg("byType(CHAT_TYPE_GROUP)");
+
+    std::unique_ptr<MegaChatListItemList> byTypePrivateNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP_PRIVATE));
+    std::unique_ptr<MegaChatListItemList> nonArchivedPrivate(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_PRIVATE));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_PRIVATE)
+                        + ")",  *nonArchivedPrivate));
+    ASSERT_TRUE(equals(byTypePrivateNADep, nonArchivedPrivate)) << getErrMsg("byType(CHAT_TYPE_PRIVATE)");
+
+    std::unique_ptr<MegaChatListItemList> byTypePublicNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP_PUBLIC));
+    std::unique_ptr<MegaChatListItemList> nonArchivedPublic(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_PUBLIC));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_PUBLIC)
+                        + ")",  *nonArchivedPublic));
+    ASSERT_TRUE(equals(byTypePublicNADep, nonArchivedPublic)) << getErrMsg("byType(CHAT_TYPE_PUBLIC)");
+
+    std::unique_ptr<MegaChatListItemList> byTypeMeetingNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_MEETING_ROOM));
+    std::unique_ptr<MegaChatListItemList> nonArchivedMeeting(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_MEETING));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_MEETING)
+                        + ")", *nonArchivedMeeting));
+    ASSERT_TRUE(equals(byTypeMeetingNADep, nonArchivedMeeting)) << getErrMsg("byType(CHAT_TYPE_MEETING_ROOM)");
+
+    std::unique_ptr<MegaChatListItemList> byTypeNonMeetingNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_NON_MEETING));
+    std::unique_ptr<MegaChatListItemList> nonArchivedNonMeeting(
+        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING
+                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
+                                                    + MegaChatApi::CHAT_GET_NON_MEETING));
+    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING)
+                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
+                        + "+" + std::to_string(MegaChatApi::CHAT_GET_NON_MEETING)
+                        + ")", *nonArchivedNonMeeting));
+    ASSERT_TRUE(equals(byTypeNonMeetingNADep, nonArchivedNonMeeting)) << getErrMsg("byType(CHAT_TYPE_NON_MEETING)");
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 /**
  * @brief MegaChatApiTest.Calls
@@ -3778,15 +3984,11 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
                    std::vector<bool *> { &requestFlagsChat[a2][MegaChatRequest::TYPE_ANSWER_CHAT_CALL],
                                          &mChatCallSessionStatusInProgress[a1],
-                                         &mChatCallSilenceReq[a1],
-                                         &mChatCallSessionStatusInProgress[a2],
-                                         &mChatCallSilenceReq[a2]
+                                         &mChatCallSessionStatusInProgress[a2]
                                        },
                    std::vector<string> { "TYPE_ANSWER_CHAT_CALL[a2]",
                                          "mChatCallSessionStatusInProgress[a1]",
-                                         "mChatCallSilenceReq[a1]",
-                                         "mChatCallSessionStatusInProgress[a2]",
-                                         "mChatCallSilenceReq[a2]"
+                                         "mChatCallSessionStatusInProgress[a2]"
                                          },
                    "answering chat call from B",
                    true /* wait for all exit flags*/,
@@ -3851,27 +4053,21 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
     bool* chatCallSessionStatusInProgressA = &mChatCallSessionStatusInProgress[a1];
     *chatCallSessionStatusInProgressA = false;
-    bool* chatCallSilenceReqA = &mChatCallSilenceReq[a1]; *chatCallSilenceReqA = false;
     bool* chatCallSessionStatusInProgressB = &mChatCallSessionStatusInProgress[a2];
     *chatCallSessionStatusInProgressB = false;
-    bool* chatCallSilenceReqB = &mChatCallSilenceReq[a2]; *chatCallSilenceReqB = false;
 
     std::function<void()> waitForChatCallReadyA =
-      [this, &chatCallSessionStatusInProgressA, &chatCallSilenceReqA]()
+      [this, &chatCallSessionStatusInProgressA]()
       {
           ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressA)) <<
                            "Timeout expired for A receiving chat call in progress";
-          ASSERT_TRUE(waitForResponse(chatCallSilenceReqA)) <<
-                           "Timeout expired for A receiving speak request to false";
       };
 
     std::function<void()> waitForChatCallReadyB =
-      [this, &chatCallSessionStatusInProgressB, &chatCallSilenceReqB] ()
+      [this, &chatCallSessionStatusInProgressB] ()
       {
           ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressB)) <<
                            "Timeout expired for B receiving chat call in progress";
-          ASSERT_TRUE(waitForResponse(chatCallSilenceReqB)) <<
-                           "Timeout expired for B receiving speak request to false";
       };
 
     megaChatApi[a1]->retryPendingConnections(true);
