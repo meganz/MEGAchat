@@ -1253,6 +1253,8 @@ private:
     static int convertDbError(int errCode);
     bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
+    int performRequest_sendTypingNotification(MegaChatRequestPrivate* request);
+
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);
     void postMessage(megaMessage *msg);
