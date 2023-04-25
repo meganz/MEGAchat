@@ -227,6 +227,12 @@ void MegaChatApiImpl::sendPendingRequests()
             continue;
         }
 
+        if (request->hasPerformRequest())
+        {
+            errorCode = request->performRequest();
+        }
+        else
+        {
         switch (request->getType())
         {
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
@@ -2998,6 +3004,7 @@ void MegaChatApiImpl::sendPendingRequests()
             errorCode = MegaChatError::ERROR_UNKNOWN;
         }
         }   // end of switch(request->getType())
+        }   // end of `else` block
 
         if(errorCode)
         {

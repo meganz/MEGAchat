@@ -103,6 +103,10 @@ public:
     virtual MegaChatScheduledMeetingList* getMegaChatScheduledMeetingList() const;
     virtual MegaChatScheduledMeetingOccurrList* getMegaChatScheduledMeetingOccurrList() const;
 
+    bool hasPerformRequest() const { return mPerformRequest != nullptr; }
+    int performRequest() const { assert(hasPerformRequest()); return mPerformRequest(); }
+
+    void setPerformRequest(std::function<int()> f) { mPerformRequest = f; }
     void setMegaChatScheduledMeetingList(const MegaChatScheduledMeetingList* schedMeetingList);
     void setMegaChatScheduledMeetingOccurrList(const MegaChatScheduledMeetingOccurrList* schedMeetingOccurrList);
     void setTag(int tag);
@@ -126,6 +130,8 @@ public:
 
 private:
     mega::MegaHandleList *doGetMegaHandleListByChat(MegaChatHandle chatid);
+    // Perform the request by executing this function, instead of adding code to sendPendingRequests()
+    std::function<int()> mPerformRequest;
 
 protected:
     int mType;
