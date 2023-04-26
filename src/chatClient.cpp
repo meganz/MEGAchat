@@ -78,10 +78,10 @@ Client::Client(mega::MegaApi &sdk, WebsocketsIO *websocketsIO, IApp &aApp,
       app(aApp),
       db(app),
       mDnsCache(db, chatd::Client::chatdVersion),
+      mScheduledMeetingHandler(scheduledMeetingHandler),
 #ifndef KARERE_DISABLE_WEBRTC
       mCallHandler(callHandler),
 #endif
-      mScheduledMeetingHandler(scheduledMeetingHandler),
       mContactList(new ContactList(*this)),
       chats(new ChatRoomList(*this)),
       mPresencedClient(&api, this, *this, caps)
@@ -922,7 +922,7 @@ promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t 
 {
     auto wptr = getDelTracker();
     return api.call(&::mega::MegaApi::removeScheduledMeeting, chatid, schedId)
-    .then([wptr](ReqResult result) -> promise::Promise<void>
+    .then([wptr](ReqResult) -> promise::Promise<void>
     {
         wptr.throwIfDeleted();
         return promise::_Void();
@@ -944,13 +944,13 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
 
         auto wptr = getDelTracker();
         promise::Promise<std::string> pms = auxCrypto->decryptChatTitleFromApi(buf);
-        return pms.then([wptr, this, chatId, auxCrypto](const std::string title)
+        return pms.then([wptr, auxCrypto](const std::string title)
         {
             wptr.throwIfDeleted();
             delete auxCrypto;
             return title;
         })
-        .fail([wptr, this, chatId, auxCrypto](const ::promise::Error& err)
+        .fail([wptr, chatId, auxCrypto](const ::promise::Error& err)
         {
             wptr.throwIfDeleted();
             KR_LOG_ERROR("Error decrypting chat title for chat link preview %s:\n%s", ID_CSTR(chatId), err.what());
@@ -3590,7 +3590,7 @@ promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
     {
         onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_FULL);
     })
-    .fail([this](const ::promise::Error& err)
+    .fail([this](const ::promise::Error&)
     {
         mAutoJoining = false;
     });

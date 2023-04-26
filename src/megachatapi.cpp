@@ -34,7 +34,8 @@ namespace karere
     APP_ALWAYS_EXPORT const std::string& getAppDir()
     {
         #ifdef __ANDROID__
-            return "/data/data/mega.privacy.android.app"; 
+            static std::string path("/data/data/mega.privacy.android.app");
+            return path;
         #else
             return karere::createAppDir();
         #endif

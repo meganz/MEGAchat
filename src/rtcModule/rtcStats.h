@@ -1,7 +1,16 @@
 #ifndef RTCSTATS_H
 #define RTCSTATS_H
 #include <karereId.h>
+// disable warnings in webrtc headers
+// the same pragma works with both GCC and Clang
+#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#endif
 #include <api/stats/rtc_stats_collector_callback.h>
+#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#pragma GCC diagnostic pop
+#endif
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <base/trackDelete.h>

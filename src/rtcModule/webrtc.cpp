@@ -3532,7 +3532,7 @@ AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)
 {
 }
 
-void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms)
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> /*absolute_capture_timestamp_ms*/)
 {
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);

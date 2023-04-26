@@ -124,6 +124,9 @@ public:
     void setParamType(int paramType);
     void setStringMap(mega::MegaStringMap* stringMap);
 
+private:
+    mega::MegaHandleList *doGetMegaHandleListByChat(MegaChatHandle chatid);
+
 protected:
     int mType;
     int mTag;
