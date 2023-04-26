@@ -493,8 +493,6 @@ private:
 
 class ChatRequestTracker : public megachat::MegaChatRequestListener, public ResultHandler
 {
-    std::unique_ptr<::megachat::MegaChatRequest> request;
-
 public:
     void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
                          ::megachat::MegaChatError* e) override
@@ -529,6 +527,9 @@ public:
                   ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
                   : nullptr;
     }
+
+private:
+    std::unique_ptr<::megachat::MegaChatRequest> request;
 };
 
 #ifndef KARERE_DISABLE_WEBRTC

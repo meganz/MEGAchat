@@ -4162,26 +4162,26 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     // remove scheduled meeting
     const auto deleteSchedMeeting = [this, &a1, &a2](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
     {
-        bool exitFalg = false;
+        bool exitFlag = false;
         mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
         mSchedIdRemoved[a1] = mSchedIdRemoved[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
 
         // wait for onRequestFinish
         ASSERT_NO_FATAL_FAILURE({
         waitForAction (1,
-                       std::vector<bool *> { &exitFalg },
+                       std::vector<bool *> { &exitFlag },
                        std::vector<string> { "TYPE_DELETE_SCHEDULED_MEETING[a1]"},
                        "Removing scheduled meeting from A",
                        true /* wait for all exit flags*/,
                        true /*reset flags*/,
                        maxTimeout,
-                       [&api = megaChatApi[index], &d = smData, &expectedError, &exitFalg]()
+                       [&api = megaChatApi[index], &d = smData, &expectedError, &exitFlag]()
                        {
                             ChatRequestTracker crtRemoveMeeting;
                             api->removeScheduledMeeting(d.chatId, d.schedId, &crtRemoveMeeting);
                             ASSERT_EQ(crtRemoveMeeting.waitForResult(), expectedError)
                                         << "Unexpected error while removing scheduled meeting. Error: " << crtRemoveMeeting.getErrorString();
-                            exitFalg = true;
+                            exitFlag = true;
                        });
         });
         if (expectedError != MegaChatError::ERROR_OK) { return; }
@@ -4195,27 +4195,27 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     // update scheduled meeting
     const auto updateSchedMeeting = [this, &a1, &a2](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
     {
-        bool exitFalg = false;
+        bool exitFlag = false;
         mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
         mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
 
         // wait for onRequestFinish
         ASSERT_NO_FATAL_FAILURE({
         waitForAction (1,
-                       std::vector<bool *> { &exitFalg },
+                       std::vector<bool *> { &exitFlag },
                        std::vector<string> { "TYPE_UPDATE_SCHEDULED_MEETING[a1]"},
                        "Updating meeting room and scheduled meeting from A",
                        true /* wait for all exit flags*/,
                        true /*reset flags*/,
                        maxTimeout,
-                       [&api = megaChatApi[index], &d = smData, &expectedError, &exitFalg]()
+                       [&api = megaChatApi[index], &d = smData, &expectedError, &exitFlag]()
                        {
                             ChatRequestTracker crtUpdateMeeting;
                             api->updateScheduledMeeting(d.chatId, d.schedId, d.timeZone.c_str(), d.startDate, d.endDate, d.title.c_str(),
                                                                        d.description.c_str(), d.cancelled, d.flags.get(), d.rules.get(), &crtUpdateMeeting);
                             ASSERT_EQ(crtUpdateMeeting.waitForResult(), expectedError)
                                         << "Unexpected error when updating scheduled meeting. Error: " << crtUpdateMeeting.getErrorString();
-                            exitFalg = true;
+                            exitFlag = true;
                        });
         });
 
@@ -4230,26 +4230,26 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     // update scheduled meeting occurrence
     const auto updateOccurrence = [this, &a1, &a2](const unsigned int index, int expectedError, const SchedMeetingData& smData) -> void
     {
-        bool exitFalg = false;
+        bool exitFlag = false;
         mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
         mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
 
         // wait for onRequestFinish
         ASSERT_NO_FATAL_FAILURE({
         waitForAction (1,
-                       std::vector<bool *> { &exitFalg },
+                       std::vector<bool *> { &exitFlag },
                        std::vector<string> { "TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE[a1]"},
                        "Updating scheduled meeting occurrence",
                        true /* wait for all exit flags */,
                        true /* reset flags */,
                        maxTimeout,
-                       [&api = megaChatApi[index], &d = smData, &expectedError, &exitFalg]()
+                       [&api = megaChatApi[index], &d = smData, &expectedError, &exitFlag]()
                        {
                             ChatRequestTracker crtUpdateOccurrence;
                             api->updateScheduledMeetingOccurrence(d.chatId, d.schedId, d.overrides, d.newStartDate, d.newEndDate, d.newCancelled, &crtUpdateOccurrence);
                             ASSERT_EQ(crtUpdateOccurrence.waitForResult(), expectedError)
                                         << "Unexpected error while updating scheduled meeting. Error: " << crtUpdateOccurrence.getErrorString();
-                            exitFalg = true;
+                            exitFlag = true;
                        });
         });
 
