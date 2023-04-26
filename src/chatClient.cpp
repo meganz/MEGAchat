@@ -3234,7 +3234,7 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
     auto wptr = weakHandle();
     marshallCall([wptr, this, copy]()
     {
-        if (wptr.deleted())
+        if (wptr.deleted() || !db.isOpen())
         {
             return;
         }
