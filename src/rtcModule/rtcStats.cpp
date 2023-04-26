@@ -279,10 +279,10 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 int64_t bytesRecv = 0;
                 int64_t bytesSend = 0;
                 getConnStats(it, rtt, txBwe, bytesRecv, bytesSend);
-                mStats->mSamples.mRoundTripTime.back() += static_cast<int>(rtt);       // should this be rounded?
-                mStats->mSamples.mOutGoingBitrate.back() += static_cast<int>(txBwe);   // should this be rounded?
-                mStats->mSamples.mBytesReceived.back() += static_cast<int>(bytesRecv);
-                mStats->mSamples.mBytesSend.back() += static_cast<int>(bytesSend);
+                mStats->mSamples.mRoundTripTime.back() += static_cast<int32_t>(std::lround(rtt));
+                mStats->mSamples.mOutGoingBitrate.back() += static_cast<int32_t>(std::lround(txBwe));
+                mStats->mSamples.mBytesReceived.back() += static_cast<int32_t>(bytesRecv);
+                mStats->mSamples.mBytesSend.back() += static_cast<int32_t>(bytesSend);
             }
             else if (strcmp(it->type(), "inbound-rtp") == 0)
             {
