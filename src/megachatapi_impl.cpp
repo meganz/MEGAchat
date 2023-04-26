@@ -10704,6 +10704,10 @@ void MegaChatCallHandler::onWrUserDump(const rtcModule::ICall& call)
 {
 }
 
+void MegaChatCallHandler::onWrLeave(const rtcModule::ICall& call, const karere::Id& user)
+{
+}
+
 void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModule::ICall &call)
 {
     MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);

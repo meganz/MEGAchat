@@ -242,6 +242,106 @@ public:
     time_t mTsLastSwitch;
 };
 
+
+/**
+ * @brief This class represents waiting room users
+ *
+ * A waiting room, is effectively a list of users pending to enter a call
+ */
+class KarereWaitingRoom
+{
+public:
+    enum class Ws: int
+    {
+        WR_INVALID      = -1,
+        WR_NOT_ALLOWED  = 0,
+        WR_ALLOWED      = 1,
+    };
+
+    ~KarereWaitingRoom() = default;
+    KarereWaitingRoom() = default;
+    KarereWaitingRoom(const KarereWaitingRoom& other) = default;
+    KarereWaitingRoom(KarereWaitingRoom&& other) = delete;
+    KarereWaitingRoom& operator = (const KarereWaitingRoom& other) = delete;
+    KarereWaitingRoom& operator = (KarereWaitingRoom&& other) = delete;
+
+    size_t size() const { return mWaitingRoomUsers.size(); }
+
+    bool addUser(const uint64_t& userid, const int& status)
+    {
+        if (!isValidWrStatus(static_cast<Ws>(status)) || mWaitingRoomUsers.find(userid) != mWaitingRoomUsers.end())
+        {
+            return false;
+        }
+
+        mWaitingRoomUsers[userid] = static_cast<Ws>(status);
+        return true;
+    }
+
+    bool removeUser(const uint64_t& userid)
+    {
+        return mWaitingRoomUsers.erase(userid);
+    }
+
+    bool updateUserStatus(const uint64_t& userid, const int& status)
+    {
+        if (!isValidWrStatus(static_cast<Ws>(status)) || mWaitingRoomUsers.find(userid) == mWaitingRoomUsers.end())
+        {
+            return false;
+        }
+
+        mWaitingRoomUsers[userid] = static_cast<Ws>(status);
+        return true;
+    }
+
+    bool updateUsers(const std::set<karere::Id>& users, Ws status)
+    {
+        if (!isValidWrStatus(status) || users.empty())
+        {
+            return false;
+        }
+
+        std::for_each(users.begin(), users.end(), [this, &status](const auto &u)
+        {
+           if (mWaitingRoomUsers.find(u.val) != mWaitingRoomUsers.end())
+           {
+               mWaitingRoomUsers[u.val] = static_cast<Ws>(status);
+           }
+        });
+
+        return true;
+    }
+
+    std::vector<uint64_t> getPeers() const
+    {
+        std::vector<uint64_t> keys;
+        keys.reserve(mWaitingRoomUsers.size());
+        std::transform(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(),
+                       std::back_inserter(keys), [](const auto& pair) { return pair.first; });
+
+        return keys;
+    }
+
+    int getPeerStatus(const uint64_t& peerid) const
+    {
+        const auto& it = mWaitingRoomUsers.find(peerid);
+        if (it == mWaitingRoomUsers.end())
+        {
+            return static_cast<int>(Ws::WR_INVALID);
+        }
+
+        return static_cast<int>(it->second);
+    }
+
+private:
+    bool isValidWrStatus(const Ws& value)
+    {
+        return (value >= Ws::WR_ALLOWED && value <= Ws::WR_NOT_ALLOWED);
+    }
+
+    std::map<uint64_t, Ws> mWaitingRoomUsers;
+};
+
 /**
 * @brief The Call class
 *
@@ -463,7 +563,7 @@ public:
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;
     bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
     bool handleWrLeave(const karere::Id& user) override;
-    bool handleWrAllow() override;
+    bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
     bool handleWrDeny() override;
     bool handleWrAllowReq(const karere::Id& user) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
@@ -585,11 +685,11 @@ protected:
     std::set<karere::Id> mModerators;
 
     /*
-     * Map that contains the users in the waiting room, and it's permission to JOIN the call (0 = not allowed | 1 = allowed)
-     *  - users with permission = 0 must wait in the waiting room, until receive WR_ALLOW notification (then they can send JOIN command)
-     *  - users with permission = 1 can enter the call directly by sending JOIN command to SFU
+     * List of users in the waiting room, and it's permission to JOIN the call (0 = WR_NOT_ALLOWED | 1 = WR_ALLOWED)
+     *  - users with permission = WR_NOT_ALLOWED  must wait in the waiting room, until receive WR_ALLOW notification (then they can send JOIN command)
+     *  - users with permission = WR_ALLOWED can enter the call directly by sending JOIN command to SFU
      */
-    std::map<karere::Id, bool> mWaitingRoomUsers;
+    std::unique_ptr<KarereWaitingRoom> mWaitingRoomUsers;
 
     // symetric cipher for media key encryption
     mega::SymmCipher mSymCipher;

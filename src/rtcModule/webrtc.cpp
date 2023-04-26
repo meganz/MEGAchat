@@ -2122,7 +2122,7 @@ bool Call::handleWrLeave(const karere::Id& user)
     return true;
 }
 
-bool Call::handleWrAllow()
+bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 {
     onWrAllow();
     return true;
@@ -2445,19 +2445,34 @@ void Call::onWrJoinAllowed()
 
 void Call::onWrJoinNotAllowed()
 {
+    assert(!isOwnPrivModerator());
 }
 
 void Call::onWrUserDump(const std::map<karere::Id, bool>& users)
 {
-    mWaitingRoomUsers = waitingRoomUsers;
+    assert(isOwnPrivModerator());
+    std::for_each(users.begin(), users.end(), [this](const auto &u)
+    {
+        mWaitingRoomUsers->addUser(u.first, u.second);
+    });
+    mCallHandler.onWrUserDump(*this);
 }
 
 void Call::onWrEnter(const std::map<karere::Id, bool>& users)
 {
+    assert(isOwnPrivModerator() && mWaitingRoomUsers);
+    std::for_each(users.begin(), users.end(), [this](const auto &u)
+    {
+        mWaitingRoomUsers->addUser(u.first, u.second);
+    });
+    mCallHandler.onWrUserDump(*this);
 }
 
 void Call::onWrLeave(const karere::Id& user)
 {
+    assert(isOwnPrivModerator() && !user.inval);
+    mWaitingRoomUsers->removeUser(user.val);
+    mCallHandler.onWrLeave(*this, user.val);
 }
 
 void Call::onWrAllow()
@@ -2470,6 +2485,8 @@ void Call::onWrDeny()
 
 void Call::onWrUsersAllow(const std::set<karere::Id>& users)
 {
+    assert(isOwnPrivModerator() && mWaitingRoomUsers);
+    mWaitingRoomUsers->updateUsers(users, KarereWaitingRoom::Ws::WR_ALLOWED);
     mCallHandler.onWrUsersAllow(*this, users);
 }
 
@@ -2480,6 +2497,8 @@ void Call::onWrUserReqAllow(const karere::Id& user)
 
 void Call::onWrUsersDeny(const std::set<karere::Id>& users)
 {
+    assert(isOwnPrivModerator() && mWaitingRoomUsers);
+    mWaitingRoomUsers->updateUsers(users, KarereWaitingRoom::Ws::WR_NOT_ALLOWED);
     mCallHandler.onWrUsersDeny(*this, users);
 }
 

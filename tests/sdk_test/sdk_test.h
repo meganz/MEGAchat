@@ -558,7 +558,7 @@ public:
     bool handleWrDump(const std::map<karere::Id, bool>& /*users*/) override;
     bool handleWrEnter(const std::map<karere::Id, bool>& /*users*/) override;
     bool handleWrLeave(const karere::Id& /*user*/) override;
-    bool handleWrAllow() override;
+    bool handleWrAllow(const Cid_t& /*cid*/, const std::set<karere::Id>& /*mods*/) override;
     bool handleWrDeny() override;
     bool handleWrAllowReq(const karere::Id& /*user*/) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& /*users*/) override;

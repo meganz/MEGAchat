@@ -6643,7 +6643,7 @@ bool MockupCall::handleWrLeave(const karere::Id& /*user*/)
     return false;
 }
 
-bool MockupCall::handleWrAllow()
+bool MockupCall::handleWrAllow(const Cid_t& /*cid*/, const std::set<karere::Id>& /*mods*/)
 {
     return false;
 }

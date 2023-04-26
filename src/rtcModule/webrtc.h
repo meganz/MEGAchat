@@ -163,6 +163,7 @@ public:
     virtual void onWrUsersAllow(const rtcModule::ICall& call, const std::set<karere::Id>& users) = 0;
     virtual void onWrUsersDeny(const rtcModule::ICall& call, const std::set<karere::Id>& users) = 0;
     virtual void onWrUserDump(const rtcModule::ICall& call) = 0;
+    virtual void onWrLeave(const rtcModule::ICall& call, const karere::Id& user) = 0;
 };
 
 class ICall

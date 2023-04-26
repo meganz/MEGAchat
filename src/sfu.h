@@ -223,7 +223,7 @@ public:
     virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
     virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
     virtual bool handleWrLeave(const karere::Id& /*user*/) = 0;
-    virtual bool handleWrAllow() = 0;
+    virtual bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) = 0;
     virtual bool handleWrDeny() = 0;
     virtual bool handleWrAllowReq(const karere::Id& user) = 0;
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
@@ -495,7 +495,7 @@ public:
     WrLeaveCommandFunction mComplete;
 };
 
-typedef std::function<bool()>WrAllowCommandFunction;
+typedef std::function<bool(const Cid_t& cid, const std::set<karere::Id>& mods)>WrAllowCommandFunction;
 class WrAllowCommand: public Command
 {
 public:
