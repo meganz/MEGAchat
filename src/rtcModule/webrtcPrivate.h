@@ -242,6 +242,17 @@ public:
     time_t mTsLastSwitch;
 };
 
+enum class WrState: int
+{
+    WR_UNKNOWN      = -1,   // client unknown joining status
+    WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+    WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
+};
+
+static bool isValidWrStatus(const WrState& value)
+{
+    return (value > WrState::WR_UNKNOWN && value <= WrState::WR_ALLOWED);
+}
 
 /**
  * @brief This class represents waiting room users
@@ -251,13 +262,6 @@ public:
 class KarereWaitingRoom
 {
 public:
-    enum class Ws: int
-    {
-        WR_INVALID      = -1,
-        WR_NOT_ALLOWED  = 0,
-        WR_ALLOWED      = 1,
-    };
-
     ~KarereWaitingRoom() = default;
     KarereWaitingRoom() = default;
     KarereWaitingRoom(const KarereWaitingRoom& other) = default;
@@ -267,14 +271,15 @@ public:
 
     size_t size() const { return mWaitingRoomUsers.size(); }
 
-    bool addUser(const uint64_t& userid, const int& status)
+    bool addOrUpdateUserStatus(const uint64_t& userid, const int& status)
     {
-        if (!isValidWrStatus(static_cast<Ws>(status)) || mWaitingRoomUsers.find(userid) != mWaitingRoomUsers.end())
+        if (!isValidWrStatus(static_cast<WrState>(status)))
         {
+            assert(false);
             return false;
         }
 
-        mWaitingRoomUsers[userid] = static_cast<Ws>(status);
+        mWaitingRoomUsers[userid] = static_cast<WrState>(status);
         return true;
     }
 
@@ -283,18 +288,7 @@ public:
         return mWaitingRoomUsers.erase(userid);
     }
 
-    bool updateUserStatus(const uint64_t& userid, const int& status)
-    {
-        if (!isValidWrStatus(static_cast<Ws>(status)) || mWaitingRoomUsers.find(userid) == mWaitingRoomUsers.end())
-        {
-            return false;
-        }
-
-        mWaitingRoomUsers[userid] = static_cast<Ws>(status);
-        return true;
-    }
-
-    bool updateUsers(const std::set<karere::Id>& users, Ws status)
+    bool updateUsers(const std::set<karere::Id>& users, const WrState& status)
     {
         if (!isValidWrStatus(status) || users.empty())
         {
@@ -303,10 +297,7 @@ public:
 
         std::for_each(users.begin(), users.end(), [this, &status](const auto &u)
         {
-           if (mWaitingRoomUsers.find(u.val) != mWaitingRoomUsers.end())
-           {
-               mWaitingRoomUsers[u.val] = static_cast<Ws>(status);
-           }
+            mWaitingRoomUsers[u.val] = static_cast<WrState>(status);
         });
 
         return true;
@@ -327,19 +318,14 @@ public:
         const auto& it = mWaitingRoomUsers.find(peerid);
         if (it == mWaitingRoomUsers.end())
         {
-            return static_cast<int>(Ws::WR_INVALID);
+            return static_cast<int>(WrState::WR_UNKNOWN);
         }
 
         return static_cast<int>(it->second);
     }
 
 private:
-    bool isValidWrStatus(const Ws& value)
-    {
-        return (value >= Ws::WR_ALLOWED && value <= Ws::WR_NOT_ALLOWED);
-    }
-
-    std::map<uint64_t, Ws> mWaitingRoomUsers;
+    std::map<uint64_t, WrState> mWaitingRoomUsers;
 };
 
 /**
@@ -348,7 +334,7 @@ private:
 * This object is created upon OP_JOINEDCALL (or OP_CALLSTATE).
 * It implements ICall interface for the intermediate layer.
 */
-class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall, public IWaitingRoom
+class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
     enum SpeakerState
@@ -528,6 +514,7 @@ public:
     bool isDestroying();
     void generateEphemeralKeyPair();
     void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
+    void addWrUsers(const std::map<karere::Id, bool>& users);
 
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
@@ -577,18 +564,6 @@ public:
     void onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver);
     void onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver);
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
-
-    // ---- IWaitingRoom methods ----
-    void onWrJoinAllowed() override;
-    void onWrJoinNotAllowed() override;
-    void onWrUserDump(const std::map<karere::Id, bool> &users) override;
-    void onWrEnter(const std::map<karere::Id, bool>& users) override;
-    void onWrLeave(const karere::Id& user) override;
-    void onWrAllow() override;
-    void onWrDeny() override;
-    void onWrUserReqAllow(const karere::Id& user) override;
-    void onWrUsersAllow(const std::set<karere::Id>& users) override;
-    void onWrUsersDeny(const std::set<karere::Id>& users) override;
 
 protected:
     /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands

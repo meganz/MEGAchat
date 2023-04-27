@@ -235,22 +235,6 @@ public:
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
 };
 
-
-class IWaitingRoom
-{
-    virtual void onWrJoinAllowed() = 0;
-    virtual void onWrJoinNotAllowed() = 0;
-    virtual void onWrUserDump(const std::map<karere::Id, bool>& users) = 0;
-    virtual void onWrEnter(const std::map<karere::Id, bool>& users) = 0;
-    virtual void onWrLeave(const karere::Id& user) = 0;
-    virtual void onWrAllow() = 0;
-    virtual void onWrDeny() = 0;
-    virtual void onWrUserReqAllow(const karere::Id& user) = 0;
-    virtual void onWrUsersAllow(const std::set<karere::Id>& users) = 0;
-    virtual void onWrUsersDeny(const std::set<karere::Id>& users) = 0;
-};
-
-
 class RtcModule
 {
 public:

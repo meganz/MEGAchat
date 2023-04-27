@@ -2074,13 +2074,19 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     else
     {
         setState(CallState::kInWaitingRoom);
-        allowed
-               ? onWrJoinAllowed()        // allowed to JOIN SFU
-               : onWrJoinNotAllowed();    // must wait in waiting room until a moderator allow to access
+        if (allowed)
+        {
+            joinSfu();
+        }
+        else
+        {
+            // must wait in waiting room until a moderator allow to access
+            assert(!isOwnPrivModerator());
+        }
 
         if (!wrUsers.empty())
         {
-            onWrUserDump(wrUsers);        // store moderators list and notify app
+            addWrUsers(wrUsers);        // store moderators list and notify app
         }
     }
     return true;
@@ -2094,31 +2100,50 @@ bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
         assert(false);
         return false;
     }
-    onWrUserDump(users);
+    addWrUsers(users);
     return true;
 }
 
 bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
 {
+    assert(isOwnPrivModerator());
     if (users.empty())
     {
         RTCM_LOG_ERROR("WR_ENTER : empty user list received");
         assert(false);
         return false;
     }
-    onWrEnter(users);
+
+    if (!mWaitingRoomUsers)
+    {
+        assert(false);
+        mWaitingRoomUsers.reset(new KarereWaitingRoom());
+    }
+    std::for_each(users.begin(), users.end(), [this](const auto &u)
+    {
+        mWaitingRoomUsers->addOrUpdateUserStatus(u.first, u.second);
+    });
+    mCallHandler.onWrUserDump(*this);
     return true;
 }
 
 bool Call::handleWrLeave(const karere::Id& user)
 {
+    assert(isOwnPrivModerator());
     if (user.inval())
     {
         RTCM_LOG_ERROR("WR_LEAVE : empty user list received");
         assert(false);
         return false;
     }
-    onWrLeave(user);
+
+    if (!mWaitingRoomUsers)
+    {
+        assert(false);
+        mWaitingRoomUsers.reset(new KarereWaitingRoom());
+    }
+    mWaitingRoomUsers->removeUser(user.val);
+    mCallHandler.onWrLeave(*this, user.val);
     return true;
 }
 
@@ -2142,31 +2167,48 @@ bool Call::handleWrAllowReq(const karere::Id& user)
         assert(false);
         return false;
     }
-    onWrUserReqAllow(user);
+
+    mCallHandler.onWrUserReqAllow(*this, user);
     return true;
 }
 
 bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 {
+    assert(isOwnPrivModerator());
     if (users.empty())
     {
         RTCM_LOG_ERROR("WR_USERS_ALLOW : empty user list received");
         assert(false);
         return false;
     }
-    onWrUsersAllow(users);
+
+    if (!mWaitingRoomUsers)
+    {
+        assert(false);
+        mWaitingRoomUsers.reset(new KarereWaitingRoom());
+    }
+    mWaitingRoomUsers->updateUsers(users, WrState::WR_ALLOWED);
+    mCallHandler.onWrUsersAllow(*this, users);
     return true;
 }
 
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
+    assert(isOwnPrivModerator());
     if (users.empty())
     {
         RTCM_LOG_ERROR("WR_USERS_DENY : empty user list received");
         assert(false);
         return false;
     }
-    onWrUsersDeny(users);
+
+    if (!mWaitingRoomUsers)
+    {
+        assert(false);
+        mWaitingRoomUsers.reset(new KarereWaitingRoom());
+    }
+    mWaitingRoomUsers->updateUsers(users, WrState::WR_NOT_ALLOWED);
+    mCallHandler.onWrUsersDeny(*this, users);
     return true;
 }
 
@@ -2437,69 +2479,15 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
 }
 
-// ---- IWaitingRoom methods ----
-void Call::onWrJoinAllowed()
-{
-    joinSfu();
-}
-
-void Call::onWrJoinNotAllowed()
-{
-    assert(!isOwnPrivModerator());
-}
-
-void Call::onWrUserDump(const std::map<karere::Id, bool>& users)
+void Call::addWrUsers(const std::map<karere::Id, bool>& users)
 {
     assert(isOwnPrivModerator());
+    mWaitingRoomUsers.reset(new KarereWaitingRoom());
     std::for_each(users.begin(), users.end(), [this](const auto &u)
     {
-        mWaitingRoomUsers->addUser(u.first, u.second);
+        mWaitingRoomUsers->addOrUpdateUserStatus(u.first, u.second);
     });
     mCallHandler.onWrUserDump(*this);
-}
-
-void Call::onWrEnter(const std::map<karere::Id, bool>& users)
-{
-    assert(isOwnPrivModerator() && mWaitingRoomUsers);
-    std::for_each(users.begin(), users.end(), [this](const auto &u)
-    {
-        mWaitingRoomUsers->addUser(u.first, u.second);
-    });
-    mCallHandler.onWrUserDump(*this);
-}
-
-void Call::onWrLeave(const karere::Id& user)
-{
-    assert(isOwnPrivModerator() && !user.inval);
-    mWaitingRoomUsers->removeUser(user.val);
-    mCallHandler.onWrLeave(*this, user.val);
-}
-
-void Call::onWrAllow()
-{
-}
-
-void Call::onWrDeny()
-{
-}
-
-void Call::onWrUsersAllow(const std::set<karere::Id>& users)
-{
-    assert(isOwnPrivModerator() && mWaitingRoomUsers);
-    mWaitingRoomUsers->updateUsers(users, KarereWaitingRoom::Ws::WR_ALLOWED);
-    mCallHandler.onWrUsersAllow(*this, users);
-}
-
-void Call::onWrUserReqAllow(const karere::Id& user)
-{
-    mCallHandler.onWrUserReqAllow(*this, user);
-}
-
-void Call::onWrUsersDeny(const std::set<karere::Id>& users)
-{
-    assert(isOwnPrivModerator() && mWaitingRoomUsers);
-    mWaitingRoomUsers->updateUsers(users, KarereWaitingRoom::Ws::WR_NOT_ALLOWED);
-    mCallHandler.onWrUsersDeny(*this, users);
 }
 
 Keyid_t Call::generateNextKeyId()
