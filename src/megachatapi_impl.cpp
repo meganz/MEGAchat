@@ -2231,73 +2231,92 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+        default:
+        {
+            errorCode = MegaChatError::ERROR_UNKNOWN;
+        }
+        }   // end of switch(request->getType())
+        }   // end of `else` block
+
+        if(errorCode)
+        {
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
+            API_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
+            fireOnChatRequestFinish(request, megaChatError);
+        }
+    }
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
-        case MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR:
+int MegaChatApiImpl::performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             bool enable = request->getFlag();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
                 API_LOG_ERROR("Enable audio level monitor  - There is not any call in that chatroom");
-                assert(false);
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                assert(call);
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (!call->participate())
             {
                 API_LOG_ERROR("Enable audio level monitor - You don't participate in the call");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             call->enableAudioLevelMonitor(enable);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
+}
 
-        case MegaChatRequest::TYPE_REQUEST_SPEAK:
+int MegaChatApiImpl::performRequest_speakRequest(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             bool enable = request->getFlag();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK  - There is not any call in that chatroom");
-                assert(false);
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                assert(call);
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
                 API_LOG_ERROR("Request to speak - Call isn't in progress state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             call->requestSpeaker(enable);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_APPROVE_SPEAK:
+}
+
+int MegaChatApiImpl::performRequest_speakApproval(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
 
@@ -2305,25 +2324,22 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK  - There is not any call in that chatroom");
-                assert(false);
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                assert(call);
+                return MegaChatError::ERROR_NOENT;
             }
 
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK- Chatroom has not been found");
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (!call->isOwnPrivModerator()
@@ -2341,15 +2357,13 @@ void MegaChatApiImpl::sendPendingRequests()
 
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK  - You need moderator role to approve speak request");
                 assert(false);
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
                 API_LOG_ERROR("Approve request to speak - Call isn't in progress state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             call->approveSpeakRequest(static_cast<Cid_t>(request->getUserHandle()), enable);
@@ -2357,9 +2371,13 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO:
+}
+
+int MegaChatApiImpl::performRequest_hiResVideo(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             int quality = request->getPrivilege(); // by default MegaChatCall::CALL_QUALITY_HIGH_DEF
@@ -2367,38 +2385,33 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (request->getFlag() && (quality < MegaChatCall::CALL_QUALITY_HIGH_DEF || quality > MegaChatCall::CALL_QUALITY_HIGH_LOW))
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - Invalid resolution quality");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - There is not any call in that chatroom");
-                assert(false);
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                assert(call);
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (!request->getFlag() && (!request->getMegaHandleList() || !request->getMegaHandleList()->size()))
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid list of Cids for removal");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
                 API_LOG_ERROR("Request high resolution video - Call isn't in progress state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             if (request->getFlag()) // HI-RES request only accepts a single peer CID
@@ -2419,39 +2432,39 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO:
+}
+
+int MegaChatApiImpl::performRequest_lowResVideo(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall *call = findCall(chatid);
             if (!call)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO  - There is not any call in that chatroom");
-                assert(false);
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                assert(call);
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Call isn't in progress state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             if (!request->getMegaHandleList() || !request->getMegaHandleList()->size())
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Invalid list of Cids");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             std::vector<Cid_t> cids;
@@ -2472,16 +2485,18 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
+}
 
-        case MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE:
+int MegaChatApiImpl::performRequest_videoDevice(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             if (!mClient->rtc)
             {
                 API_LOG_ERROR("OpenVideoDevice - WebRTC is not initialized");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             if (request->getFlag())
@@ -2495,80 +2510,79 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
+}
 
-        case MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY:
+int MegaChatApiImpl::performRequest_requestHiResQuality(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - There is not any call in that chatroom");
-                assert(false);
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                assert(call);
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - Call isn't in progress state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
             if (!call->hasVideoSlot(cid, true))
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - Currently not receiving a hi-res stream for this peer");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             int quality = request->getParamType();
             if (quality < MegaChatCall::CALL_QUALITY_HIGH_DEF || quality > MegaChatCall::CALL_QUALITY_HIGH_LOW)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - invalid quality level value (spatial layer offset).");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             call->requestHiResQuality(cid, quality);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_DEL_SPEAKER:
+}
+
+int MegaChatApiImpl::performRequest_removeSpeaker(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall *call = findCall(chatid);
             if (!call)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER  - There is not any call in that chatroom");
-                assert(false);
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                assert(call);
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - Call isn't in progress state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             Cid_t cid = request->getUserHandle() != MEGACHAT_INVALID_HANDLE
@@ -2578,38 +2592,22 @@ void MegaChatApiImpl::sendPendingRequests()
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (!call->isOwnPrivModerator() && cid)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - You need moderator role to remove an active speaker");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             call->stopSpeak(cid);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
-#endif
-        default:
-        {
-            errorCode = MegaChatError::ERROR_UNKNOWN;
-        }
-        }   // end of switch(request->getType())
-        }   // end of `else` block
-
-        if(errorCode)
-        {
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
-            API_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
-            fireOnChatRequestFinish(request, megaChatError);
-        }
-    }
 }
+#endif // ifndef KARERE_DISABLE_WEBRTC
 
 int MegaChatApiImpl::performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request)
 {
@@ -5596,6 +5594,7 @@ void MegaChatApiImpl::openVideoDevice(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE, listener);
     request->setFlag(true);
+    request->setPerformRequest([this, request]() { return performRequest_videoDevice(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5604,6 +5603,7 @@ void MegaChatApiImpl::releaseVideoDevice(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE, listener);
     request->setFlag(false);
+    request->setPerformRequest([this, request]() { return performRequest_videoDevice(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5614,6 +5614,7 @@ void MegaChatApiImpl::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle 
     request->setChatHandle(chatid);
     request->setUserHandle(clientId);
     request->setParamType(quality);
+    request->setPerformRequest([this, request]() { return performRequest_requestHiResQuality(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5623,6 +5624,7 @@ void MegaChatApiImpl::removeSpeaker(MegaChatHandle chatid, MegaChatHandle client
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DEL_SPEAKER, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(clientId);
+    request->setPerformRequest([this, request]() { return performRequest_removeSpeaker(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5864,6 +5866,7 @@ void MegaChatApiImpl::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR, listener);
     request->setChatHandle(chatid);
     request->setFlag(enable);
+    request->setPerformRequest([this, request]() { return performRequest_enableAudioLevelMonitor(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5874,6 +5877,7 @@ void MegaChatApiImpl::requestSpeak(MegaChatHandle chatid, MegaChatRequestListene
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_SPEAK, listener);
     request->setChatHandle(chatid);
     request->setFlag(true);
+    request->setPerformRequest([this, request]() { return performRequest_speakRequest(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5883,6 +5887,7 @@ void MegaChatApiImpl::removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestL
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_SPEAK, listener);
     request->setChatHandle(chatid);
     request->setFlag(false);
+    request->setPerformRequest([this, request]() { return performRequest_speakRequest(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5893,6 +5898,7 @@ void MegaChatApiImpl::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle 
     request->setChatHandle(chatid);
     request->setFlag(true);
     request->setUserHandle(clientId);
+    request->setPerformRequest([this, request]() { return performRequest_speakApproval(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5903,6 +5909,7 @@ void MegaChatApiImpl::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle c
     request->setChatHandle(chatid);
     request->setFlag(false);
     request->setUserHandle(clientId);
+    request->setPerformRequest([this, request]() { return performRequest_speakApproval(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5914,6 +5921,7 @@ void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cl
     request->setFlag(true);
     request->setUserHandle(clientId);
     request->setPrivilege(quality);
+    request->setPerformRequest([this, request]() { return performRequest_hiResVideo(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5924,6 +5932,7 @@ void MegaChatApiImpl::stopHiResVideo(MegaChatHandle chatid, MegaHandleList *clie
     request->setChatHandle(chatid);
     request->setFlag(false);
     request->setMegaHandleList(clientIds);
+    request->setPerformRequest([this, request]() { return performRequest_hiResVideo(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5934,6 +5943,7 @@ void MegaChatApiImpl::requestLowResVideo(MegaChatHandle chatid, MegaHandleList *
     request->setChatHandle(chatid);
     request->setFlag(true);
     request->setMegaHandleList(clientIds);
+    request->setPerformRequest([this, request]() { return performRequest_lowResVideo(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5944,6 +5954,7 @@ void MegaChatApiImpl::stopLowResVideo(MegaChatHandle chatid, MegaHandleList *cli
     request->setChatHandle(chatid);
     request->setFlag(false);
     request->setMegaHandleList(clientIds);
+    request->setPerformRequest([this, request]() { return performRequest_lowResVideo(request); });
     requestQueue.push(request);
     waiter->notify();
 }

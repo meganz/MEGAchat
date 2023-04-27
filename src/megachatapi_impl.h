@@ -1254,6 +1254,16 @@ private:
     bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
     int performRequest_sendTypingNotification(MegaChatRequestPrivate* request);
+#ifndef KARERE_DISABLE_WEBRTC
+    int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
+    int performRequest_speakRequest(MegaChatRequestPrivate* request);
+    int performRequest_speakApproval(MegaChatRequestPrivate* request);
+    int performRequest_hiResVideo(MegaChatRequestPrivate* request);
+    int performRequest_lowResVideo(MegaChatRequestPrivate* request);
+    int performRequest_videoDevice(MegaChatRequestPrivate* request);
+    int performRequest_requestHiResQuality(MegaChatRequestPrivate* request);
+    int performRequest_removeSpeaker(MegaChatRequestPrivate* request);
+#endif
     int performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request);
     int performRequest_fetchScheduledMeetingOccurrences(MegaChatRequestPrivate* request);
     int performRequest_updateScheduledMeetingOccurrence(MegaChatRequestPrivate* request);
