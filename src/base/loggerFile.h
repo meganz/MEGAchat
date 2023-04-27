@@ -42,7 +42,7 @@ void openLogFile()
     mLogSize = ftell(mFile); //in a+ mode the position is at the end of file
 }
 
-void logString(const char* buf, size_t len, unsigned flags)
+void logString(const char* buf, size_t len, unsigned /*flags*/)
 {
 //    std::lock_guard<std::mutex> lock(mMutex);
     //do not increment mLogSize until we have actually written the data
@@ -63,13 +63,13 @@ std::shared_ptr<Logger::LogBuffer> loadLog() //Logger must be locked!!!
     if (!buf->data)
         throw std::runtime_error("FileLogger::loadLog: Out of memory when allocating buffer");
     fseek(mFile, 0, SEEK_SET);
-    long bytesRead = fread(buf->data, 1, mLogSize, mFile);
+    size_t bytesRead = fread(buf->data, 1, mLogSize, mFile);
     if (bytesRead != mLogSize)
     {
         if (ferror(mFile))
             perror("ERROR: FileLogger::loadLog: Error reading log file: ");
         else if (feof(mFile))
-            fprintf(stderr, "ERROR: FileLogger::loadLog: EOF while reading log file. Required: %ld, read: %ld", mLogSize, bytesRead);
+            fprintf(stderr, "ERROR: FileLogger::loadLog: EOF while reading log file. Required: %lu, read: %lu", mLogSize, bytesRead);
         else
             fprintf(stderr, "ERROR: FileLogger::loadLog: Unknown error has occurred while reading file. ferror() and feof() were not set");
 
@@ -86,7 +86,7 @@ void rotateLog()
     long slicePos = static_cast<long>(mLogSize - (mRotateSize / 2));
     if (slicePos <= 1)
         throw std::runtime_error("FileLogger::rotate: The slice offset is less than 1");
-    if (slicePos >= mLogSize - 1)
+    if (slicePos >= static_cast<long>(mLogSize - 1))
         throw std::runtime_error("FileLogger::rotate: The slice offset is at the end of the log. Rotate size is too small");
 
     long i;

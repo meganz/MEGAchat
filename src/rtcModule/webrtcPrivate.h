@@ -172,7 +172,7 @@ public:
     void setModerator(bool isModerator);
 
     // ISession methods (called from intermediate layer, upon SessionHandler callbacks and others)
-    karere::Id getPeerid() const override;
+    const karere::Id& getPeerid() const override;
     Cid_t getClientid() const override;
     SessionState getState() const override;
     karere::AvFlags getAvFlags() const override;
@@ -261,7 +261,7 @@ public:
     static constexpr unsigned int kMediaKeyLen = 16; // length in Bytes of derived ephemeral key
     static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
+    Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id& callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
     virtual ~Call();
 
 
@@ -289,7 +289,7 @@ public:
     void addParticipant(const karere::Id &peer) override;
 
     // called upon reception of OP_LEFTCALL from chatd
-    void removeParticipant(karere::Id peer) override;
+    void removeParticipant(const karere::Id &peer) override;
     // check if our peer is participating in the call (called from chatd)
     bool alreadyParticipating() override;
 
@@ -317,7 +317,7 @@ public:
     void setOnHold() override;
     void releaseOnHold() override;
 
-    void setCallerId(karere::Id callerid) override;
+    void setCallerId(const karere::Id& callerid) override;
     karere::Id getCallid() const override;
 
     // request to speak, or cancels a previous request (add = false)
@@ -599,16 +599,16 @@ public:
     RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
                  WebsocketsIO& websocketIO, void *appCtx,
                  rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
-    ICall* findCall(karere::Id callid) override;
-    ICall* findCallByChatid(const karere::Id &chatid) override;
+    ICall* findCall(const karere::Id &callid) const override;
+    ICall* findCallByChatid(const karere::Id &chatid) const override;
     bool isCallStartInProgress(const karere::Id &chatid) const override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey = nullptr) override;
+    promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeDevice() override;
     void releaseDevice() override;
-    void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
-    void removeLocalVideoRenderer(karere::Id chatid) override;
+    void addLocalVideoRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
+    void removeLocalVideoRenderer(const karere::Id& chatid) override;
     void onMediaKeyDecryptionFailed(const std::string& err);
 
     std::vector<karere::Id> chatsWithCall() override;
@@ -620,9 +620,9 @@ public:
     void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
     void immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode);
 
-    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
-    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;
-    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
+    void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) override;
+    void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) override;
+    void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 

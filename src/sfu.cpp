@@ -113,7 +113,7 @@ Cid_t Peer::getCid() const
     return mCid;
 }
 
-karere::Id Peer::getPeerid() const
+const karere::Id& Peer::getPeerid() const
 {
     return mPeerid;
 }
@@ -313,13 +313,13 @@ uint64_t Command::hexToBinary(const std::string &hex)
     uint64_t value = 0;
     unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
     assert(bufferSize <= 8);
-    std::unique_ptr<uint8_t []> buffer = std::unique_ptr<uint8_t []>(new uint8_t[bufferSize]);
+    std::unique_ptr<uint8_t []> buffer(new uint8_t[bufferSize]);
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
         // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
         buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
-        buffer[binPos] |= static_cast<uint8_t>(hexDigitVal(hex[i++]));
+        buffer[binPos] = static_cast<uint8_t>(buffer[binPos] | hexDigitVal(hex[i++]));
     }
 
     memcpy(&value, buffer.get(), bufferSize);
@@ -606,7 +606,7 @@ VthumbsStartCommand::VthumbsStartCommand(const VtumbsStartCompleteFunction &comp
 
 }
 
-bool VthumbsStartCommand::processCommand(const rapidjson::Document &command)
+bool VthumbsStartCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
 }
@@ -618,7 +618,7 @@ VthumbsStopCommand::VthumbsStopCommand(const VtumbsStopCompleteFunction &complet
 
 }
 
-bool VthumbsStopCommand::processCommand(const rapidjson::Document &command)
+bool VthumbsStopCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
 }
@@ -643,7 +643,7 @@ HiResStartCommand::HiResStartCommand(const HiResStartCompleteFunction &complete,
 
 }
 
-bool HiResStartCommand::processCommand(const rapidjson::Document &command)
+bool HiResStartCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
 }
@@ -655,7 +655,7 @@ HiResStopCommand::HiResStopCommand(const HiResStopCompleteFunction &complete, Sf
 
 }
 
-bool HiResStopCommand::processCommand(const rapidjson::Document &command)
+bool HiResStopCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
 }
@@ -2389,7 +2389,7 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 
 }
 
-SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
+SfuConnection* SfuClient::createSfuConnection(const karere::Id& chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
 {
     assert(mConnections.find(chatid) == mConnections.end());
     mConnections[chatid] = mega::make_unique<SfuConnection>(std::move(sfuUrl), mWebsocketIO, mAppCtx, call, dnsCache);
@@ -2398,7 +2398,7 @@ SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, karere::Url&& s
     return sfuConnection;
 }
 
-void SfuClient::closeSfuConnection(karere::Id chatid)
+void SfuClient::closeSfuConnection(const karere::Id& chatid)
 {
     mConnections[chatid]->disconnect();
     mConnections.erase(chatid);

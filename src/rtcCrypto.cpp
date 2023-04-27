@@ -24,7 +24,7 @@ RtcCryptoMeetings::RtcCryptoMeetings(karere::Client& client)
 
 }
 
-void RtcCryptoMeetings::computeSymmetricKey(Id peer, strongvelope::SendKey &output)
+void RtcCryptoMeetings::computeSymmetricKey(const Id &peer, strongvelope::SendKey &output)
 {
     auto pms = mClient.userAttrCache().getAttr(peer, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY);
     if (!pms.done())

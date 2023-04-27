@@ -52,7 +52,7 @@ bool SvcDriver::setSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& 
     }
 }
 
-Call::Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags, bool caller)
+Call::Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id& callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags, bool caller)
     : mCallid(callid)
     , mChatid(chatid)
     , mCallerId(callerid)
@@ -250,7 +250,7 @@ void Call::reconnectToSfu()
     mSfuConnection->retryPendingConnection(true);
 }
 
-void Call::removeParticipant(karere::Id peer)
+void Call::removeParticipant(const karere::Id& peer)
 {
     for (auto itPeer = mParticipants.begin(); itPeer != mParticipants.end(); itPeer++)
     {
@@ -466,7 +466,7 @@ uint8_t Call::getEndCallReason() const
     return mEndCallReason;
 }
 
-void Call::setCallerId(karere::Id callerid)
+void Call::setCallerId(const karere::Id& callerid)
 {
     mCallerId  = callerid;
 }
@@ -1217,16 +1217,16 @@ void Call::sendStats(const TermCode& termCode)
 
 EndCallReason Call::getEndCallReasonFromTermcode(const TermCode& termCode)
 {
-    if (kUserHangup)                    { return kEnded; }
-    if (kTooManyParticipants)           { return kFailed; }
-    if (kLeavingRoom)                   { return kEnded; }
-    if (kCallEndedByModerator)          { return kEndedByMod; }
-    if (kApiEndCall)                    { return kFailed; }
-    if (kPeerJoinTimeout)               { return kFailed; }
-    if (kPushedToWaitingRoom)           { return kFailed; }
-    if (kKickedFromWaitingRoom)         { return kFailed; }
-    if (termCode & kFlagDisconn)        { return kFailed; }
-    if (termCode & kFlagError)          { return kFailed; }
+    if (termCode == kUserHangup)                    { return kEnded; }
+    if (termCode == kTooManyParticipants)           { return kFailed; }
+    if (termCode == kLeavingRoom)                   { return kEnded; }
+    if (termCode == kCallEndedByModerator)          { return kEndedByMod; }
+    if (termCode == kApiEndCall)                    { return kFailed; }
+    if (termCode == kPeerJoinTimeout)               { return kFailed; }
+    if (termCode == kPushedToWaitingRoom)           { return kFailed; }
+    if (termCode == kKickedFromWaitingRoom)         { return kFailed; }
+    if (termCode & kFlagDisconn)                    { return kFailed; }
+    if (termCode & kFlagError)                      { return kFailed; }
 
     // TODO review returned value (in case we need a new one) for kPushedToWaitingRoom and kKickedFromWaitingRoom, when we add support for them
     return kInvalidReason;
@@ -3042,7 +3042,7 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScach
     mDeviceTakenCount = 0;
 }
 
-ICall *RtcModuleSfu::findCall(karere::Id callid)
+ICall *RtcModuleSfu::findCall(const karere::Id& callid) const
 {
     auto it = mCalls.find(callid);
     if (it != mCalls.end())
@@ -3053,7 +3053,7 @@ ICall *RtcModuleSfu::findCall(karere::Id callid)
     return nullptr;
 }
 
-ICall *RtcModuleSfu::findCallByChatid(const karere::Id &chatid)
+ICall *RtcModuleSfu::findCallByChatid(const karere::Id &chatid) const
 {
     for (const auto& call : mCalls)
     {
@@ -3113,7 +3113,7 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
-promise::Promise<void> RtcModuleSfu::startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey)
+promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey)
 {
     // add chatid to CallsAttempts to avoid multiple start call attempts
     mCallStartAttempts.insert(chatid);
@@ -3184,12 +3184,12 @@ void RtcModuleSfu::releaseDevice()
     }
 }
 
-void RtcModuleSfu::addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer)
+void RtcModuleSfu::addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer)
 {
     mRenderers[chatid] = std::unique_ptr<IVideoRenderer>(videoRederer);
 }
 
-void RtcModuleSfu::removeLocalVideoRenderer(karere::Id chatid)
+void RtcModuleSfu::removeLocalVideoRenderer(const karere::Id &chatid)
 {
     mRenderers.erase(chatid);
 }
@@ -3277,12 +3277,12 @@ void RtcModuleSfu::immediateRemoveCall(Call* call, uint8_t reason, TermCode conn
     mCalls.erase(call->getCallid());
 }
 
-void RtcModuleSfu::handleJoinedCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersJoined)
+void RtcModuleSfu::handleJoinedCall(const karere::Id &/*chatid*/, const karere::Id &callid, const std::set<karere::Id> &usersJoined)
 {
     mCalls[callid]->joinedCallUpdateParticipants(usersJoined);
 }
 
-void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, const std::set<karere::Id> &usersLeft)
+void RtcModuleSfu::handleLeftCall(const karere::Id &/*chatid*/, const karere::Id &callid, const std::set<karere::Id> &usersLeft)
 {
     for (const karere::Id &peer : usersLeft)
     {
@@ -3290,7 +3290,7 @@ void RtcModuleSfu::handleLeftCall(karere::Id /*chatid*/, karere::Id callid, cons
     }
 }
 
-void RtcModuleSfu::handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey)
+void RtcModuleSfu::handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey)
 {
     mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), isGroup, callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
@@ -3921,7 +3921,7 @@ void Session::setSpeakRequested(bool requested)
     mSessionHandler->onAudioRequested(*this);
 }
 
-karere::Id Session::getPeerid() const
+const karere::Id& Session::getPeerid() const
 {
     return mPeer.getPeerid();
 }
@@ -3956,7 +3956,7 @@ AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)
 {
 }
 
-void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> absolute_capture_timestamp_ms)
+void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int /*sample_rate*/, size_t number_of_channels, size_t number_of_frames, absl::optional<int64_t> /*absolute_capture_timestamp_ms*/)
 {
     assert(bits_per_sample == 16);
     time_t nowTime = time(NULL);

@@ -267,7 +267,7 @@ public:
     }
 
     bool loggedStart = false;
-    void onTransferStart(m::MegaApi* api, m::MegaTransfer *request) override
+    void onTransferStart(m::MegaApi*, m::MegaTransfer *request) override
     {
         if (!loggedStart)
         {
@@ -665,7 +665,7 @@ struct CLCListener : public c::MegaChatListener
 
             auto allEmailsReceived = new OneShotChatRequestListener;
             allEmailsReceived->onRequestFinishFunc =
-            [numParticipants, chatid](c::MegaChatApi* api, c::MegaChatRequest * , c::MegaChatError* e)
+            [numParticipants, chatid](c::MegaChatApi* api, c::MegaChatRequest * , c::MegaChatError*)
             {
                 std::unique_ptr<c::MegaChatRoom> chatRoom(api->getChatRoom(chatid));
                 std::ostringstream os;
@@ -879,10 +879,7 @@ public:
         }
     }
 
-    void onNodesUpdate(m::MegaApi* , m::MegaNodeList *nodes) override
-    {
-        //conlock(cout) << "Node list updated:  " << (nodes ? nodes->size() : -1) << endl;
-    }
+    void onNodesUpdate(m::MegaApi*, m::MegaNodeList*) override {}
 
     void onAccountUpdate(m::MegaApi *) override
     {
@@ -942,25 +939,25 @@ public:
 class ClcMegaGlobalListener : public m::MegaGlobalListener
 {
 public:
-    void onUsersUpdate(m::MegaApi* api, m::MegaUserList *users) override {}
+    void onUsersUpdate(m::MegaApi*, m::MegaUserList*) override {}
 
-    void onUserAlertsUpdate(m::MegaApi* api, m::MegaUserAlertList *alerts) override {}
+    void onUserAlertsUpdate(m::MegaApi*, m::MegaUserAlertList*) override {}
 
-    void onNodesUpdate(m::MegaApi* api, m::MegaNodeList *nodes) override {}
+    void onNodesUpdate(m::MegaApi*, m::MegaNodeList*) override {}
 
-    void onAccountUpdate(m::MegaApi *api) override {}
+    void onAccountUpdate(m::MegaApi*) override {}
 
-    void onContactRequestsUpdate(m::MegaApi* api, m::MegaContactRequestList* requests) override {}
+    void onContactRequestsUpdate(m::MegaApi*, m::MegaContactRequestList*) override {}
 
-    void onReloadNeeded(m::MegaApi* api) override {}
+    void onReloadNeeded(m::MegaApi*) override {}
 
 #ifdef ENABLE_SYNC
-    void onGlobalSyncStateChanged(m::MegaApi* api) override {}
+    void onGlobalSyncStateChanged(m::MegaApi*) override {}
 #endif
 
-    void onChatsUpdate(m::MegaApi* api, m::MegaTextChatList *chats) override {}
+    void onChatsUpdate(m::MegaApi*, m::MegaTextChatList*) override {}
 
-    void onEvent(m::MegaApi* api, m::MegaEvent *event) override {}
+    void onEvent(m::MegaApi*, m::MegaEvent*) override {}
 };
 
 CLCListener g_clcListener;
@@ -1416,7 +1413,7 @@ static bool quit_flag = false;
 static string login;
 static string password;
 
-void exec_initanonymous(ac::ACState& s)
+void exec_initanonymous(ac::ACState&)
 {
     if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
     {
@@ -1484,7 +1481,7 @@ void exec_login(ac::ACState& s)
     }
 }
 
-void exec_logout(ac::ACState& s)
+void exec_logout(ac::ACState&)
 {
     unique_ptr<const char[]>session(g_megaApi->dumpSession());
     if (g_chatApi->getInitState() == c::MegaChatApi::INIT_ANONYMOUS)
@@ -2228,7 +2225,7 @@ void exec_dumpchathistory(ac::ACState& s)
 
     auto allEmailsReceived = new OneShotChatRequestListener;
     allEmailsReceived->onRequestFinishFunc =
-    [](c::MegaChatApi* api, c::MegaChatRequest * , c::MegaChatError* e)
+    [](c::MegaChatApi*, c::MegaChatRequest*, c::MegaChatError*)
     {
         std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(g_dumpHistoryChatid));
         reviewPublicChatLoadMessages(g_dumpHistoryChatid);
@@ -2298,7 +2295,7 @@ void exec_reviewpublicchat(ac::ACState& s)
             return;
         }
 
-        const c::MegaChatHandle chatid = g_reviewPublicChatid = request->getChatHandle();
+        g_reviewPublicChatid = request->getChatHandle();
         std::ostringstream os1;
         os1 << "\nReviewPublicChat: chatlink loaded succesfully.\n\tChatid: " << k::Id(g_reviewPublicChatid).toString() << endl;
         const auto msg1 = os1.str();
@@ -2322,7 +2319,7 @@ void exec_reviewpublicchat(ac::ACState& s)
         // now we know the chatid, we register the listener
         auto open_chat_preview_listener = new OneShotChatRequestListener;
         open_chat_preview_listener->onRequestFinishFunc =
-        [chatid](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+        [](c::MegaChatApi*, c::MegaChatRequest*, c::MegaChatError* e)
         {
             if (!check_err("openChatPreview", e))
             {
@@ -2679,7 +2676,7 @@ void exec_smsverify(ac::ACState& s)
     if (s.words[1].s == "send")
     {
         auto listener = new OneShotRequestListener;
-        listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+        listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "SMS Verify Text Result: " << e->getErrorString() << endl;
             };
@@ -2688,7 +2685,7 @@ void exec_smsverify(ac::ACState& s)
     else if (s.words[1].s == "code")
     {
         auto listener = new OneShotRequestListener;
-        listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+        listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
         {
             conlock(cout) << "SMS Verify Text Result: " << e->getErrorString() << endl;
         };
@@ -2780,7 +2777,7 @@ string toHex(const string& binary)
 
 unsigned char toBinary(unsigned char c)
 {
-    if (c >= 0 && c <= '9')   return static_cast<unsigned char>(c - '0');
+    if (c >= '0' && c <= '9')   return static_cast<unsigned char>(c - '0');
     if (c >= 'a' && c <= 'z') return static_cast<unsigned char>(c - 'a' + 10);
     if (c >= 'A' && c <= 'Z') return static_cast<unsigned char>(c - 'A' + 10);
     return 0;
@@ -3016,7 +3013,7 @@ void exec_backgroundupload(ac::ACState& s)
     else if (s.words[1].s == "geturl" && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
         auto ln = new OneShotRequestListener;
-        ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+        ln->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *request, m::MegaError* e)
         {
             if (check_err("Get upload URL", e))
             {
@@ -3081,7 +3078,7 @@ void exec_backgroundupload(ac::ACState& s)
         if (auto parent = GetNodeByPath(s.words[4].s))
         {
             auto ln = new OneShotRequestListener;
-            ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+            ln->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 check_err("Background upload completion", e);
             };
@@ -3121,7 +3118,7 @@ void exec_setpreviewbyhandle(ac::ACState& s)
     }
 }
 
-void exec_ensuremediainfo(ac::ACState& s)
+void exec_ensuremediainfo(ac::ACState&)
 {
     bool b = g_megaApi->ensureMediaInfo();
     if (b)
@@ -3624,7 +3621,7 @@ void exec_cancelbytoken(ac::ACState& s)
     {
         id = int(globalCancelTokens.size()) - 1;
     }
-    if (id < 0 || id >= globalCancelTokens.size())
+    if (id < 0 || id >= static_cast<int>(globalCancelTokens.size()))
     {
         conlock(cout) << "failed: cancel token id is out of range: " << id << endl;
     }
@@ -3709,7 +3706,7 @@ void exec_pausetransfers(ac::ACState& s)
         int direction = atoi(s.words[2].s.c_str());
 
         g_megaApi->pauseTransfers(paused, direction,
-            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
                 {
                     check_err("pauseTransfers", e, ReportResult);
                 }));
@@ -3717,7 +3714,7 @@ void exec_pausetransfers(ac::ACState& s)
     else
     {
         g_megaApi->pauseTransfers(paused,
-            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
                 {
                     check_err("pauseTransfers", e, ReportResult);
                 }));
@@ -3730,7 +3727,7 @@ void exec_pausetransferbytag(ac::ACState& s)
     int pause = atoi(s.words[2].s.c_str());
 
     g_megaApi->pauseTransferByTag(tag, pause,
-        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 check_err("cancelTransferByTag", e, ReportResult);
             }));
@@ -3741,7 +3738,7 @@ void exec_canceltransfers(ac::ACState& s)
     auto direction = atoi(s.words[1].s.c_str());
 
     g_megaApi->cancelTransfers(direction,
-        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 check_err("cancelTransfers", e, ReportResult);
             }));
@@ -3752,7 +3749,7 @@ void exec_canceltransferbytag(ac::ACState& s)
     int tag = atoi(s.words[1].s.c_str());
 
     g_megaApi->cancelTransferByTag(tag,
-        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 check_err("cancelTransferByTag", e, ReportResult);
             }));
@@ -3854,7 +3851,7 @@ void exec_pushreceived(ac::ACState& s)
     }
 }
 
-void exec_getcloudstorageused(ac::ACState& s)
+void exec_getcloudstorageused(ac::ACState&)
 {
     g_megaApi->getCloudStorageUsed(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
     {
@@ -3942,7 +3939,7 @@ void PrintAchievements(m::MegaAchievementsDetails & ad)
                         m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_MOBILE_INSTALL,
                         m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_ADD_PHONE };
 
-    for (int i = 0; i < sizeof(classes) / sizeof(*classes); ++i)
+    for (size_t i = 0; i < sizeof(classes) / sizeof(*classes); ++i)
     {
         cl << "class " << classes[i];
         cl << "  getClassStorage: " << ad.getClassStorage(classes[i]);
@@ -3977,10 +3974,10 @@ void PrintAchievements(m::MegaAchievementsDetails & ad)
     cl << "currentTransferReferrals: " << ad.currentTransferReferrals() << endl;
 };
 
-void exec_getaccountachievements(ac::ACState& s)
+void exec_getaccountachievements(ac::ACState&)
 {
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *request, m::MegaError* e)
     {
         conlock(cout) << "getAccountAchievements Result: " << e->getErrorString() << endl;
         if (!e->getErrorCode())
@@ -3997,10 +3994,10 @@ void exec_getaccountachievements(ac::ACState& s)
 }
 
 
-void exec_getmegaachievements(ac::ACState& s)
+void exec_getmegaachievements(ac::ACState&)
 {
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *request, m::MegaError* e)
     {
         conlock(cout) << "getAccountAchievements Result: " << e->getErrorString() << endl;
         if (!e->getErrorCode())
@@ -4036,7 +4033,7 @@ void exec_setCameraUploadsFolder(ac::ACState& s)
 
 }
 
-void exec_getCameraUploadsFolder(ac::ACState& s)
+void exec_getCameraUploadsFolder(ac::ACState&)
 {
     g_megaApi->getCameraUploadsFolder(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
     {
@@ -4077,7 +4074,7 @@ void exec_setCameraUploadsFolderSecondary(ac::ACState& s)
 
 }
 
-void exec_getCameraUploadsFolderSecondary(ac::ACState& s)
+void exec_getCameraUploadsFolderSecondary(ac::ACState&)
 {
     g_megaApi->getCameraUploadsFolderSecondary(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
     {
@@ -4116,7 +4113,7 @@ void exec_getContact(ac::ACState& s)
 void exec_getDefaultTZ(ac::ACState& s)
 {
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest* request, m::MegaError* e)
     {
         auto cl = conlock(cout);
         cl << "Get Default Time Zone Result: " << e->getErrorString() << endl;
@@ -4150,7 +4147,7 @@ void exec_isGeolocOn(ac::ACState& s)
     }
 
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
     {
         const char* on = e->getErrorCode() ? "false" : "true";
         conlock(cout) << "Is Geolocation Enabled Result: " << on << endl;
@@ -4171,7 +4168,7 @@ void exec_setGeolocOn(ac::ACState& s)
     }
 
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
     {
         const char* on = e->getErrorCode() ? "false" : "true";
         conlock(cout) << "Enable Geolocation Result: " << on << endl;
@@ -4368,7 +4365,7 @@ void exec_syncadd(ac::ACState& s)
         named ? name.c_str() : nullptr,
         targetNode->getHandle(),
         external ? drive.c_str() : nullptr,
-        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "syncFolder result: " << e->getErrorString() << endl;
             })
@@ -4379,7 +4376,7 @@ void exec_syncclosedrive(ac::ACState& s)
 {
     string drive = s.words[2].s;
     g_megaApi->closeExternalBackupSyncsFromExternalDrive(drive.c_str(),
-        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "closeExternalBackupSyncsFromExternalDrive result: " << e->getErrorString() << endl;
             }));
@@ -4472,13 +4469,13 @@ void exec_syncopendrive(ac::ACState& s)
 {
     string drive= s.words[2].s;
     g_megaApi->loadExternalBackupSyncsFromExternalDrive(drive.c_str(),
-        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "loadExternalBackupSyncsFromExternalDrive result: " << e->getErrorString() << endl;
             }));
 }
 
-void exec_synclist(ac::ACState& s)
+void exec_synclist(ac::ACState&)
 {
     unique_ptr<m::MegaSyncList> syncs(g_megaApi->getSyncs());
 
@@ -4561,7 +4558,7 @@ void exec_syncremove(ac::ACState& s)
         m::MegaHandle backupId = sync ? sync->getBackupId() : m::INVALID_HANDLE;
 
         g_megaApi->removeSync(backupId,
-            new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
             }));
@@ -4569,7 +4566,7 @@ void exec_syncremove(ac::ACState& s)
     else if (byId)
     {
         g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()),
-            new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
                 {
                     conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
                 }));
@@ -5240,8 +5237,8 @@ void CLCRoomListener::onMessageLoaded(megachat::MegaChatApi *, megachat::MegaCha
 
 void CLCRoomListener::onMessageReceived(megachat::MegaChatApi *, megachat::MegaChatMessage *) {}
 
-void CLCRoomListener::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMessage *msg) {}
+void CLCRoomListener::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMessage *) {}
 
-void CLCRoomListener::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *chat) {}
+void CLCRoomListener::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *) {}
 
-void CLCRoomListener::onHistoryTruncatedByRetentionTime(c::MegaChatApi*, c::MegaChatMessage *msg) {}
+void CLCRoomListener::onHistoryTruncatedByRetentionTime(c::MegaChatApi*, c::MegaChatMessage *) {}
