@@ -1351,9 +1351,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     for (sfu::Peer& peer : peers) // does not include own cid
     {
         const auto& it = keystrmap.find(peer.getCid());
-        const auto& keyStr = it != keystrmap.end()
-                ? it->second
-                : std::string();
+        const auto& keyStr = it != keystrmap.end() ? it->second : std::string();
 
         if (peer.getPeerSfuVersion() == 0) // there's no ephemeral key, just add peer
         {
@@ -1492,8 +1490,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         })
         .fail([wptr, this](const ::promise::Error& err)
         {
-            if (wptr.deleted())
-                return;
+            if (wptr.deleted()) return;
 
             std::string msg = "Error setting SDP answer: " + err.msg();
             orderedCallDisconnect(TermCode::kErrSdp, msg);
@@ -1840,7 +1837,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
     {
         addPeer(peer, ephemeralPubKeyDerived);
         // update max peers seen in call
-        mMaxPeers = static_cast<uint8_t> (mSessions.size() > mMaxPeers ? mSessions.size() : mMaxPeers);
+        mMaxPeers = std::max(mMaxPeers, static_cast<uint8_t>(mSessions.size()));
         generateAndSendNewMediakey();
 
         if (mIsReconnectingToChatd && mParticipants.find(peer.getPeerid()) == mParticipants.end())
@@ -2388,7 +2385,7 @@ void Call::generateAndSendNewMediakey(bool reset)
             return;
         }
 
-        std::shared_ptr<std::map<Cid_t, std::string>> keys(new std::map<Cid_t, std::string>());
+        auto keys = std::make_shared<std::map<Cid_t, std::string>>();
 
         for (const auto& session : mSessions) // encrypt key to all participants
         {
@@ -2787,11 +2784,11 @@ const mega::ECDH* Call::getMyEphemeralKeyPair() const
 void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
 {
     peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
-    mSessions[peer.getCid()] = ::mega::make_unique<Session>(peer);
+    mSessions[peer.getCid()] = std::make_unique<Session>(peer);
     mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
 }
 
-std::pair<std::string, std::string>Call::splitPubKey(const std::string& keyStr) const
+std::pair<std::string, std::string> Call::splitPubKey(const std::string& keyStr) const
 {
     auto pos = keyStr.find(":");
     if (pos == std::string::npos)
