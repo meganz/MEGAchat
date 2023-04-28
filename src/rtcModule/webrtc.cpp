@@ -985,7 +985,7 @@ std::string Call::signEphemeralKey(const std::string& str) const
     eckey.append(myPrivEd25519).append(myPubEd25519);
 
     // sign string: sesskey|<callId>|<clientId>|<pubkey> and encode in B64
-    crypto_sign_detached(signature.ubuf(), NULL, reinterpret_cast<const unsigned char*>(str.data()), str.size(), eckey.ubuf());
+    crypto_sign_detached(signature.ubuf(), nullptr, reinterpret_cast<const unsigned char*>(str.data()), str.size(), eckey.ubuf());
     std::string signatureStr(signature.buf(), signature.bufSize());
     return mega::Base64::btoa(signatureStr);
 }
@@ -1399,9 +1399,11 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                     {
                         RTCM_LOG_ERROR("Can't derive ephemeral key for peer Cid: %d PeerId: %s",
                                        auxPeer->getCid(), auxPeer->getPeerid().toString().c_str());
+
+                        out.clear();
                     }
 
-                    addPeerWithEphemKey(*auxPeer, derived, derived ? out : std::string());
+                    addPeerWithEphemKey(*auxPeer, derived, out);
                 })
                 .fail([this, auxPeer, addPeerWithEphemKey](const ::promise::Error&)
                 {
@@ -1900,8 +1902,10 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
             {
                 RTCM_LOG_WARNING("Can't derive ephemeral key for peer Cid: %d PeerId: %s",
                                peer->getCid(), peer->getPeerid().toString().c_str());
+
+                out.clear();
             }
-            addPeerWithEphemKey(*peer, derived ? out : std::string());
+            addPeerWithEphemKey(*peer, out);
         })
         .fail([this, userid, peer, addPeerWithEphemKey](const ::promise::Error&)
         {
