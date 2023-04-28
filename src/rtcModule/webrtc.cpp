@@ -1332,7 +1332,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     const auto max = peers.size();
     std::vector <bool> keysVerified;
-    auto onKeyVerified = [max, &keysVerified, &keyDerivationPms](const bool verified) -> void
+    auto onKeyVerified = [&max, &keysVerified, &keyDerivationPms](const bool verified) -> void
     {
         keysVerified.emplace_back(verified);
         if (keysVerified.size() >= max)
@@ -1866,11 +1866,11 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
     }
 
     std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (mModerators.find(userid) != mModerators.end())));
-    if (sfuProtoVersion == 0)
+    if (sfu::isInitialSfuVersion(sfuProtoVersion))
     {
         addPeerWithEphemKey(*peer, std::string());
     }
-    else if (sfuProtoVersion == 2)
+    else if (sfu::isCurrentSfuVersion(sfuProtoVersion))
     {
         if (keyStr.empty())
         {
