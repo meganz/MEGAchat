@@ -2449,7 +2449,7 @@ MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 
 
 int MegaChatScheduledMeeting::isValidTitleLength(const char* title)
 {
-    return title && strlen(title) <= MegaChatScheduledMeeting::MAX_TITLE_LENGTH;
+    return title && strlen(title) > 0 && strlen(title) <= MegaChatScheduledMeeting::MAX_TITLE_LENGTH;
 }
 
 int MegaChatScheduledMeeting::isValidDescriptionLength(const char* desc)
