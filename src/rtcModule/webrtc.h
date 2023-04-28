@@ -270,10 +270,10 @@ RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScach
                            WebsocketsIO& websocketIO, void *appCtx,
                            rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
 enum RtcConstant {
-   kMaxCallReceivers = 20,
-   kMaxCallAudioSenders = 20,
-   kMaxCallVideoSenders = 24,
-   kInitialvthumbCount = 0, // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
+   kMaxCallReceivers = 20,      // should be inline with webclient value
+   kMaxCallAudioSenders = 20,   // should be inline with webclient value
+   kMaxCallVideoSenders = 24,   // should be inline with webclient value
+   kInitialvthumbCount = 0,     // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
    kHiResWidth = 960,  // px
    kHiResHeight = 540,  // px
    kHiResMaxFPS = 30,

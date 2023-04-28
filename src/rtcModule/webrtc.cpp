@@ -67,7 +67,7 @@ Call::Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id&
     , mIsJoining(false)
     , mRtc(rtc)
 {
-    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), sfu::sfuInvalidProtocol, avflags.value()));
+    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), static_cast<unsigned int>(sfu::SfuProtocol::SFU_PROTO_INVAL), avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
@@ -1303,8 +1303,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     if (!getMyEphemeralKeyPair())
     {
-        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::mSfuProtoVersion);
-        assert(sfu::mSfuProtoVersion == 2);
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::MY_SFU_PROTOCOL_VERSION);
         return false;
     }
 
@@ -1353,11 +1352,11 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         const auto& it = keystrmap.find(peer.getCid());
         const auto& keyStr = it != keystrmap.end() ? it->second : std::string();
 
-        if (peer.getPeerSfuVersion() == 0) // there's no ephemeral key, just add peer
+        if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion())) // there's no ephemeral key, just add peer
         {
             addPeerWithEphemKey(peer, true, std::string());
         }
-        else if (peer.getPeerSfuVersion() == 2) // verify ephemeral key signature, derive it, and then add the peer
+        else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion())) // verify ephemeral key signature, derive it, and then add the peer
         {
             if (keyStr.empty())
             {
@@ -1378,7 +1377,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
                     if (!ephkeypair)
                     {
-                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::mSfuProtoVersion);
+                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::MY_SFU_PROTOCOL_VERSION);
                         addPeerWithEphemKey(*auxPeer, false, std::string());
                         return;
                     }
@@ -1521,7 +1520,7 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
     const sfu::Peer& peer = session->getPeer();
     auto wptr = weakHandle();
 
-    if (peer.getPeerSfuVersion() == 0)
+    if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion()))
     {
         mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peer.getPeerid())
         .then([wptr, keyid, cid, key, this](Buffer*) -> void
@@ -1559,7 +1558,7 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
             session->addKey(keyid, newKey);
         });
     }
-    else if (peer.getPeerSfuVersion() == 2)
+    else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
     {
         auto pms = peer.getEphemeralPubKeyPms();
         pms.then([wptr, cid, key, keyid, this]() -> void
@@ -1622,6 +1621,7 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
     {
         RTCM_LOG_ERROR("handleKeyCommand: unknown SFU protocol version [%d] for user: %s, cid: %d",
                                   peer.getPeerSfuVersion(), peer.getPeerid().toString().c_str(), peer.getCid());
+        return false;
     }
 
     return true;
@@ -1860,8 +1860,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
     if (!ephkeypair)
     {
-        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::mSfuProtoVersion);
-        assert(sfu::mSfuProtoVersion == 2);
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::MY_SFU_PROTOCOL_VERSION);
         orderedCallDisconnect(TermCode::kErrGeneral, "Can't retrieve Ephemeral key for our own user");
         return false;
     }
@@ -1919,6 +1918,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
                        peer->getPeerSfuVersion(), peer->getPeerid().toString().c_str(), peer->getCid());
         assert(false);
         addPeerWithEphemKey(*peer, std::string());
+        return false;
     }
     return true;
 }
@@ -2041,7 +2041,6 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
                                    const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                    const std::map<karere::Id, bool>& wrUsers)
 {
-    assert(sfu::mSfuProtoVersion == 2);
     // set number of SFU->client audio/video tracks that the client must allocate.
     // This is equal to the maximum number of simultaneous audio/video tracks the call supports
     // if no received nAudioTracks or nVideoTracks set as max default
@@ -2396,14 +2395,14 @@ void Call::generateAndSendNewMediakey(bool reset)
             // get peer Cid
             Cid_t sessionCid = session.first;
             const sfu::Peer& peer = session.second->getPeer();
-            if (peer.getPeerSfuVersion() == 0)
+            if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion()))
             {
                 // encrypt key to participant
                 strongvelope::SendKey encryptedKey;
                 mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peer.getPeerid(), *newPlainKey.get(), encryptedKey);
                 (*keys)[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
             }
-            else if (peer.getPeerSfuVersion() == 2)
+            else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
             {
                 auto pms = peer.getEphemeralPubKeyPms();
                 pms.then([this, newPlainKey, keys, sessionCid, &peer]()

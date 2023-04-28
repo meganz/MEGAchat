@@ -185,7 +185,7 @@ const promise::Promise<void>& Peer::getEphemeralPubKeyPms() const
 
 void Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
-    if (key.empty() && getPeerSfuVersion() > 0)
+    if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
     {
         mEphemeralKeyPms.reject("Empty ephemeral key");
     }
@@ -2411,7 +2411,6 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
 
 void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
 {
-    assert(mSfuProtoVersion == 2); // expected SFU version for my client
     std::string app;
     if (sfuUrl.path.back() != '?')  // if last URL char is '?' just add version, otherwise:
     {
@@ -2420,7 +2419,7 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
                  : "?"; // add ? as append character
     }
 
-    sfuUrl.path.append(app).append("v=").append(std::to_string(mSfuProtoVersion));
+    sfuUrl.path.append(app).append("v=").append(std::to_string(MY_SFU_PROTOCOL_VERSION));
 }
 
 void SfuClient::retryPendingConnections(bool disconnect)

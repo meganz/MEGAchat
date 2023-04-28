@@ -20,7 +20,7 @@
 
 namespace sfu
 {
-/** SFU Protocol Version:
+/** SFU Protocol Versions:
  * - Version 0: initial version
  *
  * - Version 1 (never released for native clients):
@@ -31,10 +31,22 @@ namespace sfu
  * - Version 2 (contains all features from V1):
  *      + Change AES-GCM by AES-CBC with Zero iv
  */
-static const unsigned int mSfuProtoVersion = 2;
+enum class SfuProtocol: uint32_t
+{
+    SFU_PROTO_INVAL    = UINT32_MAX,
+    SFU_PROTO_V0       = 0,
+    SFU_PROTO_V1       = 1,
+    SFU_PROTO_V2       = 2,
+};
 
-/* Invalid SFU protocol version */
-static constexpr unsigned int sfuInvalidProtocol = UINT32_MAX;
+// own client SFU protocol version
+constexpr unsigned int MY_SFU_PROTOCOL_VERSION = static_cast<unsigned int>(SfuProtocol::SFU_PROTO_V2);
+
+// returns true if provided version as param is equal to SFU current version
+static bool isCurrentSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) == SfuProtocol::SFU_PROTO_V2; }
+
+// returns true if provided version as param is SFU version V0 (forward secrecy is not supported)
+static bool isInitialSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) == SfuProtocol::SFU_PROTO_V0; }
 
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
@@ -119,7 +131,7 @@ protected:
     mutable promise::Promise<void> mEphemeralKeyPms;
 
     // SFU protocol version used by the peer
-    unsigned int mSfuPeerProtoVersion = sfu::sfuInvalidProtocol;
+    unsigned int mSfuPeerProtoVersion = static_cast<unsigned int>(sfu::SfuProtocol::SFU_PROTO_INVAL);
 };
 
 class TrackDescriptor
