@@ -3234,8 +3234,21 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
     auto wptr = weakHandle();
     marshallCall([wptr, this, copy]()
     {
-        if (wptr.deleted() || !db.isOpen())
+        if (wptr.deleted())
         {
+            return;
+        }
+        if (!db.isOpen())
+        {
+            // This is something that should never happen. Continuing from here
+            // will lead to runtime exception & crash.
+            // Possible cause is incorrect teardown of the app. Required order:
+            // 1. logout megaApi;
+            // 2. logout megaChatApi;
+            // 3. delete megaChatApi;
+            // 4. delete megaApi.
+            CHATD_LOG_ERROR("lambda in marshallCall(): db was closed, cannot notify chats");
+            assert(db.isOpen());
             return;
         }
 

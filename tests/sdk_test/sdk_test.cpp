@@ -417,22 +417,14 @@ void MegaChatApiTest::TearDown()
                 }
 
                 clearAndLeaveChats(i, chatToSkip);
-
-                ChatRequestTracker crtLogout;
-                megaChatApi[i]->logout(&crtLogout);
-                TEST_LOG_ERROR(crtLogout.waitForResult(60) == MegaChatError::ERROR_OK, "Failed to logout from Chat. Error: " + crtLogout.getErrorString());
-                MegaApi::addLoggerObject(logger());   // need to restore customized logger
             }
-
-#ifndef KARERE_DISABLE_WEBRTC
-            megaChatApi[i]->removeChatCallListener(this);
-            megaChatApi[i]->removeSchedMeetingListener(this);
-#endif
-            megaChatApi[i]->removeChatListener(this);
-
-            delete megaChatApi[i];
-            megaChatApi[i] = NULL;
         }
+
+        // Required order:
+        // 1. logout megaApi;
+        // 2. logout megaChatApi;
+        // 3. delete megaChatApi;
+        // 4. delete megaApi.
 
         if (megaApi[i])
         {
@@ -449,6 +441,7 @@ void MegaChatApiTest::TearDown()
 
                 removePendingContactRequest(i);
 
+                // 1. logout megaApi;
                 RequestTracker logoutTracker;
 #ifdef ENABLE_SYNC
                 megaApi[i]->logout(false, &logoutTracker);
@@ -457,10 +450,30 @@ void MegaChatApiTest::TearDown()
 #endif
                 TEST_LOG_ERROR(logoutTracker.waitForResult(60) == API_OK, "Failed to logout from SDK. Error: " + logoutTracker.getErrorString());
             }
-
-            delete megaApi[i];
-            megaApi[i] = NULL;
         }
+
+        if (megaChatApi[i])
+        {
+            // 2. logout megaChatApi;
+            ChatRequestTracker crtLogout;
+            megaChatApi[i]->logout(&crtLogout);
+            TEST_LOG_ERROR(crtLogout.waitForResult(60) == MegaChatError::ERROR_OK, "Failed to logout from Chat. Error: " + crtLogout.getErrorString());
+            MegaApi::addLoggerObject(logger());   // need to restore customized logger
+
+#ifndef KARERE_DISABLE_WEBRTC
+            megaChatApi[i]->removeChatCallListener(this);
+            megaChatApi[i]->removeSchedMeetingListener(this);
+#endif
+            megaChatApi[i]->removeChatListener(this);
+
+            // 3. delete megaChatApi;
+            delete megaChatApi[i];
+            megaChatApi[i] = NULL;
+        }
+
+        // 4. delete megaApi.
+        delete megaApi[i];
+        megaApi[i] = NULL;
     }
 
     purgeLocalTree(LOCAL_PATH);
