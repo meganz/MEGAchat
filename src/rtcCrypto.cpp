@@ -116,9 +116,8 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
            std::string signatureBin =  mega::Base64::atob(recvsignature);
            std::string pubUserED25519(key->buf(), key->dataSize());
            int res = crypto_sign_verify_detached(reinterpret_cast<const unsigned char*>(signatureBin.data()),
-                                               reinterpret_cast<const unsigned char*>(msg.data()),
-                                               msg.size(),
-                                               reinterpret_cast<const unsigned char*>(pubUserED25519.data()));
+                                                 reinterpret_cast<const unsigned char*>(msg.data()),
+                                                 msg.size(), reinterpret_cast<const unsigned char*>(pubUserED25519.data()));
 
            return (res == 0); // if crypto_sign_verify_detached returns 0 signature has been verified
        })

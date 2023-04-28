@@ -36,9 +36,6 @@ static const unsigned int mSfuProtoVersion = 2;
 /* Invalid SFU protocol version */
 static constexpr unsigned int sfuInvalidProtocol = UINT32_MAX;
 
-/* Gets the current SFU protocol version for our client */
-static unsigned int getMySfuVersion() { return mSfuProtoVersion; }
-
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
@@ -58,7 +55,7 @@ public:
 class Peer
 {
 public:
-    Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
+    Peer(const karere::Id& peerid, const unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -91,7 +88,7 @@ public:
     unsigned int getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
 
 protected:
-    Cid_t mCid = kInvalidCid;
+    Cid_t mCid = K_INVALID_CID;
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
@@ -217,8 +214,8 @@ public:
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
     virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
-                                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                                       const std::map<karere::Id, bool>& wrUsers) = 0;
+                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                              const std::map<karere::Id, bool>& wrUsers) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -238,10 +235,10 @@ class Command
 {
 public:
     virtual bool processCommand(const rapidjson::Document& command) = 0;
-    static std::string COMMAND_IDENTIFIER;
-    static std::string ERROR_IDENTIFIER;
-    static std::string WARN_IDENTIFIER;
-    static std::string ERROR_MESSAGE;
+    static const std::string COMMAND_IDENTIFIER;
+    static const std::string ERROR_IDENTIFIER;
+    static const std::string WARN_IDENTIFIER;
+    static const std::string ERROR_MESSAGE;
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
@@ -585,7 +582,7 @@ protected:
     // This flag is set true when BYE command is sent to SFU
     bool mIsSendingBye = false;
 
-    Cid_t mMyCid = kInvalidCid;
+    Cid_t mMyCid = K_INVALID_CID;
 
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;

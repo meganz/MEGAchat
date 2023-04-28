@@ -1303,8 +1303,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     if (!getMyEphemeralKeyPair())
     {
-        assert(sfu::getMySfuVersion() == 2);
-        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::mSfuProtoVersion);
+        assert(sfu::mSfuProtoVersion == 2);
         return false;
     }
 
@@ -1380,7 +1380,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
                     if (!ephkeypair)
                     {
-                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
+                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::mSfuProtoVersion);
                         addPeerWithEphemKey(*auxPeer, false, std::string());
                         return;
                     }
@@ -1413,6 +1413,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             }
             catch(std::runtime_error& e)
             {
+                RTCM_LOG_ERROR("Error verifying ephemeral key signature: %s", e.what());
                 return false; // wprt doesn't exists
             }
         }
@@ -1860,8 +1861,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
     if (!ephkeypair)
     {
-        assert(sfu::getMySfuVersion() == 2);
-        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::getMySfuVersion());
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", sfu::mSfuProtoVersion);
+        assert(sfu::mSfuProtoVersion == 2);
         orderedCallDisconnect(TermCode::kErrGeneral, "Can't retrieve Ephemeral key for our own user");
         return false;
     }
@@ -1887,8 +1888,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
         {
             if (!verified)
             {
-                assert(false);
                 RTCM_LOG_WARNING("Can't verify signature for user: %s", karere::Id(userid).toString().c_str());
+                assert(false);
                 addPeerWithEphemKey(*peer, std::string());
                 return;
             }
@@ -1913,9 +1914,9 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersi
     }
     else
     {
-        assert(false);
         RTCM_LOG_ERROR("handlePeerJoin: unknown SFU protocol version [%d] for user: %s, cid: %d",
                        peer->getPeerSfuVersion(), peer->getPeerid().toString().c_str(), peer->getCid());
+        assert(false);
         addPeerWithEphemKey(*peer, std::string());
     }
     return true;
@@ -2039,7 +2040,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
                                    const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                    const std::map<karere::Id, bool>& wrUsers)
 {
-    assert(sfu::getMySfuVersion() == 2);
+    assert(sfu::mSfuProtoVersion == 2);
     // set number of SFU->client audio/video tracks that the client must allocate.
     // This is equal to the maximum number of simultaneous audio/video tracks the call supports
     // if no received nAudioTracks or nVideoTracks set as max default
@@ -2434,6 +2435,8 @@ void Call::generateAndSendNewMediakey(bool reset)
             {
                 RTCM_LOG_ERROR("generateAndSendNewMediakey: unknown SFU protocol version [%d] for user: %s, cid: %d",
                                            peer.getPeerSfuVersion(), peer.getPeerid().toString().c_str(), peer.getCid());
+                assert(false);
+                return;
             }
         }
 
@@ -2571,6 +2574,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     }
 
     const std::vector<std::string> ivs = sess->getPeer().getIvs();
+    assert(ivs.size() >= kAudioTrack);
     slot->assignAudioSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
     attachSlotToSession(cid, slot, true, kUndefined);
 }

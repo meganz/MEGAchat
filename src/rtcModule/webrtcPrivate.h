@@ -454,8 +454,8 @@ public:
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
-                                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                                       const std::map<karere::Id, bool>& wrUsers) override;
+                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                      const std::map<karere::Id, bool>& wrUsers) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;

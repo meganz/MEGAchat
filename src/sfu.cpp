@@ -11,10 +11,10 @@ namespace sfu
 const std::string Sdp::endl = "\r\n";
 
 // SFU -> client (different types of notifications)
-std::string Command::COMMAND_IDENTIFIER                 = "a";
-std::string Command::ERROR_IDENTIFIER                   = "err";
-std::string Command::WARN_IDENTIFIER                    = "warn";
-std::string Command::ERROR_MESSAGE                      = "msg";
+const std::string Command::COMMAND_IDENTIFIER           = "a";
+const std::string Command::ERROR_IDENTIFIER             = "err";
+const std::string Command::WARN_IDENTIFIER              = "warn";
+const std::string Command::ERROR_MESSAGE                = "msg";
 
 // SFU -> client (commands)
 
@@ -80,7 +80,7 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-Peer::Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs, const Cid_t cid, const bool isModerator)
+Peer::Peer(const karere::Id& peerid, const unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs, const Cid_t cid, const bool isModerator)
     : mCid(cid),
       mPeerid(peerid),
       mAvFlags(static_cast<uint8_t>(avFlags)),
@@ -1350,7 +1350,7 @@ void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
     std::string urlPath = mSfuUrl.path;
-    if (getMyCid() != kInvalidCid) // add current cid for reconnection
+    if (getMyCid() != K_INVALID_CID) // add current cid for reconnection
     {
         urlPath.append("&cid=").append(std::to_string(getMyCid()));
     }
@@ -2411,7 +2411,7 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
 
 void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
 {
-    assert(getMySfuVersion() == 2); // expected SFU version for my client
+    assert(mSfuProtoVersion == 2); // expected SFU version for my client
     std::string app;
     if (sfuUrl.path.back() != '?')  // if last URL char is '?' just add version, otherwise:
     {
@@ -2420,7 +2420,7 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
                  : "?"; // add ? as append character
     }
 
-    sfuUrl.path.append(app).append("v=").append(std::to_string(getMySfuVersion()));
+    sfuUrl.path.append(app).append("v=").append(std::to_string(mSfuProtoVersion));
 }
 
 void SfuClient::retryPendingConnections(bool disconnect)

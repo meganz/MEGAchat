@@ -6815,8 +6815,8 @@ void MockupCall::logError(const char *)
 }
 
 bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
-                                   const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
-                                   const std::map<karere::Id, bool>& /*wrUsers*/)
+                             const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
+                             const std::map<karere::Id, bool>& /*wrUsers*/)
 {
     return false;
 }
