@@ -2220,7 +2220,7 @@ public class MegaChatApiJava {
      *
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
-    public ArrayList<MegaChatListItem> getChatListItems(Int mask, Int filter) {
+    public ArrayList<MegaChatListItem> getChatListItems(int mask, int filter) {
         return chatRoomListItemToArray(megaChatApi.getChatListItems(mask, filter));
     }
 
