@@ -207,11 +207,17 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     RequestTracker logoutTracker;
     if (closeSession)
     {
+        ChatLogoutTracker chatLogoutTracker;
+        megaChatApi[accountIndex]->addChatRequestListener(&chatLogoutTracker);
+
 #ifdef ENABLE_SYNC
         megaApi[accountIndex]->logout(false, &logoutTracker);
 #else
         megaApi[accountIndex]->logout(logoutTracker.get());
 #endif
+
+        ASSERT_EQ(chatLogoutTracker.waitForResult(), MegaChatError::ERROR_OK);
+        megaChatApi[accountIndex]->removeChatRequestListener(&chatLogoutTracker);
     }
     else
     {
@@ -231,7 +237,6 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     }
 
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
-    std::this_thread::sleep_for(std::chrono::milliseconds(300)); // allow some time for MegaChatApiImpl::mClient to be deleted
 }
 
 void MegaChatApiTest::init()
@@ -442,6 +447,9 @@ void MegaChatApiTest::TearDown()
                 removePendingContactRequest(i);
 
                 // 1. logout megaApi;
+                ChatLogoutTracker chatLogoutTracker;
+                megaChatApi[i]->addChatRequestListener(&chatLogoutTracker);
+
                 RequestTracker logoutTracker;
 #ifdef ENABLE_SYNC
                 megaApi[i]->logout(false, &logoutTracker);
@@ -449,6 +457,8 @@ void MegaChatApiTest::TearDown()
                 megaApi[i]->logout(&logoutTracker);
 #endif
                 TEST_LOG_ERROR(logoutTracker.waitForResult(60) == API_OK, "Failed to logout from SDK. Error: " + logoutTracker.getErrorString());
+                TEST_LOG_ERROR(chatLogoutTracker.waitForResult() == MegaChatError::ERROR_OK, "Failed to auto-logout from chat. Error: " + chatLogoutTracker.getErrorString());
+                megaChatApi[i]->removeChatRequestListener(&chatLogoutTracker);
             }
         }
 

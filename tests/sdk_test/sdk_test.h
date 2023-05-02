@@ -532,6 +532,19 @@ private:
     std::unique_ptr<::megachat::MegaChatRequest> request;
 };
 
+class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public ResultHandler
+{
+public:
+    void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
+                         ::megachat::MegaChatError* e) override
+    {
+        if (req && req->getType() == ::megachat::MegaChatRequest::TYPE_LOGOUT)
+        {
+            finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+        }
+    }
+};
+
 #ifndef KARERE_DISABLE_WEBRTC
 class MockupCall : public sfu::SfuInterface
 {
