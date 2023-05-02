@@ -185,6 +185,14 @@ const promise::Promise<void>& Peer::getEphemeralPubKeyPms() const
 
 void Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
+    if (!sfu::isValidSfuVersion(getPeerSfuVersion()))
+    {
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: invalid SFU version for PeerId: %s Cid: %d",
+                        getPeerid().toString().c_str() ,getCid());
+        assert(false);
+        return;
+    }
+
     if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
     {
         mEphemeralKeyPms.reject("Empty ephemeral key");

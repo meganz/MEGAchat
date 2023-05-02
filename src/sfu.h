@@ -48,6 +48,9 @@ static bool isCurrentSfuVersion(unsigned int v) { return static_cast<SfuProtocol
 // returns true if provided version as param is SFU version V0 (forward secrecy is not supported)
 static bool isInitialSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) == SfuProtocol::SFU_PROTO_V0; }
 
+// returns true if provided version as param is a valid SFU version
+static bool isValidSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) != SfuProtocol::SFU_PROTO_INVAL; }
+
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
