@@ -2340,6 +2340,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Return the chatrooms that are currently active
      *
      * You take the onwership of the returned value.
@@ -2351,6 +2352,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Return the chatrooms that are currently inactive
      *
      * Chatrooms became inactive when you left a groupchat or you are removed by
@@ -2365,6 +2367,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Return the archived chatrooms
      *
      * You take the onwership of the returned value.
@@ -2376,6 +2379,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Return the chatrooms that have unread messages
      *
      * Archived chatrooms with unread messages are not considered.
