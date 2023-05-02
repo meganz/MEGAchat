@@ -449,16 +449,17 @@ public:
     ModDelCommandFunction mComplete;
 };
 
-typedef std::function<bool(const Cid_t userid,
-                           const unsigned int nAudioTracks,
-                           const unsigned int nVideoTracks,
-                           const std::set<karere::Id>& mods,
-                           const bool wr,
-                           const bool allowed,
-                           const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
 class HelloCommand : public Command
 {
 public:
+    typedef std::function<bool(const Cid_t userid,
+                               const unsigned int nAudioTracks,
+                               const unsigned int nVideoTracks,
+                               const std::set<karere::Id>& mods,
+                               const bool wr,
+                               const bool allowed,
+                               const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
+
     HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
