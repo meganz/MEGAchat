@@ -2050,8 +2050,8 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     // set number of SFU->client audio/video tracks that the client must allocate.
     // This is equal to the maximum number of simultaneous audio/video tracks the call supports
     // if no received nAudioTracks or nVideoTracks set as max default
-    mNumInputAudioTracks = nAudioTracks ? nAudioTracks : RtcConstant::kMaxCallAudioSenders;
-    mNumInputVideoTracks = nVideoTracks ? nVideoTracks : RtcConstant::kMaxCallVideoSenders;
+    mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
+    mNumInputVideoTracks = nVideoTracks ? nVideoTracks : static_cast<uint32_t>(RtcConstant::kMaxCallVideoSenders);
 
     // set moderator list and ownModerator value
     setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
