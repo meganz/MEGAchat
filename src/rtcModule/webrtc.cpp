@@ -2179,8 +2179,18 @@ bool Call::handleWrLeave(const karere::Id& user)
 
 bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 {
-    onWrAllow();
+    if (cid == kInvalidCid)
+    {
+        assert(false);
+        RTCM_LOG_ERROR("WR_ALLOW: Invalid cid received: %d", cid);
+    }
+
+    if (mState != CallState::kInWaitingRoom) { return false; }
+    mMyPeer->setCid(cid); // update Cid for own client from SFU
+    mModerators = mods;
     setWrJoiningState(WrState::WR_ALLOWED);
+    joinSfu(); // send JOIN command to SFU
+    mCallHandler.onWrAllow(*this);
     return true;
 }
 

@@ -484,6 +484,7 @@ public:
         CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call (1on1) outgoing ringing has stopped (only valid if our own client has started the call)
         CHANGE_TYPE_OWN_PERMISSIONS = 0x200,        /// Indicates that own peer moderator role status has changed
         CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400,   /// Generic notification
+        CHANGE_TYPE_WR_ALLOW = 0x800,               /// Access to call from Waiting room, has been allowed for all clients of our own user, that are in the waiting room
     };
 
     enum
@@ -638,6 +639,13 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS = 0x200
      * Own peer moderator role status has changed (Check MegaChatCall::isOwnModerator)
+     *
+     * - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400
+     * A generic notification has been received from SFU (Check MegaChatCall::getNotificationType and MegaChatCall::getGenericMessage)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_ALLOW = 0x800
+     * Access to call from Waiting room, has been allowed for all clients of our own user, that are in the waiting room
+     * (check MegaChatCall::getModerators to get the updated moderators list)
      */
     virtual int getChanges() const;
 
@@ -679,6 +687,13 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS = 0x200
      * Own peer moderator role status has changed (Check MegaChatCall::isOwnModerator)
+     *
+     * - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400
+     * A generic notification has been received from SFU (Check MegaChatCall::getNotificationType and MegaChatCall::getGenericMessage)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_ALLOW = 0x800
+     * Access to call from Waiting room, has been allowed for all clients of our own user, that are in the waiting room
+     * (check MegaChatCall::getModerators to get the updated moderators list)
      *
      * @return true if this call has an specific change
      */

@@ -288,6 +288,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         assert(call->isOwnClientCaller());
     }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_ALLOW))
+    {
+        // TODO: complete
+    }
 }
 
 void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)
