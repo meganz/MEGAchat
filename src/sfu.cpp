@@ -97,7 +97,7 @@ Peer::Peer(const Peer& peer)
     , mAvFlags(peer.mAvFlags)
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
-    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived() ? *peer.getEphemeralPubKeyDerived(): std::string())
+    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived())
     , mEphemeralKeyPms(peer.getEphemeralPubKeyPms())
     , mSfuPeerProtoVersion(peer.getPeerSfuVersion())
 {
@@ -166,15 +166,15 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
     mIvs = ivs;
 }
 
-std::shared_ptr<std::string> Peer::getEphemeralPubKeyDerived() const
+std::string Peer::getEphemeralPubKeyDerived() const
 {
     if (mEphemeralKeyPms.done())
     {
-        return std::make_shared<std::string>(mEphemeralPubKeyDerived);
+        return mEphemeralPubKeyDerived;
     }
     else
     {
-        return nullptr;
+        return std::string();
     }
 }
 

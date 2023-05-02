@@ -91,7 +91,7 @@ public:
     void setEphemeralPubKeyDerived(const std::string& key);
 
     // returns derived peer's ephemeral key if available
-    std::shared_ptr<std::string> getEphemeralPubKeyDerived() const;
+    std::string getEphemeralPubKeyDerived() const;
 
     // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
     const promise::Promise<void>& getEphemeralPubKeyPms() const;

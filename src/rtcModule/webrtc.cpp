@@ -1582,17 +1582,18 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
             }
 
             const sfu::Peer& auxPeer = session->getPeer();
-            auto ephemeralPubKey = auxPeer.getEphemeralPubKeyDerived();
-            if (!ephemeralPubKey || ephemeralPubKey->empty())
+            auto&& ephemeralPubKey = auxPeer.getEphemeralPubKeyDerived();
+            if (ephemeralPubKey.empty())
             {
                 RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %d", auxPeer.getPeerid().toString().c_str(), cid);
+                assert(false);
                 return;
             }
 
             std::string result;
             std::string recvKeyBin = mega::Base64::atob(key);
-            if (!mSymCipher.cbc_decrypt_with_key(recvKeyBin, result, reinterpret_cast<const unsigned char*>(ephemeralPubKey->data())
-                                                 , ephemeralPubKey->size(), nullptr))
+            if (!mSymCipher.cbc_decrypt_with_key(recvKeyBin, result, reinterpret_cast<const unsigned char*>(ephemeralPubKey.data())
+                                                 , ephemeralPubKey.size(), nullptr))
             {
                 std::string err = "Failed cbc_decrypt received key. Cid: "
                         + std::to_string(auxPeer.getCid())
@@ -2413,17 +2414,18 @@ void Call::generateAndSendNewMediakey(bool reset)
                 auto pms = peer.getEphemeralPubKeyPms();
                 pms.then([this, newPlainKey, keys, sessionCid, &peer]()
                 {
-                    auto ephemeralPubKey = peer.getEphemeralPubKeyDerived();
-                    if (!ephemeralPubKey || ephemeralPubKey->empty())
+                    auto&& ephemeralPubKey = peer.getEphemeralPubKeyDerived();
+                    if (ephemeralPubKey.empty())
                     {
                         RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %d", peer.getPeerid().toString().c_str(), sessionCid);
+                        assert(false);
                         return;
                     }
 
                     // Encrypt key for participant with it's public ephemeral key
                     std::string encryptedKey;
                     std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                    if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey->data()), ephemeralPubKey->size(), nullptr))
+                    if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey.data()), ephemeralPubKey.size(), nullptr))
                     {
                         RTCM_LOG_WARNING("Failed Media key gcm_encrypt for peerId %s Cid %d",
                                          peer.getPeerid().toString().c_str(), peer.getCid());
