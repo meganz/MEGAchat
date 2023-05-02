@@ -165,6 +165,7 @@ public:
     virtual void onWrUserDump(const rtcModule::ICall& call) = 0;
     virtual void onWrLeave(const rtcModule::ICall& call, const karere::Id& user) = 0;
     virtual void onWrAllow(const rtcModule::ICall& call) = 0;
+    virtual void onWrDeny(const rtcModule::ICall& call) = 0;
 };
 
 class ICall

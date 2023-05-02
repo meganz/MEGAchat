@@ -293,6 +293,11 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         // TODO: complete
     }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_DENY))
+    {
+        // TODO: complete
+    }
 }
 
 void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)

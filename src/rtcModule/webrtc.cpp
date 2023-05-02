@@ -2203,7 +2203,7 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
 
     mModerators = mods;
     setWrJoiningState(WrState::WR_NOT_ALLOWED);
-    // TODO: callback wrOnJoinNotAllowed
+    mCallHandler.onWrDeny(*this);
     return true;
 }
 
