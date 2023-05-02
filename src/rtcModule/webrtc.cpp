@@ -1473,8 +1473,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
             if (!parameters.encodings.size())
             {
-                assert(false);
                 orderedCallDisconnect(TermCode::kErrClientGeneral, "Error getting encodings parameters");
+                assert(false);
                 return;
             }
 
