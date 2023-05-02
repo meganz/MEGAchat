@@ -1454,7 +1454,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
         assert(mRtcConn);
         auto wptr = weakHandle();
-        mRtcConn.setRemoteDescription(move(sdpInterface))
+        mRtcConn.setRemoteDescription(std::move(sdpInterface))
         .then([wptr, this, vthumbs, speakers, duration]()
         {
             if (wptr.deleted())
@@ -1471,7 +1471,13 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             // prepare parameters for low resolution video
             double scale = static_cast<double>(RtcConstant::kHiResWidth) / static_cast<double>(RtcConstant::kVthumbWidth);
             webrtc::RtpParameters parameters = mVThumb->getTransceiver()->sender()->GetParameters();
-            assert(parameters.encodings.size());
+            if (!parameters.encodings.size())
+            {
+                assert(false);
+                orderedCallDisconnect(TermCode::kErrClientGeneral, "Error getting encodings parameters");
+                return;
+            }
+
             parameters.encodings[0].scale_resolution_down_by = scale;
             parameters.encodings[0].max_bitrate_bps = 100 * 1024;   // 100 Kbps
             mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
