@@ -2178,6 +2178,54 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Get all chatrooms (individual and groupal) with limited information
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param mask represents what filters to apply to the list of chats
+     * - To apply individual/group filter use       CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP
+     * - To apply public/private filter use         CHAT_FILTER_BY_PUBLIC_OR_PRIVATE
+     * - To apply meeting/non-meeting filter use    CHAT_FILTER_BY_MEETING_OR_NON_MEETING
+     * - To apply archived/non-archived filter use  CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+     * - To apply active/non-active filter use      CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE
+     * - To apply read/unread (messages) filter use CHAT_FILTER_BY_READ_OR_UNREAD
+     * To combine different masks in any order use the + operator
+     * CHAT_FILTER_BY_NO_FILTER mask should be used alone and it will ignore any value in the param filter
+     *
+     * @param filter represents the values to apply in the filter
+     * To select individual chats use   CHAT_GET_INDIVIDUAL
+     * To select group chats use        CHAT_GET_GROUP
+     * To select public chats use       CHAT_GET_PUBLIC
+     * To select private chats use      CHAT_GET_PRIVATE
+     * To select meeting chats use      CHAT_GET_MEETING
+     * To select non-meeting chats use  CHAT_GET_NON_MEETING
+     * To select archived chats use     CHAT_GET_ARCHIVED
+     * To select non-archived chats use CHAT_GET_NON_ARCHIVED
+     * To select active chats use       CHAT_GET_ACTIVE
+     * To select non-active chats use   CHAT_GET_NON_ACTIVE
+     * To select read chats use         CHAT_GET_READ
+     * To select unread chats use       CHAT_GET_UNREAD
+     * Multiple conditions in any order may be applied using the + operator to combine them
+     *
+     * In case you provide an invalid filter (i.e. combination of mask and filter params), this function
+     * returns an empty list
+     *
+     * @return List of MegaChatListItemList objects with all chatrooms of this account.
+     */
+    public ArrayList<MegaChatListItem> getChatListItems(int mask, int filter) {
+        return chatRoomListItemToArray(megaChatApi.getChatListItems(mask, filter));
+    }
+
+    /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Get all chatrooms (1on1 and groupal) with limited information
      *
      * It is needed to have successfully completed the \c MegaChatApi::init request
@@ -2199,6 +2247,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Get all chatrooms (1on1 and groupal) that contains a certain set of participants
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization
@@ -2223,6 +2272,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * @brief Get all chatrooms (1on1 and groupal) with limited information filtered by type
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization
@@ -2290,6 +2340,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Return the chatrooms that are currently active
      *
      * You take the onwership of the returned value.
@@ -2301,6 +2352,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Return the chatrooms that are currently inactive
      *
      * Chatrooms became inactive when you left a groupchat or you are removed by
@@ -2315,6 +2367,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Return the archived chatrooms
      *
      * You take the onwership of the returned value.
@@ -2326,6 +2379,7 @@ public class MegaChatApiJava {
     }
 
     /**
+     * @deprecated Use {@link #getChatListItems(int, int)} instead.
      * Return the chatrooms that have unread messages
      *
      * Archived chatrooms with unread messages are not considered.
