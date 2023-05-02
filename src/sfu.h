@@ -224,7 +224,7 @@ public:
     virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
     virtual bool handleWrLeave(const karere::Id& /*user*/) = 0;
     virtual bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) = 0;
-    virtual bool handleWrDeny() = 0;
+    virtual bool handleWrDeny(const std::set<karere::Id>& mods) = 0;
     virtual bool handleWrAllowReq(const karere::Id& user) = 0;
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
@@ -232,7 +232,7 @@ public:
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
-    virtual bool handleBye(unsigned termcode) = 0;
+    virtual bool handleBye(const unsigned& termCode, bool& wr, std::string& errMsg) = 0;
     virtual void onSfuDisconnected() = 0;
     virtual void onSendByeCommand() = 0;
 
@@ -419,10 +419,10 @@ public:
     PeerLeftCommandFunction mComplete;
 };
 
-typedef std::function<bool(unsigned termCode)> ByeCommandFunction;
 class ByeCommand : public Command
 {
 public:
+    typedef std::function<bool(const unsigned& termCode, bool& wr, std::string& errMsg)> ByeCommandFunction;
     ByeCommand(const ByeCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -505,7 +505,7 @@ public:
     WrAllowCommandFunction mComplete;
 };
 
-typedef std::function<bool()>WrDenyCommandFunction;
+typedef std::function<bool(const std::set<karere::Id>& mods)>WrDenyCommandFunction;
 class WrDenyCommand: public Command
 {
 public:

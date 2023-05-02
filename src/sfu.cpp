@@ -1573,7 +1573,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
+    commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
     commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
     commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
@@ -1581,7 +1581,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[WrEnterCommand::COMMAND_NAME] = mega::make_unique<WrEnterCommand>(std::bind(&sfu::SfuInterface::handleWrEnter, &call, std::placeholders::_1), call);
     commands[WrLeaveCommand::COMMAND_NAME] = mega::make_unique<WrLeaveCommand>(std::bind(&sfu::SfuInterface::handleWrLeave, &call, std::placeholders::_1), call);
     commands[WrAllowCommand::COMMAND_NAME] = mega::make_unique<WrAllowCommand>(std::bind(&sfu::SfuInterface::handleWrAllow, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[WrDenyCommand::COMMAND_NAME] = mega::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call), call);
+    commands[WrDenyCommand::COMMAND_NAME] = mega::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call, std::placeholders::_1), call);
     commands[WrAllowReqCommand::COMMAND_NAME] = mega::make_unique<WrAllowReqCommand>(std::bind(&sfu::SfuInterface::handleWrAllowReq, &call, std::placeholders::_1), call);
     commands[WrUsersAllowCommand::COMMAND_NAME] = mega::make_unique<WrUsersAllowCommand>(std::bind(&sfu::SfuInterface::handleWrUsersAllow, &call, std::placeholders::_1), call);
     commands[WrUsersDenyCommand::COMMAND_NAME] = mega::make_unique<WrUsersDenyCommand>(std::bind(&sfu::SfuInterface::handleWrUsersDeny, &call, std::placeholders::_1), call);
@@ -2579,7 +2579,21 @@ bool ByeCommand::processCommand(const rapidjson::Document& command)
         return false;
     }
 
-    return mComplete(reasonIterator->value.GetUint() /*termcode */);
+    bool wr = false;
+    rapidjson::Value::ConstMemberIterator wrIterator = command.FindMember("wr");
+    if (wrIterator != command.MemberEnd() && wrIterator->value.IsUint())
+    {
+        wr = wrIterator->value.GetUint();
+    }
+
+    std::string errMsg = "Unknown reason";
+    rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = command.FindMember(Command::ERROR_MESSAGE.c_str());
+    if (jsonErrMsgIterator != command.MemberEnd() && jsonErrMsgIterator->value.IsString())
+    {
+        errMsg = jsonErrMsgIterator->value.GetString();
+    }
+
+    return mComplete(reasonIterator->value.GetUint() /*termcode */, wr, errMsg);
 }
 
 ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)
@@ -2791,9 +2805,16 @@ WrDenyCommand::WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface
 {
 }
 
-bool WrDenyCommand::processCommand(const rapidjson::Document& /*command*/)
+bool WrDenyCommand::processCommand(const rapidjson::Document& command)
 {
-    return mComplete();
+    // parse moderators list
+    std::set<karere::Id> moderators;
+    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
+    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
+    {
+        parseUsersArray(moderators, modsIterator);
+    }
+    return mComplete(moderators);
 }
 
 WrAllowReqCommand::WrAllowReqCommand(const WrAllowReqCommandFunction& complete, SfuInterface& call)

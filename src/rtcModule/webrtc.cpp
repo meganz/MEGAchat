@@ -1975,25 +1975,19 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     return true;
 }
 
-bool Call::handleBye(unsigned termcode)
+bool Call::handleBye(const unsigned& termCode, bool& wr, std::string& errMsg)
 {
-    TermCode auxTermCode = static_cast<TermCode> (termcode);
+    TermCode auxTermCode = static_cast<TermCode> (termCode);
     if (!isValidConnectionTermcode(auxTermCode))
     {
-        RTCM_LOG_ERROR("Invalid termCode [%d] received at BYE command", termcode);
-        return false;
-    }
-
-    if (auxTermCode == kPushedToWaitingRoom || auxTermCode == kKickedFromWaitingRoom)
-    {
-        RTCM_LOG_DEBUG("We don't currently support waiting rooms");
+        RTCM_LOG_ERROR("Invalid termCode [%d] received at BYE command", termCode);
         return false;
     }
 
     EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
     if (reason == kInvalidReason)
     {
-        RTCM_LOG_ERROR("Invalid end call reason for termcode [%d]", termcode);
+        RTCM_LOG_ERROR("Invalid end call reason for termcode [%d]", termCode);
         assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
     }
 
@@ -2153,9 +2147,16 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
     return true;
 }
 
-bool Call::handleWrDeny()
+bool Call::handleWrDeny(const std::set<karere::Id>& mods)
 {
-    onWrDeny();
+    if (mState != CallState::kInWaitingRoom)
+    {
+        return false;
+    }
+
+    mModerators = mods;
+    setWrJoiningState(WrState::WR_UNKNOWN);
+    // TODO: callback wrOnJoinNotAllowed
     return true;
 }
 

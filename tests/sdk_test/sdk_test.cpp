@@ -6587,7 +6587,7 @@ bool MockupCall::handlePeerLeft(Cid_t, unsigned)
     return true;
 }
 
-bool MockupCall::handleBye(unsigned)
+bool MockupCall::handleBye(const unsigned&, bool&, std::string&)
 {
     return false;
 }
@@ -6648,7 +6648,7 @@ bool MockupCall::handleWrAllow(const Cid_t& /*cid*/, const std::set<karere::Id>&
     return false;
 }
 
-bool MockupCall::handleWrDeny()
+bool MockupCall::handleWrDeny(const std::set<karere::Id>& /*mods*/)
 {
     return false;
 }

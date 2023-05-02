@@ -538,7 +538,7 @@ public:
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
-    bool handleBye(unsigned termcode) override;
+    bool handleBye(const unsigned& termCode, bool& wr, std::string& errMsg) override;
     void onSfuDisconnected() override;
     void onSendByeCommand() override;
     bool handleModAdd (uint64_t userid) override;
@@ -551,7 +551,7 @@ public:
     bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
     bool handleWrLeave(const karere::Id& user) override;
     bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
-    bool handleWrDeny() override;
+    bool handleWrDeny(const std::set<karere::Id>& mods) override;
     bool handleWrAllowReq(const karere::Id& user) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
