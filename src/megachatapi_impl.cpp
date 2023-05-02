@@ -4644,6 +4644,7 @@ void MegaChatApiImpl::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHand
 MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsByChat(MegaChatHandle chatid)
 {
     MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    if (!mClient) { return list; }
     SdkMutexGuard g(sdkMutex);
     GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
     if (chatRoom)
@@ -4659,6 +4660,7 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsByChat(MegaCh
 
 MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId)
 {
+    if (!mClient) { return nullptr; }
     SdkMutexGuard g(sdkMutex);
     GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
     if (chatRoom)
@@ -4676,6 +4678,11 @@ MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeeting(MegaChatHandle ch
 MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
 {
     MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    if (!mClient)
+    {
+        return list;
+    }
+
     SdkMutexGuard g(sdkMutex);
     for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
     {
@@ -4685,6 +4692,13 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
             const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
             for (auto it = map.begin(); it != map.end(); it++)
             {
+                if (!it->second)
+                {
+                    API_LOG_ERROR("getAllScheduledMeetings: scheduled meeting NULL at scheduled meeting list");
+                    assert(false);
+                    continue;
+                }
+
                 if (it->second->timezone().empty())
                 {
                     API_LOG_ERROR("getAllScheduledMeetings: scheduled meeting should have a timezone");
