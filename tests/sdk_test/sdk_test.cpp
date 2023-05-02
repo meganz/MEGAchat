@@ -6589,17 +6589,17 @@ bool MockupCall::handlePeerLeft(Cid_t, unsigned)
 
 bool MockupCall::handleBye(const unsigned&, bool&, std::string&)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleModAdd(uint64_t)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleModDel(uint64_t)
 {
-    return false;
+    return true;
 }
 
 void MockupCall::onSendByeCommand()
@@ -6625,47 +6625,47 @@ bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudio
                                    const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
                                    const std::map<karere::Id, bool>& /*wrUsers*/)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleWrDump(const std::map<karere::Id, bool>& /*users*/)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleWrEnter(const std::map<karere::Id, bool>& /*users*/)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleWrLeave(const karere::Id& /*user*/)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleWrAllow(const Cid_t& /*cid*/, const std::set<karere::Id>& /*mods*/)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleWrDeny(const std::set<karere::Id>& /*mods*/)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleWrAllowReq(const karere::Id& /*user*/)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleWrUsersAllow(const std::set<karere::Id>& /*users*/)
 {
-    return false;
+    return true;
 }
 
 bool MockupCall::handleWrUsersDeny(const std::set<karere::Id>& /*users*/)
 {
-    return false;
+    return true;
 }
 
 #endif
