@@ -456,6 +456,11 @@ bool Call::hasRequestSpeak() const
     return mSpeakerState == SpeakerState::kPending;
 }
 
+WrState Call::getWrJoiningState()
+{
+    return mWrJoiningState;
+}
+
 TermCode Call::getTermCode() const
 {
     return mTermCode;
@@ -469,6 +474,17 @@ uint8_t Call::getEndCallReason() const
 void Call::setCallerId(karere::Id callerid)
 {
     mCallerId  = callerid;
+}
+
+void Call::setWrJoiningState(WrState status)
+{
+    if (!isValidWrStatus(status))
+    {
+        assert(false);
+        return;
+    }
+
+    mWrJoiningState = status;
 }
 
 void Call::setPrevCid(Cid_t prevcid)
@@ -1997,6 +2013,12 @@ bool Call::handleBye(const unsigned& termCode, bool& wr, std::string& errMsg)
         return false;
     }
 
+    if (wr)
+    {
+        assert(getWrJoiningState() != WrState::WR_UNKNOWN);
+        // TODO complete
+    }
+
     EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
     if (reason == kInvalidReason)
     {
@@ -2081,6 +2103,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     else
     {
         setState(CallState::kInWaitingRoom);
+        setWrJoiningState(allowed ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED);
         if (allowed)
         {
             joinSfu();
@@ -2157,6 +2180,7 @@ bool Call::handleWrLeave(const karere::Id& user)
 bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 {
     onWrAllow();
+    setWrJoiningState(WrState::WR_ALLOWED);
     return true;
 }
 
@@ -2168,7 +2192,7 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
     }
 
     mModerators = mods;
-    setWrJoiningState(WrState::WR_UNKNOWN);
+    setWrJoiningState(WrState::WR_NOT_ALLOWED);
     // TODO: callback wrOnJoinNotAllowed
     return true;
 }

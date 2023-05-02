@@ -495,6 +495,8 @@ public:
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
+    WrState getWrJoiningState();
+    void setWrJoiningState(WrState status);
     void setPrevCid(Cid_t prevcid);
     Cid_t getPrevCid();
 
@@ -590,6 +592,9 @@ protected:
 
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
+
+    // state of joining status for our own client, when waiting room is enabled
+    WrState mWrJoiningState = WrState::WR_UNKNOWN;
 
     int64_t mInitialTs = 0; // when we joined the call (seconds)
     int64_t mOffset = 0;    // duration of call when we joined (millis)
