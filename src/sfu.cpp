@@ -1764,7 +1764,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
-    if (prevCid) // cid 0 is invalid
+    if (prevCid != kInvalidCid)
     {
         // when reconnecting, send the SFU the CID of the previous connection, so it can kill it instantly
         json.AddMember("cid", prevCid, json.GetAllocator());

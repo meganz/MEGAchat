@@ -495,6 +495,8 @@ public:
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
+    void setPrevCid(Cid_t prevcid);
+    Cid_t getPrevCid();
 
     // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
     std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
@@ -626,6 +628,7 @@ protected:
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
     std::unique_ptr<sfu::Peer> mMyPeer;
+    Cid_t mPrevCid = kInvalidCid;
     uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
 
     // call key for public chats (128-bit key)

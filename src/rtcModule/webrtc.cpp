@@ -471,6 +471,16 @@ void Call::setCallerId(karere::Id callerid)
     mCallerId  = callerid;
 }
 
+void Call::setPrevCid(Cid_t prevcid)
+{
+    mPrevCid = prevcid;
+}
+
+Cid_t Call::getPrevCid()
+{
+    return mPrevCid;
+}
+
 bool Call::isRinging() const
 {
     return mIsRinging;
@@ -934,12 +944,15 @@ void Call::joinSfu()
                                                    ivs[std::to_string(kHiResTrack)],
                                                    ivs[std::to_string(kAudioTrack)] });
 
+        // when reconnecting, send to the SFU the CID of the previous connection, so it can kill it instantly
+        setPrevCid(getOwnCid());
+
         std::string ephemeralKey = generateSessionKeyPair();
         if (ephemeralKey.empty())
         {
             orderedCallDisconnect(TermCode::kErrClientGeneral, std::string("Error generating ephemeral keypair"));
         }
-        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getOwnCid(), mSpeakerState, kInitialvthumbCount);
+        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getPrevCid(), mSpeakerState, kInitialvthumbCount);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
