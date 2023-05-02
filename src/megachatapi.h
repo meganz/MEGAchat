@@ -2788,6 +2788,27 @@ public:
         CHAT_OPTION_OPEN_INVITE      = 0x04,   /// Open invite
     };
 
+    enum
+    {
+        CHAT_FILTER_BY_NO_FILTER                = 0,
+        CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP      = 1,
+        CHAT_FILTER_BY_PUBLIC_OR_PRIVATE        = 2,
+        CHAT_FILTER_BY_MEETING_OR_NON_MEETING   = 4,
+        CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED = 8,
+        CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE     = 16,
+        CHAT_FILTER_BY_READ_OR_UNREAD           = 32,
+    };
+
+    enum
+    {
+        CHAT_GET_INDIVIDUAL = 1,  CHAT_GET_GROUP        = 0,
+        CHAT_GET_PUBLIC     = 2,  CHAT_GET_PRIVATE      = 0,
+        CHAT_GET_MEETING    = 4,  CHAT_GET_NON_MEETING  = 0,
+        CHAT_GET_ARCHIVED   = 8,  CHAT_GET_NON_ARCHIVED = 0,
+        CHAT_GET_ACTIVE     = 16, CHAT_GET_NON_ACTIVE   = 0,
+        CHAT_GET_READ       = 32, CHAT_GET_UNREAD       = 0,
+    };
+
     // SFUID default value. API will start calls in SFU server it consider
     static constexpr int SFU_ID_DEFAULT = -1;
 
@@ -3675,6 +3696,51 @@ public:
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
 
     /**
+     * @brief Get all chatrooms (individual and groupal) with limited information
+     *
+     * It is needed to have successfully called \c MegaChatApi::init (the initialization
+     * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
+     * before calling this function.
+     *
+     * Note that MegaChatListItem objects don't include as much information as
+     * MegaChatRoom objects, but a limited set of data that is usually displayed
+     * at the list of chatrooms, like the title of the chat or the unread count.
+     *
+     * You take the ownership of the returned value
+     *
+     * @param mask represents what filters to apply to the list of chats
+     * - To apply individual/group filter use       CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP
+     * - To apply public/private filter use         CHAT_FILTER_BY_PUBLIC_OR_PRIVATE
+     * - To apply meeting/non-meeting filter use    CHAT_FILTER_BY_MEETING_OR_NON_MEETING
+     * - To apply archived/non-archived filter use  CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
+     * - To apply active/non-active filter use      CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE
+     * - To apply read/unread (messages) filter use CHAT_FILTER_BY_READ_OR_UNREAD
+     * To combine different masks in any order use the + operator
+     * CHAT_FILTER_BY_NO_FILTER mask should be used alone and it will ignore any value in the param filter
+     *
+     * @param filter represents the values to apply in the filter
+     * To select individual chats use   CHAT_GET_INDIVIDUAL
+     * To select group chats use        CHAT_GET_GROUP
+     * To select public chats use       CHAT_GET_PUBLIC
+     * To select private chats use      CHAT_GET_PRIVATE
+     * To select meeting chats use      CHAT_GET_MEETING
+     * To select non-meeting chats use  CHAT_GET_NON_MEETING
+     * To select archived chats use     CHAT_GET_ARCHIVED
+     * To select non-archived chats use CHAT_GET_NON_ARCHIVED
+     * To select active chats use       CHAT_GET_ACTIVE
+     * To select non-active chats use   CHAT_GET_NON_ACTIVE
+     * To select read chats use         CHAT_GET_READ
+     * To select unread chats use       CHAT_GET_UNREAD
+     * Multiple conditions in any order may be applied using the + operator to combine them
+     *
+     * In case you provide an invalid filter (i.e. combination of mask and filter params), this function
+     * returns an empty list
+     *
+     * @return List of MegaChatListItemList objects with all chatrooms of this account.
+     */
+    MegaChatListItemList* getChatListItems(const int mask, const int filter) const;
+
+    /**
      * @brief Get all chatrooms (1on1 and groupal) with limited information
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization
@@ -3690,6 +3756,7 @@ public:
      *
      * You take the ownership of the returned value
      *
+     * @deprecated use getChatListItems instead,
      * @return List of MegaChatListItemList objects with all chatrooms of this account.
      */
     MegaChatListItemList *getChatListItems();
@@ -3720,8 +3787,9 @@ public:
      * - MegaChatApi::CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
      * - MegaChatApi::CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
      *
-     * In case you provide an invalid value for type param, this method will returns an empty list
+     * In case you provide an invalid value for type param, this method returns an empty list
      *
+     * @deprecated use getChatListItems instead,
      * @return List of MegaChatListItemList objects with all chatrooms of this account filtered by type.
      */
     MegaChatListItemList* getChatListItemsByType(int type = CHAT_TYPE_ALL);
@@ -3782,8 +3850,11 @@ public:
     /**
      * @brief Return the chatrooms that are currently active
      *
+     * This function filters out archived chatrooms.
+     *
      * You take the onwership of the returned value.
      *
+     * @deprecated use getChatListItems instead,
      * @return MegaChatListItemList including all the active chatrooms
      */
     MegaChatListItemList *getActiveChatListItems();
@@ -3794,8 +3865,11 @@ public:
      * Chatrooms became inactive when you left a groupchat or you are removed by
      * a moderator. 1on1 chats do not become inactive, just read-only.
      *
+     * This function filters out archived chatrooms.
+     *
      * You take the onwership of the returned value.
      *
+     * @deprecated use getChatListItems instead,
      * @return MegaChatListItemList including all the active chatrooms
      */
     MegaChatListItemList *getInactiveChatListItems();
@@ -3805,6 +3879,7 @@ public:
      *
      * You take the onwership of the returned value.
      *
+     * @deprecated use getChatListItems instead,
      * @return MegaChatListItemList including all the archived chatrooms
      */
     MegaChatListItemList *getArchivedChatListItems();
@@ -3814,8 +3889,11 @@ public:
      *
      * Archived chatrooms with unread messages are not considered.
      *
+     * This function filters out archived chatrooms.
+     *
      * You take the onwership of the returned value.
      *
+     * @deprecated use getChatListItems instead,
      * @return MegaChatListItemList including all the chatrooms with unread messages
      */
     MegaChatListItemList *getUnreadChatListItems();
@@ -4177,6 +4255,7 @@ public:
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
+     * Note that description is a mandatory field, so in case you want to set an empty description, please provide an empty string with Null-terminated character at the end
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
      * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
      * @param attributes - not supported yet
@@ -7618,7 +7697,7 @@ class MegaChatScheduledFlags
 public:
     enum
     {
-        FLAGS_DONT_SEND_EMAILS = 0, // API won't send out calendar emails for this meeting if it's enabled
+        FLAGS_SEND_EMAILS      = 0, // API will send out calendar emails for this meeting if it's enabled
         FLAGS_SIZE             = 1, // size in bits of flags bitmask
     };
 
@@ -7650,18 +7729,18 @@ public:
     virtual void reset();
 
     /**
-     * @brief Enables or disables the value of emails disabled flag.
-     * If this flag is enabled, API won't send out calendar emails for this meeting
+     * @brief Enables or disables the value of sending emails flag.
+     * If this flag is enabled, API will send out calendar emails for this meeting
      */
-    virtual void setEmailsDisabled(bool /*enabled*/);
+    virtual void setSendEmails(bool /*enabled*/);
 
     /**
-     * @brief Returns true if emails disabled flag is enabled
-     * If this flag is enabled, API won't send out calendar emails for this meeting
+     * @brief Returns true if sending emails flag is enabled
+     * If this flag is enabled, API will send out calendar emails for this meeting
      *
-     * @return True if emails disabled flag is enabled, otherwise returns false.
+     * @return True if sending emails flag is enabled, otherwise returns false.
      */
-    virtual bool emailsDisabled() const;
+    virtual bool sendEmails() const;
 
     /**
      * @brief Returns true if all flags are disabled
@@ -7690,12 +7769,24 @@ public:
     /**
      * @brief Creates a new instance of MegaChatScheduledRules
      *
-     * @param freq           : scheduled meeting frequency (DAILY | WEEKLY | MONTHLY), this is used in conjunction with interval
-     * @param interval       : repetition interval in relation to the frequency
-     * @param until          : specifies when the repetitions should end
-     * @param byWeekDay      : allows us to specify that an event will only occur on given week day/s
-     * @param byMonthDay     : allows us to specify that an event will only occur on a given day/s of the month
-     * @param byMonthWeekDay : allows us to specify that an event will only occurs on a specific weekday offset of the month. (i.e every 2nd Sunday of each month)
+     * @param freq: scheduled meeting frequency, this is used in conjunction with interval
+     * valid values for this param:
+     *  + MegaChatScheduledRules::FREQ_DAILY
+     *  + MegaChatScheduledRules::FREQ_WEEKLY
+     *  + MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * @param interval: repetition interval in relation to the frequency
+     * @param until: specifies when the repetitions should end
+     * @param byWeekDay: allows us to specify that an event will only occur on given week day/s.
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_WEEKLY
+     *
+     * @param byMonthDay: allows us to specify that an event will only occur on a given day/s of the month
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * @param byMonthWeekDay: allows us to specify that an event will only occurs on a specific weekday offset of the month. (i.e every 2nd Sunday of each month)
+     * to use this param, freq param must be set to MegaChatScheduledRules::FREQ_MONTHLY
+     *
+     * Important: byWeekDay, byMonthDay and byMonthWeekDay are not compatible between them, so only one of these values, can be set at the same time.
      *
      * @return A pointer to the superclass of the private object
      */

@@ -14,7 +14,7 @@ class RtcCryptoMeetings: public rtcModule::IRtcCryptoMeetings
 {
 protected:
     karere::Client& mClient;
-    void computeSymmetricKey(karere::Id peer, strongvelope::SendKey& output);
+    void computeSymmetricKey(const karere::Id &peer, strongvelope::SendKey& output);
 public:
     RtcCryptoMeetings(karere::Client& client);
     void decryptKeyFrom(const karere::Id &peer, const strongvelope::SendKey &data, strongvelope::SendKey &output) override;

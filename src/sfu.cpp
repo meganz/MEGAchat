@@ -11,10 +11,10 @@ namespace sfu
 const std::string Sdp::endl = "\r\n";
 
 // SFU -> client (different types of notifications)
-std::string Command::COMMAND_IDENTIFIER                 = "a";              // Command sent from SFU
-std::string Command::ERROR_IDENTIFIER                   = "err";            // Error sent from SFU
-std::string Command::WARN_IDENTIFIER                    = "warn";           // Warning sent from SFU
-std::string Command::DENY_IDENTIFIER                    = "deny";           // Notifies that a command previously sent to SFU has been denied
+const std::string Command::COMMAND_IDENTIFIER           = "a";              // Command sent from SFU
+const std::string Command::ERROR_IDENTIFIER             = "err";            // Error sent from SFU
+const std::string Command::WARN_IDENTIFIER              = "warn";           // Warning sent from SFU
+const std::string Command::DENY_IDENTIFIER              = "deny";           // Notifies that a command previously sent to SFU has been denied
 
 // SFU -> client (commands)
 const std::string AVCommand::COMMAND_NAME               = "AV";             // Notifies changes in Av flags for a peer
@@ -79,7 +79,7 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-Peer::Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs, const Cid_t cid, const bool isModerator)
+Peer::Peer(const karere::Id& peerid, const unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs, const Cid_t cid, const bool isModerator)
     : mCid(cid),
       mPeerid(peerid),
       mAvFlags(static_cast<uint8_t>(avFlags)),
@@ -96,7 +96,7 @@ Peer::Peer(const Peer& peer)
     , mAvFlags(peer.mAvFlags)
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
-    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived().has_value() ? *peer.getEphemeralPubKeyDerived(): std::string())
+    , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived())
     , mEphemeralKeyPms(peer.getEphemeralPubKeyPms())
     , mSfuPeerProtoVersion(peer.getPeerSfuVersion())
 {
@@ -112,7 +112,7 @@ Cid_t Peer::getCid() const
     return mCid;
 }
 
-karere::Id Peer::getPeerid() const
+const karere::Id& Peer::getPeerid() const
 {
     return mPeerid;
 }
@@ -165,7 +165,7 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
     mIvs = ivs;
 }
 
-std::optional<std::string> Peer::getEphemeralPubKeyDerived() const
+std::string Peer::getEphemeralPubKeyDerived() const
 {
     if (mEphemeralKeyPms.done())
     {
@@ -173,7 +173,7 @@ std::optional<std::string> Peer::getEphemeralPubKeyDerived() const
     }
     else
     {
-        return std::nullopt;
+        return std::string();
     }
 }
 
@@ -184,7 +184,7 @@ const promise::Promise<void>& Peer::getEphemeralPubKeyPms() const
 
 void Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
-    if (key.empty() && getPeerSfuVersion() > 0)
+    if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
     {
         mEphemeralKeyPms.reject("Empty ephemeral key");
     }
@@ -312,13 +312,13 @@ uint64_t Command::hexToBinary(const std::string &hex)
     uint64_t value = 0;
     unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
     assert(bufferSize <= 8);
-    std::unique_ptr<uint8_t []> buffer = std::unique_ptr<uint8_t []>(new uint8_t[bufferSize]);
+    std::unique_ptr<uint8_t []> buffer(new uint8_t[bufferSize]);
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
         // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
         buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
-        buffer[binPos] |= static_cast<uint8_t>(hexDigitVal(hex[i++]));
+        buffer[binPos] = static_cast<uint8_t>(buffer[binPos] | hexDigitVal(hex[i++]));
     }
 
     memcpy(&value, buffer.get(), bufferSize);
@@ -432,7 +432,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    Sdp sdp(sdpIterator->value);
+    std::shared_ptr<Sdp> sdp(new Sdp(sdpIterator->value));
 
     rapidjson::Value::ConstMemberIterator tsIterator = command.FindMember("t"); // time elapsed since the start of the call
     if (tsIterator == command.MemberEnd() || !tsIterator->value.IsUint64())
@@ -619,7 +619,7 @@ VthumbsStartCommand::VthumbsStartCommand(const VtumbsStartCompleteFunction &comp
 
 }
 
-bool VthumbsStartCommand::processCommand(const rapidjson::Document &command)
+bool VthumbsStartCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
 }
@@ -631,7 +631,7 @@ VthumbsStopCommand::VthumbsStopCommand(const VtumbsStopCompleteFunction &complet
 
 }
 
-bool VthumbsStopCommand::processCommand(const rapidjson::Document &command)
+bool VthumbsStopCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
 }
@@ -656,7 +656,7 @@ HiResStartCommand::HiResStartCommand(const HiResStartCompleteFunction &complete,
 
 }
 
-bool HiResStartCommand::processCommand(const rapidjson::Document &command)
+bool HiResStartCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
 }
@@ -668,7 +668,7 @@ HiResStopCommand::HiResStopCommand(const HiResStopCompleteFunction &complete, Sf
 
 }
 
-bool HiResStopCommand::processCommand(const rapidjson::Document &command)
+bool HiResStopCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
 }
@@ -1345,7 +1345,7 @@ void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
     SFU_LOG_DEBUG("Connecting to sfu using the IP: %s", mTargetIp.c_str());
 
     std::string urlPath = mSfuUrl.path;
-    if (getMyCid() != kInvalidCid) // add current cid for reconnection
+    if (getMyCid() != K_INVALID_CID) // add current cid for reconnection
     {
         urlPath.append("&cid=").append(std::to_string(getMyCid()));
     }
@@ -2410,7 +2410,7 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 
 }
 
-SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
+SfuConnection* SfuClient::createSfuConnection(const karere::Id& chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
 {
     assert(mConnections.find(chatid) == mConnections.end());
     mConnections[chatid] = mega::make_unique<SfuConnection>(std::move(sfuUrl), mWebsocketIO, mAppCtx, call, dnsCache);
@@ -2419,7 +2419,7 @@ SfuConnection* SfuClient::createSfuConnection(karere::Id chatid, karere::Url&& s
     return sfuConnection;
 }
 
-void SfuClient::closeSfuConnection(karere::Id chatid)
+void SfuClient::closeSfuConnection(const karere::Id& chatid)
 {
     mConnections[chatid]->disconnect();
     mConnections.erase(chatid);
@@ -2432,7 +2432,6 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
 
 void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
 {
-    assert(getMySfuVersion() == 2); // expected SFU version for my client
     std::string app;
     if (sfuUrl.path.back() != '?')  // if last URL char is '?' just add version, otherwise:
     {
@@ -2441,7 +2440,7 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
                  : "?"; // add ? as append character
     }
 
-    sfuUrl.path.append(app).append("v=").append(std::to_string(getMySfuVersion()));
+    sfuUrl.path.append(app).append("v=").append(std::to_string(MY_SFU_PROTOCOL_VERSION));
 }
 
 void SfuClient::retryPendingConnections(bool disconnect)

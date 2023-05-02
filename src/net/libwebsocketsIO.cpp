@@ -13,8 +13,9 @@ static struct lws_protocols protocols[] =
         LibwebsocketsClient::wsCallback,
         0,
         128 * 1024, // Rx buffer size
+        0, nullptr, 0,
     },
-    { NULL, NULL, 0, 0 } /* terminator */
+    {} /* terminator */
 };
 
 LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
@@ -94,7 +95,7 @@ void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
 }
 #endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
-void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
+void LibwebsocketsIO::addevents(::mega::Waiter*, int)
 {    
 
 }
@@ -178,7 +179,7 @@ LibwebsocketsClient::LibwebsocketsClient(WebsocketsIO::Mutex &mutex, WebsocketsC
 
 LibwebsocketsClient::~LibwebsocketsClient()
 {
-    wsDisconnect(true);
+    doWsDisconnect(true); // do not call wsDisconnect() virtual function during destruction
 }
 
 void LibwebsocketsClient::appendMessageFragment(char *data, size_t len, size_t remaining)
@@ -272,6 +273,11 @@ bool LibwebsocketsClient::connectViaClientInfo(const char *ip, const char *host,
 }
 
 void LibwebsocketsClient::wsDisconnect(bool immediate)
+{
+    doWsDisconnect(immediate);
+}
+
+void LibwebsocketsClient::doWsDisconnect(bool immediate)
 {
     if (!wsi)
     {

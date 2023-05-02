@@ -34,7 +34,8 @@ namespace karere
     APP_ALWAYS_EXPORT const std::string& getAppDir()
     {
         #ifdef __ANDROID__
-            return "/data/data/mega.privacy.android.app"; 
+            static std::string path("/data/data/mega.privacy.android.app");
+            return path;
         #else
             return karere::createAppDir();
         #endif
@@ -643,7 +644,12 @@ MegaChatListItemList* MegaChatApi::getChatListItemsByType(int type)
     return pImpl->getChatListItemsByType(type);
 }
 
-MegaChatListItemList *MegaChatApi::getChatListItems()
+MegaChatListItemList* MegaChatApi::getChatListItems(const int mask, const int filter) const
+{
+    return pImpl->getChatListItems(mask, filter);
+}
+
+MegaChatListItemList* MegaChatApi::getChatListItems()
 {
     return pImpl->getChatListItems();
 }
@@ -2379,8 +2385,8 @@ MegaChatScheduledFlags::~MegaChatScheduledFlags()
 }
 
 void MegaChatScheduledFlags::reset()                                {}
-void MegaChatScheduledFlags::setEmailsDisabled(bool /*enabled*/)    {}
-bool MegaChatScheduledFlags::emailsDisabled() const                 { return false; }
+void MegaChatScheduledFlags::setSendEmails(bool /*enabled*/)        {}
+bool MegaChatScheduledFlags::sendEmails() const                     { return false; }
 bool MegaChatScheduledFlags::isEmpty() const                        { return false; }
 
 /* Class MegaChatScheduledRules */
@@ -2449,7 +2455,7 @@ int MegaChatScheduledMeeting::isValidTitleLength(const char* title)
 
 int MegaChatScheduledMeeting::isValidDescriptionLength(const char* desc)
 {
-    return desc && strlen(desc) <= MegaChatScheduledMeeting::MAX_DESC_LENGTH;
+    return !desc || strlen(desc) <= MegaChatScheduledMeeting::MAX_DESC_LENGTH;
 }
 
 /* Class MegaChatScheduledMeetingOccurr */

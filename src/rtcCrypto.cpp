@@ -9,9 +9,9 @@
 #include <sodium.h>
 #include <cryptopp/aes.h>
 #include <cryptopp/modes.h>
+#include <cryptopp/hkdf.h> // required for key derivation
 #include <mega.h>
 #include "cryptofunctions.h"
-#include <cryptopp/hkdf.h> // required for key derivation
 
 using namespace mega;
 using namespace karere;
@@ -24,7 +24,7 @@ RtcCryptoMeetings::RtcCryptoMeetings(karere::Client& client)
 
 }
 
-void RtcCryptoMeetings::computeSymmetricKey(Id peer, strongvelope::SendKey &output)
+void RtcCryptoMeetings::computeSymmetricKey(const Id &peer, strongvelope::SendKey &output)
 {
     auto pms = mClient.userAttrCache().getAttr(peer, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY);
     if (!pms.done())
@@ -116,9 +116,8 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
            std::string signatureBin =  mega::Base64::atob(recvsignature);
            std::string pubUserED25519(key->buf(), key->dataSize());
            int res = crypto_sign_verify_detached(reinterpret_cast<const unsigned char*>(signatureBin.data()),
-                                               reinterpret_cast<const unsigned char*>(msg.data()),
-                                               msg.size(),
-                                               reinterpret_cast<const unsigned char*>(pubUserED25519.data()));
+                                                 reinterpret_cast<const unsigned char*>(msg.data()),
+                                                 msg.size(), reinterpret_cast<const unsigned char*>(pubUserED25519.data()));
 
            return (res == 0); // if crypto_sign_verify_detached returns 0 signature has been verified
        })

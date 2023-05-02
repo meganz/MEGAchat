@@ -11,11 +11,13 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledFlagsType) {
 
 - (instancetype)clone;
 
-@property (readonly, nonatomic) BOOL emailsDisabled;
+@property (readonly, nonatomic) BOOL emailsEnabled;
 @property (readonly, nonatomic) BOOL isEmpty;
 
-- (void)setEmailsDisabled:(BOOL)disable;
+- (void)setEmailsEnabled:(BOOL)sendEmails;
 - (void)reset;
+
+- (instancetype)initWithSendEmails:(BOOL)sendEmails;
 
 @end
 
