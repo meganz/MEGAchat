@@ -263,7 +263,7 @@ public:
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientId) override;
     virtual int getNumParticipants() const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
-    virtual mega::MegaHandleList* getModerators() const override;
+    virtual const mega::MegaHandleList* getModerators() const override;
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
@@ -313,7 +313,7 @@ protected:
     int mCallCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle mCallerId;
     std::string mMessage;
-    std::set<karere::Id> mModerators;
+    std::unique_ptr<::mega::MegaHandleList> mModerators;
     std::unique_ptr<::mega::MegaHandleList> mHandleList;
     std::unique_ptr<MegaChatWaitingRoom> mMegaChatWaitingRoom;
 

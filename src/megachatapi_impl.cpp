@@ -7481,9 +7481,12 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
         mParticipants.push_back(participant);
     }
 
+    // always create a valid instance of MegaHandleList (as at least it must be 1 moderator in the call)
+    assert(call.getModerators().size());
+    mModerators.reset(::mega::MegaHandleList::createInstance());
     for (auto moderator: call.getModerators())
     {
-        mModerators.emplace(moderator);
+        mModerators->addMegaHandle(moderator);
     }
 
     mRinging = call.isRinging();
@@ -7521,14 +7524,13 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
     mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? call.getWaitingRoom()->copy() : nullptr);
+    mModerators.reset(call.getModerators() ? call.getModerators()->copy() : nullptr);
+    mParticipants = call.mParticipants;
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
         mSessions[it->first] = std::unique_ptr<MegaChatSession>(it->second->copy());
     }
-
-    mParticipants = call.mParticipants;
-    mModerators = call.mModerators;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -7680,16 +7682,9 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
     return participantsList;
 }
 
-MegaHandleList* MegaChatCallPrivate::getModerators() const
+const MegaHandleList* MegaChatCallPrivate::getModerators() const
 {
-    MegaHandleListPrivate* moderatorsList = new MegaHandleListPrivate();
-
-    for (const MegaChatHandle& moderator : mModerators)
-    {
-        moderatorsList->addMegaHandle(moderator);
-    }
-
-    return moderatorsList;
+    return mModerators.get();
 }
 
 bool MegaChatCallPrivate::isIgnored() const

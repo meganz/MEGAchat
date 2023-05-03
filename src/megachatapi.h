@@ -955,11 +955,12 @@ public:
      *  - End groupal calls for all participants
      *  - Approve/reject speaker requests
      *
-     * You take the ownership of the returned value.
+     * This method always returns a valid instance of MegaHandleList.
+     * The MegaChatCall retains the ownership of the returned value.
      *
      * @return A MegaHandleList of handles of peers that have moderator role in the call
      */
-    virtual mega::MegaHandleList* getModerators() const;
+    virtual const mega::MegaHandleList* getModerators() const;
 
     /**
      * @brief Get the number of peers participating in the call

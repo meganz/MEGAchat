@@ -297,7 +297,7 @@ MegaHandleList *MegaChatCall::getPeeridParticipants() const
     return NULL;
 }
 
-MegaHandleList* MegaChatCall::getModerators() const
+const MegaHandleList* MegaChatCall::getModerators() const
 {
     return NULL;
 }
