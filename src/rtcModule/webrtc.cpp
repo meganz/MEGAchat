@@ -2217,8 +2217,9 @@ bool Call::handleWrAllowReq(const karere::Id& user)
         assert(false);
         return false;
     }
-
-    mCallHandler.onWrUserReqAllow(*this, user);
+    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+    uhl->addMegaHandle(user.val);
+    mCallHandler.onWrUserReqAllow(*this, uhl.get());
     return true;
 }
 

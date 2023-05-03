@@ -10705,8 +10705,12 @@ void MegaChatCallHandler::onPermissionsChanged(const rtcModule::ICall& call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
-void MegaChatCallHandler::onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user)
+void MegaChatCallHandler::onWrUserReqAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
 {
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_ALLOW_REQ);
+    chatCall->setHandleList(users);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onWrUsersAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
@@ -10730,10 +10734,6 @@ void MegaChatCallHandler::onWrUserDump(const rtcModule::ICall& call)
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_COMPOSITION);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
-}
-
-void MegaChatCallHandler::onWrLeave(const rtcModule::ICall& call, const karere::Id& user)
-{
 }
 
 void MegaChatCallHandler::onWrAllow(const rtcModule::ICall& call)

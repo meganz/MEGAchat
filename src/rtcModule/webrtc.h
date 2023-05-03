@@ -159,11 +159,10 @@ public:
     virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
     virtual void onPermissionsChanged(const ICall& call) = 0;
-    virtual void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) = 0;
+    virtual void onWrUserReqAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* users) = 0;
     virtual void onWrUsersAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* user) = 0;
     virtual void onWrUsersDeny(const rtcModule::ICall& call, const ::mega::MegaHandleList* user) = 0;
     virtual void onWrUserDump(const rtcModule::ICall& call) = 0;
-    virtual void onWrLeave(const rtcModule::ICall& call, const karere::Id& user) = 0;
     virtual void onWrAllow(const rtcModule::ICall& call) = 0;
     virtual void onWrDeny(const rtcModule::ICall& call) = 0;
     virtual void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;

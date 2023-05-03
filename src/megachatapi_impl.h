@@ -715,11 +715,10 @@ public:
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
     void onPermissionsChanged(const rtcModule::ICall& call) override;
-    void onWrUserReqAllow(const rtcModule::ICall& call, const karere::Id& user) override;
-    void onWrUsersAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* users) override;
+    void onWrUserReqAllow(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
+    void onWrUsersAllow(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrUsersDeny(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrUserDump(const rtcModule::ICall& call) override;
-    void onWrLeave(const rtcModule::ICall& call, const karere::Id& user) override;
     void onWrAllow(const rtcModule::ICall& call) override;
     void onWrDeny(const rtcModule::ICall& call) override;
     void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
