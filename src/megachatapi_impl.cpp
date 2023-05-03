@@ -227,6 +227,12 @@ void MegaChatApiImpl::sendPendingRequests()
             continue;
         }
 
+        if (request->hasPerformRequest())
+        {
+            errorCode = request->performRequest();
+        }
+        else
+        {
         switch (request->getType())
         {
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
@@ -237,31 +243,6 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
-        }
-        case MegaChatRequest::TYPE_SEND_TYPING_NOTIF:
-        {
-            MegaChatHandle chatid = request->getChatHandle();
-            ChatRoom *chatroom = findChatRoom(chatid);
-            if (chatroom)
-            {
-                if (request->getFlag())
-                {
-                    chatroom->sendTypingNotification();
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                }
-                else
-                {
-                    chatroom->sendStopTypingNotification();
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                }
-            }
-            else
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-            }
             break;
         }
         case MegaChatRequest::TYPE_SIGNAL_ACTIVITY:
@@ -2998,6 +2979,7 @@ void MegaChatApiImpl::sendPendingRequests()
             errorCode = MegaChatError::ERROR_UNKNOWN;
         }
         }   // end of switch(request->getType())
+        }   // end of `else` block
 
         if(errorCode)
         {
@@ -5429,6 +5411,7 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
     request->setChatHandle(chatid);
     request->setFlag(true);
+    request->setPerformRequest([this, request]() { return performRequest_sendTypingNotification(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5438,8 +5421,32 @@ void MegaChatApiImpl::sendStopTypingNotification(MegaChatHandle chatid, MegaChat
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
     request->setChatHandle(chatid);
     request->setFlag(false);
+    request->setPerformRequest([this, request]() { return performRequest_sendTypingNotification(request); });
     requestQueue.push(request);
     waiter->notify();
+}
+
+int MegaChatApiImpl::performRequest_sendTypingNotification(MegaChatRequestPrivate* request)
+{
+    MegaChatHandle chatid = request->getChatHandle();
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (!chatroom)
+    {
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    if (request->getFlag())
+    {
+        chatroom->sendTypingNotification();
+    }
+    else
+    {
+        chatroom->sendStopTypingNotification();
+    }
+
+    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
 }
 
 bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const
