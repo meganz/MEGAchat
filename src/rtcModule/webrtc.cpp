@@ -2115,50 +2115,28 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
         }
         else
         {
-            // must wait in waiting room until a moderator allow to access
-            assert(!isOwnPrivModerator());
+            assert(!isOwnPrivModerator());  // must wait in waiting room until a moderator allow to access
         }
 
-        if (!wrUsers.empty())
-        {
-            addWrUsers(wrUsers);        // store moderators list and notify app
-        }
+        // store moderators list and notify app
+        addWrUsers(wrUsers, true/*clearCurrent*/);
     }
     return true;
 }
 
 bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
 {
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_DUMP: empty user list received");
-        assert(false);
-        return false;
-    }
-    addWrUsers(users);
+    assert(isOwnPrivModerator());
+    assert(!users.empty());
+    addWrUsers(users, true/*clearCurrent*/);
     return true;
 }
 
 bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
 {
     assert(isOwnPrivModerator());
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_ENTER : empty user list received");
-        assert(false);
-        return false;
-    }
-
-    if (!mWaitingRoomUsers)
-    {
-        assert(false);
-        mWaitingRoomUsers.reset(new KarereWaitingRoom());
-    }
-    std::for_each(users.begin(), users.end(), [this](const auto &u)
-    {
-        mWaitingRoomUsers->addOrUpdateUserStatus(u.first, u.second);
-    });
-    mCallHandler.onWrUserDump(*this);
+    assert(!users.empty());
+    addWrUsers(users, false/*clearCurrent*/);
     return true;
 }
 
@@ -2532,15 +2510,30 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
 }
 
-void Call::addWrUsers(const std::map<karere::Id, bool>& users)
+bool Call::addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent)
 {
     assert(isOwnPrivModerator());
-    mWaitingRoomUsers.reset(new KarereWaitingRoom());
+    if (!mWaitingRoom)
+    {
+        mWaitingRoom.reset(new KarereWaitingRoom());
+    }
+    else if (clearCurrent)
+    {
+        mWaitingRoom->clear();
+    }
+
+    if (users.empty())
+    {
+        RTCM_LOG_ERROR("dumpWrUsers : empty user list received");
+        return false;
+    }
+
     std::for_each(users.begin(), users.end(), [this](const auto &u)
     {
-        mWaitingRoomUsers->addOrUpdateUserStatus(u.first, u.second);
+        mWaitingRoom->addOrUpdateUserStatus(u.first, u.second);
     });
     mCallHandler.onWrUserDump(*this);
+    return true;
 }
 
 Keyid_t Call::generateNextKeyId()

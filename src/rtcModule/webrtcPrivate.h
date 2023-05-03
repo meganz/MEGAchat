@@ -434,7 +434,7 @@ public:
     bool isDestroying();
     void generateEphemeralKeyPair();
     void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
-    void addWrUsers(const std::map<karere::Id, bool>& users);
+    bool addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent);
 
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;

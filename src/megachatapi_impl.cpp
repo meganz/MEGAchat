@@ -10709,6 +10709,9 @@ void MegaChatCallHandler::onWrUsersDeny(const rtcModule::ICall& call, const std:
 
 void MegaChatCallHandler::onWrUserDump(const rtcModule::ICall& call)
 {
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_COMPOSITION);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onWrLeave(const rtcModule::ICall& call, const karere::Id& user)
