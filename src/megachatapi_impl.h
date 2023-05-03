@@ -1254,12 +1254,10 @@ private:
     bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
     int performRequest_sendTypingNotification(MegaChatRequestPrivate* request);
-#ifndef KARERE_DISABLE_WEBRTC
     int performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request);
     int performRequest_fetchScheduledMeetingOccurrences(MegaChatRequestPrivate* request);
     int performRequest_updateScheduledMeetingOccurrence(MegaChatRequestPrivate* request);
     int performRequest_updateScheduledMeeting(MegaChatRequestPrivate* request);
-#endif
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);

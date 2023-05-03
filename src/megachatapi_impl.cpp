@@ -2611,7 +2611,6 @@ void MegaChatApiImpl::sendPendingRequests()
     }
 }
 
-#ifndef KARERE_DISABLE_WEBRTC
 int MegaChatApiImpl::performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request)
 {
     // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
@@ -2990,7 +2989,6 @@ int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivat
             return MegaChatError::ERROR_OK;
         }
 }
-#endif // ifndef KARERE_DISABLE_WEBRTC
 
 void MegaChatApiImpl::sendPendingEvents()
 {
@@ -4565,7 +4563,6 @@ void MegaChatApiImpl::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHand
                                                                                       bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                                       MegaChatRequestListener* listener)
 {
-#ifndef KARERE_DISABLE_WEBRTC
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING, listener);
     std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), cancelled, timezone, startDate,
                                                                                        endDate, title, description, nullptr, MEGACHAT_INVALID_TIMESTAMP, flags, rules));
@@ -4576,7 +4573,6 @@ void MegaChatApiImpl::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHand
     request->setPerformRequest([this, request]() { return performRequest_updateScheduledMeeting(request); });
     requestQueue.push(request);
     waiter->notify();
-#endif
 }
 
 void MegaChatApiImpl::createChatroomAndSchedMeeting(MegaChatPeerList* peerList, bool isMeeting, bool publicChat, const char* title, bool speakRequest, bool waitingRoom, bool openInvite,
@@ -4608,7 +4604,6 @@ void MegaChatApiImpl::createChatroomAndSchedMeeting(MegaChatPeerList* peerList, 
 void MegaChatApiImpl::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
                                                    MegaChatTimeStamp newEndDate, bool cancelled, MegaChatRequestListener* listener)
 {
-#ifndef KARERE_DISABLE_WEBRTC
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE, listener);
     std::unique_ptr<MegaChatScheduledMeeting> scheduledMeeting(MegaChatScheduledMeeting::createInstance(chatid, schedId, MEGACHAT_INVALID_HANDLE, mClient->myHandle(), cancelled, nullptr, newStartDate,
                                                                                        newEndDate, nullptr, nullptr, nullptr, MEGACHAT_INVALID_TIMESTAMP, nullptr, nullptr));
@@ -4619,19 +4614,16 @@ void MegaChatApiImpl::updateScheduledMeetingOccurrence(MegaChatHandle chatid, Me
     request->setPerformRequest([this, request]() { return performRequest_updateScheduledMeetingOccurrence(request); });
     requestQueue.push(request);
     waiter->notify();
-#endif
 }
 
 void MegaChatApiImpl::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener)
 {
-#ifndef KARERE_DISABLE_WEBRTC
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(schedId);
     request->setPerformRequest([this, request]() { return performRequest_removeScheduledMeeting(request); });
     requestQueue.push(request);
     waiter->notify();
-#endif
 }
 
 MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsByChat(MegaChatHandle chatid)
@@ -4694,7 +4686,6 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
 
 void MegaChatApiImpl::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatTimeStamp since, MegaChatTimeStamp until, MegaChatRequestListener* listener)
 {
-#ifndef KARERE_DISABLE_WEBRTC
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES, listener);
     request->setChatHandle(chatid);
     unique_ptr<MegaHandleList> peerList = unique_ptr<MegaHandleList>(MegaHandleList::createInstance());
@@ -4704,7 +4695,6 @@ void MegaChatApiImpl::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chat
     request->setPerformRequest([this, request]() { return performRequest_fetchScheduledMeetingOccurrences(request); });
     requestQueue.push(request);
     waiter->notify();
-#endif
 }
 
 void MegaChatApiImpl::chatLinkHandle(MegaChatHandle chatid, bool del, bool createifmissing, MegaChatRequestListener *listener)
