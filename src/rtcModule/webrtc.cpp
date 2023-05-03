@@ -2237,8 +2237,12 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
         assert(false);
         mWaitingRoom.reset(new KarereWaitingRoom());
     }
-    mWaitingRoom->updateUsers(users, WrState::WR_ALLOWED);
-    mCallHandler.onWrUsersAllow(*this, users);
+    if (mWaitingRoom->updateUsers(users, WrState::WR_ALLOWED))
+    {
+        std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+        std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
+        mCallHandler.onWrUsersAllow(*this, uhl.get());
+    }
     return true;
 }
 
@@ -2257,8 +2261,13 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
         assert(false);
         mWaitingRoom.reset(new KarereWaitingRoom());
     }
-    mWaitingRoom->updateUsers(users, WrState::WR_NOT_ALLOWED);
-    mCallHandler.onWrUsersDeny(*this, users);
+
+    if (mWaitingRoom->updateUsers(users, WrState::WR_NOT_ALLOWED))
+    {
+        std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+        std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
+        mCallHandler.onWrUsersDeny(*this, uhl.get());
+    }
     return true;
 }
 

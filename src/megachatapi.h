@@ -490,6 +490,8 @@ public:
         CHANGE_TYPE_WR_COMPOSITION = 0x2000,        /// Waiting room composition has changed
         CHANGE_TYPE_WR_USERS_ENTERED = 0x4000,      /// Notify about users that have been pushed into the waiting room
         CHANGE_TYPE_WR_USERS_LEAVE = 0x8000,        /// Notify about users that have been left the waiting room (either entered the call or disconnected).
+        CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted permissions to enter the call.
+        CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied permissions to enter the call.
     };
 
     enum
@@ -655,6 +657,32 @@ public:
      * - MegaChatCall::CHANGE_TYPE_WR_DENY = 0x1000
      * Access to call from Waiting room, has been denied for our own user
      * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_COMPOSITION = 0x2000
+     * Waiting room composition has changed
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED = 0x4000
+     * Notify about users that have been pushed into the waiting room
+     * (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE = 0x8000
+     * Notify about users that have been left the waiting room (either entered the call or disconnected).
+     * (check MegaChatCall::getHandleList to get users that have been left the waiting room
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW = 0x10000
+     * Notify about users that have been granted permissions to enter the call.
+     * (check MegaChatCall::getHandleList to get users that have been granted permissions to enter the call.
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_DENY = 0x20000
+     * Notify about users that have been denied permissions to enter the call.
+     * (check MegaChatCall::getHandleList to get users that have been denied permissions to enter the call.
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * @return a bit field with the changes of the call
      */
     virtual int getChanges() const;
 
@@ -708,6 +736,30 @@ public:
      * Access to call from Waiting room, has been denied for our own user
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
+     * - MegaChatCall::CHANGE_TYPE_WR_COMPOSITION = 0x2000
+     * Waiting room composition has changed
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED = 0x4000
+     * Notify about users that have been pushed into the waiting room
+     * (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE = 0x8000
+     * Notify about users that have been left the waiting room (either entered the call or disconnected).
+     * (check MegaChatCall::getHandleList to get users that have been left the waiting room
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW = 0x10000
+     * Notify about users that have been granted permissions to enter the call.
+     * (check MegaChatCall::getHandleList to get users that have been granted permissions to enter the call.
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_DENY = 0x20000
+     * Notify about users that have been denied permissions to enter the call.
+     * (check MegaChatCall::getHandleList to get users that have been denied permissions to enter the call.
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+
      * @return true if this call has an specific change
      */
     virtual bool hasChanged(int changeType) const;
@@ -1031,6 +1083,12 @@ public:
      *
      *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE is notified via MegaChatCallListener::onChatCallUpdate
      *    The list contains the users that have been left the waiting room (either entered the call or disconnected).
+     *
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have been granted permissions to enter the call.
+     *
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_DENY is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have been denied permissions to enter the call.
      *
      * @return a MegaHandleList that can be used for multiple purposes, or NULL in case it doesn't exists
      */

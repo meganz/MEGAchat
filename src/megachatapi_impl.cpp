@@ -10709,12 +10709,20 @@ void MegaChatCallHandler::onWrUserReqAllow(const rtcModule::ICall& call, const k
 {
 }
 
-void MegaChatCallHandler::onWrUsersAllow(const rtcModule::ICall& call, const std::set<karere::Id>& users)
+void MegaChatCallHandler::onWrUsersAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
 {
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW);
+    chatCall->setHandleList(users);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
-void MegaChatCallHandler::onWrUsersDeny(const rtcModule::ICall& call, const std::set<karere::Id>& users)
+void MegaChatCallHandler::onWrUsersDeny(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
 {
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_DENY);
+    chatCall->setHandleList(users);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onWrUserDump(const rtcModule::ICall& call)
