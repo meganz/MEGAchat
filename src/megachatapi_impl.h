@@ -288,6 +288,9 @@ public:
     bool isParticipating(karere::Id userid);
     void setId(karere::Id callid);
     void setCaller(karere::Id caller);
+    void setHandleList(const mega::MegaHandleList* handleList);
+    const mega::MegaHandleList* getHandleList() const;
+
 
     void setNotificationType(int notificationType);
     void setTermCode(int termCode);
@@ -311,6 +314,7 @@ protected:
     MegaChatHandle mCallerId;
     std::string mMessage;
     std::set<karere::Id> mModerators;
+    std::unique_ptr<::mega::MegaHandleList> mHandleList;
     std::unique_ptr<MegaChatWaitingRoom> mMegaChatWaitingRoom;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
@@ -718,6 +722,8 @@ public:
     void onWrLeave(const rtcModule::ICall& call, const karere::Id& user) override;
     void onWrAllow(const rtcModule::ICall& call) override;
     void onWrDeny(const rtcModule::ICall& call) override;
+    void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
+    void onWrUsersLeave(const rtcModule::ICall& call, const ::mega::MegaHandleList* users) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;

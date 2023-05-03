@@ -2119,7 +2119,10 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
         }
 
         // store moderators list and notify app
-        addWrUsers(wrUsers, true/*clearCurrent*/);
+        if (addWrUsers(wrUsers, true/*clearCurrent*/))
+        {
+            mCallHandler.onWrUserDump(*this);
+        }
     }
     return true;
 }
@@ -2128,7 +2131,10 @@ bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
 {
     assert(isOwnPrivModerator());
     assert(!users.empty());
-    addWrUsers(users, true/*clearCurrent*/);
+    if (addWrUsers(users, true/*clearCurrent*/))
+    {
+        mCallHandler.onWrUserDump(*this);
+    }
     return true;
 }
 
@@ -2136,16 +2142,23 @@ bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
 {
     assert(isOwnPrivModerator());
     assert(!users.empty());
-    addWrUsers(users, false/*clearCurrent*/);
-    return true;
+
+    if (addWrUsers(users, false/*clearCurrent*/))
+    {
+        std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+        std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.first.val); });
+        mCallHandler.onWrUsersEntered(*this, uhl.get());
+        return true;
+    }
+    return false;
 }
 
 bool Call::handleWrLeave(const karere::Id& user)
 {
     assert(isOwnPrivModerator());
-    if (user.inval())
+    if (!user.isValid())
     {
-        RTCM_LOG_ERROR("WR_LEAVE : empty user list received");
+        RTCM_LOG_ERROR("WR_LEAVE : invalid user received");
         assert(false);
         return false;
     }
@@ -2155,9 +2168,15 @@ bool Call::handleWrLeave(const karere::Id& user)
         assert(false);
         mWaitingRoom.reset(new KarereWaitingRoom());
     }
-    mWaitingRoom->removeUser(user.val);
-    mCallHandler.onWrLeave(*this, user.val);
-    return true;
+
+    if (mWaitingRoom->removeUser(user.val))
+    {
+        std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+        uhl->addMegaHandle(user.val);
+        mCallHandler.onWrUsersLeave(*this, uhl.get());
+        return true;
+    }
+    return false;
 }
 
 bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
@@ -2532,7 +2551,6 @@ bool Call::addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent
     {
         mWaitingRoom->addOrUpdateUserStatus(u.first, u.second);
     });
-    mCallHandler.onWrUserDump(*this);
     return true;
 }
 

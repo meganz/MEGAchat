@@ -488,6 +488,8 @@ public:
         CHANGE_TYPE_WR_ALLOW = 0x800,               /// Access to call from Waiting room, has been allowed for our own user
         CHANGE_TYPE_WR_DENY = 0x1000,               /// Access to call from Waiting room, has been denied for our own user
         CHANGE_TYPE_WR_COMPOSITION = 0x2000,        /// Waiting room composition has changed
+        CHANGE_TYPE_WR_USERS_ENTERED = 0x4000,      /// Notify about users that have been pushed into the waiting room
+        CHANGE_TYPE_WR_USERS_LEAVE = 0x8000,        /// Notify about users that have been left the waiting room (either entered the call or disconnected).
     };
 
     enum
@@ -1012,11 +1014,27 @@ public:
     /**
      * @brief Returns a MegaChatWaitingRoom instance for this call, if any
      *
-     * The MegaChatCall retains the ownership of the MegaChatWaitingRoom.
+     * The MegaChatCall retains the ownership of returned value.
      *
      * @return a MegaChatWaitingRoom for this call, if any
      */
     virtual const MegaChatWaitingRoom* getWaitingRoom() const;
+
+    /**
+     * @brief Returns a MegaHandleList that can be used for multiple purposes, or NULL in case it doesn't exists
+     *
+     * The MegaChatCall retains the ownership of returned value.
+     *
+     * This function only returns a valid MegaHandleList in the following scenarios:
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have been pushed into the waiting room
+     *
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have been left the waiting room (either entered the call or disconnected).
+     *
+     * @return a MegaHandleList that can be used for multiple purposes, or NULL in case it doesn't exists
+     */
+    virtual const mega::MegaHandleList* getHandleList() const;
 };
 
 /**

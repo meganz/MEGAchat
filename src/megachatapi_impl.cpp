@@ -7747,6 +7747,11 @@ const MegaChatWaitingRoom* MegaChatCallPrivate::getWaitingRoom() const
     return mMegaChatWaitingRoom.get();
 }
 
+const ::mega::MegaHandleList* MegaChatCallPrivate::getHandleList() const
+{
+    return mHandleList.get();
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     mStatus = status;
@@ -7900,6 +7905,11 @@ void MegaChatCallPrivate::setId(Id callid)
 void MegaChatCallPrivate::setCaller(Id caller)
 {
     mCallerId = caller;
+}
+
+void MegaChatCallPrivate::setHandleList(const ::mega::MegaHandleList* handleList)
+{
+    mHandleList.reset(handleList ? handleList->copy() : nullptr);
 }
 
 void MegaChatCallPrivate::setNotificationType(int notificationType)
@@ -10729,6 +10739,22 @@ void MegaChatCallHandler::onWrDeny(const rtcModule::ICall& call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_DENY);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrUsersEntered(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED);
+    chatCall->setHandleList(users);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrUsersLeave(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE);
+    chatCall->setHandleList(users);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

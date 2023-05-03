@@ -166,6 +166,8 @@ public:
     virtual void onWrLeave(const rtcModule::ICall& call, const karere::Id& user) = 0;
     virtual void onWrAllow(const rtcModule::ICall& call) = 0;
     virtual void onWrDeny(const rtcModule::ICall& call) = 0;
+    virtual void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
+    virtual void onWrUsersLeave(const rtcModule::ICall& call, const ::mega::MegaHandleList* users) = 0;
 };
 
 class KarereWaitingRoom;
