@@ -578,6 +578,11 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     }
 }
 
+const KarereWaitingRoom* Call::getWaitingRoom() const
+{
+    return mWaitingRoom.get();
+}
+
 void Call::requestSpeaker(bool add)
 {
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
@@ -2167,12 +2172,12 @@ bool Call::handleWrLeave(const karere::Id& user)
         return false;
     }
 
-    if (!mWaitingRoomUsers)
+    if (!mWaitingRoom)
     {
         assert(false);
-        mWaitingRoomUsers.reset(new KarereWaitingRoom());
+        mWaitingRoom.reset(new KarereWaitingRoom());
     }
-    mWaitingRoomUsers->removeUser(user.val);
+    mWaitingRoom->removeUser(user.val);
     mCallHandler.onWrLeave(*this, user.val);
     return true;
 }
@@ -2230,12 +2235,12 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
         return false;
     }
 
-    if (!mWaitingRoomUsers)
+    if (!mWaitingRoom)
     {
         assert(false);
-        mWaitingRoomUsers.reset(new KarereWaitingRoom());
+        mWaitingRoom.reset(new KarereWaitingRoom());
     }
-    mWaitingRoomUsers->updateUsers(users, WrState::WR_ALLOWED);
+    mWaitingRoom->updateUsers(users, WrState::WR_ALLOWED);
     mCallHandler.onWrUsersAllow(*this, users);
     return true;
 }
@@ -2250,12 +2255,12 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
         return false;
     }
 
-    if (!mWaitingRoomUsers)
+    if (!mWaitingRoom)
     {
         assert(false);
-        mWaitingRoomUsers.reset(new KarereWaitingRoom());
+        mWaitingRoom.reset(new KarereWaitingRoom());
     }
-    mWaitingRoomUsers->updateUsers(users, WrState::WR_NOT_ALLOWED);
+    mWaitingRoom->updateUsers(users, WrState::WR_NOT_ALLOWED);
     mCallHandler.onWrUsersDeny(*this, users);
     return true;
 }

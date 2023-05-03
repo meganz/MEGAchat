@@ -67,6 +67,7 @@ class MegaChatScheduledFlags;
 class MegaChatScheduledMeeting;
 class MegaChatScheduledMeetingList;
 class MegaChatScheduledMeetingOccurrList;
+class MegaChatWaitingRoom;
 
 /**
  * @brief Provide information about a session
@@ -486,6 +487,7 @@ public:
         CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400,   /// Generic notification
         CHANGE_TYPE_WR_ALLOW = 0x800,               /// Access to call from Waiting room, has been allowed for our own user
         CHANGE_TYPE_WR_DENY = 0x1000,               /// Access to call from Waiting room, has been denied for our own user
+        CHANGE_TYPE_WR_COMPOSITION = 0x2000,        /// Waiting room composition has changed
     };
 
     enum
@@ -1006,6 +1008,15 @@ public:
      * @return true if we have request speak
      */
     virtual bool hasRequestSpeak() const;
+
+    /**
+     * @brief Returns a MegaChatWaitingRoom instance for this call, if any
+     *
+     * The MegaChatCall retains the ownership of the MegaChatWaitingRoom.
+     *
+     * @return a MegaChatWaitingRoom for this call, if any
+     */
+    virtual const MegaChatWaitingRoom* getWaitingRoom() const;
 };
 
 /**
@@ -8301,6 +8312,62 @@ public:
      */
     virtual void clear();
 };
+
+/**
+ * @brief This class represents a waiting room
+ *
+ * A waiting room, is effectively a list of users pending to enter a call
+ */
+class MegaChatWaitingRoom
+{
+public:
+    enum
+    {
+        MWR_UNKNOWN      = -1,   // client unknown joining status
+        MWR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+        MWR_ALLOWED      = 1,    // client is allowed to join call (no further action required from app to JOIN call)
+    };
+
+    virtual ~MegaChatWaitingRoom()                      { };
+
+    /**
+     * @brief Returns a copy of the this instance of MegaChatWaitingRoom
+     *
+     * You take the ownership of returned object
+     *
+     * @return A pointer to the superclass of the private object.
+     */
+    virtual MegaChatWaitingRoom* copy() const           { return NULL; }
+
+    /**
+     * @brief Returns the list of handles of users that are in the waiting room
+     *
+     * This method always returns a valid instance of MegaHandleList.
+     * You take the ownership of the returned value.
+     *
+     * @return mega::MegaHandleList of handles of users that are in the waiting room
+     */
+    virtual mega::MegaHandleList* getPeers() const      { return NULL; };
+
+    /**
+     * @brief Returns the number of elements in the list
+     * @return Number of elements in the list
+     */
+    virtual size_t size() const                         { return 0; };
+
+    /**
+     * @brief Returns the waiting room joining status for the specified peer id
+     *
+     * Valid values are:
+     *  - MegaChatWaitingRoom::MWR_UNKNOWN      = -1,   // client unknown joining status
+     *  - MegaChatWaitingRoom::MWR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+     *  - MegaChatWaitingRoom::MWR_ALLOWED      = 1,    // client is allowed to join call (no further action required from app to JOIN call)
+     *
+     * @return The waiting room joining status for the specified peer
+     */
+    virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
+};
+
 }
 
 #endif // MEGACHATAPI_H

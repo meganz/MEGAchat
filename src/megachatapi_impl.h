@@ -274,6 +274,7 @@ public:
     bool isSpeakAllow() const override;
     int getNetworkQuality() const override;
     bool hasRequestSpeak() const override;
+    const MegaChatWaitingRoom* getWaitingRoom() const override;
 
     void setStatus(int status);
     void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
@@ -310,6 +311,7 @@ protected:
     MegaChatHandle mCallerId;
     std::string mMessage;
     std::set<karere::Id> mModerators;
+    std::unique_ptr<MegaChatWaitingRoom> mMegaChatWaitingRoom;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
@@ -322,6 +324,81 @@ protected:
     bool mHasRequestSpeak = false;
     bool mOwnModerator = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
+};
+
+class MegaChatWaitingRoomPrivate: public MegaChatWaitingRoom
+{
+public:
+    virtual ~MegaChatWaitingRoomPrivate() override {};
+    MegaChatWaitingRoom* copy() const override
+    {
+        return new MegaChatWaitingRoomPrivate(*this);
+    }
+
+    size_t size() const override
+    {
+        return mWaitingRoomUsers ? mWaitingRoomUsers->size() : 0;
+    }
+
+    mega::MegaHandleList* getPeers() const override
+    {
+        mega::MegaHandleList* peers = mega::MegaHandleList::createInstance();
+        if (!mWaitingRoomUsers) { return peers; }
+
+        std::vector<uint64_t> aux = mWaitingRoomUsers->getPeers();
+        std::for_each(aux.begin(), aux.end(), [peers](const auto &h) { peers->addMegaHandle(h); });
+        return peers;
+    }
+
+    int getPeerStatus(const uint64_t& peerid) const override
+    {
+        if (!mWaitingRoomUsers) { return MWR_UNKNOWN; }
+        return convertIntoValidStatus(mWaitingRoomUsers->getPeerStatus(peerid));
+    }
+
+protected:
+    MegaChatWaitingRoomPrivate() = delete;
+    MegaChatWaitingRoomPrivate(const MegaChatWaitingRoomPrivate&& other) = delete;
+    MegaChatWaitingRoomPrivate& operator = (const MegaChatWaitingRoomPrivate& other) = delete;
+    MegaChatWaitingRoomPrivate& operator = (MegaChatWaitingRoomPrivate&& other) = delete;
+
+    MegaChatWaitingRoomPrivate(const rtcModule::KarereWaitingRoom& other)
+    {
+        mWaitingRoomUsers.reset(new rtcModule::KarereWaitingRoom(other));
+    }
+
+    MegaChatWaitingRoomPrivate(const MegaChatWaitingRoomPrivate& other)
+        : mWaitingRoomUsers(other.getWaitingRoomUsers()
+                                ? new rtcModule::KarereWaitingRoom(*other.getWaitingRoomUsers())
+                                : nullptr)
+    {
+    }
+
+    int convertIntoValidStatus(const int status) const
+    {
+        auto aux = static_cast<rtcModule::WrState>(status);
+        switch (aux)
+        {
+            case rtcModule::WrState::WR_NOT_ALLOWED:
+                return MWR_NOT_ALLOWED;
+                break;
+
+            case rtcModule::WrState::WR_ALLOWED:
+                return MWR_ALLOWED;
+                break;
+
+            case rtcModule::WrState::WR_UNKNOWN:
+            default:
+                return MWR_UNKNOWN;
+                break;
+        }
+    }
+
+    const rtcModule::KarereWaitingRoom* getWaitingRoomUsers() const { return mWaitingRoomUsers.get(); }
+    friend class MegaChatCallPrivate;
+private:
+
+    std::unique_ptr<rtcModule::KarereWaitingRoom> mWaitingRoomUsers;
 };
 
 class MegaChatVideoFrame

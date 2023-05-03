@@ -7471,6 +7471,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
     mTermCode = convertTermCode(call.getTermCode());
+    mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? new MegaChatWaitingRoomPrivate(*call.getWaitingRoom()) : nullptr);
     mEndCallReason = call.getEndCallReason() == rtcModule::EndCallReason::kInvalidReason
             ? MegaChatCall::END_CALL_REASON_INVALID
             : call.getEndCallReason();
@@ -7519,6 +7520,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mIsSpeakAllow = call.isSpeakAllow();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
+    mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? call.getWaitingRoom()->copy() : nullptr);
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
@@ -7738,6 +7740,11 @@ int MegaChatCallPrivate::getNetworkQuality() const
 bool MegaChatCallPrivate::hasRequestSpeak() const
 {
     return mHasRequestSpeak;
+}
+
+const MegaChatWaitingRoom* MegaChatCallPrivate::getWaitingRoom() const
+{
+    return mMegaChatWaitingRoom.get();
 }
 
 void MegaChatCallPrivate::setStatus(int status)

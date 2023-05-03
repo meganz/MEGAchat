@@ -357,6 +357,11 @@ bool MegaChatCall::hasRequestSpeak() const
     return false;
 }
 
+const MegaChatWaitingRoom* MegaChatCall::getWaitingRoom() const
+{
+    return NULL;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     pImpl = new MegaChatApiImpl(this, megaApi);

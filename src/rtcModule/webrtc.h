@@ -168,6 +168,7 @@ public:
     virtual void onWrDeny(const rtcModule::ICall& call) = 0;
 };
 
+class KarereWaitingRoom;
 class ICall
 {
 public:
@@ -235,6 +236,7 @@ public:
     virtual int64_t getInitialOffsetinMs() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
+    virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
 };
 
 class RtcModule
@@ -265,6 +267,94 @@ public:
     virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
+
+enum class WrState: int
+{
+    WR_UNKNOWN      = -1,   // client unknown joining status
+    WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+    WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
+};
+
+static bool isValidWrStatus(const WrState& value)
+{
+    return (value > WrState::WR_UNKNOWN && value <= WrState::WR_ALLOWED);
+}
+
+/**
+ * @brief This class represents waiting room users
+ *
+ * A waiting room, is effectively a list of users pending to enter a call
+ */
+class KarereWaitingRoom
+{
+public:
+    ~KarereWaitingRoom() = default;
+    KarereWaitingRoom() = default;
+    KarereWaitingRoom(const KarereWaitingRoom& other) = default;
+    KarereWaitingRoom(KarereWaitingRoom&& other) = delete;
+    KarereWaitingRoom& operator = (const KarereWaitingRoom& other) = delete;
+    KarereWaitingRoom& operator = (KarereWaitingRoom&& other) = delete;
+
+    void clear() { mWaitingRoomUsers.clear(); }
+
+    bool addOrUpdateUserStatus(const uint64_t& userid, const int& status)
+    {
+        if (!isValidWrStatus(static_cast<WrState>(status)))
+        {
+            assert(false);
+            return false;
+        }
+
+        mWaitingRoomUsers[userid] = static_cast<WrState>(status);
+        return true;
+    }
+
+    bool removeUser(const uint64_t& userid)
+    {
+        return mWaitingRoomUsers.erase(userid);
+    }
+
+    bool updateUsers(const std::set<karere::Id>& users, const WrState& status)
+    {
+        if (!isValidWrStatus(status) || users.empty())
+        {
+            return false;
+        }
+
+        std::for_each(users.begin(), users.end(), [this, &status](const auto &u)
+        {
+            mWaitingRoomUsers[u.val] = static_cast<WrState>(status);
+        });
+
+        return true;
+    }
+
+    size_t size() const { return mWaitingRoomUsers.size(); }
+
+    std::vector<uint64_t> getPeers() const
+    {
+        std::vector<uint64_t> keys;
+        keys.reserve(mWaitingRoomUsers.size());
+        std::transform(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(),
+                       std::back_inserter(keys), [](const auto& pair) { return pair.first; });
+
+        return keys;
+    }
+
+    int getPeerStatus(const uint64_t& peerid) const
+    {
+        const auto& it = mWaitingRoomUsers.find(peerid);
+        if (it == mWaitingRoomUsers.end())
+        {
+            return static_cast<int>(WrState::WR_UNKNOWN);
+        }
+
+        return static_cast<int>(it->second);
+    }
+
+private:
+    std::map<uint64_t, WrState> mWaitingRoomUsers;
+};
 
 
 void globalCleanup();
