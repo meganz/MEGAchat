@@ -6008,7 +6008,7 @@ public:
      * @param users
      * @param listener
      */
-    void kickUsersFromCall(mega::MegaHandleList* users, MegaChatRequestListener* listener = NULL);
+    void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = NULL);
 
     void requestJoinPermission(MegaChatHandle chatid, MegaChatRequestListener* listener = NULL);
     /**

@@ -2651,7 +2651,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             std::set<karere::Id> users;
-            for (unsigned int i = 0; handleList->size(); ++i)
+            for (unsigned int i = 0; i < handleList->size(); ++i)
             {
                 users.emplace(handleList->get(i));
             }
@@ -5665,9 +5665,10 @@ void MegaChatApiImpl::allowUsersJoinCall(MegaChatHandle chatid, const MegaHandle
     waiter->notify();
 }
 
-void MegaChatApiImpl::kickUsersFromCall(MegaHandleList* users, MegaChatRequestListener* listener)
+void MegaChatApiImpl::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_KICK, listener);
+    request->setChatHandle(chatid);
     request->setMegaHandleList(users);
     requestQueue.push(request);
     waiter->notify();
