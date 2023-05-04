@@ -412,6 +412,8 @@ public:
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
     WrState getWrJoiningState();
+    bool isValidWrJoiningState();
+    void clearWrJoiningState();
     void setWrJoiningState(WrState status);
     void setPrevCid(Cid_t prevcid);
     Cid_t getPrevCid();
@@ -435,6 +437,7 @@ public:
     void generateEphemeralKeyPair();
     void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
     bool addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent);
+    void pushIntoWr(const TermCode& termCode);
 
     // parse received ephemeral public key string (publickey:signature)
     std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;

@@ -723,6 +723,7 @@ public:
     void onWrDeny(const rtcModule::ICall& call) override;
     void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
+    void onWrPushedFromCall(const rtcModule::ICall& call) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;

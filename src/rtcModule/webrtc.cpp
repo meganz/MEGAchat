@@ -461,6 +461,11 @@ WrState Call::getWrJoiningState()
     return mWrJoiningState;
 }
 
+bool Call::isValidWrJoiningState()
+{
+    return mWrJoiningState == WrState::WR_NOT_ALLOWED || mWrJoiningState == WrState::WR_ALLOWED;
+}
+
 TermCode Call::getTermCode() const
 {
     return mTermCode;
@@ -485,6 +490,11 @@ void Call::setWrJoiningState(WrState status)
     }
 
     mWrJoiningState = status;
+}
+
+void Call::clearWrJoiningState()
+{
+    mWrJoiningState = WrState::WR_NOT_ALLOWED;
 }
 
 void Call::setPrevCid(Cid_t prevcid)
@@ -1115,6 +1125,7 @@ void Call::clearResources(const TermCode& termCode)
     mHiRes.reset();
     mAudio.reset();
     mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video local tracks
+    clearWrJoiningState();
     if (!isDisconnectionTermcode(termCode))
     {
         resetLocalAvFlags();        // reset local AvFlags: Audio | Video | OnHold => disabled
@@ -2018,27 +2029,33 @@ bool Call::handleBye(const unsigned& termCode, bool& wr, std::string& errMsg)
         return false;
     }
 
-    if (wr)
+    if (wr) // we have been moved into a waiting room
     {
-        assert(getWrJoiningState() != WrState::WR_UNKNOWN);
-        // TODO complete
+        if (!isValidWrJoiningState())
+        {
+            RTCM_LOG_ERROR("handleBye: wr received but our current WrJoiningState is not valid");
+            assert(false);
+            return false;
+        }
+        pushIntoWr(auxTermCode);
     }
-
-    EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
-    if (reason == kInvalidReason)
+    else
     {
-        RTCM_LOG_ERROR("Invalid end call reason for termcode [%d]", termCode);
-        assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
+        EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
+        if (reason == kInvalidReason)
+        {
+            RTCM_LOG_ERROR("Invalid end call reason for termcode [%d]", termCode);
+            assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
+        }
+
+        auto wptr = weakHandle();
+        karere::marshallCall([wptr, auxTermCode, reason, this]()
+        {
+            RTCM_LOG_DEBUG("Immediate removing call due to BYE [%d] command received from SFU", auxTermCode);
+            setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
+            mRtc.immediateRemoveCall(this, reason, auxTermCode);
+        }, mRtc.getAppCtx());
     }
-
-    auto wptr = weakHandle();
-    karere::marshallCall([wptr, auxTermCode, reason, this]()
-    {
-        RTCM_LOG_DEBUG("Immediate removing call due to BYE [%d] command received from SFU", auxTermCode);
-        setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
-        mRtc.immediateRemoveCall(this, reason, auxTermCode);
-    }, mRtc.getAppCtx());
-
     return true;
 }
 
@@ -2562,6 +2579,21 @@ bool Call::addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent
         mWaitingRoom->addOrUpdateUserStatus(u.first, u.second);
     });
     return true;
+}
+
+void Call::pushIntoWr(const TermCode& termCode)
+{
+    if (mSfuConnection && mSfuConnection->isOnline())
+    {
+        sendStats(termCode); //send stats
+    }
+
+    // keep mSfuConnection intact just disconnect from media channel
+    mediaChannelDisconnect(true /*releaseDevices*/);
+    clearResources(termCode);
+    mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
+    setState(CallState::kInWaitingRoom);
+    mCallHandler.onWrPushedFromCall(*this);
 }
 
 Keyid_t Call::generateNextKeyId()

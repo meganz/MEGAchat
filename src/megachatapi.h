@@ -493,6 +493,7 @@ public:
         CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted permissions to enter the call.
         CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied permissions to enter the call.
         CHANGE_TYPE_WR_ALLOW_REQ = 0x40000,         /// Notify about a user that have requested permission to enter the call
+        CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X80000   /// We have been pushed into a waiting room
     };
 
     enum
@@ -683,9 +684,12 @@ public:
      * (check MegaChatCall::getHandleList to get users that have been denied permissions to enter the call.
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
-     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW = 0x40000
+     * - MegaChatCall::CHANGE_TYPE_WR_ALLOW_REQ = 0x40000
      * Notify about users that have requested permission to enter the call.
      * (check MegaChatCall::getHandleList to get users that have requested permission to enter the call.
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x80000
+     * We have been pushed into a waiting room
      *
      * @return a bit field with the changes of the call
      */
@@ -765,9 +769,12 @@ public:
      * (check MegaChatCall::getHandleList to get users that have been denied permissions to enter the call.
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
-     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW = 0x40000
+     * - MegaChatCall::CHANGE_TYPE_WR_ALLOW_REQ = 0x40000
      * Notify about users that have requested permission to enter the call.
      * (check MegaChatCall::getHandleList to get users that have requested permission to enter the call.
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x80000
+     * We have been pushed into a waiting room
      *
      * @return true if this call has an specific change
      */
