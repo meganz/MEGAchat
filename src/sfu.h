@@ -580,6 +580,7 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_WR_PUSH;
     static const std::string CSFU_WR_ALLOW;
     static const std::string CSFU_WR_KICK;
+    static const std::string CSFU_WR_ALLOW_REQ;
 
 public:
     enum ConnState
@@ -636,6 +637,7 @@ public:
     bool sendWrPush(const std::set<karere::Id>& users, const bool all);
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
+    bool sendWrAllowReq();
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
 
 protected:

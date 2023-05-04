@@ -221,6 +221,7 @@ public:
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
+    virtual void requestJoinPermission() const = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;

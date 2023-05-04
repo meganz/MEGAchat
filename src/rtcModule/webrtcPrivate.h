@@ -335,6 +335,7 @@ public:
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
     void kickUsersFromCall(const std::set<karere::Id>& users) const override;
+    void requestJoinPermission() const override;
 
     void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;

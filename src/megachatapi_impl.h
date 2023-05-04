@@ -119,7 +119,7 @@ public:
     void setText(const char *text);
     void setMegaChatMessage(MegaChatMessage *message);
     void setMegaNodeList(mega::MegaNodeList *nodelist);
-    void setMegaHandleList(mega::MegaHandleList *handlelist);
+    void setMegaHandleList(const mega::MegaHandleList* handlelist);
     void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
     void setStringMap(mega::MegaStringMap* stringMap);
@@ -1596,9 +1596,10 @@ public:
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
-    void pushUsersIntoWaitingRoom(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
-    void allowUsersJoinCall(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
+    void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
+    void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void kickUsersFromCall(mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
+    void requestJoinPermission(MegaChatHandle chatid, MegaChatRequestListener* listener);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);

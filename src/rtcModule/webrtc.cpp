@@ -657,6 +657,12 @@ void Call::kickUsersFromCall(const std::set<karere::Id>& users) const
     mSfuConnection->sendWrKick(users);
 }
 
+void Call::requestJoinPermission() const
+{
+    assert(!isOwnPrivModerator());
+    mSfuConnection->sendWrAllowReq();
+}
+
 std::vector<Cid_t> Call::getSpeakerRequested()
 {
     std::vector<Cid_t> speakerRequested;
@@ -2124,7 +2130,6 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     }
     else
     {
-        setState(CallState::kInWaitingRoom);
         setWrJoiningState(allowed ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED);
         if (allowed)
         {
@@ -2132,7 +2137,9 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
         }
         else
         {
-            assert(!isOwnPrivModerator());  // must wait in waiting room until a moderator allow to access
+            // must wait in waiting room until a moderator allow to access
+            assert(!isOwnPrivModerator());
+            setState(CallState::kInWaitingRoom);
         }
 
         // store moderators list and notify app
@@ -2558,7 +2565,6 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
 bool Call::addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent)
 {
-    assert(isOwnPrivModerator());
     if (!mWaitingRoom)
     {
         mWaitingRoom.reset(new KarereWaitingRoom());

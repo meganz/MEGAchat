@@ -2271,6 +2271,7 @@ public:
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
         TYPE_UPDATE_SCHEDULED_MEETING, TYPE_WR_PUSH, TYPE_WR_ALLOW, TYPE_WR_KICK,
+        TYPE_WR_REQUEST_JOIN_PERM,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -5992,7 +5993,7 @@ public:
      * @param all
      * @param listener
      */
-    void pushUsersIntoWaitingRoom(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener);
+    void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief allowUsersJoinCall
@@ -6000,15 +6001,16 @@ public:
      * @param all
      * @param listener
      */
-    void allowUsersJoinCall(mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener);
+    void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief kickUsersFromCall
      * @param users
      * @param listener
      */
-    void kickUsersFromCall(mega::MegaHandleList* users, MegaChatRequestListener* listener);
+    void kickUsersFromCall(mega::MegaHandleList* users, MegaChatRequestListener* listener = NULL);
 
+    void requestJoinPermission(MegaChatHandle chatid, MegaChatRequestListener* listener = NULL);
     /**
      * @brief Set/unset a call on hold
      *
