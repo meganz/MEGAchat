@@ -201,6 +201,14 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 itemController->getMeetingView()->setConnecting();
                 break;
             }
+            case megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM:
+            {
+                MeetingView* meetingView = itemController->getMeetingView();
+                if (meetingView)
+                {
+                    meetingView->updateLabel(call);
+                }
+            }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
                 assert(itemController->getMeetingView());
@@ -298,6 +306,32 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         // TODO: complete
     }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_ALLOW_REQ))
+    {
+        const ::mega::MegaHandleList* hl = call->getHandleList();
+        if (hl && hl->size())
+        {
+            auto h = hl->get(0);
+            std::string peerTxt;
+            std::unique_ptr<MegaChatRoom>room (mMegaChatApi->getChatRoom(call->getChatid()));
+            if (room && room->getPeerEmailByHandle(h))
+            {
+                peerTxt.assign(room->getPeerEmailByHandle(h));
+            }
+            else
+            {
+                std::unique_ptr<char[]> handle_64(mMegaApi->userHandleToBase64(h));
+                peerTxt.assign(handle_64 ? handle_64.get(): "[INVALID USER HANDLE]");
+            }
+            std::string res = mApp->getText("Do you want to allow access to " + peerTxt + "?");
+            if (!res.compare("Y"))
+            {
+                mMegaChatApi->allowUsersJoinCall(call->getChatid(), hl, false);
+            }
+        }
+    }
+
 }
 
 void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)

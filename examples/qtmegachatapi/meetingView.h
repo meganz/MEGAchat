@@ -73,6 +73,7 @@ protected:
     QPushButton* mSetOnHold;
     QPushButton* mJoinCallWithVideo;
     QPushButton* mJoinCallWithoutVideo;
+    QPushButton* mRequestJoinPerm;
     QLabel* mOnHoldLabel;
     QLabel* mLabel;
 
@@ -97,6 +98,7 @@ public slots:
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();
+    void onRequestJoinPermission();
 };
 
 #endif // MEETINGVIEW_H

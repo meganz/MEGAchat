@@ -68,6 +68,9 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mOnHoldLabel->setVisible(false);
     mSetOnHold->setVisible(false);
 
+    mRequestJoinPerm = new QPushButton("Request Join permission", this);
+    connect(mRequestJoinPerm, SIGNAL(clicked()), this, SLOT(onRequestJoinPermission()));
+    mRequestJoinPerm->setVisible(true);
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -100,6 +103,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mOnHoldLabel);
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
+    mButtonsLayout->addWidget(mRequestJoinPerm);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -134,6 +138,11 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append(std::to_string(call->getNumParticipants()))
             .append("  State: ")
             .append(callStateToString(*call));
+
+    if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM)
+    {
+        txt.append("<br /><span style='color:#A30010'>WAITING ROOM</span>");
+    }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
     {
@@ -355,8 +364,11 @@ void MeetingView::addSession(const megachat::MegaChatSession &session)
     MeetingSession *widget = new MeetingSession(this, session);
     QListWidgetItem *item = new QListWidgetItem();
     item->setData(Qt::UserRole, data);
-    item->setSizeHint(QSize(item->sizeHint().height(), 35));
+
+    int itemHeight = 35; // Set the desired height of the item
+    item->setSizeHint(QSize(item->sizeHint().width(), itemHeight));
     widget->setWidgetItem(item);
+    widget->setFixedSize(QSize(widget->sizeHint().width(), itemHeight)); // Set the fixed size of the widget
     mListWidget->insertItem(static_cast<int>(mSessionWidgets.size()), item);
     mListWidget->setItemWidget(item, widget);
     assert(mSessionWidgets.find(static_cast<uint32_t>(session.getClientid())) == mSessionWidgets.end());
@@ -532,6 +544,8 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string stopHiRes("Stop hiRes");
     std::string approveSpeak("Approve Speak");
     std::string rejectSpeak("Reject Speak");
+    std::string pushWr("Push waiting room");
+    std::string kickWr("Kick waiting room");
     submenu.addAction(requestThumb.c_str());
 
     QMenu *hiResMenuQuality = submenu.addMenu("Request hiRes with quality");
@@ -582,6 +596,10 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
            submenu.addAction(approveSpeak.c_str());
            submenu.addAction(rejectSpeak.c_str());
        }
+
+       QMenu* wrMenu = submenu.addMenu("Waiting Room management");
+       wrMenu->addAction(pushWr.c_str());
+       wrMenu->addAction(kickWr.c_str());
     }
 
     QAction* rightClickItem = submenu.exec(globalPoint);
@@ -620,6 +638,26 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
             std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
             handleList->addMegaHandle(cid);
             mMegaChatApi.stopHiResVideo(mChatid, handleList.get());
+        }
+        else if (rightClickItem->text().contains(pushWr.c_str()))
+        {
+            megachat::MegaChatSession* sess = call->getMegaChatSession(cid);
+            if (sess)
+            {
+                std::unique_ptr<mega::MegaHandleList> l(mega::MegaHandleList::createInstance());
+                l->addMegaHandle(sess->getPeerid());
+                mMegaChatApi.pushUsersIntoWaitingRoom(call->getChatid(), l.get(), false);
+            }
+        }
+        else if (rightClickItem->text().contains(kickWr.c_str()))
+        {
+            megachat::MegaChatSession* sess = call->getMegaChatSession(cid);
+            if (sess)
+            {
+                std::unique_ptr<mega::MegaHandleList> l(mega::MegaHandleList::createInstance());
+                l->addMegaHandle(sess->getPeerid());
+                mMegaChatApi.kickUsersFromCall(call->getChatid(), l.get());
+            }
         }
     }
 }
@@ -693,6 +731,10 @@ void MeetingView::onJoinCallWithVideo()
     mMegaChatApi.startChatCall(mChatid);
 }
 
+void MeetingView::onRequestJoinPermission()
+{
+    mMegaChatApi.requestJoinPermission(mChatid);
+}
 void MeetingView::onJoinCallWithoutVideo()
 {
     mMegaChatApi.startChatCall(mChatid, false);
