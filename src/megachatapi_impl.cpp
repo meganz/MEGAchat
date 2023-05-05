@@ -2742,6 +2742,10 @@ void MegaChatApiImpl::sendPendingRequests()
                     || request->getMegaChatScheduledMeetingList()->size() != 1)
             {
                 errorCode = MegaChatError::ERROR_ARGS;
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 1 (list %s, size %ul): %d",
+                              (request->getMegaChatScheduledMeetingList() ? "not-null" : "NULL"),
+                              (request->getMegaChatScheduledMeetingList() ? request->getMegaChatScheduledMeetingList()->size() : 0u),
+                              errorCode);
                 break;
             }
 
@@ -2751,6 +2755,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     ocurr->cancelled() == -1)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 2 (bad startDateTime, endDateTime, cancelled): %d", errorCode);
                 break;
             }
 
@@ -2758,6 +2763,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (!chatroom)
             {
                 errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 3 (chatroom not found): %d", errorCode);
                 break;
             }
 
@@ -2768,6 +2774,7 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 // scheduled meeting related to occurrence we want to modify, doesn't exists
                 errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 4 (scheduled meeting not found): %d", errorCode);
                 break;
             }
             const KarereScheduledMeeting* occurrSchedMeeting = it->second.get();
@@ -2800,7 +2807,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     mClient->fetchScheduledMeetingOccurrences(ocurr->chatId(), now /*since*/, MEGACHAT_INVALID_TIMESTAMP /*until*/, MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
                     .then([](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> /*result*/)
                     {
-                        API_LOG_ERROR("Newer scheduled meetings occurrences retrieved successfully");
+                        API_LOG_ERROR("Newer scheduled meetings occurrences retrieved successfully"); // is this an error ?
                     })
                     .fail([](const ::promise::Error& err)
                     {
@@ -2808,6 +2815,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     });
                 }
                 errorCode = MegaChatError::ERROR_NOENT;
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 5 (scheduled meeting occurrence not found): %d", errorCode);
                 break;
             }
 
