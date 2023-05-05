@@ -111,8 +111,8 @@ void Call::setState(CallState newState)
                  Call::stateToStr(mState),
                  Call::stateToStr(newState));
 
-
-    if (newState >= CallState::kStateTerminatingUserParticipation && mConnectTimer)
+    if (mConnectTimer && (newState == CallState::kInWaitingRoom
+                          || newState >= CallState::kStateTerminatingUserParticipation))
     {
         karere::cancelTimeout(mConnectTimer, mRtc.getAppCtx());
         mConnectTimer = 0;
@@ -126,8 +126,8 @@ void Call::setState(CallState newState)
             if (wptr.deleted())
                 return;
 
-            assert(mState < CallState::kStateInProgress || !mConnectTimer); // if call state >= kStateInProgress mConnectTimer must be 0
-            if (mState < CallState::kStateInProgress)
+            assert(mState <= CallState::kInWaitingRoom || !mConnectTimer); // if call state >= kStateInProgress mConnectTimer must be 0
+            if (mState < CallState::kInWaitingRoom)
             {
                 mConnectTimer = 0;
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
