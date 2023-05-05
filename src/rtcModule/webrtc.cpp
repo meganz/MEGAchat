@@ -2047,20 +2047,29 @@ bool Call::handleBye(const unsigned& termCode, bool& wr, std::string& errMsg)
     }
     else
     {
-        EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
-        if (reason == kInvalidReason)
+        if (auxTermCode == kKickedFromWaitingRoom)
         {
-            RTCM_LOG_ERROR("Invalid end call reason for termcode [%d]", termCode);
-            assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
+            RTCM_LOG_DEBUG("handleBye: immediate call disconnect due to BYE [%d] command received from SFU (kKickedFromWaitingRoom)", termCode);
+            immediateCallDisconnect(auxTermCode); // we don't need to send BYE command, just perform disconnection
+            return true;
         }
-
-        auto wptr = weakHandle();
-        karere::marshallCall([wptr, auxTermCode, reason, this]()
+        else
         {
-            RTCM_LOG_DEBUG("Immediate removing call due to BYE [%d] command received from SFU", auxTermCode);
-            setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
-            mRtc.immediateRemoveCall(this, reason, auxTermCode);
-        }, mRtc.getAppCtx());
+            EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
+            if (reason == kInvalidReason)
+            {
+                RTCM_LOG_ERROR("Invalid end call reason for termcode [%d]", termCode);
+                assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
+            }
+
+            auto wptr = weakHandle();
+            karere::marshallCall([wptr, auxTermCode, reason, this]()
+            {
+                RTCM_LOG_DEBUG("Immediate removing call due to BYE [%d] command received from SFU", auxTermCode);
+                setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
+                mRtc.immediateRemoveCall(this, reason, auxTermCode);
+            }, mRtc.getAppCtx());
+        }
     }
     return true;
 }
