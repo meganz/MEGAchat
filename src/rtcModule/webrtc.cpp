@@ -2130,16 +2130,14 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     }
     else
     {
+        // set kInWaitingRoom state, even if we are allowed to JOIN. Just if we are not allowed,
+        // we must wait in waiting room until a moderator allow to access, otherwise we can continue with JOIN
+        assert(allowed || !isOwnPrivModerator());
+        setState(CallState::kInWaitingRoom);
         setWrJoiningState(allowed ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED);
         if (allowed)
         {
             joinSfu();
-        }
-        else
-        {
-            // must wait in waiting room until a moderator allow to access
-            assert(!isOwnPrivModerator());
-            setState(CallState::kInWaitingRoom);
         }
 
         // store moderators list and notify app

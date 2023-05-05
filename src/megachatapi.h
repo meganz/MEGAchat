@@ -451,6 +451,7 @@ public:
  *  - CALL_STATUS_INITIAL
  *  - CALL_STATUS_USER_NO_PRESENT
  *  - CALL_STATUS_CONNECTING
+ *  - CALL_STATUS_WAITING_ROOM
  *  - CALL_STATUS_JOINING
  *  - CALL_STATUS_IN_PROGRESS
  *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION
@@ -464,8 +465,8 @@ public:
         CALL_STATUS_INITIAL = 0,                        /// Initial state
         CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call or you haven't answered the call yet
         CALL_STATUS_CONNECTING,                         /// Intermediate state, while connection sfu is established
-        CALL_STATUS_JOINING,                            /// In this state configure connection with SFU
         CALL_STATUS_WAITING_ROOM,                       /// User is in the waiting room
+        CALL_STATUS_JOINING,                            /// In this state configure connection with SFU
         CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication with SFU
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
         CALL_STATUS_DESTROYED,                          /// Call is finished and resources can be released
@@ -577,10 +578,11 @@ public:
      *  - CALL_STATUS_INITIAL = 0
      *  - CALL_STATUS_USER_NO_PRESENT = 1
      *  - CALL_STATUS_CONNECTING = 2
-     *  - CALL_STATUS_JOINING = 3
-     *  - CALL_STATUS_IN_PROGRESS = 4
-     *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION = 5
-     *  - CALL_STATUS_DESTROYED = 6
+     *  - CALL_STATUS_WAITING_ROOM = 3
+     *  - CALL_STATUS_JOINING = 4
+     *  - CALL_STATUS_IN_PROGRESS = 5
+     *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION = 6
+     *  - CALL_STATUS_DESTROYED = 7
      */
     virtual int getStatus() const;
 

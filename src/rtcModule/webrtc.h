@@ -61,8 +61,8 @@ enum CallState: uint8_t
     kStateInitial = 0,                  // < Call object was initialised
     kStateClientNoParticipating,        // < User is not partipating in the call
     kStateConnecting,                   // < Connecting to SFU
-    kStateJoining,                      // < Joining a call
     kInWaitingRoom,                     // < In a waiting room
+    kStateJoining,                      // < Joining a call
     kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
     kStateDestroyed,                    // < Call object is not valid anymore, the call is removed from the system

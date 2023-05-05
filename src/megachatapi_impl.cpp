@@ -7844,11 +7844,11 @@ int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)
         case rtcModule::CallState::kStateConnecting:
             state = MegaChatCall::CALL_STATUS_CONNECTING;
             break;
-        case rtcModule::CallState::kStateJoining:
-            state = MegaChatCall::CALL_STATUS_JOINING;
-            break;
         case rtcModule::CallState::kInWaitingRoom:
             state = MegaChatCall::CALL_STATUS_WAITING_ROOM;
+            break;
+        case rtcModule::CallState::kStateJoining:
+            state = MegaChatCall::CALL_STATUS_JOINING;
             break;
         case rtcModule::CallState::kStateInProgress:
             state = MegaChatCall::CALL_STATUS_IN_PROGRESS;
