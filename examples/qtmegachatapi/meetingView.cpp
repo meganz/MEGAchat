@@ -71,6 +71,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mRequestJoinPerm = new QPushButton("Request Join permission", this);
     connect(mRequestJoinPerm, SIGNAL(clicked()), this, SLOT(onRequestJoinPermission()));
     mRequestJoinPerm->setVisible(true);
+
+    mWaitingRoomShow = new QPushButton("Show waiting room", this);
+    connect(mWaitingRoomShow, SIGNAL(clicked()), this, SLOT(onWrShow()));
+    mWaitingRoomShow->setVisible(true);
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -104,6 +108,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
     mButtonsLayout->addWidget(mRequestJoinPerm);
+    mButtonsLayout->addWidget(mWaitingRoomShow);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -735,6 +740,40 @@ void MeetingView::onRequestJoinPermission()
 {
     mMegaChatApi.requestJoinPermission(mChatid);
 }
+
+void MeetingView::onWrShow()
+{
+    std::string wrText = "<br /><span style='color:#A30010'>NO WAITING ROOM</span>";
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (call && call->getWaitingRoom())
+    {
+        wrText.assign("<br /><span style='color:#A30010'>EMPTY WAITING ROOM</span>");
+        const megachat::MegaChatWaitingRoom* wr = call->getWaitingRoom();
+        std::unique_ptr<mega::MegaHandleList>wrPeers(wr->getPeers());
+        if (wrPeers && wrPeers->size())
+        {
+            wrText.clear();
+            for (size_t i= 0; i < wrPeers->size(); ++i)
+            {
+                ::mega::MegaHandle h = wrPeers->get(static_cast<unsigned int>(i));
+                mega::unique_ptr<const char[]>b64handle(::mega::MegaApi::userHandleToBase64(h));
+                wrText.append(b64handle.get());
+                wrText.append(" : ");
+                wrText.append(wr->getPeerStatus(h) == megachat::MegaChatWaitingRoom::MWR_ALLOWED
+                                  ? "<span style='color:#00A310'>"
+                                  : "<span style='color:#A30010'>");
+                wrText.append(megachat::MegaChatWaitingRoom::peerStatusToString(wr->getPeerStatus(h)));
+                wrText.append("</span><br />");
+            }
+        }
+    }
+
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(wrText.c_str());
+    msg.exec();
+}
+
 void MeetingView::onJoinCallWithoutVideo()
 {
     mMegaChatApi.startChatCall(mChatid, false);

@@ -8466,6 +8466,17 @@ public:
      * @return The waiting room joining status for the specified peer
      */
     virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
+
+    static const char* peerStatusToString(int status)
+    {
+        switch (status)
+        {
+            case MWR_NOT_ALLOWED: return "Not allowed to join";
+            case MWR_ALLOWED:     return "Allowed to join";
+            case MWR_UNKNOWN:     return "Unknown join status";
+            default:              return "Unknown join status";
+        }
+    }
 };
 
 }
