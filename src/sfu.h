@@ -1,7 +1,6 @@
 #ifndef KARERE_DISABLE_WEBRTC
 #ifndef SFU_H
 #define SFU_H
-#include <optional>
 #include <thread>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
@@ -21,7 +20,7 @@
 
 namespace sfu
 {
-/** SFU Protocol Version:
+/** SFU Protocol Versions:
  * - Version 0: initial version
  *
  * - Version 1 (never released for native clients):
@@ -32,13 +31,25 @@ namespace sfu
  * - Version 2 (contains all features from V1):
  *      + Change AES-GCM by AES-CBC with Zero iv
  */
-static const unsigned int mSfuProtoVersion = 2;
+enum class SfuProtocol: uint32_t
+{
+    SFU_PROTO_INVAL    = UINT32_MAX,
+    SFU_PROTO_V0       = 0,
+    SFU_PROTO_V1       = 1,
+    SFU_PROTO_V2       = 2,
+};
 
-/* Invalid SFU protocol version */
-static constexpr unsigned int sfuInvalidProtocol = UINT32_MAX;
+// own client SFU protocol version
+constexpr unsigned int MY_SFU_PROTOCOL_VERSION = static_cast<unsigned int>(SfuProtocol::SFU_PROTO_V2);
 
-/* Gets the current SFU protocol version for our client */
-static unsigned int getMySfuVersion() { return mSfuProtoVersion; }
+// returns true if provided version as param is equal to SFU current version
+static bool isCurrentSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) == SfuProtocol::SFU_PROTO_V2; }
+
+// returns true if provided version as param is SFU version V0 (forward secrecy is not supported)
+static bool isInitialSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) == SfuProtocol::SFU_PROTO_V0; }
+
+// returns true if provided version as param is a valid SFU version
+static bool isValidSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) != SfuProtocol::SFU_PROTO_INVAL; }
 
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
@@ -59,13 +70,13 @@ public:
 class Peer
 {
 public:
-    Peer(const karere::Id peerid, unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
+    Peer(const karere::Id& peerid, const unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
     void setCid(Cid_t cid);    // called from handleAnswerCommand() only for setting cid of Call::mMyPeer
 
-    karere::Id getPeerid() const;
+    const karere::Id& getPeerid() const;
 
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
@@ -83,7 +94,7 @@ public:
     void setEphemeralPubKeyDerived(const std::string& key);
 
     // returns derived peer's ephemeral key if available
-    std::optional<std::string> getEphemeralPubKeyDerived() const;
+    std::string getEphemeralPubKeyDerived() const;
 
     // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
     const promise::Promise<void>& getEphemeralPubKeyPms() const;
@@ -92,7 +103,7 @@ public:
     unsigned int getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
 
 protected:
-    Cid_t mCid = kInvalidCid;
+    Cid_t mCid = K_INVALID_CID;
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
@@ -123,7 +134,7 @@ protected:
     mutable promise::Promise<void> mEphemeralKeyPms;
 
     // SFU protocol version used by the peer
-    unsigned int mSfuPeerProtoVersion = sfu::sfuInvalidProtocol;
+    unsigned int mSfuPeerProtoVersion = static_cast<unsigned int>(sfu::SfuProtocol::SFU_PROTO_INVAL);
 };
 
 class TrackDescriptor
@@ -203,7 +214,7 @@ class SfuInterface
 public:
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
-    virtual bool handleAnswerCommand(Cid_t cid, Sdp& spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
     virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
@@ -247,10 +258,10 @@ class Command
 {
 public:
     virtual bool processCommand(const rapidjson::Document& command) = 0;
-    static std::string COMMAND_IDENTIFIER;
-    static std::string ERROR_IDENTIFIER;
-    static std::string WARN_IDENTIFIER;
-    static std::string ERROR_MESSAGE;
+    static const std::string COMMAND_IDENTIFIER;
+    static const std::string ERROR_IDENTIFIER;
+    static const std::string WARN_IDENTIFIER;
+    static const std::string ERROR_MESSAGE;
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
@@ -279,7 +290,7 @@ public:
 class AnswerCommand : public Command
 {
 public:
-    typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -449,16 +460,17 @@ public:
     ModDelCommandFunction mComplete;
 };
 
-typedef std::function<bool(const Cid_t userid,
-                           const unsigned int nAudioTracks,
-                           const unsigned int nVideoTracks,
-                           const std::set<karere::Id>& mods,
-                           const bool wr,
-                           const bool allowed,
-                           const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
 class HelloCommand : public Command
 {
 public:
+    typedef std::function<bool(const Cid_t userid,
+                               const unsigned int nAudioTracks,
+                               const unsigned int nVideoTracks,
+                               const std::set<karere::Id>& mods,
+                               const bool wr,
+                               const bool allowed,
+                               const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
+
     HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -685,7 +697,7 @@ protected:
     // This flag is set true when BYE command is sent to SFU
     bool mIsSendingBye = false;
 
-    Cid_t mMyCid = kInvalidCid;
+    Cid_t mMyCid = K_INVALID_CID;
 
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;
@@ -706,8 +718,8 @@ class SfuClient
 public:
     SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings);
 
-    SfuConnection *createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface& call, DNScache &dnsCache);
-    void closeSfuConnection(karere::Id chatid); // does NOT retry the connection afterwards (used for errors/disconnects)
+    SfuConnection *createSfuConnection(const karere::Id& chatid, karere::Url&& sfuUrl, SfuInterface& call, DNScache &dnsCache);
+    void closeSfuConnection(const karere::Id& chatid); // does NOT retry the connection afterwards (used for errors/disconnects)
     void retryPendingConnections(bool disconnect);
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();

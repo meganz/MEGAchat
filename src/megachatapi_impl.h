@@ -124,6 +124,9 @@ public:
     void setParamType(int paramType);
     void setStringMap(mega::MegaStringMap* stringMap);
 
+private:
+    mega::MegaHandleList *doGetMegaHandleListByChat(MegaChatHandle chatid);
+
 protected:
     int mType;
     int mTag;
@@ -284,14 +287,12 @@ public:
 
     int availableAudioSlots();
     int availableVideoSlots();
-    void setPeerid(karere::Id peerid, bool added);
-    bool isParticipating(karere::Id userid);
-    void setId(karere::Id callid);
-    void setCaller(karere::Id caller);
+    void setPeerid(const karere::Id& peerid, bool added);
+    bool isParticipating(const karere::Id& userid) const;
+    void setId(const karere::Id& callid);
+    void setCaller(const karere::Id& caller);
     void setHandleList(const mega::MegaHandleList* handleList);
-    const mega::MegaHandleList* getHandleList() const;
-
-
+    const mega::MegaHandleList* getHandleList() const override;
     void setNotificationType(int notificationType);
     void setTermCode(int termCode);
     void setMessage(const std::string &errMsg);
@@ -417,7 +418,7 @@ class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
 {
 public:
     // no peerid --> local video from own user
-    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, karere::Id chatid, rtcModule::VideoResolution videoResolution, uint32_t clientId = 0);
+    MegaChatVideoReceiver(MegaChatApiImpl *chatApi, const karere::Id& chatid, rtcModule::VideoResolution videoResolution, uint32_t clientId = 0);
     ~MegaChatVideoReceiver();
 
     void setWidth(int width);
@@ -662,13 +663,13 @@ public:
 
     void fireOnAttachmentReceived(MegaChatMessage *message);
     void fireOnAttachmentLoaded(MegaChatMessage *message);
-    void fireOnAttachmentDeleted(karere::Id id);
-    void fireOnTruncate(karere::Id id);
+    void fireOnAttachmentDeleted(const karere::Id& id);
+    void fireOnTruncate(const karere::Id& id);
 
-    virtual void onReceived(chatd::Message* msg, chatd::Idx idx);
-    virtual void onLoaded(chatd::Message* msg, chatd::Idx idx);
-    virtual void onDeleted(karere::Id id);
-    virtual void onTruncated(karere::Id id);
+    void onReceived(chatd::Message* msg, chatd::Idx idx) override;
+    void onLoaded(chatd::Message* msg, chatd::Idx idx) override;
+    void onDeleted(karere::Id id) override;
+    void onTruncated(karere::Id id) override;
 
     void addMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener);
     void removeMegaNodeHistoryListener(MegaChatNodeHistoryListener *listener);
@@ -951,10 +952,10 @@ public:
     MegaChatScheduledFlagsPrivate& operator=(const MegaChatScheduledFlagsPrivate&&) = delete;
 
     void reset() override;
-    void setEmailsDisabled(bool enabled) override;
+    void setSendEmails(bool enabled) override;
 
     unsigned long getNumericValue() const;
-    bool emailsDisabled() const override;
+    bool sendEmails() const override;
     bool isEmpty() const override;
 
     MegaChatScheduledFlagsPrivate* copy() const override { return new MegaChatScheduledFlagsPrivate(this); }
@@ -1280,7 +1281,7 @@ public:
     virtual ~MegaChatApiImpl();
 
     using SdkMutexGuard = std::unique_lock<std::recursive_mutex>;   // (equivalent to typedef)
-    std::recursive_mutex sdkMutex;
+    mutable std::recursive_mutex sdkMutex;
     std::recursive_mutex videoMutex;
     mega::Waiter *waiter;
 private:
@@ -1332,7 +1333,7 @@ private:
 
     static int convertInitState(int state);
     static int convertDbError(int errCode);
-    bool isChatroomFromType(const karere::ChatRoom& chat, int type);
+    bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);
@@ -1480,7 +1481,8 @@ public:
     MegaChatRoomList* getChatRoomsByType(int type);
     MegaChatRoom* getChatRoom(MegaChatHandle chatid);
     MegaChatRoom *getChatRoomByUser(MegaChatHandle userhandle);
-    MegaChatListItemList *getChatListItems();
+    MegaChatListItemList* getChatListItems(const int mask, const int filter) const;
+    MegaChatListItemList *getChatListItems() const;
     MegaChatListItemList* getChatListItemsByType(int type);
     MegaChatListItemList *getChatListItemsByPeers(MegaChatPeerList *peers);
     MegaChatListItem *getChatListItem(MegaChatHandle chatid);
@@ -1630,19 +1632,19 @@ public:
     // karere::IApp implementation
     //virtual ILoginDialog* createLoginDialog();
     virtual IApp::IChatHandler *createChatHandler(karere::ChatRoom &chat);
-    virtual IApp::IChatListHandler *chatListHandler();
-    virtual void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress);
-    virtual void onPresenceConfigChanged(const presenced::Config& state, bool pending);
-    virtual void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen);
-    virtual void onInitStateChange(int newState);
-    virtual void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx);
+    IApp::IChatListHandler *chatListHandler() override;
+    void onPresenceChanged(karere::Id userid, karere::Presence pres, bool inProgress) override;
+    void onPresenceConfigChanged(const presenced::Config& state, bool pending) override;
+    void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) override;
+    void onInitStateChange(int newState) override;
+    void onChatNotification(karere::Id chatid, const chatd::Message &msg, chatd::Message::Status status, chatd::Idx idx) override;
     void onDbError(int error, const std::string &msg) override;
 
     // rtcModule::IChatListHandler implementation
-    virtual IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat);
-    virtual void removeGroupChatItem(IApp::IGroupChatListItem& item);
-    virtual IApp::IPeerChatListItem *addPeerChatItem(karere::PeerChatRoom& chat);
-    virtual void removePeerChatItem(IApp::IPeerChatListItem& item);
+    IApp::IGroupChatListItem *addGroupChatItem(karere::GroupChatRoom &chat) override;
+    void removeGroupChatItem(IApp::IGroupChatListItem& item) override;
+    IApp::IPeerChatListItem *addPeerChatItem(karere::PeerChatRoom& chat) override;
+    void removePeerChatItem(IApp::IPeerChatListItem& item) override;
 };
 
 /**

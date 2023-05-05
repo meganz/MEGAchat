@@ -1143,7 +1143,7 @@ void MainWindow::onAddChatSchedMeeting()
     byWeekDay->add(1);byWeekDay->add(3);byWeekDay->add(5);
 
     std::unique_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance());
-    flags->setEmailsDisabled(false);
+    flags->setSendEmails(true);
 
     std::unique_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,

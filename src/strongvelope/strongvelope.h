@@ -238,7 +238,7 @@ struct UserKeyId
 {
     karere::Id user;
     uint32_t keyid;
-    explicit UserKeyId(karere::Id aUser, uint32_t aKeyid): user(aUser), keyid(aKeyid){}
+    explicit UserKeyId(const karere::Id& aUser, uint32_t aKeyid): user(aUser), keyid(aKeyid){}
     bool operator<(UserKeyId other) const
     {
         if (user != other.user)
@@ -325,17 +325,17 @@ protected:
 public:
     karere::Id chatid;
     karere::Id mPh = karere::Id::inval();     // it's only valid during preview mode (required to fetch user-attributes)
-    karere::Id ownHandle() const { return mOwnHandle; }
+    const karere::Id& ownHandle() const { return mOwnHandle; }
     promise::Promise<std::shared_ptr<UnifiedKey>> unifiedKey() { return mUnifiedKeyDecrypted; }
 
-    ProtocolHandler(karere::Id ownHandle, const StaticBuffer& privCu25519,
+    ProtocolHandler(const karere::Id& ownHandle, const StaticBuffer& privCu25519,
         const StaticBuffer& privEd25519,
         karere::UserAttrCache& userAttrCache,
-        SqliteDb& db, karere::Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
-        int isUnifiedKeyEncrypted, karere::Id ph, void *ctx);
+        SqliteDb& db, const karere::Id& aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
+        int isUnifiedKeyEncrypted, const karere::Id& ph, void *ctx);
 
     promise::Promise<std::shared_ptr<SendKey>> //must be public to access from ParsedMessage
-        decryptKey(std::shared_ptr<Buffer>& key, karere::Id sender, karere::Id receiver);
+        decryptKey(std::shared_ptr<Buffer>& key, const karere::Id& sender, const karere::Id& receiver);
 
     unsigned int getCacheVersion() const;
 
@@ -380,15 +380,15 @@ protected:
      *       the recipient.
      */
     promise::Promise<std::shared_ptr<SendKey>>
-    computeSymmetricKey(karere::Id userid, const std::string& padString=SVCRYPTO_PAIRWISE_KEY);
+    computeSymmetricKey(const karere::Id& userid, const std::string& padString=SVCRYPTO_PAIRWISE_KEY);
 
     promise::Promise<std::shared_ptr<Buffer>>
-        encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser);
+        encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, const karere::Id& toUser);
 
     promise::Promise<std::pair<chatd::KeyCommand*, std::shared_ptr<SendKey>>>
     encryptKeyToAllParticipants(const std::shared_ptr<SendKey>& key, const karere::SetOfIds &participants, chatd::KeyId localkeyid);
 
-    promise::Promise<std::string> encryptUnifiedKeyToUser(karere::Id user) override;
+    promise::Promise<std::string> encryptUnifiedKeyToUser(const karere::Id& user) override;
 
     void msgEncryptWithKey(const chatd::Message &src, chatd::MsgCommand& dest, const StaticBuffer& key);
 

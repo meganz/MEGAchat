@@ -186,7 +186,6 @@ protected:
      * @param action function to be executed
      */
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
-
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
@@ -449,80 +448,73 @@ public:
    void onDbError(int error, const std::string &msg) override;
 };
 
-class RequestTracker : public ::mega::MegaRequestListener
+class ResultHandler
 {
-    std::atomic<bool> started = { false };
-    std::atomic<bool> finished = { false };
-    std::atomic<::mega::ErrorCodes> result = { ::mega::ErrorCodes::API_EINTERNAL };
-    std::promise<::mega::ErrorCodes> promiseResult;
-    ::mega::MegaApi *mApi = nullptr;
-
-    using OnReqFinish = std::function<void(::mega::MegaError& e, ::mega::MegaRequest& request)>;
-    OnReqFinish onFinish;
-
 public:
-    ::mega::unique_ptr<::mega::MegaRequest> request;
-
-    RequestTracker(::mega::MegaApi *api, OnReqFinish onFin = nullptr)
-        : mApi(api)
-        , onFinish(onFin)
+    int waitForResult(int seconds = maxTimeout)
     {
+        if (std::future_status::ready != futureResult.wait_for(std::chrono::seconds(seconds)))
+        {
+            errorStr = "Timeout";
+            return -999; // local timeout
+        }
+        return futureResult.get();
     }
 
-    RequestTracker(::mega::MegaApi *api, ::mega::MegaRequestListener *listener)
-        : mApi(api)
-        , onFinish([api, listener](::mega::MegaError& e, ::mega::MegaRequest& req)
-                   {listener->onRequestFinish(api, &req, &e);})
+    const std::string& getErrorString() const { return errorStr; }
+
+protected:
+    void finish(int errCode, std::string&& errStr)
     {
+        assert(!resultReceived); // call this function only once!
+        errorStr.swap(errStr);
+        promiseResult.set_value(errCode);
+        resultReceived = true;
     }
 
-    void onRequestStart(::mega::MegaApi*, ::mega::MegaRequest*) override
-    {
-        started = true;
-    }
+    bool finished() const { return resultReceived; }
 
-    void onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest *req,
+private:
+    std::promise<int> promiseResult;
+    std::future<int> futureResult = promiseResult.get_future();
+    std::atomic<bool> resultReceived = false;
+    std::string errorStr;
+};
+
+class RequestTracker : public ::mega::MegaRequestListener, public ResultHandler
+{
+public:
+    void onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest* req,
                          ::mega::MegaError* e) override
     {
-        if (onFinish) onFinish(*e, *req);
-
-        result = ::mega::ErrorCodes(e->getErrorCode());
         request.reset(req ? req->copy() : nullptr);
-        finished = true;
-        promiseResult.set_value(static_cast<::mega::ErrorCodes>(result));
+        finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
     }
 
-    ::mega::ErrorCodes waitForResult(int seconds = maxTimeout, bool unregisterListenerOnTimeout = true)
-    {
-        auto f = promiseResult.get_future();
-        if (std::future_status::ready != f.wait_for(std::chrono::seconds(seconds)))
-        {
-            assert(mApi);
-            if (unregisterListenerOnTimeout)
-            {
-                mApi->removeRequestListener(this);
-            }
-            return static_cast<mega::ErrorCodes>(-999); // local timeout
-        }
-        return f.get();
-    }
-
-    ::mega::MegaHandle getNodeHandle()
+    ::mega::MegaHandle getNodeHandle() const
     {
         // if the operation succeeded and supplies a node handle
-        return request ? request->getNodeHandle() : ::mega::INVALID_HANDLE;
+        return (finished() && request) ? request->getNodeHandle() : ::mega::INVALID_HANDLE;
     }
 
-    std::string getLink()
+    std::string getLink() const
     {
         // if the operation succeeded and supplied a link
-        return request && request->getLink() ? request->getLink() : std::string();
+        return (finished() && request && request->getLink()) ? request->getLink() : std::string();
     }
 
-    ::mega::unique_ptr<::mega::MegaNode> getPublicMegaNode()
+    std::unique_ptr<::mega::MegaNode> getPublicMegaNode() const
     {
-        return request ? ::mega::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode()) : nullptr;
+        return (finished() && request) ? std::unique_ptr<::mega::MegaNode>(request->getPublicMegaNode()) : nullptr;
     }
+
+    std::string getText() const
+    {
+        return (finished() && request && request->getText()) ? request->getText() : std::string();
+    }
+
+private:
+    std::unique_ptr<::mega::MegaRequest> request;
 };
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -530,7 +522,7 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
