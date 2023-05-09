@@ -615,7 +615,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
         if (!mRetryCtrl)
         {
             CHATDS_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
-            mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state", false, nullptr);
             reconnect(); // start retry controller
         }
         return;
@@ -697,7 +697,7 @@ void Connection::sendEcho()
         mEchoTimer = 0;
 
         CHATDS_LOG_DEBUG("Echo response not received in %d secs. Reconnecting...", kEchoTimeout);
-        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out");
+        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out", false, nullptr);
 
         setState(kStateDisconnected);
         abortRetryController();
@@ -774,7 +774,7 @@ void Connection::setState(State state)
                 mConnectTimer = 0;
 
                 CHATDS_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
-                mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out");
+                mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out", false, nullptr);
 
                 retryPendingConnection(true);
 
@@ -3700,7 +3700,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
         delete msgCmd;
         mEncryptionHalted = false;
         msgRemoveFromSending(msg->id(), 0);
-        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99015, "Failed to encrypt message");
+        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99015, "Failed to encrypt message", false, nullptr);
         return err;
     });
 
@@ -5131,7 +5131,7 @@ Idx Chat::msgIncoming(bool isNew, Message* message, bool isLocal)
             if (mHasMoreHistoryInDb)
             { //we have db history that is not loaded, so we determine the index
               //by the db, and don't add the message to RAM
-                mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99016, "msgIncoming: incoming message is older than the oldest we have");
+                mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99016, "msgIncoming: incoming message is older than the oldest we have", false, nullptr);
                 assert(false);
                 idx = mDbInterface->getOldestIdx()-1;
             }
@@ -5632,7 +5632,7 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
         if (targetIdx >= idx)
         {
             CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "Message order verification failed, possible history tampering");
-            client().mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99000, "order tampering native");
+            client().mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99000, "order tampering native", false, nullptr);
             return;
         }
     }
