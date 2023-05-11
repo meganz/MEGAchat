@@ -200,7 +200,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         if (!mRetryCtrl)
         {
             PRESENCED_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
-            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state", false, nullptr);
+            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state", false, static_cast<const char*>(nullptr));
             reconnect(); //start retry controller
         }
         return;
@@ -1392,7 +1392,7 @@ void Client::setConnState(ConnState newState)
                 mConnectTimer = 0;
 
                 PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
-                mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)", false, nullptr);
+                mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)", false, static_cast<const char*>(nullptr));
 
                 retryPendingConnection(true);
 
