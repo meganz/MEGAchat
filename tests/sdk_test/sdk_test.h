@@ -194,7 +194,7 @@ protected:
     /* select a group chat room, by default with PRIV_MODERATOR for primary account
      * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param */
     megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers, int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN, bool create = true, bool publicChat = false, const char *title = NULL);
+                                              megachat::MegaChatPeerList *peers, int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN, bool create = true, bool publicChat = false, bool meetingRoom = false, bool waitingRoom = false);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -229,6 +229,81 @@ protected:
     void clearAndLeaveChats(unsigned int accountIndex, megachat::MegaChatHandle skipChatId =  megachat::MEGACHAT_INVALID_HANDLE);
     void removePendingContactRequest(unsigned int accountIndex);
     void changeLastName(unsigned int accountIndex, std::string lastName);
+
+    // chatrooms auxiliar methods
+
+    void inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, int privilege,
+                      std::shared_ptr<TestChatRoomListener>chatroomListener);
+
+
+    void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, int privilege,
+                              std::shared_ptr<TestChatRoomListener>chatroomListener);
+
+    // calls auxiliar methods
+    // ----------------------------------------------------------------------------------------------------------------------------
+
+    // gets a pointer to the local flag that indicates if we have reached an specific callstate
+    bool* getChatCallStateFlag (unsigned int index, int state)
+    {
+        switch (state)
+        {
+            case megachat::MegaChatCall::CALL_STATUS_INITIAL:     return &mCallReceived[index];
+            case megachat::MegaChatCall::CALL_STATUS_CONNECTING:  return &mCallConnecting[index];
+            case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS: return &mCallInProgress[index];
+            default:                                              break;
+        }
+
+        ADD_FAILURE() << "Invalid account index";
+        return nullptr;
+    };
+
+    // resets the local flag that indicates if we have reached an specific call state
+    void resetTestChatCallState (unsigned int index, int state)
+    {
+        bool* statusReceived = getChatCallStateFlag(index, state);
+        if (statusReceived)    { *statusReceived = false; }
+    };
+
+    // waits for a specific callstate
+    void waitForChatCallState(unsigned int index, int state)
+    {
+        bool* statusReceived = getChatCallStateFlag(index, state);
+        if (statusReceived)
+        {
+            ASSERT_TRUE(waitForResponse(statusReceived)) <<
+                "Timeout expired for receiving call state: " << state <<
+                " for account index [" << index << "]";
+        }
+    };
+
+    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
+    // if call gets disconnected before action is executed, command queue will be cleared, so we need to wait
+    // until performer account is connected (CALL_STATUS_IN_PROGRESS) to SFU for that call and re-try <action>
+    void waitForCallAction (unsigned int pIdx, int maxAttempts, bool* exitFlag,  const char* errMsg, unsigned int timeout, std::function<void()>action)
+    {
+        int retries = 0;
+        std::string errStr = errMsg ? errMsg : "executing provided action";
+        bool* callConnecting = getChatCallStateFlag(pIdx, megachat::MegaChatCall::CALL_STATUS_CONNECTING);
+        while (!*exitFlag)
+        {
+            ASSERT_TRUE(action) << "waitForCallAction: no valid action provided";
+
+            // reset call state flags to false before executing the required action
+            resetTestChatCallState(pIdx, megachat::MegaChatCall::CALL_STATUS_CONNECTING);
+            resetTestChatCallState(pIdx, megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS);
+
+            // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
+            action();
+            ASSERT_TRUE(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout)) << "Timeout expired for " << errStr;
+
+            // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>
+            if (*callConnecting)
+            {
+                ASSERT_LT(++retries, maxAttempts) << "Max attempts exceeded for " << errStr;
+                waitForChatCallState(pIdx, megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS);
+            }
+        }
+    };
 
     ::mega::MegaApi* megaApi[NUM_ACCOUNTS];
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
@@ -280,7 +355,9 @@ protected:
     bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
     bool mCallConnecting[NUM_ACCOUNTS];
+    bool mCallWR[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
+    bool mCallWrChanged[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
