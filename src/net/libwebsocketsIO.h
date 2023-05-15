@@ -76,6 +76,7 @@ public:
     static int wsCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *data, size_t len);
 
 private:
+    void doWsDisconnect(bool immediate);
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     void saveTlsSessionToPersistentStorage();
     CachedSession mTlsSession;

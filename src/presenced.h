@@ -295,7 +295,7 @@ public:
         append(val);
         return std::move(*this);
     }
-    Command&& operator+(karere::Id id)
+    Command&& operator+(const karere::Id& id)
     {
         append(id.val);
         return std::move(*this);
@@ -463,7 +463,7 @@ public:
     bool autoAwayInEffect();
     bool setPersist(bool enable);
     bool setLastGreenVisible(bool enable);
-    bool requestLastGreen(karere::Id userid);
+    bool requestLastGreen(const karere::Id& userid);
 
     // connection's management
     bool isOnline() const { return (mConnState >= kConnected); }
@@ -495,12 +495,12 @@ public:
     void notifyUserStatus();
 
     // peers management
-    void updatePeerPresence(karere::Id peer, karere::Presence pres);
-    karere::Presence peerPresence(karere::Id peer) const;
+    void updatePeerPresence(const karere::Id& peer, karere::Presence pres);
+    karere::Presence peerPresence(const karere::Id& peer) const;
 
     /** @brief Updates user last green if it's more recent than the current value.*/
-    bool updateLastGreen(karere::Id userid, time_t lastGreen);
-    time_t getLastGreen(karere::Id userid);
+    bool updateLastGreen(const karere::Id& userid, time_t lastGreen);
+    time_t getLastGreen(const karere::Id& userid);
 
     /** @brief reset number of succeeded connection attempts and update ts for last check **/
     void resetConnSuceededAttempts(const time_t &t);

@@ -296,7 +296,7 @@ bool Client::setLastGreenVisible(bool enable)
     return sendPrefs();
 }
 
-bool Client::requestLastGreen(Id userid)
+bool Client::requestLastGreen(const Id& userid)
 {
     // Avoid send OP_LASTGREEN if user is ex-contact or has never been a contact
     if (isExContact(userid) || !isContact(userid))
@@ -310,7 +310,7 @@ bool Client::requestLastGreen(Id userid)
     return sendCommand(Command(OP_LASTGREEN) + userid);
 }
 
-time_t Client::getLastGreen(Id userid)
+time_t Client::getLastGreen(const Id& userid)
 {
     std::map<uint64_t, time_t>::iterator it = mPeersLastGreen.find(userid.val);
     if (it != mPeersLastGreen.end())
@@ -320,7 +320,7 @@ time_t Client::getLastGreen(Id userid)
     return 0;
 }
 
-bool Client::updateLastGreen(Id userid, time_t lastGreen)
+bool Client::updateLastGreen(const Id& userid, time_t lastGreen)
 {
     time_t &auxLastGreen = mPeersLastGreen[userid.val];
     if (lastGreen >= auxLastGreen)
@@ -1474,7 +1474,7 @@ void Client::removePeers(const std::vector<karere::Id> &peers)
     sendCommand(std::move(cmd));
 }
 
-void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
+void Client::updatePeerPresence(const karere::Id& peer, karere::Presence pres)
 {
     auto pair = mPeersPresence.emplace(peer, pres);
     if (!pair.second) // Element is already in the map (update value)
@@ -1501,7 +1501,7 @@ void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
     }
 }
 
-karere::Presence Client::peerPresence(karere::Id peer) const
+karere::Presence Client::peerPresence(const karere::Id& peer) const
 {
     auto it = mPeersPresence.find(peer);
     if (it == mPeersPresence.end())

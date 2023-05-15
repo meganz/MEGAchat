@@ -35,7 +35,7 @@ std::string gFieldTrialStr;
 static bool gIsInitialized = false;
 
 bool isInitialized() { return gIsInitialized; }
-bool init(void *appCtx)
+bool init(void*)
 {
     if (gIsInitialized)
         return false;
@@ -127,7 +127,7 @@ absl::optional<bool> CaptureModuleLinux::needs_denoising() const
     return absl::nullopt;
 }
 
-bool CaptureModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats *stats)
+bool CaptureModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats*)
 {
     return false;
 }
@@ -240,7 +240,7 @@ void LocalStreamHandle::setAv(karere::AvFlags av)
     }
 }
 
-LocalStreamHandle::LocalStreamHandle(const char *name)
+LocalStreamHandle::LocalStreamHandle(const char*)
 {
 }
 
@@ -268,7 +268,15 @@ rtc::scoped_refptr<webrtc::VideoTrackInterface> LocalStreamHandle::video()
     return mVideo;
 }
 
-VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread)
+VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &
+#if defined(__APPLE__) || defined(__ANDROID__)
+                                   deviceName
+#endif
+                                   , rtc::Thread *
+#ifdef __ANDROID__
+                                   thread
+#endif
+                                   )
 {
 #ifdef __APPLE__
     return new OBJCCaptureModule(capabilities, deviceName);
@@ -345,10 +353,9 @@ void MegaEncryptor::generateHeader(uint8_t *header)
     memcpy(header, &keyId, FRAME_KEYID_LENGTH);
 
     Cid_t cid = mPeer.getCid();
-    uint8_t offset = FRAME_KEYID_LENGTH;
+    unsigned offset = FRAME_KEYID_LENGTH;
     memcpy(header + offset, &cid, FRAME_CID_LENGTH);
 
-    // note: upon update to GCC > 9 this warning should disappear
     offset += FRAME_CID_LENGTH;
     memcpy(header + offset, &mCtr, FRAME_CTR_LENGTH);
 }
@@ -456,11 +463,10 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
     memcpy(&auxKeyId, headerData, FRAME_KEYID_LENGTH);
 
     // extract CID from header, and check if matches with expected one
-    uint8_t offset = FRAME_KEYID_LENGTH;
+    unsigned offset = FRAME_KEYID_LENGTH;
     Cid_t peerCid = 0;
     memcpy(&peerCid, headerData + offset, FRAME_CID_LENGTH);
 
-    // note: upon update to GCC > 9 this warning should disappear
     // extract packet ctr from header, and update mCtr (ctr will be used to generate an IV to decrypt the frame)
     offset += FRAME_CID_LENGTH;
     memcpy(&mCtr, headerData + offset, FRAME_CTR_LENGTH);

@@ -523,11 +523,11 @@ karere::UserAttrCache& ProtocolHandler::userAttrCache()
     return mUserAttrCache;
 }
 
-ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
+ProtocolHandler::ProtocolHandler(const karere::Id& ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
     karere::UserAttrCache& userAttrCache,
-    SqliteDb &db, Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
-    int isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
+    SqliteDb &db, const Id& aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
+    int isUnifiedKeyEncrypted, const karere::Id& ph, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
   myPrivEd25519(privEd25519), mUserAttrCache(userAttrCache),
   mDb(db), chatid(aChatId), mPh(ph)
@@ -847,7 +847,7 @@ void ProtocolHandler::msgEncryptWithKey(const Message& src, MsgCommand& dest,
 }
 
 promise::Promise<std::shared_ptr<SendKey>>
-ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padString)
+ProtocolHandler::computeSymmetricKey(const karere::Id& userid, const std::string& padString)
 {
     auto it = mSymmKeyCache.find(userid);
     if (it != mSymmKeyCache.end())
@@ -879,10 +879,10 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padSt
 }
 
 promise::Promise<std::string>
-ProtocolHandler::encryptUnifiedKeyToUser(karere::Id user)
+ProtocolHandler::encryptUnifiedKeyToUser(const karere::Id& user)
 {
     return encryptKeyTo(mUnifiedKey, user)
-    .then([user](const std::shared_ptr<Buffer>& encryptedKey)
+    .then([](const std::shared_ptr<Buffer>& encryptedKey)
     {
         assert(encryptedKey && !encryptedKey->empty());
         std::string auxKey (encryptedKey->buf(), encryptedKey->dataSize());
@@ -891,7 +891,7 @@ ProtocolHandler::encryptUnifiedKeyToUser(karere::Id user)
 }
 
 Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser)
+ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, const karere::Id& toUser)
 {
     auto wptr = weakHandle();
     return computeSymmetricKey(toUser)
@@ -917,7 +917,7 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
 {
     auto wptr = weakHandle();
     return decryptKey(key, sender, receiver)
-    .then([this, wptr](const std::shared_ptr<SendKey>& key)
+    .then([wptr](const std::shared_ptr<SendKey>& key)
     {
         wptr.throwIfDeleted();
         std::string keybuff(key->buf(), SVCRYPTO_KEY_SIZE);
@@ -926,7 +926,7 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
 }
 
 promise::Promise<std::shared_ptr<SendKey>>
-ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver)
+ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, const Id& sender, const Id& receiver)
 {
     if (key->dataSize() % AES::BLOCKSIZE)
         throw std::runtime_error("decryptKey: invalid aes-encrypted key size");
@@ -934,7 +934,7 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
     Id otherParty = (sender == mOwnHandle) ? receiver : sender;
     auto wptr = weakHandle();
     return computeSymmetricKey(otherParty)
-    .then([this, wptr, key, receiver](const std::shared_ptr<SendKey>& symmKey)
+    .then([wptr, key](const std::shared_ptr<SendKey>& symmKey)
     {
         wptr.throwIfDeleted();
         // decrypt key

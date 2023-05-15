@@ -125,7 +125,7 @@ class ISession
 {
 public:
     virtual ~ISession(){}
-    virtual karere::Id getPeerid() const = 0;
+    virtual const karere::Id& getPeerid() const = 0;
     virtual Cid_t getClientid() const = 0;
     virtual karere::AvFlags getAvFlags() const = 0;
     virtual SessionState getState() const = 0;
@@ -173,7 +173,7 @@ public:
 
     virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
-    virtual void removeParticipant(karere::Id peer) = 0;
+    virtual void removeParticipant(const karere::Id &peer) = 0;
 
     // called by chatd client when the connection to chatd is closed
     virtual void onDisconnectFromChatd() = 0;
@@ -201,7 +201,7 @@ public:
     virtual TermCode getTermCode() const = 0;
     virtual uint8_t getEndCallReason() const = 0;
 
-    virtual void setCallerId(karere::Id callerid) = 0;
+    virtual void setCallerId(const karere::Id &callerid) = 0;
     virtual bool alreadyParticipating() = 0;
     virtual void requestSpeaker(bool add = true) = 0;
     virtual bool isSpeakAllow() const = 0;
@@ -230,16 +230,16 @@ class RtcModule
 {
 public:
     virtual ~RtcModule(){};
-    virtual ICall* findCall(karere::Id callid) = 0;
-    virtual ICall* findCallByChatid(const karere::Id &chatid) = 0;
+    virtual ICall* findCall(const karere::Id &callid) const = 0;
+    virtual ICall* findCallByChatid(const karere::Id &chatid) const = 0;
     virtual bool isCallStartInProgress(const karere::Id &chatid) const = 0;
     virtual bool selectVideoInDevice(const std::string& device) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
-    virtual promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
+    virtual promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
     virtual void takeDevice() = 0;
     virtual void releaseDevice() = 0;
-    virtual void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) = 0;
-    virtual void removeLocalVideoRenderer(karere::Id chatid) = 0;
+    virtual void addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
+    virtual void removeLocalVideoRenderer(const karere::Id &chatid) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
@@ -249,9 +249,9 @@ public:
 
     virtual void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
 
-    virtual void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) = 0;
-    virtual void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) = 0;
-    virtual void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
+    virtual void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) = 0;
+    virtual void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) = 0;
+    virtual void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
 

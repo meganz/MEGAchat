@@ -40,13 +40,13 @@ public:
 class Peer
 {
 public:
-    Peer(karere::Id peerid, unsigned avFlags, Cid_t cid = 0, bool isModerator = false);
+    Peer(const karere::Id& peerid, unsigned avFlags, Cid_t cid = 0, bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
     void setCid(Cid_t cid);    // called from handleAnswerCommand() only for setting cid of Call::mMyPeer
 
-    karere::Id getPeerid() const;
+    const karere::Id& getPeerid() const;
 
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
@@ -539,8 +539,8 @@ class SfuClient
 public:
     SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryptoMeetings *rtcCryptoMeetings);
 
-    SfuConnection *createSfuConnection(karere::Id chatid, karere::Url&& sfuUrl, SfuInterface& call, DNScache &dnsCache);
-    void closeSfuConnection(karere::Id chatid); // does NOT retry the connection afterwards (used for errors/disconnects)
+    SfuConnection *createSfuConnection(const karere::Id& chatid, karere::Url&& sfuUrl, SfuInterface& call, DNScache &dnsCache);
+    void closeSfuConnection(const karere::Id& chatid); // does NOT retry the connection afterwards (used for errors/disconnects)
     void retryPendingConnections(bool disconnect);
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();

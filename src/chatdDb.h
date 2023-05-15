@@ -23,7 +23,8 @@ public:
         info.newestDbIdx = stmt.intCol(1);
         if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
         {
-            memset(&info, 0, sizeof(info)); //actually need to zero only oldestDbId
+            void* voidmem = &info; // avoid compiler warning...
+            memset(voidmem, 0, sizeof(info)); //actually need to zero only oldestDbId
             return;
         }
         SqliteStmt stmt2(mDb, "select msgid from "+mHistTblName+" where chatid=?1 and idx=?2");
@@ -166,7 +167,7 @@ public:
         assertAffectedRowCount(1, "updateMsgInHistory");
     }
 
-    void getMessageDelta(karere::Id msgid, uint16_t *updated) override
+    void getMessageDelta(const karere::Id& msgid, uint16_t *updated) override
     {
         SqliteStmt stmt3(mDb, "select updated from history where chatid = ? and msgid = ?");
         stmt3 << mChat.chatId() << msgid;
@@ -179,7 +180,7 @@ public:
         SqliteStmt stmt(mDb, "select userid, keyid from history where msgid = ?");
         stmt << msgid;
         stmt.stepMustHaveData("getMessageUserKeyId");
-        userid = static_cast<const uint64_t>(stmt.int64Col(0));
+        userid = static_cast<const uint64_t&>(stmt.int64Col(0));
         keyid = stmt.uintCol(1);
     }
 
@@ -196,7 +197,7 @@ public:
         {
             int rowid = stmt.intCol(0);
             uint8_t opcode = static_cast<uint8_t>(stmt.intCol(1));
-            karere::Id msgid = static_cast<const uint64_t>(stmt.int64Col(2));
+            karere::Id msgid = static_cast<const uint64_t&>(stmt.int64Col(2));
             karere::Id userid = mChat.client().myHandle();
             chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
             unsigned char type = (unsigned char)stmt.intCol(5);
@@ -265,7 +266,7 @@ public:
         return (stmt.step()) ? stmt.intCol(0) : CHATD_IDX_INVALID;
     }
 
-    chatd::Idx getIdxOfMsgidFromHistory(karere::Id msgid) override
+    chatd::Idx getIdxOfMsgidFromHistory(const karere::Id& msgid) override
     {
         return getIdxOfMsgid(msgid, "history");
     }
@@ -401,12 +402,12 @@ public:
         return stmt.uintCol(0);
     }
 
-    void setLastSeen(karere::Id msgid) override
+    void setLastSeen(const karere::Id& msgid) override
     {
         mDb.query("update chats set last_seen=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1, "setLastSeen");
     }
-    void setLastReceived(karere::Id msgid) override
+    void setLastReceived(const karere::Id& msgid) override
     {
         mDb.query("update chats set last_recv=? where chatid=?", msgid, mChat.chatId());
         assertAffectedRowCount(1);
@@ -530,7 +531,7 @@ public:
                || (stmt.uint64Col(1) == karere::Id::COMMANDER() && stmt.uintCol(2) == 0));
     }
 
-    void truncateNodeHistory(karere::Id id) override
+    void truncateNodeHistory(const karere::Id& id) override
     {
         auto idx = getIdxOfMsgid(id, "node_history");
         mDb.query("delete from node_history where chatid = ? and idx <= ?", mChat.chatId(), idx);
@@ -557,7 +558,7 @@ public:
         loadMessages(count, idx, messages, "node_history");
     }
 
-    chatd::Idx getIdxOfMsgidFromNodeHistory(karere::Id msgid) override
+    chatd::Idx getIdxOfMsgidFromNodeHistory(const karere::Id& msgid) override
     {
         return getIdxOfMsgid(msgid, "node_history");
     }
@@ -611,41 +612,41 @@ public:
         assertAffectedRowCount(1);
     }
 
-    void cleanReactions(karere::Id msgId) override
+    void cleanReactions(const karere::Id& msgId) override
     {
         mDb.query("delete from chat_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void cleanPendingReactions(karere::Id msgId) override
+    void cleanPendingReactions(const karere::Id& msgId) override
     {
         mDb.query("delete from chat_pending_reactions where chatid = ? and msgId = ?", mChat.chatId(), msgId);
     }
 
-    void addReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) override
+    void addReaction(const karere::Id& msgId, const karere::Id& userId, const std::string &reaction) override
     {
         mDb.query("insert or replace into chat_reactions(chatid, msgid, userid, reaction)"
                   "values(?,?,?,?)", mChat.chatId(), msgId, userId, reaction);
     }
 
-    void addPendingReaction(karere::Id msgId, const std::string &reaction, const std::string &encReaction, uint8_t status) override
+    void addPendingReaction(const karere::Id& msgId, const std::string &reaction, const std::string &encReaction, uint8_t status) override
     {
         mDb.query("insert or replace into chat_pending_reactions(chatid, msgid, reaction, encReaction, status)"
                   "values(?,?,?,?,?)", mChat.chatId(), msgId, reaction, encReaction, status);
     }
 
-    void delReaction(karere::Id msgId, karere::Id userId, const std::string &reaction) override
+    void delReaction(const karere::Id& msgId, const karere::Id& userId, const std::string &reaction) override
     {
         mDb.query("delete from chat_reactions where chatid = ? and msgid = ? and userid = ? and reaction = ?",
             mChat.chatId(), msgId, userId, reaction);
     }
 
-    void delPendingReaction(karere::Id msgId, const std::string &reaction) override
+    void delPendingReaction(const karere::Id& msgId, const std::string &reaction) override
     {
         mDb.query("delete from chat_pending_reactions where chatid = ? and msgid = ? and reaction = ?",
             mChat.chatId(), msgId, reaction);
     }
 
-    void getReactions(karere::Id msgId, std::vector<std::pair<std::string, karere::Id>> &reactions) const override
+    void getReactions(const karere::Id& msgId, std::vector<std::pair<std::string, karere::Id>> &reactions) const override
     {
         SqliteStmt stmt(mDb, "select _rowid_, reaction, userid from chat_reactions where chatid = ? and msgid = ? ORDER BY `_rowid_` ASC");
         stmt << mChat.chatId();
