@@ -2427,7 +2427,7 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
                  : "?"; // add ? as append character
     }
 
-    sfuUrl.path.append(app).append("v=").append(std::to_string(MY_SFU_PROTOCOL_VERSION));
+    sfuUrl.path.append(app).append("v=").append(std::to_string(static_cast<unsigned int>(MY_SFU_PROTOCOL_VERSION)));
 }
 
 void SfuClient::retryPendingConnections(bool disconnect)
