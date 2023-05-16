@@ -374,9 +374,6 @@ public:
     // get ephemeral ECDH X25519 keypair for the current call session
     const mega::ECDH* getMyEphemeralKeyPair() const;
 
-    // sign string: sesskey|<callId>|<clientId>|<pubkey> with Ed25519 key and encode in B64
-    std::string signEphemeralKey(const std::string& str) const;
-
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
     void sfuDisconnect(const TermCode &termCode, bool hadParticipants);

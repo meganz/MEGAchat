@@ -94,7 +94,7 @@ void RtcCryptoMeetings::strToKey(const std::string& keystr, strongvelope::SendKe
 }
 
 std::pair<strongvelope::EcKey, strongvelope::EcKey>
-RtcCryptoMeetings::getEd25519Keypair()
+RtcCryptoMeetings::getEd25519Keypair() const
 {
     std::pair<strongvelope::EcKey, strongvelope::EcKey> keypair;
     keypair.first.assign(mClient.mMyPrivEd25519, 32);
@@ -127,5 +127,22 @@ RtcCryptoMeetings::verifyKeySignature(const std::string& msg, const std::string&
     }
 
     return promise::Promise<bool>(false);
+}
+
+std::string RtcCryptoMeetings::signEphemeralKey(const std::string& str) const
+{
+    // get my user Ed25519 keypair (for EdDSA signature)
+    const auto res = getEd25519Keypair();
+    const strongvelope::EcKey& myPrivEd25519 = res.first;
+    const strongvelope::EcKey& myPubEd25519 = res.second;
+
+    strongvelope::Signature signature;
+    Buffer eckey(myPrivEd25519.dataSize() + myPubEd25519.dataSize());
+    eckey.append(myPrivEd25519).append(myPubEd25519);
+
+    // sign string: sesskey|<callId>|<clientId>|<pubkey> and encode in B64
+    crypto_sign_detached(signature.ubuf(), nullptr, reinterpret_cast<const unsigned char*>(str.data()), str.size(), eckey.ubuf());
+    std::string signatureStr(signature.buf(), signature.bufSize());
+    return mega::Base64::btoa(signatureStr);
 }
 }

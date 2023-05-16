@@ -973,23 +973,6 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     }
 }
 
-std::string Call::signEphemeralKey(const std::string& str) const
-{
-    // get my user Ed25519 keypair (for EdDSA signature)
-    const auto res = mSfuClient.getRtcCryptoMeetings()->getEd25519Keypair();
-    const strongvelope::EcKey& myPrivEd25519 = res.first;
-    const strongvelope::EcKey& myPubEd25519 = res.second;
-
-    strongvelope::Signature signature;
-    Buffer eckey(myPrivEd25519.dataSize() + myPubEd25519.dataSize());
-    eckey.append(myPrivEd25519).append(myPubEd25519);
-
-    // sign string: sesskey|<callId>|<clientId>|<pubkey> and encode in B64
-    crypto_sign_detached(signature.ubuf(), nullptr, reinterpret_cast<const unsigned char*>(str.data()), str.size(), eckey.ubuf());
-    std::string signatureStr(signature.buf(), signature.bufSize());
-    return mega::Base64::btoa(signatureStr);
-}
-
 std::string Call::generateSessionKeyPair()
 {
     // generate ephemeral ECDH X25519 keypair
@@ -999,7 +982,7 @@ std::string Call::generateSessionKeyPair()
 
     // Generate public key signature (using Ed25519), on the string: sesskey|<callId>|<clientId>|<pubkey>
     std::string signature = "sesskey|" + mCallid.toString() + "|" + std::to_string(mMyPeer->getCid()) + "|" + X25519PubKeyB64;
-    return X25519PubKeyB64 + ":" + signEphemeralKey(signature); // -> publicKey:signature
+    return X25519PubKeyB64 + ":" + mSfuClient.getRtcCryptoMeetings()->signEphemeralKey(signature); // -> publicKey:signature
 }
 
 void Call::getLocalStreams()
