@@ -732,13 +732,15 @@ public:
      *
      * This method can be used for different purposes.
      *
-     * If MegaChatCall::getNotificationType == MegaChatCall::NOTIFICATION_TYPE_SFU_DENY,
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and 
+     * MegaChatCall::getNotificationType is equal to MegaChatCall::NOTIFICATION_TYPE_SFU_DENY,
      * this method returns the command that has been previously denied by SFU.
      * Valid values are:
      *      - SFU_DENY_AUDIO
      *      - SFU_DENY_JOIN
      *
-     * If MegaChatCall::getNotificationType == MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR,
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and 
+     * MegaChatCall::getNotificationType is equal to MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR,
      * this method returns the termination code for this call due to an error notification received from SFU
      * Valid values are:
      *      - TERM_CODE_INVALID
