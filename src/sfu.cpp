@@ -80,7 +80,7 @@ std::string CommandsQueue::pop()
     return command;
 }
 
-Peer::Peer(const karere::Id& peerid, const unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs, const Cid_t cid, const bool isModerator)
+Peer::Peer(const karere::Id& peerid, const sfu::SfuProtocol sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs, const Cid_t cid, const bool isModerator)
     : mCid(cid),
       mPeerid(peerid),
       mAvFlags(static_cast<uint8_t>(avFlags)),
@@ -544,7 +544,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
 
             bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
-            Peer peer(userId, sfuVersion, av, &ivs, cid, isModerator);
+            Peer peer(userId, static_cast<sfu::SfuProtocol>(sfuVersion), av, &ivs, cid, isModerator);
             peers.push_back(std::move(peer));
         }
         else
@@ -848,7 +848,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
 
     int av = static_cast<int>(avIterator->value.GetUint());
     unsigned int sfuVersion = sfuvIterator->value.GetUint();
-    return mComplete(cid, userid, sfuVersion, av, pubkeyStr, ivs);
+    return mComplete(cid, userid, static_cast<sfu::SfuProtocol>(sfuVersion), av, pubkeyStr, ivs);
 }
 
 Sdp::Sdp(const std::string &sdp, int64_t mungedTrackIndex)
@@ -2427,7 +2427,7 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
                  : "?"; // add ? as append character
     }
 
-    sfuUrl.path.append(app).append("v=").append(std::to_string(MY_SFU_PROTOCOL_VERSION));
+    sfuUrl.path.append(app).append("v=").append(std::to_string(static_cast<unsigned int>(MY_SFU_PROTOCOL_VERSION)));
 }
 
 void SfuClient::retryPendingConnections(bool disconnect)
