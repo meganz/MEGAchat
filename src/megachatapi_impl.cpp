@@ -7957,7 +7957,6 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrClientGeneral:
         case rtcModule::TermCode::kPeerJoinTimeout:
         case rtcModule::TermCode::kPushedToWaitingRoom:
-        case rtcModule::TermCode::kKickedFromWaitingRoom:
         case rtcModule::TermCode::kChatDisconn:
         case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
@@ -7974,10 +7973,12 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
        case rtcModule::TermCode::kTooManyParticipants:
             return TERM_CODE_TOO_MANY_PARTICIPANTS;
 
+       case rtcModule::TermCode::kKickedFromWaitingRoom:
+            return TERM_CODE_KICKED;
+
        case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
-
-       // TODO: Check kPushedToWaitingRoom and kKickedFromWaitingRoom when we add support for these termcodes
+       // TODO: Check kPushedToWaitingRoom when we add support for these termcodes
     }
 
     return TERM_CODE_INVALID;

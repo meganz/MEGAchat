@@ -535,6 +535,7 @@ public:
         TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before nobody answered the call
         TERM_CODE_ERROR                     = 3,    // Call error has been received
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
+        TERM_CODE_KICKED                    = 5     // User has been kicked from call
     };
 
     enum
@@ -829,6 +830,7 @@ public:
      *  - TERM_CODE_ERROR
      *  - TERM_CODE_REJECT
      *  - TERM_CODE_NO_PARTICIPATE
+     *  - TERM_CODE_KICKED
      *
      * @return termination code for the call
      */
@@ -6073,7 +6075,7 @@ public:
      * @param all
      * @param listener
      */
-    void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = NULL);
+    void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all = false, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief allowUsersJoinCall
@@ -6081,7 +6083,7 @@ public:
      * @param all
      * @param listener
      */
-    void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = NULL);
+    void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all = false, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief kickUsersFromCall

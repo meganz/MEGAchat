@@ -348,16 +348,22 @@ protected:
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mUsersRequestsJoin[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallReceivedRinging[NUM_ACCOUNTS];
     bool mCallInProgress[NUM_ACCOUNTS];
+    bool mCallLeft[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
     bool mCallConnecting[NUM_ACCOUNTS];
     bool mCallWR[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
     bool mCallWrChanged[NUM_ACCOUNTS];
+    bool mCallWrAllow[NUM_ACCOUNTS];
+    bool mCallWrDeny[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];

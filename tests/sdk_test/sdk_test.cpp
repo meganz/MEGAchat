@@ -4204,9 +4204,90 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     TestChatVideoListener localVideoListenerB;
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
 
+
+    auto reqJoinPermission = [this, a1, a2, chatid, uh]()
+    {
+        mUsersRequestsJoin[a1].clear();
+        bool* joinReq = &mUsersRequestsJoin[a1][uh]; *joinReq = false;
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          std::vector<bool *> { &requestFlagsChat[a2][MegaChatRequest::TYPE_WR_REQUEST_JOIN_PERM], joinReq,},
+                          std::vector<string> { "TYPE_WR_REQUEST_JOIN_PERM[a2]", "joinReq",},
+                          "requesting Join permission to call from B",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, a2, chatid](){ megaChatApi[a2]->requestJoinPermission(chatid); });
+        });
+
+    };
+    auto grantsJoinPermission = [this, a1, a2, chatid, uh]()
+    {
+        // A grants permission to B for joining call
+        mUsersAllowJoin[a1].clear();
+        bool* allowJoin = &mUsersAllowJoin[a1][uh]; *allowJoin = false; // important to initialize, otherwise key won't exists on map
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_WR_ALLOW],
+                                              allowJoin,
+                                              &mCallWrAllow[a2],
+                                              },
+                          std::vector<string> { "TYPE_WR_ALLOW[a1]",
+                              "allowJoin",
+                              "&mCallWrAllow[a2]"
+                          },
+                          "grants B Join permission to call from A",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, a1, chatid, uh](){
+                              std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
+                              hl->addMegaHandle(uh);
+                              megaChatApi[a1]->allowUsersJoinCall(chatid, hl.get());
+                          });
+        });
+    };
+
+    auto pushIntoWr = [this, a1, a2, chatid, uh]()
+    {
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_WR_PUSH], &mCallWrChanged[a1], &mCallWR[a2],},
+                          std::vector<string> { "TYPE_WR_PUSH[a1]", "&mCallWrChanged[a1]", "&mCallWR[a2]",},
+                          "grants B Join permission to call from A",
+                          true /* wait for all exit flags*/,
+                          true /* reset flags*/,
+                          maxTimeout,
+                          [this, a1, chatid, uh](){
+                              std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
+                              hl->addMegaHandle(uh);
+                              megaChatApi[a1]->pushUsersIntoWaitingRoom(chatid, hl.get());
+                          });
+        });
+    };
+
+    auto kickFromCall = [this, a1, a2, chatid, uh]()
+    {
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_WR_KICK], &mCallLeft[a2],},
+                          std::vector<string> { "TYPE_WR_KICK[a1]", "&mCallDestroyed[a2]",},
+                          "grants B Join permission to call from A",
+                          true /* wait for all exit flags*/,
+                          true /* reset flags*/,
+                          maxTimeout,
+                          [this, a1, chatid, uh](){
+                              std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
+                              hl->addMegaHandle(uh);
+                              megaChatApi[a1]->kickUsersFromCall(chatid, hl.get());
+                          });
+        });
+        ASSERT_TRUE(mTerminationCode[a2] == MegaChatCall::TERM_CODE_KICKED) << "Unexpected termcode" << MegaChatCall::termcodeToString(mTerminationCode[a2]);
+    };
+
     //Test1: A starts a groupal meeting without audio, nor video
     //------------------------------------------------------------------------------------------------------
-    LOG_debug << "Test1: A starts a groupal meeting. B it's pushed into waiting room";
+    LOG_debug << "T_WaitingRooms1: A starts a groupal meeting. B it's pushed into waiting room";
     LOG_debug << "A starts the call";
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
     mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
@@ -4264,6 +4345,43 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     ASSERT_TRUE(wr && wr->getPeerStatus(uh) == MegaChatWaitingRoom::MWR_NOT_ALLOWED)
         << (!wr ? "Waiting room can't be retrieved for user A" : "B it's not in the waiting room");
+
+    //Test2: B request for Join permission to A, and A grants it
+    //------------------------------------------------------------------------------------------------------
+    LOG_debug << "T_WaitingRooms2: B request for Join permission to A, and A grants it";
+    reqJoinPermission();
+    grantsJoinPermission();
+
+    //Test3: A Push B into waiting room, B request again for Join permission to A (A ignores it, there's no way to reject a Join req)
+    //------------------------------------------------------------------------------------------------------
+    LOG_debug << "T_WaitingRooms3: A Push B into waiting room, B request again for Join permission to A, A rejects it";
+    pushIntoWr();
+    reqJoinPermission();
+
+    //Test4: A kicks (completely disconnect) B from call
+    //------------------------------------------------------------------------------------------------------
+    LOG_debug << "T_WaitingRooms4: A kicks (completely disconnect) B from call";
+    kickFromCall();
+
+    LOG_debug << "T_WaitingRooms: A ends call for all participants";
+    ASSERT_NO_FATAL_FAILURE({
+        waitForAction (1,
+                      std::vector<bool *> { &requestFlagsChat[a1][MegaChatRequest::TYPE_HANG_CHAT_CALL],
+                                          &mCallDestroyed[a1],
+                                          &mCallDestroyed[a2],
+                                          },
+                      std::vector<string> { "TYPE_HANG_CHAT_CALL[a1]",
+                          "&mCallDestroyed[a1]",
+                          "&mCallDestroyed[a2]"
+                      },
+                      "A ends call for all participants",
+                      true /* wait for all exit flags*/,
+                      true /*reset flags*/,
+                      maxTimeout,
+                      [this, a1, callid = auxCall->getCallId()](){
+                          megaChatApi[a1]->endChatCall(callid);
+                      });
+    });
 
     // close & cleanup
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener.get());
@@ -6163,6 +6281,44 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     {
          mCallWrChanged[apiIndex] = true;
     }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW_REQ))
+    {
+         const ::mega::MegaHandleList* usersReqWr = call->getHandleList();
+         ASSERT_TRUE(usersReqWr && usersReqWr->size() == 1) << "Invalid user Join requests list";
+         mUsersRequestsJoin[apiIndex][usersReqWr->get(0)] = true;
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW))
+    {
+         mCallWrAllow[apiIndex] = true;
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY))
+    {
+         mCallWrDeny[apiIndex] = true;
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW))
+    {
+        const ::mega::MegaHandleList* usersAllowWr = call->getHandleList();
+        ASSERT_TRUE(usersAllowWr) << "Invalid allowed user Join list";
+        for (unsigned int i = 0; i < usersAllowWr->size(); i++)
+        {
+            mUsersAllowJoin[apiIndex][usersAllowWr->get(i)] = true;
+        }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_DENY))
+    {
+        const ::mega::MegaHandleList* usersAllowWr = call->getHandleList();
+        ASSERT_TRUE(usersAllowWr) << "Invalid allowed user Join list";
+        for (unsigned int i = 0; i < usersAllowWr->size(); i++)
+        {
+            mUsersRejectJoin[apiIndex][usersAllowWr->get(i)] = true;
+        }
+    }
+
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
         unsigned int apiIndex = getMegaChatApiIndex(api); // why is this needed again?
@@ -6190,8 +6346,11 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             break;
 
         case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
+        {
+            mCallLeft[apiIndex] = true;
             mTerminationCode[apiIndex] = call->getTermCode();
             break;
+        }
 
         case MegaChatCall::CALL_STATUS_DESTROYED:
             mCallDestroyed[apiIndex] = true;
