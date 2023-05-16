@@ -1595,7 +1595,7 @@ bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& document
             && (jsonErrIterator == document.MemberEnd())
             && (jsonWarnIterator == document.MemberEnd()))
     {
-        errMsg = "Received data doesn't have 'a' field";
+        errMsg = "Received data doesn't have 'a'/'err'/'warn' field";
         return false;
     }
 

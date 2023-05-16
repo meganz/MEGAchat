@@ -1479,7 +1479,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             }
 
             parameters.encodings[0].scale_resolution_down_by = scale;
-            parameters.encodings[0].max_bitrate_bps = 100 * 1024;   // 100 Kbps
+            parameters.encodings[0].max_bitrate_bps = kmax_bitrate_kbps;   // 100 Kbps
             mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
             handleIncomingVideo(vthumbs, kLowRes);
 
@@ -2071,6 +2071,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
         assert(false);
         RTCM_LOG_ERROR("calls in chatrooms with waiting room enabled are not supported by this version");
         orderedCallDisconnect(TermCode::kErrClientGeneral, "calls in chatrooms with waiting room enabled are not supported by this version");
+        return false;
     }
     return true;
 }

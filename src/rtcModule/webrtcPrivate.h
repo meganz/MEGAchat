@@ -258,6 +258,7 @@ public:
         kActive = 2,
     };
 
+    static constexpr unsigned int kmax_bitrate_kbps = 100 *1024; // max bitrate in KBPS
     static constexpr unsigned int kMediaKeyLen = 16; // length in Bytes of derived ephemeral key
     static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
 
