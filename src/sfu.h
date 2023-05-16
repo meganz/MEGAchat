@@ -402,7 +402,7 @@ public:
     SpeakOffCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
+typedef std::function<bool(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
 {
 public:
