@@ -2422,12 +2422,12 @@ void Call::generateAndSendNewMediakey(bool reset)
                         return;
                     }
 
-                    // Encrypt key for participant with it's public ephemeral key
+                    // Encrypt key for participant with its public ephemeral key
                     std::string encryptedKey;
                     std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
                     if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey.data()), ephemeralPubKey.size(), nullptr))
                     {
-                        RTCM_LOG_WARNING("Failed Media key gcm_encrypt for peerId %s Cid %d",
+                        RTCM_LOG_ERROR("Failed Media key cbc_encrypt for peerId %s Cid %d",
                                          peer.getPeerid().toString().c_str(), peer.getCid());
                         return;
                     }

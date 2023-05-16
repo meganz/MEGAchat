@@ -407,9 +407,6 @@ public:
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
 
-    // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
-    std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
-
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
@@ -423,14 +420,6 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
-    void generateEphemeralKeyPair();
-    void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
-
-    // parse received ephemeral public key string (publickey:signature)
-    std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
-
-    // verify signature for received ephemeral key
-    promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
@@ -591,6 +580,21 @@ protected:
     Cid_t getOwnCid() const;
     void setSessionModByUserId(uint64_t userid, bool isMod);
     void setOwnModerator(bool isModerator);
+
+    // initializes a new pair of keys x25519 (for session key)
+    void generateEphemeralKeyPair();
+
+    // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
+    std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
+
+    // sets the ephemeral pub key for the peer, stores the peer in `mSessions` and calls back onNewSession()
+    void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
+
+    // parse received ephemeral public key string (publickey:signature)
+    std::pair<std::string, std::string> splitPubKey(const std::string &keyStr) const;
+
+    // verify signature for received ephemeral key
+    promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

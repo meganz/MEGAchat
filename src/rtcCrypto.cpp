@@ -9,7 +9,6 @@
 #include <sodium.h>
 #include <cryptopp/aes.h>
 #include <cryptopp/modes.h>
-#include <cryptopp/hkdf.h> // required for key derivation
 #include <mega.h>
 #include "cryptofunctions.h"
 
