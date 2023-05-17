@@ -348,7 +348,6 @@ protected:
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
-    std::map <::megachat::MegaChatHandle, bool> mUsersRequestsJoin[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
 

@@ -4204,23 +4204,6 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     TestChatVideoListener localVideoListenerB;
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
 
-
-    auto reqJoinPermission = [this, a1, a2, chatid, uh]()
-    {
-        mUsersRequestsJoin[a1].clear();
-        bool* joinReq = &mUsersRequestsJoin[a1][uh]; *joinReq = false;
-        ASSERT_NO_FATAL_FAILURE({
-            waitForAction (1,
-                          std::vector<bool *> { &requestFlagsChat[a2][MegaChatRequest::TYPE_WR_REQUEST_JOIN_PERM], joinReq,},
-                          std::vector<string> { "TYPE_WR_REQUEST_JOIN_PERM[a2]", "joinReq",},
-                          "requesting Join permission to call from B",
-                          true /* wait for all exit flags*/,
-                          true /*reset flags*/,
-                          maxTimeout,
-                          [this, a2, chatid](){ megaChatApi[a2]->requestJoinPermission(chatid); });
-        });
-
-    };
     auto grantsJoinPermission = [this, a1, a2, chatid, uh]()
     {
         // A grants permission to B for joining call
@@ -4349,14 +4332,12 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     //Test2: B request for Join permission to A, and A grants it
     //------------------------------------------------------------------------------------------------------
     LOG_debug << "T_WaitingRooms2: B request for Join permission to A, and A grants it";
-    reqJoinPermission();
     grantsJoinPermission();
 
     //Test3: A Push B into waiting room, B request again for Join permission to A (A ignores it, there's no way to reject a Join req)
     //------------------------------------------------------------------------------------------------------
     LOG_debug << "T_WaitingRooms3: A Push B into waiting room, B request again for Join permission to A, A rejects it";
     pushIntoWr();
-    reqJoinPermission();
 
     //Test4: A kicks (completely disconnect) B from call
     //------------------------------------------------------------------------------------------------------
@@ -6280,13 +6261,6 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_COMPOSITION))
     {
          mCallWrChanged[apiIndex] = true;
-    }
-
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW_REQ))
-    {
-         const ::mega::MegaHandleList* usersReqWr = call->getHandleList();
-         ASSERT_TRUE(usersReqWr && usersReqWr->size() == 1) << "Invalid user Join requests list";
-         mUsersRequestsJoin[apiIndex][usersReqWr->get(0)] = true;
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW))

@@ -657,12 +657,6 @@ void Call::kickUsersFromCall(const std::set<karere::Id>& users) const
     mSfuConnection->sendWrKick(users);
 }
 
-void Call::requestJoinPermission() const
-{
-    assert(!isOwnPrivModerator());
-    mSfuConnection->sendWrAllowReq();
-}
-
 std::vector<Cid_t> Call::getSpeakerRequested()
 {
     std::vector<Cid_t> speakerRequested;

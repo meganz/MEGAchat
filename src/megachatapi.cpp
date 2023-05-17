@@ -1146,11 +1146,6 @@ void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users
     pImpl->kickUsersFromCall(chatid, users, listener);
 }
 
-void MegaChatApi::requestJoinPermission(MegaChatHandle chatid, MegaChatRequestListener* listener)
-{
-    pImpl->requestJoinPermission(chatid, listener);
-}
-
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     pImpl->setCallOnHold(chatid, setOnHold, listener);

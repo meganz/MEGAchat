@@ -68,10 +68,6 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mOnHoldLabel->setVisible(false);
     mSetOnHold->setVisible(false);
 
-    mRequestJoinPerm = new QPushButton("Request Join permission", this);
-    connect(mRequestJoinPerm, SIGNAL(clicked()), this, SLOT(onRequestJoinPermission()));
-    mRequestJoinPerm->setVisible(true);
-
     mWaitingRoomShow = new QPushButton("Show waiting room", this);
     connect(mWaitingRoomShow, SIGNAL(clicked()), this, SLOT(onWrShow()));
     mWaitingRoomShow->setVisible(true);
@@ -107,7 +103,6 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mOnHoldLabel);
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
-    mButtonsLayout->addWidget(mRequestJoinPerm);
     mButtonsLayout->addWidget(mWaitingRoomShow);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
@@ -734,11 +729,6 @@ void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
 void MeetingView::onJoinCallWithVideo()
 {
     mMegaChatApi.startChatCall(mChatid);
-}
-
-void MeetingView::onRequestJoinPermission()
-{
-    mMegaChatApi.requestJoinPermission(mChatid);
 }
 
 void MeetingView::onWrShow()

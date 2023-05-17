@@ -63,7 +63,6 @@ const std::string SfuConnection::CSFU_BYE               = "BYE";            // C
 const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // Command sent to push all clients of sent peerId's (that are in the call) to the waiting roo
 const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // Command sent to grant the specified users the permission to enter the call from the waiting room
 const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";        // Command sent to disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room
-const std::string SfuConnection::CSFU_WR_ALLOW_REQ      = "WR_ALLOW_REQ";   // Command sent to request a permission to enter the call
 
 CommandsQueue::CommandsQueue():
     isSending(false)
@@ -2103,19 +2102,6 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
     addWrUsersArray(users, false, json);
 
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    json.Accept(writer);
-    std::string command(buffer.GetString(), buffer.GetSize());
-    return sendCommand(command);
-}
-
-bool SfuConnection::sendWrAllowReq()
-{
-    rapidjson::Document json(rapidjson::kObjectType);
-    rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(SfuConnection::CSFU_WR_ALLOW_REQ.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
