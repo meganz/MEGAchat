@@ -918,7 +918,7 @@ void Call::joinSfu()
         std::string ephemeralKey = generateSessionKeyPair();
         if (ephemeralKey.empty())
         {
-            orderedCallDisconnect(TermCode::kErrClientGeneral, std::string("Error generating ephemeral keypair"));
+            orderedCallDisconnect(TermCode::kErrorCrypto, std::string("Error generating ephemeral keypair"));
         }
         mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getOwnCid(), mSpeakerState, kInitialvthumbCount);
     })
@@ -1125,6 +1125,8 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kErrAuth:                  return "authentication error";
         case kErrApiTimeout:            return "ping timeout between SFU and API";
         case kErrSdp:                   return "error generating or setting SDP description";
+        case kErrorProtocolVersion:     return "Protocol version error";
+        case kErrorCrypto:              return "Cryptographic error";
         case kErrClientGeneral:         return "Client general error";
         case kErrGeneral:               return "SFU general error";
         case kUnKnownTermCode:          return "unknown error";
@@ -1421,7 +1423,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         bool anyVerified = std::any_of(keysVerified.begin(), keysVerified.end(), [](const auto& kv) { return kv; });
         if (!keysVerified.empty() && !anyVerified)
         {
-            orderedCallDisconnect(TermCode::kErrGeneral, "Can't verify any of the ephemeral keys on any peer received in ANSWER command");
+            orderedCallDisconnect(TermCode::kErrorCrypto, "Can't verify any of the ephemeral keys on any peer received in ANSWER command");
             return;
         }
 
@@ -1851,7 +1853,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
     if (!ephkeypair)
     {
         RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %d", static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
-        orderedCallDisconnect(TermCode::kErrGeneral, "Can't retrieve Ephemeral key for our own user");
+        orderedCallDisconnect(TermCode::kErrorCrypto, "Can't retrieve Ephemeral key for our own user");
         return false;
     }
 
@@ -2053,7 +2055,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
     {
         assert(false);
         RTCM_LOG_ERROR("calls in chatrooms with waiting room enabled are not supported by this version");
-        orderedCallDisconnect(TermCode::kErrClientGeneral, "calls in chatrooms with waiting room enabled are not supported by this version");
+        orderedCallDisconnect(TermCode::kErrorProtocolVersion, "calls in chatrooms with waiting room enabled are not supported by this version");
         return false;
     }
     return true;

@@ -7379,6 +7379,8 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrAuth:
         case rtcModule::TermCode::kErrApiTimeout:
         case rtcModule::TermCode::kErrSdp:
+        case rtcModule::TermCode::kErrorProtocolVersion:
+        case rtcModule::TermCode::kErrorCrypto:
         case rtcModule::TermCode::kErrClientGeneral:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kUnKnownTermCode:
@@ -7772,7 +7774,11 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kApiEndCall:
         case rtcModule::TermCode::kCallEndedByModerator:
         case rtcModule::TermCode::kUnKnownTermCode:
+        case rtcModule::TermCode::kErrorCrypto:
             return TERM_CODE_ERROR;
+
+        case rtcModule::TermCode::kErrorProtocolVersion:
+            return TERM_CODE_PROTOCOL_VERSION;
 
         case rtcModule::TermCode::kUserHangup:
             return TERM_CODE_HANGUP;
