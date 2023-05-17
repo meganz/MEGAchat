@@ -50,6 +50,8 @@ enum TermCode: uint8_t
     kErrAuth                    = kFlagError | 2,       // 130 < authentication error
     kErrApiTimeout              = kFlagError | 3,       // 131 < ping timeout between SFU and API
     kErrSdp                     = kFlagError | 4,       // 132 < error generating or setting SDP description
+    kErrorProtocolVersion       = kFlagError | 5,       // 133 < Protocol version error
+    kErrorCrypto                = kFlagError | 6,       // 134 < Cryptographic error
     kErrClientGeneral           = kFlagError | 62,      // 190 < Client general error
     kErrGeneral                 = kFlagError | 63,      // 191 < SFU general error
     kUnKnownTermCode            = kFlagError | 126,     // 254 < unknown error
