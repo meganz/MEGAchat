@@ -634,7 +634,6 @@ public:
     bool handleWrLeave(const karere::Id& /*user*/) override;
     bool handleWrAllow(const Cid_t& /*cid*/, const std::set<karere::Id>& /*mods*/) override;
     bool handleWrDeny(const std::set<karere::Id>& /*mods*/) override;
-    bool handleWrAllowReq(const karere::Id& /*user*/) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& /*users*/) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& /*users*/) override;
 };

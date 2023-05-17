@@ -7226,11 +7226,6 @@ bool MockupCall::handleWrDeny(const std::set<karere::Id>& /*mods*/)
     return true;
 }
 
-bool MockupCall::handleWrAllowReq(const karere::Id& /*user*/)
-{
-    return true;
-}
-
 bool MockupCall::handleWrUsersAllow(const std::set<karere::Id>& /*users*/)
 {
     return true;

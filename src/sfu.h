@@ -236,7 +236,6 @@ public:
     virtual bool handleWrLeave(const karere::Id& /*user*/) = 0;
     virtual bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) = 0;
     virtual bool handleWrDeny(const std::set<karere::Id>& mods) = 0;
-    virtual bool handleWrAllowReq(const karere::Id& user) = 0;
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
 
@@ -525,16 +524,6 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     WrDenyCommandFunction mComplete;
-};
-
-typedef std::function<bool(const karere::Id& user)>WrAllowReqCommandFunction;
-class WrAllowReqCommand: public Command
-{
-public:
-    WrAllowReqCommand(const WrAllowReqCommandFunction& complete, SfuInterface& call);
-    bool processCommand(const rapidjson::Document& command) override;
-    static const std::string COMMAND_NAME;
-    WrAllowReqCommandFunction mComplete;
 };
 
 typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersAllowCommandFunction;

@@ -42,7 +42,6 @@ const std::string WrEnterCommand::COMMAND_NAME          = "WR_ENTER";       // N
 const std::string WrLeaveCommand::COMMAND_NAME          = "WR_LEAVE";       // Notifies moderators about user(s) who left the waiting room (either entered the call or disconnected)
 const std::string WrAllowCommand::COMMAND_NAME          = "WR_ALLOW";       // Notifies that our user permission to enter the call has been granted (from waiting room)
 const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";        // Notifies that our user permission to enter the call has been denied (from waiting room)
-const std::string WrAllowReqCommand::COMMAND_NAME       = "WR_ALLOW_REQ";   // Notification resulting from a client sending WR_ALLOW_REQ, relayed to all moderators.
 const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted permission to enter the call.
 const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied permission to enter the call
 
@@ -1590,7 +1589,6 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[WrLeaveCommand::COMMAND_NAME] = mega::make_unique<WrLeaveCommand>(std::bind(&sfu::SfuInterface::handleWrLeave, &call, std::placeholders::_1), call);
     commands[WrAllowCommand::COMMAND_NAME] = mega::make_unique<WrAllowCommand>(std::bind(&sfu::SfuInterface::handleWrAllow, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[WrDenyCommand::COMMAND_NAME] = mega::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call, std::placeholders::_1), call);
-    commands[WrAllowReqCommand::COMMAND_NAME] = mega::make_unique<WrAllowReqCommand>(std::bind(&sfu::SfuInterface::handleWrAllowReq, &call, std::placeholders::_1), call);
     commands[WrUsersAllowCommand::COMMAND_NAME] = mega::make_unique<WrUsersAllowCommand>(std::bind(&sfu::SfuInterface::handleWrUsersAllow, &call, std::placeholders::_1), call);
     commands[WrUsersDenyCommand::COMMAND_NAME] = mega::make_unique<WrUsersDenyCommand>(std::bind(&sfu::SfuInterface::handleWrUsersDeny, &call, std::placeholders::_1), call);
 }
@@ -2820,25 +2818,6 @@ bool WrDenyCommand::processCommand(const rapidjson::Document& command)
         parseUsersArray(moderators, modsIterator);
     }
     return mComplete(moderators);
-}
-
-WrAllowReqCommand::WrAllowReqCommand(const WrAllowReqCommandFunction& complete, SfuInterface& call)
-    : Command(call)
-    , mComplete(complete)
-{
-}
-
-bool WrAllowReqCommand::processCommand(const rapidjson::Document& command)
-{
-    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
-    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
-    {
-        SFU_LOG_ERROR("WrAllowReqCommand: Received data doesn't have 'user' field");
-        return false;
-    }
-    std::string userIdString = reasonIterator->value.GetString();
-    ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
-    return mComplete(userId /*userid*/);
 }
 
 WrUsersAllowCommand::WrUsersAllowCommand(const WrUsersAllowCommandFunction& complete, SfuInterface& call)

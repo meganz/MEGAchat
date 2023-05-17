@@ -716,7 +716,6 @@ public:
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
     void onPermissionsChanged(const rtcModule::ICall& call) override;
-    void onWrUserReqAllow(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrUsersAllow(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrUsersDeny(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrUserDump(const rtcModule::ICall& call) override;

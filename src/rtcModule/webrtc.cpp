@@ -2248,20 +2248,6 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
     return true;
 }
 
-bool Call::handleWrAllowReq(const karere::Id& user)
-{
-    if (!user.isValid())
-    {
-        RTCM_LOG_ERROR("WR_ALLOW_REQ: invalid user id received");
-        assert(false);
-        return false;
-    }
-    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-    uhl->addMegaHandle(user.val);
-    mCallHandler.onWrUserReqAllow(*this, uhl.get());
-    return true;
-}
-
 bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 {
     assert(isOwnPrivModerator());
