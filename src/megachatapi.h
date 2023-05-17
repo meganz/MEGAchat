@@ -525,6 +525,7 @@ public:
         TERM_CODE_ERROR                     = 3,    // Call error has been received
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
         TERM_CODE_TOO_MANY_CLIENTS          = 5,    // Too many clients of same user connected
+        TERM_CODE_PROTOCOL_VERSION          = 6,    // SFU protocol version error
     };
 
     enum
@@ -749,6 +750,8 @@ public:
      *      - TERM_CODE_ERROR
      *      - TERM_CODE_REJECT
      *      - TERM_CODE_NO_PARTICIPATE
+     *      - TERM_CODE_TOO_MANY_CLIENTS
+     *      - TERM_CODE_PROTOCOL_VERSION
      *
      * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_STATUS) is true and MegaChatCall::getStatus() ==
      * MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION, this method returns the termination code for this call

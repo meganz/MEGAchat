@@ -258,6 +258,7 @@ public:
         kActive = 2,
     };
 
+    static constexpr unsigned int kmax_bitrate_kbps = 100 *1024; // max bitrate in KBPS
     static constexpr unsigned int kMediaKeyLen = 16; // length in Bytes of derived ephemeral key
     static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
 
@@ -374,9 +375,6 @@ public:
     // get ephemeral ECDH X25519 keypair for the current call session
     const mega::ECDH* getMyEphemeralKeyPair() const;
 
-    // sign string: sesskey|<callId>|<clientId>|<pubkey> with Ed25519 key and encode in B64
-    std::string signEphemeralKey(const std::string& str) const;
-
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
     void sfuDisconnect(const TermCode &termCode, bool hadParticipants);
@@ -408,9 +406,6 @@ public:
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
 
-    // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
-    std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
-
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
@@ -424,16 +419,6 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
-    void generateEphemeralKeyPair();
-    void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
-    // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-    void muteMyClientFromSfu();
-
-    // parse received ephemeral public key string (publickey:signature)
-    std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
-
-    // verify signature for received ephemeral key
-    promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
@@ -449,7 +434,7 @@ public:
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(unsigned termcode) override;
     void onSfuDisconnected() override;
@@ -595,6 +580,24 @@ protected:
     Cid_t getOwnCid() const;
     void setSessionModByUserId(uint64_t userid, bool isMod);
     void setOwnModerator(bool isModerator);
+
+    // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
+    void muteMyClientFromSfu();
+
+    // initializes a new pair of keys x25519 (for session key)
+    void generateEphemeralKeyPair();
+
+    // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
+    std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
+
+    // sets the ephemeral pub key for the peer, stores the peer in `mSessions` and calls back onNewSession()
+    void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
+
+    // parse received ephemeral public key string (publickey:signature)
+    std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
+
+    // verify signature for received ephemeral key
+    promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

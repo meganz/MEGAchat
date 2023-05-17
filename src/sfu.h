@@ -40,13 +40,16 @@ enum class SfuProtocol: uint32_t
 };
 
 // own client SFU protocol version
-constexpr unsigned int MY_SFU_PROTOCOL_VERSION = static_cast<unsigned int>(SfuProtocol::SFU_PROTO_V2);
+constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION = SfuProtocol::SFU_PROTO_V2;
 
 // returns true if provided version as param is equal to SFU current version
-static bool isCurrentSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) == SfuProtocol::SFU_PROTO_V2; }
+static bool isCurrentSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::SFU_PROTO_V2; }
 
 // returns true if provided version as param is SFU version V0 (forward secrecy is not supported)
-static bool isInitialSfuVersion(unsigned int v) { return static_cast<SfuProtocol>(v) == SfuProtocol::SFU_PROTO_V0; }
+static bool isInitialSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::SFU_PROTO_V0; }
+
+// returns true if provided version as param is a valid SFU version
+static bool isValidSfuVersion(sfu::SfuProtocol v) { return v != SfuProtocol::SFU_PROTO_INVAL; }
 
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
@@ -67,7 +70,7 @@ public:
 class Peer
 {
 public:
-    Peer(const karere::Id& peerid, const unsigned int sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
+    Peer(const karere::Id& peerid, const sfu::SfuProtocol sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -97,7 +100,7 @@ public:
     const promise::Promise<void>& getEphemeralPubKeyPms() const;
 
     // returns the SFU protocol version used by the peer
-    unsigned int getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
+    sfu::SfuProtocol getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
 
 protected:
     Cid_t mCid = K_INVALID_CID;
@@ -131,7 +134,7 @@ protected:
     mutable promise::Promise<void> mEphemeralKeyPms;
 
     // SFU protocol version used by the peer
-    unsigned int mSfuPeerProtoVersion = static_cast<unsigned int>(sfu::SfuProtocol::SFU_PROTO_INVAL);
+    sfu::SfuProtocol mSfuPeerProtoVersion = sfu::SfuProtocol::SFU_PROTO_INVAL;
 };
 
 class TrackDescriptor
@@ -230,7 +233,7 @@ public:
                               const std::map<karere::Id, bool>& wrUsers) = 0;
 
     // called when the connection to SFU is established
-    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
+    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual bool handleBye(unsigned termcode) = 0;
     virtual void onSfuDisconnected() = 0;
@@ -403,7 +406,7 @@ public:
     SpeakOffCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
+typedef std::function<bool(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
 {
 public:

@@ -190,6 +190,7 @@ const char* MegaChatCall::termcodeToString(int termcode)
         case TERM_CODE_ERROR:                     return "Call error has been received";
         case TERM_CODE_NO_PARTICIPATE:            return "User has been removed from chatroom";
         case TERM_CODE_TOO_MANY_CLIENTS:          return "Too many clients of same user connected";
+        case TERM_CODE_PROTOCOL_VERSION:          return "SFU protocol version error";
     }
     return "Unknown call termcode";
 }

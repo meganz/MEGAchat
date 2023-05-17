@@ -6773,7 +6773,7 @@ bool MockupCall::handleSpeakOffCommand(Cid_t)
 }
 
 
-bool MockupCall::handlePeerJoin(Cid_t, uint64_t, unsigned int, int, std::string&, std::vector<std::string>&)
+bool MockupCall::handlePeerJoin(Cid_t, uint64_t, sfu::SfuProtocol, int, std::string&, std::vector<std::string>&)
 {
     return true;
 }
