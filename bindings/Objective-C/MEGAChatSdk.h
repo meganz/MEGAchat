@@ -72,7 +72,7 @@ typedef NS_ENUM (NSUInteger, MEGAChatOption) {
     MEGAChatOptionOpenInvite        = 1 << 2
 };
 
-typedef NS_ENUM (NSUInteger, MEGAChatListMask) {
+typedef NS_OPTIONS (NSUInteger, MEGAChatListMask) {
     MEGAChatListMaskNone                  = 0,
     MEGAChatListMaskIndividualOrGroup     = 1 << 0,
     MEGAChatListMaskPublicOrPrivate       = 1 << 1,
@@ -83,7 +83,7 @@ typedef NS_ENUM (NSUInteger, MEGAChatListMask) {
 };
 
 
-typedef NS_ENUM (NSUInteger, MEGAChatListFilter) {
+typedef NS_OPTIONS (NSUInteger, MEGAChatListFilter) {
     MEGAChatListFilterNone          = 0,
     MEGAChatListFilterIndividual    = 1 << 0,
     MEGAChatListFilterPublic        = 1 << 1,
@@ -202,7 +202,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId;
 - (nullable MEGAChatRoom *)chatRoomByUser:(uint64_t)userHandle;
 - (nullable MEGAChatRoomList *)chatRoomsByType:(MEGAChatType)type;
-- (nullable MEGAChatListItemList *)chatListItemsByType:(MEGAChatType)type;
 
 - (nullable MEGAChatListItem *)chatListItemForChatId:(uint64_t)chatId;
 - (nullable MEGAChatListItemList *)chatListItemsByMask:(MEGAChatListMask)mask filter:(MEGAChatListFilter)filter;
