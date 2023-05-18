@@ -26,6 +26,7 @@
 #include <chatClient.h>
 #include <future>
 #include "gtest/gtest.h"
+#include <fstream>
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
