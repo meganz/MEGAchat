@@ -74,6 +74,7 @@ protected:
     QPushButton* mJoinCallWithVideo;
     QPushButton* mJoinCallWithoutVideo;
     QPushButton* mWaitingRoomShow;
+    QPushButton* mAllowJoin;
     QLabel* mOnHoldLabel;
     QLabel* mLabel;
 
@@ -99,6 +100,7 @@ public slots:
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();
     void onWrShow();
+    void onAllowJoin();
 };
 
 #endif // MEETINGVIEW_H

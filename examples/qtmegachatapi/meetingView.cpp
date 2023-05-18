@@ -2,6 +2,7 @@
 #include "meetingView.h"
 #include <QMenu>
 #include <QApplication>
+#include <QInputDialog>
 
 MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent)
     : QDialog(parent)
@@ -71,6 +72,11 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mWaitingRoomShow = new QPushButton("Show waiting room", this);
     connect(mWaitingRoomShow, SIGNAL(clicked()), this, SLOT(onWrShow()));
     mWaitingRoomShow->setVisible(true);
+
+    mAllowJoin= new QPushButton("Allow Join to users", this);
+    connect(mAllowJoin, SIGNAL(clicked()), this, SLOT(onAllowJoin()));
+    mAllowJoin->setVisible(true);
+
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -104,6 +110,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
     mButtonsLayout->addWidget(mWaitingRoomShow);
+    mButtonsLayout->addWidget(mAllowJoin);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -762,6 +769,14 @@ void MeetingView::onWrShow()
     msg.setIcon(QMessageBox::Information);
     msg.setText(wrText.c_str());
     msg.exec();
+}
+
+void MeetingView::onAllowJoin()
+{
+    QString peerId = QInputDialog::getText(this, tr("Allow peer to Join"), tr("Enter peerId (B64)"));
+    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
+    mMegaChatApi.allowUsersJoinCall(mChatid, handleList.get());
 }
 
 void MeetingView::onJoinCallWithoutVideo()
