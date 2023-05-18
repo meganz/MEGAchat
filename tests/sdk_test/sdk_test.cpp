@@ -1289,7 +1289,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id" << chatid;
-    ASSERT_EQ(chatroom->getPeerCount(), 0) << "Wrong number of peers in chatroom " << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 0u) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
     ASSERT_TRUE(waitForResponse(chatItemLeft0)) << "Chat list item update not received for main account after " << maxTimeout << " seconds";
@@ -1300,7 +1300,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     ASSERT_TRUE(waitForResponse(chatLeft1)) << "Chat list item leave notification for auxiliar account not received after " << maxTimeout << " seconds";
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
-    ASSERT_EQ(chatroom->getPeerCount(), 0) << "Wrong number of peers in chatroom " << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 0u) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
     // Close the chatroom, even if we've been removed from it
@@ -1338,7 +1338,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
-    ASSERT_EQ(chatroom->getPeerCount(), 1) << "Wrong number of peers in chatroom " << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 1u) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
     // since we were expulsed from chatroom, we need to open it again
@@ -1755,7 +1755,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to autojoin chat-link. Error: " << lastErrorMsgChat[a2] << " (" << lastErrorChat[a2] << ")";
     ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for update previewers";
     MegaChatListItem *item = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_EQ(item->getNumPreviewers(), 0) << "Wrong number of previewers.";
+    ASSERT_EQ(item->getNumPreviewers(), 0u) << "Wrong number of previewers.";
     delete item;
     item = NULL;
 

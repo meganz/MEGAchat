@@ -972,7 +972,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                    if (wptr.deleted())
                    {
-                       mMegaApi->sendEvent(99014, "karere client instance was removed upon TYPE_LOAD_PREVIEW");
+                       mMegaApi->sendEvent(99014, "karere client instance was removed upon TYPE_LOAD_PREVIEW", false, static_cast<const char*>(nullptr));
                    }
 
                    bool createChat = request->getFlag();
@@ -1544,7 +1544,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     ChatRoom *room = findChatRoom(chatid);
                     if (!room)
                     {
-                        mMegaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
+                        mMegaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid", false, static_cast<const char*>(nullptr));
 
                         MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                         fireOnChatRequestFinish(request, megaChatError);
@@ -1552,7 +1552,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     }
                     else if (wasArchived && room->isArchived())    // don't want to generate notifications for archived chats
                     {
-                        mMegaApi->sendEvent(99009, "PUSH received for archived chatid (and still archived)");
+                        mMegaApi->sendEvent(99009, "PUSH received for archived chatid (and still archived)", false, static_cast<const char*>(nullptr));
 
                         // since a PUSH could be received before the actionpacket updating flags (
                         MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
@@ -1843,7 +1843,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     logMsg.append(call->getChatid().toString().c_str());
                     logMsg.append(" userid: ");
                     logMsg.append(mClient->myHandle().toString().c_str());
-                    mMegaApi->sendEvent(99015, logMsg.c_str());
+                    mMegaApi->sendEvent(99015, logMsg.c_str(), false, static_cast<const char*>(nullptr));
                 }
 
                 assert(call->isOwnPrivModerator() == chatroom->ownPriv());
@@ -2336,7 +2336,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     logMsg.append(call->getChatid().toString().c_str());
                     logMsg.append(" userid: ");
                     logMsg.append(mClient->myHandle().toString().c_str());
-                    mMegaApi->sendEvent(99015, logMsg.c_str());
+                    mMegaApi->sendEvent(99015, logMsg.c_str(), false, static_cast<const char*>(nullptr));
                 }
 
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK  - You need moderator role to approve speak request");
@@ -4629,6 +4629,7 @@ void MegaChatApiImpl::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHand
 MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsByChat(MegaChatHandle chatid)
 {
     MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    if (!mClient) { return list; }
     SdkMutexGuard g(sdkMutex);
     GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
     if (chatRoom)
@@ -4644,6 +4645,7 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getScheduledMeetingsByChat(MegaCh
 
 MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId)
 {
+    if (!mClient) { return nullptr; }
     SdkMutexGuard g(sdkMutex);
     GroupChatRoom* chatRoom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
     if (chatRoom)
@@ -4661,6 +4663,11 @@ MegaChatScheduledMeeting* MegaChatApiImpl::getScheduledMeeting(MegaChatHandle ch
 MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
 {
     MegaChatScheduledMeetingList* list = MegaChatScheduledMeetingList::createInstance();
+    if (!mClient)
+    {
+        return list;
+    }
+
     SdkMutexGuard g(sdkMutex);
     for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
     {
@@ -4670,6 +4677,13 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
             const std::map<karere::Id, std::unique_ptr<KarereScheduledMeeting>>& map = chatRoom->getScheduledMeetings();
             for (auto it = map.begin(); it != map.end(); it++)
             {
+                if (!it->second)
+                {
+                    API_LOG_ERROR("getAllScheduledMeetings: scheduled meeting NULL at scheduled meeting list");
+                    assert(false);
+                    continue;
+                }
+
                 if (it->second->timezone().empty())
                 {
                     API_LOG_ERROR("getAllScheduledMeetings: scheduled meeting should have a timezone");
