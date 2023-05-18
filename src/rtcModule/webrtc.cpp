@@ -2058,9 +2058,18 @@ bool Call::handleBye(const unsigned& termCode, bool& wr, std::string& errMsg)
     {
         if (auxTermCode == kKickedFromWaitingRoom)
         {
-            RTCM_LOG_DEBUG("handleBye: immediate call disconnect due to BYE [%d] command received from SFU (kKickedFromWaitingRoom)", termCode);
-            immediateCallDisconnect(auxTermCode); // we don't need to send BYE command, just perform disconnection
-            return true;
+            auto wptr = weakHandle();
+            karere::marshallCall([wptr, auxTermCode, this]()
+            {
+                // need to marshall this, otherwise there could be memory issues when we remove Sfuconnection
+                if (wptr.deleted())
+                {
+                    return;
+                }
+
+                RTCM_LOG_DEBUG("handleBye: immediate call disconnect due to BYE [%d] command received from SFU (kKickedFromWaitingRoom)", auxTermCode);
+                immediateCallDisconnect(auxTermCode); // we don't need to send BYE command, just perform disconnection
+            }, mRtc.getAppCtx());
         }
         else
         {
