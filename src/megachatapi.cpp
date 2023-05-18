@@ -359,6 +359,11 @@ bool MegaChatCall::hasRequestSpeak() const
     return false;
 }
 
+int MegaChatCall::getWrJoiningState() const
+{
+    return 0;
+}
+
 const MegaChatWaitingRoom* MegaChatCall::getWaitingRoom() const
 {
     return NULL;

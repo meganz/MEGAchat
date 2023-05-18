@@ -456,9 +456,9 @@ bool Call::hasRequestSpeak() const
     return mSpeakerState == SpeakerState::kPending;
 }
 
-WrState Call::getWrJoiningState()
+int Call::getWrJoiningState() const
 {
-    return mWrJoiningState;
+    return static_cast<int>(mWrJoiningState);
 }
 
 bool Call::isValidWrJoiningState()

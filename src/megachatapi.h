@@ -1076,6 +1076,17 @@ public:
     virtual bool hasRequestSpeak() const;
 
     /**
+     * @brief Returns our current permission to join the call (just valid if we are in a waiting room)
+     *
+     * Valid values for this method are:
+     * - MegaChatWaitingRoom::MWR_NOT_ALLOWED: client is not allowed to join call (must remains in waiting room)
+     * - MegaChatWaitingRoom::MWR_ALLOWED: client is allowed to join call (no further action required from app to JOIN call)
+     *
+     * @return our current permission to join the call
+     */
+    virtual int getWrJoiningState() const;
+
+    /**
      * @brief Returns a MegaChatWaitingRoom instance for this call, if any
      *
      * The MegaChatCall retains the ownership of returned value.

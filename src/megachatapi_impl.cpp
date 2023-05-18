@@ -7533,6 +7533,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
     mTermCode = convertTermCode(call.getTermCode());
+    mWrJoiningState = call.getWrJoiningState();
     mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? new MegaChatWaitingRoomPrivate(*call.getWaitingRoom()) : nullptr);
     mEndCallReason = call.getEndCallReason() == static_cast<uint8_t>(rtcModule::EndCallReason::kInvalidReason)
             ? static_cast<uint8_t>(MegaChatCall::END_CALL_REASON_INVALID)
@@ -7584,6 +7585,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mIsSpeakAllow = call.isSpeakAllow();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
+    mWrJoiningState = call.getWrJoiningState();
     mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? call.getWaitingRoom()->copy() : nullptr);
     mModerators.reset(call.getModerators() ? call.getModerators()->copy() : nullptr);
     mParticipants = call.mParticipants;
@@ -7797,6 +7799,11 @@ int MegaChatCallPrivate::getNetworkQuality() const
 bool MegaChatCallPrivate::hasRequestSpeak() const
 {
     return mHasRequestSpeak;
+}
+
+int MegaChatCallPrivate::getWrJoiningState() const
+{
+    return mWrJoiningState;
 }
 
 const MegaChatWaitingRoom* MegaChatCallPrivate::getWaitingRoom() const

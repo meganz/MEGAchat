@@ -324,6 +324,7 @@ public:
     // request to speak, or cancels a previous request (add = false)
     void requestSpeaker(bool add = true) override;
     bool hasRequestSpeak() const override;
+    int getWrJoiningState() const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
@@ -411,7 +412,6 @@ public:
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
-    WrState getWrJoiningState();
     bool isValidWrJoiningState();
     void clearWrJoiningState();
     void setWrJoiningState(WrState status);

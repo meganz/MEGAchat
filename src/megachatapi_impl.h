@@ -277,6 +277,7 @@ public:
     bool isSpeakAllow() const override;
     int getNetworkQuality() const override;
     bool hasRequestSpeak() const override;
+    int getWrJoiningState() const override;
     const MegaChatWaitingRoom* getWaitingRoom() const override;
 
     void setStatus(int status);
@@ -329,6 +330,7 @@ protected:
     bool mHasRequestSpeak = false;
     bool mOwnModerator = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
+    int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
 };
 
 class MegaChatWaitingRoomPrivate: public MegaChatWaitingRoom
