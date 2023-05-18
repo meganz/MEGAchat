@@ -405,17 +405,20 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
     generateHeader(encrypted_frame.data());
 
     // encrypt frame and store it in encrypted_frame
-    bool result = mSymCipher.gcm_encrypt_aad(frame.data(), frame.size(), encrypted_frame.data(),
-                                             FRAME_HEADER_LENGTH, iv.get(),
-                                             FRAME_IV_LENGTH, FRAME_GCM_TAG_LENGTH,
-                                             encrypted_frame.data()+FRAME_HEADER_LENGTH,  // header offset
-                                             encrypted_frame.size()-FRAME_HEADER_LENGTH); // size - header
-    if (!result)
+    std::string encryptedFrame;
+    size_t encSize = encrypted_frame.size()-FRAME_HEADER_LENGTH;
+    bool result = mSymCipher.gcm_encrypt_add(frame.data(), frame.size(),
+                                           encrypted_frame.data(), FRAME_HEADER_LENGTH,
+                                           iv.get(), FRAME_IV_LENGTH,
+                                           FRAME_GCM_TAG_LENGTH, encryptedFrame, encSize);
+
+    if (!result || encryptedFrame.size() != encSize)
     {
         RTCM_LOG_WARNING("Failed gcm_encrypt_aad encryption with additional authenticated data: MyCid: %d, MyPeerId: %s, KeyId: %d, frameCtr: %d",
                          mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr - 1);
         return kRecoverable;
     }
+    memcpy(encrypted_frame.data() + FRAME_HEADER_LENGTH, encryptedFrame.data(), encSize);
 
     // set bytes_written to the number of bytes, written in encrypted_frame
     assert(GetMaxCiphertextByteSize(media_type, frame.size()) == encrypted_frame.size());

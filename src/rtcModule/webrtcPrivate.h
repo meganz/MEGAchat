@@ -258,6 +258,8 @@ public:
         kActive = 2,
     };
 
+    static constexpr unsigned int kmax_bitrate_kbps = 100 *1024; // max bitrate in KBPS
+    static constexpr unsigned int kMediaKeyLen = 16; // length in Bytes of derived ephemeral key
     static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
 
     Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id& callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
@@ -366,6 +368,12 @@ public:
     bool connectSfu(const std::string& sfuUrlStr);
     void joinSfu();
 
+    // generates an ephemeral ECDH X25519 keypair and a signature with format: sesskey|<callId>|<clientId>|<pubkey>
+    std::string generateSessionKeyPair();
+
+    // get ephemeral ECDH X25519 keypair for the current call session
+    const mega::ECDH* getMyEphemeralKeyPair() const;
+
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
     void sfuDisconnect(const TermCode &termCode, bool hadParticipants);
@@ -396,6 +404,7 @@ public:
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
+
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
@@ -412,8 +421,8 @@ public:
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod) override;
-    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) override;
+    bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
     bool handleVThumbsStopCommand() override;
@@ -424,14 +433,16 @@ public:
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(unsigned termcode) override;
-    void onSfuConnected() override;
     void onSfuDisconnected() override;
     void onSendByeCommand() override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
+    bool handleHello (const Cid_t cid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                      const std::map<karere::Id, bool>& wrUsers) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     void logError(const char* error) override;
@@ -469,8 +480,16 @@ protected:
     int64_t mInitialTs = 0; // when we joined the call (seconds)
     int64_t mOffset = 0;    // duration of call when we joined (millis)
     int64_t mFinalTs = 0;   // end of the call (seconds)
-
     bool mAudioLevelMonitor = false;
+
+    // Number of SFU->client audio tracks that the client must allocate. This is equal to the maximum number of simultaneous speakers the call supports.
+    uint32_t mNumInputAudioTracks = 0;
+
+    // Number of SFU->client video tracks that the client must allocate. This is equal to the maximum number of simultaneous video tracks the call supports.
+    uint32_t mNumInputVideoTracks = 0;
+
+    // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
+    megaHandle mVoiceDetectionTimer = 0;
 
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
@@ -528,8 +547,14 @@ protected:
      */
     std::set<karere::Id> mModerators;
 
+    // symetric cipher for media key encryption
+    mega::SymmCipher mSymCipher;
+
+    // ephemeral X25519 EC key pair for current session
+    std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
+
     Keyid_t generateNextKeyId();
-    void generateAndSendNewkey(bool reset = false);
+    void generateAndSendNewMediakey(bool reset = false);
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)
@@ -553,6 +578,21 @@ protected:
     Cid_t getOwnCid() const;
     void setSessionModByUserId(uint64_t userid, bool isMod);
     void setOwnModerator(bool isModerator);
+
+    // initializes a new pair of keys x25519 (for session key)
+    void generateEphemeralKeyPair();
+
+    // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
+    std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
+
+    // sets the ephemeral pub key for the peer, stores the peer in `mSessions` and calls back onNewSession()
+    void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
+
+    // parse received ephemeral public key string (publickey:signature)
+    std::pair<std::string, std::string> splitPubKey(const std::string &keyStr) const;
+
+    // verify signature for received ephemeral key
+    promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
@@ -569,8 +609,9 @@ public:
     promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeDevice() override;
     void releaseDevice() override;
-    void addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) override;
-    void removeLocalVideoRenderer(const karere::Id &chatid) override;
+    void addLocalVideoRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
+    void removeLocalVideoRenderer(const karere::Id& chatid) override;
+    void onMediaKeyDecryptionFailed(const std::string& err);
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;

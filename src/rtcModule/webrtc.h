@@ -50,6 +50,8 @@ enum TermCode: uint8_t
     kErrAuth                    = kFlagError | 2,       // 130 < authentication error
     kErrApiTimeout              = kFlagError | 3,       // 131 < ping timeout between SFU and API
     kErrSdp                     = kFlagError | 4,       // 132 < error generating or setting SDP description
+    kErrorProtocolVersion       = kFlagError | 5,       // 133 < Protocol version error
+    kErrorCrypto                = kFlagError | 6,       // 134 < Cryptographic error
     kErrClientGeneral           = kFlagError | 62,      // 190 < Client general error
     kErrGeneral                 = kFlagError | 63,      // 191 < SFU general error
     kUnKnownTermCode            = kFlagError | 126,     // 254 < unknown error
@@ -94,9 +96,9 @@ enum CallQuality
 
 enum VideoResolution
 {
-    kUndefined = -1,
-    kLowRes = 0,
-    kHiRes = 1,
+    kUndefined  = kUndefinedTrack,
+    kLowRes     = kVthumbTrack,
+    kHiRes      = kHiResTrack,
 };
 
 enum TrackDirection
@@ -270,10 +272,10 @@ RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScach
                            WebsocketsIO& websocketIO, void *appCtx,
                            rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
 enum RtcConstant {
-   kMaxCallReceivers = 20,
-   kMaxCallAudioSenders = 20,
-   kMaxCallVideoSenders = 30,
-   kInitialvthumbCount = 0, // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
+   kMaxCallReceivers = 20,      // should be inline with webclient value
+   kMaxCallAudioSenders = 20,   // should be inline with webclient value
+   kMaxCallVideoSenders = 24,   // should be inline with webclient value
+   kInitialvthumbCount = 0,     // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
    kHiResWidth = 960,  // px
    kHiResHeight = 540,  // px
    kHiResMaxFPS = 30,

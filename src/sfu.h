@@ -20,6 +20,36 @@
 
 namespace sfu
 {
+/** SFU Protocol Versions:
+ * - Version 0: initial version
+ *
+ * - Version 1 (never released for native clients):
+ *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
+ *      + Dynamic audio routing
+ *      + Waiting rooms
+ *
+ * - Version 2 (contains all features from V1):
+ *      + Change AES-GCM by AES-CBC with Zero iv
+ */
+enum class SfuProtocol: uint32_t
+{
+    SFU_PROTO_INVAL    = UINT32_MAX,
+    SFU_PROTO_V0       = 0,
+    SFU_PROTO_V1       = 1,
+    SFU_PROTO_V2       = 2,
+};
+
+// own client SFU protocol version
+constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION = SfuProtocol::SFU_PROTO_V2;
+
+// returns true if provided version as param is equal to SFU current version
+static bool isCurrentSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::SFU_PROTO_V2; }
+
+// returns true if provided version as param is SFU version V0 (forward secrecy is not supported)
+static bool isInitialSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::SFU_PROTO_V0; }
+
+// returns true if provided version as param is a valid SFU version
+static bool isValidSfuVersion(sfu::SfuProtocol v) { return v != SfuProtocol::SFU_PROTO_INVAL; }
 
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
@@ -40,7 +70,7 @@ public:
 class Peer
 {
 public:
-    Peer(const karere::Id& peerid, unsigned avFlags, Cid_t cid = 0, bool isModerator = false);
+    Peer(const karere::Id& peerid, const sfu::SfuProtocol sfuProtoVersion, const unsigned avFlags, const std::vector<std::string>* ivs = nullptr, const Cid_t cid = 0, const bool isModerator = false);
     Peer(const Peer& peer);
 
     Cid_t getCid() const;
@@ -59,13 +89,28 @@ public:
     std::string getKey(Keyid_t keyid) const;
     void addKey(Keyid_t keyid, const std::string& key);
     void resetKeys();
+    const std::vector<std::string>& getIvs() const;
+    void setIvs(const std::vector<std::string>& ivs);
+    void setEphemeralPubKeyDerived(const std::string& key);
+
+    // returns derived peer's ephemeral key if available
+    std::string getEphemeralPubKeyDerived() const;
+
+    // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
+    const promise::Promise<void>& getEphemeralPubKeyPms() const;
+
+    // returns the SFU protocol version used by the peer
+    sfu::SfuProtocol getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
 
 protected:
-    Cid_t mCid = 0; // 0 is an invalid Cid
+    Cid_t mCid = K_INVALID_CID;
     karere::Id mPeerid;
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
+
+    // initialization vector
+    std::vector<std::string> mIvs;
 
     /*
      * Moderator role for this call
@@ -81,13 +126,22 @@ protected:
      *  - Approve/reject speaker requests
      */
     bool mIsModerator = false;
+
+    // peer ephemeral key derived
+    std::string mEphemeralPubKeyDerived;
+
+    // this promise is resolved/rejected when peer's ephemeral key is verified and derived
+    mutable promise::Promise<void> mEphemeralKeyPms;
+
+    // SFU protocol version used by the peer
+    sfu::SfuProtocol mSfuPeerProtoVersion = sfu::SfuProtocol::SFU_PROTO_INVAL;
 };
 
 class TrackDescriptor
 {
 public:
-    IvStatic_t mIv = 0;
-    uint32_t mMid;
+    static constexpr uint32_t invalidMid = UINT32_MAX;
+    uint32_t mMid = invalidMid;
     bool mReuse = false;
 };
 
@@ -160,8 +214,8 @@ class SfuInterface
 public:
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
-    virtual bool handleAnswerCommand(Cid_t cid, Sdp &spd, uint64_t, const std::vector<Peer>&peers, const std::map<Cid_t, TrackDescriptor>&vthumbs, const std::map<Cid_t, TrackDescriptor>&speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
-    virtual bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
+    virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
     virtual bool handleVThumbsStopCommand() = 0;
@@ -174,12 +228,14 @@ public:
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
+    virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                              const std::map<karere::Id, bool>& wrUsers) = 0;
 
     // called when the connection to SFU is established
-    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) = 0;
+    virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual bool handleBye(unsigned termcode) = 0;
-    virtual void onSfuConnected() = 0;
     virtual void onSfuDisconnected() = 0;
     virtual void onSendByeCommand() = 0;
 
@@ -194,15 +250,20 @@ class Command
 {
 public:
     virtual bool processCommand(const rapidjson::Document& command) = 0;
-    static std::string COMMAND_IDENTIFIER;
-    static std::string ERROR_IDENTIFIER;
-    static std::string ERROR_MESSAGE;
+    static const std::string COMMAND_IDENTIFIER;
+    static const std::string ERROR_IDENTIFIER;
+    static const std::string WARN_IDENTIFIER;
+    static const std::string ERROR_MESSAGE;
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
+    static std::vector<mega::byte> hexToByteArray(const std::string &hex);
+    void parseUsersArray(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
+    void parseTracks(const rapidjson::Document &command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const;
+
 protected:
     Command(SfuInterface& call);
-    bool parseTrackDescriptor(TrackDescriptor &trackDescriptor, rapidjson::Value::ConstMemberIterator &value) const;
+    bool parseUsersMap(std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
     static uint8_t hexDigitVal(char value);
 
     SfuInterface& mCall;
@@ -221,19 +282,17 @@ public:
 class AnswerCommand : public Command
 {
 public:
-    typedef std::function<bool(Cid_t, sfu::Sdp&, uint64_t, std::vector<Peer>, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     AnswerCompleteFunction mComplete;
 
 private:
-    void parsePeerObject(std::vector<Peer>& peers, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
-    void parseTracks(const std::vector<Peer>&peers, std::map<Cid_t, TrackDescriptor> &tracks, rapidjson::Value::ConstMemberIterator& it, bool audio) const;
-    void parseModeratorsObject(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
+    void parsePeerObject(std::vector<Peer>& peers, std::map<Cid_t, std::string>& keystrmap, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
 };
 
-typedef std::function<bool(Keyid_t, Cid_t, const std::string&)> KeyCompleteFunction;
+typedef std::function<bool(const Keyid_t&, const Cid_t&, const std::string&)> KeyCompleteFunction;
 class KeyCommand : public Command
 {
 public:
@@ -343,7 +402,7 @@ public:
     SpeakOffCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, uint64_t userid, int av)> PeerJoinCommandFunction;
+typedef std::function<bool(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
 {
 public:
@@ -391,6 +450,23 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     ModDelCommandFunction mComplete;
+};
+
+class HelloCommand : public Command
+{
+public:
+    typedef std::function<bool(const Cid_t userid,
+                               const unsigned int nAudioTracks,
+                               const unsigned int nVideoTracks,
+                               const std::set<karere::Id>& mods,
+                               const bool wr,
+                               const bool allowed,
+                               const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
+
+    HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    HelloCommandFunction mComplete;
 };
 
 /**
@@ -443,6 +519,8 @@ public:
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     void setIsSendingBye(bool sending);
+    void setMyCid(const Cid_t& cid);
+    Cid_t getMyCid() const;
     bool isSendingByeCommand() const;
     bool isOnline() const;
     bool isJoined() const;
@@ -452,7 +530,7 @@ public:
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
-    static bool parseSfuData(const char *data, rapidjson::Document &document, std::string &command, std::string &errMsg, int32_t &errCode);
+    static bool parseSfuData(const char* data, rapidjson::Document& document, std::string& command, std::string& warnMsg, std::string& errMsg, int32_t& errCode);
     static void setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands);
     bool handleIncomingData(const char *data, size_t len);
     void addNewCommand(const std::string &command);
@@ -461,7 +539,7 @@ public:
     void checkThreadId();
     const karere::Url& getSfuUrl();
 
-    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, int avFlags, Cid_t prevCid, int speaker = -1, int vthumbs = -1);
+    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int speaker = -1, int vthumbs = -1);
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);
     bool sendGetVtumbs(const std::vector<Cid_t>& cids);
@@ -520,6 +598,8 @@ protected:
     // This flag is set true when BYE command is sent to SFU
     bool mIsSendingBye = false;
 
+    Cid_t mMyCid = K_INVALID_CID;
+
     std::map<std::string, std::unique_ptr<Command>> mCommands;
     SfuInterface& mCall;
     CommandsQueue mCommandsQueue;
@@ -544,13 +624,14 @@ public:
     void retryPendingConnections(bool disconnect);
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
-    const karere::Id& myHandle();
+    void addVersionToUrl(karere::Url& sfuUrl);
 
 private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
     std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
+
 };
 
 static inline const char* connStateToStr(SfuConnection::ConnState state)

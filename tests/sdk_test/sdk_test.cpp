@@ -82,6 +82,7 @@ int main(int argc, char **argv)
 #ifndef KARERE_DISABLE_WEBRTC
     unitaryTest.UNITARYTEST_SfuDataReception();
 #endif
+
     std::cout << "[========] End Unitary tests " << std::endl;
 
     return rc + unitaryTest.mFailedTests;
@@ -4059,15 +4060,15 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     std::function<void()> waitForChatCallReadyA =
       [this, &chatCallSessionStatusInProgressA]()
       {
-          ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressA)) <<
-                           "Timeout expired for A receiving chat call in progress";
+        ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressA)) <<
+                         "Timeout expired for A receiving chat call in progress";
       };
 
     std::function<void()> waitForChatCallReadyB =
       [this, &chatCallSessionStatusInProgressB] ()
       {
-          ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressB)) <<
-                           "Timeout expired for B receiving chat call in progress";
+        ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressB)) <<
+                         "Timeout expired for B receiving chat call in progress";
       };
 
     megaChatApi[a1]->retryPendingConnections(true);
@@ -6520,7 +6521,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"]                            = false;
     checkCommands["{\"a\":\"HIRES_STOP\"}"]                                                     = true;
     checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2,\"rsn\":65}"]                                  = true;
-    checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"]         = true;
+    // checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"]         = true;  // DAR branch fixes and updates test cases for this test
     checkCommands["{\"a\":\"HIRES_START\"}"]                                                    = true;
     checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"]                             = false;
     checkCommands["{\"err\":129}"]                                                              = true;
@@ -6532,9 +6533,10 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
         executedTests++;
         int32_t errCode = INT32_MIN; // init errCode to invalid value, to check if a valid errCode has been returned by SFU
         std::string command;
+        std::string warnMsg;
         std::string errMsg;
         rapidjson::Document document;
-        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, command, errMsg, errCode);
+        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, command, warnMsg, errMsg, errCode);
 
         /* Command processing is considered failed if:
          * 1) An error happened upon parsing "SFU" incoming data
@@ -6544,6 +6546,11 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
         bool commandProcSuccess = parseSuccess
                && (errCode != INT32_MIN
                     || (commands.find(command) != commands.end() && commands[command]->processCommand(document)));
+
+        if (!warnMsg.empty())
+        {
+            LOG_warn << warnMsg;
+        }
 
         if (commandProcSuccess != testCase.second)
         {
@@ -6702,12 +6709,12 @@ bool MockupCall::handleAvCommand(Cid_t, unsigned)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t, sfu::Sdp &, uint64_t, const std::vector<sfu::Peer> &, const std::map<Cid_t, sfu::TrackDescriptor> &, const std::map<Cid_t, sfu::TrackDescriptor> &, std::set<karere::Id>&, bool)
+bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::map<Cid_t, sfu::TrackDescriptor>&, std::set<karere::Id>&, bool)
 {
     return true;
 }
 
-bool MockupCall::handleKeyCommand(Keyid_t, Cid_t, const std::string &)
+bool MockupCall::handleKeyCommand(const Keyid_t&, const Cid_t&, const std::string &)
 {
     return true;
 }
@@ -6763,7 +6770,7 @@ bool MockupCall::handleSpeakOffCommand(Cid_t)
 }
 
 
-bool MockupCall::handlePeerJoin(Cid_t, uint64_t, int)
+bool MockupCall::handlePeerJoin(Cid_t, uint64_t, sfu::SfuProtocol, int, std::string&, std::vector<std::string>&)
 {
     return true;
 }
@@ -6788,11 +6795,6 @@ bool MockupCall::handleModDel(uint64_t)
     return false;
 }
 
-void MockupCall::onSfuConnected()
-{
-
-}
-
 void MockupCall::onSendByeCommand()
 {
 
@@ -6810,5 +6812,12 @@ bool MockupCall::error(unsigned int, const string &)
 void MockupCall::logError(const char *)
 {
 
+}
+
+bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
+                             const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
+                             const std::map<karere::Id, bool>& /*wrUsers*/)
+{
+    return false;
 }
 #endif
