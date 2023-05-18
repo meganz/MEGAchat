@@ -2221,17 +2221,22 @@ bool Call::handleWrLeave(const karere::Id& user)
 
     if (!mWaitingRoom)
     {
+        RTCM_LOG_WARNING("WR_LEAVE : mWaitingRoom is null");
         assert(false);
-        mWaitingRoom.reset(new KarereWaitingRoom());
+        mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
+        return false;
     }
-    else if (mWaitingRoom->removeUser(user.val))
+
+    if (!mWaitingRoom->removeUser(user.val))
     {
-        std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-        uhl->addMegaHandle(user.val);
-        mCallHandler.onWrUsersLeave(*this, uhl.get());
-        return true;
+        RTCM_LOG_WARNING("WR_LEAVE : user not found in waiting room: %s", user.toString().c_str());
+        return false;
     }
-    return false;
+
+    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+    uhl->addMegaHandle(user.val);
+    mCallHandler.onWrUsersLeave(*this, uhl.get());
+    return true;
 }
 
 bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
@@ -2280,15 +2285,20 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 
     if (!mWaitingRoom)
     {
+        RTCM_LOG_WARNING("WR_USERS_ALLOW : mWaitingRoom is null");
         assert(false);
-        mWaitingRoom.reset(new KarereWaitingRoom());
+        mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
     }
+
     if (mWaitingRoom->updateUsers(users, WrState::WR_ALLOWED))
     {
-        std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-        std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
-        mCallHandler.onWrUsersAllow(*this, uhl.get());
+        RTCM_LOG_WARNING("WR_USERS_ALLOW : could not update users status in waiting room");
+        return false;
     }
+
+    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
+    mCallHandler.onWrUsersAllow(*this, uhl.get());
     return true;
 }
 
@@ -2306,16 +2316,20 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 
     if (!mWaitingRoom)
     {
+        RTCM_LOG_WARNING("WR_USERS_DENY : mWaitingRoom is null");
         assert(false);
-        mWaitingRoom.reset(new KarereWaitingRoom());
+        mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
     }
 
     if (mWaitingRoom->updateUsers(users, WrState::WR_NOT_ALLOWED))
     {
-        std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-        std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
-        mCallHandler.onWrUsersDeny(*this, uhl.get());
+        RTCM_LOG_WARNING("WR_USERS_DENY : could not update users status in waiting room");
+        return false;
     }
+
+    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
+    mCallHandler.onWrUsersDeny(*this, uhl.get());
     return true;
 }
 
@@ -2588,20 +2602,16 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
 bool Call::addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent)
 {
-    if (!mWaitingRoom)
+    if (!isOwnPrivModerator() && !users.empty())
     {
-        mWaitingRoom.reset(new KarereWaitingRoom());
-    }
-    else if (clearCurrent)
-    {
-        mWaitingRoom->clear();
-    }
-
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("dumpWrUsers : empty user list received");
+        RTCM_LOG_ERROR("addWrUsers : SFU has sent wr users list to a non-moderator user");
+        mWaitingRoom.reset();
+        assert(false);
         return false;
     }
+
+    if (clearCurrent && mWaitingRoom)   { mWaitingRoom->clear(); }
+    else if (!mWaitingRoom)             { mWaitingRoom.reset(new KarereWaitingRoom()); }
 
     std::for_each(users.begin(), users.end(), [this](const auto &u)
     {
