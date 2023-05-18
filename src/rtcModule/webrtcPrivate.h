@@ -355,6 +355,7 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    bool isAllowSpeak() const override;
 
     //
     // ------ end ICall methods -----
@@ -420,7 +421,7 @@ public:
     bool isDestroying();
 
     // --- SfuInterface methods ---
-    bool handleAvCommand(Cid_t cid, unsigned av) override;
+    bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
     bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
@@ -431,7 +432,7 @@ public:
     bool handleHiResStopCommand() override;
     bool handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests) override;
     bool handleSpeakReqDelCommand(Cid_t cid) override;
-    bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
+    bool handleSpeakOnCommand(Cid_t cid) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
@@ -445,6 +446,7 @@ public:
                       const std::map<karere::Id, bool>& wrUsers) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
+    bool processDeny(const std::string& cmd, const std::string& msg) override;
     void logError(const char* error) override;
 
     // PeerConnectionInterface events
@@ -579,6 +581,9 @@ protected:
     void setSessionModByUserId(uint64_t userid, bool isMod);
     void setOwnModerator(bool isModerator);
 
+    // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
+    void muteMyClientFromSfu();
+
     // initializes a new pair of keys x25519 (for session key)
     void generateEphemeralKeyPair();
 
@@ -589,7 +594,7 @@ protected:
     void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
 
     // parse received ephemeral public key string (publickey:signature)
-    std::pair<std::string, std::string> splitPubKey(const std::string &keyStr) const;
+    std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
 
     // verify signature for received ephemeral key
     promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);

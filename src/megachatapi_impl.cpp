@@ -1897,7 +1897,15 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 if (enable)
                 {
-                    requestedFlags.add(karere::AvFlags::kAudio);
+                    if (call->isAllowSpeak())
+                    {
+                        requestedFlags.add(karere::AvFlags::kAudio);
+                    }
+                    else
+                    {
+                        API_LOG_WARNING("Enable audio - isn't allow, peer doesn't have speaker permission");
+                        errorCode = MegaChatError::ERROR_ACCESS;
+                    }
                 }
                 else
                 {
@@ -7407,6 +7415,7 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kPeerJoinTimeout:
         case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kKickedFromWaitingRoom:
+        case rtcModule::TermCode::kTooManyUserClients:
         case rtcModule::TermCode::kSfuShuttingDown:
         case rtcModule::TermCode::kChatDisconn:
         case rtcModule::TermCode::kNoMediaPath:
@@ -7788,6 +7797,13 @@ int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)
     return state;
 }
 
+int MegaChatCallPrivate::convertSfuCmdToCode(const std::string& cmd) const
+{
+    if (cmd == "audio") {return SFU_DENY_AUDIO;}
+    if (cmd == "JOIN")  {return SFU_DENY_JOIN;}
+    return SFU_DENY_INVALID;
+}
+
 int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
 {
     switch (termCode)
@@ -7822,10 +7838,13 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kLeavingRoom:
             return TERM_CODE_NO_PARTICIPATE;
 
-       case rtcModule::TermCode::kTooManyParticipants:
+        case rtcModule::TermCode::kTooManyUserClients:
+            return TERM_CODE_TOO_MANY_CLIENTS;
+
+        case rtcModule::TermCode::kTooManyParticipants:
             return TERM_CODE_TOO_MANY_PARTICIPANTS;
 
-       case rtcModule::TermCode::kInvalidTermCode:
+        case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
 
        // TODO: Check kPushedToWaitingRoom and kKickedFromWaitingRoom when we add support for these termcodes
@@ -10668,6 +10687,17 @@ void MegaChatCallHandler::onPermissionsChanged(const rtcModule::ICall& call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg)
+{
+    // set manually Notification type, Denied command and message, as we are notifying an SFU denied command, and that information
+    // is temporary, and shouldn't be preserved in original Call object
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setNotificationType(MegaChatCall::NOTIFICATION_TYPE_SFU_DENY);                         // Notification type
+    chatCall->setTermCode(chatCall->convertSfuCmdToCode(cmd));                                       // SFU denied command
+    chatCall->setMessage(msg);                                                                       // SFU err message
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

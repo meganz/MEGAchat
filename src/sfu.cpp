@@ -11,13 +11,12 @@ namespace sfu
 const std::string Sdp::endl = "\r\n";
 
 // SFU -> client (different types of notifications)
-const std::string Command::COMMAND_IDENTIFIER           = "a";
-const std::string Command::ERROR_IDENTIFIER             = "err";
-const std::string Command::WARN_IDENTIFIER              = "warn";
-const std::string Command::ERROR_MESSAGE                = "msg";
+const std::string Command::COMMAND_IDENTIFIER           = "a";              // Command sent from SFU
+const std::string Command::ERROR_IDENTIFIER             = "err";            // Error sent from SFU
+const std::string Command::WARN_IDENTIFIER              = "warn";           // Warning sent from SFU
+const std::string Command::DENY_IDENTIFIER              = "deny";           // Notifies that a command previously sent to SFU has been denied
 
 // SFU -> client (commands)
-
 const std::string AVCommand::COMMAND_NAME               = "AV";             // Notifies changes in Av flags for a peer
 const std::string AnswerCommand::COMMAND_NAME           = "ANSWER";         // SFU response to JOIN command
 const std::string KeyCommand::COMMAND_NAME              = "KEY";            // Notifies about a new media key for a peer
@@ -407,7 +406,15 @@ bool AVCommand::processCommand(const rapidjson::Document &command)
     }
 
     unsigned av = avIterator->value.GetUint();
-    return mComplete(cid, av);
+
+    rapidjson::Value::ConstMemberIterator amidIterator = command.FindMember("amid");
+    int audioMid = TrackDescriptor::invalidMid;
+    if (amidIterator != command.MemberEnd() && amidIterator->value.IsInt()) // It's optional
+    {
+        audioMid = amidIterator->value.GetUint();
+    }
+
+    return mComplete(cid, av, audioMid);
 }
 
 AnswerCommand::AnswerCommand(const AnswerCompleteFunction &complete, SfuInterface &call)
@@ -571,7 +578,13 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    Keyid_t id = static_cast<Keyid_t>(idIterator->value.GetUint());
+    unsigned int auxid = idIterator->value.GetUint();
+    if (auxid > maxKeyId)
+    {
+        SFU_LOG_ERROR("KeyCommand: keyId exceeds max allowed value (%d): %d", maxKeyId, auxid);
+        return false;
+    }
+    Keyid_t id = static_cast<Keyid_t>(auxid);
 
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("from");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
@@ -735,29 +748,11 @@ bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
         cid = cidIterator->value.GetUint();
-
-        rapidjson::Value::ConstMemberIterator audioIterator = command.FindMember("audio");
-        if (audioIterator == command.MemberEnd() || !audioIterator->value.IsObject())
-        {
-            SFU_LOG_ERROR("SpeakOnCommand::processCommand: Received data doesn't have 'audio' field");
-            return false;
-        }
-
-        std::map<Cid_t, TrackDescriptor> speakers;
-        parseTracks(command, "speakers", speakers);
-        if (speakers.size() != 1)
-        {
-            SFU_LOG_ERROR("SpeakOnCommand::processCommand: Received data contains unexpected number of audio tracks");
-            return false;
-        }
-        else
-        {
-            return mComplete(speakers.begin()->first, speakers.begin()->second);
-        }
+        return mComplete(cid);
     }
     else
     {
-        return mComplete(cid, sfu::TrackDescriptor());
+        return mComplete(cid);
     }
 }
 
@@ -1555,7 +1550,7 @@ const karere::Url& SfuConnection::getSfuUrl()
 
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
-    commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9), call);
     commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
@@ -1566,7 +1561,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
     commands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
     commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
-    commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1), call);
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
@@ -1576,95 +1571,121 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
 }
 
-bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& document, std::string& command, std::string& warnMsg, std::string& errMsg, int32_t& errCode)
+bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
 {
     SFU_LOG_DEBUG("Data received: %s", data);
     rapidjson::StringStream stringStream(data);
-    document.ParseStream(stringStream);
+    jsonDoc.ParseStream(stringStream);
 
-    if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+    if (jsonDoc.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
     {
-        errMsg = "Failure at: Parser json error";
+        parsedData.msg = "Failure at: Parser json error";
         return false;
     }
 
-    rapidjson::Value::ConstMemberIterator jsonIterator = document.FindMember(Command::COMMAND_IDENTIFIER.c_str());
-    rapidjson::Value::ConstMemberIterator jsonErrIterator = document.FindMember(Command::ERROR_IDENTIFIER.c_str());
-    rapidjson::Value::ConstMemberIterator jsonWarnIterator = document.FindMember(Command::WARN_IDENTIFIER.c_str());
-    if ((jsonIterator == document.MemberEnd() || !jsonIterator->value.IsString())
-            && (jsonErrIterator == document.MemberEnd())
-            && (jsonWarnIterator == document.MemberEnd()))
+    // command received {"a": "command", ...}
+    rapidjson::Value::ConstMemberIterator jsonCommandIterator = jsonDoc.FindMember(Command::COMMAND_IDENTIFIER.c_str());
+    if (jsonCommandIterator != jsonDoc.MemberEnd() && jsonCommandIterator->value.IsString())
     {
-        errMsg = "Received data doesn't have 'a'/'err'/'warn' field";
-        return false;
+        parsedData.notificationType = SfuData::SFU_COMMAND;
+        parsedData.notification = jsonCommandIterator->value.GetString();
+        return true;
     }
 
-    if (jsonErrIterator != document.MemberEnd() && jsonErrIterator->value.IsInt())
+    // warn received {"warn": "message"}
+    rapidjson::Value::ConstMemberIterator jsonWarnIterator = jsonDoc.FindMember(Command::WARN_IDENTIFIER.c_str());
+    if (jsonWarnIterator != jsonDoc.MemberEnd() && jsonWarnIterator->value.IsString())
     {
-        errMsg = "Unknown reason";
-        rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = document.FindMember(Command::ERROR_MESSAGE.c_str());
-        if (jsonErrMsgIterator != document.MemberEnd() && jsonErrMsgIterator->value.IsString())
+        parsedData.notificationType = SfuData::SFU_WARN;
+        parsedData.msg = jsonWarnIterator->value.GetString();
+        return true;
+    }
+
+    // deny received {"deny": "command", "msg": "message"}
+    rapidjson::Value::ConstMemberIterator jsonDenyIterator = jsonDoc.FindMember(Command::DENY_IDENTIFIER.c_str());
+    if (jsonDenyIterator != jsonDoc.MemberEnd() && jsonDenyIterator->value.IsString())
+    {
+        parsedData.notificationType = SfuData::SFU_DENY;
+        parsedData.notification = jsonDenyIterator->value.GetString();
+
+        rapidjson::Value::ConstMemberIterator jsonMsgIterator = jsonDoc.FindMember("msg");
+        if (jsonMsgIterator != jsonDoc.MemberEnd() && jsonMsgIterator->value.IsString())
         {
-            errMsg = jsonErrMsgIterator->value.GetString();
+            parsedData.msg = jsonMsgIterator->value.GetString();
         }
-        errCode = jsonErrIterator->value.GetInt();
         return true;
     }
 
-    if (jsonWarnIterator != document.MemberEnd() && jsonWarnIterator->value.IsString())
+    // err received {"err": "errCode", "msg": "message"}
+    rapidjson::Value::ConstMemberIterator jsonErrIterator = jsonDoc.FindMember(Command::ERROR_IDENTIFIER.c_str());
+    if (jsonErrIterator != jsonDoc.MemberEnd() && jsonErrIterator->value.IsInt())
     {
-        warnMsg = jsonWarnIterator->value.GetString();
+        parsedData.notificationType = SfuData::SFU_ERROR;
+        parsedData.errCode = jsonErrIterator->value.GetInt();
+        parsedData.msg = "Unknown reason";
+
+        rapidjson::Value::ConstMemberIterator jsonMsgIterator = jsonDoc.FindMember("msg");
+        if (jsonMsgIterator != jsonDoc.MemberEnd() && jsonMsgIterator->value.IsString())
+        {
+            parsedData.msg = jsonMsgIterator->value.GetString();
+        }
+
         return true;
     }
 
-    command = jsonIterator->value.GetString();
-    return true;
+    assert(false);
+    parsedData.msg = "Invalid Received data doesn't match without any of expected SFU notifications format ('a'/'err'/'warn')";
+    return false;
 }
 
 bool SfuConnection::handleIncomingData(const char *data, size_t len)
 {
-    // init errCode to invalid value, to check if a valid errCode has been returned by SFU
-    int32_t errCode = INT32_MIN;
-    std::string command;
-    std::string warnMsg;
-    std::string errMsg;
-    rapidjson::Document document;
-
-    if (!parseSfuData(data, document, command, warnMsg, errMsg, errCode))
+    rapidjson::Document jsonDoc;
+    SfuData outdata;
+    if (!parseSfuData(data, jsonDoc, outdata))
     {
         // error parsing incoming data from SFU
-        SFU_LOG_ERROR("%s", errMsg.c_str());
+        SFU_LOG_ERROR("%s", outdata.msg.c_str());
         return false;
     }
 
-    if (errCode != INT32_MIN)
+    switch (outdata.notificationType)
     {
-        // process errCode returned by SFU
-        mCall.error(static_cast<unsigned int>(errCode), errMsg);
-        return true;
+        case SfuData::SFU_ERROR:
+                mCall.error(static_cast<unsigned int>(outdata.errCode), outdata.msg);
+                break;
+        case SfuData::SFU_WARN:
+                SFU_LOG_WARNING("%s", outdata.msg.c_str());
+                break;
+        case SfuData::SFU_DENY:
+                mCall.processDeny(outdata.notification, outdata.msg);
+                break;
+        case SfuData::SFU_COMMAND: {
+                const std::string& command = outdata.notification;
+                auto commandIterator = mCommands.find(command);
+                if (commandIterator == mCommands.end())
+                {
+                    SFU_LOG_ERROR("Command is not defined yet");
+                    return false;
+                }
+
+                SFU_LOG_DEBUG("Received Command: %s, Bytes: %d", command.c_str(), len);
+                bool processCommandResult = mCommands[command]->processCommand(jsonDoc);
+                if (processCommandResult && command == AnswerCommand::COMMAND_NAME)
+                {
+                    setConnState(SfuConnection::kJoined);
+                }
+
+                return processCommandResult;
+                }
+        default: {
+                assert (false);
+                SFU_LOG_ERROR("Invalid data received from SFU");
+                return false;
+                }
     }
 
-    if (!warnMsg.empty())
-    {
-        SFU_LOG_WARNING("%s", warnMsg.c_str());
-        return true;
-    }
-
-    auto commandIterator = mCommands.find(command);
-    if (commandIterator == mCommands.end())
-    {
-        SFU_LOG_ERROR("Command is not defined yet");
-        return false;
-    }
-
-    SFU_LOG_DEBUG("Received Command: %s, Bytes: %d", command.c_str(), len);
-    bool processCommandResult = mCommands[command]->processCommand(document);
-    if (processCommandResult && command == AnswerCommand::COMMAND_NAME)
-    {
-        setConnState(SfuConnection::kJoined);
-    }
-
-    return processCommandResult;
+    return true;
 }
 
 bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int speaker, int vthumbs)

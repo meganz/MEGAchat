@@ -303,6 +303,7 @@ public:
     void setOnHold(bool onHold);
     static int convertCallState(rtcModule::CallState newState);
     int convertTermCode(rtcModule::TermCode termCode);
+    int convertSfuCmdToCode(const std::string& cmd) const;
 
 protected:
     MegaChatHandle mChatid = MEGACHAT_INVALID_HANDLE;;
@@ -643,6 +644,7 @@ public:
     void onNetworkQualityChanged(const rtcModule::ICall &call) override;
     void onStopOutgoingRinging(const rtcModule::ICall& call) override;
     void onPermissionsChanged(const rtcModule::ICall& call) override;
+    void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;

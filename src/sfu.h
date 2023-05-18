@@ -213,7 +213,7 @@ class SfuInterface
 {
 public:
     // SFU -> Client commands
-    virtual bool handleAvCommand(Cid_t cid, unsigned av) = 0;   // audio/video/on-hold flags
+    virtual bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) = 0;   // audio/video/on-hold flags
     virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
     virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
@@ -224,7 +224,7 @@ public:
     virtual bool handleHiResStopCommand() = 0;
     virtual bool handleSpeakReqsCommand(const std::vector<Cid_t>&) = 0;
     virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
-    virtual bool handleSpeakOnCommand(Cid_t cid, TrackDescriptor speaker) = 0;
+    virtual bool handleSpeakOnCommand(Cid_t cid) = 0;
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
@@ -242,6 +242,9 @@ public:
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
 
+    // process Deny notification from SFU
+    virtual bool processDeny(const std::string& cmd, const std::string& msg) = 0;
+
     // send error to server, for debugging purposes
     virtual void logError(const char* error) = 0;
 };
@@ -253,7 +256,7 @@ public:
     static const std::string COMMAND_IDENTIFIER;
     static const std::string ERROR_IDENTIFIER;
     static const std::string WARN_IDENTIFIER;
-    static const std::string ERROR_MESSAGE;
+    static const std::string DENY_IDENTIFIER;
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
@@ -269,7 +272,7 @@ protected:
     SfuInterface& mCall;
 };
 
-typedef std::function<bool(karere::Id, unsigned)> AvCompleteFunction;
+typedef std::function<bool(karere::Id, unsigned, uint32_t)> AvCompleteFunction;
 class AVCommand : public Command
 {
 public:
@@ -300,6 +303,7 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     KeyCompleteFunction mComplete;
+    constexpr static Keyid_t maxKeyId = static_cast<Keyid_t>(~0);
 };
 
 typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompleteFunction;
@@ -382,7 +386,7 @@ public:
     SpeakReqDelCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, TrackDescriptor speaker)> SpeakOnCompleteFunction;
+typedef std::function<bool(Cid_t cid)> SpeakOnCompleteFunction;
 class SpeakOnCommand : public Command
 {
 public:
@@ -503,6 +507,24 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_BYE;
 
 public:
+    struct SfuData
+    {
+        public:
+            enum
+            {
+                SFU_INVALID         = -1,
+                SFU_COMMAND         = 0,
+                SFU_ERROR           = 1,
+                SFU_WARN            = 2,
+                SFU_DENY            = 3,
+            };
+
+            int32_t notificationType = SFU_INVALID;
+            std::string notification;
+            std::string msg;
+            int32_t errCode;
+    };
+
     enum ConnState
     {
         kConnNew = 0,
@@ -530,7 +552,7 @@ public:
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
     bool sendCommand(const std::string& command);
-    static bool parseSfuData(const char* data, rapidjson::Document& document, std::string& command, std::string& warnMsg, std::string& errMsg, int32_t& errCode);
+    static bool parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& outdata);
     static void setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands);
     bool handleIncomingData(const char *data, size_t len);
     void addNewCommand(const std::string &command);

@@ -551,6 +551,11 @@ void Call::updateAndSendLocalAvFlags(karere::AvFlags flags)
     }
 }
 
+bool Call::isAllowSpeak() const
+{
+    return mSpeakerState == SpeakerState::kActive;
+}
+
 void Call::requestSpeaker(bool add)
 {
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
@@ -1115,6 +1120,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kPeerJoinTimeout:          return "Nobody joined call";
         case kPushedToWaitingRoom:      return "Our client has been removed from the call and pushed back into the waiting room";
         case kKickedFromWaitingRoom:    return "Revokes the join permission for our user that is into the waiting room";
+        case kTooManyUserClients:       return "Too many clients of same user connected";
         case kRtcDisconn:               return "SFU connection failed";
         case kSigDisconn:               return "socket error on the signalling connection";
         case kSfuShuttingDown:          return "SFU server is shutting down";
@@ -1125,7 +1131,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kErrAuth:                  return "authentication error";
         case kErrApiTimeout:            return "ping timeout between SFU and API";
         case kErrSdp:                   return "error generating or setting SDP description";
-        case kErrorProtocolVersion:     return "Protocol version error";
+        case kErrorProtocolVersion:     return "SFU protocol version not supported";
         case kErrorCrypto:              return "Cryptographic error";
         case kErrClientGeneral:         return "Client general error";
         case kErrGeneral:               return "SFU general error";
@@ -1248,7 +1254,7 @@ bool Call::hasCallKey()
     return !mCallKey.empty();
 }
 
-bool Call::handleAvCommand(Cid_t cid, unsigned av)
+bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
 {
     if (mState != kStateJoining && mState != kStateInProgress)
     {
@@ -1270,8 +1276,35 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av)
         return false;
     }
 
+    bool oldAudioFlag = session->getAvFlags().audio();
+
     // update session flags
     session->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
+
+    if (aMid == sfu::TrackDescriptor::invalidMid)
+    {
+        if (oldAudioFlag != session->getAvFlags().audio() && session->getAvFlags().audio())
+        {
+            assert(false);
+            RTCM_LOG_WARNING("handleAvCommand: invalid amid received for peer cid %d", cid);
+            return false;
+        }
+
+        if (oldAudioFlag && !session->getAvFlags().audio())
+        {
+            removeSpeaker(cid);
+        }
+    }
+    else
+    {
+        assert(session->getAvFlags().audio());
+        sfu::TrackDescriptor trackDescriptor;
+        trackDescriptor.mMid = aMid;
+        trackDescriptor.mReuse = true;
+
+        addSpeaker(cid, trackDescriptor);
+    }
+
     return true;
 }
 
@@ -1764,7 +1797,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
     return true;
 }
 
-bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
+bool Call::handleSpeakOnCommand(Cid_t cid)
 {
     if (mState != kStateInProgress && mState != kStateJoining)
     {
@@ -1773,18 +1806,12 @@ bool Call::handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker)
         return false;
     }
 
-    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
-    if (cid)
-    {
-        assert(cid != getOwnCid());
-        addSpeaker(cid, speaker);
-    }
-    else if (mSpeakerState == SpeakerState::kPending)
+    if (!cid && mSpeakerState == SpeakerState::kPending)
     {
         mSpeakerState = SpeakerState::kActive;
         updateAudioTracks();
     }
-    else    // own cid, but SpeakerState is not kPending
+    else if (!cid)    // own cid, but SpeakerState is not kPending
     {
         RTCM_LOG_ERROR("handleSpeakOnCommand: Received speak on for own cid %d without a pending requests", cid);
         assert(false);
@@ -1803,7 +1830,6 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         return false;
     }
 
-    // TODO: check if the received `cid` is 0 for own cid, or it should be mMyPeer->getCid()
     if (cid)
     {
         assert(cid != getOwnCid());
@@ -1811,10 +1837,11 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     }
     else if (mSpeakerState == SpeakerState::kActive)
     {
+        // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
         mSpeakerState = SpeakerState::kNoSpeaker;
-        updateAudioTracks();
+        muteMyClientFromSfu();
     }
-    else    // own cid, but SpeakerState is not kActive
+    else // SPEAK_OFF received own cid, but SpeakerState is not kActive
     {
         RTCM_LOG_ERROR("handleSpeakOffCommand: Received speak off for own cid %d without being active", cid);
         assert(false);
@@ -2181,6 +2208,33 @@ void Call::onSendByeCommand()
             mTempTermCode = kInvalidTermCode;
         }
     }, mRtc.getAppCtx());
+}
+
+bool Call::processDeny(const std::string& cmd, const std::string& msg)
+{
+    mCallHandler.onCallDeny(*this, cmd, msg); // notify apps about the denied command
+
+    if (cmd == "audio") // audio ummute has been denied by SFU
+    {
+        muteMyClientFromSfu();
+    }
+    else if (cmd == "JOIN")
+    {
+        if (mState != kStateJoining)
+        {
+            RTCM_LOG_ERROR("Deny 'JOIN' received. Current call state: %d, expected call state: %d. %s",
+                           mState, kStateJoining, msg.c_str());
+            return false;
+        }
+        orderedCallDisconnect(TermCode::kErrorProtocolVersion, "Client doesn't supports waiting rooms");
+    }
+    else
+    {
+        assert(false);
+        RTCM_LOG_ERROR("Deny cmd received for unexpected command: %s", msg.c_str());
+        return false;
+    }
+    return true;
 }
 
 bool Call::error(unsigned int code, const std::string &errMsg)
@@ -2776,6 +2830,20 @@ void Call::generateEphemeralKeyPair()
 const mega::ECDH* Call::getMyEphemeralKeyPair() const
 {
     return mEphemeralKeyPair.get();
+}
+
+void Call::muteMyClientFromSfu()
+{
+    if (!getLocalAvFlags().audio())
+    {
+        return;
+    }
+
+    karere::AvFlags currentFlags = getLocalAvFlags();
+    currentFlags.remove(karere::AvFlags::kAudio);
+    mMyPeer->setAvFlags(currentFlags);
+    mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
+    updateAudioTracks();
 }
 
 void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
