@@ -418,6 +418,19 @@ public:
     void setPrevCid(Cid_t prevcid);
     Cid_t getPrevCid();
 
+    void setWrFlag(bool enabled)    { mIsWaitingRoomEnabled = enabled; }
+    bool isWrFlagEnabled()          { return mIsWaitingRoomEnabled;    }
+    bool checkWrFlag()
+    {
+        if (!isWrFlagEnabled())
+        {
+            RTCM_LOG_ERROR("Waiting room should be enabled for this call");
+            assert(false);
+            return false;
+        }
+        return true;
+    }
+
     // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
     std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
 
@@ -470,6 +483,7 @@ public:
                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                       const std::map<karere::Id, bool>& wrUsers) override;
 
+    // --- SfuInterface methods (waiting room related methods) ---
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;
     bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
     bool handleWrLeave(const karere::Id& user) override;
@@ -597,6 +611,9 @@ protected:
 
     // ephemeral X25519 EC key pair for current session
     std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
+
+    // this flag indicates if waiting room is enabled or not for this call
+    bool mIsWaitingRoomEnabled = false;
 
     Keyid_t generateNextKeyId();
     void generateAndSendNewMediakey(bool reset = false);
