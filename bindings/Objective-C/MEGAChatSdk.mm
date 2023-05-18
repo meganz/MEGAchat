@@ -628,28 +628,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return chatRoom ? [[MEGAChatRoom alloc] initWithMegaChatRoom:chatRoom cMemoryOwn:YES] : nil;
 }
 
-- (MEGAChatListItemList *)chatListItemsByType:(MEGAChatType)type {
-    if (self.megaChatApi == nil) return nil;
-    switch (type) {
-        case MEGAChatTypeAll:
-            return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskNone, MEGAChatListFilterNone) cMemoryOwn:YES];
-        case MEGAChatTypeIndividual:
-            return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskIndividualOrGroup, MEGAChatListFilterIndividual) cMemoryOwn:YES];
-        case MEGAChatTypeGroup:
-            return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskIndividualOrGroup, MEGAChatListFilterGroup) cMemoryOwn:YES];
-        case MEGAChatTypeGroupPrivate:
-            return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskPublicOrPrivate, MEGAChatListFilterPrivate) cMemoryOwn:YES];
-        case MEGAChatTypeGroupPublic:
-            return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskPublicOrPrivate, MEGAChatListFilterPublic) cMemoryOwn:YES];
-        case MEGAChatTypeMeeting:
-            return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskMeetingOrNonMeeting, MEGAChatListFilterMeeting) cMemoryOwn:YES];
-        case MEGAChatTypeNonMeeting:
-            return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskMeetingOrNonMeeting, MEGAChatListFilterNonMeeting) cMemoryOwn:YES];
-        default:
-            return nil;
-    }
-}
-
 - (MEGAChatListItemList *)chatListItems {
     if (self.megaChatApi == nil) return nil;
     return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskNone, MEGAChatListFilterNone) cMemoryOwn:YES];
