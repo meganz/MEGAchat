@@ -2594,37 +2594,51 @@ void MegaChatApiImpl::sendPendingRequests()
             fireOnChatRequestFinish(request, megaChatError);
             break;
         }
+#endif
+        default:
+        {
+            errorCode = MegaChatError::ERROR_UNKNOWN;
+        }
+        }   // end of switch(request->getType())
+        }   // end of `else` block
 
-        case MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING:
+        if(errorCode)
+        {
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
+            API_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
+            fireOnChatRequestFinish(request, megaChatError);
+        }
+    }
+}
+
+int MegaChatApiImpl::performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             handle schedId = request->getUserHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (schedId == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid schedId");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
             if (!chatroom)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             std::unique_ptr<MegaChatScheduledMeeting>sm (getScheduledMeeting(chatid, schedId));
             if (!sm)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             mClient->removeScheduledMeeting(chatid, schedId)
@@ -2640,30 +2654,32 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
                 fireOnChatRequestFinish(request, megaChatError);
             });
-            break;
+
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES:
+}
+
+int MegaChatApiImpl::performRequest_fetchScheduledMeetingOccurrences(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES - Invalid chatid");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(chatid));
             if (!chatroom)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (!request->getMegaHandleList() || request->getMegaHandleList()->size() != 2)
             {
                 // check since and until param
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             ::mega::m_time_t since = static_cast<::mega::m_time_t>(request->getMegaHandleList()->get(0));
@@ -2715,15 +2731,18 @@ void MegaChatApiImpl::sendPendingRequests()
                 fireOnChatRequestFinish(request, megaChatError);
             }
 
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE:
+}
+
+int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             if (!request->getMegaChatScheduledMeetingList()
                     || request->getMegaChatScheduledMeetingList()->size() != 1)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             const MegaChatScheduledMeeting* ocurr = request->getMegaChatScheduledMeetingList()->at(0);
@@ -2731,15 +2750,13 @@ void MegaChatApiImpl::sendPendingRequests()
                     ocurr->endDateTime() == MEGACHAT_INVALID_TIMESTAMP &&
                     ocurr->cancelled() == -1)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(ocurr->chatId()));
             if (!chatroom)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             // get scheduled meeting list from RAM
@@ -2748,8 +2765,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (it == schedMeetings.end())
             {
                 // scheduled meeting related to occurrence we want to modify, doesn't exists
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
             const KarereScheduledMeeting* occurrSchedMeeting = it->second.get();
 
@@ -2788,8 +2804,7 @@ void MegaChatApiImpl::sendPendingRequests()
                         API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
                     });
                 }
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             // check if cancelled were provided in request, otherwise get the values from ocurrence stored in RAM
@@ -2868,44 +2883,44 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
                 fireOnChatRequestFinish(request, megaChatError);
             });
-            break;
+
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING:
+}
+
+int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivate* request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             if (!request->getMegaChatScheduledMeetingList()
                     || request->getMegaChatScheduledMeetingList()->size() != 1)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             const MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
             if (!sm || sm->chatId() == MEGACHAT_INVALID_HANDLE || sm->schedId() == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (!sm->timezone() && !sm->startDateTime() && !sm->endDateTime() && !sm->title()
                                 && !sm->description() && !sm->flags() && !sm->rules())
             {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title())
                     || !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
             {
                 API_LOG_ERROR("Error updating a scheduled meeting: title or description length exceeded");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(sm->chatId()));
             if (!chatroom)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             // get scheduled meeting list from RAM
@@ -2914,8 +2929,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (it == schedMeetings.end())
             {
                 // scheduled meeting we want to modify, doesn't exists
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             const KarereScheduledMeeting* currentMeeting = it->second.get();
@@ -2971,23 +2985,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
                 fireOnChatRequestFinish(request, megaChatError);
             });
-            break;
-        }
-#endif
-        default:
-        {
-            errorCode = MegaChatError::ERROR_UNKNOWN;
-        }
-        }   // end of switch(request->getType())
-        }   // end of `else` block
 
-        if(errorCode)
-        {
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
-            API_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
-            fireOnChatRequestFinish(request, megaChatError);
+            return MegaChatError::ERROR_OK;
         }
-    }
 }
 
 void MegaChatApiImpl::sendPendingEvents()
@@ -4570,6 +4570,7 @@ void MegaChatApiImpl::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHand
     std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
     l->insert(scheduledMeeting->copy());
     request->setMegaChatScheduledMeetingList(l.get());
+    request->setPerformRequest([this, request]() { return performRequest_updateScheduledMeeting(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4610,6 +4611,7 @@ void MegaChatApiImpl::updateScheduledMeetingOccurrence(MegaChatHandle chatid, Me
     std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
     l->insert(scheduledMeeting->copy());
     request->setMegaChatScheduledMeetingList(l.get());
+    request->setPerformRequest([this, request]() { return performRequest_updateScheduledMeetingOccurrence(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4619,6 +4621,7 @@ void MegaChatApiImpl::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHand
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(schedId);
+    request->setPerformRequest([this, request]() { return performRequest_removeScheduledMeeting(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4703,6 +4706,7 @@ void MegaChatApiImpl::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chat
     peerList->addMegaHandle(static_cast<MegaHandle>(since));
     peerList->addMegaHandle(static_cast<MegaHandle>(until));
     request->setMegaHandleList(peerList.get());
+    request->setPerformRequest([this, request]() { return performRequest_fetchScheduledMeetingOccurrences(request); });
     requestQueue.push(request);
     waiter->notify();
 }
