@@ -2181,7 +2181,6 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
 bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
 {
     assert(isOwnPrivModerator());
-    assert(!users.empty());
     if (!checkWrFlag()) {return false;}
 
     if (addWrUsers(users, true/*clearCurrent*/))
