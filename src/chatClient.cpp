@@ -1696,7 +1696,7 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
             KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
             return true;
         }
-        api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99012, "Karere db out of sync with sdk - scsn-s don't match");
+        api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99012, "Karere db out of sync with sdk - scsn-s don't match", false, static_cast<const char*>(nullptr));
     }
 
     // We are not in sync, probably karere is one or more commits behind
@@ -1832,7 +1832,7 @@ void Client::sendStats()
 
     std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), mContactList->size());
     KR_LOG_DEBUG("Init stats: %s", stats.c_str());
-    api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str());
+    api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str(), false, static_cast<const char*>(nullptr));
 }
 
 InitStats& Client::initStats()
@@ -2519,7 +2519,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         {
             KR_LOG_ERROR("Invalid size for unified key");
             isUnifiedKeyEncrypted = strongvelope::kUndecryptable;
-            parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99002, "invalid unified-key detected");
+            parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99002, "invalid unified-key detected", false, static_cast<const char*>(nullptr));
         }
         else
         {
@@ -3329,7 +3329,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     {
         KR_LOG_ERROR("Failed to base64-decode chat title for chat %s: %s. Falling back to member names", ID_CSTR(mChatid), e.what());
 
-        parent.mKarereClient.api.call(&mega::MegaApi::sendEvent, 99007, "Decryption of chat topic failed");
+        parent.mKarereClient.api.call(&mega::MegaApi::sendEvent, 99007, "Decryption of chat topic failed", false, static_cast<const char*>(nullptr));
         updateTitleInDb(mEncryptedTitle, strongvelope::kUndecryptable);
         makeTitleFromMemberNames();
 
@@ -3351,7 +3351,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 
         KR_LOG_ERROR("Error decrypting chat title for chat %s: %s. Falling back to member names.", ID_CSTR(chatid()), err.what());
 
-        parent.mKarereClient.api.call(&mega::MegaApi::sendEvent, 99007, "Decryption of chat topic failed");
+        parent.mKarereClient.api.call(&mega::MegaApi::sendEvent, 99007, "Decryption of chat topic failed", false, static_cast<const char*>(nullptr));
         updateTitleInDb(mEncryptedTitle, strongvelope::kUndecryptable);
         makeTitleFromMemberNames();
 
@@ -3949,7 +3949,7 @@ bool GroupChatRoom::publicChat() const
         return (mChat->crypto()->isPublicChat());
     }
 
-    parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99011, "GroupChatRoom::publicChat(), chatd::Chat isn't yet created");
+    parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99011, "GroupChatRoom::publicChat(), chatd::Chat isn't yet created", false, static_cast<const char*>(nullptr));
 
     return false;
 }
@@ -3962,7 +3962,7 @@ uint64_t GroupChatRoom::getPublicHandle() const
         return (mChat->getPublicHandle());
     }
 
-    parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99011, "GroupChatRoom::getPublicHandle(), chatd::Chat isn't yet created");
+    parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99011, "GroupChatRoom::getPublicHandle(), chatd::Chat isn't yet created", false, static_cast<const char*>(nullptr));
     return karere::Id::inval();
 }
 
@@ -4194,7 +4194,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                     else
                     {
                         KR_LOG_DEBUG("Skip re-join chatd, since it's already joining right now");
-                        parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99003, "Skip re-join chatd");
+                        parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99003, "Skip re-join chatd", false, static_cast<const char*>(nullptr));
                     }
                 }
                 KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited",  ID_CSTR(mChatid));
@@ -5483,7 +5483,7 @@ KarereScheduledFlags::KarereScheduledFlags(const KarereScheduledFlags *ksf)
 {}
 
 KarereScheduledFlags::KarereScheduledFlags(const mega::MegaScheduledFlags *msf)
-    : mega::ScheduledFlags(msf ? msf->getNumericValue() : 0)
+    : mega::ScheduledFlags(msf ? msf->getNumericValue() : mega::ScheduledFlags::schedEmptyFlags)
 {}
 
 KarereScheduledRules::KarereScheduledRules(const int freq, const int interval, const mega::m_time_t until,

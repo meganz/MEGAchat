@@ -489,6 +489,7 @@ public:
     {
         NOTIFICATION_TYPE_INVALID   = 0,            /// Invalid notification type
         NOTIFICATION_TYPE_SFU_ERROR = 1,            /// Error received from SFU
+        NOTIFICATION_TYPE_SFU_DENY  = 2,            /// Command denied by SFU
     };
 
     enum
@@ -523,6 +524,8 @@ public:
         TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before nobody answered the call
         TERM_CODE_ERROR                     = 3,    // Call error has been received
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
+        TERM_CODE_TOO_MANY_CLIENTS          = 5,    // Too many clients of same user connected
+        TERM_CODE_PROTOCOL_VERSION          = 6,    // SFU protocol version error
     };
 
     enum
@@ -534,6 +537,13 @@ public:
         END_CALL_REASON_FAILED          = 4,     /// Call finished by an error
         END_CALL_REASON_CANCELLED       = 5,     /// Call was canceled by caller.
         END_CALL_REASON_BY_MODERATOR    = 6      /// group or meeting call has been ended by moderator
+    };
+
+    enum
+    {
+        SFU_DENY_INVALID                  = -1,   // Invalid command
+        SFU_DENY_AUDIO                    = 0,    // Av command denied by SFU (enable/disable audio video)
+        SFU_DENY_JOIN                     = 1,    // JOIN command denied by SFU
     };
 
     virtual ~MegaChatCall();
@@ -719,19 +729,41 @@ public:
     virtual int64_t getFinalTimeStamp() const;
 
     /**
-     * @brief Returns the termination code for this call
+     * @brief Returns an error or warning code for this call
      *
-     * @note this value only will be valid in state CALL_STATUS_TERMINATING_USER_PARTICIPATION
+     * This method can be used for different purposes.
      *
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and 
+     * MegaChatCall::getNotificationType is equal to MegaChatCall::NOTIFICATION_TYPE_SFU_DENY,
+     * this method returns the command that has been previously denied by SFU.
      * Valid values are:
-     *  - TERM_CODE_INVALID
-     *  - TERM_CODE_HANGUP
-     *  - TERM_CODE_TOO_MANY_PARTICIPANTS
-     *  - TERM_CODE_ERROR
-     *  - TERM_CODE_REJECT
-     *  - TERM_CODE_NO_PARTICIPATE
+     *      - SFU_DENY_AUDIO
+     *      - SFU_DENY_JOIN
      *
-     * @return termination code for the call
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and 
+     * MegaChatCall::getNotificationType is equal to MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR,
+     * this method returns the termination code for this call due to an error notification received from SFU
+     * Valid values are:
+     *      - TERM_CODE_INVALID
+     *      - TERM_CODE_HANGUP
+     *      - TERM_CODE_TOO_MANY_PARTICIPANTS
+     *      - TERM_CODE_ERROR
+     *      - TERM_CODE_REJECT
+     *      - TERM_CODE_NO_PARTICIPATE
+     *      - TERM_CODE_TOO_MANY_CLIENTS
+     *      - TERM_CODE_PROTOCOL_VERSION
+     *
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_STATUS) is true and MegaChatCall::getStatus() ==
+     * MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION, this method returns the termination code for this call
+     * Valid values are:
+     *      - TERM_CODE_INVALID
+     *      - TERM_CODE_HANGUP
+     *      - TERM_CODE_TOO_MANY_PARTICIPANTS
+     *      - TERM_CODE_ERROR
+     *      - TERM_CODE_REJECT
+     *      - TERM_CODE_NO_PARTICIPATE
+     *
+     * @return error or warning code for this call
      */
     virtual int getTermCode() const;
 
@@ -761,7 +793,8 @@ public:
      *
      * Valid values returned by this method are:
      *      - MegaChatCall::NOTIFICATION_TYPE_INVALID   = 0
-     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR = 1
+     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR = 1     /// Error received from SFU
+     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_DENY  = 2     /// Notification about command denied by SFU
      *
      * @return the notification type, when a call notification is forwarded to the apps
      */
@@ -4218,7 +4251,8 @@ public:
      *
      * @param isMeeting True to create a meeting room, otherwise false
      * @param publicChat True to create a public chat, otherwise false
-     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
+     * @param title Null-terminated character string with the scheduled meeting title. Minimum allowed length is 1 character without consider Null-terminated character.
+     * Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
      * @param speakRequest True to set that during calls non moderator users, must request permission to speak
      * @param waitingRoom True to set that during calls, non moderator members will be placed into a waiting room.
      * A moderator user must grant each user access to the call.

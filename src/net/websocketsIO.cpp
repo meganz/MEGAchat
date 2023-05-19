@@ -102,7 +102,7 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
     if (ctx)
     {
         WEBSOCKETS_LOG_ERROR("Valid context at connect()");
-        websocketIO->mApi.sdk.sendEvent(99010, "A valid previous context existed upon new wsConnect");
+        websocketIO->mApi.sdk.sendEvent(99010, "A valid previous context existed upon new wsConnect", false, static_cast<const char*>(nullptr));
         delete ctx;
     }
 
