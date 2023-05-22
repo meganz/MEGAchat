@@ -42,8 +42,8 @@ const std::string WrEnterCommand::COMMAND_NAME          = "WR_ENTER";       // N
 const std::string WrLeaveCommand::COMMAND_NAME          = "WR_LEAVE";       // Notifies moderators about user(s) who left the waiting room (either entered the call or disconnected)
 const std::string WrAllowCommand::COMMAND_NAME          = "WR_ALLOW";       // Notifies that our user permission to enter the call has been granted (from waiting room)
 const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";        // Notifies that our user permission to enter the call has been denied (from waiting room)
-const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted permission to enter the call.
-const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied permission to enter the call
+const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted to enter the call.
+const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied to enter the call
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
