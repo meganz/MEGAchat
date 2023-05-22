@@ -103,6 +103,10 @@ public:
     virtual MegaChatScheduledMeetingList* getMegaChatScheduledMeetingList() const;
     virtual MegaChatScheduledMeetingOccurrList* getMegaChatScheduledMeetingOccurrList() const;
 
+    bool hasPerformRequest() const { return mPerformRequest != nullptr; }
+    int performRequest() const { assert(hasPerformRequest()); return mPerformRequest(); }
+
+    void setPerformRequest(std::function<int()> f) { mPerformRequest = f; }
     void setMegaChatScheduledMeetingList(const MegaChatScheduledMeetingList* schedMeetingList);
     void setMegaChatScheduledMeetingOccurrList(const MegaChatScheduledMeetingOccurrList* schedMeetingOccurrList);
     void setTag(int tag);
@@ -126,6 +130,8 @@ public:
 
 private:
     mega::MegaHandleList *doGetMegaHandleListByChat(MegaChatHandle chatid);
+    // Perform the request by executing this function, instead of adding code to sendPendingRequests()
+    std::function<int()> mPerformRequest;
 
 protected:
     int mType;
@@ -300,6 +306,7 @@ public:
     void setOnHold(bool onHold);
     static int convertCallState(rtcModule::CallState newState);
     int convertTermCode(rtcModule::TermCode termCode);
+    int convertSfuCmdToCode(const std::string& cmd) const;
 
 protected:
     MegaChatHandle mChatid = MEGACHAT_INVALID_HANDLE;;
@@ -726,6 +733,7 @@ public:
     void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrPushedFromCall(const rtcModule::ICall& call) override;
+    void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -1335,6 +1343,24 @@ private:
     static int convertInitState(int state);
     static int convertDbError(int errCode);
     bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
+
+    int performRequest_sendTypingNotification(MegaChatRequestPrivate* request);
+#ifndef KARERE_DISABLE_WEBRTC
+    int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
+    int performRequest_speakRequest(MegaChatRequestPrivate* request);
+    int performRequest_speakApproval(MegaChatRequestPrivate* request);
+    int performRequest_hiResVideo(MegaChatRequestPrivate* request);
+    int performRequest_lowResVideo(MegaChatRequestPrivate* request);
+    int performRequest_videoDevice(MegaChatRequestPrivate* request);
+    int performRequest_requestHiResQuality(MegaChatRequestPrivate* request);
+    int performRequest_removeSpeaker(MegaChatRequestPrivate* request);
+    int performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request);
+    int performRequest_kickUsersFromCall(MegaChatRequestPrivate* request);
+#endif
+    int performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request);
+    int performRequest_fetchScheduledMeetingOccurrences(MegaChatRequestPrivate* request);
+    int performRequest_updateScheduledMeetingOccurrence(MegaChatRequestPrivate* request);
+    int performRequest_updateScheduledMeeting(MegaChatRequestPrivate* request);
 
 public:
     static void megaApiPostMessage(megaMessage *msg, void* ctx);

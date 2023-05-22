@@ -35,6 +35,7 @@ enum TermCode: uint8_t
     kPeerJoinTimeout            = 5,                    // < Nobody joined call
     kPushedToWaitingRoom        = 6,                    // < Our client has been removed from the call and pushed back into the waiting room
     kKickedFromWaitingRoom      = 7,                    // < Revokes the join permission for our user that is into the waiting room
+    kTooManyUserClients         = 8,                    // < Too many clients of same user connected
 
     //==============================================================================================
 
@@ -50,6 +51,8 @@ enum TermCode: uint8_t
     kErrAuth                    = kFlagError | 2,       // 130 < authentication error
     kErrApiTimeout              = kFlagError | 3,       // 131 < ping timeout between SFU and API
     kErrSdp                     = kFlagError | 4,       // 132 < error generating or setting SDP description
+    kErrorProtocolVersion       = kFlagError | 5,       // 133 < SFU protocol version not supported
+    kErrorCrypto                = kFlagError | 6,       // 134 < Cryptographic error
     kErrClientGeneral           = kFlagError | 62,      // 190 < Client general error
     kErrGeneral                 = kFlagError | 63,      // 191 < SFU general error
     kUnKnownTermCode            = kFlagError | 126,     // 254 < unknown error
@@ -167,6 +170,7 @@ public:
     virtual void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
     virtual void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
     virtual void onWrPushedFromCall(const rtcModule::ICall& call) = 0;
+    virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
 };
 
 class KarereWaitingRoom;
@@ -239,6 +243,7 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
+    virtual bool isAllowSpeak() const = 0;
 };
 
 class RtcModule

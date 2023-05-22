@@ -26,6 +26,7 @@
 #include <chatClient.h>
 #include <future>
 #include "gtest/gtest.h"
+#include <fstream>
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -603,7 +604,7 @@ private:
 class MockupCall : public sfu::SfuInterface
 {
 public:
-    bool handleAvCommand(Cid_t cid, unsigned av) override;
+    bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) override;
     bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
@@ -614,9 +615,9 @@ public:
     bool handleHiResStopCommand() override;
     bool handleSpeakReqsCommand(const std::vector<Cid_t>&) override;
     bool handleSpeakReqDelCommand(Cid_t cid) override;
-    bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
+    bool handleSpeakOnCommand(Cid_t cid) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, unsigned int sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned& termCode, bool& wr, std::string& errMsg) override;
     bool handleModAdd(uint64_t userid) override;
@@ -624,6 +625,7 @@ public:
     void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
+    bool processDeny(const std::string&, const std::string&) override;
     void logError(const char* error) override;
     bool handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
                                        const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,

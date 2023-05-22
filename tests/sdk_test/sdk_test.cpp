@@ -1294,7 +1294,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id" << chatid;
-    ASSERT_EQ(chatroom->getPeerCount(), 0) << "Wrong number of peers in chatroom " << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 0u) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
     ASSERT_TRUE(waitForResponse(chatItemLeft0)) << "Chat list item update not received for main account after " << maxTimeout << " seconds";
@@ -1305,7 +1305,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     ASSERT_TRUE(waitForResponse(chatLeft1)) << "Chat list item leave notification for auxiliar account not received after " << maxTimeout << " seconds";
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
-    ASSERT_EQ(chatroom->getPeerCount(), 0) << "Wrong number of peers in chatroom " << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 0u) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
     // Close the chatroom, even if we've been removed from it
@@ -1343,7 +1343,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
 
     chatroom = megaChatApi[a1]->getChatRoom(chatid);
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatid;
-    ASSERT_EQ(chatroom->getPeerCount(), 1) << "Wrong number of peers in chatroom " << chatid;
+    ASSERT_EQ(chatroom->getPeerCount(), 1u) << "Wrong number of peers in chatroom " << chatid;
     delete chatroom;
 
     // since we were expulsed from chatroom, we need to open it again
@@ -1760,7 +1760,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     ASSERT_TRUE(!lastErrorChat[a2]) << "Failed to autojoin chat-link. Error: " << lastErrorMsgChat[a2] << " (" << lastErrorChat[a2] << ")";
     ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for update previewers";
     MegaChatListItem *item = megaChatApi[a2]->getChatListItem(chatid);
-    ASSERT_EQ(item->getNumPreviewers(), 0) << "Wrong number of previewers.";
+    ASSERT_EQ(item->getNumPreviewers(), 0u) << "Wrong number of previewers.";
     delete item;
     item = NULL;
 
@@ -4064,15 +4064,15 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     std::function<void()> waitForChatCallReadyA =
       [this, &chatCallSessionStatusInProgressA]()
       {
-        ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressA)) <<
-                         "Timeout expired for A receiving chat call in progress";
+          ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressA)) <<
+                           "Timeout expired for A receiving chat call in progress";
       };
 
     std::function<void()> waitForChatCallReadyB =
       [this, &chatCallSessionStatusInProgressB] ()
       {
-        ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressB)) <<
-                         "Timeout expired for B receiving chat call in progress";
+          ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressB)) <<
+                           "Timeout expired for B receiving chat call in progress";
       };
 
     megaChatApi[a1]->retryPendingConnections(true);
@@ -6857,55 +6857,58 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
 #ifndef KARERE_DISABLE_WEBRTC
 bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 {
+    int failedTest = 0;
+    const auto onTestFailed = [&failedTest](const std::string& cmd, const std::string& msg){
+        std::string errStr = "          [FAILED processing SFU command] :";
+        errStr.append(cmd).append(". ").append(msg);
+        failedTest++;
+        std::cout << errStr << std::endl;
+        LOG_debug << errStr;
+    };
+
     std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
     mOKTests++;
     MockupCall call;
     std::map<std::string, std::unique_ptr<sfu::Command>> commands;
     sfu::SfuConnection::setCallbackToCommands(call, commands);
     std::map<std::string, bool> checkCommands;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":\"dsfasdfas\",\"av\":1}"]     = false;
-    checkCommands["{\"cmd\":\"AV\",\"cid\":\"sdfasdfas\",\"peer\":"]                            = false;
+    checkCommands["{\"warn\":\"warn msg\"}"]                                                    = true;
+    checkCommands["{\"deny\":\"audio\",\"msg\":\"deny msg\"}"]                                  = true;
+    checkCommands["{\"err\":129,\"msg\":\"Error\"}"]                                            = true;
     checkCommands["{\"a\":\"HIRES_STOP\"}"]                                                     = true;
     checkCommands["{\"a\":\"PEERLEFT\",\"cid\":2,\"rsn\":65}"]                                  = true;
-    // checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0}"]         = true;  // DAR branch fixes and updates test cases for this test
+    checkCommands["{\"a\":\"PEERJOIN\",\"cid\":2,\"userId\":\"amECEsVQJQ8\",\"av\":0,\"v\":2}"] = true;
     checkCommands["{\"a\":\"HIRES_START\"}"]                                                    = true;
-    checkCommands["{\"a\":\"ERR\",\"code\":129,\"msg\":\"Error\"}"]                             = false;
-    checkCommands["{\"err\":129}"]                                                              = true;
+    checkCommands["{\"a\":\"HELLO\",\"cid\":1,\"na\":20,\"mods\":[\"amECEsVQJQ8\"]}"]           = true;
+    checkCommands["{\"a\":\"AV\",\"cid\":3,\"av\":1}"]                                          = true;
+    checkCommands["{\"a\":\"VTHUMBS\",\"tracks\":[[2,0]]}"]                                     = true;
+    checkCommands["{\"a\":\"HIRES\",\"tracks\":[[2,0,1]]}"]                                     = true;
+    checkCommands["{\"a\":\"VTHUMB_START\"}"]                                                   = true;
+    checkCommands["{\"a\":\"VTHUMB_STOP\"}"]                                                    = true;
+    checkCommands["{\"a\":\"KEY\",\"id\":0,\"from\":2,"
+                  "\"key\":\"RE8HjOLZl8ITM7FMIbAcigPWxq7i6DGqLQm-aNLAkEk\"}"]                   = true;
 
-    int failedTest = 0;
     int executedTests = 0;
     for (const auto& testCase : checkCommands)
     {
         executedTests++;
-        int32_t errCode = INT32_MIN; // init errCode to invalid value, to check if a valid errCode has been returned by SFU
-        std::string command;
-        std::string warnMsg;
-        std::string errMsg;
         rapidjson::Document document;
-        bool parseSuccess = sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, command, warnMsg, errMsg, errCode);
-
-        /* Command processing is considered failed if:
-         * 1) An error happened upon parsing "SFU" incoming data
-         * 2) Parsed command could not be found at commands
-         * 3) An error happened processing parsed command (processCommand)
-         */
-        bool commandProcSuccess = parseSuccess
-               && (errCode != INT32_MIN
-                    || (commands.find(command) != commands.end() && commands[command]->processCommand(document)));
-
-        if (!warnMsg.empty())
+        sfu::SfuConnection::SfuData outdata;
+        if (!sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, outdata))
         {
-            LOG_warn << warnMsg;
+            onTestFailed(testCase.first, outdata.msg);
         }
 
-        if (commandProcSuccess != testCase.second)
+        if (outdata.notificationType == sfu::SfuConnection::SfuData::SFU_COMMAND)
         {
-            std::string errStr = "          [FAILED processing SFU command] :";
-            errStr.append(testCase.first).append(". ").append(errMsg);
-            failedTest++;
-            std::cout << errStr << std::endl;
-            LOG_debug << errStr;
+            bool commandProcSuccess = (commands.find(outdata.notification) != commands.end()
+                    && commands[outdata.notification]->processCommand(document));
+            if (commandProcSuccess != testCase.second)
+            {
+                onTestFailed(testCase.first, outdata.msg);
+            }
         }
+        // else => SFU_WARN | SFU_ERROR | SFU_DENY
     }
 
     if (failedTest > 0)
@@ -7085,7 +7088,7 @@ RequestListener::RequestListener(MegaApi *megaApi, MegaChatApi* megaChatApi)
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-bool MockupCall::handleAvCommand(Cid_t, unsigned)
+bool MockupCall::handleAvCommand(Cid_t, unsigned, uint32_t)
 {
     return true;
 }
@@ -7140,7 +7143,7 @@ bool MockupCall::handleSpeakReqDelCommand(Cid_t)
     return true;
 }
 
-bool MockupCall::handleSpeakOnCommand(Cid_t, sfu::TrackDescriptor)
+bool MockupCall::handleSpeakOnCommand(Cid_t)
 {
     return true;
 }
@@ -7151,7 +7154,7 @@ bool MockupCall::handleSpeakOffCommand(Cid_t)
 }
 
 
-bool MockupCall::handlePeerJoin(Cid_t, uint64_t, unsigned int, int, std::string&, std::vector<std::string>&)
+bool MockupCall::handlePeerJoin(Cid_t, uint64_t, sfu::SfuProtocol, int, std::string&, std::vector<std::string>&)
 {
     return true;
 }
@@ -7186,6 +7189,11 @@ void MockupCall::onSfuDisconnected()
 
 }
 bool MockupCall::error(unsigned int, const string &)
+{
+    return true;
+}
+
+bool MockupCall::processDeny(const std::string&, const std::string&)
 {
     return true;
 }

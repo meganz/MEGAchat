@@ -736,6 +736,11 @@ void MeetingView::onRemoveSpeaker(uint32_t cid)
     mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
 
+void MeetingView::onRemoveSpeaker()
+{
+    mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+}
+
 void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
 {
     mMegaChatApi.isAudioLevelMonitorEnabled(mChatid)

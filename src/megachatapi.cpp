@@ -189,6 +189,8 @@ const char* MegaChatCall::termcodeToString(int termcode)
         case TERM_CODE_REJECT:                    return "Caller has hang up the call before nobody answered the call";
         case TERM_CODE_ERROR:                     return "Call error has been received";
         case TERM_CODE_NO_PARTICIPATE:            return "User has been removed from chatroom";
+        case TERM_CODE_TOO_MANY_CLIENTS:          return "Too many clients of same user connected";
+        case TERM_CODE_PROTOCOL_VERSION:          return "SFU protocol version error";
         case TERM_CODE_KICKED:                    return "User has been kicked from call";
     }
     return "Unknown call termcode";
@@ -2480,7 +2482,7 @@ MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 
 
 int MegaChatScheduledMeeting::isValidTitleLength(const char* title)
 {
-    return title && strlen(title) <= MegaChatScheduledMeeting::MAX_TITLE_LENGTH;
+    return title && strlen(title) > 0 && strlen(title) <= MegaChatScheduledMeeting::MAX_TITLE_LENGTH;
 }
 
 int MegaChatScheduledMeeting::isValidDescriptionLength(const char* desc)
