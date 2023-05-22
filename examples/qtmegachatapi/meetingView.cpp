@@ -73,9 +73,17 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mWaitingRoomShow, SIGNAL(clicked()), this, SLOT(onWrShow()));
     mWaitingRoomShow->setVisible(true);
 
-    mAllowJoin= new QPushButton("Allow Join to users", this);
+    mAllowJoin= new QPushButton("Allow join user", this);
     connect(mAllowJoin, SIGNAL(clicked()), this, SLOT(onAllowJoin()));
     mAllowJoin->setVisible(true);
+
+    mPushWr= new QPushButton("Push user into Wr", this);
+    connect(mPushWr, SIGNAL(clicked()), this, SLOT(onPushWr()));
+    mPushWr->setVisible(true);
+
+    mKickWr= new QPushButton("Kick user from call", this);
+    connect(mKickWr, SIGNAL(clicked()), this, SLOT(onKickWr()));
+    mKickWr->setVisible(true);
 
     setLayout(mGridLayout);
 
@@ -111,6 +119,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
     mButtonsLayout->addWidget(mWaitingRoomShow);
     mButtonsLayout->addWidget(mAllowJoin);
+    mButtonsLayout->addWidget(mPushWr);
+    mButtonsLayout->addWidget(mKickWr);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -777,6 +787,22 @@ void MeetingView::onAllowJoin()
     std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
     handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
     mMegaChatApi.allowUsersJoinCall(mChatid, handleList.get());
+}
+
+void MeetingView::onPushWr()
+{
+    QString peerId = QInputDialog::getText(this, tr("Push user into Wr"), tr("Enter peerId (B64)"));
+    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
+    mMegaChatApi.pushUsersIntoWaitingRoom(mChatid, handleList.get(), false);
+}
+
+void MeetingView::onKickWr()
+{
+    QString peerId = QInputDialog::getText(this, tr("Kick user from call"), tr("Enter peerId (B64)"));
+    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
+    mMegaChatApi.kickUsersFromCall(mChatid, handleList.get());
 }
 
 void MeetingView::onJoinCallWithoutVideo()
