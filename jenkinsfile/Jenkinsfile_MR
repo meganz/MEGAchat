@@ -189,6 +189,10 @@ pipeline {
                             env.TRIGGERED_BUILD_URL_LINUX = triggeredBuild.getAbsoluteUrl()
                             env.TRIGGERED_PROJECT_NAME_LINUX = triggeredBuild.getProjectName()
                             env.TRIGGERED_BUILD_DISPLAY_NAME_LINUX = triggeredBuild.getFullDisplayName()
+
+                            if (triggeredBuild.result != 'SUCCESS') {
+                                currentBuild.result = 'FAILURE'
+                            }
                         }
                     }
                     post{
@@ -245,6 +249,10 @@ pipeline {
                             env.TRIGGERED_BUILD_URL_ANDROID = triggeredBuild.getAbsoluteUrl()
                             env.TRIGGERED_PROJECT_NAME_ANDROID = triggeredBuild.getProjectName()
                             env.TRIGGERED_BUILD_DISPLAY_NAME_ANDROID = triggeredBuild.getFullDisplayName()
+
+                            if (triggeredBuild.result != 'SUCCESS') {
+                                currentBuild.result = 'FAILURE'
+                            }
                         }
                     }
                     post{
@@ -301,6 +309,10 @@ pipeline {
                             env.TRIGGERED_BUILD_URL_IOS = triggeredBuild.getAbsoluteUrl()
                             env.TRIGGERED_PROJECT_NAME_IOS = triggeredBuild.getProjectName()
                             env.TRIGGERED_BUILD_DISPLAY_NAME_IOS = triggeredBuild.getFullDisplayName()
+
+                            if (triggeredBuild.result != 'SUCCESS') {
+                                currentBuild.result = 'FAILURE'
+                            }
                         }
                     }
                     post{
