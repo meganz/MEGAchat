@@ -227,6 +227,12 @@ void MegaChatApiImpl::sendPendingRequests()
             continue;
         }
 
+        if (request->hasPerformRequest())
+        {
+            errorCode = request->performRequest();
+        }
+        else
+        {
         switch (request->getType())
         {
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
@@ -237,31 +243,6 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
-        }
-        case MegaChatRequest::TYPE_SEND_TYPING_NOTIF:
-        {
-            MegaChatHandle chatid = request->getChatHandle();
-            ChatRoom *chatroom = findChatRoom(chatid);
-            if (chatroom)
-            {
-                if (request->getFlag())
-                {
-                    chatroom->sendTypingNotification();
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                }
-                else
-                {
-                    chatroom->sendStopTypingNotification();
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                }
-            }
-            else
-            {
-                errorCode = MegaChatError::ERROR_ARGS;
-            }
             break;
         }
         case MegaChatRequest::TYPE_SIGNAL_ACTIVITY:
@@ -991,7 +972,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 {
                    if (wptr.deleted())
                    {
-                       mMegaApi->sendEvent(99014, "karere client instance was removed upon TYPE_LOAD_PREVIEW");
+                       mMegaApi->sendEvent(99014, "karere client instance was removed upon TYPE_LOAD_PREVIEW", false, static_cast<const char*>(nullptr));
                    }
 
                    bool createChat = request->getFlag();
@@ -1563,7 +1544,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     ChatRoom *room = findChatRoom(chatid);
                     if (!room)
                     {
-                        mMegaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid");
+                        mMegaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid", false, static_cast<const char*>(nullptr));
 
                         MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                         fireOnChatRequestFinish(request, megaChatError);
@@ -1571,7 +1552,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     }
                     else if (wasArchived && room->isArchived())    // don't want to generate notifications for archived chats
                     {
-                        mMegaApi->sendEvent(99009, "PUSH received for archived chatid (and still archived)");
+                        mMegaApi->sendEvent(99009, "PUSH received for archived chatid (and still archived)", false, static_cast<const char*>(nullptr));
 
                         // since a PUSH could be received before the actionpacket updating flags (
                         MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
@@ -1862,7 +1843,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     logMsg.append(call->getChatid().toString().c_str());
                     logMsg.append(" userid: ");
                     logMsg.append(mClient->myHandle().toString().c_str());
-                    mMegaApi->sendEvent(99015, logMsg.c_str());
+                    mMegaApi->sendEvent(99015, logMsg.c_str(), false, static_cast<const char*>(nullptr));
                 }
 
                 assert(call->isOwnPrivModerator() == chatroom->ownPriv());
@@ -2355,7 +2336,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     logMsg.append(call->getChatid().toString().c_str());
                     logMsg.append(" userid: ");
                     logMsg.append(mClient->myHandle().toString().c_str());
-                    mMegaApi->sendEvent(99015, logMsg.c_str());
+                    mMegaApi->sendEvent(99015, logMsg.c_str(), false, static_cast<const char*>(nullptr));
                 }
 
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK  - You need moderator role to approve speak request");
@@ -2998,6 +2979,7 @@ void MegaChatApiImpl::sendPendingRequests()
             errorCode = MegaChatError::ERROR_UNKNOWN;
         }
         }   // end of switch(request->getType())
+        }   // end of `else` block
 
         if(errorCode)
         {
@@ -5429,6 +5411,7 @@ void MegaChatApiImpl::sendTypingNotification(MegaChatHandle chatid, MegaChatRequ
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
     request->setChatHandle(chatid);
     request->setFlag(true);
+    request->setPerformRequest([this, request]() { return performRequest_sendTypingNotification(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5438,8 +5421,32 @@ void MegaChatApiImpl::sendStopTypingNotification(MegaChatHandle chatid, MegaChat
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SEND_TYPING_NOTIF, listener);
     request->setChatHandle(chatid);
     request->setFlag(false);
+    request->setPerformRequest([this, request]() { return performRequest_sendTypingNotification(request); });
     requestQueue.push(request);
     waiter->notify();
+}
+
+int MegaChatApiImpl::performRequest_sendTypingNotification(MegaChatRequestPrivate* request)
+{
+    MegaChatHandle chatid = request->getChatHandle();
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (!chatroom)
+    {
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    if (request->getFlag())
+    {
+        chatroom->sendTypingNotification();
+    }
+    else
+    {
+        chatroom->sendStopTypingNotification();
+    }
+
+    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
 }
 
 bool MegaChatApiImpl::isMessageReceptionConfirmationActive() const

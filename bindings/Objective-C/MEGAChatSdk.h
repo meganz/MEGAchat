@@ -72,6 +72,32 @@ typedef NS_ENUM (NSUInteger, MEGAChatOption) {
     MEGAChatOptionOpenInvite        = 1 << 2
 };
 
+typedef NS_OPTIONS (NSUInteger, MEGAChatListMask) {
+    MEGAChatListMaskNone                  = 0,
+    MEGAChatListMaskIndividualOrGroup     = 1 << 0,
+    MEGAChatListMaskPublicOrPrivate       = 1 << 1,
+    MEGAChatListMaskMeetingOrNonMeeting   = 1 << 2,
+    MEGAChatListMaskArchivedOrNonArchived = 1 << 3,
+    MEGAChatListMaskActiveOrNonActive     = 1 << 4,
+    MEGAChatListMaskReadOrNonRead         = 1 << 5
+};
+
+
+typedef NS_OPTIONS (NSUInteger, MEGAChatListFilter) {
+    MEGAChatListFilterNone          = 0,
+    MEGAChatListFilterIndividual    = 1 << 0,
+    MEGAChatListFilterPublic        = 1 << 1,
+    MEGAChatListFilterMeeting       = 1 << 2,
+    MEGAChatListFilterArchived      = 1 << 3,
+    MEGAChatListFilterActive        = 1 << 4,
+    MEGAChatListFilterRead          = 1 << 5,
+    MEGAChatListFilterGroup         = 0,
+    MEGAChatListFilterPrivate       = 0,
+    MEGAChatListFilterNonMeeting    = 0,
+    MEGAChatListFilterNonArchived   = 0,
+    MEGAChatListFilterNonActive     = 0,
+    MEGAChatListFilterUnread        = 0
+};
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -176,9 +202,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId;
 - (nullable MEGAChatRoom *)chatRoomByUser:(uint64_t)userHandle;
 - (nullable MEGAChatRoomList *)chatRoomsByType:(MEGAChatType)type;
-- (nullable MEGAChatListItemList *)chatListItemsByType:(MEGAChatType)type;
 
 - (nullable MEGAChatListItem *)chatListItemForChatId:(uint64_t)chatId;
+- (nullable MEGAChatListItemList *)chatListItemsByMask:(MEGAChatListMask)mask filter:(MEGAChatListFilter)filter;
 
 - (uint64_t)chatIdByUserHandle:(uint64_t)userHandle;
 

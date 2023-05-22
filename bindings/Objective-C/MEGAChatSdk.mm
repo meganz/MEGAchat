@@ -628,14 +628,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return chatRoom ? [[MEGAChatRoom alloc] initWithMegaChatRoom:chatRoom cMemoryOwn:YES] : nil;
 }
 
-- (MEGAChatListItemList *)chatListItemsByType:(MEGAChatType)type {
-    if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItemsByType(type) cMemoryOwn:YES];
-}
-
 - (MEGAChatListItemList *)chatListItems {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems() cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskNone, MEGAChatListFilterNone) cMemoryOwn:YES];
 }
 
 - (NSInteger)unreadChats {
@@ -645,23 +640,28 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatListItemList *)activeChatListItems {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getActiveChatListItems() cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskActiveOrNonActive, MEGAChatListFilterActive) cMemoryOwn:YES];
 }
 
 - (MEGAChatListItemList *)archivedChatListItems {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getArchivedChatListItems() cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskArchivedOrNonArchived, MEGAChatListFilterArchived) cMemoryOwn:YES];
 }
 
 - (MEGAChatListItemList *)inactiveChatListItems {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getInactiveChatListItems() cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskActiveOrNonActive, MEGAChatListFilterNonActive) cMemoryOwn:YES];
 }
 
 - (MEGAChatListItem *)chatListItemForChatId:(uint64_t)chatId {
     if (self.megaChatApi == nil) return nil;
     MegaChatListItem *item = self.megaChatApi->getChatListItem(chatId);
     return item ? [[MEGAChatListItem alloc] initWithMegaChatListItem:item cMemoryOwn:YES] : nil;
+}
+
+- (MEGAChatListItemList *)chatListItemsByMask:(MEGAChatListMask)mask filter:(MEGAChatListFilter)filter {
+    if (self.megaChatApi == nil) return nil;
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(mask, filter) cMemoryOwn:YES];
 }
 
 - (uint64_t)chatIdByUserHandle:(uint64_t)userHandle {
