@@ -2600,13 +2600,6 @@ void MegaChatApiImpl::sendPendingRequests()
         case MegaChatRequest::TYPE_WR_PUSH:
         case MegaChatRequest::TYPE_WR_ALLOW:
         {
-            auto res = getCallWithModPermissions(request->getChatHandle(), std::string("MegaChatRequest::TYPE_") + request->getRequestString());
-            if (res.first != MegaChatError::ERROR_OK)
-            {
-                errorCode = res.first;
-                break;
-            }
-
             const auto handleList = request->getMegaHandleList();
             bool allowAll = request->getFlag();
             if (!allowAll && (!handleList || !handleList->size()))
@@ -2620,13 +2613,34 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
+            if (res.first != MegaChatError::ERROR_OK)
+            {
+                errorCode = res.first;
+                break;
+            }
+            rtcModule::ICall* call= res.second;
+            const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
+            if (!waitingRoom)
+            {
+                // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
+                // however we also need to ensure, that we also have received proper information from SFU to
+                // initialize waiting room with users on it, and their joining permission
+                API_LOG_ERROR("MegaChatRequest::%s. Can't retrieve waiting room from karere chatroom. chatid: %s",
+                (request->getType() == MegaChatRequest::TYPE_WR_PUSH) ? "TYPE_WR_PUSH" : "TYPE_WR_ALLOW",
+                karere::Id(request->getChatHandle()).toString().c_str());
+
+                assert(false);
+                errorCode = MegaChatError::ERROR_UNKNOWN;
+                break;
+            }
+
             std::set<karere::Id> users;
             for (unsigned int i = 0; i < handleList->size(); ++i)
             {
                 users.emplace(handleList->get(i));
             }
 
-            rtcModule::ICall* call= res.second;
             request->getType() == MegaChatRequest::TYPE_WR_PUSH
                 ? call->pushUsersIntoWaitingRoom(users, allowAll)
                 : call->allowUsersJoinCall(users, allowAll);
@@ -2636,18 +2650,18 @@ void MegaChatApiImpl::sendPendingRequests()
         }
         case MegaChatRequest::TYPE_WR_KICK:
         {
-            auto res = getCallWithModPermissions(request->getChatHandle(), std::string("MegaChatRequest::TYPE_") + request->getRequestString());
-            if (res.first != MegaChatError::ERROR_OK)
-            {
-                errorCode = res.first;
-                break;
-            }
-
             const auto handleList = request->getMegaHandleList();
             if (!handleList || !handleList->size())
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK - Empty list of users to be kicked off");
                 errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
+            auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
+            if (res.first != MegaChatError::ERROR_OK)
+            {
+                errorCode = res.first;
                 break;
             }
 
@@ -2658,6 +2672,20 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             rtcModule::ICall* call= res.second;
+            const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
+            if (!waitingRoom)
+            {
+                // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
+                // however we also need to ensure, that we also have received proper information from SFU to
+                // initialize waiting room with users on it, and their joining permission
+                API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK. Can't retrieve waiting room from karere chatroom. chatid: %s",
+                karere::Id(request->getChatHandle()).toString().c_str());
+
+                assert(false);
+                errorCode = MegaChatError::ERROR_UNKNOWN;
+                break;
+            }
+
             call->kickUsersFromCall(users);
             fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
             break;
@@ -6015,7 +6043,7 @@ void MegaChatApiImpl::stopLowResVideo(MegaChatHandle chatid, MegaHandleList *cli
 }
 
 std::pair<int, rtcModule::ICall*>
-MegaChatApiImpl::getCallWithModPermissions(const MegaChatHandle chatid, const std::string& msg)
+MegaChatApiImpl::getCallWithModPermissions(const MegaChatHandle chatid, bool waitingRoom, const std::string& msg)
 {
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
@@ -6028,6 +6056,13 @@ MegaChatApiImpl::getCallWithModPermissions(const MegaChatHandle chatid, const st
     {
         API_LOG_ERROR("%s - There is not any chatroom with chatid: %s",
                       msg.c_str(), karere::Id(chatid).toString().c_str());
+        return std::make_pair (MegaChatError::ERROR_NOENT, nullptr);
+    }
+
+    if (chatroom->isWaitingRoom() != waitingRoom)
+    {
+        API_LOG_ERROR("%s - Invalid chatroom with chatid: %s. Expected waiting room state: %s ",
+                      msg.c_str(), karere::Id(chatid).toString().c_str(), waitingRoom ? "Enabled" : "Disabled");
         return std::make_pair (MegaChatError::ERROR_NOENT, nullptr);
     }
 

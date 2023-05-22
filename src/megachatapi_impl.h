@@ -1621,7 +1621,7 @@ public:
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
-    std::pair<int, rtcModule::ICall*> getCallWithModPermissions(const MegaChatHandle chatid, const std::string& msg);
+    std::pair<int, rtcModule::ICall*> getCallWithModPermissions(const MegaChatHandle chatid, bool waitingRoom, const std::string& msg);
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);

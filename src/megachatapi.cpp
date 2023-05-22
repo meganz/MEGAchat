@@ -1141,14 +1141,14 @@ void MegaChatApi::pushUsersIntoWaitingRoom(MegaChatHandle chatid, MegaHandleList
     pImpl->pushUsersIntoWaitingRoom(chatid, users, all, listener);
 }
 
-void MegaChatApi::allowUsersJoinCall(MegaChatHandle chatid, const MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
-{
-    pImpl->allowUsersJoinCall(chatid, users, all, listener);
-}
-
 void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users, MegaChatRequestListener* listener)
 {
     pImpl->kickUsersFromCall(chatid, users, listener);
+}
+
+void MegaChatApi::allowUsersJoinCall(MegaChatHandle chatid, const MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    pImpl->allowUsersJoinCall(chatid, users, all, listener);
 }
 
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
