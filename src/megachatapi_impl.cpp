@@ -7896,6 +7896,12 @@ int MegaChatCallPrivate::getWrJoiningState() const
 
 const MegaChatWaitingRoom* MegaChatCallPrivate::getWaitingRoom() const
 {
+    if (isOwnModerator() && mMegaChatWaitingRoom && mMegaChatWaitingRoom->size())
+    {
+        API_LOG_ERROR("Waiting room should be empty for a non moderator user. callId: %d", karere::Id(getCallId()).toString().c_str());
+        assert(false);
+        return nullptr;
+    }
     return mMegaChatWaitingRoom.get();
 }
 
