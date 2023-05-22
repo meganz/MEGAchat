@@ -166,7 +166,7 @@ pipeline {
                 stage('Build Linux'){
                     when{
                         anyOf {
-                            expression { env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'build compilation' || env.gitlabTriggerPhrase.startsWith('build compilation linux'))  }
+                            expression { env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'trigger compilation' || env.gitlabTriggerPhrase.startsWith('trigger compilation linux'))  }
                             allOf{
                                 expression { env.gitlabTriggerPhrase == null }
                                 triggeredBy "GitlabWebhookCause" 
@@ -222,7 +222,7 @@ pipeline {
                 stage('Build Android'){
                     when {
                         anyOf {
-                            expression { env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'build compilation' || env.gitlabTriggerPhrase.startsWith('build compilation android'))  }
+                            expression { env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'trigger compilation' || env.gitlabTriggerPhrase.startsWith('trigger compilation android'))  }
                             allOf{
                                 expression { env.gitlabTriggerPhrase == null }
                                 triggeredBy "GitlabWebhookCause" 
@@ -278,7 +278,7 @@ pipeline {
                 stage('Build iOS'){
                     when {
                         anyOf {
-                            expression { env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'build compilation' || env.gitlabTriggerPhrase.startsWith('build compilation ios'))  }
+                            expression { env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'trigger compilation' || env.gitlabTriggerPhrase.startsWith('trigger compilation ios'))  }
                             allOf{
                                 expression { env.gitlabTriggerPhrase == null }
                                 triggeredBy "GitlabWebhookCause" 
