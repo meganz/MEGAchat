@@ -4142,6 +4142,10 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
 /**
  * @brief MegaChatApiTest.WaitingRooms
+ * + Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
+ * + Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
+ * + Test3: A kicks (completely disconnect) B from call
+ *
  */
 TEST_F(MegaChatApiTest, WaitingRooms)
 {
@@ -4268,9 +4272,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         ASSERT_TRUE(mTerminationCode[a2] == MegaChatCall::TERM_CODE_KICKED) << "Unexpected termcode" << MegaChatCall::termcodeToString(mTerminationCode[a2]);
     };
 
-    //Test1: A starts a groupal meeting without audio, nor video
-    //------------------------------------------------------------------------------------------------------
-    LOG_debug << "T_WaitingRooms1: A starts a groupal meeting. B it's pushed into waiting room";
+    // Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
+    // ------------------------------------------------------------------------------------------------------
+    LOG_debug << "T_WaitingRooms1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
     LOG_debug << "A starts the call";
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
     mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
@@ -4329,19 +4333,16 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_TRUE(wr && wr->getPeerStatus(uh) == MegaChatWaitingRoom::MWR_NOT_ALLOWED)
         << (!wr ? "Waiting room can't be retrieved for user A" : "B it's not in the waiting room");
 
-    //Test2: B request for Join permission to A, and A grants it
-    //------------------------------------------------------------------------------------------------------
-    LOG_debug << "T_WaitingRooms2: B request for Join permission to A, and A grants it";
     grantsJoinPermission();
 
-    //Test3: A Push B into waiting room, B request again for Join permission to A (A ignores it, there's no way to reject a Join req)
-    //------------------------------------------------------------------------------------------------------
-    LOG_debug << "T_WaitingRooms3: A Push B into waiting room, B request again for Join permission to A, A rejects it";
+    // Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
+    // ------------------------------------------------------------------------------------------------------
+    LOG_debug << "T_WaitingRooms2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)";
     pushIntoWr();
 
-    //Test4: A kicks (completely disconnect) B from call
-    //------------------------------------------------------------------------------------------------------
-    LOG_debug << "T_WaitingRooms4: A kicks (completely disconnect) B from call";
+    // Test3: A kicks (completely disconnect) B from call
+    // ------------------------------------------------------------------------------------------------------
+    LOG_debug << "T_WaitingRooms3: A kicks (completely disconnect) B from call";
     kickFromCall();
 
     LOG_debug << "T_WaitingRooms: A ends call for all participants";
