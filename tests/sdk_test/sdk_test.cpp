@@ -4268,22 +4268,22 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     };
 
     // get scheduled meeting
-    const auto getSchedMeeting = [this](const unsigned int index, const SchedMeetingData& smData) -> std::unique_ptr<MegaChatScheduledMeeting*>
+    const auto getSchedMeeting = [this](const unsigned int index, const SchedMeetingData& smData) -> std::unique_ptr<MegaChatScheduledMeeting>
     {
-        const auto smList = std::make_unique<megachat::MegaChatScheduledMeetingList*>(megaChatApi[index]->getScheduledMeetingsByChat(smData.chatId));
+        const auto smList = std::unique_ptr<megachat::MegaChatScheduledMeetingList>(megaChatApi[index]->getScheduledMeetingsByChat(smData.chatId));
         const bool validSchedId = smData.schedId != MEGACHAT_INVALID_HANDLE;
-        for (size_t i = 0, sz = (*smList)->size(); i < sz; ++i)
+        for (size_t i = 0, sz = smList->size(); i < sz; ++i)
         {
-            if (!validSchedId && (*smList)->at(i)->parentSchedId() == MEGACHAT_INVALID_HANDLE)
+            if (!validSchedId && smList->at(i)->parentSchedId() == MEGACHAT_INVALID_HANDLE)
             {
                 // if no schedId provided return the parent sched meeting for this chat
-                return std::make_unique<MegaChatScheduledMeeting*>((*smList)->at(i)->copy());
+                return std::unique_ptr<MegaChatScheduledMeeting>(smList->at(i)->copy());
             }
 
-            if (validSchedId && (*smList)->at(i)->schedId() == smData.schedId)
+            if (validSchedId && smList->at(i)->schedId() == smData.schedId)
             {
                 // if schedId provided return the sched meeting that matches with provided schedId, if any
-                return std::make_unique<MegaChatScheduledMeeting*>((*smList)->at(i)->copy());
+                return std::unique_ptr<MegaChatScheduledMeeting>(smList->at(i)->copy());
             }
         }
         return nullptr;
@@ -4418,9 +4418,9 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smData.chatId = chatid[a1];
     smData.schedId = MEGACHAT_INVALID_HANDLE;
 
-    const auto  schedMeet = getSchedMeeting(a1, smData);
+    const auto schedMeet = getSchedMeeting(a1, smData);
     ASSERT_TRUE(schedMeet) << "Can't retrieve scheduled meeting for new chat " << (chatIdB64 ? chatIdB64.get() : "INVALID chatId");
-    ASSERT_TRUE(!(*schedMeet)->flags() && !(*schedMeet)->description()) << "Scheduled meeting flags must be unset and description must be an empty string" ;
+    ASSERT_TRUE(!schedMeet->flags() && !schedMeet->description()) << "Scheduled meeting flags must be unset and description must be an empty string" ;
     ASSERT_TRUE(flags->sendEmails()) << "Scheduled meeting created doesn't have send emails flag enabled but it was set on creation";
 
     //================================================================================//
@@ -4469,10 +4469,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests456.newStartDate = auxStartDate;
     smDataTests456.newEndDate = auxEndDate;
     updateOccurrence(a1, MegaChatError::ERROR_OK, smDataTests456);
-    auto sched = std::make_unique<MegaChatScheduledMeeting*>(megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]));
-    ASSERT_TRUE(sched && (*sched)->parentSchedId() == schedId) << "Child scheduled meeting for primary account has not been received";
+    auto sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]));
+    ASSERT_TRUE(sched && sched->parentSchedId() == schedId) << "Child scheduled meeting for primary account has not been received";
 
-    const MegaChatHandle childSchedId = (*sched)->schedId();
+    const MegaChatHandle childSchedId = sched->schedId();
     smData = SchedMeetingData(); // Designated initializers generate too many warnings (gcc)
     smData.chatId = chatid[a1];
     smData.schedId = childSchedId;
@@ -4510,8 +4510,8 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests456.overrides = overrides;
     smDataTests456.newCancelled = true;
     updateOccurrence(a1, MegaChatError::ERROR_OK, smDataTests456);
-    sched = std::make_unique<MegaChatScheduledMeeting*>(megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]));
-    ASSERT_TRUE(sched && (*sched)->schedId() == childSchedId && (*sched)->cancelled()) << "Scheduled meeting occurrence could not be cancelled";
+    sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]));
+    ASSERT_TRUE(sched && sched->schedId() == childSchedId && sched->cancelled()) << "Scheduled meeting occurrence could not be cancelled";
 
     //================================================================================//
     // TEST 8. Cancel entire series
