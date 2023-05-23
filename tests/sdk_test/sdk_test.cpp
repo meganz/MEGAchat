@@ -4470,7 +4470,8 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests456.newEndDate = auxEndDate;
     updateOccurrence(a1, MegaChatError::ERROR_OK, smDataTests456);
     auto sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]));
-    ASSERT_TRUE(sched && sched->parentSchedId() == schedId) << "Child scheduled meeting for primary account has not been received";
+    ASSERT_TRUE(sched);
+    ASSERT_EQ(sched->parentSchedId(), schedId) << "Child scheduled meeting for primary account has not been received";
 
     const MegaChatHandle childSchedId = sched->schedId();
     smData = SchedMeetingData(); // Designated initializers generate too many warnings (gcc)
@@ -4511,7 +4512,9 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests456.newCancelled = true;
     updateOccurrence(a1, MegaChatError::ERROR_OK, smDataTests456);
     sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatId, mSchedIdUpdated[a1]));
-    ASSERT_TRUE(sched && sched->schedId() == childSchedId && sched->cancelled()) << "Scheduled meeting occurrence could not be cancelled";
+    ASSERT_TRUE(sched);
+    ASSERT_EQ(sched->schedId(), childSchedId) << "Scheduled meeting id does not match with expected one";
+    ASSERT_TRUE(sched->cancelled()) << "Scheduled meeting occurrence could not be cancelled";
 
     //================================================================================//
     // TEST 8. Cancel entire series
