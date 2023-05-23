@@ -6479,18 +6479,19 @@ void FilteredHistory::truncateHistory(const Id& id)
         auto it = mIdToMsgMap.find(id);
         if (it != mIdToMsgMap.end())
         {
-            // id is a message in the history, we want to remove from the next message until the oldest
-            for (auto itLoop = ++it->second; itLoop != mBuffer.end(); itLoop++)
+            auto itLoop = std::next(it->second); // id is a message in the history, we want to remove from the next message until the oldest
+            while (itLoop != mBuffer.end())
             {
-                mIdToMsgMap.erase((*itLoop)->id());
-
                 // if next message to notify was truncated, point to the end of the buffer
                 if (itLoop == mNextMsgToNotify)
                 {
                     mNextMsgToNotify = mBuffer.end();
                 }
+
+                auto auxit = itLoop++; // create aux iterator to avoid itLoop is invalidated, and then increment itLoop
+                mIdToMsgMap.erase((*auxit)->id());
             }
-            mBuffer.erase(it->second, mBuffer.end());
+            mBuffer.erase(std::next(it->second), mBuffer.end());
         }
 
         CALL_DB_FH(truncateNodeHistory, id);
