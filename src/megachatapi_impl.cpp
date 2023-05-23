@@ -2767,7 +2767,8 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
             GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(ocurr->chatId()));
             if (!chatroom)
             {
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 3 (chatroom not found): %d", MegaChatError::ERROR_NOENT);
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 3 (chatroom not found for id %s): %d",
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->chatId()), MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
 
@@ -2777,7 +2778,8 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
             if (it == schedMeetings.end())
             {
                 // scheduled meeting related to occurrence we want to modify, doesn't exists
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 4 (scheduled meeting not found): %d", MegaChatError::ERROR_NOENT);
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 4 (scheduled meeting not found for id %s): %d",
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()), MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
             const KarereScheduledMeeting* occurrSchedMeeting = it->second.get();
@@ -2817,7 +2819,8 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
                         API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
                     });
                 }
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 5 (scheduled meeting occurrence not found): %d", MegaChatError::ERROR_NOENT);
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 5 (scheduled meeting occurrence not found for id %s): %d",
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()), MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
 
