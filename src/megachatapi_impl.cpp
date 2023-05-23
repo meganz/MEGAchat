@@ -198,13 +198,25 @@ void MegaChatApiImpl::postMessage(megaMessage* msg)
 
 void MegaChatApiImpl::sendPendingRequests()
 {
-    MegaChatRequestPrivate *request;
+    MegaChatRequestPrivate *request = nullptr;
     int errorCode = MegaChatError::ERROR_OK;
-    int nextTag = 0;
 
-    while((request = requestQueue.pop()))
+    while (1)
     {
-        nextTag = ++reqtag;
+        if (errorCode && request)
+        {
+            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
+            API_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
+            fireOnChatRequestFinish(request, megaChatError);
+        }
+
+        request = requestQueue.pop();
+        if (!request)
+        {
+            break;
+        }
+
+        int nextTag = ++reqtag;
         request->setTag(nextTag);
         requestMap[nextTag]=request;
         errorCode = MegaChatError::ERROR_OK;
@@ -230,9 +242,9 @@ void MegaChatApiImpl::sendPendingRequests()
         if (request->hasPerformRequest())
         {
             errorCode = request->performRequest();
+            continue;
         }
-        else
-        {
+
         switch (request->getType())
         {
         case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
@@ -2244,15 +2256,7 @@ void MegaChatApiImpl::sendPendingRequests()
             errorCode = MegaChatError::ERROR_UNKNOWN;
         }
         }   // end of switch(request->getType())
-        }   // end of `else` block
-
-        if(errorCode)
-        {
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
-            API_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
-            fireOnChatRequestFinish(request, megaChatError);
-        }
-    }
+    } // end of while(1)
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
