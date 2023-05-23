@@ -2810,7 +2810,7 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
                     mClient->fetchScheduledMeetingOccurrences(ocurr->chatId(), now /*since*/, MEGACHAT_INVALID_TIMESTAMP /*until*/, MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
                     .then([](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> /*result*/)
                     {
-                        API_LOG_ERROR("Newer scheduled meetings occurrences retrieved successfully"); // is this an error ?
+                        API_LOG_DEBUG("Newer scheduled meetings occurrences retrieved successfully");
                     })
                     .fail([](const ::promise::Error& err)
                     {
