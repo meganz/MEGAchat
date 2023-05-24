@@ -4389,12 +4389,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     flags->setSendEmails(true);
 
     // create MegaChatScheduledRules
-    std::shared_ptr<::mega::MegaIntegerList> byWeekDay(::mega::MegaIntegerList::createInstance());
-    byWeekDay->add(1); byWeekDay->add(3); byWeekDay->add(5);
-    std::shared_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_WEEKLY,
+    std::shared_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,
                                                                                          MEGACHAT_INVALID_TIMESTAMP,
-                                                                                         byWeekDay.get(), nullptr, nullptr));
+                                                                                         nullptr, nullptr, nullptr));
     smDataTests127.peerList = peerList;
     smDataTests127.isMeeting = true;
     smDataTests127.publicChat = true;
