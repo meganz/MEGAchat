@@ -2608,9 +2608,9 @@ int MegaChatApiImpl::performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* 
             if (!allowAll && (!handleList || !handleList->size()))
             {
                 request->getType() == MegaChatRequest::TYPE_WR_PUSH
-                    ? API_LOG_ERROR("MegaChatRequest::TYPE_WR_ALLOW - Invalid list of users to be allowed to JOIN")
-                    : API_LOG_ERROR("MegaChatRequest::TYPE_WR_PUSH - Invalid list of users to be pushed in the waiting room",
-                                    request->getRequestString());
+                    ? API_LOG_ERROR("MegaChatRequest::TYPE_WR_PUSH - Invalid list of users to be pushed in the waiting room",
+                                    request->getRequestString())
+                    : API_LOG_ERROR("MegaChatRequest::TYPE_WR_ALLOW - Invalid list of users to be allowed to JOIN");
 
                 return MegaChatError::ERROR_ARGS;
             }
@@ -7896,7 +7896,7 @@ int MegaChatCallPrivate::getWrJoiningState() const
 
 const MegaChatWaitingRoom* MegaChatCallPrivate::getWaitingRoom() const
 {
-    if (isOwnModerator() && mMegaChatWaitingRoom && mMegaChatWaitingRoom->size())
+    if (!isOwnModerator() && mMegaChatWaitingRoom && mMegaChatWaitingRoom->size())
     {
         API_LOG_ERROR("Waiting room should be empty for a non moderator user. callId: %d", karere::Id(getCallId()).toString().c_str());
         assert(false);

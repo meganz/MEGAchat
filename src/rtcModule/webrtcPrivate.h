@@ -411,15 +411,15 @@ public:
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
-    bool isValidWrJoiningState();
+    bool isValidWrJoiningState() const;
     void clearWrJoiningState();
     void setWrJoiningState(WrState status);
     void setPrevCid(Cid_t prevcid);
-    Cid_t getPrevCid();
+    Cid_t getPrevCid() const;
 
     void setWrFlag(bool enabled)    { mIsWaitingRoomEnabled = enabled; }
-    bool isWrFlagEnabled()          { return mIsWaitingRoomEnabled;    }
-    bool checkWrFlag()
+    bool isWrFlagEnabled() const    { return mIsWaitingRoomEnabled;    }
+    bool checkWrFlag() const
     {
         if (!isWrFlagEnabled())
         {
@@ -443,7 +443,7 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
-    bool addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent);
+    bool addWrUsers(const std::map<karere::Id, bool>& users, const bool& clearCurrent);
     void pushIntoWr(const TermCode& termCode);
 
     // --- SfuInterface methods ---
@@ -462,7 +462,7 @@ public:
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
-    bool handleBye(const unsigned& termCode, bool& wr, std::string& errMsg) override;
+    bool handleBye(const unsigned& termCode, const bool& wr, const std::string& errMsg) override;
     void onSfuDisconnected() override;
     void onSendByeCommand() override;
     bool handleModAdd (uint64_t userid) override;

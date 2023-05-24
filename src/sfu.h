@@ -242,7 +242,7 @@ public:
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
-    virtual bool handleBye(const unsigned& termCode, bool& wr, std::string& errMsg) = 0;
+    virtual bool handleBye(const unsigned& termCode, const bool& wr, const std::string& errMsg) = 0;
     virtual void onSfuDisconnected() = 0;
     virtual void onSendByeCommand() = 0;
 
@@ -436,7 +436,7 @@ public:
 class ByeCommand : public Command
 {
 public:
-    typedef std::function<bool(const unsigned& termCode, bool& wr, std::string& errMsg)> ByeCommandFunction;
+    typedef std::function<bool(const unsigned& termCode, const bool& wr, const std::string& errMsg)> ByeCommandFunction;
     ByeCommand(const ByeCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -656,10 +656,10 @@ public:
     bool sendBye(int termCode);
 
     // Waiting room related commands
-    bool sendWrPush(const std::set<karere::Id>& users, const bool all);
-    bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
+    bool sendWrPush(const std::set<karere::Id>& users, const bool& all);
+    bool sendWrAllow(const std::set<karere::Id>& users, const bool& all);
     bool sendWrKick(const std::set<karere::Id>& users);
-    bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
+    bool addWrUsersArray(const std::set<karere::Id>& users, const bool& all, rapidjson::Document& json);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
@@ -740,14 +740,18 @@ private:
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
 
-    /** SFU Version:
+   /** SFU Protocol Versions:
      * - Version 0: initial version
-     * - Version 1:
+     *
+     * - Version 1 (never released for native clients):
      *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
-     *      + Waiting rooms
      *      + Dynamic audio routing
+     *      + Waiting rooms
+     *
+     * - Version 2 (contains all features from V1):
+     *      + Change AES-GCM by AES-CBC with Zero iv
      */
-    static const unsigned int mSfuVersion = 1;
+     static const unsigned int mSfuVersion = 1;
 };
 
 static inline const char* connStateToStr(SfuConnection::ConnState state)

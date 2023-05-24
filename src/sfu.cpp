@@ -58,7 +58,7 @@ const std::string SfuConnection::CSFU_SPEAK_RQ          = "SPEAK_RQ";       // C
 const std::string SfuConnection::CSFU_SPEAK_RQ_DEL      = "SPEAK_RQ_DEL";   // Command sent to cancel a pending speak request
 const std::string SfuConnection::CSFU_SPEAK_DEL         = "SPEAKER_DEL";    // Command sent to request that an active speaker stops being one.
 const std::string SfuConnection::CSFU_BYE               = "BYE";            // Command sent to disconnect orderly from the call
-const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // Command sent to push all clients of sent peerId's (that are in the call) to the waiting roo
+const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // Command sent to push all clients of sent peerId's (that are in the call) to the waiting room
 const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // Command sent to grant the specified users the permission to enter the call from the waiting room
 const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";        // Command sent to disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room
 
@@ -2065,7 +2065,7 @@ bool SfuConnection::sendBye(int termCode)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool all)
+bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool& all)
 {
     if (users.empty() && !all)
     {
@@ -2086,7 +2086,7 @@ bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool all
     return sendCommand(command);
 }
 
-bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool all)
+bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool& all)
 {
     if (users.empty() && !all)
     {
@@ -2128,12 +2128,12 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
     return sendCommand(command);
 }
 
-bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json)
+bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool& all, rapidjson::Document& json)
 {
     assert(!users.empty() || all);
     if (users.empty())
     {
-        std::string userStr = "*";
+        const std::string userStr = "*";
         rapidjson::Value nameValue(rapidjson::kStringType);
         nameValue.SetString(userStr.c_str(), static_cast<rapidjson::SizeType>(userStr.length()), json.GetAllocator());
         json.AddMember(rapidjson::Value("users"), nameValue, json.GetAllocator());
@@ -2753,8 +2753,8 @@ bool WrDumpCommand::processCommand(const rapidjson::Document& command)
     std::map<karere::Id, bool> users;
     if (!parseUsersMap(users, command.GetObject()))
     {
-        assert(false);
         SFU_LOG_ERROR("WrDumpCommand: users array is ill-formed");
+        assert(false);
         return false;
     }
     return mComplete(users);
@@ -2771,8 +2771,8 @@ bool WrEnterCommand::processCommand(const rapidjson::Document& command)
     std::map<karere::Id, bool> users;
     if (!parseUsersMap(users, command.GetObject()))
     {
-        assert(false);
         SFU_LOG_ERROR("WrEnterCommand: users array is ill-formed");
+        assert(false);
         return false;
     }
     return mComplete(users);
@@ -2790,6 +2790,7 @@ bool WrLeaveCommand::processCommand(const rapidjson::Document& command)
     if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
     {
         SFU_LOG_ERROR("WrLeaveCommand: Received data doesn't have 'user' field");
+        assert(false);
         return false;
     }
     std::string userIdString = reasonIterator->value.GetString();
@@ -2809,6 +2810,7 @@ bool WrAllowCommand::processCommand(const rapidjson::Document& command)
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
         SFU_LOG_ERROR("Received data doesn't have 'cid' field");
+        assert(false);
         return false;
     }
     Cid_t cid = cidIterator->value.GetUint();
@@ -2854,6 +2856,7 @@ bool WrUsersAllowCommand::processCommand(const rapidjson::Document& command)
     if (usersIterator == command.MemberEnd() || !usersIterator->value.IsArray())
     {
         SFU_LOG_ERROR("WrUsersAllowCommand: Received data doesn't have 'users' array");
+        assert(false);
         return false;
     }
 
@@ -2874,6 +2877,7 @@ bool WrUsersDenyCommand::processCommand(const rapidjson::Document& command)
     if (usersIterator == command.MemberEnd() || !usersIterator->value.IsArray())
     {
         SFU_LOG_ERROR("WrUsersDenyCommand: Received data doesn't have 'users' array");
+        assert(false);
         return false;
     }
 

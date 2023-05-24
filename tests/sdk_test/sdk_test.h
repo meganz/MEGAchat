@@ -619,7 +619,7 @@ public:
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
-    bool handleBye(const unsigned& termCode, bool& wr, std::string& errMsg) override;
+    bool handleBye(const unsigned& termCode, const bool& wr, const std::string& errMsg) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
     void onSendByeCommand() override;

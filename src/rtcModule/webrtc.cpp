@@ -461,7 +461,7 @@ int Call::getWrJoiningState() const
     return static_cast<int>(mWrJoiningState);
 }
 
-bool Call::isValidWrJoiningState()
+bool Call::isValidWrJoiningState() const
 {
     return mWrJoiningState == WrState::WR_NOT_ALLOWED || mWrJoiningState == WrState::WR_ALLOWED;
 }
@@ -502,7 +502,7 @@ void Call::setPrevCid(Cid_t prevcid)
     mPrevCid = prevcid;
 }
 
-Cid_t Call::getPrevCid()
+Cid_t Call::getPrevCid() const
 {
     return mPrevCid;
 }
@@ -2047,8 +2047,9 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     return true;
 }
 
-bool Call::handleBye(const unsigned& termCode, bool& wr, std::string& errMsg)
+bool Call::handleBye(const unsigned& termCode, const bool& wr, const std::string& errMsg)
 {
+    RTCM_LOG_WARNING("handleBye - termCode: %d, reason: %s", termCode, errMsg);
     TermCode auxTermCode = static_cast<TermCode> (termCode);
     if (!isValidConnectionTermcode(auxTermCode))
     {
@@ -2181,11 +2182,12 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
             joinSfu();
         }
 
-        // store moderators list and notify app
-        if (addWrUsers(wrUsers, true/*clearCurrent*/))
+        // store moderators list
+        if (!addWrUsers(wrUsers, true/*clearCurrent*/))
         {
-            mCallHandler.onWrUserDump(*this);
+            return false;
         }
+        mCallHandler.onWrUserDump(*this); // notify app about users in wr
     }
     return true;
 }
@@ -2195,10 +2197,11 @@ bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
     assert(isOwnPrivModerator());
     if (!checkWrFlag()) {return false;}
 
-    if (addWrUsers(users, true/*clearCurrent*/))
+    if (!addWrUsers(users, true/*clearCurrent*/))
     {
-        mCallHandler.onWrUserDump(*this);
+        return false;
     }
+    mCallHandler.onWrUserDump(*this); // notify app about users in wr
     return true;
 }
 
@@ -2208,14 +2211,15 @@ bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
     assert(!users.empty());
     if (!checkWrFlag()) {return false;}
 
-    if (addWrUsers(users, false/*clearCurrent*/))
+    if (!addWrUsers(users, false/*clearCurrent*/))
     {
-        std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-        std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.first.val); });
-        mCallHandler.onWrUsersEntered(*this, uhl.get());
-        return true;
+        return false;
     }
-    return false;
+
+    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.first.val); });
+    mCallHandler.onWrUsersEntered(*this, uhl.get());
+    return true;
 }
 
 bool Call::handleWrLeave(const karere::Id& user)
@@ -2263,6 +2267,7 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
     mMyPeer->setCid(cid); // update Cid for own client from SFU
     mModerators = mods;
     setWrJoiningState(WrState::WR_ALLOWED);
+    RTCM_LOG_DEBUG("handleWrAllow: we have been allowed to join call, so we need to send JOIN command to SFU");
     joinSfu(); // send JOIN command to SFU
     mCallHandler.onWrAllow(*this);
     return true;
@@ -2301,7 +2306,7 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
         mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
     }
 
-    if (mWaitingRoom->updateUsers(users, WrState::WR_ALLOWED))
+    if (!mWaitingRoom->updateUsers(users, WrState::WR_ALLOWED))
     {
         RTCM_LOG_WARNING("WR_USERS_ALLOW : could not update users status in waiting room");
         return false;
@@ -2332,7 +2337,7 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
         mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
     }
 
-    if (mWaitingRoom->updateUsers(users, WrState::WR_NOT_ALLOWED))
+    if (!mWaitingRoom->updateUsers(users, WrState::WR_NOT_ALLOWED))
     {
         RTCM_LOG_WARNING("WR_USERS_DENY : could not update users status in waiting room");
         return false;
@@ -2638,7 +2643,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
 }
 
-bool Call::addWrUsers(const std::map<karere::Id, bool>& users, bool clearCurrent)
+bool Call::addWrUsers(const std::map<karere::Id, bool>& users, const bool& clearCurrent)
 {
     if (!isOwnPrivModerator() && !users.empty())
     {

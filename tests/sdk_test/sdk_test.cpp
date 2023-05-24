@@ -7164,7 +7164,7 @@ bool MockupCall::handlePeerLeft(Cid_t, unsigned)
     return true;
 }
 
-bool MockupCall::handleBye(const unsigned&, bool&, std::string&)
+bool MockupCall::handleBye(const unsigned&, const bool&, const std::string&)
 {
     return true;
 }
