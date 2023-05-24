@@ -4333,12 +4333,18 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_TRUE(wr && wr->getPeerStatus(uh) == MegaChatWaitingRoom::MWR_NOT_ALLOWED)
         << (!wr ? "Waiting room can't be retrieved for user A" : "B it's not in the waiting room");
 
+    // ** note: can't simulate use case where a2 sends JOIN without any moderator has allowed to enter the call (WR_DENY would be received for a2 from SFU),
+    // because JOIN command is automatically managed by karere, and is only sent when user has permission to JOIN
     grantsJoinPermission();
 
     // Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
     // ------------------------------------------------------------------------------------------------------
     LOG_debug << "T_WaitingRooms2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)";
     pushIntoWr();
+
+    // ** note: can't simulate use case where a1 sends WR_PUSH for a2, and a2 is still in waiting room, but has already received WR_ALLOW.
+    // In that case SFU would send WR_USERS_DENY to all moderators, however this is a race condition, as upon WR_ALLOW, karere automatically
+    // sends JOIN command
 
     // Test3: A kicks (completely disconnect) B from call
     // ------------------------------------------------------------------------------------------------------
