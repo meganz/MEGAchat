@@ -403,6 +403,8 @@ void MegaChatApiTest::SetUp()
     LOG_info << "Test " << name << ": SetUp finished.";
 }
 
+void clearMegaChatApiImplLeftovers();
+
 void MegaChatApiTest::TearDown()
 {
     const ::testing::TestInfo* ti = ::testing::UnitTest::GetInstance()->current_test_info();
@@ -477,6 +479,9 @@ void MegaChatApiTest::TearDown()
     }
 
     purgeLocalTree(LOCAL_PATH);
+
+    // Clear MegaChatApi leftovers AFTER MegaApi instances have been released
+    clearMegaChatApiImplLeftovers();
 
     LOG_info << "Test " << name << ": TearDown finished.";
 }
