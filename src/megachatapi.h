@@ -488,11 +488,11 @@ public:
         CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400,   /// Generic notification
         CHANGE_TYPE_WR_ALLOW = 0x800,               /// Access to call from Waiting room, has been allowed for our own user
         CHANGE_TYPE_WR_DENY = 0x1000,               /// Access to call from Waiting room, has been denied for our own user
-        CHANGE_TYPE_WR_COMPOSITION = 0x2000,        /// Waiting room composition has changed
-        CHANGE_TYPE_WR_USERS_ENTERED = 0x4000,      /// Notify about users that have been pushed into the waiting room
-        CHANGE_TYPE_WR_USERS_LEAVE = 0x8000,        /// Notify about users that have been left the waiting room (either entered the call or disconnected).
-        CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted to enter the call.
-        CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied to enter the call.
+        CHANGE_TYPE_WR_COMPOSITION = 0x2000,        /// Waiting room composition has changed (just for moderators)
+        CHANGE_TYPE_WR_USERS_ENTERED = 0x4000,      /// Notify about users that have been pushed into the waiting room  (just for moderators)
+        CHANGE_TYPE_WR_USERS_LEAVE = 0x8000,        /// Notify about users that have been left the waiting room (either entered the call or disconnected). (just for moderators)
+        CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted to enter the call. (just for moderators)
+        CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied to enter the call. (just for moderators)
         CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X40000   /// We have been pushed into a waiting room
     };
 
@@ -1121,6 +1121,8 @@ public:
     /**
      * @brief Returns a MegaChatWaitingRoom instance for this call, if any
      *
+     * This method can be called just by users with moderator role
+     * 
      * The MegaChatCall retains the ownership of returned value.
      *
      * @return a MegaChatWaitingRoom for this call, if any
