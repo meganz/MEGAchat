@@ -34,7 +34,7 @@ enum TermCode: uint8_t
     kApiEndCall                 = 4,                    // < API/chatd ended call
     kPeerJoinTimeout            = 5,                    // < Nobody joined call
     kPushedToWaitingRoom        = 6,                    // < Our client has been removed from the call and pushed back into the waiting room
-    kKickedFromWaitingRoom      = 7,                    // < Revokes the join permission for our user that is into the waiting room
+    kKickedFromWaitingRoom      = 7,                    // < User has been kicked from call regardless of whether is in the call or in the waiting room
     kTooManyUserClients         = 8,                    // < Too many clients of same user connected
 
     //==============================================================================================

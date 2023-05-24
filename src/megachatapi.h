@@ -836,14 +836,12 @@ public:
      * this method returns the termination code for this call due to an error notification received from SFU
      * Valid values are:
      *      - TERM_CODE_INVALID
-     *      - TERM_CODE_HANGUP
      *      - TERM_CODE_TOO_MANY_PARTICIPANTS
-     *      - TERM_CODE_ERROR
      *      - TERM_CODE_REJECT
+     *      - TERM_CODE_ERROR
      *      - TERM_CODE_NO_PARTICIPATE
      *      - TERM_CODE_TOO_MANY_CLIENTS
      *      - TERM_CODE_PROTOCOL_VERSION
-     *      - TERM_CODE_KICKED
      *
      * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_STATUS) is true and MegaChatCall::getStatus() ==
      * MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION, this method returns the termination code for this call
@@ -854,6 +852,7 @@ public:
      *      - TERM_CODE_ERROR
      *      - TERM_CODE_REJECT
      *      - TERM_CODE_NO_PARTICIPATE
+     *      - TERM_CODE_KICKED
      *
      * @return error or warning code for this call
      */

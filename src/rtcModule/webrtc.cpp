@@ -1183,7 +1183,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kApiEndCall:               return "API/chatd ended call";
         case kPeerJoinTimeout:          return "Nobody joined call";
         case kPushedToWaitingRoom:      return "Our client has been removed from the call and pushed back into the waiting room";
-        case kKickedFromWaitingRoom:    return "Revokes the join permission for our user that is into the waiting room";
+        case kKickedFromWaitingRoom:    return "User has been kicked from call regardless of whether is in the call or in the waiting room";
         case kTooManyUserClients:       return "Too many clients of same user connected";
         case kRtcDisconn:               return "SFU connection failed";
         case kSigDisconn:               return "socket error on the signalling connection";
@@ -1278,12 +1278,10 @@ EndCallReason Call::getEndCallReasonFromTermcode(const TermCode& termCode)
     if (termCode == kCallEndedByModerator)          { return kEndedByMod; }
     if (termCode == kApiEndCall)                    { return kFailed; }
     if (termCode == kPeerJoinTimeout)               { return kFailed; }
-    if (termCode == kPushedToWaitingRoom)           { return kFailed; }
-    if (termCode == kKickedFromWaitingRoom)         { return kFailed; }
+    if (termCode == kKickedFromWaitingRoom)         { return kEnded; }
     if (termCode & kFlagDisconn)                    { return kFailed; }
     if (termCode & kFlagError)                      { return kFailed; }
 
-    // TODO review returned value (in case we need a new one) for kPushedToWaitingRoom and kKickedFromWaitingRoom, when we add support for them
     return kInvalidReason;
 }
 
@@ -2059,6 +2057,7 @@ bool Call::handleBye(const unsigned& termCode, const bool& wr, const std::string
 
     if (wr) // we have been moved into a waiting room
     {
+        assert (auxTermCode == kPushedToWaitingRoom);
         if (!isValidWrJoiningState())
         {
             RTCM_LOG_ERROR("handleBye: wr received but our current WrJoiningState is not valid");

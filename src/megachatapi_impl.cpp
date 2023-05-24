@@ -7574,7 +7574,6 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kCallEndedByModerator:
         case rtcModule::TermCode::kApiEndCall:
         case rtcModule::TermCode::kPeerJoinTimeout:
-        case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kKickedFromWaitingRoom:
         case rtcModule::TermCode::kTooManyUserClients:
         case rtcModule::TermCode::kSfuShuttingDown:
@@ -7598,8 +7597,6 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
 
         case rtcModule::TermCode::kInvalidTermCode:
             return SESS_TERM_CODE_INVALID;
-
-        // TODO: Check kPushedToWaitingRoom and kKickedFromWaitingRoom when we add support for these termcodes
     }
 
     return SESS_TERM_CODE_INVALID;
@@ -8003,7 +8000,6 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kErrClientGeneral:
         case rtcModule::TermCode::kPeerJoinTimeout:
-        case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kChatDisconn:
         case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
@@ -8032,7 +8028,6 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
 
         case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
-       // TODO: Check kPushedToWaitingRoom when we add support for these termcodes
     }
 
     return TERM_CODE_INVALID;
