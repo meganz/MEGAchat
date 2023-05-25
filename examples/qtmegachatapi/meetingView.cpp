@@ -673,7 +673,7 @@ void MeetingView::onEnableVideo()
     }
 }
 
-void MeetingView::onRemoveSpeaker(uint32_t cid)
+void MeetingView::onRemoveSpeaker(uint32_t)
 {
     mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
@@ -683,7 +683,7 @@ void MeetingView::onRemoveSpeaker()
     mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
 
-void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
+void MeetingView::onEnableAudioMonitor(bool)
 {
     mMegaChatApi.isAudioLevelMonitorEnabled(mChatid)
            ? mMegaChatApi.enableAudioLevelMonitor(false, mChatid)

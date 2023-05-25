@@ -75,7 +75,7 @@ MEGAIO_EXPORT int services_hstore_remove_handle(unsigned short type, megaHandle 
     if (it == gHandleStore.end())
     {
 #ifndef NDEBUG
-        fprintf(stderr, "ERROR: services_hstore_remove_handle: Handle not found (id=%u, type=%d)\n", handle, type);
+        fprintf(stderr, "ERROR: services_hstore_remove_handle: Handle not found (id=%u, type=%u)\n", handle, type);
 #endif
         return 0;
     }

@@ -1,6 +1,7 @@
 #ifndef TRACKDELETE_H
 #define TRACKDELETE_H
 #include <atomic>
+#include <stdexcept>
 namespace karere
 {
 /** @brief Used to keep track of deletion of a lambda-captured object

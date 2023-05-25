@@ -14,7 +14,7 @@ MegaLoggerApplication::~MegaLoggerApplication()
     testlog.close();
 }
 
-void MegaLoggerApplication::log(const char *time, int loglevel, const char *source, const char *message)
+void MegaLoggerApplication::log(const char*, int, const char*, const char *message)
 {
     testlog << message << endl;
     if(mLogConsole)

@@ -1466,7 +1466,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([this, request](const ::promise::Error& err)
             {
-                API_LOG_ERROR("Failed to revoke access to attached node (%d)", request->getUserHandle());
+                API_LOG_ERROR("Failed to revoke access to attached node (%u)", request->getUserHandle());
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
@@ -3589,7 +3589,7 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
             {
                 if (*videoListenerIterator == nullptr)
                 {
-                    API_LOG_WARNING("remote videoListener with CID %d does not exists ", clientId);
+                    API_LOG_WARNING("remote videoListener with CID %u does not exists ", clientId);
                     continue;
                 }
 
@@ -5037,7 +5037,7 @@ MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid,
         }
         else
         {
-            API_LOG_ERROR("Message not found (rowid: %d)", rowid);
+            API_LOG_ERROR("Message not found (rowid: %lu)", rowid);
         }
     }
     else
@@ -8419,7 +8419,7 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
     }
     else
     {
-        API_LOG_WARNING("Edit message rejected, reason: %d", reason);
+        API_LOG_WARNING("Edit message rejected, reason: %u", reason);
         message->setCode(reason);
     }
     fireOnMessageUpdate(message);
@@ -11247,7 +11247,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         rapidjson::Value keyVectorNode(rapidjson::kArrayType);
         if (keyVector.size() != 8)
         {
-            API_LOG_ERROR("Invalid nodekey for attached node: %d", megaNode->getHandle());
+            API_LOG_ERROR("Invalid nodekey for attached node: %u", megaNode->getHandle());
             return ret;
         }
         for (unsigned int j = 0; j < keyVector.size(); ++j)
@@ -11499,7 +11499,7 @@ std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, Conta
         }
         else
         {
-            API_LOG_ERROR("Failed to find the contact: %d", contacts->get(i));
+            API_LOG_ERROR("Failed to find the contact: %u", contacts->get(i));
             return ret;
         }
     }

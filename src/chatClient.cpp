@@ -670,7 +670,7 @@ int Client::importMessages(const char *externalDbPath)
                 stmtKey << chatroom->chatid() << userid << keyid;
                 if (!stmtKey.step())
                 {
-                    KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %d",
+                    KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %u",
                                  chatid.toString().c_str(), msgid.toString().c_str(), keyid);
                     continue;
                 }
@@ -683,7 +683,7 @@ int Client::importMessages(const char *externalDbPath)
 
             if (retentionTime && ts <= time(nullptr) - retentionTime)
             {
-                KR_LOG_DEBUG("importMessages: skipping msg with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                KR_LOG_DEBUG("importMessages: skipping msg with msgid %s that must be deleted due to retention time policy", msg->id().toString().c_str());
                 continue;
             }
 
@@ -738,7 +738,7 @@ int Client::importMessages(const char *externalDbPath)
 
                 if (retentionTime && ts <= time(nullptr) - retentionTime)
                 {
-                    KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                    KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %s that must be deleted due to retention time policy", msg->id().toString().c_str());
                     continue;
                 }
                 chat.msgImport(move(msg), true);
@@ -4271,7 +4271,7 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
 
     if (!newOptions.isValid())
     {
-        KR_LOG_WARNING("addOrUpdateChatOptions: options value (%d) is out of range", newOptions.value());
+        KR_LOG_WARNING("addOrUpdateChatOptions: options value (%u) is out of range", newOptions.value());
         assert(false);
         return;
     }
@@ -4624,7 +4624,7 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
 
         auto newVisibility = user.getVisibility();
 
-        int changed = user.getChanges();
+        uint64_t changed = user.getChanges();
         bool updateCache = !user.isOwnChange();
 
         ContactList::iterator it = find(user.getHandle());

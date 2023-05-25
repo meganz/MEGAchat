@@ -61,9 +61,12 @@ public:
 //IVideoRenderer interface
     virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData);
     virtual void frameComplete(void* userData);
-    virtual void clearViewport();
+    virtual void clearViewport() { doClearViewport(); }
     virtual void onStreamDetach() { disableStaticImage(); }
 //==
+
+private:
+    void doClearViewport();
 };
 
 #endif // VIDEORENDERER_QT_H

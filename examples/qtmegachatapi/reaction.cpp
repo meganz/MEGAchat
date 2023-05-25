@@ -21,7 +21,7 @@ Reaction::~Reaction()
     delete ui;
 }
 
-void Reaction::contextMenuEvent(QContextMenuEvent *event)
+void Reaction::contextMenuEvent(QContextMenuEvent*)
 {
     QMenu menu(this);    
     auto actAdd = menu.addAction(tr("React to this message"));
@@ -54,7 +54,7 @@ void Reaction::onCopyReact()
     QApplication::clipboard()->setText(mReactionString.c_str());
 }
 
-void Reaction::enterEvent(QEvent *event)
+void Reaction::enterEvent(QEvent*)
 {
     megachat::MegaChatApi *megachatApi = mChatMessage->getMegaChatApi();
     mega::unique_ptr <::mega::MegaHandleList> users(megachatApi->getReactionUsers(mChatMessage->getChatId(), mChatMessage->getMessage()->getMsgId(), mReactionString.c_str()));
