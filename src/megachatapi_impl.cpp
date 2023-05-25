@@ -2823,8 +2823,9 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
                         API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
                     });
                 }
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 5 (scheduled meeting occurrence not found for id %s): %d",
-                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()), MegaChatError::ERROR_NOENT);
+                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 5 "
+                              "(scheduled meeting occurrence not found for id %s and overrides %d): %d",
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()), overrides, MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
 
