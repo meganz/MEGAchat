@@ -43,6 +43,6 @@ void globalCleanup()
 
 void init_uv_timer(void *ctx, uv_timer_t *timer)
 {
-    uv_timer_init(((::mega::LibuvWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop, timer);
+    uv_timer_init(((::mega::LibuvWaiter *)(((megachat::MegaChatApiImpl *)ctx)->waiter))->eventloop(), timer);
 }
 }

@@ -2,7 +2,6 @@
 #define CSERVICES_H_INCLUDED
 #include <uv.h>
 
-typedef uv_loop_t eventloop;
 typedef uv_timer_t timerevent;
 
 /* Plain C interface of the services library */

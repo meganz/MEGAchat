@@ -1191,7 +1191,15 @@ bool Client::initWithNewSession(const char* sid, const std::string& scsn,
     assert(sid);
 
     mSid = sid;
-    createDb();
+    try
+    {
+        createDb();
+    }
+    catch (const std::runtime_error& e)
+    {
+        KR_LOG_ERROR("Karere log error: initWithNewSession: createDb() threw: %s", e.what());
+        return false;
+    }
 
 // We have a complete snapshot of the SDK contact and chat list state.
 // Commit it with the accompanying scsn
@@ -1395,6 +1403,7 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
                 mInitState == kInitErrCorruptCache)
         {
+            KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::init()");
             wipeDb(sid);
         }
     }
@@ -1668,7 +1677,8 @@ void Client::wipeDb(const std::string& sid)
 {
     db.close();
     std::string path = dbPath(sid);
-    remove(path.c_str());
+    int removed = remove(path.c_str());
+    KR_LOG_DEBUG("Karere log debug: db wipe: %d, %s", removed, path.c_str());
     struct stat info;
     if (stat(path.c_str(), &info) == 0)
         throw std::runtime_error("wipeDb: Could not delete old database file in "+mAppDir);
@@ -1676,6 +1686,7 @@ void Client::wipeDb(const std::string& sid)
 
 void Client::createDb()
 {
+    KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::createDb()");
     wipeDb(mSid);
     std::string path = dbPath(mSid);
     if (!db.open(path.c_str(), false))
@@ -2081,6 +2092,7 @@ void Client::terminate(bool deleteDb)
     {
         if (deleteDb)
         {
+            KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::terminate()");
             wipeDb(mSid);
         }
         else if (db.isOpen())
