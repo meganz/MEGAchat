@@ -2772,7 +2772,7 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
             if (!chatroom)
             {
                 API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 3 (chatroom not found for id %s): %d",
-                              Base64Str<MegaClient::CHATHANDLE>(ocurr->chatId()), MegaChatError::ERROR_NOENT);
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->chatId()).chars, MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
 
@@ -2783,7 +2783,7 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
             {
                 // scheduled meeting related to occurrence we want to modify, doesn't exists
                 API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 4 (scheduled meeting not found for id %s): %d",
-                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()), MegaChatError::ERROR_NOENT);
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()).chars, MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
             const KarereScheduledMeeting* occurrSchedMeeting = it->second.get();
@@ -2825,7 +2825,7 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
                 }
                 API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 5 "
                               "(scheduled meeting occurrence not found for id %s and overrides %d): %d",
-                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()), overrides, MegaChatError::ERROR_NOENT);
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()).chars, overrides, MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
 
