@@ -386,7 +386,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
         if (encryptionKey.empty())
         {
 
-            RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %d, MyCid %d, MyPeerid: %s, frameCtr: %d",
+            RTCM_LOG_WARNING("Encrypt: key doesn't found with keyId: %u, MyCid %u, MyPeerid: %s, frameCtr: %u",
                              currentKeyId, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mCtr);
             return kRecoverable;
         }
@@ -414,7 +414,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
 
     if (!result || encryptedFrame.size() != encSize)
     {
-        RTCM_LOG_WARNING("Failed gcm_encrypt_aad encryption with additional authenticated data: MyCid: %d, MyPeerId: %s, KeyId: %d, frameCtr: %d",
+        RTCM_LOG_WARNING("Failed gcm_encrypt_aad encryption with additional authenticated data: MyCid: %u, MyPeerId: %s, KeyId: %u, frameCtr: %u",
                          mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr - 1);
         return kRecoverable;
     }
@@ -426,7 +426,7 @@ int MegaEncryptor::Encrypt(cricket::MediaType media_type, uint32_t /*ssrc*/, rtc
     size_t expectedSize = GetMaxCiphertextByteSize(media_type, frame.size());
     if (expectedSize != *bytes_written)
     {
-        RTCM_LOG_WARNING("Encrypt: Frame size: %d doesn't match with expected size: %d MyCid: %d, MyPeerId: %s, KeyId: %d, frameCtr: %d",
+        RTCM_LOG_WARNING("Encrypt: Frame size: %lu doesn't match with expected size: %lu MyCid: %u, MyPeerId: %s, KeyId: %u, frameCtr: %u",
                          *bytes_written, expectedSize, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr - 1);
         return kRecoverable;
     }
@@ -476,8 +476,8 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
 
     if (peerCid != mPeer.getCid())
     {
-        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %d, received: %d, "
-                         "mid: %d peerid: %s, keyid: %d, frameCtr: %d", mPeer.getCid(), peerCid,
+        RTCM_LOG_WARNING("validateAndProcessHeader: Frame CID doesn't match with expected one. expected: %u, received: %u, "
+                         "mid: %u peerid: %s, keyid: %u, frameCtr: %u", mPeer.getCid(), peerCid,
                          mMid, mPeer.getPeerid().toString().c_str(), auxKeyId, mCtr);
         return static_cast<int>(Status::kRecoverable); // recoverable error
     }
@@ -488,7 +488,7 @@ int MegaDecryptor::validateAndProcessHeader(rtc::ArrayView<const uint8_t> header
         std::string decryptionKey = mPeer.getKey(auxKeyId);
         if (decryptionKey.empty())
         {
-            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with Frame keyId: %d, mid: %d, peercid: %d, peerid: %s, frameCtr: %d",
+            RTCM_LOG_WARNING("validateAndProcessHeader: key doesn't found with Frame keyId: %u, mid: %u, peercid: %u, peerid: %s, frameCtr: %u",
                              auxKeyId, mMid, peerCid, mPeer.getPeerid().toString().c_str(), mCtr);
             return static_cast<int>(Status::kRecoverable); // decryption error
         }
@@ -546,7 +546,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
                                      iv.get(), FRAME_IV_LENGTH,
                                      frame.data(), frame.size()))
     {
-        RTCM_LOG_WARNING("Failed gcm_decrypt_aad decryption with additional authenticated data: mid: %d Cid: %d, PeerId: %s, KeyId: %d, frameCtr: %d",
+        RTCM_LOG_WARNING("Failed gcm_decrypt_aad decryption with additional authenticated data: mid: %u Cid: %u, PeerId: %s, KeyId: %u, frameCtr: %u",
                          mMid, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr);
         return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
     }
@@ -556,7 +556,7 @@ webrtc::FrameDecryptorInterface::Result MegaDecryptor::Decrypt(cricket::MediaTyp
     size_t expectedFrameSize = GetMaxPlaintextByteSize(media_type, encrypted_frame.size());
     if (expectedFrameSize != frame.size())
     {
-        RTCM_LOG_WARNING("Decrypt: Decrypted frame size: %d doesn't match with expected size: %d Cid: %d, PeerId: %s, KeyId: %d, frameCtr: %d",
+        RTCM_LOG_WARNING("Decrypt: Decrypted frame size: %lu doesn't match with expected size: %lu Cid: %u, PeerId: %s, KeyId: %u, frameCtr: %u",
                                frame.size(), expectedFrameSize, mPeer.getCid(), mPeer.getPeerid().toString().c_str(), mKeyId, mCtr);
         return Result(Status::kRecoverable, 0); // decryption error, don't pass to the decoder
     }

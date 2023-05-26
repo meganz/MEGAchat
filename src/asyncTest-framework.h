@@ -8,6 +8,7 @@
 
 #include <vector>
 #include <string>
+#include <functional>
 
 namespace test
 {
@@ -127,14 +128,14 @@ public:
     {
         TEST_LOG("%s", kLine);
         if (!gNumFailed)
-            TEST_LOG("All %d tests in %d groups %spassed%s (%lld ms)",
+            TEST_LOG("All %u tests in %u groups %spassed%s (%lld ms)",
                 gNumTests-gNumDisabled, gNumTestGroups, kColorSuccess, kColorNormal, gTotalExecTime);
         else
-            TEST_LOG("Some tests failed: %d %sfailed%s / %d total in %d group%s (%lld ms)",
+            TEST_LOG("Some tests failed: %u %sfailed%s / %u total in %u group%s (%lld ms)",
                 gNumFailed, kColorFail, kColorNormal, gNumTests-gNumDisabled,
                 gNumTestGroups, (gNumTestGroups==1)?"":"s", gTotalExecTime);
         if (gNumDisabled)
-            TEST_LOG("(%d tests DISABLED)", gNumDisabled);
+            TEST_LOG("(%u tests DISABLED)", gNumDisabled);
         TEST_LOG("%s", kLine);
     }
     static inline Ts getTimeMs()
@@ -235,7 +236,7 @@ public:
                 name.c_str(), kColorNormal, numTests, (numTests == 1) ? "" : "s");
             if (numDisabled)
             {
-                TEST_LOG_NO_EOL(", %d disabled", numDisabled);
+                TEST_LOG_NO_EOL(", %u disabled", numDisabled);
             }
             TEST_LOG(")...\n%s", Test::kThinLine);
 		}
@@ -298,13 +299,13 @@ public:
     {
         if (!numErrors)
         {
-            TEST_LOG("%sPASS%s  Group '%s%s%s': 0 errors / %u test%s (%" PRIu64 " ms)",
+            TEST_LOG("%sPASS%s  Group '%s%s%s': 0 errors / %u test%s (%lld ms)",
                 kColorSuccess, kColorNormal, kColorTag, name.c_str(), kColorNormal,
                 numTests, (numTests==1)?"":"s", execTime);
         }
         else
         {
-            TEST_LOG("%sFAIL%s  Group '%s%s%s': %u error%s / %u test%s (%" PRIu64 " ms)",
+            TEST_LOG("%sFAIL%s  Group '%s%s%s': %u error%s / %u test%s (%lld ms)",
                 kColorFail, kColorNormal, kColorTag, name.c_str(), kColorNormal,
                 numErrors, (numErrors==1)?"":"s", numTests,
                 (numTests==1)?"":"s", execTime);

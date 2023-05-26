@@ -70,6 +70,52 @@ using namespace chatd;
 
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
+class MegaChatApiImplLeftovers
+{
+public:
+    void clear()
+    {
+        // Clear WebsocketsIO instances before LibuvWaiter ones.
+        // The former use evtloop from the latter.
+        mWebsocketsIOs.clear();
+        mWaiters.clear();
+    }
+
+    void add(WebsocketsIO* wio)
+    {
+        mWebsocketsIOs.emplace_back(wio);
+    }
+
+    void add(Waiter* w)
+    {
+        mWaiters.emplace_back(w);
+    }
+
+private:
+    std::vector<std::unique_ptr<WebsocketsIO>> mWebsocketsIOs;
+    std::vector<std::unique_ptr<Waiter>> mWaiters;
+};
+
+static MegaChatApiImplLeftovers& getLeftovers()
+{
+    static MegaChatApiImplLeftovers leftoverPile;
+    return leftoverPile;
+}
+
+// Use this with care!
+// Some resources owned by a MegaChatApiImpl instance need to outlive it. The destructor will
+// not release them, but add them to 'leftovers'. Leftovers can be cleared by the app, AFTER
+// the MegaApi instance related to this MegaChatApi has been released.
+//
+// This is especially useful if the app will create and destroy multiple MegaChatApiImpl instances
+// (like automated tests do). If these resources are not released, they can pile up and exceed
+// limits (like open FD limit) that will lead to runtime failures and crashes.
+void clearMegaChatApiImplLeftovers()
+{
+    getLeftovers().clear();
+}
+
+
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     init(chatApi, megaApi);
@@ -92,12 +138,15 @@ MegaChatApiImpl::~MegaChatApiImpl()
         delete *it;
     }
 
-    // TODO: destruction of waiter hangs forever or may cause crashes
-    //delete waiter;
+    // Destruction of waiter cannot be done before mWebsocketsIO. It also used to hang forever
+    // due to incorrect closing of the event loop (which should be fixed now though);
+    // do not delete it directly
+    getLeftovers().add(waiter);
 
-    // TODO: destruction of network layer may cause hangs on MegaApi's network layer.
-    // It may terminate the OpenSSL required by cUrl in SDK, so better to skip it.
-    //delete websocketsIO;
+    // Destruction of network layer may cause hangs on MegaApi's network layer.
+    // It may terminate the OpenSSL required by cUrl in SDK, so better to postpone it.
+    // do not delete it directly
+    getLeftovers().add(mWebsocketsIO);
 }
 
 void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
@@ -1466,7 +1515,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([this, request](const ::promise::Error& err)
             {
-                API_LOG_ERROR("Failed to revoke access to attached node (%d)", request->getUserHandle());
+                API_LOG_ERROR("Failed to revoke access to attached node (%u)", request->getUserHandle());
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
@@ -3601,7 +3650,7 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
             {
                 if (*videoListenerIterator == nullptr)
                 {
-                    API_LOG_WARNING("remote videoListener with CID %d does not exists ", clientId);
+                    API_LOG_WARNING("remote videoListener with CID %u does not exists ", clientId);
                     continue;
                 }
 
@@ -5049,7 +5098,7 @@ MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid,
         }
         else
         {
-            API_LOG_ERROR("Message not found (rowid: %d)", rowid);
+            API_LOG_ERROR("Message not found (rowid: %lu)", rowid);
         }
     }
     else
@@ -8431,7 +8480,7 @@ void MegaChatRoomHandler::onEditRejected(const Message &msg, ManualSendReason re
     }
     else
     {
-        API_LOG_WARNING("Edit message rejected, reason: %d", reason);
+        API_LOG_WARNING("Edit message rejected, reason: %u", reason);
         message->setCode(reason);
     }
     fireOnMessageUpdate(message);
@@ -11259,7 +11308,7 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         rapidjson::Value keyVectorNode(rapidjson::kArrayType);
         if (keyVector.size() != 8)
         {
-            API_LOG_ERROR("Invalid nodekey for attached node: %d", megaNode->getHandle());
+            API_LOG_ERROR("Invalid nodekey for attached node: %u", megaNode->getHandle());
             return ret;
         }
         for (unsigned int j = 0; j < keyVector.size(); ++j)
@@ -11511,7 +11560,7 @@ std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, Conta
         }
         else
         {
-            API_LOG_ERROR("Failed to find the contact: %d", contacts->get(i));
+            API_LOG_ERROR("Failed to find the contact: %u", contacts->get(i));
             return ret;
         }
     }

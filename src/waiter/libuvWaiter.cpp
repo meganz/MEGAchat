@@ -9,22 +9,28 @@ static void break_libuv_loop(uv_async_t* handle)
 
 LibuvWaiter::LibuvWaiter()
 {
-    eventloop = new uv_loop_t();
-    uv_loop_init(eventloop);
+    evtloop = make_unique<uv_loop_t>();
+    uv_loop_init(evtloop.get());
     
-    asynchandle = new uv_async_t();
-    uv_async_init(eventloop, asynchandle, break_libuv_loop);
+    asynchandle = make_unique<uv_async_t>();
+    uv_async_init(evtloop.get(), asynchandle.get(), break_libuv_loop);
 }
 
 LibuvWaiter::~LibuvWaiter()
 {
-    uv_close((uv_handle_t*)asynchandle, [](uv_handle_t* handle)
+    // Request closing all active handles.
+    uv_walk(evtloop.get(), [](uv_handle_t* handle, void*)
     {
-        delete reinterpret_cast<uv_async_s*>(handle);
-    });
-    uv_run(eventloop, UV_RUN_DEFAULT);
-    uv_loop_close(eventloop);
-    delete eventloop;
+        if (!uv_is_closing(handle))
+        {
+            uv_close(handle, [](uv_handle_t*){}); // clean-up no longer needed here
+        }
+    },
+    nullptr);
+
+    uv_run(evtloop.get(), UV_RUN_NOWAIT); // allow running uv_close() callbacks
+
+    uv_loop_close(evtloop.get());
 }
 
 void LibuvWaiter::init(dstime ds)
@@ -34,13 +40,13 @@ void LibuvWaiter::init(dstime ds)
 
 int LibuvWaiter::wait()
 {
-    uv_run(eventloop, UV_RUN_DEFAULT);
+    uv_run(evtloop.get(), UV_RUN_DEFAULT);
     return NEEDEXEC;
 }
 
 void LibuvWaiter::notify()
 {
-    uv_async_send(asynchandle);
+    uv_async_send(asynchandle.get());
 }
     
 } // namespace

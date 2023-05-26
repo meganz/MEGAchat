@@ -186,7 +186,7 @@ void Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
     if (!sfu::isValidSfuVersion(getPeerSfuVersion()))
     {
-        SFU_LOG_WARNING("setEphemeralPubKeyDerived: invalid SFU version for PeerId: %s Cid: %d",
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: invalid SFU version for PeerId: %s Cid: %u",
                         getPeerid().toString().c_str() ,getCid());
         assert(false);
         return;
@@ -342,8 +342,8 @@ std::vector<mega::byte> Command::hexToByteArray(const std::string &hex)
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
         // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
-        res[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
-        res[binPos] |= static_cast<uint8_t>(hexDigitVal(hex[i++]));
+        res[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i]) << 4) | hexDigitVal(hex[i+1]));
+        i += 2;
     }
 
     return res;
@@ -581,7 +581,7 @@ bool KeyCommand::processCommand(const rapidjson::Document &command)
     unsigned int auxid = idIterator->value.GetUint();
     if (auxid > maxKeyId)
     {
-        SFU_LOG_ERROR("KeyCommand: keyId exceeds max allowed value (%d): %d", maxKeyId, auxid);
+        SFU_LOG_ERROR("KeyCommand: keyId exceeds max allowed value (%u): %u", maxKeyId, auxid);
         return false;
     }
     Keyid_t id = static_cast<Keyid_t>(auxid);
@@ -1669,7 +1669,7 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
                     return false;
                 }
 
-                SFU_LOG_DEBUG("Received Command: %s, Bytes: %d", command.c_str(), len);
+                SFU_LOG_DEBUG("Received Command: %s, Bytes: %lu", command.c_str(), len);
                 bool processCommandResult = mCommands[command]->processCommand(jsonDoc);
                 if (processCommandResult && command == AnswerCommand::COMMAND_NAME)
                 {
@@ -2088,7 +2088,7 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
             if (wptr.deleted())
                 return;
 
-            SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+            SFU_LOG_DEBUG("Reconnection attempt has not succeed after %u. Reconnecting...", kConnectTimeout);
             mConnectTimer = 0;
             retryPendingConnection(true);
         }, kConnectTimeout * 1000, mAppCtx);
@@ -2271,7 +2271,7 @@ promise::Promise<void> SfuConnection::reconnect()
                 }
                 if (mRetryCtrl->currentAttemptNo() != attemptNo)
                 {
-                    SFU_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                    SFU_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %lu, new: %lu)",
                                      attemptNo, mRetryCtrl->currentAttemptNo());
                     return;
                 }

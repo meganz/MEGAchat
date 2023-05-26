@@ -670,7 +670,7 @@ int Client::importMessages(const char *externalDbPath)
                 stmtKey << chatroom->chatid() << userid << keyid;
                 if (!stmtKey.step())
                 {
-                    KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %d",
+                    KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %u",
                                  chatid.toString().c_str(), msgid.toString().c_str(), keyid);
                     continue;
                 }
@@ -683,7 +683,7 @@ int Client::importMessages(const char *externalDbPath)
 
             if (retentionTime && ts <= time(nullptr) - retentionTime)
             {
-                KR_LOG_DEBUG("importMessages: skipping msg with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                KR_LOG_DEBUG("importMessages: skipping msg with msgid %s that must be deleted due to retention time policy", msg->id().toString().c_str());
                 continue;
             }
 
@@ -738,7 +738,7 @@ int Client::importMessages(const char *externalDbPath)
 
                 if (retentionTime && ts <= time(nullptr) - retentionTime)
                 {
-                    KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %d that must be deleted due to retention time policy", msg->id().toString().c_str());
+                    KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %s that must be deleted due to retention time policy", msg->id().toString().c_str());
                     continue;
                 }
                 chat.msgImport(move(msg), true);
@@ -1191,7 +1191,15 @@ bool Client::initWithNewSession(const char* sid, const std::string& scsn,
     assert(sid);
 
     mSid = sid;
-    createDb();
+    try
+    {
+        createDb();
+    }
+    catch (const std::runtime_error& e)
+    {
+        KR_LOG_ERROR("Karere log error: initWithNewSession: createDb() threw: %s", e.what());
+        return false;
+    }
 
 // We have a complete snapshot of the SDK contact and chat list state.
 // Commit it with the accompanying scsn
@@ -1395,6 +1403,7 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
                 mInitState == kInitErrCorruptCache)
         {
+            KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::init()");
             wipeDb(sid);
         }
     }
@@ -1668,7 +1677,8 @@ void Client::wipeDb(const std::string& sid)
 {
     db.close();
     std::string path = dbPath(sid);
-    remove(path.c_str());
+    int removed = remove(path.c_str());
+    KR_LOG_DEBUG("Karere log debug: db wipe: %d, %s", removed, path.c_str());
     struct stat info;
     if (stat(path.c_str(), &info) == 0)
         throw std::runtime_error("wipeDb: Could not delete old database file in "+mAppDir);
@@ -1676,6 +1686,7 @@ void Client::wipeDb(const std::string& sid)
 
 void Client::createDb()
 {
+    KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::createDb()");
     wipeDb(mSid);
     std::string path = dbPath(mSid);
     if (!db.open(path.c_str(), false))
@@ -2081,6 +2092,7 @@ void Client::terminate(bool deleteDb)
     {
         if (deleteDb)
         {
+            KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::terminate()");
             wipeDb(mSid);
         }
         else if (db.isOpen())
@@ -4284,7 +4296,7 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
 
     if (!newOptions.isValid())
     {
-        KR_LOG_WARNING("addOrUpdateChatOptions: options value (%d) is out of range", newOptions.value());
+        KR_LOG_WARNING("addOrUpdateChatOptions: options value (%u) is out of range", newOptions.value());
         assert(false);
         return;
     }
@@ -4637,7 +4649,7 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
 
         auto newVisibility = user.getVisibility();
 
-        int changed = user.getChanges();
+        uint64_t changed = user.getChanges();
         bool updateCache = !user.isOwnChange();
 
         ContactList::iterator it = find(user.getHandle());

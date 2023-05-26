@@ -135,7 +135,7 @@ int MegaChatSession::getTermCode() const
     return SESS_TERM_CODE_INVALID;
 }
 
-bool MegaChatSession::hasChanged(int changeType) const
+bool MegaChatSession::hasChanged(int) const
 {
     return false;
 }
@@ -1793,7 +1793,7 @@ void MegaChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChatApi* /*a
 
 }
 
-void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle /*chatid*/, bool append)
+void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle /*chatid*/, bool /*append*/)
 {
 
 }
@@ -2188,7 +2188,7 @@ int MegaChatMessage::getTermCode() const
     return 0;
 }
 
-bool MegaChatMessage::hasSchedMeetingChanged(unsigned int change) const
+bool MegaChatMessage::hasSchedMeetingChanged(unsigned int) const
 {
     return false;
 }

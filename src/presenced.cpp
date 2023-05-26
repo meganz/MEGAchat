@@ -135,7 +135,7 @@ void Client::wsConnectCb()
         if (++mConnSuceeded > kMaxConnSuceeded)
         {
             // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
-            PRESENCED_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
+            PRESENCED_LOG_DEBUG("Limit of successful connection attempts (%u), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
             resetConnSuceededAttempts(now);
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
@@ -529,7 +529,7 @@ Client::reconnect()
                 }
                 if (mRetryCtrl->currentAttemptNo() != attemptNo)
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %lu, new: %lu)",
                                      attemptNo, mRetryCtrl->currentAttemptNo());
                     return;
                 }
@@ -1016,7 +1016,7 @@ void Command::toString(char* buf, size_t bufsize) const
         case OP_USERACTIVE:
         {
             auto code = read<uint8_t>(1);
-            snprintf(buf, bufsize, "USERACTIVE - %d", code);
+            snprintf(buf, bufsize, "USERACTIVE - %u", code);
             break;
         }
         case OP_PREFS:
@@ -1319,7 +1319,7 @@ void Client::handleMessage(const StaticBuffer& buf)
             {
                 READ_ID(userid, 0);
                 READ_16(lastGreen, 8);
-                PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %d", ID_CSTR(userid), lastGreen);
+                PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %u", ID_CSTR(userid), lastGreen);
 
                 // convert the received minutes into a UNIX timestamp
                 time_t lastGreenTs = time(NULL) - (lastGreen * 60);
