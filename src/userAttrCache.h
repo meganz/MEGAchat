@@ -48,8 +48,8 @@ struct UserAttrDesc
 {
     typedef Buffer*(*GetDataFunc)(const ::mega::MegaRequest&);
     GetDataFunc getData;
-    int changeMask;
-    UserAttrDesc(GetDataFunc aGetData, int aChangeMask):
+    uint64_t changeMask;
+    UserAttrDesc(GetDataFunc aGetData, uint64_t aChangeMask):
         getData(aGetData), changeMask(aChangeMask){}
 };
 
@@ -137,7 +137,7 @@ protected:
     void fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
     void fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheItem>& item);
 //==
-    void onUserAttrChange(uint64_t userid, int changed);
+    void onUserAttrChange(uint64_t userid, uint64_t changed);
     void onUserAttrChange(::mega::MegaUser& user);
     void onLogin();
     /** @brief Invalidates the whole cache, and re-fetches all registered queries.
