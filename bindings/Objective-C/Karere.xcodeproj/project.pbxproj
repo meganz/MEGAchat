@@ -829,14 +829,14 @@
 					../../src/rtcModule,
 					"../../third-party",
 					../../src,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc,
-					"../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/abseil-cpp",
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc,
+					"../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/abseil-cpp",
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
@@ -874,11 +874,11 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = (
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/include/mega/posix,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/private,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/include/mega/posix,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/private,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/include,
 				);
 			};
 			name = Debug;
@@ -922,14 +922,14 @@
 					../../src/rtcModule,
 					"../../third-party",
 					../../src,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc,
-					"../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/abseil-cpp",
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc,
+					"../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/abseil-cpp",
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
@@ -969,11 +969,11 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = (
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/include/mega/posix,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/private,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/include/mega/posix,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/private,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/include,
 				);
 				VALIDATE_PRODUCT = YES;
 			};
@@ -1054,14 +1054,14 @@
 					../../src/rtcModule,
 					"../../third-party",
 					../../src,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc,
-					"../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/abseil-cpp",
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc,
+					"../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/abseil-cpp",
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/libyuv/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
 					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
@@ -1101,11 +1101,11 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				USER_HEADER_SEARCH_PATHS = (
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/include/mega/posix,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/private,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/include,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/include/mega/posix,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/private,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/base,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/include,
 				);
 				VALIDATE_PRODUCT = YES;
 			};
