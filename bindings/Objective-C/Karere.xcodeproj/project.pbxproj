@@ -837,7 +837,7 @@
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MTL_ENABLE_DEBUG_INFO = YES;
@@ -930,7 +930,7 @@
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MTL_ENABLE_DEBUG_INFO = NO;
@@ -1062,7 +1062,7 @@
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/third_party/boringssl/src/include,
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/,
 					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers,
-					../../../../../Modules/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
+					../../../../../Modules/DataSource/MEGASDK/Sources/MEGASDK/bindings/ios/3rdparty/webrtc/sdk/objc/Framework/Headers/WebRTC,
 				);
 				LIBRARY_SEARCH_PATHS = "$(inherited)";
 				MTL_ENABLE_DEBUG_INFO = NO;
