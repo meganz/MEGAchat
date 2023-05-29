@@ -19,6 +19,10 @@
 #include <media/base/video_broadcaster.h>
 #include <modules/video_capture/video_capture.h>
 #include <rtc_base/ref_counter.h>
+#include "api/video/i420_buffer.h"
+#include "api/video/video_frame.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_capture_options.h"
 #if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
 #pragma GCC diagnostic pop
 #endif
@@ -428,6 +432,85 @@ public:
     virtual void releaseDevice() = 0;
     virtual webrtc::VideoTrackSourceInterface* getVideoTrackSource() = 0;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
+};
+
+class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoManager
+{
+public:
+    CaptureScreenModuleLinux() {};
+    ~CaptureScreenModuleLinux() override {};
+
+    // ---- DesktopCapturer::Callback methods ----
+    void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame) override
+    {
+        if (result != webrtc::DesktopCapturer::Result::SUCCESS)
+        {
+            RTCM_LOG_WARNING("OnCaptureResult: error capturing frame");
+            return;
+        }
+
+        RTCM_LOG_WARNING("OnCaptureResult: Frame captured. With: %d  Height: %d", frame->size().width(), frame->size().height());
+    }
+
+    // ---- VideoManager methods ----
+    void openDevice(const std::string &) override
+    {
+        const webrtc::DesktopCaptureOptions options = webrtc::DesktopCaptureOptions::CreateDefault();
+        mScreenCapturer = webrtc::DesktopCapturer::CreateScreenCapturer(options);
+
+        webrtc::DesktopCapturer::SourceList sourceList;
+        if (mScreenCapturer->GetSourceList(&sourceList))
+        {
+            // Test with first element in the list
+            mScreenCapturer->SelectSource(sourceList.at(0).id);
+        }
+
+        if (!mScreenCapturer)
+        {
+            RTCM_LOG_WARNING("openDevice: error creating DesktopCapturer instance");
+            return;
+        }
+
+        mScreenCapturer->Start(this);
+    }
+
+    void releaseDevice() override
+    {
+        mScreenCapturer.release();
+        mScreenCapturer = nullptr;
+    }
+
+    webrtc::VideoTrackSourceInterface* getVideoTrackSource() override
+    {
+        return this;
+    }
+
+    // ---- VideoTrackSourceInterface methods ----
+    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override
+    {
+        mBroadcaster.AddOrUpdateSink(sink, wants);
+    }
+
+    void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override
+    {
+        mBroadcaster.RemoveSink(sink);
+    }
+
+    bool is_screencast() const override                                                             { return false; }
+    bool SupportsEncodedOutput() const override                                                     { return false; }
+    bool GetStats(webrtc::VideoTrackSourceInterface::Stats*) override                               { return false; }
+    bool remote() const override                                                                    { return false; }
+    absl::optional<bool> needs_denoising() const override                                           { return absl::nullopt; }
+    webrtc::MediaSourceInterface::SourceState state() const override                                { return MediaSourceInterface::kLive;}
+    void GenerateKeyFrame() override                                                                {}
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override          {}
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override       {}
+    void RegisterObserver(webrtc::ObserverInterface* ) override                                     {}
+    void UnregisterObserver(webrtc::ObserverInterface* ) override                                   {}
+
+private:
+    std::unique_ptr<webrtc::DesktopCapturer> mScreenCapturer;
+    rtc::VideoBroadcaster mBroadcaster;
 };
 
 class CaptureModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager

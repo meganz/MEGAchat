@@ -283,7 +283,8 @@ VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabil
 #elif __ANDROID__
     return new CaptureModuleAndroid(capabilities, deviceName, thread);
 #else
-    return new CaptureModuleLinux(capabilities);
+   // return new CaptureModuleLinux(capabilities);
+    return new CaptureScreenModuleLinux(); // test with screen capturer instead of camera
 #endif
 }
 
