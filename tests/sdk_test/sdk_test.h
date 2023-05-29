@@ -25,8 +25,16 @@
 #include "megachatapi.h"
 #include <chatClient.h>
 #include <future>
-#include "gtest/gtest.h"
 #include <fstream>
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
+#include "gtest/gtest.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -260,7 +268,7 @@ protected:
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
     // flags
-    bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TYPE_CHAT_SET_TITLE];
+    bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES];
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
     bool mChatConnectionOnline[NUM_ACCOUNTS];

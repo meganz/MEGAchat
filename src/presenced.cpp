@@ -850,7 +850,10 @@ void Client::disconnect()
 void Client::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
+#ifndef NDEBUG
+    bool cachedIPs =
+#endif
+    mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
@@ -1440,8 +1443,10 @@ void Client::addPeers(const std::vector<karere::Id> &peers)
     cmd.append<uint32_t>(static_cast<uint32_t>(peers.size()));
     for (size_t i = 0; i < peers.size(); i++)
     {
+#ifndef NDEBUG
         auto it = mContacts.find(peers.at(i));
         assert (it != mContacts.end() && it->second == ::mega::MegaUser::VISIBILITY_VISIBLE);
+#endif
         cmd.append<uint64_t>(peers.at(i).val);
     }
     sendCommand(std::move(cmd));
@@ -1465,8 +1470,10 @@ void Client::removePeers(const std::vector<karere::Id> &peers)
     cmd.append<uint32_t>(static_cast<uint32_t>(peers.size()));
     for (size_t i = 0; i < peers.size(); i++)
     {
+#ifndef NDEBUG
         auto it = mContacts.find(peers.at(i));
         assert (it == mContacts.end() || it->second == ::mega::MegaUser::VISIBILITY_HIDDEN);
+#endif
         mPeersLastGreen.erase(peers.at(i).val); // Remove peer from mPeersLastGreen map if exists
         cmd.append<uint64_t>(peers.at(i).val);
         updatePeerPresence(peers.at(i), Presence::kUnknown);

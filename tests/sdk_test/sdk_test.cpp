@@ -320,7 +320,10 @@ void MegaChatApiTest::SetUp()
 #ifdef _WIN32
         _getcwd(path, sizeof path);
 #else
-        getcwd(path, sizeof path);
+        if (!getcwd(path, sizeof path))
+        {
+            LOG_err << "Test " << name << ": getcwd() failed.";
+        }
 #endif
         megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
         megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);

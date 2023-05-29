@@ -77,13 +77,13 @@ public:
     virtual ~IRetryController(){};
 };
 template <typename CB> inline static void callFuncIfNotNull(const CB& cb) { cb(); }
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 //disable the warning for GCC and Clang in compilation units that do not use the function
 #pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 inline static void callFuncIfNotNull(std::nullptr_t){}
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 
@@ -434,13 +434,13 @@ protected:
 };
 //g++ < 4.9 has a bug where one can't specify a lambda as default function parameter,
 //so we define that default func parameter for retry() here
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 //disable the warning for GCC and Clang in compilation units that do not use the function
 #pragma GCC diagnostic ignored "-Wunused-function"
 #endif
 static inline void _emptyCancelFunc(){}
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 } //end namespace rh
