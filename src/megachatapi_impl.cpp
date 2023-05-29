@@ -1894,20 +1894,9 @@ void MegaChatApiImpl::sendPendingRequests()
 
             bool endCall = request->getFlag();
             if (endCall && chatroom->isGroup()
-                    && (!call->isOwnPrivModerator()                                  // if SFU role is non moderator
-                        || static_cast<int>(chatroom->ownPriv()) != static_cast<int>(MegaChatPeerList::PRIV_MODERATOR))) // if chatd permission is non moderator
+                    && (static_cast<int>(chatroom->ownPriv()) != static_cast<int>(MegaChatPeerList::PRIV_MODERATOR)))
             {
-                if (call->isOwnPrivModerator()
-                        != (static_cast<int>(chatroom->ownPriv()) == static_cast<int>(MegaChatPeerList::PRIV_MODERATOR)))
-                {
-                    std::string logMsg = "Chatd and SFU permissions doesn't match for chatid: ";
-                    logMsg.append(call->getChatid().toString().c_str());
-                    logMsg.append(" userid: ");
-                    logMsg.append(mClient->myHandle().toString().c_str());
-                    mMegaApi->sendEvent(99015, logMsg.c_str(), false, static_cast<const char*>(nullptr));
-                }
-
-                assert(call->isOwnPrivModerator() == chatroom->ownPriv());
+                // if chatd permission is non moderator.
                 API_LOG_ERROR("End call withouth enough privileges");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
