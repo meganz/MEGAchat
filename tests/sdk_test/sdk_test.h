@@ -135,7 +135,6 @@ class MegaChatApiTest :
         public ::mega::MegaListener,
         public ::mega::MegaTransferListener,
         public ::mega::MegaLogger,
-        public megachat::MegaChatRequestListener,
         public megachat::MegaChatListener,
         public megachat::MegaChatCallListener,
         public megachat::MegaChatScheduledMeetingListener
@@ -236,32 +235,18 @@ protected:
 
     // flags
     bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TYPE_CHAT_SET_TITLE];
-    bool requestFlagsChat[NUM_ACCOUNTS][megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
     bool mChatConnectionOnline[NUM_ACCOUNTS];
-    int lastErrorChat[NUM_ACCOUNTS];
-    std::string lastErrorMsgChat[NUM_ACCOUNTS];
     int lastErrorTransfer[NUM_ACCOUNTS];
 
-    megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
     megachat::MegaChatRoom *chatroom[NUM_ACCOUNTS];
-    std::string chatLinks[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
     bool chatArchived[NUM_ACCOUNTS];
-
-    std::string mFirstname;
-    std::string mLastname;
-    std::string mEmail;
-    bool nameReceived[NUM_ACCOUNTS];
-
-    std::string mChatFirstname;
-    std::string mChatLastname;
-    std::string mChatEmail;
 
     ::mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
     ::mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
@@ -298,10 +283,8 @@ protected:
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
-    bool mChatCallReconnection[NUM_ACCOUNTS];
     bool mSchedMeetingUpdated[NUM_ACCOUNTS];
     bool mSchedOccurrUpdated[NUM_ACCOUNTS];
-    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> mOccurrList[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -323,12 +306,6 @@ protected:
     void onRequestTemporaryError(::mega::MegaApi *, ::mega::MegaRequest *, ::mega::MegaError*) override {}
     void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests) override;
     void onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList) override;
-
-    // implementation for MegaChatRequestListener
-    void onRequestStart(megachat::MegaChatApi* , megachat::MegaChatRequest *) override {}
-    void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e) override;
-    void onRequestUpdate(megachat::MegaChatApi*, megachat::MegaChatRequest *) override {}
-    void onRequestTemporaryError(megachat::MegaChatApi *, megachat::MegaChatRequest *, megachat::MegaChatError*) override {}
 
     // implementation for MegaChatListener
     void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState) override;
@@ -513,6 +490,60 @@ public:
 
 private:
     std::unique_ptr<::mega::MegaRequest> request;
+};
+
+class ChatRequestTracker : public megachat::MegaChatRequestListener, public ResultHandler
+{
+public:
+    void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
+                         ::megachat::MegaChatError* e) override
+    {
+        request.reset(req ? req->copy() : nullptr);
+        finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+    }
+
+    std::string getText() const
+    {
+        return (finished() && request && request->getText()) ? request->getText() : std::string();
+    }
+
+    bool getFlag() const
+    {
+        return (finished() && request) ? request->getFlag() : false;
+    }
+
+    ::megachat::MegaChatHandle getChatHandle() const
+    {
+        return (finished() && request) ? request->getChatHandle() : ::megachat::MEGACHAT_INVALID_HANDLE;
+    }
+
+    int getParamType() const
+    {
+        return (finished() && request) ? request->getParamType() : 0;
+    }
+
+    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> getScheduledMeetings() const
+    {
+        return (finished() && request)
+                  ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
+                  : nullptr;
+    }
+
+private:
+    std::unique_ptr<::megachat::MegaChatRequest> request;
+};
+
+class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public ResultHandler
+{
+public:
+    void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
+                         ::megachat::MegaChatError* e) override
+    {
+        if (req && req->getType() == ::megachat::MegaChatRequest::TYPE_LOGOUT)
+        {
+            finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+        }
+    }
 };
 
 #ifndef KARERE_DISABLE_WEBRTC
