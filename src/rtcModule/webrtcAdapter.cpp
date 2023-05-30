@@ -149,6 +149,8 @@ bool CaptureModuleLinux::remote() const
 
 void CaptureModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
 {
+    assert(frame.video_frame_buffer()
+           && frame.video_frame_buffer()->type() == webrtc::VideoFrameBuffer::Type::kI420);
     mBroadcaster.OnFrame(frame);
 }
 
@@ -283,8 +285,9 @@ VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabil
 #elif __ANDROID__
     return new CaptureModuleAndroid(capabilities, deviceName, thread);
 #else
-   // return new CaptureModuleLinux(capabilities);
-    return new CaptureScreenModuleLinux(); // test with screen capturer instead of camera
+    //return new CaptureModuleLinux(capabilities);
+    // test with screen capturer instead of camera
+    return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux();
 #endif
 }
 

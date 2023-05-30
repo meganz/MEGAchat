@@ -23,6 +23,7 @@
 #include "api/video/video_frame.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
+#include <libyuv/convert.h>
 #if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
 #pragma GCC diagnostic pop
 #endif
@@ -437,19 +438,53 @@ public:
 class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoManager
 {
 public:
-    CaptureScreenModuleLinux() {};
-    ~CaptureScreenModuleLinux() override {};
+    static CaptureScreenModuleLinux* createCaptureScreenModuleLinux() { return new CaptureScreenModuleLinux(); }
 
     // ---- DesktopCapturer::Callback methods ----
     void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame) override
     {
+        auto isValidDesktopFrame = [](const webrtc::DesktopFrame* frame)-> bool
+        {
+            if (!frame) { return false; }
+            int width = frame->size().width();
+            int height = frame->size().height();
+            int len = frame->size().height() * frame->stride();
+            return (len == width * height * 4); // expected ARGB frame format
+        };
+
         if (result != webrtc::DesktopCapturer::Result::SUCCESS)
         {
             RTCM_LOG_WARNING("OnCaptureResult: error capturing frame");
             return;
         }
 
-        RTCM_LOG_WARNING("OnCaptureResult: Frame captured. With: %d  Height: %d", frame->size().width(), frame->size().height());
+        if (!isValidDesktopFrame(frame.get()))
+        {
+            RTCM_LOG_WARNING("OnCaptureResult: ill-formed captured frame");
+            return;
+        }
+
+        // Convert ARGB into I420 format, expected by OnFrame
+        int width = frame->size().width();
+        int height = frame->size().height();
+        rtc::scoped_refptr<webrtc::I420Buffer> buf = webrtc::I420Buffer::Create(frame->size().width(), frame->size().height());
+        if (!buf.get())
+        {
+            RTCM_LOG_WARNING("OnCaptureResult: error creating I420Buffer");
+            return;
+        }
+
+        if (libyuv::ConvertToI420(frame->data(), 0, buf->MutableDataY(),
+                                  buf->StrideY(), buf->MutableDataU(),
+                                  buf->StrideU(), buf->MutableDataV(),
+                                  buf->StrideV(), 0, 0, width, height, width,
+                                  height, libyuv::kRotate0, cricket::FOURCC_ARGB))
+        {
+            RTCM_LOG_WARNING("OnCaptureResult: error converting ARGB frame format, into I420");
+            return;
+        }
+
+        mBroadcaster.OnFrame(webrtc::VideoFrame(buf, 0, 0, webrtc::kVideoRotation_0));
     }
 
     // ---- VideoManager methods ----
@@ -471,11 +506,25 @@ public:
             return;
         }
 
+        mEndCapture = false;
         mScreenCapturer->Start(this);
+        mScreenCapturerThread= std::thread ([this]()
+        {
+            while (!mEndCapture)
+            {
+                mScreenCapturer->CaptureFrame();
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+        });
     }
 
     void releaseDevice() override
     {
+        mEndCapture = true;
+        if (mScreenCapturerThread.joinable())
+        {
+            mScreenCapturerThread.join();
+        }
         mScreenCapturer.release();
         mScreenCapturer = nullptr;
     }
@@ -496,21 +545,26 @@ public:
         mBroadcaster.RemoveSink(sink);
     }
 
+protected:
+    CaptureScreenModuleLinux(): mEndCapture(false)                                                  {}
+    ~CaptureScreenModuleLinux() override                                                            {}
+    void GenerateKeyFrame() override                                                                {}
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override          {}
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override       {}
+    void RegisterObserver(webrtc::ObserverInterface* ) override                                     {}
+    void UnregisterObserver(webrtc::ObserverInterface* ) override                                   {}
     bool is_screencast() const override                                                             { return false; }
     bool SupportsEncodedOutput() const override                                                     { return false; }
     bool GetStats(webrtc::VideoTrackSourceInterface::Stats*) override                               { return false; }
     bool remote() const override                                                                    { return false; }
     absl::optional<bool> needs_denoising() const override                                           { return absl::nullopt; }
     webrtc::MediaSourceInterface::SourceState state() const override                                { return MediaSourceInterface::kLive;}
-    void GenerateKeyFrame() override                                                                {}
-    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override          {}
-    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override       {}
-    void RegisterObserver(webrtc::ObserverInterface* ) override                                     {}
-    void UnregisterObserver(webrtc::ObserverInterface* ) override                                   {}
 
 private:
     std::unique_ptr<webrtc::DesktopCapturer> mScreenCapturer;
     rtc::VideoBroadcaster mBroadcaster;
+    std::thread mScreenCapturerThread;
+    std::atomic<bool> mEndCapture;
 };
 
 class CaptureModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
