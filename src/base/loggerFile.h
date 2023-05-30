@@ -69,7 +69,7 @@ std::shared_ptr<Logger::LogBuffer> loadLog() //Logger must be locked!!!
         if (ferror(mFile))
             perror("ERROR: FileLogger::loadLog: Error reading log file: ");
         else if (feof(mFile))
-            fprintf(stderr, "ERROR: FileLogger::loadLog: EOF while reading log file. Required: %lu, read: %lu", mLogSize, bytesRead);
+            fprintf(stderr, "ERROR: FileLogger::loadLog: EOF while reading log file. Required: %zu, read: %zu", mLogSize, bytesRead);
         else
             fprintf(stderr, "ERROR: FileLogger::loadLog: Unknown error has occurred while reading file. ferror() and feof() were not set");
 

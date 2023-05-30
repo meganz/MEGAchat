@@ -4391,7 +4391,7 @@ MegaChatListItemList* MegaChatApiImpl::getChatListItems(const int mask, const in
         { return false; }
 
         const bool readRequested = bsFilter[BitOrder::ReadOrUnread];
-        if (bsMask[BitOrder::ReadOrUnread] && readRequested == cr->chat().unreadMsgCount())
+        if (bsMask[BitOrder::ReadOrUnread] && readRequested == static_cast<bool>(cr->chat().unreadMsgCount()))
         { return false; }
 
         return true;
@@ -8549,11 +8549,11 @@ void MegaChatRoomHandler::onRecvNewMessage(Idx idx, Message &msg, Message::Statu
     {
         for (auto itMsgId = msgToUpdate->begin(); itMsgId != msgToUpdate->end(); itMsgId++)
         {
-            MegaChatMessagePrivate *msg = (MegaChatMessagePrivate *)mChatApiImpl->getMessage(mChatid, *itMsgId);
-            if (msg)
+            MegaChatMessagePrivate *msg2 = (MegaChatMessagePrivate *)mChatApiImpl->getMessage(mChatid, *itMsgId);
+            if (msg2)
             {
-                msg->setAccess();
-                fireOnMessageUpdate(msg);
+                msg2->setAccess();
+                fireOnMessageUpdate(msg2);
             }
         }
         delete msgToUpdate;
@@ -9246,7 +9246,7 @@ MegaChatScheduledMeetingListPrivate::~MegaChatScheduledMeetingListPrivate()
 
 unsigned long MegaChatScheduledMeetingListPrivate::size() const
 {
-    return mList.size();
+    return static_cast<unsigned long>(mList.size());
 }
 
 MegaChatScheduledMeetingListPrivate* MegaChatScheduledMeetingListPrivate::copy() const
@@ -9294,7 +9294,7 @@ MegaChatScheduledMeetingOccurrListPrivate::~MegaChatScheduledMeetingOccurrListPr
 
 unsigned long MegaChatScheduledMeetingOccurrListPrivate::size() const
 {
-    return mList.size();
+    return static_cast<unsigned long>(mList.size());
 }
 
 MegaChatScheduledMeetingOccurrListPrivate* MegaChatScheduledMeetingOccurrListPrivate::copy() const
@@ -12444,7 +12444,7 @@ const char *MegaChatGeolocationPrivate::getImage() const
 }
 
 MegaChatGiphyPrivate::MegaChatGiphyPrivate(const std::string& srcMp4, const std::string& srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const std::string& title)
-    :mMp4Src(srcMp4), mWebpSrc(srcWebp), mTitle(title), mMp4Size(sizeMp4), mWebpSize(sizeWebp), mWidth(width), mHeight(height)
+    :mMp4Src(srcMp4), mWebpSrc(srcWebp), mTitle(title), mMp4Size(static_cast<long>(sizeMp4)), mWebpSize(static_cast<long>(sizeWebp)), mWidth(width), mHeight(height)
 {
 }
 

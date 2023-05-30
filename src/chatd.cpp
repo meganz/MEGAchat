@@ -306,7 +306,7 @@ void Client::onKeepaliveSent()
 
 uint8_t Client::keepaliveType()
 {
-    return mKarereClient->isInBackground() ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
+    return static_cast<uint8_t>(mKarereClient->isInBackground() ? OP_KEEPALIVEAWAY : OP_KEEPALIVE);
 }
 
 std::shared_ptr<Chat> Client::chatFromId(const Id& chatid) const
@@ -1613,7 +1613,7 @@ void Chat::join()
     mServerFetchState = kHistNotFetching;
     CHATID_LOG_DEBUG("Sending JOIN");
     sendCommand(Command(OP_JOIN) + mChatId + mChatdClient.mMyHandle + (int8_t)PRIV_NOCHANGE);
-    requestHistoryFromServer(-initialHistoryFetchCount);
+    requestHistoryFromServer(-static_cast<int32_t>(initialHistoryFetchCount));
 }
 
 void Chat::handlejoin()
@@ -1630,7 +1630,7 @@ void Chat::handlejoin()
     Command comm (OP_HANDLEJOIN);
     comm.append((const char*) &ph, Id::CHATLINKHANDLE);
     sendCommand(comm + mChatdClient.mMyHandle + (uint8_t)PRIV_RDONLY);
-    requestHistoryFromServer(-initialHistoryFetchCount);
+    requestHistoryFromServer(-static_cast<int32_t>(initialHistoryFetchCount));
 }
 
 void Chat::handleleave()
@@ -1816,7 +1816,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
                     return;
 
                 CHATID_LOG_DEBUG("Fetching history (%u messages) from server...", count);
-                requestHistoryFromServer(-count);
+                requestHistoryFromServer(-static_cast<int32_t>(count));
             }, mChatdClient.mKarereClient->appCtx);
         }
         mServerOldHistCbEnabled = true;
@@ -1859,7 +1859,7 @@ void Chat::requestNodeHistoryFromServer(Id oldestMsgid, uint32_t count)
         mAttachNodesRequestedToServer = count;
         assert(mAttachNodesReceived == 0);
         mAttachmentHistDoneReceived = false;
-        sendCommand(Command(OP_NODEHIST) + mChatId + oldestMsgid + -count);
+        sendCommand(Command(OP_NODEHIST) + mChatId + oldestMsgid + -static_cast<int32_t>(count));
     }, mChatdClient.mKarereClient->appCtx);
 }
 
@@ -2276,7 +2276,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     // we were notifying NEWMSGs in result of JOINRANGEHIST, but after reload we start receiving OLDMSGs
                     chat.mServerOldHistCbEnabled = mChatdClient.mKarereClient->isChatRoomOpened(chatid);
-                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
+                    chat.requestHistoryFromServer(-static_cast<int32_t>(chat.initialHistoryFetchCount));
                 }
                 else if (op == OP_NEWKEY)
                 {
@@ -3105,9 +3105,9 @@ void Chat::manageReaction(const Message &message, const std::string &reaction, O
     assert(opcode == OP_ADDREACTION || opcode == OP_DELREACTION);
     std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
     std::string encReaction(data->buf(), data->bufSize());
-    addPendingReaction(reaction, encReaction, message.id(), opcode);
-    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, opcode);
-    sendCommand(Command(opcode) + mChatId + client().myHandle() + message.id()
+    addPendingReaction(reaction, encReaction, message.id(), static_cast<uint8_t>(opcode));
+    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, static_cast<uint8_t>(opcode));
+    sendCommand(Command(static_cast<uint8_t>(opcode)) + mChatId + client().myHandle() + message.id()
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
 }
 
@@ -3825,7 +3825,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
                 ? mLastTextMsg.xid()
                 : mLastTextMsg.id();
 
-        postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd, recipients);
+        postMsgToSending(static_cast<uint8_t>(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD), upd, recipients);
         if (lastMsgId == upd->id())
         {
             if (upd->isValidLastMessage())
@@ -6117,7 +6117,7 @@ bool Chat::findLastTextMsg()
             CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
             mServerOldHistCbEnabled = false;
-            requestHistoryFromServer(-initialHistoryFetchCount);
+            requestHistoryFromServer(-static_cast<int32_t>(initialHistoryFetchCount));
             mLastTextMsg.setState(LastTextMsgState::kFetching);
         }
 
