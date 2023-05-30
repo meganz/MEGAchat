@@ -7,6 +7,7 @@
 #include <functional>
 
 #include "net/websocketsIO.h"
+#include <uv.h>
 
 // Websockets network layer implementation based on libwebsocket
 class LibwebsocketsIO : public WebsocketsIO

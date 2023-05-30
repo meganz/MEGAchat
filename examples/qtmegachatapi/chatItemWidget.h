@@ -21,11 +21,11 @@ class ChatItemWidget : public QWidget
         megachat::MegaChatHandle getChatId() const;
         QListWidgetItem *getWidgetItem() const;
         void setWidgetItem(QListWidgetItem *item);
-        virtual void onUnreadCountChanged(int count);
-        virtual void onPreviewersCountChanged(int count);
+        virtual void onUnreadCountChanged(int count) { doOnUnreadCountChanged(count); }
+        virtual void onPreviewersCountChanged(int count) { doOnPreviewersCountChanged(count); }
         virtual void onTitleChanged(const std::string& title);
         virtual void updateToolTip(const megachat::MegaChatListItem *item, const char *author = nullptr);
-        virtual void onlineIndicatorUpdate(int newState);
+        virtual void onlineIndicatorUpdate(int newState) { doOnlineIndicatorUpdate(newState); }
         virtual void mouseDoubleClickEvent(QMouseEvent *event);
         const char *getLastMessageSenderName(megachat::MegaChatHandle msgUserId);   // returns ownership, free with delete []
 
@@ -51,5 +51,10 @@ class ChatItemWidget : public QWidget
     friend class ChatGroupDialog;
     friend class CallAnswerGui;
     friend class ChatListItemController;
+
+private:
+    void doOnUnreadCountChanged(int count);
+    void doOnPreviewersCountChanged(int count);
+    void doOnlineIndicatorUpdate(int newState);
 };
 #endif // CHATITEM_H

@@ -4402,13 +4402,14 @@ public:
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
      * Note that description is a mandatory field, so in case you want to set an empty description, please provide an empty string with Null-terminated character at the end
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
-     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class).
+     * Provide NULL in case you want to create a non recurring meeting, otherwise a valid instance of MegaChatScheduledRules must be provided
      * @param attributes - not supported yet
      * @param listener MegaChatRequestListener to track this request
      */
     void createChatroomAndSchedMeeting(MegaChatPeerList* peerList, bool isMeeting, bool publicChat, const char* title, bool speakRequest, bool waitingRoom, bool openInvite,
                                                           const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* description,
-                                                          const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                          const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules = NULL,
                                                           const char* attributes = NULL, MegaChatRequestListener* listener = NULL);
 
     /**
@@ -4478,6 +4479,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     * - MegaChatError::ERROR_NOENT - if chatRoom, scheduled meeting or occurrence to be modified could not be found
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
@@ -8024,6 +8026,7 @@ public:
      * @brief Creates a new instance of MegaChatScheduledRules
      *
      * @param freq: scheduled meeting frequency, this is used in conjunction with interval
+     * This param is mandatory to create a valid MegaChatScheduledRules instance
      * valid values for this param:
      *  + MegaChatScheduledRules::FREQ_DAILY
      *  + MegaChatScheduledRules::FREQ_WEEKLY

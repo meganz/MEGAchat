@@ -2788,12 +2788,11 @@ string toBinary(const string& hex)
     string bin;
     for (string::const_iterator i = hex.cbegin(); i != hex.cend(); ++i)
     {
-        unsigned char c = toBinary(static_cast<unsigned char>(*i));
-        c <<= 4; // note: upon update to GCC > 9 this warning should disappear
+        unsigned c = toBinary(static_cast<unsigned char>(*i));
+        c <<= 4;
         ++i;
         if (i != hex.cend())
         {
-            // note: upon update to GCC > 9 this warning should disappear
             c |= toBinary(static_cast<unsigned char>(*i));
         }
         bin.push_back(static_cast<char>(c));

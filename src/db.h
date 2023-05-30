@@ -76,23 +76,31 @@ public:
         assert(!mDb);
         int ret = sqlite3_open(fname, &mDb);
         if (!mDb)
+        {
+            KR_LOG_ERROR("Karere log error: db error: mDb was null after sqlite3_open(), ret=%d", ret);
             return false;
+        }
         if (ret != SQLITE_OK)
         {
+            KR_LOG_ERROR("Karere log error: db error: sqlite3_open() returned %d", ret);
             sqlite3_close(mDb);
             mDb = nullptr;
             return false;
         }
 
-        if (sqlite3_exec(mDb, "PRAGMA foreign_keys = ON", nullptr, nullptr, nullptr) != SQLITE_OK)
+        ret = sqlite3_exec(mDb, "PRAGMA foreign_keys = ON", nullptr, nullptr, nullptr);
+        if (ret != SQLITE_OK)
         {
+            KR_LOG_ERROR("Karere log error: db error: sqlite3_exec() returned %d (foreign_keys)", ret);
             sqlite3_close(mDb);
             mDb = nullptr;
             return false;
         }
 
-        if (sqlite3_exec(mDb, "PRAGMA journal_mode = WAL;", nullptr, nullptr, nullptr) != SQLITE_OK)
+        ret = sqlite3_exec(mDb, "PRAGMA journal_mode = WAL;", nullptr, nullptr, nullptr);
+        if (ret != SQLITE_OK)
         {
+            KR_LOG_ERROR("Karere log error: db error: sqlite3_exec() returned %d (journal_mode)", ret);
             sqlite3_close(mDb);
             mDb = nullptr;
             return false;
@@ -104,6 +112,8 @@ public:
             beginTransaction();
             mLastCommitTs = time(NULL);
         }
+
+        KR_LOG_DEBUG("Karere log debug: db opened: %s", fname);
         return true;
     }
     void close()

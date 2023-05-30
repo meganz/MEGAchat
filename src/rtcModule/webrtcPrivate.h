@@ -249,7 +249,7 @@ public:
 * This object is created upon OP_JOINEDCALL (or OP_CALLSTATE).
 * It implements ICall interface for the intermediate layer.
 */
-class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
+class Call final : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
     enum SpeakerState

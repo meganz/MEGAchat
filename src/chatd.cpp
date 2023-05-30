@@ -375,7 +375,7 @@ void Client::updateRetentionCheckTs(time_t nextCheckTs, bool force)
     {
         setTimer = true;
         mRetentionCheckTs = static_cast<uint32_t>(nextCheckTs);
-        CHATD_LOG_DEBUG("set retention history check ts: %d", nextCheckTs);
+        CHATD_LOG_DEBUG("set retention history check ts: %ld", nextCheckTs);
     }
 
     if (mRetentionCheckTs && setTimer)
@@ -411,7 +411,7 @@ void Client::setRetentionTimer()
             : retentionPeriod;
 
     cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckTs
-    CHATD_LOG_DEBUG("set timer for next retention history check to %d (seconds):", retentionPeriod);
+    CHATD_LOG_DEBUG("set timer for next retention history check to %ld (seconds):", retentionPeriod);
     auto wptr = weakHandle();
     mRetentionTimer = karere::setTimeout([this, wptr]()
     {
@@ -550,7 +550,7 @@ void Connection::wsConnectCb()
         if (++mConnSuceeded > kMaxConnSuceeded)
         {
             // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
-            CHATDS_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
+            CHATDS_LOG_DEBUG("Limit of successful connection attempts (%u), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
             resetConnSuceededAttempts(now);
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
@@ -923,7 +923,7 @@ Promise<void> Connection::reconnect()
                 }
                 if (mRetryCtrl->currentAttemptNo() != attemptNo)
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %lu, new: %lu)",
                                      attemptNo, mRetryCtrl->currentAttemptNo());
                     return;
                 }
@@ -2341,7 +2341,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 READ_16(payloadLen, 20);
-                CHATDS_LOG_DEBUG("(Deprecated) %s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %d", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
+                CHATDS_LOG_DEBUG("(Deprecated) %s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %u", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
                 pos += payloadLen; // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
                 break;
             }
@@ -2368,7 +2368,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(unused, 4);
                 mClientId = clientid;
                 unused
-                    ? CHATDS_LOG_DEBUG("recv CLIENTID - %x reserved: %d", clientid, unused)
+                    ? CHATDS_LOG_DEBUG("recv CLIENTID - %x reserved: %u", clientid, unused)
                     : CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
                 break;
             }
@@ -2437,14 +2437,14 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 READ_32(duration, 8);
-                CHATDS_LOG_DEBUG("(Deprecated) %s: recv CALLTIME: %d", ID_CSTR(chatid), duration);
+                CHATDS_LOG_DEBUG("(Deprecated) %s: recv CALLTIME: %u", ID_CSTR(chatid), duration);
                 break;
             }
             case OP_NUMBYHANDLE:
             {
                 READ_CHATID(0);
                 READ_32(count, 8);
-                CHATDS_LOG_DEBUG("%s: recv NUMBYHANDLE: %d", ID_CSTR(chatid), count);
+                CHATDS_LOG_DEBUG("%s: recv NUMBYHANDLE: %u", ID_CSTR(chatid), count);
 
                 auto& chat =  mChatdClient.chats(chatid);
                 chat.onPreviewersUpdate(count);
@@ -2455,7 +2455,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
                 READ_32(timestamp, 16);
-                CHATDS_LOG_DEBUG("recv MSGIDTIMESTAMP: '%s' -> '%s'  %d", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
+                CHATDS_LOG_DEBUG("recv MSGIDTIMESTAMP: '%s' -> '%s'  %u", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
                 mChatdClient.onMsgAlreadySent(msgxid, msgid);
                 break;
             }
@@ -2464,7 +2464,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
                 READ_32(timestamp, 16);
-                CHATDS_LOG_DEBUG("recv NEWMSGIDTIMESTAMP: '%s' -> '%s'   %d", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
+                CHATDS_LOG_DEBUG("recv NEWMSGIDTIMESTAMP: '%s' -> '%s'   %u", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
                 mChatdClient.msgConfirm(msgxid, msgid, timestamp);
                 break;
             }
@@ -2552,7 +2552,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8); // call originator id
                 READ_ID(callid, 16);
                 READ_8(ringing, 24);
-                CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %d", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
+                CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %u ", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mKarereClient->rtc)
                 {
@@ -2705,7 +2705,7 @@ void Chat::onNewKeys(StaticBuffer&& keybuf)
         uint16_t keylen = keybuf.read<uint16_t>(pos);   pos += 2;
         const char *key = keybuf.readPtr(pos, keylen);  pos += keylen;
 
-        CHATID_LOG_DEBUG("sending key %d for user %s with length %zu to crypto module",
+        CHATID_LOG_DEBUG("sending key %u for user %s with length %zu to crypto module",
                          keyid, userid.toString().c_str(), keybuf.dataSize());
         CALL_CRYPTO(onKeyReceived, keyid, userid, mChatdClient.myHandle(), key, keylen);
     }
@@ -3082,7 +3082,7 @@ void Chat::flushChatPendingReactions()
         if (index == CHATD_IDX_INVALID)
         {
             // couldn't find msg
-            CHATID_LOG_WARNING("flushChatPendingReactions: message with id(%d) not loaded in RAM", reaction.mMsgId);
+            CHATID_LOG_WARNING("flushChatPendingReactions: message with id(%lu) not loaded in RAM", reaction.mMsgId);
         }
         else
         {
@@ -4491,7 +4491,7 @@ void Chat::rejectMsgupd(const Id& id, uint8_t serverReason)
     // Update with contains meta has been rejected by server. We don't notify
     if (msg.type == Message::kMsgContainsMeta)
     {
-        CHATID_LOG_DEBUG("Message can't be update with meta contained. Reason: %d", serverReason);
+        CHATID_LOG_DEBUG("Message can't be update with meta contained. Reason: %u", serverReason);
         CALL_DB(deleteSendingItem, mSending.front().rowid);
         mSending.pop_front();
         return;
@@ -4594,7 +4594,7 @@ void Chat::onMsgUpdated(Message* cipherMsg)
                 break;
 
             case SVCRYPTO_ENOTYPE:
-                CHATID_LOG_WARNING("Unknown type of management message: %d (msgid: %s)", cipherMsg->type, ID_CSTR(cipherMsg->id()));
+                CHATID_LOG_WARNING("Unknown type of management message: %u (msgid: %s)", cipherMsg->type, ID_CSTR(cipherMsg->id()));
                 cipherMsg->setEncrypted(Message::kEncryptedNoType);
                 break;
 
@@ -4872,7 +4872,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     }
 
     // Clean affected messages in db and RAM
-    CHATID_LOG_DEBUG("Cleaning messages older than %d seconds", mRetentionTime);
+    CHATID_LOG_DEBUG("Cleaning messages older than %u seconds", mRetentionTime);
     CALL_DB(retentionHistoryTruncate, idx);
     cleanPendingReactionsOlderThan(idx); //clean pending reactions, including previous indexes
     deleteOlderMessagesIncluding(idx);
@@ -5189,7 +5189,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                         return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
 
                     case SVCRYPTO_ENOTYPE:
-                        CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed (not yet supported): %d (msgid: %s)", message->type, ID_CSTR(message->id()));
+                        CHATID_LOG_WARNING("Retry to decrypt unknown type of management message failed (not yet supported): %u (msgid: %s)", message->type, ID_CSTR(message->id()));
                         break;
 
                     default:
@@ -5311,7 +5311,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                 break;
 
             case SVCRYPTO_ENOTYPE:
-                CHATID_LOG_WARNING("Unknown type of management message: %d (msgid: %s)", message->type, ID_CSTR(message->id()));
+                CHATID_LOG_WARNING("Unknown type of management message: %u (msgid: %s)", message->type, ID_CSTR(message->id()));
                 message->setEncrypted(Message::kEncryptedNoType);
                 break;
 
@@ -5621,7 +5621,7 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
     {
         if (!refid)
         {
-            CHATID_LOG_WARNING("verifyMsgOrder: invalid message backRefId [%d]", refid);
+            CHATID_LOG_WARNING("verifyMsgOrder: invalid message backRefId [%lu]", refid);
             continue;
         }
 
@@ -6479,18 +6479,18 @@ void FilteredHistory::truncateHistory(const Id& id)
         auto it = mIdToMsgMap.find(id);
         if (it != mIdToMsgMap.end())
         {
-            // id is a message in the history, we want to remove from the next message until the oldest
-            for (auto itLoop = ++it->second; itLoop != mBuffer.end(); itLoop++)
+            auto itFirstToRemoveFrommBuffer = std::next(it->second); // id is a message in the history, we want to remove from the next message until the oldest
+            std::for_each(itFirstToRemoveFrommBuffer, mBuffer.end(), [this](auto& msg)
             {
-                mIdToMsgMap.erase((*itLoop)->id());
+                mIdToMsgMap.erase(msg->id());
 
                 // if next message to notify was truncated, point to the end of the buffer
-                if (itLoop == mNextMsgToNotify)
+                if (msg == *mNextMsgToNotify)
                 {
                     mNextMsgToNotify = mBuffer.end();
                 }
-            }
-            mBuffer.erase(it->second, mBuffer.end());
+            });
+            mBuffer.erase(itFirstToRemoveFrommBuffer, mBuffer.end());
         }
 
         CALL_DB_FH(truncateNodeHistory, id);

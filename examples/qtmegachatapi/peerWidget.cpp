@@ -47,7 +47,7 @@ void PeerWidget::setOnHold(bool isOnHold)
     mVideoRender->enableStaticImage();
 }
 
-void PeerWidget::onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size)
+void PeerWidget::onChatVideoData(megachat::MegaChatApi*, megachat::MegaChatHandle, int width, int height, char *buffer, size_t size)
 {
     QImage *auxImg = CreateFrame(width, height, buffer, size);
     if(auxImg)
