@@ -672,27 +672,37 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (chatid == MEGACHAT_INVALID_HANDLE || uh == MEGACHAT_INVALID_HANDLE)
             {
+                API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Invalid chatid: %s or userid %s",
+                               karere::Id(chatid).toString().c_str(), karere::Id(uh).toString().c_str());
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
+                API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Chatroom not found. chatid: %s",
+                              karere::Id(chatid).toString().c_str());
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
             if (!chatroom->isGroup())   // invite only for group chats
             {
+                API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Chatroom is not groupal. chatid: %s",
+                              karere::Id(chatid).toString().c_str());
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
-            if (chatroom->ownPriv() < (Priv) MegaChatPeerList::PRIV_STANDARD
-                || (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR && !chatroom->isOpenInvite()))
+            if (chatroom->ownPriv() < static_cast<Priv>(MegaChatPeerList::PRIV_MODERATOR))
             {
-                // only allowed moderators or participants with standard permissions just if openInvite is enabled
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                if (chatroom->ownPriv() < static_cast<Priv>(MegaChatPeerList::PRIV_STANDARD) || !chatroom->isOpenInvite())
+                {
+                    // only allowed moderators or participants with standard permissions just if openInvite is enabled
+                    API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Insufficient permissions to perform this action, for chat: %s",
+                                  karere::Id(chatid).toString().c_str());
+                    errorCode = MegaChatError::ERROR_ACCESS;
+                    break;
+                }
             }
 
             ((GroupChatRoom *)chatroom)->invite(uh, privilege)
@@ -703,7 +713,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const ::promise::Error& err)
             {
-                API_LOG_ERROR("Error adding user to group chat: %s", err.what());
+                API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Error adding user to group chat: %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
