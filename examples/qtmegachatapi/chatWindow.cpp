@@ -936,6 +936,9 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     auto title = roomMenu->addAction("Set title");
     connect(title, SIGNAL(triggered()), getChatItemController(), SLOT(setTitle()));
 
+    auto endCall = roomMenu->addAction("End call for all");
+    connect(endCall, SIGNAL(triggered()), getChatItemController(), SLOT(endCall()));
+
     auto actArchive = roomMenu->addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), getChatItemController(), SLOT(archiveChat(bool)));
     actArchive->setCheckable(true);
