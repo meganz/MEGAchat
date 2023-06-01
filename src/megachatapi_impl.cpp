@@ -1670,6 +1670,14 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (chatroom->isWaitingRoom() && chatroom->ownPriv() < static_cast<Priv> (MegaChatPeerList::PRIV_MODERATOR))
+            {
+                API_LOG_ERROR("Start call - Refusing start a call with waiting room enabled, for non moderator users. Chatid: %s",
+                              karere::Id(chatid).toString().c_str());
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (chatroom->previewMode())
             {
                 API_LOG_ERROR("Start call - Chatroom is in preview mode");
