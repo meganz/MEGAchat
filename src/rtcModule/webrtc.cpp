@@ -2187,35 +2187,28 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
             joinSfu();
         }
 
-        // store moderators list
-        if (!addWrUsers(wrUsers, true/*clearCurrent*/))
-        {
-            return false;
-        }
-        mCallHandler.onWrUserDump(*this); // notify app about users in wr
+        return dumpWrUsers(wrUsers, true/*clearCurrent*/);
     }
     return true;
 }
 
 bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
 {
-    assert(isOwnPrivModerator());
-    if (!checkWrFlag()) { return false; }
-
-    if (!addWrUsers(users, true/*clearCurrent*/))
+    if (!checkWrCommandReqs("WR_DUMP", true /*mustBeModerator*/))
     {
         return false;
     }
-    mCallHandler.onWrUserDump(*this); // notify app about users in wr
-    return true;
+    return dumpWrUsers(users, true/*clearCurrent*/);
 }
 
 bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
 {
-    assert(isOwnPrivModerator());
-    assert(!users.empty());
-    if (!checkWrFlag()) { return false; }
+    if (!checkWrCommandReqs("WR_ENTER", true /*mustBeModerator*/))
+    {
+        return false;
+    }
 
+    assert(!users.empty());
     if (!addWrUsers(users, false/*clearCurrent*/))
     {
         return false;
@@ -2229,8 +2222,10 @@ bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
 
 bool Call::handleWrLeave(const karere::Id& user)
 {
-    assert(isOwnPrivModerator());
-    if (!checkWrFlag()) { return false; }
+    if (!checkWrCommandReqs("WR_LEAVE", true /*mustBeModerator*/))
+    {
+        return false;
+    }
 
     if (!user.isValid())
     {
@@ -2261,7 +2256,11 @@ bool Call::handleWrLeave(const karere::Id& user)
 
 bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 {
-    if (!checkWrFlag()) { return false; }
+    if (!checkWrCommandReqs("WR_ALLOW", false /*mustBeModerator*/))
+    {
+        return false;
+    }
+
     if (cid == K_INVALID_CID)
     {
         RTCM_LOG_ERROR("WR_ALLOW: Invalid cid received: %d", cid);
@@ -2280,7 +2279,11 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 
 bool Call::handleWrDeny(const std::set<karere::Id>& mods)
 {
-    if (!checkWrFlag()) { return false; }
+    if (!checkWrCommandReqs("WR_DENY", false /*mustBeModerator*/))
+    {
+        return false;
+    }
+
     if (mState != CallState::kInWaitingRoom)
     {
         return false;
@@ -2294,8 +2297,10 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
 
 bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 {
-    assert(isOwnPrivModerator());
-    if (!checkWrFlag()) { return false; }
+    if (!checkWrCommandReqs("WR_USERS_ALLOW", true /*mustBeModerator*/))
+    {
+        return false;
+    }
 
     if (users.empty())
     {
@@ -2325,8 +2330,10 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
-    assert(isOwnPrivModerator());
-    if (!checkWrFlag()) { return false; }
+    if (!checkWrCommandReqs("WR_USERS_DENY", true /*mustBeModerator*/))
+    {
+        return false;
+    }
 
     if (users.empty())
     {
@@ -2681,6 +2688,35 @@ void Call::pushIntoWr(const TermCode& termCode)
     mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
     setState(CallState::kInWaitingRoom);
     mCallHandler.onWrPushedFromCall(*this);
+}
+
+bool Call::dumpWrUsers(const std::map<karere::Id, bool>& wrUsers, bool clearCurrent)
+{
+    if (!addWrUsers(wrUsers, clearCurrent))
+    {
+        return false;
+    }
+    mCallHandler.onWrUserDump(*this); // notify app about users in wr
+    return true;
+}
+
+bool Call::checkWrCommandReqs(std::string && commandStr, bool mustBeModerator)
+{
+    if (mustBeModerator && !isOwnPrivModerator())
+    {
+        RTCM_LOG_ERROR("%s. Waiting room command received for our client with non moderator permissions for this call: %s",
+                       commandStr.c_str(), getCallid().toString().c_str());
+        assert(false);
+        return false;
+    }
+
+    if (!checkWrFlag())
+    {
+        RTCM_LOG_ERROR("%s. Waiting room should be enabled for this call: %s", commandStr.c_str(), getCallid().toString().c_str());
+        assert(false);
+        return false;
+    }
+    return true;
 }
 
 Keyid_t Call::generateNextKeyId()

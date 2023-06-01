@@ -2130,9 +2130,14 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
 
 bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json)
 {
-    assert(!users.empty() || all);
     if (users.empty())
     {
+        if (!all)
+        {
+            SFU_LOG_WARNING("addWrUsersArray: empty user list and all param is false");
+            assert(false);
+            return false;
+        }
         const std::string userStr = "*";
         rapidjson::Value nameValue(rapidjson::kStringType);
         nameValue.SetString(userStr.c_str(), static_cast<rapidjson::SizeType>(userStr.length()), json.GetAllocator());
