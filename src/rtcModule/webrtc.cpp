@@ -3706,6 +3706,17 @@ bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const WrS
     return true;
 }
 
+int KarereWaitingRoom::getPeerStatus(const uint64_t& peerid) const
+{
+    const auto& it = mWaitingRoomUsers.find(peerid);
+    if (it == mWaitingRoomUsers.end())
+    {
+        return static_cast<int>(WrState::WR_UNKNOWN);
+    }
+
+    return static_cast<int>(it->second);
+}
+
 std::vector<uint64_t> KarereWaitingRoom::getPeers() const
 {
     std::vector<uint64_t> keys;
