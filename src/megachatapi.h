@@ -8678,7 +8678,7 @@ public:
             case MWR_NOT_ALLOWED: return "Not allowed to join";
             case MWR_ALLOWED:     return "Allowed to join";
             case MWR_UNKNOWN:     return "Unknown join status";
-            default:              return "Unknown join status";
+            default:              return "Invalid join status";
         }
     }
 };

@@ -229,8 +229,9 @@ public:
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
     virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
-                                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                                       const std::map<karere::Id, bool>& wrUsers) = 0;
+                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                              const std::map<karere::Id, bool>& wrUsers) = 0;
+
     virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
     virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
     virtual bool handleWrLeave(const karere::Id& /*user*/) = 0;
@@ -242,7 +243,7 @@ public:
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
-    virtual bool handleBye(const unsigned& termCode, const bool wr, const std::string& errMsg) = 0;
+    virtual bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) = 0;
     virtual void onSfuDisconnected() = 0;
     virtual void onSendByeCommand() = 0;
 
@@ -436,7 +437,7 @@ public:
 class ByeCommand : public Command
 {
 public:
-    typedef std::function<bool(const unsigned& termCode, const bool wr, const std::string& errMsg)> ByeCommandFunction;
+    typedef std::function<bool(const unsigned termCode, const bool wr, const std::string& errMsg)> ByeCommandFunction;
     ByeCommand(const ByeCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;

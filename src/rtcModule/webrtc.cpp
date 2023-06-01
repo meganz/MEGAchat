@@ -2051,7 +2051,7 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     return true;
 }
 
-bool Call::handleBye(const unsigned& termCode, const bool wr, const std::string& errMsg)
+bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& errMsg)
 {
     RTCM_LOG_WARNING("handleBye - termCode: %d, reason: %s", termCode, errMsg.c_str());
     TermCode auxTermCode = static_cast<TermCode> (termCode);

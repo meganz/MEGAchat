@@ -330,7 +330,7 @@ public:
 
         std::for_each(users.begin(), users.end(), [this, &status](const auto &u)
         {
-            mWaitingRoomUsers[u.val] = static_cast<WrState>(status);
+            mWaitingRoomUsers[u.val] = status;
         });
 
         return true;
