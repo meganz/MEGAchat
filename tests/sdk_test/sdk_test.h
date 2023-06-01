@@ -233,11 +233,11 @@ protected:
     // chatrooms auxiliar methods
 
     void inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, int privilege,
-                      std::shared_ptr<TestChatRoomListener>chatroomListener);
+                       std::shared_ptr<TestChatRoomListener>chatroomListener);
 
 
     void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, int privilege,
-                              std::shared_ptr<TestChatRoomListener>chatroomListener);
+                               std::shared_ptr<TestChatRoomListener>chatroomListener);
 
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
@@ -253,7 +253,7 @@ protected:
             default:                                              break;
         }
 
-        ADD_FAILURE() << "Invalid account index";
+        ADD_FAILURE() << "Invalid account state";
         return nullptr;
     };
 
