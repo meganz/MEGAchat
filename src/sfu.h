@@ -280,10 +280,10 @@ protected:
     SfuInterface& mCall;
 };
 
-typedef std::function<bool(karere::Id, unsigned, uint32_t)> AvCompleteFunction;
 class AVCommand : public Command
 {
 public:
+    typedef std::function<bool(karere::Id, unsigned, uint32_t)> AvCompleteFunction;
     AVCommand(const AvCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -303,10 +303,10 @@ private:
     void parsePeerObject(std::vector<Peer>& peers, std::map<Cid_t, std::string>& keystrmap, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
 };
 
-typedef std::function<bool(const Keyid_t&, const Cid_t&, const std::string&)> KeyCompleteFunction;
 class KeyCommand : public Command
 {
 public:
+    typedef std::function<bool(const Keyid_t&, const Cid_t&, const std::string&)> KeyCompleteFunction;
     KeyCommand(const KeyCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -314,120 +314,120 @@ public:
     constexpr static Keyid_t maxKeyId = static_cast<Keyid_t>(~0);
 };
 
-typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompleteFunction;
 class VthumbsCommand : public Command
 {
 public:
+    typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompleteFunction;
     VthumbsCommand(const VtumbsCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsCompleteFunction mComplete;
 };
 
-typedef std::function<bool(void)> VtumbsStartCompleteFunction;
 class VthumbsStartCommand : public Command
 {
 public:
+    typedef std::function<bool(void)> VtumbsStartCompleteFunction;
     VthumbsStartCommand(const VtumbsStartCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsStartCompleteFunction mComplete;
 };
 
-typedef std::function<bool(void)> VtumbsStopCompleteFunction;
 class VthumbsStopCommand : public Command
 {
 public:
+    typedef std::function<bool(void)> VtumbsStopCompleteFunction;
     VthumbsStopCommand(const VtumbsStopCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsStopCompleteFunction mComplete;
 };
 
-typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> HiresCompleteFunction;
 class HiResCommand : public Command
 {
 public:
+    typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> HiresCompleteFunction;
     HiResCommand(const HiresCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiresCompleteFunction mComplete;
 };
 
-typedef std::function<bool(void)> HiResStartCompleteFunction;
 class HiResStartCommand : public Command
 {
 public:
+    typedef std::function<bool(void)> HiResStartCompleteFunction;
     HiResStartCommand(const HiResStartCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiResStartCompleteFunction mComplete;
 };
 
-typedef std::function<bool(void)> HiResStopCompleteFunction;
 class HiResStopCommand : public Command
 {
 public:
+    typedef std::function<bool(void)> HiResStopCompleteFunction;
     HiResStopCommand(const HiResStopCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiResStopCompleteFunction mComplete;
 };
 
-typedef std::function<bool(const std::vector<Cid_t>&)> SpeakReqsCompleteFunction;
 class SpeakReqsCommand : public Command
 {
 public:
+    typedef std::function<bool(const std::vector<Cid_t>&)> SpeakReqsCompleteFunction;
     SpeakReqsCommand(const SpeakReqsCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakReqsCompleteFunction mComplete;
 };
 
-typedef std::function<bool(karere::Id)> SpeakReqDelCompleteFunction;
 class SpeakReqDelCommand : public Command
 {
 public:
+    typedef std::function<bool(karere::Id)> SpeakReqDelCompleteFunction;
     SpeakReqDelCommand(const SpeakReqDelCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakReqDelCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid)> SpeakOnCompleteFunction;
 class SpeakOnCommand : public Command
 {
 public:
+    typedef std::function<bool(Cid_t cid)> SpeakOnCompleteFunction;
     SpeakOnCommand(const SpeakOnCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakOnCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid)> SpeakOffCompleteFunction;
 class SpeakOffCommand : public Command
 {
 public:
+    typedef std::function<bool(Cid_t cid)> SpeakOffCompleteFunction;
     SpeakOffCommand(const SpeakOffCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakOffCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
 {
 public:
+    typedef std::function<bool(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
     PeerJoinCommand(const PeerJoinCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     PeerJoinCommandFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, unsigned termcode)> PeerLeftCommandFunction;
 class PeerLeftCommand : public Command
 {
 public:
+    typedef std::function<bool(Cid_t cid, unsigned termcode)> PeerLeftCommandFunction;
     PeerLeftCommand(const PeerLeftCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -444,20 +444,20 @@ public:
     ByeCommandFunction mComplete;
 };
 
-typedef std::function<bool(uint64_t userid)> ModAddCommandFunction;
 class ModAddCommand : public Command
 {
 public:
+    typedef std::function<bool(uint64_t userid)> ModAddCommandFunction;
     ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     ModAddCommandFunction mComplete;
 };
 
-typedef std::function<bool(uint64_t userid)> ModDelCommandFunction;
 class ModDelCommand : public Command
 {
 public:
+    typedef std::function<bool(uint64_t userid)> ModDelCommandFunction;
     ModDelCommand(const ModDelCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -481,70 +481,70 @@ public:
     HelloCommandFunction mComplete;
 };
 
-typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrDumpCommandFunction;
 class WrDumpCommand: public Command
 {
 public:
+    typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrDumpCommandFunction;
     WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     WrDumpCommandFunction mComplete;
 };
 
-typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrEnterCommandFunction;
 class WrEnterCommand: public Command
 {
 public:
+    typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrEnterCommandFunction;
     WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     WrEnterCommandFunction mComplete;
 };
 
-typedef std::function<bool(const karere::Id& user)>WrLeaveCommandFunction;
 class WrLeaveCommand: public Command
 {
 public:
+    typedef std::function<bool(const karere::Id& user)>WrLeaveCommandFunction;
     WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     WrLeaveCommandFunction mComplete;
 };
 
-typedef std::function<bool(const Cid_t& cid, const std::set<karere::Id>& mods)>WrAllowCommandFunction;
 class WrAllowCommand: public Command
 {
 public:
+    typedef std::function<bool(const Cid_t& cid, const std::set<karere::Id>& mods)>WrAllowCommandFunction;
     WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     WrAllowCommandFunction mComplete;
 };
 
-typedef std::function<bool(const std::set<karere::Id>& mods)>WrDenyCommandFunction;
 class WrDenyCommand: public Command
 {
 public:
+    typedef std::function<bool(const std::set<karere::Id>& mods)>WrDenyCommandFunction;
     WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     WrDenyCommandFunction mComplete;
 };
 
-typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersAllowCommandFunction;
 class WrUsersAllowCommand: public Command
 {
 public:
+    typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersAllowCommandFunction;
     WrUsersAllowCommand(const WrUsersAllowCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     WrUsersAllowCommandFunction mComplete;
 };
 
-typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersDenyCommandFunction;
 class WrUsersDenyCommand: public Command
 {
 public:
+    typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersDenyCommandFunction;
     WrUsersDenyCommand(const WrUsersDenyCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
