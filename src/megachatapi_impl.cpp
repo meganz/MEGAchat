@@ -7655,6 +7655,10 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kSigDisconn:
             return SESS_TERM_CODE_RECOVERABLE;
 
+        // Added here to avoid warning, as an user that is pushed into a wr, is still in the call
+        // but waiting to be granted to access, unlike the other termcodes that means that user
+        // is not in the call.
+        case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kInvalidTermCode:
             return SESS_TERM_CODE_INVALID;
     }
@@ -8089,6 +8093,10 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kKickedFromWaitingRoom:
             return TERM_CODE_KICKED;
 
+        // Added here to avoid warning, as an user that is pushed into a wr, is still in the call
+        // but waiting to be granted to access, unlike the other termcodes that means that user
+        // is not in the call.
+        case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
     }
