@@ -485,6 +485,7 @@ void Call::setWrJoiningState(WrState status)
 {
     if (!isValidWrStatus(status))
     {
+        RTCM_LOG_WARNING("updateAsetWrJoiningState. Invalid status %d", status);
         assert(false);
         return;
     }
@@ -2199,7 +2200,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const u
 bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
 {
     assert(isOwnPrivModerator());
-    if (!checkWrFlag()) {return false;}
+    if (!checkWrFlag()) { return false; }
 
     if (!addWrUsers(users, true/*clearCurrent*/))
     {
@@ -2213,7 +2214,7 @@ bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
 {
     assert(isOwnPrivModerator());
     assert(!users.empty());
-    if (!checkWrFlag()) {return false;}
+    if (!checkWrFlag()) { return false; }
 
     if (!addWrUsers(users, false/*clearCurrent*/))
     {
@@ -2229,7 +2230,7 @@ bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
 bool Call::handleWrLeave(const karere::Id& user)
 {
     assert(isOwnPrivModerator());
-    if (!checkWrFlag()) {return false;}
+    if (!checkWrFlag()) { return false; }
 
     if (!user.isValid())
     {
@@ -2260,11 +2261,11 @@ bool Call::handleWrLeave(const karere::Id& user)
 
 bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 {
-    if (!checkWrFlag()) {return false;}
+    if (!checkWrFlag()) { return false; }
     if (cid == K_INVALID_CID)
     {
-        assert(false);
         RTCM_LOG_ERROR("WR_ALLOW: Invalid cid received: %d", cid);
+        assert(false);
     }
 
     if (mState != CallState::kInWaitingRoom) { return false; }
@@ -2279,7 +2280,7 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 
 bool Call::handleWrDeny(const std::set<karere::Id>& mods)
 {
-    if (!checkWrFlag()) {return false;}
+    if (!checkWrFlag()) { return false; }
     if (mState != CallState::kInWaitingRoom)
     {
         return false;
@@ -2294,7 +2295,7 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
 bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 {
     assert(isOwnPrivModerator());
-    if (!checkWrFlag()) {return false;}
+    if (!checkWrFlag()) { return false; }
 
     if (users.empty())
     {
@@ -2325,7 +2326,7 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
     assert(isOwnPrivModerator());
-    if (!checkWrFlag()) {return false;}
+    if (!checkWrFlag()) { return false; }
 
     if (users.empty())
     {

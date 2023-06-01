@@ -2069,8 +2069,8 @@ bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool& al
 {
     if (users.empty() && !all)
     {
-        assert(false);
         SFU_LOG_WARNING("sendWrPush: invalid arguments provided");
+        assert(false);
         return false;
     }
     rapidjson::Document json(rapidjson::kObjectType);
@@ -2090,8 +2090,8 @@ bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool& a
 {
     if (users.empty() && !all)
     {
-        assert(false);
         SFU_LOG_WARNING("sendWrAllow: invalid arguments provided");
+        assert(false);
         return false;
     }
     rapidjson::Document json(rapidjson::kObjectType);
@@ -2111,8 +2111,8 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
 {
     if (users.empty())
     {
-        assert(false);
         SFU_LOG_WARNING("sendWrKick: invalid arguments provided");
+        assert(false);
         return false;
     }
     rapidjson::Document json(rapidjson::kObjectType);

@@ -297,14 +297,12 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         assert(call->isOwnClientCaller());
     }
 
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_ALLOW))
-    {
-        // TODO: complete
-    }
-
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_DENY))
     {
-        // TODO: complete
+        QMessageBox msg;
+        msg.setIcon(QMessageBox::Warning);
+        msg.setText("A moderator has rejected to enter the call from WR");
+        msg.exec();
     }
 }
 

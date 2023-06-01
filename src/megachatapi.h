@@ -678,7 +678,7 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED = 0x4000
      * Notify about users that have been pushed into the waiting room
-     * (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room
+     * (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room)
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
      * - MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE = 0x8000
@@ -759,7 +759,7 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED = 0x4000
      * Notify about users that have been pushed into the waiting room
-     * (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room
+     * (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room)
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
      * - MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE = 0x8000
@@ -6125,7 +6125,7 @@ public:
      * On the onRequestFinish error, if the error code associated to the MegaChatError is ERROR_OK:
      * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED,
      *   notifying about users that could be pushed or not into the waiting room.
-     *   (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room
+     *   (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room)
      *   (check MegaChatCall::getWaitingRoom to get the users in the waiting room and their current joining status)
      *   (check MegaChatCall::getModerators to get the updated moderators list)
      *

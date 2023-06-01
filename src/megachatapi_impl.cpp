@@ -6163,7 +6163,7 @@ MegaChatApiImpl::getCallWithModPermissions(const MegaChatHandle chatid, bool wai
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
         API_LOG_ERROR("%s - Invalid chatid", msg.c_str());
-        return std::make_pair (MegaChatError::ERROR_ARGS, nullptr);
+        return std::make_pair(MegaChatError::ERROR_ARGS, nullptr);
     }
 
     const ChatRoom* chatroom = findChatRoom(chatid);
@@ -6171,36 +6171,36 @@ MegaChatApiImpl::getCallWithModPermissions(const MegaChatHandle chatid, bool wai
     {
         API_LOG_ERROR("%s - There is not any chatroom with chatid: %s",
                       msg.c_str(), karere::Id(chatid).toString().c_str());
-        return std::make_pair (MegaChatError::ERROR_NOENT, nullptr);
+        return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
     }
 
     if (chatroom->isWaitingRoom() != waitingRoom)
     {
         API_LOG_ERROR("%s - Invalid chatroom with chatid: %s. Expected waiting room state: %s ",
                       msg.c_str(), karere::Id(chatid).toString().c_str(), waitingRoom ? "Enabled" : "Disabled");
-        return std::make_pair (MegaChatError::ERROR_NOENT, nullptr);
+        return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
     }
 
     rtcModule::ICall* call = findCall(chatid);
     if (!call)
     {
         API_LOG_ERROR("%s - There is not any call in that chatroom", msg.c_str());
-        return std::make_pair (MegaChatError::ERROR_NOENT, nullptr);
+        return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
     }
 
     if (call->getState() != rtcModule::kStateInProgress)
     {
         API_LOG_ERROR("%s - Call isn't in progress state", msg.c_str());
-        return std::make_pair (MegaChatError::ERROR_ACCESS, nullptr);
+        return std::make_pair(MegaChatError::ERROR_ACCESS, nullptr);
     }
 
     if (!call->isOwnPrivModerator())
     {
         API_LOG_ERROR("%s - moderator role required to perform this action", msg.c_str());
-        return std::make_pair (MegaChatError::ERROR_ACCESS, nullptr);
+        return std::make_pair(MegaChatError::ERROR_ACCESS, nullptr);
     }
 
-    return std::make_pair (MegaChatError::ERROR_OK, call);
+    return std::make_pair(MegaChatError::ERROR_OK, call);
 }
 
 #endif
