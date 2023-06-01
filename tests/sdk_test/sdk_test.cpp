@@ -5975,8 +5975,8 @@ void MegaChatApiTest::changeLastName(unsigned int accountIndex, std::string last
     std::this_thread::sleep_for(std::chrono::seconds(1));
 }
 
-void MegaChatApiTest::inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, int privilege,
-                  std::shared_ptr<TestChatRoomListener>chatroomListener)
+void MegaChatApiTest::inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh,
+                                   const megachat::MegaChatHandle& chatid, const int privilege, std::shared_ptr<TestChatRoomListener>chatroomListener)
 {
     bool* chatItemJoined0 = &chatItemUpdated[a1]; *chatItemJoined0 = false;
     bool* chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
@@ -6002,9 +6002,8 @@ void MegaChatApiTest::inviteToChat (const unsigned int& a1, const unsigned int& 
     mChatListUpdated[a2].clear();
 }
 
-
-void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsigned int& a2, const MegaChatHandle& uh, const MegaChatHandle& chatid, int privilege,
-                          std::shared_ptr<TestChatRoomListener>chatroomListener)
+void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsigned int& a2, const MegaChatHandle& uh, const MegaChatHandle& chatid,
+                                           const int privilege, std::shared_ptr<TestChatRoomListener>chatroomListener)
 {
     // --> Change peer privileges to Moderator
     bool* peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
@@ -6887,7 +6886,7 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
 #ifdef USE_CRYPTOPP
 bool MegaChatApiUnitaryTest::UNITARYTEST_EncryptMediaKeyWithEphemKey()
 {
-    std::cout << "          TEST - EncryptMediaKeyWithEphemKey" << std::endl;
+    LOG_debug << "TEST - EncryptMediaKeyWithEphemKey";
     std::string expectedKey = "IsynMDLBwlKQ3CSQcxQtqzZ";
     ::mega::byte keyEncryptIv[12] = {109,34,21,158,236,55,249,210,179,177,244,93};
     ::mega::byte mediaKey[16]     = {60,181,43,125,112,4,248,203,228,50,177,231,232,185,172,194};
@@ -6912,9 +6911,9 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_EncryptMediaKeyWithEphemKey()
     {
         ++failedTest;
         ++mFailedTests;
-        std::cout << "          TEST - EncryptMediaKeyWithEphemKey : - Expected encrypted key: " << expectedKey << "  doesn't match with obtained : " << outTest64Key << std::endl;
+        LOG_debug << "          TEST - EncryptMediaKeyWithEphemKey : - Expected encrypted key: " << expectedKey << "  doesn't match with obtained : " << outTest64Key;;
     }
-    std::cout << "          TEST - EncryptMediaKeyWithEphemKey : - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
+    LOG_debug << "          TEST - EncryptMediaKeyWithEphemKey : - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest;
     return !failedTest;
 }
 #endif

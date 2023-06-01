@@ -657,6 +657,7 @@ public:
     bool sendBye(int termCode);
 
     // Waiting room related commands
+    bool sendWrCommand(const std::string& commandStr, const std::set<karere::Id>& users, const bool all = false);
     bool sendWrPush(const std::set<karere::Id>& users, const bool all);
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);

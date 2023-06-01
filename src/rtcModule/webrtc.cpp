@@ -493,6 +493,17 @@ void Call::setWrJoiningState(WrState status)
     mWrJoiningState = status;
 }
 
+bool Call::checkWrFlag() const
+{
+    if (!isWrFlagEnabled())
+    {
+        RTCM_LOG_ERROR("Waiting room should be enabled for this call");
+        assert(false);
+        return false;
+    }
+    return true;
+}
+
 void Call::clearWrJoiningState()
 {
     mWrJoiningState = WrState::WR_NOT_ALLOWED;

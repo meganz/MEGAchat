@@ -2065,17 +2065,19 @@ bool SfuConnection::sendBye(int termCode)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool all)
+
+bool SfuConnection::sendWrCommand(const std::string& commandStr, const std::set<karere::Id>& users, const bool all)
 {
     if (users.empty() && !all)
     {
-        SFU_LOG_WARNING("sendWrPush: invalid arguments provided");
+        SFU_LOG_WARNING("%s: invalid arguments provided", commandStr.c_str());
         assert(false);
         return false;
     }
+
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(SfuConnection::CSFU_WR_PUSH.c_str(), json.GetAllocator());
+    cmdValue.SetString(commandStr.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
     addWrUsersArray(users, all, json);
 
@@ -2084,48 +2086,21 @@ bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool all
     json.Accept(writer);
     std::string command(buffer.GetString(), buffer.GetSize());
     return sendCommand(command);
+}
+
+bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool all)
+{
+    return sendWrCommand(SfuConnection::CSFU_WR_PUSH, users, all);
 }
 
 bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool all)
 {
-    if (users.empty() && !all)
-    {
-        SFU_LOG_WARNING("sendWrAllow: invalid arguments provided");
-        assert(false);
-        return false;
-    }
-    rapidjson::Document json(rapidjson::kObjectType);
-    rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(SfuConnection::CSFU_WR_ALLOW.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
-    addWrUsersArray(users, all, json);
-
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    json.Accept(writer);
-    std::string command(buffer.GetString(), buffer.GetSize());
-    return sendCommand(command);
+    return sendWrCommand(SfuConnection::CSFU_WR_ALLOW, users, all);
 }
 
 bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
 {
-    if (users.empty())
-    {
-        SFU_LOG_WARNING("sendWrKick: invalid arguments provided");
-        assert(false);
-        return false;
-    }
-    rapidjson::Document json(rapidjson::kObjectType);
-    rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(SfuConnection::CSFU_WR_KICK.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
-    addWrUsersArray(users, false, json);
-
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    json.Accept(writer);
-    std::string command(buffer.GetString(), buffer.GetSize());
-    return sendCommand(command);
+    return sendWrCommand(SfuConnection::CSFU_WR_KICK, users);
 }
 
 bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json)

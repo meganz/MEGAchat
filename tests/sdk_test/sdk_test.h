@@ -232,11 +232,11 @@ protected:
 
     // chatrooms auxiliar methods
 
-    void inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, int privilege,
+    void inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                        std::shared_ptr<TestChatRoomListener>chatroomListener);
 
 
-    void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, int privilege,
+    void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                                std::shared_ptr<TestChatRoomListener>chatroomListener);
 
     // calls auxiliar methods
@@ -659,8 +659,8 @@ public:
     bool processDeny(const std::string&, const std::string&) override;
     void logError(const char* error) override;
     bool handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/, const unsigned int /*nVideoTracks*/,
-                                       const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
-                                       const std::map<karere::Id, bool>& /*wrUsers*/) override;
+                     const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
+                     const std::map<karere::Id, bool>& /*wrUsers*/) override;
 
     bool handleWrDump(const std::map<karere::Id, bool>& /*users*/) override;
     bool handleWrEnter(const std::map<karere::Id, bool>& /*users*/) override;

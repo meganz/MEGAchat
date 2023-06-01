@@ -416,19 +416,10 @@ public:
     void setWrJoiningState(WrState status);
     void setPrevCid(Cid_t prevcid);
     Cid_t getPrevCid() const;
+    bool checkWrFlag() const;
 
     void setWrFlag(bool enabled)    { mIsWaitingRoomEnabled = enabled; }
     bool isWrFlagEnabled() const    { return mIsWaitingRoomEnabled;    }
-    bool checkWrFlag() const
-    {
-        if (!isWrFlagEnabled())
-        {
-            RTCM_LOG_ERROR("Waiting room should be enabled for this call");
-            assert(false);
-            return false;
-        }
-        return true;
-    }
 
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
