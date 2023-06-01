@@ -2655,97 +2655,92 @@ int MegaChatApiImpl::performRequest_removeSpeaker(MegaChatRequestPrivate* reques
 
 int MegaChatApiImpl::performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request)
 {
-        {
-            const auto handleList = request->getMegaHandleList();
-            bool allowAll = request->getFlag();
-            if (!allowAll && (!handleList || !handleList->size()))
-            {
-                request->getType() == MegaChatRequest::TYPE_WR_PUSH
-                    ? API_LOG_ERROR("MegaChatRequest::TYPE_WR_PUSH - Invalid list of users to be pushed in the waiting room",
-                                    request->getRequestString())
-                    : API_LOG_ERROR("MegaChatRequest::TYPE_WR_ALLOW - Invalid list of users to be allowed to JOIN");
+    const auto handleList = request->getMegaHandleList();
+    bool allowAll = request->getFlag();
+    if (!allowAll && (!handleList || !handleList->size()))
+    {
+        request->getType() == MegaChatRequest::TYPE_WR_PUSH
+            ? API_LOG_ERROR("MegaChatRequest::TYPE_WR_PUSH - Invalid list of users to be pushed in the waiting room",
+                            request->getRequestString())
+            : API_LOG_ERROR("MegaChatRequest::TYPE_WR_ALLOW - Invalid list of users to be allowed to JOIN");
 
-                return MegaChatError::ERROR_ARGS;
-            }
+        return MegaChatError::ERROR_ARGS;
+    }
 
-            auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
-            if (res.first != MegaChatError::ERROR_OK)
-            {
-                return res.first;
-            }
-            rtcModule::ICall* call= res.second;
-            const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
-            if (!waitingRoom)
-            {
-                // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
-                // however we also need to ensure, that we also have received proper information from SFU to
-                // initialize waiting room with users on it, and their joining permission
-                API_LOG_ERROR("MegaChatRequest::%s. Can't retrieve waiting room from karere chatroom. chatid: %s",
-                (request->getType() == MegaChatRequest::TYPE_WR_PUSH) ? "TYPE_WR_PUSH" : "TYPE_WR_ALLOW",
-                karere::Id(request->getChatHandle()).toString().c_str());
+    auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
+    if (res.first != MegaChatError::ERROR_OK)
+    {
+        return res.first;
+    }
+    rtcModule::ICall* call= res.second;
+    const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
+    if (!waitingRoom)
+    {
+        // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
+        // however we also need to ensure, that we also have received proper information from SFU to
+        // initialize waiting room with users on it, and their joining permission
+        API_LOG_ERROR("MegaChatRequest::%s. Can't retrieve waiting room from karere chatroom. chatid: %s",
+                      (request->getType() == MegaChatRequest::TYPE_WR_PUSH) ? "TYPE_WR_PUSH" : "TYPE_WR_ALLOW",
+                      karere::Id(request->getChatHandle()).toString().c_str());
 
-                assert(false);
-                return MegaChatError::ERROR_UNKNOWN;
-            }
+        assert(false);
+        return MegaChatError::ERROR_UNKNOWN;
+    }
 
-            std::set<karere::Id> users;
-            for (unsigned int i = 0; i < handleList->size(); ++i)
-            {
-                users.emplace(handleList->get(i));
-            }
+    std::set<karere::Id> users;
+    for (unsigned int i = 0; i < handleList->size(); ++i)
+    {
+        users.emplace(handleList->get(i));
+    }
 
-            request->getType() == MegaChatRequest::TYPE_WR_PUSH
-                ? call->pushUsersIntoWaitingRoom(users, allowAll)
-                : call->allowUsersJoinCall(users, allowAll);
+    request->getType() == MegaChatRequest::TYPE_WR_PUSH
+        ? call->pushUsersIntoWaitingRoom(users, allowAll)
+        : call->allowUsersJoinCall(users, allowAll);
 
-            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
-            return MegaChatError::ERROR_OK;
-        }
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
 }
 
 int MegaChatApiImpl::performRequest_kickUsersFromCall(MegaChatRequestPrivate* request)
 {
-        {
-            const auto handleList = request->getMegaHandleList();
-            if (!handleList || !handleList->size())
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK - Empty list of users to be kicked off");
-                return MegaChatError::ERROR_ARGS;
-            }
+    const auto handleList = request->getMegaHandleList();
+    if (!handleList || !handleList->size())
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK - Empty list of users to be kicked off");
+        return MegaChatError::ERROR_ARGS;
+    }
 
-            auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
-            if (res.first != MegaChatError::ERROR_OK)
-            {
-                return res.first;
-            }
+    auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
+    if (res.first != MegaChatError::ERROR_OK)
+    {
+        return res.first;
+    }
 
-            std::set<karere::Id> users;
-            for (unsigned int i = 0; i < handleList->size(); ++i)
-            {
-                users.emplace(handleList->get(i));
-            }
+    std::set<karere::Id> users;
+    for (unsigned int i = 0; i < handleList->size(); ++i)
+    {
+        users.emplace(handleList->get(i));
+    }
 
-            rtcModule::ICall* call= res.second;
-            const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
-            if (!waitingRoom)
-            {
-                // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
-                // however we also need to ensure, that we also have received proper information from SFU to
-                // initialize waiting room with users on it, and their joining permission
-                API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK. Can't retrieve waiting room from karere chatroom. chatid: %s",
-                karere::Id(request->getChatHandle()).toString().c_str());
+    rtcModule::ICall* call= res.second;
+    const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
+    if (!waitingRoom)
+    {
+        // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
+        // however we also need to ensure, that we also have received proper information from SFU to
+        // initialize waiting room with users on it, and their joining permission
+        API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK. Can't retrieve waiting room from karere chatroom. chatid: %s",
+                      karere::Id(request->getChatHandle()).toString().c_str());
 
-                assert(false);
-                return MegaChatError::ERROR_UNKNOWN;
-            }
+        assert(false);
+        return MegaChatError::ERROR_UNKNOWN;
+    }
 
-            call->kickUsersFromCall(users);
-            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
-            return MegaChatError::ERROR_OK;
-        }
-
+    call->kickUsersFromCall(users);
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
 }
 #endif // ifndef KARERE_DISABLE_WEBRTC
 
