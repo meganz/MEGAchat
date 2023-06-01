@@ -447,6 +447,7 @@ public:
     void pushIntoWr(const TermCode& termCode);
     bool dumpWrUsers(const std::map<karere::Id, bool>& wrUsers, bool clearCurrent);
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
+    bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;

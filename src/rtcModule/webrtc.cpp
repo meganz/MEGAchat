@@ -2297,68 +2297,12 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
 
 bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 {
-    if (!checkWrCommandReqs("WR_USERS_ALLOW", true /*mustBeModerator*/))
-    {
-        return false;
-    }
-
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_USERS_ALLOW : empty user list received");
-        assert(false);
-        return false;
-    }
-
-    if (!mWaitingRoom)
-    {
-        RTCM_LOG_WARNING("WR_USERS_ALLOW : mWaitingRoom is null");
-        assert(false);
-        mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
-    }
-
-    if (!mWaitingRoom->updateUsers(users, WrState::WR_ALLOWED))
-    {
-        RTCM_LOG_WARNING("WR_USERS_ALLOW : could not update users status in waiting room");
-        return false;
-    }
-
-    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
-    mCallHandler.onWrUsersAllow(*this, uhl.get());
-    return true;
+    return manageAllowedDeniedWrUSers(users, true /*allow*/, "WR_USERS_ALLOW");
 }
 
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
-    if (!checkWrCommandReqs("WR_USERS_DENY", true /*mustBeModerator*/))
-    {
-        return false;
-    }
-
-    if (users.empty())
-    {
-        RTCM_LOG_ERROR("WR_USERS_DENY : empty user list received");
-        assert(false);
-        return false;
-    }
-
-    if (!mWaitingRoom)
-    {
-        RTCM_LOG_WARNING("WR_USERS_DENY : mWaitingRoom is null");
-        assert(false);
-        mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
-    }
-
-    if (!mWaitingRoom->updateUsers(users, WrState::WR_NOT_ALLOWED))
-    {
-        RTCM_LOG_WARNING("WR_USERS_DENY : could not update users status in waiting room");
-        return false;
-    }
-
-    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
-    mCallHandler.onWrUsersDeny(*this, uhl.get());
-    return true;
+    return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
 }
 
 void Call::onSfuDisconnected()
@@ -2716,6 +2660,42 @@ bool Call::checkWrCommandReqs(std::string && commandStr, bool mustBeModerator)
         assert(false);
         return false;
     }
+    return true;
+}
+
+bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr)
+{
+    if (!checkWrCommandReqs(commandStr.c_str(), true /*mustBeModerator*/))
+    {
+        return false;
+    }
+
+    if (users.empty())
+    {
+        RTCM_LOG_ERROR("%s : empty user list received", commandStr.c_str());
+        assert(false);
+        return false;
+    }
+
+    if (!mWaitingRoom)
+    {
+        RTCM_LOG_WARNING("%s : mWaitingRoom is null", commandStr.c_str());
+        assert(false);
+        mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
+    }
+
+    if (!mWaitingRoom->updateUsers(users, allow ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED))
+    {
+        RTCM_LOG_WARNING("%s : could not update users status in waiting room", commandStr.c_str());
+        return false;
+    }
+
+    std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
+    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.val); });
+    allow
+        ? mCallHandler.onWrUsersAllow(*this, uhl.get())
+        : mCallHandler.onWrUsersDeny(*this, uhl.get());
+
     return true;
 }
 
