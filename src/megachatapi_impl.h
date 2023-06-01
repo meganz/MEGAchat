@@ -390,21 +390,12 @@ protected:
 
     int convertIntoValidStatus(const int status) const
     {
-        auto aux = static_cast<rtcModule::WrState>(status);
-        switch (aux)
+        switch (static_cast<rtcModule::WrState>(status))
         {
-            case rtcModule::WrState::WR_NOT_ALLOWED:
-                return MWR_NOT_ALLOWED;
-                break;
-
-            case rtcModule::WrState::WR_ALLOWED:
-                return MWR_ALLOWED;
-                break;
-
+            case rtcModule::WrState::WR_NOT_ALLOWED: return MWR_NOT_ALLOWED;
+            case rtcModule::WrState::WR_ALLOWED:     return MWR_ALLOWED;
             case rtcModule::WrState::WR_UNKNOWN:
-            default:
-                return MWR_UNKNOWN;
-                break;
+            default:                                 return MWR_UNKNOWN;
         }
     }
 
