@@ -321,43 +321,10 @@ public:
         return mWaitingRoomUsers.erase(userid);
     }
 
-    bool updateUsers(const std::set<karere::Id>& users, const WrState& status)
-    {
-        if (!isValidWrStatus(status) || users.empty())
-        {
-            return false;
-        }
-
-        std::for_each(users.begin(), users.end(), [this, &status](const auto &u)
-        {
-            mWaitingRoomUsers[u.val] = status;
-        });
-
-        return true;
-    }
-
+    bool updateUsers(const std::set<karere::Id>& users, const WrState& status);
+    std::vector<uint64_t> getPeers() const;
+    int getPeerStatus(const uint64_t& peerid) const;
     size_t size() const { return mWaitingRoomUsers.size(); }
-
-    std::vector<uint64_t> getPeers() const
-    {
-        std::vector<uint64_t> keys;
-        keys.reserve(mWaitingRoomUsers.size());
-        std::transform(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(),
-                       std::back_inserter(keys), [](const auto& pair) { return pair.first; });
-
-        return keys;
-    }
-
-    int getPeerStatus(const uint64_t& peerid) const
-    {
-        const auto& it = mWaitingRoomUsers.find(peerid);
-        if (it == mWaitingRoomUsers.end())
-        {
-            return static_cast<int>(WrState::WR_UNKNOWN);
-        }
-
-        return static_cast<int>(it->second);
-    }
 
 private:
     std::map<uint64_t, WrState> mWaitingRoomUsers;

@@ -354,15 +354,7 @@ public:
         return mWaitingRoomUsers ? mWaitingRoomUsers->size() : 0;
     }
 
-    mega::MegaHandleList* getPeers() const override
-    {
-        mega::MegaHandleList* peers = mega::MegaHandleList::createInstance();
-        if (!mWaitingRoomUsers) { return peers; }
-
-        std::vector<uint64_t> aux = mWaitingRoomUsers->getPeers();
-        std::for_each(aux.begin(), aux.end(), [peers](const auto &h) { peers->addMegaHandle(h); });
-        return peers;
-    }
+    mega::MegaHandleList* getPeers() const override;
 
     int getPeerStatus(const uint64_t& peerid) const override
     {

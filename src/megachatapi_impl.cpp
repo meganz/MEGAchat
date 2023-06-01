@@ -8096,6 +8096,16 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     return TERM_CODE_INVALID;
 }
 
+MegaHandleList* MegaChatWaitingRoomPrivate::getPeers() const
+{
+    MegaHandleList* peers = MegaHandleList::createInstance();
+    if (!mWaitingRoomUsers) { return peers; }
+
+    std::vector<uint64_t> aux = mWaitingRoomUsers->getPeers();
+    std::for_each(aux.begin(), aux.end(), [peers](const auto &h) { peers->addMegaHandle(h); });
+    return peers;
+}
+
 MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &/*sess*/)
 {
     return nullptr;

@@ -3691,6 +3691,31 @@ void RtcModuleSfu::handleNewCall(const karere::Id &chatid, const karere::Id &cal
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
+bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const WrState& status)
+{
+    if (!isValidWrStatus(status) || users.empty())
+    {
+        return false;
+    }
+
+    std::for_each(users.begin(), users.end(), [this, &status](const auto &u)
+                  {
+                      mWaitingRoomUsers[u.val] = status;
+                  });
+
+    return true;
+}
+
+std::vector<uint64_t> KarereWaitingRoom::getPeers() const
+{
+    std::vector<uint64_t> keys;
+    keys.reserve(mWaitingRoomUsers.size());
+    std::transform(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(),
+                   std::back_inserter(keys), [](const auto& pair) { return pair.first; });
+
+    return keys;
+}
+
 void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 {
     auto wptr = weakHandle();
