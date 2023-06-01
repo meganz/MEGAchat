@@ -789,7 +789,7 @@ void MeetingView::onWrShow()
 void MeetingView::onAllowJoin()
 {
     QString peerId = QInputDialog::getText(this, tr("Allow peer to Join"), tr("Enter peerId (B64)"));
-    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    std::unique_ptr<mega::MegaHandleList> handleList{mega::MegaHandleList::createInstance()};
     handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
     mMegaChatApi.allowUsersJoinCall(mChatid, handleList.get());
 }
@@ -797,7 +797,7 @@ void MeetingView::onAllowJoin()
 void MeetingView::onPushWr()
 {
     QString peerId = QInputDialog::getText(this, tr("Push user into Wr"), tr("Enter peerId (B64)"));
-    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    std::unique_ptr<mega::MegaHandleList> handleList{mega::MegaHandleList::createInstance()};
     handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
     mMegaChatApi.pushUsersIntoWaitingRoom(mChatid, handleList.get(), false);
 }
@@ -805,7 +805,7 @@ void MeetingView::onPushWr()
 void MeetingView::onKickWr()
 {
     QString peerId = QInputDialog::getText(this, tr("Kick user from call"), tr("Enter peerId (B64)"));
-    std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
+    std::unique_ptr<mega::MegaHandleList> handleList{mega::MegaHandleList::createInstance()};
     handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
     mMegaChatApi.kickUsersFromCall(mChatid, handleList.get());
 }
