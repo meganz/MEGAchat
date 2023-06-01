@@ -3806,76 +3806,6 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     unsigned a1 = 0;
     unsigned a2 = 1;
 
-    /* lambda functions to simplify some recurrent operations */
-    // gets a pointer to the local flag that indicates if we have reached an specific callstate
-    std::function<bool*(unsigned int, int)> getChatCallStateFlag =
-    [this](unsigned int index, int state) -> bool*
-    {
-        switch (state)
-        {
-            case MegaChatCall::CALL_STATUS_INITIAL:     return &mCallReceived[index];
-            case MegaChatCall::CALL_STATUS_CONNECTING:  return &mCallConnecting[index];
-            case MegaChatCall::CALL_STATUS_IN_PROGRESS: return &mCallInProgress[index];
-            default:                                    break;
-        }
-
-        ADD_FAILURE() << "Invalid account index";
-        return nullptr;
-    };
-
-    // resets the local flag that indicates if we have reached an specific call state
-    std::function<void(unsigned int, int)> resetTestChatCallState =
-    [getChatCallStateFlag](unsigned int index, int state)
-    {
-        bool* statusReceived = getChatCallStateFlag(index, state);
-        if (statusReceived)    { *statusReceived = false; }
-    };
-
-    // waits for a specific callstate
-    std::function<void(unsigned int, int)> waitForChatCallState =
-    [this, getChatCallStateFlag](unsigned int index, int state)
-    {
-        bool* statusReceived = getChatCallStateFlag(index, state);
-        if (statusReceived)
-        {
-            ASSERT_TRUE(waitForResponse(statusReceived)) <<
-                             "Timeout expired for receiving call state: " << state <<
-                             " for account index [" << index << "]";
-        }
-    };
-
-    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
-    // if call gets disconnected before action is executed, command queue will be cleared, so we need to wait
-    // until performer account is connected (CALL_STATUS_IN_PROGRESS) to SFU for that call and re-try <action>
-    std::function<void(unsigned int, int, bool*, const char *, unsigned int, std::function<void()>)> waitForCallAction =
-    [this, &resetTestChatCallState, &getChatCallStateFlag, &waitForChatCallState]
-    (unsigned int pIdx, int maxAttempts, bool* exitFlag,  const char* errMsg, unsigned int timeout, std::function<void()>action)
-    {
-        int retries = 0;
-        std::string errStr = errMsg ? errMsg : "executing provided action";
-        bool* callConnecting = getChatCallStateFlag(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
-        ASSERT_TRUE(callConnecting) << "Unknown flag CALL_STATUS_CONNECTING";
-        while (!*exitFlag)
-        {
-            ASSERT_TRUE(action) << "waitForCallAction: no valid action provided";
-
-            // reset call state flags to false before executing the required action
-            resetTestChatCallState(pIdx, MegaChatCall::CALL_STATUS_CONNECTING);
-            resetTestChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS);
-
-            // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
-            ASSERT_NO_FATAL_FAILURE({ action(); });
-            ASSERT_TRUE(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout)) << "Timeout expired for " << errStr;
-
-            // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>
-            if (*callConnecting)
-            {
-               ASSERT_LT(++retries, maxAttempts) << "Max attempts exceeded for " << errStr;
-               ASSERT_NO_FATAL_FAILURE({ waitForChatCallState(pIdx, MegaChatCall::CALL_STATUS_IN_PROGRESS); });
-            }
-        }
-    };
-
     std::function<void()> action = nullptr;
     bool* exitFlag = nullptr;
 
@@ -6000,6 +5930,63 @@ void MegaChatApiTest::inviteToChat (const unsigned int& a1, const unsigned int& 
     ASSERT_TRUE(waitForResponse(flagChatsUpdated1)) << "Failed to receive onChatsUpdate " << maxTimeout << " seconds";
     ASSERT_TRUE(isChatroomUpdated(a2, chatid)) << "Chatroom " << chatid << " is not included in onChatsUpdate";
     mChatListUpdated[a2].clear();
+}
+
+bool* MegaChatApiTest::getChatCallStateFlag (unsigned int index, int state)
+{
+    switch (state)
+    {
+    case megachat::MegaChatCall::CALL_STATUS_INITIAL:     return &mCallReceived[index];
+    case megachat::MegaChatCall::CALL_STATUS_CONNECTING:  return &mCallConnecting[index];
+    case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS: return &mCallInProgress[index];
+    default:                                              break;
+    }
+
+    ADD_FAILURE() << "Invalid account state";
+    return nullptr;
+}
+
+void MegaChatApiTest::resetTestChatCallState (unsigned int index, int state)
+{
+    bool* statusReceived = getChatCallStateFlag(index, state);
+    if (statusReceived)    { *statusReceived = false; }
+}
+
+void MegaChatApiTest::waitForChatCallState(unsigned int index, int state)
+{
+    bool* statusReceived = getChatCallStateFlag(index, state);
+    if (statusReceived)
+    {
+        ASSERT_TRUE(waitForResponse(statusReceived)) <<
+            "Timeout expired for receiving call state: " << state <<
+            " for account index [" << index << "]";
+    }
+}
+
+void MegaChatApiTest::waitForCallAction (unsigned int pIdx, int maxAttempts, bool* exitFlag,  const char* errMsg, unsigned int timeout, std::function<void()>action)
+{
+    int retries = 0;
+    std::string errStr = errMsg ? errMsg : "executing provided action";
+    bool* callConnecting = getChatCallStateFlag(pIdx, megachat::MegaChatCall::CALL_STATUS_CONNECTING);
+    while (!*exitFlag)
+    {
+        ASSERT_TRUE(action) << "waitForCallAction: no valid action provided";
+
+        // reset call state flags to false before executing the required action
+        resetTestChatCallState(pIdx, megachat::MegaChatCall::CALL_STATUS_CONNECTING);
+        resetTestChatCallState(pIdx, megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS);
+
+        // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
+        action();
+        ASSERT_TRUE(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout)) << "Timeout expired for " << errStr;
+
+        // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>
+        if (*callConnecting)
+        {
+            ASSERT_LT(++retries, maxAttempts) << "Max attempts exceeded for " << errStr;
+            ASSERT_NO_FATAL_FAILURE({ waitForChatCallState(pIdx, megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS); });
+        }
+    }
 }
 
 void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsigned int& a2, const MegaChatHandle& uh, const MegaChatHandle& chatid,
