@@ -2065,7 +2065,7 @@ bool SfuConnection::sendBye(int termCode)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool& all)
+bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool all)
 {
     if (users.empty() && !all)
     {
@@ -2086,7 +2086,7 @@ bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool& al
     return sendCommand(command);
 }
 
-bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool& all)
+bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool all)
 {
     if (users.empty() && !all)
     {
@@ -2128,7 +2128,7 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
     return sendCommand(command);
 }
 
-bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool& all, rapidjson::Document& json)
+bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json)
 {
     assert(!users.empty() || all);
     if (users.empty())
