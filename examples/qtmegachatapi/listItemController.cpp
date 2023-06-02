@@ -177,6 +177,15 @@ void ChatListItemController::fetchScheduledMeetingEvents()
     mMegaChatApi->fetchScheduledMeetingOccurrencesByChat(mItemId, since);
 }
 
+void ChatListItemController::endCall()
+{
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi->getChatCall(mItemId));
+    if (call)
+    {
+        mMegaChatApi->endChatCall(call->getCallId());
+    }
+}
+
 void ChatListItemController::setTitle()
 {
     std::string title;

@@ -500,6 +500,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actTopic = roomMenu->addAction(tr("Set title"));
     connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));
 
+    auto actEndCall = roomMenu->addAction(tr("End call for all"));
+    connect(actEndCall, SIGNAL(triggered()), mController, SLOT(endCall()));
+
     auto actArchive = roomMenu->addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), mController, SLOT(archiveChat(bool)));
     actArchive->setCheckable(true);

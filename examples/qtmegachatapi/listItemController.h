@@ -63,6 +63,7 @@ public slots:
     void fetchScheduledMeetingEvents();
     void leaveGroupChat();
     void setTitle();
+    void endCall();
     void truncateChat();
     void queryChatLink();
     void createChatLink();
