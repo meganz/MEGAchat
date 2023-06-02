@@ -193,8 +193,8 @@ protected:
 
     /* select a group chat room, by default with PRIV_MODERATOR for primary account
      * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param */
-    megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers, int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN, bool create = true, bool publicChat = false, bool meetingRoom = false, bool waitingRoom = false);
+    megachat::MegaChatHandle getGroupChatRoom(const unsigned int a1, const  unsigned int a2, megachat::MegaChatPeerList* peers, const int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN,
+                                              const bool create = true, const bool publicChat = false, const bool meetingRoom = false, const bool waitingRoom = false);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
