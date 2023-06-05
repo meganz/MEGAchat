@@ -354,6 +354,7 @@ void Call::enableAudioLevelMonitor(bool enable)
     mAudioLevelMonitor = enable;
     for (auto& itSession : mSessions)
     {
+        if (!itSession.second->getAudioSlot()) { continue; }
         itSession.second->getAudioSlot()->enableAudioMonitor(enable);
     }
 }
@@ -3788,8 +3789,13 @@ void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
 void RemoteAudioSlot::enableAudioMonitor(bool enable)
 {
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
-    webrtc::AudioTrackInterface *audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
-    assert(audioTrack);
+    webrtc::AudioTrackInterface* audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
+    if (!audioTrack)
+    {
+        assert(false);
+        return;
+    }
+
     if (enable && !mAudioLevelMonitorEnabled)
     {
         mAudioLevelMonitorEnabled = true;
