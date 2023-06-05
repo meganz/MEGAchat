@@ -1342,24 +1342,38 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     // we want to continue with call unless all ephemeral keys verification fails
     // for those peers without a valid derived ephemeral key, our client won't be able to encrypt/decrypt any media key sent or received by that client
-    ::promise::Promise<void> keyDerivationPms = ::promise::Promise<void>();
+    std::shared_ptr<::promise::Promise<void>> keyDerivationPms(new ::promise::Promise<void>());
     if (peers.empty())
     {
-        keyDerivationPms.resolve();
+        keyDerivationPms->resolve();
     }
 
     const auto max = peers.size();
-    std::vector <bool> keysVerified;
-    auto onKeyVerified = [&max, &keysVerified, &keyDerivationPms](const bool verified) -> void
+    std::shared_ptr<std::vector <bool>> keysVerified(new std::vector <bool>());
+    auto onKeyVerified = [max, keysVerified, keyDerivationPms](const bool verified) -> void
     {
-        keysVerified.emplace_back(verified);
-        if (keysVerified.size() >= max)
+        if (!keysVerified)
         {
-            keyDerivationPms.resolve();
+            RTCM_LOG_WARNING("handleAnswerCommand: invalid keysVerified at onKeyVerified");
+            assert(false);
+            return;
+        }
+
+        if (!keyDerivationPms)
+        {
+            RTCM_LOG_WARNING("handleAnswerCommand: invalid keyDerivationPms at onKeyVerified");
+            assert(false);
+            return;
+        }
+
+        keysVerified->emplace_back(verified);
+        if (keysVerified->size() >= max)
+        {
+            keyDerivationPms->resolve();
         }
     };
 
-    auto addPeerWithEphemKey = [this, &onKeyVerified](sfu::Peer& peer, const bool keyVerified, const std::string& ephemeralPubKeyDerived) -> void
+    auto addPeerWithEphemKey = [this, onKeyVerified](sfu::Peer& peer, const bool keyVerified, const std::string& ephemeralPubKeyDerived) -> void
     {
         addPeer(peer, ephemeralPubKeyDerived);
         onKeyVerified(keyVerified);
@@ -1449,15 +1463,22 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     // wait until all peers ephemeral keys have been verified and derived
     auto auxwptr = weakHandle();
     keyDerivationPms
-    .then([auxwptr, vthumbs, speakers, duration, sdp, keysVerified, this]
+    ->then([auxwptr, vthumbs, speakers, duration, sdp, keysVerified, this]
     {
         if (auxwptr.deleted())
         {
             return;
         }
 
-        bool anyVerified = std::any_of(keysVerified.begin(), keysVerified.end(), [](const auto& kv) { return kv; });
-        if (!keysVerified.empty() && !anyVerified)
+        if (!keysVerified)
+        {
+            RTCM_LOG_WARNING("handleAnswerCommand: invalid keysVerified at keyDerivationPms resolved");
+            assert(false);
+            return;
+        }
+
+        bool anyVerified = std::any_of(keysVerified->begin(), keysVerified->end(), [](const auto& kv) { return kv; });
+        if (!keysVerified->empty() && !anyVerified)
         {
             orderedCallDisconnect(TermCode::kErrorCrypto, "Can't verify any of the ephemeral keys on any peer received in ANSWER command");
             return;
