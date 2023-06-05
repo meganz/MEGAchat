@@ -1343,15 +1343,14 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     // we want to continue with call unless all ephemeral keys verification fails
     // for those peers without a valid derived ephemeral key, our client won't be able to encrypt/decrypt any media key sent or received by that client
-    std::shared_ptr<::promise::Promise<void>> keyDerivationPms(new ::promise::Promise<void>());
+    auto keyDerivationPms = std::make_shared<::promise::Promise<void>>();
     if (peers.empty())
     {
         keyDerivationPms->resolve();
     }
 
-    const auto max = peers.size();
-    std::shared_ptr<std::vector <bool>> keysVerified(new std::vector <bool>());
-    auto onKeyVerified = [max, keysVerified, keyDerivationPms](const bool verified) -> void
+    auto keysVerified = std::make_shared<std::vector<bool>>();
+    auto onKeyVerified = [max = peers.size(), keysVerified, keyDerivationPms](const bool verified) -> void
     {
         if (!keysVerified)
         {
