@@ -4110,7 +4110,6 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // Get a group chatroom with both users
     const MegaChatHandle uh = user->getHandle();
     std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
-    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
     const MegaChatHandle chatid = getGroupChatRoom(a1, a2, peers.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
                                               true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/);
 
@@ -5187,135 +5186,188 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
     return false;
 }
 
-MegaChatHandle MegaChatApiTest::getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                                 MegaChatPeerList *peers, int a1Priv, bool create, bool publicChat, bool meetingRoom, bool waitingRoom)
+MegaChatHandle MegaChatApiTest::getGroupChatRoom(const unsigned int a1, const  unsigned int a2, MegaChatPeerList* peers,
+                                                 const int a1Priv, const bool create, const bool publicChat, const bool meetingRoom, const bool waitingRoom)
+
 {
-    std::string logMsg;
-    MegaChatRoomList *chats = megaChatApi[a1]->getChatRooms();
-    bool chatroomExist = false;
-    MegaChatHandle targetChatid = MEGACHAT_INVALID_HANDLE;
-    for (unsigned i = 0; i < chats->size() && !chatroomExist; ++i)
+    auto waitForChatCreation = [this, &a1, &a2](ChatRequestTracker& crtCreateChat, MegaChatHandle& targetChatid, bool* chatItemPrimaryReceived, bool* flagChatdOnline1,
+                                                bool* chatItemSecondaryReceived, bool* flagChatdOnline2, const bool waitForSecondary) -> MegaChatHandle
     {
-        const MegaChatRoom *chat = chats->get(i);
-        if (!chat->isGroup() || !chat->isActive()
-                || (chat->isPublic() != publicChat)
-                || (chat->isWaitingRoom() != waitingRoom)
-                || (chat->isMeeting() != meetingRoom)
-                || ((int)chat->getPeerCount() != peers->size())
-                || (a1Priv != megachat::MegaChatPeerList::PRIV_UNKNOWN && a1Priv != chat->getOwnPrivilege()))
+        /** Checkups for primary account **/
+        if (crtCreateChat.waitForResult() != MegaChatError::ERROR_OK)
         {
-            continue;
+            LOG_err << "getGroupChatRoom: Failed to create chatroom. Error: " << crtCreateChat.getErrorString();
+            return MEGACHAT_INVALID_HANDLE;
         }
 
-        for (unsigned userIndex = 0; userIndex < chat->getPeerCount(); userIndex++)
+        targetChatid = crtCreateChat.getChatHandle();
+        if (targetChatid == MEGACHAT_INVALID_HANDLE)
         {
-            if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
+            LOG_err << "getGroupChatRoom: Wrong chat id";
+            return MEGACHAT_INVALID_HANDLE;
+        }
+
+        unique_ptr<char[]> base64(::MegaApi::handleToBase64(targetChatid));
+        LOG_err << "getGroupChatRoom: New chat created, chatid: " << base64.get();
+
+        if (!waitForResponse(chatItemPrimaryReceived))
+        {
+            LOG_err << "getGroupChatRoom: Expired timeout for receiving the new chat list item";
+            return MEGACHAT_INVALID_HANDLE;
+        }
+
+        // wait for login into chatd for the new groupchat
+        while (megaChatApi[a1]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+        {
+            LOG_debug << "getGroupChatRoom: Waiting for connection to chatd for new chat before proceeding with test...";
+            if (!waitForResponse(flagChatdOnline1))
             {
-                bool a2LoggedIn = (megaChatApi[a2] &&
-                                   (megaChatApi[a2]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
-                                    megaChatApi[a2]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION));
+                LOG_debug << "getGroupChatRoom: Timeout expired for connecting to chatd after creation";
+                return MEGACHAT_INVALID_HANDLE;
+            }
+            *flagChatdOnline1 = false;
+        }
 
-                MegaChatRoom *chatToCheck = a2LoggedIn ? megaChatApi[a2]->getChatRoom(chat->getChatId()) : NULL;
-                if (!a2LoggedIn || (chatToCheck))
+        // If we have created chatroom with no participants (except creator) -> return
+        if (!waitForSecondary) { return targetChatid; }
+
+        /** Checkups for secondary account **/
+
+        // since we may have multiple notifications for other chats, check we received the right one
+        std::unique_ptr<MegaChatListItem> chatItemSecondaryCreated;
+        while (!chatItemSecondaryCreated)
+        {
+            if (!waitForResponse(chatItemSecondaryReceived))
+            {
+                LOG_err << "getGroupChatRoom: Expired timeout for receiving the new chat list item";
+                return MEGACHAT_INVALID_HANDLE;
+            }
+            *chatItemSecondaryReceived = false;
+
+            chatItemSecondaryCreated.reset(megaChatApi[a2]->getChatListItem(targetChatid));
+            if (chatItemSecondaryCreated && chatItemSecondaryCreated->getChatId() == targetChatid)
+            {
+                break;
+            }
+       }
+
+       // wait for login into chatd for the new groupchat
+       while (megaChatApi[a2]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+       {
+           LOG_debug << "getGroupChatRoom: Waiting for connection to chatd for new chat before proceeding with test...";
+           if (!waitForResponse(flagChatdOnline2))
+           {
+                LOG_err << "getGroupChatRoom: Timeout expired for connecting to chatd after creation";
+                return MEGACHAT_INVALID_HANDLE;
+           }
+           *flagChatdOnline2 = false;
+       }
+        return targetChatid;
+    };
+
+    auto createChat = [this, &a1, &a2, &waitForChatCreation, peers](MegaChatHandle& targetChatid, const bool waitingRoom, const bool meetingRoom, const bool publicChat) -> MegaChatHandle
+    {
+        ChatRequestTracker crtCreateChat;
+        bool* chatItemPrimaryReceived = &chatItemUpdated[a1]; *chatItemPrimaryReceived = false;
+        bool* flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
+        bool* chatItemSecondaryReceived = &chatItemUpdated[a2]; *chatItemSecondaryReceived = false;
+        bool* flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
+        const std::string title ="chat_" + std::to_string(m_time(nullptr));
+
+        if (meetingRoom)
+        {
+            if (peers->size()) { return MEGACHAT_INVALID_HANDLE; } // there's no interface to create a Meeting room with more participants
+            megaChatApi[a1]->createMeeting(title.c_str(), false /*speakRequest*/, waitingRoom, false /*openInvite*/, &crtCreateChat);
+        }
+        else if (publicChat)
+        {
+            megaChatApi[a1]->createPublicChat(peers, title.c_str(), &crtCreateChat);
+        }
+        else
+        {
+            megaChatApi[a1]->createChat(true, peers, &crtCreateChat);
+        }
+
+
+        bool waitForSecondaryAccount = false;
+        std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
+        if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+        {
+            for (int i = 0; peers->size(); ++i)
+            {
+                if (peers->getPeerHandle(i) == user->getHandle())
                 {
-                    delete chatToCheck;
-                    chatroomExist = true;
-                    targetChatid = chat->getChatId();
-                    unique_ptr<char[]> base64(::MegaApi::handleToBase64(targetChatid));
-                    logMsg.append("getGroupChatRoom: existing chat found, chatid: ").append(base64.get());
-
-                    // --> Ensure we are connected to chatd for the chatroom
-                    int connState = megaChatApi[a1]->getChatConnectionState(targetChatid);
-                    EXPECT_EQ(connState, MegaChatApi::CHAT_CONNECTION_ONLINE) <<
-                                     "Not connected to chatd for account " << (a1+1) << ": " << account(a1).getEmail();
-                    if (connState != MegaChatApi::CHAT_CONNECTION_ONLINE) return MEGACHAT_INVALID_HANDLE;
-                    if (a2LoggedIn)
-                    {
-                        connState = megaChatApi[a2]->getChatConnectionState(targetChatid);
-                        EXPECT_EQ(megaChatApi[a2]->getChatConnectionState(targetChatid), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
-                                     "Not connected to chatd for account " << (a2+1) << ": " << account(a2).getEmail();
-                        if (connState != MegaChatApi::CHAT_CONNECTION_ONLINE) return MEGACHAT_INVALID_HANDLE;
-                    }
+                    waitForSecondaryAccount = true;
                     break;
                 }
             }
         }
-    }
 
-    delete chats;
-    chats = NULL;
+        return waitForChatCreation(crtCreateChat, targetChatid, chatItemPrimaryReceived, flagChatdOnline1, chatItemSecondaryReceived, flagChatdOnline2, waitForSecondaryAccount);
+    };
 
-    if (!chatroomExist && create)
+    auto findChat = [this, &a1, &a2](const bool waitingRoom, const bool meetingRoom, const bool publicChat, const MegaChatPeerList* peers, const int a1Priv) -> MegaChatHandle
     {
-        bool *chatItemPrimaryReceived = &chatItemUpdated[a1]; *chatItemPrimaryReceived = false;
-        bool *chatItemSecondaryReceived = &chatItemUpdated[a2]; *chatItemSecondaryReceived = false;
-        bool *flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
-        bool *flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
-        ChatRequestTracker crtCreateChat;
-        megaChatApi[a1]->createChat(true, peers, &crtCreateChat);
-        auto result = crtCreateChat.waitForResult();
-        EXPECT_EQ(result, MegaChatError::ERROR_OK) << "Failed to create groupchat. Error: " << crtCreateChat.getErrorString();
-        if (result != MegaChatError::ERROR_OK) return MEGACHAT_INVALID_HANDLE;
-        targetChatid = crtCreateChat.getChatHandle();
-        EXPECT_NE(targetChatid, MEGACHAT_INVALID_HANDLE) << "Wrong chat id";
-        if (targetChatid == MEGACHAT_INVALID_HANDLE) return MEGACHAT_INVALID_HANDLE;
-
-        bool responseOk = waitForResponse(chatItemPrimaryReceived);
-        EXPECT_TRUE(responseOk) << "Expired timeout for receiving the new chat list item";
-        if (!responseOk) return MEGACHAT_INVALID_HANDLE;
-
-        unique_ptr<char[]> base64(::MegaApi::handleToBase64(targetChatid));
-        logMsg.append("getGroupChatRoom: new chat created, chatid: ").append(base64.get());
-        // wait for login into chatd for the new groupchat
-        while (megaChatApi[a1]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+        bool chatroomExist = false;
+        std::unique_ptr<MegaChatRoomList> chats(megaChatApi[a1]->getChatRooms());
+        MegaChatHandle targetChatid = MEGACHAT_INVALID_HANDLE;
+        for (unsigned i = 0; i < chats->size() && !chatroomExist; ++i)
         {
-            postLog("Waiting for connection to chatd for new chat before proceeding with test...");
-            responseOk = waitForResponse(flagChatdOnline1);
-            EXPECT_TRUE(responseOk) << "Timeout expired for connecting to chatd after creation";
-            if (!responseOk) return MEGACHAT_INVALID_HANDLE;
-            *flagChatdOnline1 = false;
-        }
-
-        if (!meetingRoom)
-        {
-            // since we may have multiple notifications for other chats, check we received the right one
-            MegaChatListItem *chatItemSecondaryCreated = NULL;
-            do
+            const MegaChatRoom* chat = chats->get(i);
+            if (!chat->isGroup() || !chat->isActive()
+                || (chat->isPublic() != publicChat)
+                || (chat->isWaitingRoom() != waitingRoom)
+                || (chat->isMeeting() != meetingRoom)
+                || (static_cast<int>(chat->getPeerCount()) != peers->size())
+                || (a1Priv != megachat::MegaChatPeerList::PRIV_UNKNOWN && a1Priv != chat->getOwnPrivilege()))
             {
-                responseOk = waitForResponse(chatItemSecondaryReceived);
-                EXPECT_TRUE(responseOk) << "Expired timeout for receiving the new chat list item";
-                if (!responseOk) return MEGACHAT_INVALID_HANDLE;
-                *chatItemSecondaryReceived = false;
+                continue;
+            }
 
-                chatItemSecondaryCreated = megaChatApi[a2]->getChatListItem(targetChatid);
-                if (!chatItemSecondaryCreated)
+            for (unsigned userIndex = 0; userIndex < chat->getPeerCount(); ++userIndex)
+            {
+                if (chat->getPeerHandle(userIndex) == peers->getPeerHandle(0))
                 {
-                    continue;
-                }
-                else
-                {
-                    if (chatItemSecondaryCreated->getChatId() != targetChatid)
+                    bool a2LoggedIn = (megaChatApi[a2] &&
+                                       (megaChatApi[a2]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
+                                        megaChatApi[a2]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION));
+
+                    std::unique_ptr<MegaChatRoom> chatToCheck (a2LoggedIn ? megaChatApi[a2]->getChatRoom(chat->getChatId()) : nullptr);
+                    if (!a2LoggedIn || (chatToCheck))
                     {
-                        delete chatItemSecondaryCreated; chatItemSecondaryCreated = NULL;
+                        unique_ptr<char[]> base64(::MegaApi::handleToBase64(targetChatid));
+                        LOG_debug << "getGroupChatRoom: getGroupChatRoom: existing chat found, chatid: " << base64.get();
+
+                        chatroomExist = true;
+                        targetChatid = chat->getChatId();
+
+                        // --> Ensure we are connected to chatd for the chatroom
+                        if (megaChatApi[a1]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+                        {
+                            LOG_err << "getGroupChatRoom: Not connected to chatd for account " << (a1+1) << ": " << account(a1).getEmail();
+                            return MEGACHAT_INVALID_HANDLE;
+                        }
+
+                        if (a2LoggedIn && megaChatApi[a2]->getChatConnectionState(targetChatid != MegaChatApi::CHAT_CONNECTION_ONLINE))
+                        {
+                            LOG_err << "getGroupChatRoom: Not connected to chatd for account " << (a2+1) << ": " << account(a2).getEmail();
+                            return MEGACHAT_INVALID_HANDLE;
+                        }
+                        break;
                     }
                 }
-            } while (!chatItemSecondaryCreated);
-
-            delete chatItemSecondaryCreated;    chatItemSecondaryCreated = NULL;
-
-            // wait for login into chatd for the new groupchat
-            while (megaChatApi[a2]->getChatConnectionState(targetChatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
-            {
-                postLog("Waiting for connection to chatd for new chat before proceeding with test...");
-                responseOk = waitForResponse(flagChatdOnline2);
-                EXPECT_TRUE(responseOk) << "Timeout expired for connecting to chatd after creation";
-                if (!responseOk) return MEGACHAT_INVALID_HANDLE;
-                *flagChatdOnline2 = false;
             }
         }
-    }
+        return targetChatid;
+    };
 
-    postLog(logMsg);
+    // find a chatroom with requirements specified in params
+    MegaChatHandle targetChatid = findChat(waitingRoom, meetingRoom, publicChat, peers, a1Priv);
+    if (targetChatid == MEGACHAT_INVALID_HANDLE && create)
+    {
+        // create chat as create flag is true and no one was found with specified requirements
+        return createChat(targetChatid, waitingRoom, meetingRoom, publicChat);
+    }
     return targetChatid;
 }
 
