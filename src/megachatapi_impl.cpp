@@ -2160,6 +2160,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
+                API_LOG_ERROR("Request(TYPE_SET_RETENTION_TIME). Invalid chatid");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
@@ -2167,11 +2168,13 @@ void MegaChatApiImpl::sendPendingRequests()
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
+                API_LOG_ERROR("Request(TYPE_SET_RETENTION_TIME). Chatroom not found. Chatid: %s", karere::Id(chatid).toString().c_str());
                 errorCode = MegaChatError::ERROR_NOENT;
                 break;
             }
             if (chatroom->ownPriv() != static_cast<Priv>(MegaChatPeerList::PRIV_MODERATOR))
             {
+                API_LOG_ERROR("Request(TYPE_SET_RETENTION_TIME). Insufficient permissions for chatroom: %s", karere::Id(chatid).toString().c_str());
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -2186,7 +2189,7 @@ void MegaChatApiImpl::sendPendingRequests()
             })
             .fail([request, this](const ::promise::Error& err)
             {
-                API_LOG_ERROR("Error setting retention time : %s", err.what());
+                API_LOG_ERROR("Request(TYPE_SET_RETENTION_TIME). Error setting retention time. %s", err.what());
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
