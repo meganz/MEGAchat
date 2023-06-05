@@ -1352,6 +1352,13 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     auto keysVerified = std::make_shared<std::vector<bool>>();
     auto onKeyVerified = [max = peers.size(), keysVerified, keyDerivationPms](const bool verified) -> void
     {
+        if (keyDerivationPms->done())
+        {
+            RTCM_LOG_WARNING("handleAnswerCommand: keyDerivationPms already resolved");
+            assert(keyDerivationPms->succeeded());
+            return;
+        }
+
         if (!keysVerified)
         {
             RTCM_LOG_WARNING("handleAnswerCommand: invalid keysVerified at onKeyVerified");
@@ -1367,14 +1374,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         }
 
         keysVerified->emplace_back(verified);
-        if (keysVerified->size() >= max)
+        if (keysVerified->size() == max)
         {
-            if (keysVerified->size() > max)
-            {
-                RTCM_LOG_WARNING("handleAnswerCommand: keysVerified->size(%d) > max(%d)",
-                                 keysVerified->size(), max);
-                return;
-            }
             keyDerivationPms->resolve();
         }
     };
