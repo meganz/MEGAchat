@@ -4275,6 +4275,7 @@ void GroupChatRoom::setChatPrivateMode()
     }
 
     //Update strongvelope
+    KR_LOG_DEBUG("GroupChatRoom::setChatPrivateMode: EKR enabled (private chat)");
     chat().crypto()->setPrivateChatMode();
 
     //Update cache updating mode and ensure that meeting field is disabled (0)
