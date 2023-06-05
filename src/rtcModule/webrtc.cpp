@@ -1370,6 +1370,12 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         keysVerified->emplace_back(verified);
         if (keysVerified->size() >= max)
         {
+            if (keysVerified->size() > max)
+            {
+                RTCM_LOG_WARNING("handleAnswerCommand: keysVerified->size(%d) > max(%d)",
+                                 keysVerified->size(), max);
+                return;
+            }
             keyDerivationPms->resolve();
         }
     };
@@ -3792,6 +3798,7 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
     webrtc::AudioTrackInterface* audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
     if (!audioTrack)
     {
+        RTCM_LOG_WARNING("enableAudioMonitor: non valid audiotrack");
         assert(false);
         return;
     }
