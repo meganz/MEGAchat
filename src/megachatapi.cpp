@@ -1052,6 +1052,11 @@ void MegaChatApi::pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequest
 
 #ifndef KARERE_DISABLE_WEBRTC
 
+MegaStringList* MegaChatApi::getChatScreenDevices()
+{
+    return pImpl->getChatScreenDevices();
+}
+
 MegaStringList *MegaChatApi::getChatVideoInDevices()
 {
     return pImpl->getChatVideoInDevices();

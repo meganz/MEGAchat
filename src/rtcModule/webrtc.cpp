@@ -3185,6 +3185,11 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
     }
 }
 
+std::set<std::pair<long int, std::string>> RtcModuleSfu::getScreenDevices()
+{
+    return mVideoDevice->getScreenDevices();
+}
+
 promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey)
 {
     // add chatid to CallsAttempts to avoid multiple start call attempts

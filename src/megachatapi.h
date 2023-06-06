@@ -5649,6 +5649,16 @@ public:
     // Video device management
 
     /**
+     * @brief Returns a list with the names of available screen devices
+     *
+     * If no device is found, it returns an empty list.
+     * You take the ownership of the returned value
+     *
+     * @return Names of the available screen devices
+     */
+    mega::MegaStringList* getChatScreenDevices();
+
+    /**
      * @brief Returns a list with the names of available video devices available
      *
      * If no device is found, it returns an empty list.

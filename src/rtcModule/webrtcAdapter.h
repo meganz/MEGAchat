@@ -433,6 +433,7 @@ public:
     virtual void releaseDevice() = 0;
     virtual webrtc::VideoTrackSourceInterface* getVideoTrackSource() = 0;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    static std::set<std::pair<long int, std::string>> getScreenDevices();
 };
 
 class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoManager
@@ -543,6 +544,27 @@ public:
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override
     {
         mBroadcaster.RemoveSink(sink);
+    }
+
+    static std::set<std::pair<long int, std::string>> getScreenDevicesList()
+    {
+        std::set<std::pair<long int, std::string>> list;
+        const webrtc::DesktopCaptureOptions options = webrtc::DesktopCaptureOptions::CreateDefault();
+        std::unique_ptr<webrtc::DesktopCapturer> screenCapturer = webrtc::DesktopCapturer::CreateScreenCapturer(options);
+        if (!screenCapturer)
+        {
+            return list;
+        }
+
+        webrtc::DesktopCapturer::SourceList sourceList;
+        if (screenCapturer->GetSourceList(&sourceList))
+        {
+            std::for_each(sourceList.begin(), sourceList.end(), [&list](const webrtc::DesktopCapturer::Source& s)
+            {
+                list.insert(std::make_pair(s.id, s.title));
+            });
+        }
+        return list;
     }
 
 protected:

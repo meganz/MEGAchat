@@ -5574,6 +5574,21 @@ bool MegaChatApiImpl::hasChatOptionEnabled(int option, int chatOptionsBitMask)
 
 #ifndef KARERE_DISABLE_WEBRTC
 
+MegaStringList* MegaChatApiImpl::getChatScreenDevices()
+{
+    MegaStringList* sl = MegaStringList::createInstance();
+    sdkMutex.lock();
+    if (mClient && mClient->rtc)
+    {
+        std::set<std::pair<long int, std::string>> l = mClient->rtc->getScreenDevices();
+        std::for_each(l.begin(), l.end(), [sl, l](const std::pair<long int, std::string>& s)
+        {
+            sl->add(s.second.c_str());
+        });
+    }
+    return sl;
+}
+
 MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
 {
     std::set<std::string> devicesVector;

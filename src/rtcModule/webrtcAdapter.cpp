@@ -302,6 +302,17 @@ std::set<std::pair<std::string, std::string>> VideoManager::getVideoDevices()
     #endif
 }
 
+std::set<std::pair<long int, std::string>> VideoManager::getScreenDevices()
+{
+ #ifdef __APPLE__
+         // TODO: return OBJCCaptureModule::getScreenDevicesList();
+ #elif __ANDROID__
+         // TODO: return CaptureModuleAndroid::getScreenDevicesList();
+ #else
+        return CaptureScreenModuleLinux::getScreenDevicesList();
+ #endif
+}
+
 RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv, uint32_t mid)
     : mPeer(peer)
     , mCryptoMeetings(cryptoMeetings)
