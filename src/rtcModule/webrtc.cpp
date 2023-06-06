@@ -2663,7 +2663,7 @@ void Call::takeVideoDevice()
 {
     if (!mVideoManager)
     {
-        mRtc.takeDevice();
+        mRtc.takeVideoDevice();
         mVideoManager = mRtc.getVideoDevice();
     }
 }
@@ -2672,7 +2672,7 @@ void Call::releaseVideoDevice()
 {
     if (mVideoManager)
     {
-        mRtc.releaseDevice();
+        mRtc.releaseVideoDevice();
         mVideoManager = nullptr;
     }
 }
@@ -3163,7 +3163,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device)
                 }
             }
 
-            changeDevice(it->second, shouldOpen);
+            changeVideoDevice(it->second, shouldOpen);
 
             for (auto& call : calls)
             {
@@ -3238,17 +3238,17 @@ promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere:
     });
 }
 
-void RtcModuleSfu::takeDevice()
+void RtcModuleSfu::takeVideoDevice()
 {
     if (!mDeviceTakenCount)
     {
-        openDevice();
+        openVideoDevice();
     }
 
     mDeviceTakenCount++;
 }
 
-void RtcModuleSfu::releaseDevice()
+void RtcModuleSfu::releaseVideoDevice()
 {
     if (mDeviceTakenCount > 0)
     {
@@ -3417,7 +3417,7 @@ artc::VideoManager *RtcModuleSfu::getVideoDevice()
     return mVideoDevice.get();
 }
 
-void RtcModuleSfu::changeDevice(const std::string &device, bool shouldOpen)
+void RtcModuleSfu::changeVideoDevice(const std::string &device, bool shouldOpen)
 {
     if (mVideoDevice)
     {
@@ -3428,11 +3428,11 @@ void RtcModuleSfu::changeDevice(const std::string &device, bool shouldOpen)
     mVideoDeviceSelected = device;
     if (shouldOpen)
     {
-        openDevice();
+        openVideoDevice();
     }
 }
 
-void RtcModuleSfu::openDevice()
+void RtcModuleSfu::openVideoDevice()
 {
     std::string videoDevice = mVideoDeviceSelected; // get default video device
     if (videoDevice.empty())

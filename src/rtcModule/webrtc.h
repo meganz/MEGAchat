@@ -243,8 +243,8 @@ public:
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual std::set<std::pair<long int, std::string>> getScreenDevices() = 0;
     virtual promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
-    virtual void takeDevice() = 0;
-    virtual void releaseDevice() = 0;
+    virtual void takeVideoDevice() = 0;
+    virtual void releaseVideoDevice() = 0;
     virtual void addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
     virtual void removeLocalVideoRenderer(const karere::Id &chatid) = 0;
 

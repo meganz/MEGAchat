@@ -2562,11 +2562,11 @@ int MegaChatApiImpl::performRequest_videoDevice(MegaChatRequestPrivate* request)
 
             if (request->getFlag())
             {
-                mClient->rtc->takeDevice();
+                mClient->rtc->takeVideoDevice();
             }
             else
             {
-                mClient->rtc->releaseDevice();
+                mClient->rtc->releaseVideoDevice();
             }
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
