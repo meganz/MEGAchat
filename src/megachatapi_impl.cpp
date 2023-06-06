@@ -1680,6 +1680,14 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (chatroom->isWaitingRoom() && chatroom->ownPriv() < static_cast<Priv> (MegaChatPeerList::PRIV_MODERATOR))
+            {
+                API_LOG_ERROR("Start call - Refusing start a call with waiting room enabled, for non moderator users. Chatid: %s",
+                              karere::Id(chatid).toString().c_str());
+                errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
             if (chatroom->previewMode())
             {
                 API_LOG_ERROR("Start call - Chatroom is in preview mode");
@@ -1690,14 +1698,6 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatroom->chatdOnlineState() != kChatStateOnline)
             {
                 API_LOG_ERROR("Start call - chatroom isn't in online state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
-            if (chatroom->isWaitingRoom())
-            {
-                // remove this block when waiting rooms are fully supported
-                API_LOG_ERROR("Start call - can't start a call in a chatroom with waiting room enabled");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -1814,14 +1814,6 @@ void MegaChatApiImpl::sendPendingRequests()
             if (chatroom->chatdOnlineState() != kChatStateOnline)
             {
                 API_LOG_ERROR("Answer call - chatroom isn't in online state");
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
-            if (chatroom->isWaitingRoom())
-            {
-                // remove this block when waiting rooms are fully supported
-                API_LOG_ERROR("Answer call - can't answer a call in a chatroom with waiting room enabled");
                 errorCode = MegaChatError::ERROR_ACCESS;
                 break;
             }
@@ -2666,6 +2658,96 @@ int MegaChatApiImpl::performRequest_removeSpeaker(MegaChatRequestPrivate* reques
             fireOnChatRequestFinish(request, megaChatError);
             return MegaChatError::ERROR_OK;
         }
+}
+
+int MegaChatApiImpl::performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request)
+{
+    const auto handleList = request->getMegaHandleList();
+    bool allowAll = request->getFlag();
+    if (!allowAll && (!handleList || !handleList->size()))
+    {
+        request->getType() == MegaChatRequest::TYPE_WR_PUSH
+            ? API_LOG_ERROR("MegaChatRequest::TYPE_WR_PUSH - Invalid list of users to be pushed in the waiting room",
+                            request->getRequestString())
+            : API_LOG_ERROR("MegaChatRequest::TYPE_WR_ALLOW - Invalid list of users to be allowed to JOIN");
+
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
+    if (res.first != MegaChatError::ERROR_OK)
+    {
+        return res.first;
+    }
+    rtcModule::ICall* call= res.second;
+    const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
+    if (!waitingRoom)
+    {
+        // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
+        // however we also need to ensure, that we also have received proper information from SFU to
+        // initialize waiting room with users on it, and their joining permission
+        API_LOG_ERROR("MegaChatRequest::%s. Can't retrieve waiting room from karere chatroom. chatid: %s",
+                      (request->getType() == MegaChatRequest::TYPE_WR_PUSH) ? "TYPE_WR_PUSH" : "TYPE_WR_ALLOW",
+                      karere::Id(request->getChatHandle()).toString().c_str());
+
+        assert(false);
+        return MegaChatError::ERROR_UNKNOWN;
+    }
+
+    std::set<karere::Id> users;
+    for (unsigned int i = 0; i < handleList->size(); ++i)
+    {
+        users.emplace(handleList->get(i));
+    }
+
+    request->getType() == MegaChatRequest::TYPE_WR_PUSH
+        ? call->pushUsersIntoWaitingRoom(users, allowAll)
+        : call->allowUsersJoinCall(users, allowAll);
+
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
+}
+
+int MegaChatApiImpl::performRequest_kickUsersFromCall(MegaChatRequestPrivate* request)
+{
+    const auto handleList = request->getMegaHandleList();
+    if (!handleList || !handleList->size())
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK - Empty list of users to be kicked off");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
+    if (res.first != MegaChatError::ERROR_OK)
+    {
+        return res.first;
+    }
+
+    std::set<karere::Id> users;
+    for (unsigned int i = 0; i < handleList->size(); ++i)
+    {
+        users.emplace(handleList->get(i));
+    }
+
+    rtcModule::ICall* call= res.second;
+    const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
+    if (!waitingRoom)
+    {
+        // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
+        // however we also need to ensure, that we also have received proper information from SFU to
+        // initialize waiting room with users on it, and their joining permission
+        API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK. Can't retrieve waiting room from karere chatroom. chatid: %s",
+                      karere::Id(request->getChatHandle()).toString().c_str());
+
+        assert(false);
+        return MegaChatError::ERROR_UNKNOWN;
+    }
+
+    call->kickUsersFromCall(users);
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
 }
 #endif // ifndef KARERE_DISABLE_WEBRTC
 
@@ -5715,6 +5797,38 @@ void MegaChatApiImpl::removeSpeaker(MegaChatHandle chatid, MegaChatHandle client
     waiter->notify();
 }
 
+void MegaChatApiImpl::pushUsersIntoWaitingRoom(MegaChatHandle chatid, MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_PUSH, listener);
+    request->setChatHandle(chatid);
+    request->setMegaHandleList(users);
+    request->setFlag(all);
+    request->setPerformRequest([this, request]() { return performRequest_pushOrAllowJoinCall(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::allowUsersJoinCall(MegaChatHandle chatid, const MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_ALLOW, listener);
+    request->setChatHandle(chatid);
+    request->setMegaHandleList(users);
+    request->setFlag(all);
+    request->setPerformRequest([this, request]() { return performRequest_pushOrAllowJoinCall(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_WR_KICK, listener);
+    request->setChatHandle(chatid);
+    request->setMegaHandleList(users);
+    request->setPerformRequest([this, request]() { return performRequest_kickUsersFromCall(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CALL_ON_HOLD, listener);
@@ -6044,6 +6158,53 @@ void MegaChatApiImpl::stopLowResVideo(MegaChatHandle chatid, MegaHandleList *cli
     requestQueue.push(request);
     waiter->notify();
 }
+
+std::pair<int, rtcModule::ICall*>
+MegaChatApiImpl::getCallWithModPermissions(const MegaChatHandle chatid, bool waitingRoom, const std::string& msg)
+{
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("%s - Invalid chatid", msg.c_str());
+        return std::make_pair(MegaChatError::ERROR_ARGS, nullptr);
+    }
+
+    const ChatRoom* chatroom = findChatRoom(chatid);
+    if (!chatroom)
+    {
+        API_LOG_ERROR("%s - There is not any chatroom with chatid: %s",
+                      msg.c_str(), karere::Id(chatid).toString().c_str());
+        return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
+    }
+
+    if (chatroom->isWaitingRoom() != waitingRoom)
+    {
+        API_LOG_ERROR("%s - Invalid chatroom with chatid: %s. Expected waiting room state: %s ",
+                      msg.c_str(), karere::Id(chatid).toString().c_str(), waitingRoom ? "Enabled" : "Disabled");
+        return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
+    }
+
+    rtcModule::ICall* call = findCall(chatid);
+    if (!call)
+    {
+        API_LOG_ERROR("%s - There is not any call in that chatroom", msg.c_str());
+        return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
+    }
+
+    if (call->getState() != rtcModule::kStateInProgress)
+    {
+        API_LOG_ERROR("%s - Call isn't in progress state", msg.c_str());
+        return std::make_pair(MegaChatError::ERROR_ACCESS, nullptr);
+    }
+
+    if (!call->isOwnPrivModerator())
+    {
+        API_LOG_ERROR("%s - moderator role required to perform this action", msg.c_str());
+        return std::make_pair(MegaChatError::ERROR_ACCESS, nullptr);
+    }
+
+    return std::make_pair(MegaChatError::ERROR_OK, call);
+}
+
 #endif
 
 void MegaChatApiImpl::addChatRequestListener(MegaChatRequestListener *listener)
@@ -7021,6 +7182,9 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES: return "FETCH_SCHEDULED_MEETING_OCCURRENCES";
         case TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE: return "UPDATE_SCHEDULED_MEETING_OCCURRENCE";
         case TYPE_UPDATE_SCHEDULED_MEETING: return "UPDATE_SCHEDULED_MEETING";
+        case TYPE_WR_PUSH: return "WR_PUSH";
+        case TYPE_WR_ALLOW: return "WR_ALLOW";
+        case TYPE_WR_KICK: return "WR_KICK";
     }
     return "UNKNOWN";
 }
@@ -7171,7 +7335,7 @@ void MegaChatRequestPrivate::setMegaChatMessage(MegaChatMessage *message)
     mMessage = message ? message->copy() : NULL;
 }
 
-void MegaChatRequestPrivate::setMegaHandleList(MegaHandleList *handlelist)
+void MegaChatRequestPrivate::setMegaHandleList(const MegaHandleList* handlelist)
 {
     if (mMegaHandleList != NULL)
     {
@@ -7477,7 +7641,6 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kCallEndedByModerator:
         case rtcModule::TermCode::kApiEndCall:
         case rtcModule::TermCode::kPeerJoinTimeout:
-        case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kKickedFromWaitingRoom:
         case rtcModule::TermCode::kTooManyUserClients:
         case rtcModule::TermCode::kSfuShuttingDown:
@@ -7499,10 +7662,12 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kSigDisconn:
             return SESS_TERM_CODE_RECOVERABLE;
 
+        // Added here to avoid warning, as an user that is pushed into a wr, is still in the call
+        // but waiting to be granted to access, unlike the other termcodes that means that user
+        // is not in the call.
+        case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kInvalidTermCode:
             return SESS_TERM_CODE_INVALID;
-
-        // TODO: Check kPushedToWaitingRoom and kKickedFromWaitingRoom when we add support for these termcodes
     }
 
     return SESS_TERM_CODE_INVALID;
@@ -7524,6 +7689,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
     mTermCode = convertTermCode(call.getTermCode());
+    mWrJoiningState = call.getWrJoiningState();
+    mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? new MegaChatWaitingRoomPrivate(*call.getWaitingRoom()) : nullptr);
     mEndCallReason = call.getEndCallReason() == static_cast<uint8_t>(rtcModule::EndCallReason::kInvalidReason)
             ? static_cast<uint8_t>(MegaChatCall::END_CALL_REASON_INVALID)
             : call.getEndCallReason();
@@ -7533,9 +7700,11 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
         mParticipants.push_back(participant);
     }
 
+    // always create a valid instance of MegaHandleList (as at least it must be 1 moderator in the call)
+    mModerators.reset(::mega::MegaHandleList::createInstance());
     for (auto moderator: call.getModerators())
     {
-        mModerators.emplace(moderator);
+        mModerators->addMegaHandle(moderator);
     }
 
     mRinging = call.isRinging();
@@ -7572,14 +7741,16 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mIsSpeakAllow = call.isSpeakAllow();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
+    mWrJoiningState = call.getWrJoiningState();
+    mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? call.getWaitingRoom()->copy() : nullptr);
+    mModerators.reset(call.getModerators() ? call.getModerators()->copy() : nullptr);
+    mParticipants = call.mParticipants;
+    mHandleList.reset(call.getHandleList() ? call.getHandleList()->copy() : nullptr);
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
         mSessions[it->first] = std::unique_ptr<MegaChatSession>(it->second->copy());
     }
-
-    mParticipants = call.mParticipants;
-    mModerators = call.mModerators;
 }
 
 MegaChatCallPrivate::~MegaChatCallPrivate()
@@ -7731,16 +7902,9 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
     return participantsList;
 }
 
-MegaHandleList* MegaChatCallPrivate::getModerators() const
+const MegaHandleList* MegaChatCallPrivate::getModerators() const
 {
-    MegaHandleListPrivate* moderatorsList = new MegaHandleListPrivate();
-
-    for (const MegaChatHandle& moderator : mModerators)
-    {
-        moderatorsList->addMegaHandle(moderator);
-    }
-
-    return moderatorsList;
+    return mModerators.get();
 }
 
 bool MegaChatCallPrivate::isIgnored() const
@@ -7793,6 +7957,30 @@ bool MegaChatCallPrivate::hasRequestSpeak() const
     return mHasRequestSpeak;
 }
 
+int MegaChatCallPrivate::getWrJoiningState() const
+{
+    return mWrJoiningState;
+}
+
+const MegaChatWaitingRoom* MegaChatCallPrivate::getWaitingRoom() const
+{
+    if (!isOwnModerator())
+    {
+        if (mMegaChatWaitingRoom && mMegaChatWaitingRoom->size())
+        {
+            API_LOG_ERROR("Waiting room should be empty for a non moderator user. callId: %d", karere::Id(getCallId()).toString().c_str());
+            assert(false);
+        }
+        return nullptr;
+    }
+    return mMegaChatWaitingRoom.get();
+}
+
+const ::mega::MegaHandleList* MegaChatCallPrivate::getHandleList() const
+{
+    return mHandleList.get();
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     mStatus = status;
@@ -7843,6 +8031,9 @@ int MegaChatCallPrivate::convertCallState(rtcModule::CallState newState)
         case rtcModule::CallState::kStateConnecting:
             state = MegaChatCall::CALL_STATUS_CONNECTING;
             break;
+        case rtcModule::CallState::kInWaitingRoom:
+            state = MegaChatCall::CALL_STATUS_WAITING_ROOM;
+            break;
         case rtcModule::CallState::kStateJoining:
             state = MegaChatCall::CALL_STATUS_JOINING;
             break;
@@ -7883,8 +8074,6 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kErrClientGeneral:
         case rtcModule::TermCode::kPeerJoinTimeout:
-        case rtcModule::TermCode::kPushedToWaitingRoom:
-        case rtcModule::TermCode::kKickedFromWaitingRoom:
         case rtcModule::TermCode::kChatDisconn:
         case rtcModule::TermCode::kNoMediaPath:
         case rtcModule::TermCode::kApiEndCall:
@@ -7908,13 +8097,28 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kTooManyParticipants:
             return TERM_CODE_TOO_MANY_PARTICIPANTS;
 
+        case rtcModule::TermCode::kKickedFromWaitingRoom:
+            return TERM_CODE_KICKED;
+
+        // Added here to avoid warning, as an user that is pushed into a wr, is still in the call
+        // but waiting to be granted to access, unlike the other termcodes that means that user
+        // is not in the call.
+        case rtcModule::TermCode::kPushedToWaitingRoom:
         case rtcModule::TermCode::kInvalidTermCode:
             return TERM_CODE_INVALID;
-
-       // TODO: Check kPushedToWaitingRoom and kKickedFromWaitingRoom when we add support for these termcodes
     }
 
     return TERM_CODE_INVALID;
+}
+
+MegaHandleList* MegaChatWaitingRoomPrivate::getPeers() const
+{
+    MegaHandleList* peers = MegaHandleList::createInstance();
+    if (!mWaitingRoomUsers) { return peers; }
+
+    std::vector<uint64_t> aux = mWaitingRoomUsers->getPeers();
+    std::for_each(aux.begin(), aux.end(), [peers](const auto &h) { peers->addMegaHandle(h); });
+    return peers;
 }
 
 MegaChatSessionPrivate *MegaChatCallPrivate::addSession(rtcModule::ISession &/*sess*/)
@@ -7959,6 +8163,11 @@ void MegaChatCallPrivate::setId(const Id& callid)
 void MegaChatCallPrivate::setCaller(const Id& caller)
 {
     mCallerId = caller;
+}
+
+void MegaChatCallPrivate::setHandleList(const ::mega::MegaHandleList* handleList)
+{
+    mHandleList.reset(handleList ? handleList->copy() : nullptr);
 }
 
 void MegaChatCallPrivate::setNotificationType(int notificationType)
@@ -10752,6 +10961,65 @@ void MegaChatCallHandler::onPermissionsChanged(const rtcModule::ICall& call)
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrUsersAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW);
+    chatCall->setHandleList(users);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrUsersDeny(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_DENY);
+    chatCall->setHandleList(users);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrUserDump(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_COMPOSITION);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrAllow(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_ALLOW);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrDeny(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_DENY);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrPushedFromCall(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrUsersEntered(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED);
+    chatCall->setHandleList(users);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onWrUsersLeave(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE);
+    chatCall->setHandleList(users);
 }
 
 void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg)

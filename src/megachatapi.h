@@ -67,6 +67,7 @@ class MegaChatScheduledFlags;
 class MegaChatScheduledMeeting;
 class MegaChatScheduledMeetingList;
 class MegaChatScheduledMeetingOccurrList;
+class MegaChatWaitingRoom;
 
 /**
  * @brief Provide information about a session
@@ -450,6 +451,7 @@ public:
  *  - CALL_STATUS_INITIAL
  *  - CALL_STATUS_USER_NO_PRESENT
  *  - CALL_STATUS_CONNECTING
+ *  - CALL_STATUS_WAITING_ROOM
  *  - CALL_STATUS_JOINING
  *  - CALL_STATUS_IN_PROGRESS
  *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION
@@ -463,6 +465,7 @@ public:
         CALL_STATUS_INITIAL = 0,                        /// Initial state
         CALL_STATUS_USER_NO_PRESENT,                    /// User is no present in the call or you haven't answered the call yet
         CALL_STATUS_CONNECTING,                         /// Intermediate state, while connection sfu is established
+        CALL_STATUS_WAITING_ROOM,                       /// User is in the waiting room
         CALL_STATUS_JOINING,                            /// In this state configure connection with SFU
         CALL_STATUS_IN_PROGRESS,                        /// Call is established and there is a full communication with SFU
         CALL_STATUS_TERMINATING_USER_PARTICIPATION,     /// User go out from call, but the call is active in other users
@@ -483,6 +486,14 @@ public:
         CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call (1on1) outgoing ringing has stopped (only valid if our own client has started the call)
         CHANGE_TYPE_OWN_PERMISSIONS = 0x200,        /// Indicates that own peer moderator role status has changed
         CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400,   /// Generic notification
+        CHANGE_TYPE_WR_ALLOW = 0x800,               /// Access to call from Waiting room, has been allowed for our own user
+        CHANGE_TYPE_WR_DENY = 0x1000,               /// Access to call from Waiting room, has been denied for our own user
+        CHANGE_TYPE_WR_COMPOSITION = 0x2000,        /// Waiting room composition has changed (just for moderators)
+        CHANGE_TYPE_WR_USERS_ENTERED = 0x4000,      /// Notify about users that have been pushed into the waiting room  (just for moderators)
+        CHANGE_TYPE_WR_USERS_LEAVE = 0x8000,        /// Notify about users that have been left the waiting room (either entered the call or disconnected). (just for moderators)
+        CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted to enter the call. (just for moderators)
+        CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied to enter the call. (just for moderators)
+        CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X40000   /// We have been pushed into a waiting room
     };
 
     enum
@@ -526,6 +537,7 @@ public:
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
         TERM_CODE_TOO_MANY_CLIENTS          = 5,    // Too many clients of same user connected
         TERM_CODE_PROTOCOL_VERSION          = 6,    // SFU protocol version error
+        TERM_CODE_KICKED                    = 7     // User has been kicked from call
     };
 
     enum
@@ -576,10 +588,11 @@ public:
      *  - CALL_STATUS_INITIAL = 0
      *  - CALL_STATUS_USER_NO_PRESENT = 1
      *  - CALL_STATUS_CONNECTING = 2
-     *  - CALL_STATUS_JOINING = 3
-     *  - CALL_STATUS_IN_PROGRESS = 4
-     *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION = 5
-     *  - CALL_STATUS_DESTROYED = 6
+     *  - CALL_STATUS_WAITING_ROOM = 3
+     *  - CALL_STATUS_JOINING = 4
+     *  - CALL_STATUS_IN_PROGRESS = 5
+     *  - CALL_STATUS_TERMINATING_USER_PARTICIPATION = 6
+     *  - CALL_STATUS_DESTROYED = 7
      */
     virtual int getStatus() const;
 
@@ -647,6 +660,46 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS = 0x200
      * Own peer moderator role status has changed (Check MegaChatCall::isOwnModerator)
+     *
+     * - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400
+     * A generic notification has been received from SFU (Check MegaChatCall::getNotificationType and MegaChatCall::getGenericMessage)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_ALLOW = 0x800
+     * Access to call from Waiting room, has been allowed for our own user
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_DENY = 0x1000
+     * Access to call from Waiting room, has been denied for our own user
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_COMPOSITION = 0x2000
+     * Waiting room composition has changed
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED = 0x4000
+     * Notify about users that have been pushed into the waiting room
+     * (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room)
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE = 0x8000
+     * Notify about users that have been left the waiting room (either entered the call or disconnected).
+     * (check MegaChatCall::getHandleList to get users that have been left the waiting room
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW = 0x10000
+     * Notify about users that have been granted to enter the call.
+     * (check MegaChatCall::getHandleList to get users that have been granted to enter the call.
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_DENY = 0x20000
+     * Notify about users that have been denied to enter the call.
+     * (check MegaChatCall::getHandleList to get users that have been denied to enter the call.
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x80000
+     * We have been pushed into a waiting room
+     *
+     * @return a bit field with the changes of the call
      */
     virtual int getChanges() const;
 
@@ -688,6 +741,44 @@ public:
      *
      * - MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS = 0x200
      * Own peer moderator role status has changed (Check MegaChatCall::isOwnModerator)
+     *
+     * - MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION = 0x400
+     * A generic notification has been received from SFU (Check MegaChatCall::getNotificationType and MegaChatCall::getGenericMessage)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_ALLOW = 0x800
+     * Access to call from Waiting room, has been allowed our own user
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_DENY = 0x1000
+     * Access to call from Waiting room, has been denied for our own user
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_COMPOSITION = 0x2000
+     * Waiting room composition has changed
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED = 0x4000
+     * Notify about users that have been pushed into the waiting room
+     * (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room)
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE = 0x8000
+     * Notify about users that have been left the waiting room (either entered the call or disconnected).
+     * (check MegaChatCall::getHandleList to get users that have been left the waiting room
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW = 0x10000
+     * Notify about users that have been granted to enter the call.
+     * (check MegaChatCall::getHandleList to get users that have been granted to enter the call.
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_USERS_DENY = 0x20000
+     * Notify about users that have been denied to enter the call.
+     * (check MegaChatCall::getHandleList to get users that have been denied to enter the call.
+     * (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x80000
+     * We have been pushed into a waiting room
      *
      * @return true if this call has an specific change
      */
@@ -733,22 +824,21 @@ public:
      *
      * This method can be used for different purposes.
      *
-     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and 
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is true and
      * MegaChatCall::getNotificationType is equal to MegaChatCall::NOTIFICATION_TYPE_SFU_DENY,
      * this method returns the command that has been previously denied by SFU.
      * Valid values are:
      *      - SFU_DENY_AUDIO
      *      - SFU_DENY_JOIN
      *
-     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and 
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and
      * MegaChatCall::getNotificationType is equal to MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR,
      * this method returns the termination code for this call due to an error notification received from SFU
      * Valid values are:
      *      - TERM_CODE_INVALID
-     *      - TERM_CODE_HANGUP
      *      - TERM_CODE_TOO_MANY_PARTICIPANTS
-     *      - TERM_CODE_ERROR
      *      - TERM_CODE_REJECT
+     *      - TERM_CODE_ERROR
      *      - TERM_CODE_NO_PARTICIPATE
      *      - TERM_CODE_TOO_MANY_CLIENTS
      *      - TERM_CODE_PROTOCOL_VERSION
@@ -762,6 +852,7 @@ public:
      *      - TERM_CODE_ERROR
      *      - TERM_CODE_REJECT
      *      - TERM_CODE_NO_PARTICIPATE
+     *      - TERM_CODE_KICKED
      *
      * @return error or warning code for this call
      */
@@ -898,11 +989,12 @@ public:
      *  - End groupal calls for all participants
      *  - Approve/reject speaker requests
      *
-     * You take the ownership of the returned value.
+     * This method always returns a valid instance of MegaHandleList.
+     * The MegaChatCall retains the ownership of the returned value.
      *
      * @return A MegaHandleList of handles of peers that have moderator role in the call
      */
-    virtual mega::MegaHandleList* getModerators() const;
+    virtual const mega::MegaHandleList* getModerators() const;
 
     /**
      * @brief Get the number of peers participating in the call
@@ -1014,6 +1106,53 @@ public:
      * @return true if we have request speak
      */
     virtual bool hasRequestSpeak() const;
+
+    /**
+     * @brief Returns our current permission to join the call (just valid if we are in a waiting room)
+     *
+     * Valid values for this method are:
+     * - MegaChatWaitingRoom::MWR_NOT_ALLOWED: client is not allowed to join call (must remains in waiting room)
+     * - MegaChatWaitingRoom::MWR_ALLOWED: client is allowed to join call (no further action required from app to JOIN call)
+     *
+     * @return our current permission to join the call
+     */
+    virtual int getWrJoiningState() const;
+
+    /**
+     * @brief Returns a MegaChatWaitingRoom instance for this call, if any
+     *
+     * This method can be called just by users with moderator role
+     * 
+     * The MegaChatCall retains the ownership of returned value.
+     *
+     * @return a MegaChatWaitingRoom for this call, if any
+     */
+    virtual const MegaChatWaitingRoom* getWaitingRoom() const;
+
+    /**
+     * @brief Returns a MegaHandleList that can be used for multiple purposes, or NULL in case it doesn't exists
+     *
+     * The MegaChatCall retains the ownership of returned value.
+     *
+     * This function only returns a valid MegaHandleList in the following scenarios:
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have been pushed into the waiting room
+     *
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have been left the waiting room (either entered the call or disconnected).
+     *
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have been granted to enter the call.
+     *
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_DENY is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have been denied to enter the call.
+     *
+     *  - When MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW is notified via MegaChatCallListener::onChatCallUpdate
+     *    The list contains the users that have requested permission to enter the call
+     *
+     * @return a MegaHandleList that can be used for multiple purposes, or NULL in case it doesn't exists
+     */
+    virtual const mega::MegaHandleList* getHandleList() const;
 };
 
 /**
@@ -2171,7 +2310,7 @@ public:
         TYPE_CREATE_SCHEDULED_MEETING, // Deprecated
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
-        TYPE_UPDATE_SCHEDULED_MEETING,
+        TYPE_UPDATE_SCHEDULED_MEETING, TYPE_WR_PUSH, TYPE_WR_ALLOW, TYPE_WR_KICK,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -5700,7 +5839,7 @@ public:
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
-     *  - if the chatroom has waiting room option enabled.
+     *  - if our own privilege is not MegaChatPeerList::PRIV_MODERATOR and the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -5749,7 +5888,7 @@ public:
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
-     *  - if the chatroom has waiting room option enabled.
+     *  - if our own privilege is not MegaChatPeerList::PRIV_MODERATOR and the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -5967,6 +6106,115 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Push a list of users (for all it's connected clients) into the waiting room.
+     *
+     * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
+     * This method can be called just by users with moderator role
+     *
+     * @note: This method won't have any effect for moderator users already joined into the call,
+     * as well as non-moderator users that are already in the waiting room.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_WR_PUSH
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicates that all users with non moderator role, must be pushed into waiting room
+     * - MegaChatRequest::getMegaHandleList - Returns the list of users that must be pushed into waiting room
+     *
+     * On the onRequestFinish error, if the error code associated to the MegaChatError is ERROR_OK:
+     * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED,
+     *   notifying about users that could be pushed or not into the waiting room.
+     *   (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room)
+     *   (check MegaChatCall::getWaitingRoom to get the users in the waiting room and their current joining status)
+     *   (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_DENY,
+     *   just if any of the users provided in users list, is not in the call, but has permission to enter it (use case non valid for moderators users in the list)
+     *   (check MegaChatCall::getHandleList to get moderator users that were tried to push into the waiting room, but didn't joined call yet.
+     *
+     * @note: Afected user clients by this action, will receive an MegaChatCallListener::onChatCallUpdate callback with change type
+     * MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL, indicating that it's client has been pushed into a waiting room.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
+     * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, if there's not a call in the specified chatroom, or waiting room is disabled
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param users MegaHandleList with the users that must be pushed into waiting room.
+     * If param all is true, users param will be ignored.
+     * @param all if true indicates that all users with non moderator role, must be pushed into waiting room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all = false, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room.
+     *
+     * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
+     * This method has to be called only by a user with moderator role
+     *
+     * If this action has succeed, for those users that are effectively kicked from call, every conected user will receive a callback MegaChatSession with change MegaChatSession::CHANGE_TYPE_STATUS
+     * and MegaChatSession::getStatus == MegaChatSession::SESSION_STATUS_DESTROYED.
+     *
+     * @note: This method won't have any effect for users with moderator role.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_WR_KICK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getMegaHandleList - Returns the list of users that must be disconnected from call
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
+     * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists , if there's no a call in the specified chatroom, or waiting room is disabled
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param users MegaHandleList with the users that must be disconnected from call
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Allow a list of users in the waiting room to join the call.
+     *
+     * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
+     * This method can be called just by users with moderator role
+     *
+     * @note: This method won't have any effect for non-moderator users already joined into the call, as well as users with moderator role.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_WR_ALLOW
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicates that all users with non moderator role, must be allowed to join the call
+     * - MegaChatRequest::getMegaHandleList - Returns the list of users that must be allowed to join the call
+     *
+     * On the onRequestFinish error, if the error code associated to the MegaChatError is ERROR_OK:
+     * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW,
+     *   notifying about users that have been granted to enter the call.
+     *   (check MegaChatCall::getHandleList to get users that have been granted to enter the call
+     *   (check MegaChatCall::getWaitingRoom to get the users in the waiting room and their current joining status)
+     *   (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE,
+     *   notifying about users that have been left the waiting room (already joined the call)
+     *   (check MegaChatCall::getHandleList to get users that have been left the waiting room
+     *   (check MegaChatCall::getWaitingRoom to get the users in the waiting room and their current joining status)
+     *   (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * @note: Afected user clients by this action, will receive an MegaChatCallListener::onChatCallUpdate callback with change type
+     * MegaChatCall::CHANGE_TYPE_WR_ALLOW, indicating that it's client has been allowed to join call (no further action required by apps to complete call join)
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
+     * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, if there's not a call in the specified chatroom, or waiting room is disabled
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param users MegaHandleList with the users that must be allowed into waiting room.
+     * If param all is true, users param will be ignored.
+     * @param all if true indicates that all users with non moderator role, must be pushed into waiting room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all = false, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Set/unset a call on hold
@@ -8368,6 +8616,73 @@ public:
      */
     virtual void clear();
 };
+
+/**
+ * @brief This class represents a waiting room
+ *
+ * A waiting room, is effectively a list of users pending to enter a call
+ */
+class MegaChatWaitingRoom
+{
+public:
+    enum
+    {
+        MWR_UNKNOWN      = -1,   // client unknown joining status
+        MWR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+        MWR_ALLOWED      = 1,    // client is allowed to join call (no further action required from app to JOIN call)
+    };
+
+    virtual ~MegaChatWaitingRoom()                      { };
+
+    /**
+     * @brief Returns a copy of the this instance of MegaChatWaitingRoom
+     *
+     * You take the ownership of returned object
+     *
+     * @return A pointer to the superclass of the private object.
+     */
+    virtual MegaChatWaitingRoom* copy() const           { return NULL; }
+
+    /**
+     * @brief Returns the list of handles of users that are in the waiting room
+     *
+     * This method always returns a valid instance of MegaHandleList.
+     * You take the ownership of the returned value.
+     *
+     * @return mega::MegaHandleList of handles of users that are in the waiting room
+     */
+    virtual mega::MegaHandleList* getPeers() const      { return NULL; };
+
+    /**
+     * @brief Returns the number of elements in the list
+     * @return Number of elements in the list
+     */
+    virtual size_t size() const                         { return 0; };
+
+    /**
+     * @brief Returns the waiting room joining status for the specified peer id
+     *
+     * Valid values are:
+     *  - MegaChatWaitingRoom::MWR_UNKNOWN      = -1,   // client unknown joining status
+     *  - MegaChatWaitingRoom::MWR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+     *  - MegaChatWaitingRoom::MWR_ALLOWED      = 1,    // client is allowed to join call (no further action required from app to JOIN call)
+     *
+     * @return The waiting room joining status for the specified peer
+     */
+    virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
+
+    static const char* peerStatusToString(int status)
+    {
+        switch (status)
+        {
+            case MWR_NOT_ALLOWED: return "Not allowed to join";
+            case MWR_ALLOWED:     return "Allowed to join";
+            case MWR_UNKNOWN:     return "Unknown join status";
+            default:              return "Invalid join status";
+        }
+    }
+};
+
 }
 
 #endif // MEGACHATAPI_H

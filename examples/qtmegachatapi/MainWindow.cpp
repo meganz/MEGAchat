@@ -201,6 +201,14 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 itemController->getMeetingView()->setConnecting();
                 break;
             }
+            case megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM:
+            {
+                MeetingView* meetingView = itemController->getMeetingView();
+                if (meetingView)
+                {
+                    meetingView->updateLabel(call);
+                }
+            }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
                 assert(itemController->getMeetingView());
@@ -287,6 +295,14 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
     {
         assert(call->isOwnClientCaller());
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_DENY))
+    {
+        QMessageBox msg;
+        msg.setIcon(QMessageBox::Warning);
+        msg.setText("A moderator has rejected to enter the call from WR");
+        msg.exec();
     }
 }
 
