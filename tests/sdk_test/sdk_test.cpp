@@ -5760,6 +5760,8 @@ bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
                                          nullptr,   /*appData*/
                                          false,     /*startFirst*/
                                          nullptr,   /*cancelToken*/
+                                         MegaTransfer::COLLISION_CHECK_FINGERPRINT,
+                                         MegaTransfer::COLLISION_RESOLUTION_OVERWRITE,
                                          this);
     EXPECT_TRUE(waitForResponse(&isNotTransferRunning(accountIndex))) << "Expired timeout for download file";
     return lastErrorTransfer[accountIndex] == API_OK;
