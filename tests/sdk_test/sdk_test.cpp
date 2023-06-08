@@ -320,7 +320,10 @@ void MegaChatApiTest::SetUp()
 #ifdef _WIN32
         _getcwd(path, sizeof path);
 #else
-        getcwd(path, sizeof path);
+        if (!getcwd(path, sizeof path))
+        {
+            LOG_err << "Test " << name << ": getcwd() failed.";
+        }
 #endif
         megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
         megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
@@ -2647,7 +2650,7 @@ TEST_F(MegaChatApiTest, SendContact)
     ASSERT_TRUE(msgReceived) << "Failed to get message by id";
 
     ASSERT_EQ(msgReceived->getType(), MegaChatMessage::TYPE_CONTACT_ATTACHMENT) << "Wrong type of message.";
-    ASSERT_EQ(msgReceived->getUsersCount(), 1) << "Wrong number of users in message.";
+    ASSERT_EQ(msgReceived->getUsersCount(), 1u) << "Wrong number of users in message.";
     ASSERT_STREQ(msgReceived->getUserEmail(0), account(a2).getEmail().c_str()) << "Wrong email address in message.";
 
     // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
@@ -2675,7 +2678,7 @@ TEST_F(MegaChatApiTest, SendContact)
     ASSERT_TRUE(msgReceived1) << "Failed to get message by id";
 
     ASSERT_EQ(msgReceived1->getType(), MegaChatMessage::TYPE_CONTACT_ATTACHMENT) << "Wrong type of message.";
-    ASSERT_EQ(msgReceived1->getUsersCount(), 1) << "Wrong number of users in message.";
+    ASSERT_EQ(msgReceived1->getUsersCount(), 1u) << "Wrong number of users in message.";
     ASSERT_STREQ(msgReceived1->getUserEmail(0), account(a2).getEmail().c_str()) << "Wrong email address in message.";
 
     // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
@@ -6064,7 +6067,7 @@ void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsign
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
     unsigned int apiIndex = getMegaApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onRequestFinish(MegaApi *api, ...)";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onRequestFinish(MegaApi *api, ...)";
 
     if (e->getErrorCode() == API_OK)
     {
@@ -6090,7 +6093,7 @@ void MegaChatApiTest::onChatsUpdate(MegaApi* api, MegaTextChatList *chats)
     }
 
     unsigned int apiIndex = getMegaApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatsUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatsUpdate()";
     mChatsUpdated[apiIndex] = true;
     for (int i = 0; i < chats->size(); i++)
     {
@@ -6101,7 +6104,7 @@ void MegaChatApiTest::onChatsUpdate(MegaApi* api, MegaTextChatList *chats)
 void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestList* /*requests*/)
 {
     unsigned int apiIndex = getMegaApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onContactRequestsUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onContactRequestsUpdate()";
 
     mContactRequestUpdated[apiIndex] = true;
 }
@@ -6111,7 +6114,7 @@ void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* 
     if (!userList) return;
 
     unsigned int accountIndex = getMegaApiIndex(api);
-    ASSERT_NE(accountIndex, -1u) << "MegaChatApiTest::onUsersUpdate()";
+    ASSERT_NE(accountIndex, UINT_MAX) << "MegaChatApiTest::onUsersUpdate()";
     for (int i = 0; i < userList->size(); i++)
     {
         ::mega::MegaUser* user = userList->get(i);
@@ -6132,7 +6135,7 @@ void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* 
 void MegaChatApiTest::onChatInitStateUpdate(MegaChatApi *api, int newState)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatInitStateUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatInitStateUpdate()";
 
     initState[apiIndex] = newState;
     initStateChanged[apiIndex] = true;
@@ -6141,7 +6144,7 @@ void MegaChatApiTest::onChatInitStateUpdate(MegaChatApi *api, int newState)
 void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *item)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatListItemUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatListItemUpdate()";
 
     if (item)
     {
@@ -6178,7 +6181,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
 void MegaChatApiTest::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle userhandle, int status, bool)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatOnlineStatusUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatOnlineStatusUpdate()";
     if (userhandle == megaChatApi[apiIndex]->getMyUserHandle())
     {
         mOnlineStatusUpdated[apiIndex] = true;
@@ -6189,14 +6192,14 @@ void MegaChatApiTest::onChatOnlineStatusUpdate(MegaChatApi* api, MegaChatHandle 
 void MegaChatApiTest::onChatPresenceConfigUpdate(MegaChatApi *api, MegaChatPresenceConfig */*config*/)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatPresenceConfigUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatPresenceConfigUpdate()";
     mPresenceConfigUpdated[apiIndex] = true;
 }
 
 void MegaChatApiTest::onChatConnectionStateUpdate(MegaChatApi *api, MegaChatHandle chatid, int state)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatConnectionStateUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatConnectionStateUpdate()";
     mChatConnectionOnline[apiIndex] = (state == MegaChatApi::CHAT_CONNECTION_ONLINE);
     mLoggedInAllChats[apiIndex] = (state == MegaChatApi::CHAT_CONNECTION_ONLINE) && (chatid == MEGACHAT_INVALID_HANDLE);
 }
@@ -6209,7 +6212,7 @@ void MegaChatApiTest::onTransferStart(MegaApi */*api*/, MegaTransfer */*transfer
 void MegaChatApiTest::onTransferFinish(MegaApi *api, MegaTransfer *transfer, MegaError *error)
 {
     unsigned int apiIndex = getMegaApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onTransferFinish()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onTransferFinish()";
 
     mNodeUploadHandle[apiIndex] = transfer->getNodeHandle();
     lastErrorTransfer[apiIndex] = error->getErrorCode();
@@ -6234,7 +6237,7 @@ bool MegaChatApiTest::onTransferData(MegaApi */*api*/, MegaTransfer */*transfer*
 void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatCallUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatCallUpdate()";
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS) && call->isRinging())
     {
@@ -6298,7 +6301,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
         unsigned int apiIndex = getMegaChatApiIndex(api); // why is this needed again?
-        ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatCallUpdate() (2)";
+        ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatCallUpdate() (2)";
         switch (call->getStatus())
         {
         case MegaChatCall::CALL_STATUS_INITIAL:
@@ -6354,7 +6357,7 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
                                           MegaChatHandle, MegaChatSession *session)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatSessionUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatSessionUpdate()";
     LOG_debug << "On chat session update START with apiIndex|" << apiIndex << "|";
 
     if(session->getChanges())
@@ -6390,7 +6393,7 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
 void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onChatSchedMeetingUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatSchedMeetingUpdate()";
     if (sm)
     {
        mSchedMeetingUpdated[apiIndex] = true;
@@ -6406,7 +6409,7 @@ void MegaChatApiTest::onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megac
 void MegaChatApiTest::onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, MegaChatHandle /*chatid*/, bool /*append*/)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "MegaChatApiTest::onSchedMeetingOccurrencesUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onSchedMeetingOccurrencesUpdate()";
     mSchedOccurrUpdated[apiIndex] = true;
 }
 
@@ -6485,7 +6488,7 @@ bool TestChatRoomListener::hasArrivedMessage(unsigned int apiIndex, MegaChatHand
 void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "TestChatRoomListener::onChatRoomUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onChatRoomUpdate()";
 
     if (!chat)
     {
@@ -6537,7 +6540,7 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
 void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *msg)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "TestChatRoomListener::onMessageLoaded()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onMessageLoaded()";
 
     if (msg)
     {
@@ -6582,7 +6585,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "TestChatRoomListener::onMessageReceived()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onMessageReceived()";
 
     std::stringstream buffer;
     buffer << "[api: " << apiIndex << "] Message received - ";
@@ -6625,14 +6628,14 @@ void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *
 void TestChatRoomListener::onReactionUpdate(MegaChatApi *api, MegaChatHandle, const char*, int)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "TestChatRoomListener::onReactionUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onReactionUpdate()";
     reactionReceived[apiIndex] = true;
 }
 
 void TestChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi *api, MegaChatMessage *msg)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "TestChatRoomListener::onHistoryTruncatedByRetentionTime()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onHistoryTruncatedByRetentionTime()";
     mRetentionMessageHandle[apiIndex] = msg->getMsgId();
     retentionHistoryTruncated[apiIndex] = true;
 }
@@ -6640,7 +6643,7 @@ void TestChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi *api, M
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, -1u) << "TestChatRoomListener::onMessageUpdate()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onMessageUpdate()";
 
     std::stringstream buffer;
     buffer << "[api: " << apiIndex << "] Message updated - ";

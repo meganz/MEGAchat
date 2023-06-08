@@ -44,7 +44,7 @@ struct Context
     EcKey edKey;
 };
 
-chatd::KeyId ProtocolHandler::mCurrentLocalKeyId = CHATD_KEYID_MAX;
+chatd::KeyId ProtocolHandler::mCurrentLocalKeyId = static_cast<chatd::KeyId>(CHATD_KEYID_MAX);
 
 const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
@@ -442,14 +442,14 @@ void ParsedMessage::parsePayloadWithUtfBackrefs(const StaticBuffer &data, Messag
         *(data8.buf()+i) = static_cast<char>(u16[i] & 0xff);
     }
     msg.backRefId = data8.read<uint64_t>(0);
-    uint16_t refsSize = data8.read<uint16_t>(8);
 
     //convert back to utf8 the binary part, only to determine its utf8 len
 #ifndef _MSC_VER
+    uint16_t refsSize = data8.read<uint16_t>(8);
     size_t binlen8 = convert.to_bytes(&u16[0], &u16[refsSize+10]).size();
 #else
     std::string result8;
-    ::mega::MegaApi::utf16ToUtf8((wchar_t*)u16.data(), u16.size(), &result8);
+    ::mega::MegaApi::utf16ToUtf8((wchar_t*)u16.data(), static_cast<int>(u16.size()), &result8);
     size_t binlen8 = result8.size();
 #endif
 
@@ -1694,7 +1694,17 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
         if (msgCanBeDeleted && cacheVersion != mProtoHandler.getCacheVersion())
         {
+#if defined(_WIN32) && defined(_MSC_VER)
+#pragma warning(push)
+// The following warnings are invalid for current code. They should be re-enabled if throwing promise::Error,
+// but catch expected shared_ptr<promise::ErrorShared> somewhere.
+#pragma warning(disable: 4673) // C4673: throwing 'promise::Error' the following types will not be considered at the catch site
+#pragma warning(disable: 4670) // C4670: 'shared_ptr<struct promise::ErrorShared>': this base class is inaccessible
+#endif
             throw ::promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
+#if defined(_WIN32) && defined(_MSC_VER)
+#pragma warning(pop)
+#endif
         }
 
         if (!openmode)
@@ -1764,7 +1774,7 @@ KeyId ProtocolHandler::getNextValidLocalKeyId()
     chatd::KeyId ret = mCurrentLocalKeyId;
     if (!isValidKeyxId(--mCurrentLocalKeyId))
     {
-        mCurrentLocalKeyId = CHATD_KEYID_MAX;
+        mCurrentLocalKeyId = static_cast<chatd::KeyId>(CHATD_KEYID_MAX);
     }
     return ret;
 }

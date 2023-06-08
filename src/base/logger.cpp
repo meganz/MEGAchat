@@ -18,7 +18,11 @@
 	#define va_copy(d,s) ((d) = (s))
 #endif
 
+#if defined(_WIN32) && defined(_MSC_VER)
+#define strcasecmp(...) _stricmp(__VA_ARGS__)
+#else
 #define strcasecmp(...) stricmp(__VA_ARGS__)
+#endif
 
 ///windows doesn't have the _r function, but the non _r one is thread safe.
 ///we map the _r to non _r. NOTE: The caller must use the returned pointer,

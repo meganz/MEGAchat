@@ -415,7 +415,7 @@ bool Client::openDb(const std::string& sid)
                     {
                         db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
                     }
-                    catch (const std::runtime_error& e)
+                    catch (const std::runtime_error&)
                     {
                         // meeting column is already added
                     }
@@ -958,7 +958,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
             return err;
         });
     }
-    catch(std::exception& e)
+    catch(std::exception&)
     {
         std::string err("Failed to base64-decode chat title for chat ");
         err.append(ID_CSTR(chatId)).append(": ");
@@ -3816,7 +3816,7 @@ bool GroupChatRoom::isMember(const Id& peerid) const
 
 unsigned long GroupChatRoom::numMembers() const
 {
-    return mPeers.size() + 1;
+    return static_cast<unsigned long>(mPeers.size() + 1);
 }
 
 bool GroupChatRoom::isMeeting() const
@@ -5172,8 +5172,8 @@ std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t n
     }
 
     mNumNodes = numNodes;
-    mNumChats = numChats;
-    mNumContacts = numContacts;
+    mNumChats = static_cast<long>(numChats);
+    mNumContacts = static_cast<long>(numContacts);
 
     std::string json = toJson();
 
@@ -5189,7 +5189,7 @@ mega::dstime InitStats::currentTime()
 #if defined(_WIN32) && defined(_MSC_VER)
     struct __timeb64 tb;
     _ftime64(&tb);
-    return (tb.time * 1000) + (tb.millitm);
+    return static_cast<mega::dstime>((tb.time * 1000) + (tb.millitm));
 #else
     timespec ts;
     mega::m_clock_getmonotonictime(&ts);
