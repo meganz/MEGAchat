@@ -51,7 +51,7 @@ protected:
     uint32_t mLastHistReqTs = 0; //the mouse wheel generates a flood of events, so we need to ingore the ones after the firs
     void wheelEvent(QWheelEvent* event)
     {
-        if (event->delta() > 0 && verticalScrollBar()->value() == 0)
+        if (event->angleDelta().y() > 0 && verticalScrollBar()->value() == 0)
         {
             event->accept();
             auto now = time(NULL);
