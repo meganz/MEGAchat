@@ -4599,8 +4599,8 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     std::string title = "SMChat_" + std::to_string(now);
     std::string description = "SMChat_Description";
     std::string timeZone = "Europe/Madrid";
-    const MegaChatTimeStamp startDate = now + 60;
-    const MegaChatTimeStamp endDate =  startDate + 60;
+    const MegaChatTimeStamp startDate = now + 300;
+    const MegaChatTimeStamp endDate =  startDate + 600;
 
     // create MegaChatScheduledFlags
     std::shared_ptr<MegaChatScheduledFlags> flags(MegaChatScheduledFlags::createInstance());
@@ -4676,8 +4676,8 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     //================================================================================//
     LOG_debug << "TEST_ScheduledMeetings 5: Update a scheduled meeting occurrence (child sched meeting created)";
     MegaChatTimeStamp overrides =  startDate;
-    const MegaChatTimeStamp auxStartDate =  startDate + 50;
-    const MegaChatTimeStamp auxEndDate = endDate + 50;
+    const MegaChatTimeStamp auxStartDate =  startDate + 120;
+    const MegaChatTimeStamp auxEndDate = endDate + 120;
     // update occurrence and ensure that we have received a new child scheduled meeting whose parent is the original sched meeting and contains the updated occurrence
     smDataTests456.schedId = schedId;
     smDataTests456.overrides = overrides;
