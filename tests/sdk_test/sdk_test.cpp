@@ -68,7 +68,7 @@ int main(int argc, char **argv)
                 g_APIURL_default += '/';
         }
     }
-    MegaChatApiTest::init();
+    MegaChatApiTest::init(); // logger set here will also be enough for MegaChatApiUnitaryTest
     testing::InitGoogleTest(&argc, argv);
     testing::UnitTest::GetInstance()->listeners().Append(new GTestLogger());
 
@@ -76,20 +76,7 @@ int main(int argc, char **argv)
 
     MegaChatApiTest::terminate();
 
-    MegaChatApiUnitaryTest unitaryTest;
-    std::cout << "[========] Unitary tests " << std::endl;
-    unitaryTest.UNITARYTEST_ParseUrl();
-#ifndef KARERE_DISABLE_WEBRTC
-    unitaryTest.UNITARYTEST_SfuDataReception();
-#endif
-
-#ifdef USE_CRYPTOPP
-    unitaryTest.UNITARYTEST_EncryptMediaKeyWithEphemKey();
-#endif
-
-    std::cout << "[========] End Unitary tests " << std::endl;
-
-    return rc + unitaryTest.mFailedTests;
+    return rc;
 }
 
 Account::Account()
@@ -6737,10 +6724,10 @@ void MegaLoggerTest::log(int loglevel, const char *message)
     testlog  << message;
 }
 
-bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
+TEST_F(MegaChatApiUnitaryTest, ParseUrl)
 {
-    // Test cases
-    mOKTests ++;
+    LOG_info << "___TEST ParseUrl___";
+
     std::map<std::string, int> checkUrls;
     checkUrls["googl."] = 0;
     checkUrls["googl.com\"fsdafasdf"] = 1;
@@ -6834,46 +6821,19 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_ParseUrl()
     checkUrls["hidsfdf.d.ddsfsdsdd"] = 0;
     checkUrls["122.123.122.123/jjkkk"] = 1;
 
-    std::cout << "          TEST - Message::parseUrl()" << std::endl;
-    bool succesful = true;
-    int executedTests = 0;
-    int failureTests = 0;
     std::string url;
     for (const auto& testCase : checkUrls)
     {
-        executedTests ++;
-        if (chatd::Message::hasUrl(testCase.first, url) != !!testCase.second)
-        {
-            failureTests ++;
-            std::cout << "         [" << " FAILED Parse" << "] " << testCase.first << std::endl;
-            LOG_debug << "Failed to parse: " << testCase.first;
-            succesful = false;
-        }
+        EXPECT_EQ(chatd::Message::hasUrl(testCase.first, url), testCase.second) << "Failed to parse " << testCase.first;
+        // url could have some content even in failed cases, so ignore it
     }
-
-    if (failureTests > 0)
-    {
-        mFailedTests ++;
-    }
-
-    std::cout << "          TEST - Message::parseUrl() - Executed Tests : " << executedTests << "   Failure Tests : " << failureTests << std::endl;
-    return succesful;
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
+TEST_F(MegaChatApiUnitaryTest, SfuDataReception)
 {
-    int failedTest = 0;
-    const auto onTestFailed = [&failedTest](const std::string& cmd, const std::string& msg){
-        std::string errStr = "          [FAILED processing SFU command] :";
-        errStr.append(cmd).append(". ").append(msg);
-        failedTest++;
-        std::cout << errStr << std::endl;
-        LOG_debug << errStr;
-    };
+    LOG_info << "___TEST SfuDataReception___";
 
-    std::cout << "          TEST - SfuConnection::handleIncomingData()" << std::endl;
-    mOKTests++;
     MockupCall call;
     std::map<std::string, std::unique_ptr<sfu::Command>> commands;
     sfu::SfuConnection::setCallbackToCommands(call, commands);
@@ -6894,49 +6854,34 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_SfuDataReception()
     checkCommands["{\"a\":\"KEY\",\"id\":0,\"from\":2,"
                   "\"key\":\"RE8HjOLZl8ITM7FMIbAcigPWxq7i6DGqLQm-aNLAkEk\"}"]                   = true;
 
-    int executedTests = 0;
     for (const auto& testCase : checkCommands)
     {
-        executedTests++;
         rapidjson::Document document;
         sfu::SfuConnection::SfuData outdata;
-        if (!sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, outdata))
-        {
-            onTestFailed(testCase.first, outdata.msg);
-        }
+        EXPECT_TRUE(sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, outdata))
+                << "[FAILED processing SFU command]: " << testCase.first << ". " << outdata.msg;
 
         if (outdata.notificationType == sfu::SfuConnection::SfuData::SFU_COMMAND)
         {
             bool commandProcSuccess = (commands.find(outdata.notification) != commands.end()
                     && commands[outdata.notification]->processCommand(document));
-            if (commandProcSuccess != testCase.second)
-            {
-                onTestFailed(testCase.first, outdata.msg);
-            }
+            EXPECT_EQ(commandProcSuccess, testCase.second)
+                    << "[FAILED processing SFU command (notification)]: " << testCase.first << ". " << outdata.msg;
         }
         // else => SFU_WARN | SFU_ERROR | SFU_DENY
     }
-
-    if (failedTest > 0)
-    {
-        mFailedTests++;
-    }
-
-    std::cout << "          TEST - SfuConnection::handleIncomingData() - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest << std::endl;
-    return !failedTest;
 }
 #endif
 
 #ifdef USE_CRYPTOPP
-bool MegaChatApiUnitaryTest::UNITARYTEST_EncryptMediaKeyWithEphemKey()
+TEST_F(MegaChatApiUnitaryTest, EncryptMediaKeyWithEphemKey)
 {
-    LOG_debug << "TEST - EncryptMediaKeyWithEphemKey";
+    LOG_info << "___TEST EncryptMediaKeyWithEphemKey___";
+
     std::string expectedKey = "IsynMDLBwlKQ3CSQcxQtqzZ";
     ::mega::byte keyEncryptIv[12] = {109,34,21,158,236,55,249,210,179,177,244,93};
     ::mega::byte mediaKey[16]     = {60,181,43,125,112,4,248,203,228,50,177,231,232,185,172,194};
     ::mega::byte ephemKey[32]     = {129,216,111,114,44,70,116,227,184,43,159,102,5,134,9,84,125,16,221,217,31,4,37,11,89,137,120,133,205,7,141,247};
-    int failedTest = 0, executedTests = 0;
-    ++executedTests;
 
     // arm cypher with ephemeral key
     ::mega::SymmCipher mSymCipher;
@@ -6951,36 +6896,9 @@ bool MegaChatApiUnitaryTest::UNITARYTEST_EncryptMediaKeyWithEphemKey()
     // Base64 encode
     std::string outTest64Key = ::mega::Base64::btoa(outputTest);
 
-    if (outTest64Key.compare(expectedKey) != 0)
-    {
-        ++failedTest;
-        ++mFailedTests;
-        LOG_debug << "          TEST - EncryptMediaKeyWithEphemKey : - Expected encrypted key: " << expectedKey << "  doesn't match with obtained : " << outTest64Key;;
-    }
-    LOG_debug << "          TEST - EncryptMediaKeyWithEphemKey : - Executed Tests : " << executedTests << "   Failure Tests : " << failedTest;
-    return !failedTest;
+    EXPECT_EQ(expectedKey, outTest64Key) << "Expected encrypted key didn't match with obtained key";
 }
 #endif
-
-karere::IApp::IChatListHandler* MegaChatApiUnitaryTest::chatListHandler()
-{
-    return nullptr;
-}
-
-void MegaChatApiUnitaryTest::onPresenceConfigChanged(const presenced::Config& /*config*/, bool /*pending*/)
-{
-
-}
-
-void MegaChatApiUnitaryTest::onPresenceLastGreenUpdated(karere::Id /*userid*/, uint16_t /*lastGreen*/)
-{
-
-}
-
-void MegaChatApiUnitaryTest::onDbError(int /*error*/, const std::string &/*msg*/)
-{
-
-}
 
 TestMegaRequestListener::TestMegaRequestListener(MegaApi *megaApi, MegaChatApi *megaChatApi)
     : RequestListener(megaApi, megaChatApi)
