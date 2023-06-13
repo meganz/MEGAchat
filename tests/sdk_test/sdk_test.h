@@ -388,6 +388,7 @@ public:
     bool archiveUpdated[NUM_ACCOUNTS];
     bool previewsUpdated[NUM_ACCOUNTS];
     bool retentionTimeUpdated[NUM_ACCOUNTS];
+    bool chatModeUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat) override;
