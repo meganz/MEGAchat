@@ -26,6 +26,7 @@
 #include <chatClient.h>
 #include <future>
 #include "gtest/gtest.h"
+#include <fstream>
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -134,7 +135,6 @@ class MegaChatApiTest :
         public ::mega::MegaListener,
         public ::mega::MegaTransferListener,
         public ::mega::MegaLogger,
-        public megachat::MegaChatRequestListener,
         public megachat::MegaChatListener,
         public megachat::MegaChatCallListener,
         public megachat::MegaChatScheduledMeetingListener
@@ -235,32 +235,18 @@ protected:
 
     // flags
     bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TYPE_CHAT_SET_TITLE];
-    bool requestFlagsChat[NUM_ACCOUNTS][megachat::MegaChatRequest::TOTAL_OF_REQUEST_TYPES];
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
     bool mChatConnectionOnline[NUM_ACCOUNTS];
-    int lastErrorChat[NUM_ACCOUNTS];
-    std::string lastErrorMsgChat[NUM_ACCOUNTS];
     int lastErrorTransfer[NUM_ACCOUNTS];
 
-    megachat::MegaChatHandle chatid[NUM_ACCOUNTS];  // chatroom id from request
     megachat::MegaChatRoom *chatroom[NUM_ACCOUNTS];
-    std::string chatLinks[NUM_ACCOUNTS];
     bool chatUpdated[NUM_ACCOUNTS];
     bool chatItemUpdated[NUM_ACCOUNTS];
     bool chatItemClosed[NUM_ACCOUNTS];
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
     bool chatArchived[NUM_ACCOUNTS];
-
-    std::string mFirstname;
-    std::string mLastname;
-    std::string mEmail;
-    bool nameReceived[NUM_ACCOUNTS];
-
-    std::string mChatFirstname;
-    std::string mChatLastname;
-    std::string mChatEmail;
 
     ::mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
     ::mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
@@ -297,10 +283,8 @@ protected:
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
-    bool mChatCallReconnection[NUM_ACCOUNTS];
     bool mSchedMeetingUpdated[NUM_ACCOUNTS];
     bool mSchedOccurrUpdated[NUM_ACCOUNTS];
-    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> mOccurrList[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -322,12 +306,6 @@ protected:
     void onRequestTemporaryError(::mega::MegaApi *, ::mega::MegaRequest *, ::mega::MegaError*) override {}
     void onContactRequestsUpdate(::mega::MegaApi* api, ::mega::MegaContactRequestList* requests) override;
     void onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList) override;
-
-    // implementation for MegaChatRequestListener
-    void onRequestStart(megachat::MegaChatApi* , megachat::MegaChatRequest *) override {}
-    void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request, megachat::MegaChatError* e) override;
-    void onRequestUpdate(megachat::MegaChatApi*, megachat::MegaChatRequest *) override {}
-    void onRequestTemporaryError(megachat::MegaChatApi *, megachat::MegaChatRequest *, megachat::MegaChatError*) override {}
 
     // implementation for MegaChatListener
     void onChatInitStateUpdate(megachat::MegaChatApi *api, int newState) override;
@@ -514,13 +492,67 @@ private:
     std::unique_ptr<::mega::MegaRequest> request;
 };
 
+class ChatRequestTracker : public megachat::MegaChatRequestListener, public ResultHandler
+{
+public:
+    void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
+                         ::megachat::MegaChatError* e) override
+    {
+        request.reset(req ? req->copy() : nullptr);
+        finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+    }
+
+    std::string getText() const
+    {
+        return (finished() && request && request->getText()) ? request->getText() : std::string();
+    }
+
+    bool getFlag() const
+    {
+        return (finished() && request) ? request->getFlag() : false;
+    }
+
+    ::megachat::MegaChatHandle getChatHandle() const
+    {
+        return (finished() && request) ? request->getChatHandle() : ::megachat::MEGACHAT_INVALID_HANDLE;
+    }
+
+    int getParamType() const
+    {
+        return (finished() && request) ? request->getParamType() : 0;
+    }
+
+    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> getScheduledMeetings() const
+    {
+        return (finished() && request)
+                  ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
+                  : nullptr;
+    }
+
+private:
+    std::unique_ptr<::megachat::MegaChatRequest> request;
+};
+
+class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public ResultHandler
+{
+public:
+    void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
+                         ::megachat::MegaChatError* e) override
+    {
+        if (req && req->getType() == ::megachat::MegaChatRequest::TYPE_LOGOUT)
+        {
+            finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+        }
+    }
+};
+
 #ifndef KARERE_DISABLE_WEBRTC
 class MockupCall : public sfu::SfuInterface
 {
 public:
-    bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp& sdp, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor>&vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>&speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
-    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string&key) override;
+    bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers,  std::set<karere::Id>& moderators, bool ownMod) override;
+    bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
     bool handleVThumbsStopCommand() override;
@@ -529,18 +561,20 @@ public:
     bool handleHiResStopCommand() override;
     bool handleSpeakReqsCommand(const std::vector<Cid_t>&) override;
     bool handleSpeakReqDelCommand(Cid_t cid) override;
-    bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
+    bool handleSpeakOnCommand(Cid_t cid) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(unsigned termcode) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
-    void onSfuConnected() override;
     void onSendByeCommand() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
+    bool processDeny(const std::string&, const std::string&) override;
     void logError(const char* error) override;
+    bool handleHello(const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks, const std::set<karere::Id>& mods,
+                     const bool wr, const bool allowed, const std::map<karere::Id, bool>& wrUsers) override;
 };
 #endif
 #endif // CHATTEST_H

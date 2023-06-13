@@ -290,7 +290,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 }
 
-void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)
+void MainWindow::onChatSessionUpdate(MegaChatApi *, MegaChatHandle chatid, MegaChatHandle callid, MegaChatSession *session)
 {
     ChatListItemController *itemController = getChatControllerById(chatid);
     if (!itemController)
@@ -378,11 +378,11 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *api, MegaChatHandle chatid, Me
     }
 }
 
-void MainWindow::onChatSchedMeetingUpdate(MegaChatApi* /*api*/, MegaChatScheduledMeeting* sm)
+void MainWindow::onChatSchedMeetingUpdate(MegaChatApi* /*api*/, MegaChatScheduledMeeting* /*sm*/)
 {
 }
 
-void MainWindow::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle chatid, bool append)
+void MainWindow::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle /*chatid*/, bool /*append*/)
 {
 }
 
@@ -1126,7 +1126,7 @@ char *MainWindow::askChatTitle()
     if (!auxTitle.empty())
     {
         title = new char[auxTitle.size() + 1];
-        strcpy(title, auxTitle.c_str());
+        strncpy(title, auxTitle.c_str(), auxTitle.size() + 1);
     }
     return title;
 }
@@ -1291,7 +1291,7 @@ void MainWindow::onChatOnlineStatusUpdate(MegaChatApi *, MegaChatHandle userhand
     }
 }
 
-void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfig *config)
+void MainWindow::onChatPresenceConfigUpdate(MegaChatApi *, MegaChatPresenceConfig *)
 {
     if (mSettings)
     {
@@ -1325,7 +1325,7 @@ void MainWindow::onChatPresenceLastGreen(MegaChatApi */*api*/, MegaChatHandle us
     delete [] firstname;
 }
 
-void MainWindow::onDbError(MegaChatApi */*api*/, int error, const char *msg)
+void MainWindow::onDbError(MegaChatApi */*api*/, int /*error*/, const char *msg)
 {
     std::string text(msg);
     mLogger->postLog(text.c_str());

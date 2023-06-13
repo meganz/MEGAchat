@@ -94,6 +94,7 @@ public slots:
     void onEnableAudio();
     void onEnableVideo();
     void onRemoveSpeaker(uint32_t cid);
+    void onRemoveSpeaker();
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();

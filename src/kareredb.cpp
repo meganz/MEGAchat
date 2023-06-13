@@ -7,7 +7,7 @@ void SqliteDb::simpleQuery(const char *sql)
     auto ret = sqlite3_exec(mDb, sql, nullptr, nullptr, &err.mStr);
     if (ret == SQLITE_OK)
         return;
-    std::string msg("Error executing '");
+    std::string msg("Error " + std::to_string(ret) + " executing '");
     msg.append(sql);
     if (err.mStr)
         msg.append("': ").append(err.mStr);

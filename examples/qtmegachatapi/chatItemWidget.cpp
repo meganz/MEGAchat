@@ -20,8 +20,8 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
     ui->setupUi(this);
 
     int unreadCount = item->getUnreadCount();
-    onUnreadCountChanged(unreadCount);
-    onPreviewersCountChanged(item->getNumPreviewers());
+    doOnUnreadCountChanged(unreadCount);
+    doOnPreviewersCountChanged(item->getNumPreviewers());
 
     QString text = NULL;
     if (item->isArchived())
@@ -90,7 +90,7 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
     }
 
     int status = mMegaChatApi->getChatConnectionState(mChatId);
-    this->onlineIndicatorUpdate(status);
+    doOnlineIndicatorUpdate(status);
 }
 
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
@@ -255,6 +255,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             lastMessage.append("User ").append(senderHandle)
                .append(" has started a call");
         }
+        // fallthrough
         default:
             lastMessage = item->getLastMessage();
             break;
@@ -348,7 +349,7 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
     if(msgUserId == mMegaChatApi->getMyUserHandle())
     {
         msgAuthor = new char[3];
-        strcpy(msgAuthor, "Me");
+        strncpy(msgAuthor, "Me", 3);
     }
     else
     {
@@ -370,7 +371,7 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
     return msgAuthor;
 }
 
-void ChatItemWidget::onUnreadCountChanged(int count)
+void ChatItemWidget::doOnUnreadCountChanged(int count)
 {
     if(count < 0)
     {
@@ -387,7 +388,7 @@ void ChatItemWidget::onUnreadCountChanged(int count)
     ui->mUnreadIndicator->adjustSize();
 }
 
-void ChatItemWidget::onPreviewersCountChanged(int count)
+void ChatItemWidget::doOnPreviewersCountChanged(int count)
 {
     ui->mPreviewersIndicator->setText(QString::number(count));
     ui->mPreviewersIndicator->setVisible(count != 0);
@@ -419,7 +420,7 @@ void ChatItemWidget::setWidgetItem(QListWidgetItem *item)
     mListWidgetItem = item;
 }
 
-void ChatItemWidget::onlineIndicatorUpdate(int newState)
+void ChatItemWidget::doOnlineIndicatorUpdate(int newState)
 {
     ui->mOnlineIndicator->setStyleSheet(
         QString("background-color: ")+gOnlineIndColors[newState]+
@@ -498,6 +499,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     auto actTopic = roomMenu->addAction(tr("Set title"));
     connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));
+
+    auto actEndCall = roomMenu->addAction(tr("End call for all"));
+    connect(actEndCall, SIGNAL(triggered()), mController, SLOT(endCall()));
 
     auto actArchive = roomMenu->addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), mController, SLOT(archiveChat(bool)));
@@ -620,7 +624,7 @@ void ChatItemWidget::onResquestMemberInfo()
     userList = mega::MegaHandleList::createInstance();
     megachat::MegaChatRoom* room = mMegaChatApi->getChatRoom(mChatId);
     int i = 0;
-    for (i = mIndexMemberRequested; i < (mIndexMemberRequested + MEMBERS_REQUESTED) && i < room->getPeerCount(); i++)
+    for (i = mIndexMemberRequested; i < (mIndexMemberRequested + MEMBERS_REQUESTED) && i < static_cast<int>(room->getPeerCount()); i++)
     {
         userList->addMegaHandle(room->getPeerHandle(i));
     }

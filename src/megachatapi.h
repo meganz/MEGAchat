@@ -489,6 +489,7 @@ public:
     {
         NOTIFICATION_TYPE_INVALID   = 0,            /// Invalid notification type
         NOTIFICATION_TYPE_SFU_ERROR = 1,            /// Error received from SFU
+        NOTIFICATION_TYPE_SFU_DENY  = 2,            /// Command denied by SFU
     };
 
     enum
@@ -523,6 +524,8 @@ public:
         TERM_CODE_REJECT                    = 2,    // Caller has hang up the call before nobody answered the call
         TERM_CODE_ERROR                     = 3,    // Call error has been received
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
+        TERM_CODE_TOO_MANY_CLIENTS          = 5,    // Too many clients of same user connected
+        TERM_CODE_PROTOCOL_VERSION          = 6,    // SFU protocol version error
     };
 
     enum
@@ -534,6 +537,13 @@ public:
         END_CALL_REASON_FAILED          = 4,     /// Call finished by an error
         END_CALL_REASON_CANCELLED       = 5,     /// Call was canceled by caller.
         END_CALL_REASON_BY_MODERATOR    = 6      /// group or meeting call has been ended by moderator
+    };
+
+    enum
+    {
+        SFU_DENY_INVALID                  = -1,   // Invalid command
+        SFU_DENY_AUDIO                    = 0,    // Av command denied by SFU (enable/disable audio video)
+        SFU_DENY_JOIN                     = 1,    // JOIN command denied by SFU
     };
 
     virtual ~MegaChatCall();
@@ -719,19 +729,41 @@ public:
     virtual int64_t getFinalTimeStamp() const;
 
     /**
-     * @brief Returns the termination code for this call
+     * @brief Returns an error or warning code for this call
      *
-     * @note this value only will be valid in state CALL_STATUS_TERMINATING_USER_PARTICIPATION
+     * This method can be used for different purposes.
      *
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and 
+     * MegaChatCall::getNotificationType is equal to MegaChatCall::NOTIFICATION_TYPE_SFU_DENY,
+     * this method returns the command that has been previously denied by SFU.
      * Valid values are:
-     *  - TERM_CODE_INVALID
-     *  - TERM_CODE_HANGUP
-     *  - TERM_CODE_TOO_MANY_PARTICIPANTS
-     *  - TERM_CODE_ERROR
-     *  - TERM_CODE_REJECT
-     *  - TERM_CODE_NO_PARTICIPATE
+     *      - SFU_DENY_AUDIO
+     *      - SFU_DENY_JOIN
      *
-     * @return termination code for the call
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) is  true and 
+     * MegaChatCall::getNotificationType is equal to MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR,
+     * this method returns the termination code for this call due to an error notification received from SFU
+     * Valid values are:
+     *      - TERM_CODE_INVALID
+     *      - TERM_CODE_HANGUP
+     *      - TERM_CODE_TOO_MANY_PARTICIPANTS
+     *      - TERM_CODE_ERROR
+     *      - TERM_CODE_REJECT
+     *      - TERM_CODE_NO_PARTICIPATE
+     *      - TERM_CODE_TOO_MANY_CLIENTS
+     *      - TERM_CODE_PROTOCOL_VERSION
+     *
+     * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_STATUS) is true and MegaChatCall::getStatus() ==
+     * MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION, this method returns the termination code for this call
+     * Valid values are:
+     *      - TERM_CODE_INVALID
+     *      - TERM_CODE_HANGUP
+     *      - TERM_CODE_TOO_MANY_PARTICIPANTS
+     *      - TERM_CODE_ERROR
+     *      - TERM_CODE_REJECT
+     *      - TERM_CODE_NO_PARTICIPATE
+     *
+     * @return error or warning code for this call
      */
     virtual int getTermCode() const;
 
@@ -761,7 +793,8 @@ public:
      *
      * Valid values returned by this method are:
      *      - MegaChatCall::NOTIFICATION_TYPE_INVALID   = 0
-     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR = 1
+     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR = 1     /// Error received from SFU
+     *      - MegaChatCall::NOTIFICATION_TYPE_SFU_DENY  = 2     /// Notification about command denied by SFU
      *
      * @return the notification type, when a call notification is forwarded to the apps
      */
@@ -4230,13 +4263,14 @@ public:
      * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
      * Note that description is a mandatory field, so in case you want to set an empty description, please provide an empty string with Null-terminated character at the end
      * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
-     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class).
+     * Provide NULL in case you want to create a non recurring meeting, otherwise a valid instance of MegaChatScheduledRules must be provided
      * @param attributes - not supported yet
      * @param listener MegaChatRequestListener to track this request
      */
     void createChatroomAndSchedMeeting(MegaChatPeerList* peerList, bool isMeeting, bool publicChat, const char* title, bool speakRequest, bool waitingRoom, bool openInvite,
                                                           const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* description,
-                                                          const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                                          const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules = NULL,
                                                           const char* attributes = NULL, MegaChatRequestListener* listener = NULL);
 
     /**
@@ -4306,6 +4340,7 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     * - MegaChatError::ERROR_NOENT - if chatRoom, scheduled meeting or occurrence to be modified could not be found
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
@@ -7743,6 +7778,7 @@ public:
      * @brief Creates a new instance of MegaChatScheduledRules
      *
      * @param freq: scheduled meeting frequency, this is used in conjunction with interval
+     * This param is mandatory to create a valid MegaChatScheduledRules instance
      * valid values for this param:
      *  + MegaChatScheduledRules::FREQ_DAILY
      *  + MegaChatScheduledRules::FREQ_WEEKLY

@@ -43,6 +43,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeAudioLevel = 0x40,
     MEGAChatCallChangeTypeNetworkQuality = 0x80,
     MEGAChatCallChangeTypeOutgoingRingingStop = 0x100,
+    MEGAChatCallChangeTypeOwnPermissions = 0x200,
+    MEGAChatCallChangeTypeGenericNotification = 0x400,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
@@ -60,6 +62,11 @@ typedef NS_ENUM (NSInteger, MEGAChatCallCompositionChange) {
 typedef NS_ENUM (NSInteger, MEGAChatCallNetworkQuality) {
     MEGAChatCallNetworkQualityBad = 0,
     MEGAChatCallNetworkQualityGood = 1,
+};
+
+typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
+    MEGAChatCallNotificationTypeInvalid = 0,
+    MEGAChatCallNotificationTypeSfuError = 1,
 };
 
 @interface MEGAChatCall : NSObject
@@ -92,6 +99,12 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNetworkQuality) {
 - (nullable MEGAChatSession *)sessionForClientId:(uint64_t)clientId;
 
 - (instancetype)clone;
+
+- (NSInteger)notificationType;
+
+- (NSString *)termcodeString:(MEGAChatCallTermCode)termcode;
+
+- (NSString *)genericMessage;
 
 + (NSString *)stringForTermCode:(MEGAChatCallTermCode)termCode;
 

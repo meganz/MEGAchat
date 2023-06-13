@@ -8,7 +8,7 @@
 VideoRendererQt::VideoRendererQt(QWidget *parent)
     :QWidget(parent), mFrame(new QImage(size(), QImage::Format_RGBA8888))
 {
-    clearViewport();
+    doClearViewport();
 }
 
 void VideoRendererQt::updateImageSlot()
@@ -84,7 +84,7 @@ void VideoRendererQt::drawStaticImageOnFrame()
     painter.drawImage(ir, *mStaticImage);
 }
 
-void VideoRendererQt::paintEvent(QPaintEvent* event)
+void VideoRendererQt::paintEvent(QPaintEvent*)
 {
     if (mFrozen & kFrozenForStaticImage)
     {
@@ -129,7 +129,7 @@ void VideoRendererQt::frameComplete(void* userData)
       "updateImageSlot", Qt::QueuedConnection);
 }
 
-void VideoRendererQt::clearViewport()
+void VideoRendererQt::doClearViewport()
 {
     assert(mFrame);
     if ((mFrozen & kFrozenForStaticImage) == 0)

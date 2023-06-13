@@ -27,7 +27,7 @@ ChatSettingsDialog::~ChatSettingsDialog()
     delete ui;
 }
 
-void ChatSettingsDialog::on_buttonBox_clicked(QAbstractButton *button)
+void ChatSettingsDialog::on_buttonBox_clicked(QAbstractButton*)
 {
 #ifndef KARERE_DISABLE_WEBRTC
     setDevices(ui->videoInCombo->itemText(ui->videoInCombo->currentIndex()).toLatin1().data());

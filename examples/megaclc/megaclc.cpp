@@ -2788,12 +2788,11 @@ string toBinary(const string& hex)
     string bin;
     for (string::const_iterator i = hex.cbegin(); i != hex.cend(); ++i)
     {
-        unsigned char c = toBinary(static_cast<unsigned char>(*i));
-        c <<= 4; // note: upon update to GCC > 9 this warning should disappear
+        unsigned c = toBinary(static_cast<unsigned char>(*i));
+        c <<= 4;
         ++i;
         if (i != hex.cend())
         {
-            // note: upon update to GCC > 9 this warning should disappear
             c |= toBinary(static_cast<unsigned char>(*i));
         }
         bin.push_back(static_cast<char>(c));
@@ -4670,61 +4669,6 @@ void exec_setmybackupsfolder(ac::ACState& s)
         }));
 }
 
-void exec_logFilenameAnomalies(ac::ACState& s)
-{
-    struct Reporter
-      : public m::MegaFilenameAnomalyReporter
-    {
-        void anomalyDetected(AnomalyType type,
-                             const char* localPath,
-                             const char* remotePath) override
-        {
-            string typeName;
-
-            switch (type)
-            {
-            case ANOMALY_NAME_MISMATCH:
-                typeName = "NAME_MISMATCH";
-                break;
-            case ANOMALY_NAME_RESERVED:
-                typeName = "NAME_RESERVED";
-                break;
-            default:
-                assert(false); // "Unknown anomaly type"
-                typeName = "UNKNOWN";
-                break;
-            }
-
-            cout << "Filename anomaly detected: type: "
-                 << typeName
-                 << ": local path: "
-                 << localPath
-                 << ": remote path: "
-                 << remotePath
-                 << endl;
-        }
-    }; // Receiver
-
-    static Reporter reporter;
-
-    // logfilenameanomalies on|off
-    auto on = s.words[1].s == "on";
-
-    if (on)
-    {
-        g_megaApi->setFilenameAnomalyReporter(&reporter);
-    }
-    else
-    {
-        g_megaApi->setFilenameAnomalyReporter(nullptr);
-    }
-
-    cout << "Logging of filename anomalies is "
-         << (on ? "enabled" : "disabled")
-         << "."
-         << endl;
-}
-
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -4964,9 +4908,6 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_setmybackupsfolder, sequence(text("setmybackupsfolder"), param("remotefolder")));
     p->Add(exec_getmybackupsfolder, sequence(text("getmybackupsfolder")));
-
-    p->Add(exec_logFilenameAnomalies,
-           sequence(text("logfilenameanomalies"), either(text("on"), text("off"))));
 
     return p;
 }

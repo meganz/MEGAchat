@@ -577,7 +577,7 @@ NS_ASSUME_NONNULL_BEGIN
                                        endDate:(NSInteger)endDate
                                    description:(NSString *)description
                                          flags:(MEGAChatScheduledFlags *)flags
-                                         rules:(MEGAChatScheduledRules *)rules
+                                         rules:(nullable MEGAChatScheduledRules *)rules
                                     attributes:(NSString *)attributes;
 /**
  * @brief Creates a chatroom and a scheduled meeting for that chatroom
@@ -634,7 +634,7 @@ NS_ASSUME_NONNULL_BEGIN
                                        endDate:(NSInteger)endDate
                                    description:(NSString *)description
                                          flags:(MEGAChatScheduledFlags *)flags
-                                         rules:(MEGAChatScheduledRules *)rules
+                                         rules:(nullable MEGAChatScheduledRules *)rules
                                     attributes:(nullable NSString *)attributes
                                       delegate:(id<MEGAChatRequestDelegate>)delegate;
 

@@ -143,6 +143,26 @@ using namespace megachat;
     return self.megaChatCall ? [[MEGAChatSession alloc] initWithMegaChatSession:self.megaChatCall->getMegaChatSession(clientId) cMemoryOwn:NO] : nil;
 }
 
+- (NSInteger)notificationType {
+    return self.megaChatCall ? self.megaChatCall->getNumParticipants() : 0;
+}
+
+- (NSString *)termcodeString:(MEGAChatCallTermCode)termcode {
+    if (!self.megaChatCall) return @"";
+
+    const char *val = self.megaChatCall->termcodeToString(termcode);
+    if (!val) return @"";
+    return @(val);
+}
+
+- (NSString *)genericMessage {
+    if (!self.megaChatCall) return @"";
+
+    const char *val = self.megaChatCall->getGenericMessage();
+    if (!val) return @"";
+    return @(val);
+}
+
 + (NSString *)stringForStatus:(MEGAChatCallStatus)status {
     NSString *result;
     switch (status) {
