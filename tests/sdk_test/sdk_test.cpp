@@ -6878,25 +6878,29 @@ TEST_F(MegaChatApiUnitaryTest, EncryptMediaKeyWithEphemKey)
 {
     LOG_info << "___TEST EncryptMediaKeyWithEphemKey___";
 
-    std::string expectedKey = "IsynMDLBwlKQ3CSQcxQtqzZ";
-    ::mega::byte keyEncryptIv[12] = {109,34,21,158,236,55,249,210,179,177,244,93};
-    ::mega::byte mediaKey[16]     = {60,181,43,125,112,4,248,203,228,50,177,231,232,185,172,194};
-    ::mega::byte ephemKey[32]     = {129,216,111,114,44,70,116,227,184,43,159,102,5,134,9,84,125,16,221,217,31,4,37,11,89,137,120,133,205,7,141,247};
+    std::string encryptedMediaKeyBin, decryptedMediaKeyBin;
+    const std::string expEncryptedMediaKeyB64     = "IqVDFXcCDQKfazBoZxhNSjKMvk9eZYQISMYl_7S71K4";
+    const std::vector<::mega::byte> mediaKeyBin   = { 60,181,43,125,112,4,248,203,228,50,177,231,232,185,172,194 };
+    const std::vector<::mega::byte> ephemKeyBin   = { 129,216,111,114,44,70,116,227,184,43,159,102,5,134,9,84,125,16,221,217,31,4,37,11,89,137,120,133,205,7,141,247 };
+    const std::string ephemeralkeyStr(ephemKeyBin.begin(), ephemKeyBin.end());
+    const std::string mediaKeyStr(mediaKeyBin.begin(), mediaKeyBin.end());
 
-    // arm cypher with ephemeral key
+    // Encrypt media key with ephemeral key
     ::mega::SymmCipher mSymCipher;
-    std::string ephemeralkeyStr(ephemKey, ephemKey + 32);
-    mSymCipher.setkey(&ephemeralkeyStr);
+    bool encryptResult = mSymCipher.cbc_encrypt_with_key(mediaKeyStr, encryptedMediaKeyBin, reinterpret_cast<const unsigned char *>(ephemeralkeyStr.data()), ephemeralkeyStr.size(), nullptr);
+    EXPECT_TRUE(encryptResult) << "Failed Media key cbc_encrypt";
 
-    // Encrypt media key
-    std::string outputTest;
-    std::string mediaKeyStr(mediaKey, mediaKey + 16);
-    mSymCipher.gcm_encrypt(&mediaKeyStr, keyEncryptIv, 12, 4, &outputTest);
+    // Check encrypted key with expected one
+    const std::string encryptedMediaKeyB64 = ::mega::Base64::btoa(encryptedMediaKeyBin);
+    EXPECT_EQ(encryptedMediaKeyB64.compare(expEncryptedMediaKeyB64), 0) << std::string("Expected encrypted key: ")
+                                                                               + expEncryptedMediaKeyB64 + "  doesn't match with obtained : " + encryptedMediaKeyB64;
+    // Decrypt media key with ephemeral key
+    bool decryptResult = mSymCipher.cbc_decrypt_with_key(encryptedMediaKeyBin, decryptedMediaKeyBin, reinterpret_cast<const unsigned char*>(ephemeralkeyStr.data()), ephemeralkeyStr.size(), nullptr);
+    EXPECT_TRUE(decryptResult) << "Failed Media key cbc_decrypt";
 
-    // Base64 encode
-    std::string outTest64Key = ::mega::Base64::btoa(outputTest);
-
-    EXPECT_EQ(expectedKey, outTest64Key) << "Expected encrypted key didn't match with obtained key";
+    // Check decrypted key with expected one
+    EXPECT_EQ(decryptedMediaKeyBin.compare(mediaKeyStr), 0) << std::string("Expected decrypted key: ")
+                                                                   + mediaKeyStr + "  doesn't match with obtained : " + decryptedMediaKeyBin;
 }
 #endif
 
