@@ -6892,15 +6892,14 @@ TEST_F(MegaChatApiUnitaryTest, EncryptMediaKeyWithEphemKey)
 
     // Check encrypted key with expected one
     const std::string encryptedMediaKeyB64 = ::mega::Base64::btoa(encryptedMediaKeyBin);
-    EXPECT_EQ(encryptedMediaKeyB64.compare(expEncryptedMediaKeyB64), 0) << std::string("Expected encrypted key: ")
-                                                                               + expEncryptedMediaKeyB64 + "  doesn't match with obtained : " + encryptedMediaKeyB64;
+    EXPECT_EQ(encryptedMediaKeyB64.compare(expEncryptedMediaKeyB64), 0) << "Expected encrypted key:" << expEncryptedMediaKeyB64 << " doesn't match with obtained: " << encryptedMediaKeyB64;
+
     // Decrypt media key with ephemeral key
     bool decryptResult = mSymCipher.cbc_decrypt_with_key(encryptedMediaKeyBin, decryptedMediaKeyBin, reinterpret_cast<const unsigned char*>(ephemeralkeyStr.data()), ephemeralkeyStr.size(), nullptr);
     EXPECT_TRUE(decryptResult) << "Failed Media key cbc_decrypt";
 
     // Check decrypted key with expected one
-    EXPECT_EQ(decryptedMediaKeyBin.compare(mediaKeyStr), 0) << std::string("Expected decrypted key: ")
-                                                                   + mediaKeyStr + "  doesn't match with obtained : " + decryptedMediaKeyBin;
+    EXPECT_EQ(decryptedMediaKeyBin.compare(mediaKeyStr), 0) << "Expected decrypted key: " << mediaKeyStr << " doesn't match with obtained: " << decryptedMediaKeyBin;
 }
 #endif
 
