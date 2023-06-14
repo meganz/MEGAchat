@@ -381,7 +381,7 @@ static size_t myStrncpy(char* dest, const char* src, size_t maxCount)
     }
     if (count > maxCount) //copy ermianted because we reached maxCount
     {
-        dptr[maxCount-1] = 0; //guarantee zero termination even if string is truncated
+        dest[maxCount-1] = 0; //guarantee zero termination even if string is truncated
         return maxCount-1; //we ate the last char to put te terinating zero there
     }
     return count-1;
