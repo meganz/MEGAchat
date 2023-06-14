@@ -4990,13 +4990,13 @@ bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *
 
     sdkMutex.lock();
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    ChatRoom* chatroom = findChatRoom(chatid);
+    if (!chatroom || !chatroom->setAppChatHandler(getChatRoomHandler(chatid)))
     {
-        addChatRoomListener(chatid, listener);
-        chatroom->setAppChatHandler(getChatRoomHandler(chatid));
+        return false;
     }
 
+    addChatRoomListener(chatid, listener);
     sdkMutex.unlock();
     return chatroom;
 }

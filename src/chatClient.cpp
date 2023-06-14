@@ -3628,17 +3628,19 @@ void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
     dbIntf = new ChatdSqliteDb(*mChat, parent.mKarereClient.db);
     if (mAppChatHandler)
     {
+        KR_LOG_WARNING("App chat handler is already set, remove it first");
+        assert(!mAppChatHandler); // keep original behavior in case this happens (it shouldn't)
         setAppChatHandler(mAppChatHandler);
     }
 }
 
-void ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
+bool ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
 {
     if (mAppChatHandler)
     {
         KR_LOG_WARNING("App chat handler is already set, remove it first");
-        assert(mAppChatHandler);
-        return;
+        assert(!mAppChatHandler);
+        return false;
     }
 
     mAppChatHandler = handler;
@@ -3648,6 +3650,7 @@ void ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
 //return to the event loop
     mChat->setListener(mAppChatHandler);
     mAppChatHandler->init(*mChat, dummyIntf);
+    return true;
 }
 
 void ChatRoom::removeAppChatHandler()
