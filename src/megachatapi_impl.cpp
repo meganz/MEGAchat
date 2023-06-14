@@ -91,9 +91,16 @@ public:
         mWaiters.emplace_back(w);
     }
 
+    ~MegaChatApiImplLeftovers()
+    {
+        // this could rely on the order of destruction of member variables,
+        // but make sure future changes will not break it.
+        clear();
+    }
+
 private:
-    std::vector<std::unique_ptr<WebsocketsIO>> mWebsocketsIOs;
     std::vector<std::unique_ptr<Waiter>> mWaiters;
+    std::vector<std::unique_ptr<WebsocketsIO>> mWebsocketsIOs;
 };
 
 static MegaChatApiImplLeftovers& getLeftovers()
