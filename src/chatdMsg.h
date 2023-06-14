@@ -1386,7 +1386,7 @@ enum ChatState
     kChatStateOnline            // login completed (HISTDONE received for JOIN/JOINRANGEHIST)
 };
 
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 //disable the warning for GCC and Clang in compilation units that do not use these functions
 #pragma GCC diagnostic ignored "-Wunused-function"
@@ -1420,7 +1420,7 @@ static inline const char* privToString(Priv priv)
         return "(unknown privilege)";
     }
 }
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 }

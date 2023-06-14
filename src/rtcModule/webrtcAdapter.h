@@ -8,7 +8,7 @@
 #include "rtcCrypto.h"
 // disable warnings in webrtc headers
 // the same pragma works with both GCC and Clang
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wdeprecated-copy"
@@ -19,7 +19,7 @@
 #include <media/base/video_broadcaster.h>
 #include <modules/video_capture/video_capture.h>
 #include <rtc_base/ref_counter.h>
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 #include "sfu.h"

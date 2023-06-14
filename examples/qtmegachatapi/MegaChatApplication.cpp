@@ -91,7 +91,10 @@ void MegaChatApplication::init()
     }
     else
     {
-        int initState = mMegaChatApi->init(mSid);
+#ifndef NDEBUG
+        int initState =
+#endif
+        mMegaChatApi->init(mSid);
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
@@ -211,7 +214,10 @@ void MegaChatApplication::onLoginClicked()
     mLoginDialog->setState(LoginDialog::loggingIn);
     if (mMegaChatApi->getInitState() == MegaChatApi::INIT_NOT_DONE)
     {
-        int initState = mMegaChatApi->init(mSid);
+#ifndef NDEBUG
+        int initState =
+#endif
+        mMegaChatApi->init(mSid);
         assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
     }
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
@@ -293,7 +299,11 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
             ::mega::MegaUser *user = userList->get(i);
             if (user->getHandle() == mMegaApi->getMyUserHandleBinary())
             {
-                mMainWin->updateToolTipMyInfo();
+                if (mMainWin)
+                {
+                    mMainWin->updateToolTipMyInfo();
+                }
+
                 if (user->hasChanged(MegaUser::CHANGE_TYPE_PUSH_SETTINGS) && !user->isOwnChange())
                 {
                     mMegaApi->getPushNotificationSettings();
@@ -312,7 +322,7 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
                 }
             }
 
-            if (user->hasChanged(MegaUser::CHANGE_TYPE_EMAIL))
+            if (user->hasChanged(MegaUser::CHANGE_TYPE_EMAIL) && mMainWin)
             {
                 if (user->getHandle() == mMegaChatApi->getMyUserHandle())
                 {
@@ -1218,7 +1228,10 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
               char buf[32];
               struct tm tms;
               struct tm* ptm = m_localtime(occur->startDateTime(), &tms);
-              sprintf(buf, "[%04d-%02d-%02d   %02d:%02d:%02d]", ptm->tm_year + 1900, ptm->tm_mon + 1, ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+              sprintf(buf, "[%04d-%02d-%02d   %02d:%02d:%02d]",
+                      // avoid -Wformat-overflow warning
+                      (ptm->tm_year + 1900) % 10000, (ptm->tm_mon + 1) % 100, ptm->tm_mday % 100,
+                      ptm->tm_hour % 100, ptm->tm_min % 100, ptm->tm_sec % 100);
               text.append("\t[").append(std::to_string(i+1)).append("]")
                   .append("\t").append(buf)
                   .append("\t\t").append(std::to_string(occur->startDateTime()))

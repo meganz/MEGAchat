@@ -242,6 +242,7 @@ public:
     time_t mTsLastSwitch;
 };
 
+
 /**
 * @brief The Call class
 *
@@ -324,6 +325,7 @@ public:
     // request to speak, or cancels a previous request (add = false)
     void requestSpeaker(bool add = true) override;
     bool hasRequestSpeak() const override;
+    int getWrJoiningState() const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
@@ -332,6 +334,9 @@ public:
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     bool isSpeakAllow() const override; // true if request has been approved
     void stopSpeak(Cid_t cid = 0) override; // after been approved
+    void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
+    void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
+    void kickUsersFromCall(const std::set<karere::Id>& users) const override;
 
     void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
@@ -355,6 +360,7 @@ public:
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    const KarereWaitingRoom* getWaitingRoom() const override;
     bool isAllowSpeak() const override;
 
     //
@@ -405,6 +411,15 @@ public:
     void clearParticipants();
     std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
+    bool isValidWrJoiningState() const;
+    void clearWrJoiningState();
+    void setWrJoiningState(WrState status);
+    void setPrevCid(Cid_t prevcid);
+    Cid_t getPrevCid() const;
+    bool checkWrFlag() const;
+
+    void setWrFlag(bool enabled)    { mIsWaitingRoomEnabled = enabled; }
+    bool isWrFlagEnabled() const    { return mIsWaitingRoomEnabled;    }
 
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
@@ -419,6 +434,11 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
+    bool addWrUsers(const std::map<karere::Id, bool>& users, const bool clearCurrent);
+    void pushIntoWr(const TermCode& termCode);
+    bool dumpWrUsers(const std::map<karere::Id, bool>& wrUsers, bool clearCurrent);
+    bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
+    bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
@@ -436,7 +456,7 @@ public:
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
-    bool handleBye(unsigned termcode) override;
+    bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     void onSfuDisconnected() override;
     void onSendByeCommand() override;
     bool handleModAdd (uint64_t userid) override;
@@ -444,6 +464,15 @@ public:
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                       const std::map<karere::Id, bool>& wrUsers) override;
+
+    // --- SfuInterface methods (waiting room related methods) ---
+    bool handleWrDump(const std::map<karere::Id, bool>& users) override;
+    bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
+    bool handleWrLeave(const karere::Id& user) override;
+    bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
+    bool handleWrDeny(const std::set<karere::Id>& mods) override;
+    bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
+    bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     bool processDeny(const std::string& cmd, const std::string& msg) override;
@@ -478,6 +507,9 @@ protected:
 
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
+
+    // state of joining status for our own client, when waiting room is enabled
+    WrState mWrJoiningState = WrState::WR_UNKNOWN;
 
     int64_t mInitialTs = 0; // when we joined the call (seconds)
     int64_t mOffset = 0;    // duration of call when we joined (millis)
@@ -516,6 +548,7 @@ protected:
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
     std::unique_ptr<sfu::Peer> mMyPeer;
+    Cid_t mPrevCid = K_INVALID_CID;
     uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
 
     // call key for public chats (128-bit key)
@@ -549,11 +582,21 @@ protected:
      */
     std::set<karere::Id> mModerators;
 
+    /*
+     * List of users in the waiting room, and it's permission to JOIN the call (0 = WR_NOT_ALLOWED | 1 = WR_ALLOWED)
+     *  - users with permission = WR_NOT_ALLOWED  must wait in the waiting room, until receive WR_ALLOW notification (then they can send JOIN command)
+     *  - users with permission = WR_ALLOWED can enter the call directly by sending JOIN command to SFU
+     */
+    std::unique_ptr<KarereWaitingRoom> mWaitingRoom;
+
     // symetric cipher for media key encryption
     mega::SymmCipher mSymCipher;
 
     // ephemeral X25519 EC key pair for current session
     std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
+
+    // this flag indicates if waiting room is enabled or not for this call
+    bool mIsWaitingRoomEnabled = false;
 
     Keyid_t generateNextKeyId();
     void generateAndSendNewMediakey(bool reset = false);
