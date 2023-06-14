@@ -3635,7 +3635,11 @@ void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
 void ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
 {
     if (mAppChatHandler)
-        throw std::runtime_error("App chat handler is already set, remove it first");
+    {
+        KR_LOG_WARNING("App chat handler is already set, remove it first");
+        assert(mAppChatHandler);
+        return;
+    }
 
     mAppChatHandler = handler;
     chatd::DbInterface* dummyIntf = nullptr;
