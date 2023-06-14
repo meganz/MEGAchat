@@ -109,6 +109,12 @@ Logger::Logger(unsigned aFlags, const char* timeFmt)
         log("LOGGER", 0, 0, "========== Application startup ===========\n");
 }
 
+// disable false positive warning in GCC 11+
+#if defined(__GNUC__) && !defined(__APPLE__) && !defined(__ANDROID__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
 inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix, const char* severity,
                                   unsigned flags)
 {
@@ -138,6 +144,10 @@ inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix,
         buf[bytesLogged++] = ' ';
     return bytesLogged;
 }
+
+#if defined(__GNUC__) && !defined(__APPLE__) && !defined(__ANDROID__)
+#pragma GCC diagnostic pop
+#endif
 
 void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const char* fmtString,
     va_list aVaList)
