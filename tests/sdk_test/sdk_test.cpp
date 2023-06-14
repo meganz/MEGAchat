@@ -4458,8 +4458,74 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                                                                 << getSchedIdStrB64(smData.schedId);
     };
 
+    // fetch scheduled meeting occurrences
+    std::shared_ptr<::megachat::MegaChatScheduledMeetingOccurrList> occurrences;
+    const auto fetchOccurrences = [this, &occurrences](const unsigned int index, int expectedError,
+                                                       const SchedMeetingData& smData) -> void
+    {
+        // check if occurrence is inside requested range
+        const MegaChatTimeStamp sinceTs = smData.startDate;
+        const auto isValidOccurr = [&sinceTs](const MegaChatTimeStamp& ts)
+        {
+            return sinceTs <= ts; // check until limit in this method when apps can filter ocurrences by that field
+        };
+
+        bool exitFlag = false;
+
+        // wait for onRequestFinish
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          std::vector<bool *> { &exitFlag },
+                          std::vector<string> { "TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES[a1]" },
+                          "Fetching scheduled meeting occurrences",
+                          true /* wait for all exit flags */,
+                          true /* reset flags */,
+                          maxTimeout,
+                          [&api = megaChatApi[index], &d = smData, &expectedError, &exitFlag, &occurrences]()
+                          {
+                              ChatRequestTracker crtFetchOccurrences;
+                              api->fetchScheduledMeetingOccurrencesByChat(d.chatId, d.startDate, &crtFetchOccurrences);
+                              ASSERT_EQ(crtFetchOccurrences.waitForResult(), expectedError)
+                                  << "Unexpected error while fetching scheduled meetings. Error: " << crtFetchOccurrences.getErrorString();
+                              occurrences = crtFetchOccurrences.getScheduledMeetings();
+                              exitFlag = true;
+                          });
+        });
+
+        if (!occurrences) return;
+
+        for (size_t i =  0; i < occurrences->size(); ++i)
+        {
+            const auto occurr = occurrences->at(i);
+            ASSERT_TRUE(isValidOccurr(occurr->startDateTime()) && isValidOccurr(occurr->endDateTime())) << "Some of received occurrences are out of specified range";
+        }
+    };
+
+    auto printOccurrences = [](const::megachat::MegaChatScheduledMeetingOccurrList* l, const int expectedOccurr) -> void
+    {
+        if (!l) { return; }
+        std::string text = "Error fetching occurrences. \nExpected occurrences: (";
+        text.append(std::to_string(expectedOccurr)).append(")");
+        text.append("\nReceived occurrences: (").append(std::to_string(l->size())) .append(")\n{\n");
+        std::string schedIdB64;
+        MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE;
+        for (size_t i = 0; i < l->size(); ++i)
+        {
+            if (schedId != l->at(i)->schedId())
+            {
+                schedId = l->at(i)->schedId();
+                const std::unique_ptr<char[]> auxId(MegaApi::userHandleToBase64(schedId));
+                schedIdB64 = auxId.get();
+            }
+            text.append("\tscheId: ").append(schedIdB64).append(" | startTs: ")
+                .append(std::to_string(l->at(i)->startDateTime())).append("\n");
+        }
+        text.append("}");
+        LOG_err << text;
+    };
+
     // update scheduled meeting occurrence
-    const auto updateOccurrence = [this, &a1, &a2, &getSchedIdStrB64](const unsigned int index, const unsigned int maxAttempts,
+    const auto updateOccurrence = [this, &a1, &a2, &getSchedIdStrB64, &fetchOccurrences, &printOccurrences, &occurrences](const unsigned int index, const unsigned int maxAttempts,
                                                                       const int expectedError, const int repeatError, const SchedMeetingData& smData) -> void
     {
         bool exitFlag = false;
@@ -4491,16 +4557,28 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                             while (1);
                        });
         });
-        ASSERT_NE(res, repeatError)   << "Can't update scheduled meeting after " << maxAttempts << " attempts. Error: " << res;
-        ASSERT_EQ(res, expectedError) << "Unexpected error while updating scheduled meeting. Error: " << res;
 
-        // wait for onChatSchedMeetingUpdate (just in case expectedError is ERROR_OK)
-        waitForMultiResponse(std::vector<bool *> {&mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2]}, true, maxTimeout);
-        ASSERT_NE(mSchedIdUpdated[a1], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting occurrence for primary account could not be updated scheduled meeting id: "
-                                                                << getSchedIdStrB64(smData.schedId) << " overrides: " << std::to_string(smData.overrides);
+        if (res == MegaChatError::ERROR_OK)
+        {
+            // wait for onChatSchedMeetingUpdate (just in case expectedError is ERROR_OK)
+            waitForMultiResponse(std::vector<bool *> {&mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2]}, true, maxTimeout);
+            ASSERT_NE(mSchedIdUpdated[a1], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting occurrence for primary account could not be updated scheduled meeting id: "
+                                                                    << getSchedIdStrB64(smData.schedId) << " overrides: " << std::to_string(smData.overrides);
 
-        ASSERT_NE(mSchedIdUpdated[a2], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting occurrence for secondary account could not be updated scheduled meeting id: "
-                                                                << getSchedIdStrB64(smData.schedId) << " overrides: " << std::to_string(smData.overrides);
+            ASSERT_NE(mSchedIdUpdated[a2], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting occurrence for secondary account could not be updated scheduled meeting id: "
+                                                                    << getSchedIdStrB64(smData.schedId) << " overrides: " << std::to_string(smData.overrides);
+        }
+        else
+        {
+            if (res == MegaChatError::ERROR_NOENT)
+            {
+                LOG_err << "Can't update scheduled meeting occurrence, fetching occurrences";
+                ASSERT_NO_FATAL_FAILURE({ fetchOccurrences(a1, MegaChatError::ERROR_OK, smData); });
+                printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ);
+            }
+            ASSERT_EQ(res, expectedError) << "Unexpected error while updating scheduled meeting occurrence. Error: " << res;
+        }
+
     };
 
     // get scheduled meeting
@@ -4559,71 +4637,6 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
         ASSERT_NE(mSchedIdUpdated[a1], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for primary account could not be created. chatId: " << getChatIdStrB64(chatid);
         ASSERT_NE(mSchedIdUpdated[a2], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for secondary account could not be created. chatId: " << getChatIdStrB64(chatid);
-    };
-
-    // fetch scheduled meeting occurrences
-    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> occurrences;
-    const auto fetchOccurrences = [this, &occurrences](const unsigned int index, int expectedError, const SchedMeetingData& smData) -> void
-    {
-        // check if occurrence is inside requested range
-        const MegaChatTimeStamp sinceTs = smData.startDate;
-        const auto isValidOccurr = [&sinceTs](const MegaChatTimeStamp& ts)
-        {
-            return sinceTs <= ts; // check until limit in this method when apps can filter ocurrences by that field
-        };
-
-        bool exitFlag = false;
-
-        // wait for onRequestFinish
-        ASSERT_NO_FATAL_FAILURE({
-        waitForAction (1,
-                       std::vector<bool *> { &exitFlag },
-                       std::vector<string> { "TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES[a1]" },
-                       "Fetching scheduled meeting occurrences",
-                       true /* wait for all exit flags */,
-                       true /* reset flags */,
-                       maxTimeout,
-                       [&api = megaChatApi[index], &d = smData, &expectedError, &exitFlag, &occurrences]()
-                       {
-                            ChatRequestTracker crtFetchOccurrences;
-                            api->fetchScheduledMeetingOccurrencesByChat(d.chatId, d.startDate, &crtFetchOccurrences);
-                            ASSERT_EQ(crtFetchOccurrences.waitForResult(), expectedError)
-                                        << "Unexpected error while fetching scheduled meetings. Error: " << crtFetchOccurrences.getErrorString();
-                            occurrences = crtFetchOccurrences.getScheduledMeetings();
-                            exitFlag = true;
-                       });
-        });
-
-        if (!occurrences) return;
-
-        for (size_t i =  0; i < occurrences->size(); ++i)
-        {
-             const auto occurr = occurrences->at(i);
-             ASSERT_TRUE(isValidOccurr(occurr->startDateTime()) && isValidOccurr(occurr->endDateTime())) << "Some of received occurrences are out of specified range";
-        }
-    };
-
-    auto printOccurrences = [](const::megachat::MegaChatScheduledMeetingOccurrList* l, const int expectedOccurr) -> void
-    {
-        if (!l) { return; }
-        std::string text = "Error fetching occurrences. \nExpected occurrences: (";
-        text.append(std::to_string(expectedOccurr)).append(")");
-        text.append("\nReceived occurrences: (").append(std::to_string(l->size())) .append(")\n{\n");
-        std::string schedIdB64;
-        MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE;
-        for (size_t i = 0; i < l->size(); ++i)
-        {
-            if (schedId != l->at(i)->schedId())
-            {
-                schedId = l->at(i)->schedId();
-                const std::unique_ptr<char[]> auxId(MegaApi::userHandleToBase64(schedId));
-                schedIdB64 = auxId.get();
-            }
-            text.append("\tscheId: ").append(schedIdB64).append(" | startTs: ")
-                .append(std::to_string(l->at(i)->startDateTime())).append("\n");
-        }
-        text.append("}");
-        LOG_err << text;
     };
 
     //================================================================================//
