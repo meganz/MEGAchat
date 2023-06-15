@@ -3628,14 +3628,20 @@ void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
     dbIntf = new ChatdSqliteDb(*mChat, parent.mKarereClient.db);
     if (mAppChatHandler)
     {
+        KR_LOG_WARNING("App chat handler is already set, remove it first");
+        assert(!mAppChatHandler); // keep original behavior in case this happens (it shouldn't)
         setAppChatHandler(mAppChatHandler);
     }
 }
 
-void ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
+bool ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
 {
     if (mAppChatHandler)
-        throw std::runtime_error("App chat handler is already set, remove it first");
+    {
+        KR_LOG_WARNING("App chat handler is already set, remove it first");
+        assert(!mAppChatHandler);
+        return false;
+    }
 
     mAppChatHandler = handler;
     chatd::DbInterface* dummyIntf = nullptr;
@@ -3644,6 +3650,7 @@ void ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
 //return to the event loop
     mChat->setListener(mAppChatHandler);
     mAppChatHandler->init(*mChat, dummyIntf);
+    return true;
 }
 
 void ChatRoom::removeAppChatHandler()
@@ -4275,6 +4282,8 @@ void GroupChatRoom::setChatPrivateMode()
     }
 
     //Update strongvelope
+    KR_LOG_DEBUG("GroupChatRoom::setChatPrivateMode: EKR enabled (private chat) for chat: %s", karere::Id(mChatid).toString().c_str());
+
     chat().crypto()->setPrivateChatMode();
 
     //Update cache updating mode and ensure that meeting field is disabled (0)

@@ -5085,7 +5085,7 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRoomListener to track events on this chatroom. NULL is not allowed.
      *
-     * @return True if success, false if listener is NULL or the chatroom is not found.
+     * @return True if success, false if listener is NULL, the chatroom is not found, or chatroom is already opened.
      */
     bool openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *listener);
 

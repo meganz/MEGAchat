@@ -25,7 +25,6 @@
 #include "megachatapi.h"
 #include <chatClient.h>
 #include <future>
-#include <fstream>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -429,6 +428,7 @@ public:
     bool archiveUpdated[NUM_ACCOUNTS];
     bool previewsUpdated[NUM_ACCOUNTS];
     bool retentionTimeUpdated[NUM_ACCOUNTS];
+    bool chatModeUpdated[NUM_ACCOUNTS];
 
     // implementation for MegaChatRoomListener
     void onChatRoomUpdate(megachat::MegaChatApi* megaChatApi, megachat::MegaChatRoom *chat) override;
@@ -442,29 +442,8 @@ private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
 
-class MegaChatApiUnitaryTest: public karere::IApp
+class MegaChatApiUnitaryTest: public ::testing::Test
 {
-public:
-    bool UNITARYTEST_ParseUrl();
-#ifndef KARERE_DISABLE_WEBRTC
-    bool UNITARYTEST_SfuDataReception();
-#endif
-#ifdef USE_CRYPTOPP
-    bool UNITARYTEST_EncryptMediaKeyWithEphemKey();
-#endif
-
-    unsigned mOKTests = 0;
-    unsigned mFailedTests = 0;
-
-#ifndef KARERE_DISABLE_WEBRTC
-    friend sfu::SfuConnection;
-#endif
-
-   // karere::IApp implementation
-   IChatListHandler* chatListHandler() override;
-   void onPresenceConfigChanged(const presenced::Config& config, bool pending) override;
-   void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) override;
-   void onDbError(int error, const std::string &msg) override;
 };
 
 class ResultHandler

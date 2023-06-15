@@ -91,9 +91,16 @@ public:
         mWaiters.emplace_back(w);
     }
 
+    ~MegaChatApiImplLeftovers()
+    {
+        // this could rely on the order of destruction of member variables,
+        // but make sure future changes will not break it.
+        clear();
+    }
+
 private:
-    std::vector<std::unique_ptr<WebsocketsIO>> mWebsocketsIOs;
     std::vector<std::unique_ptr<Waiter>> mWaiters;
+    std::vector<std::unique_ptr<WebsocketsIO>> mWebsocketsIOs;
 };
 
 static MegaChatApiImplLeftovers& getLeftovers()
@@ -4995,13 +5002,13 @@ bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *
 
     sdkMutex.lock();
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    ChatRoom* chatroom = findChatRoom(chatid);
+    if (!chatroom || !chatroom->setAppChatHandler(getChatRoomHandler(chatid)))
     {
-        addChatRoomListener(chatid, listener);
-        chatroom->setAppChatHandler(getChatRoomHandler(chatid));
+        return false;
     }
 
+    addChatRoomListener(chatid, listener);
     sdkMutex.unlock();
     return chatroom;
 }
