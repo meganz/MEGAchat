@@ -1608,6 +1608,9 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     delete peers;
     peers = NULL;
 
+    const std::unique_ptr<char[]> chatidB64(MegaApi::userHandleToBase64(chatid));
+    LOG_debug << "PublicChatManagement: selected chat: " << chatidB64.get();
+
     // Open chatroom
     TestChatRoomListener *chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
@@ -1755,12 +1758,25 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     msgSent = megaChatApi[a2]->sendMessage(chatid, msgaux.c_str());
     ASSERT_TRUE(msgSent) << "Succeed to send message, when it should fail";
     delete msgSent; msgSent = NULL;
-    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
     // Set chat to private mode
-    ChatRequestTracker crtSetPrivate;
-    megaChatApi[a1]->setPublicChatToPrivate(chatid, &crtSetPrivate);
-    ASSERT_EQ(crtSetPrivate.waitForResult(), MegaChatError::ERROR_OK) << "Failed to set chat to private. Error: " << crtSetPrivate.getErrorString();
+    ASSERT_NO_FATAL_FAILURE({
+        waitForAction (1, // just one attempt
+                      std::vector<bool *> { &chatroomListener->chatModeUpdated[a1], &chatroomListener->chatModeUpdated[a2]},
+                      std::vector<string> { "chatroomListener->chatModeUpdated[a1]", "chatroomListener->chatModeUpdated[a2]"},
+                      "Set chat into private mode(EKR enabled)from A",
+                      true /* wait for all exit flags */,
+                      true /* reset flags */,
+                      maxTimeout,
+                      [this, a1, chatid]()
+                      {
+                          // Convert chat to private mode (EKR enabled)
+                          ChatRequestTracker crtSetPrivate;
+                          megaChatApi[a1]->setPublicChatToPrivate(chatid, &crtSetPrivate);
+                          ASSERT_EQ(crtSetPrivate.waitForResult(), MegaChatError::ERROR_OK) << "Failed to set chat to private. Error: " << crtSetPrivate.getErrorString();
+                      });
+    });
+
 
     // Remove peer from groupchat
     auto uh =  megaChatApi[a2]->getMyUserHandle();
@@ -6513,6 +6529,10 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_RETENTION_TIME))
         {
             retentionTimeUpdated[apiIndex] = true;
+        }
+        else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_CHAT_MODE))
+        {
+            chatModeUpdated[apiIndex] = true;
         }
     }
 
