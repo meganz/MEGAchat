@@ -166,8 +166,10 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     // 2. login
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     RequestTracker loginTracker;
-    session ? megaApi[accountIndex]->fastLogin(session, &loginTracker)
-              : megaApi[accountIndex]->login(mail.c_str(), pwd.c_str(), &loginTracker);
+    session && std::strlen(session)
+        ? megaApi[accountIndex]->fastLogin(session, &loginTracker)  // session must be not null and non empty
+        : megaApi[accountIndex]->login(mail.c_str(), pwd.c_str(), &loginTracker);
+
     int loginResult = loginTracker.waitForResult();
     EXPECT_EQ(loginResult, API_OK) << "Login failed. Error: " << loginResult << ' ' << loginTracker.getErrorString();
     if (loginResult != API_OK) return nullptr;
