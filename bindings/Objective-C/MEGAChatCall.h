@@ -10,6 +10,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallStatus) {
     MEGAChatCallStatusInitial = 0,
     MEGAChatCallStatusUserNoPresent,
     MEGAChatCallStatusConnecting,
+    MEGAChatCallStatusWaitingRoom,
     MEGAChatCallStatusJoining,
     MEGAChatCallStatusInProgress,
     MEGAChatCallStatusTerminatingUserParticipation,
