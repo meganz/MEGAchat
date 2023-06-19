@@ -40,7 +40,7 @@ static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
 static constexpr unsigned int MAX_ATTEMPTS = 3;
 static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
-static const unsigned int NUM_ACCOUNTS = 2;
+static const unsigned int NUM_ACCOUNTS = 3;
 
 #define TEST_LOG_ERROR(a, message) \
     do { \

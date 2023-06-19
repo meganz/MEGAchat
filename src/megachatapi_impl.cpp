@@ -5717,6 +5717,54 @@ void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, boo
     waiter->notify();
 }
 
+int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPrivate* request)
+{
+    const auto chatId = request->getChatHandle();
+    if (chatId == MEGACHAT_INVALID_HANDLE)
+    {
+        std::cout << "Ring individual in call: invalid chat id\n";
+        return MegaChatError::ERROR_ARGS;
+    }
+    const auto userToCallId = request->getUserHandle();
+    if (userToCallId == MEGACHAT_INVALID_HANDLE)
+    {
+        std::cout << "Ring individual in call: invalid user id\n";
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    ChatRoom *chatroom = findChatRoom(chatId);
+    if (!chatroom)
+    {
+        std::cout << "Error: chat room with id " << toHandle(chatId) << " not found\n";
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    auto call = mClient->rtc->findCallByChatid(chatId);
+    if (!call)
+    {
+        std::cout << "Ring individual in call: no call found for chat id " << toHandle(chatId) << "\n";
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    auto callId = call->getCallid();
+    Chat &chat = chatroom->chat();
+    chat.ringIndividualInACall(userToCallId, callId);
+    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+
+    return MegaChatError::ERROR_OK;
+}
+
+void MegaChatApiImpl::ringIndividualInACall(MegaChatHandle chatId, MegaChatHandle userId, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RING_INDIVIDUAL_IN_CALL, listener);
+    request->setChatHandle(chatId);
+    request->setUserHandle(userId);
+    request->setPerformRequest([this, request]() { return performRequest_sendRingIndividualInACall(request); });
+
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ANSWER_CHAT_CALL, listener);
@@ -7149,6 +7197,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_BACKGROUND_STATUS: return "SET_BACKGROUND_STATUS";
         case TYPE_RETRY_PENDING_CONNECTIONS: return "RETRY_PENDING_CONNECTIONS";
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
+        case TYPE_RING_INDIVIDUAL_IN_CALL: return "RING_INDIVIDUAL_IN_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
         case TYPE_DISABLE_AUDIO_VIDEO_CALL: return "DISABLE_AUDIO_VIDEO_CALL";
         case TYPE_HANG_CHAT_CALL: return "HANG_CHAT_CALL";
