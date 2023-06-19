@@ -1313,6 +1313,16 @@ void MegaChatApi::setSFUid(int sfuid)
 {
     pImpl->setSFUid(sfuid);
 }
+
+unsigned int MegaChatApi::getNumInputVideoTracks() const
+{
+    return pImpl->getNumInputVideoTracks();
+}
+
+bool MegaChatApi::setNumInputVideoTracks(const unsigned int numInputVideoTracks)
+{
+    return pImpl->setNumInputVideoTracks(numInputVideoTracks);
+}
 #endif
 
 void MegaChatApi::setCatchException(bool enable)

@@ -308,6 +308,12 @@ promise::Promise<void> Call::hangup()
 
 promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
+    if (!RtcModuleSfu::isValidSimVideoTracks(mRtc.getNumInputVideoTracks()))
+    {
+        assert(false);
+        return promise::Error("join: Invalid value for simultaneous video tracks");
+    }
+
     mIsJoining = true; // set flag true to avoid multiple join call attempts
     mMyPeer->setAvFlags(avFlags);
     auto wptr = weakHandle();
@@ -2193,11 +2199,18 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                                    const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                    const std::map<karere::Id, bool>& wrUsers)
 {
-    // set number of SFU->client audio/video tracks that the client must allocate.
-    // This is equal to the maximum number of simultaneous audio/video tracks the call supports
-    // if no received nAudioTracks or nVideoTracks set as max default
+    // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
+    const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
+    if (!mRtc.isValidSimVideoTracks(numInputVideoTracks))
+    {
+        RTCM_LOG_ERROR("Invalid number of simultaneus video tracks: %d", numInputVideoTracks);
+        return false;
+    }
+
+    mNumInputVideoTracks = numInputVideoTracks; // Set the maximum number of simultaneous video tracks the call supports
+
+    // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
-    mNumInputVideoTracks = nVideoTracks ? nVideoTracks : static_cast<uint32_t>(RtcConstant::kMaxCallVideoSenders);
 
     // set moderator list and ownModerator value
     setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
@@ -3538,6 +3551,12 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 
 promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey)
 {
+    if (!isValidSimVideoTracks(mRtcNumInputVideoTracks))
+    {
+        assert(false);
+        return promise::Error("startCall: Invalid value for simultaneous video tracks");
+    }
+
     // add chatid to CallsAttempts to avoid multiple start call attempts
     mCallStartAttempts.insert(chatid);
 
@@ -3912,6 +3931,21 @@ std::string RtcModuleSfu::getDeviceInfo() const
     }
 
     return deviceType + ":" + version;
+}
+
+unsigned int RtcModuleSfu::getNumInputVideoTracks() const
+{
+    return mRtcNumInputVideoTracks;
+}
+
+void RtcModuleSfu::setNumInputVideoTracks(const unsigned int numInputVideoTracks)
+{
+    if (!isValidSimVideoTracks(mRtcNumInputVideoTracks))
+    {
+        assert(false);
+        return;
+    }
+    mRtcNumInputVideoTracks = numInputVideoTracks;
 }
 
 RtcModule* createRtcModule(MyMegaApi &megaApi, rtcModule::CallHandler &callHandler,

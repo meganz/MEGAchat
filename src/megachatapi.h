@@ -558,6 +558,12 @@ public:
         SFU_DENY_JOIN                     = 1,    // JOIN command denied by SFU
     };
 
+    static constexpr unsigned int MAX_CALL_VIDEO_SENDERS = 24; // same than RtcConstant::kMaxCallVideoSenders
+    static bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks)
+    {
+        return maxSimVideoTracks > 0 && maxSimVideoTracks <= MAX_CALL_VIDEO_SENDERS;
+    }
+
     virtual ~MegaChatCall();
 
     /**
@@ -5834,6 +5840,9 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
      *  - if peer of a 1on1 chatroom it's a non visible contact
@@ -5883,6 +5892,9 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
      *  - if peer of a 1on1 chatroom it's a non visible contact
@@ -5929,6 +5941,9 @@ public:
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
@@ -6814,6 +6829,22 @@ public:
      * @param sfuid New SFU id
      */
     void setSFUid(int sfuid);
+
+    /**
+     * @brief Returns the maximum simultaneous video tracks that call supports.
+     *
+     * @note Use MegaChatCall::isValidSimVideoTracks to check if returned value is valid.
+     * @return 0 if karere client is not valid, otherwise the maximum simultaneous video tracks that call supports.
+     */
+    unsigned int getNumInputVideoTracks() const;
+
+    /**
+     * @brief Sets the maximum simultaneous video tracks that call supports.
+     *
+     * @param numInputVideoTracks maximum simultaneous video tracks that call supports.
+     * @return false if karere client is not valid, or numInputVideoTracks is not valid, otherwise returns true.
+     */
+    bool setNumInputVideoTracks(const unsigned int numInputVideoTracks);
 #endif
 
     static void setCatchException(bool enable);

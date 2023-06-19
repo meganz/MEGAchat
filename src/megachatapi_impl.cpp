@@ -1669,6 +1669,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
+            if (!MegaChatCall::isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
+            {
+                API_LOG_ERROR("Start call - Invalid value for simultaneous video tracks");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             if (!chatroom->isGroup())
             {
                 uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
@@ -1822,6 +1829,13 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Answer call - chatroom isn't in online state");
                 errorCode = MegaChatError::ERROR_ACCESS;
+                break;
+            }
+
+            if (!MegaChatCall::isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
+            {
+                API_LOG_ERROR("Answer call - Invalid value for simultaneous video tracks");
+                errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
 
@@ -6675,6 +6689,37 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 
 }
 
+unsigned int MegaChatApiImpl::getNumInputVideoTracks() const
+{
+    if (!mClient)
+    {
+       API_LOG_DEBUG("Karere client not initialized");
+       return 0;
+    }
+
+    SdkMutexGuard g(sdkMutex);
+    assert(MegaChatCall::isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()));
+    return mClient->rtc->getNumInputVideoTracks();
+}
+
+bool MegaChatApiImpl::setNumInputVideoTracks(const unsigned int numInputVideoTracks)
+{
+    if (!mClient)
+    {
+       API_LOG_DEBUG("Karere client not initialized");
+       return false;
+    }
+
+    if (!MegaChatCall::isValidSimVideoTracks(numInputVideoTracks))
+    {
+       API_LOG_DEBUG("Invalid value for simultaneous video tracks: %d", numInputVideoTracks);
+       return false;
+    }
+
+    SdkMutexGuard g(sdkMutex);
+    mClient->rtc->setNumInputVideoTracks(numInputVideoTracks);
+    return true;
+}
 #endif
 
 void MegaChatApiImpl::cleanChatHandlers()

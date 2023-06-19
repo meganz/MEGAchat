@@ -1375,6 +1375,8 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::ICall* findCall(MegaChatHandle chatid);
+    unsigned int getNumInputVideoTracks() const;
+    bool setNumInputVideoTracks(const unsigned int numInputVideoTracks);
 #endif
 
     static void setCatchException(bool enable);

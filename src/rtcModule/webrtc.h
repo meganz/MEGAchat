@@ -260,6 +260,8 @@ public:
     virtual void releaseDevice() = 0;
     virtual void addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
     virtual void removeLocalVideoRenderer(const karere::Id &chatid) = 0;
+    virtual unsigned int getNumInputVideoTracks() const = 0;
+    virtual void setNumInputVideoTracks(const unsigned int numInputVideoTracks) = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
@@ -347,7 +349,7 @@ RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScach
 enum RtcConstant {
    kMaxCallReceivers = 20,      // should be inline with webclient value
    kMaxCallAudioSenders = 20,   // should be inline with webclient value
-   kMaxCallVideoSenders = 24,   // should be inline with webclient value
+   kMaxCallVideoSenders = 24,   // maximum number of simultaneous video tracks the call supports.
    kInitialvthumbCount = 0,     // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
    kHiResWidth = 960,  // px
    kHiResHeight = 540,  // px
