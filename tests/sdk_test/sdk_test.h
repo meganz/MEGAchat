@@ -196,12 +196,22 @@ protected:
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
+    bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
 
     /* select a group chat room, by default with PRIV_MODERATOR for primary account
-     * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param */
-    megachat::MegaChatHandle getGroupChatRoom(const unsigned int a1, const  unsigned int a2, megachat::MegaChatPeerList* peers, const int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN,
-                                              const bool create = true, const bool publicChat = false, const bool meetingRoom = false, const bool waitingRoom = false);
+     * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param
+     * it allows finding/creating a group chat of more than 2 participants where the creator is a[0]
+     * param a contains the same participants as param peers + the user who will create the chat (a[0])
+     * ToDo: consider removing peers param and create from `a` param in this function instead
+     */
+    megachat::MegaChatHandle getGroupChatRoom(const std::vector<unsigned int>& a,
+                                              megachat::MegaChatPeerList* peers,
+                                              const int a1Priv = megachat::MegaChatPeerList::PRIV_MODERATOR,
+                                              const bool create = true,
+                                              const bool publicChat = false,
+                                              const bool meetingRoom = false,
+                                              const bool waitingRoom = false);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
