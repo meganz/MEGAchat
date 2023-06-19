@@ -685,10 +685,6 @@ public:
     std::string getDeviceInfo() const;
     unsigned int getNumInputVideoTracks() const override;
     void setNumInputVideoTracks(const unsigned int numInputVideoTracks) override;
-    static bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks)
-    {
-        return maxSimVideoTracks > 0 && maxSimVideoTracks <= RtcConstant::kMaxCallVideoSenders;
-    }
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
@@ -705,8 +701,8 @@ private:
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;
 
-    // Max number of simultaneous video tracks the call supports.
-    unsigned int mRtcNumInputVideoTracks = RtcConstant::kMaxCallVideoSenders;
+    // Max number of simultaneous video tracks the call supports (kMaxCallVideoSenders by default)
+    unsigned int mRtcNumInputVideoTracks = getMaxSupportedVideoCallParticipants();
 };
 
 void globalCleanup();

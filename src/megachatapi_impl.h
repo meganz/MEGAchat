@@ -1375,8 +1375,8 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::ICall* findCall(MegaChatHandle chatid);
-    unsigned int getNumInputVideoTracks() const;
-    bool setNumInputVideoTracks(const unsigned int numInputVideoTracks);
+    unsigned int getCurrentInputVideoTracksLimit() const;
+    bool setCurrentInputVideoTracksLimit(const unsigned int numInputVideoTracks);
 #endif
 
     static void setCatchException(bool enable);
@@ -1621,7 +1621,8 @@ public:
     mega::MegaHandleList *getChatCallsIds();
     bool hasCallInChatRoom(MegaChatHandle chatid);
     int getMaxCallParticipants();
-    int getMaxVideoCallParticipants();
+    int getMaxSupportedVideoCallParticipants();
+    bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const;
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);

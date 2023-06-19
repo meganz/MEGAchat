@@ -1208,9 +1208,9 @@ int MegaChatApi::getMaxCallParticipants()
     return pImpl->getMaxCallParticipants();
 }
 
-int MegaChatApi::getMaxVideoCallParticipants()
+int MegaChatApi::getMaxSupportedVideoCallParticipants()
 {
-    return pImpl->getMaxVideoCallParticipants();
+    return pImpl->getMaxSupportedVideoCallParticipants();
 }
 
 bool MegaChatApi::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
@@ -1314,14 +1314,14 @@ void MegaChatApi::setSFUid(int sfuid)
     pImpl->setSFUid(sfuid);
 }
 
-unsigned int MegaChatApi::getNumInputVideoTracks() const
+unsigned int MegaChatApi::getCurrentInputVideoTracksLimit() const
 {
-    return pImpl->getNumInputVideoTracks();
+    return pImpl->getCurrentInputVideoTracksLimit();
 }
 
-bool MegaChatApi::setNumInputVideoTracks(const unsigned int numInputVideoTracks)
+bool MegaChatApi::setCurrentInputVideoTracksLimit(const unsigned int numInputVideoTracks)
 {
-    return pImpl->setNumInputVideoTracks(numInputVideoTracks);
+    return pImpl->setCurrentInputVideoTracksLimit(numInputVideoTracks);
 }
 #endif
 

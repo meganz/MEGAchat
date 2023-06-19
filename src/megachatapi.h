@@ -558,12 +558,6 @@ public:
         SFU_DENY_JOIN                     = 1,    // JOIN command denied by SFU
     };
 
-    static constexpr unsigned int MAX_CALL_VIDEO_SENDERS = 24; // same than RtcConstant::kMaxCallVideoSenders
-    static bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks)
-    {
-        return maxSimVideoTracks > 0 && maxSimVideoTracks <= MAX_CALL_VIDEO_SENDERS;
-    }
-
     virtual ~MegaChatCall();
 
     /**
@@ -2958,6 +2952,9 @@ public:
         CHAT_GET_ACTIVE     = 16, CHAT_GET_NON_ACTIVE   = 0,
         CHAT_GET_READ       = 32, CHAT_GET_UNREAD       = 0,
     };
+
+    // Invalid value for number of simultaneous video tracks the call supports.
+    static constexpr unsigned int INVALID_CALL_VIDEO_SENDERS = UINT32_MAX;
 
     // SFUID default value. API will start calls in SFU server it consider
     static constexpr int SFU_ID_DEFAULT = -1;
@@ -6349,11 +6346,11 @@ public:
     int getMaxCallParticipants();
 
     /**
-     * @brief Returns the maximum video call participants
+     * @brief Returns the maximum video call participants supported by MegaChat
      *
-     * @return Maximum video call participants
+     * @return Maximum video call participants supported by MegaChat
      */
-    int getMaxVideoCallParticipants();
+    int getMaxSupportedVideoCallParticipants();
 
     /**
      * @brief Returns if audio level monitor is enabled
@@ -6831,20 +6828,23 @@ public:
     void setSFUid(int sfuid);
 
     /**
-     * @brief Returns the maximum simultaneous video tracks that call supports.
+     * @brief Returns the current limit for simultaneous input video tracks that call supports.
      *
-     * @note Use MegaChatCall::isValidSimVideoTracks to check if returned value is valid.
-     * @return 0 if karere client is not valid, otherwise the maximum simultaneous video tracks that call supports.
+     * @return returns INVALID_CALL_VIDEO_SENDERS if karere client is not valid, or current limit is not supported, otherwise
+     * returns the current limit for simultaneous input video tracks that call supports.
      */
-    unsigned int getNumInputVideoTracks() const;
+    unsigned int getCurrentInputVideoTracksLimit() const;
 
     /**
-     * @brief Sets the maximum simultaneous video tracks that call supports.
+     * @brief Sets the current limit for simultaneous video tracks that call supports.
      *
-     * @param numInputVideoTracks maximum simultaneous video tracks that call supports.
-     * @return false if karere client is not valid, or numInputVideoTracks is not valid, otherwise returns true.
+     * @param numInputVideoTracks the current limit for simultaneous video tracks that call supports.
+     * - Minimum value for this param is 1 (otherwise app won't be able to receive any video track)
+     * - Maximum value for this param is returned by MegaChatApi::getMaxSupportedVideoCallParticipants()
+     *
+     * @return false if karere client is not valid, or numInputVideoTracks is not supported, otherwise returns true.
      */
-    bool setNumInputVideoTracks(const unsigned int numInputVideoTracks);
+    bool setCurrentInputVideoTracksLimit(const unsigned int numInputVideoTracks);
 #endif
 
     static void setCatchException(bool enable);

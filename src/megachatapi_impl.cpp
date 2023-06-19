@@ -1669,9 +1669,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!MegaChatCall::isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
+            if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
             {
-                API_LOG_ERROR("Start call - Invalid value for simultaneous video tracks");
+                API_LOG_ERROR("Start call - Invalid value for simultaneous input video tracks");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
@@ -1832,9 +1832,9 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (!MegaChatCall::isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
+            if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
             {
-                API_LOG_ERROR("Answer call - Invalid value for simultaneous video tracks");
+                API_LOG_ERROR("Answer call - Invalid value for simultaneous input video tracks");
                 errorCode = MegaChatError::ERROR_ARGS;
                 break;
             }
@@ -6057,11 +6057,15 @@ int MegaChatApiImpl::getMaxCallParticipants()
     return rtcModule::RtcConstant::kMaxCallReceivers;
 }
 
-int MegaChatApiImpl::getMaxVideoCallParticipants()
+int MegaChatApiImpl::getMaxSupportedVideoCallParticipants()
 {
-    return rtcModule::RtcConstant::kMaxCallVideoSenders;
+    return static_cast<int>(rtcModule::getMaxSupportedVideoCallParticipants());
 }
 
+bool MegaChatApiImpl::isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const
+{
+    return rtcModule::isValidInputVideoTracksLimit(maxSimVideoTracks);
+}
 
 bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
@@ -6689,20 +6693,23 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 
 }
 
-unsigned int MegaChatApiImpl::getNumInputVideoTracks() const
+unsigned int MegaChatApiImpl::getCurrentInputVideoTracksLimit() const
 {
     if (!mClient)
     {
        API_LOG_DEBUG("Karere client not initialized");
-       return 0;
+       return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
     }
 
     SdkMutexGuard g(sdkMutex);
-    assert(MegaChatCall::isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()));
+    if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
+    {
+        return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
+    }
     return mClient->rtc->getNumInputVideoTracks();
 }
 
-bool MegaChatApiImpl::setNumInputVideoTracks(const unsigned int numInputVideoTracks)
+bool MegaChatApiImpl::setCurrentInputVideoTracksLimit(const unsigned int numInputVideoTracks)
 {
     if (!mClient)
     {
@@ -6710,9 +6717,9 @@ bool MegaChatApiImpl::setNumInputVideoTracks(const unsigned int numInputVideoTra
        return false;
     }
 
-    if (!MegaChatCall::isValidSimVideoTracks(numInputVideoTracks))
+    if (!isValidSimVideoTracks(numInputVideoTracks))
     {
-       API_LOG_DEBUG("Invalid value for simultaneous video tracks: %d", numInputVideoTracks);
+       API_LOG_DEBUG("Invalid value for simultaneous input video tracks: %d", numInputVideoTracks);
        return false;
     }
 

@@ -308,10 +308,10 @@ promise::Promise<void> Call::hangup()
 
 promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
-    if (!RtcModuleSfu::isValidSimVideoTracks(mRtc.getNumInputVideoTracks()))
+    if (!isValidInputVideoTracksLimit(mRtc.getNumInputVideoTracks()))
     {
         assert(false);
-        return promise::Error("join: Invalid value for simultaneous video tracks");
+        return promise::Error("join: Invalid value for simultaneous input video tracks");
     }
 
     mIsJoining = true; // set flag true to avoid multiple join call attempts
@@ -2201,12 +2201,11 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
 {
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
-    if (!mRtc.isValidSimVideoTracks(numInputVideoTracks))
+    if (!isValidInputVideoTracksLimit(numInputVideoTracks))
     {
         RTCM_LOG_ERROR("Invalid number of simultaneus video tracks: %d", numInputVideoTracks);
         return false;
     }
-
     mNumInputVideoTracks = numInputVideoTracks; // Set the maximum number of simultaneous video tracks the call supports
 
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
@@ -3551,10 +3550,10 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 
 promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey)
 {
-    if (!isValidSimVideoTracks(mRtcNumInputVideoTracks))
+    if (!isValidInputVideoTracksLimit(mRtcNumInputVideoTracks))
     {
         assert(false);
-        return promise::Error("startCall: Invalid value for simultaneous video tracks");
+        return promise::Error("startCall: Invalid value for simultaneous input video tracks");
     }
 
     // add chatid to CallsAttempts to avoid multiple start call attempts
@@ -3940,7 +3939,7 @@ unsigned int RtcModuleSfu::getNumInputVideoTracks() const
 
 void RtcModuleSfu::setNumInputVideoTracks(const unsigned int numInputVideoTracks)
 {
-    if (!isValidSimVideoTracks(mRtcNumInputVideoTracks))
+    if (!isValidInputVideoTracksLimit(mRtcNumInputVideoTracks))
     {
         assert(false);
         return;
