@@ -2189,7 +2189,7 @@ bool Call::handleModDel(uint64_t userid)
     return true;
 }
 
-bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                                    const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                                    const std::map<karere::Id, bool>& wrUsers)
 {

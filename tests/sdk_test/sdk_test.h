@@ -596,7 +596,7 @@ public:
     bool error(unsigned int, const std::string &) override;
     bool processDeny(const std::string&, const std::string&) override;
     void logError(const char* error) override;
-    bool handleHello(const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+    bool handleHello(const Cid_t userid, const unsigned int nAudioTracks,
                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                      const std::map<karere::Id, bool>& wrUsers) override;
 
