@@ -5838,7 +5838,7 @@ public:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If maximum value for simultaneous video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
      *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
@@ -5890,7 +5890,7 @@ public:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If maximum value for simultaneous video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
      *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
@@ -5940,7 +5940,7 @@ public:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If maximum value for simultaneous video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
@@ -6346,9 +6346,9 @@ public:
     int getMaxCallParticipants();
 
     /**
-     * @brief Returns the maximum video call participants supported by MegaChat
+     * @brief Returns the maximum simultaneous input video tracks supported by MegaChat for a call
      *
-     * @return Maximum video call participants supported by MegaChat
+     * @return Maximum simultaneous input video tracks supported by MegaChat for a call
      */
     int getMaxSupportedVideoCallParticipants();
 

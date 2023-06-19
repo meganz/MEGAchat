@@ -701,7 +701,7 @@ private:
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;
 
-    // Max number of simultaneous video tracks the call supports (kMaxCallVideoSenders by default)
+    // Current limit for simultaneous input video tracks that call supports. (kMaxCallVideoSenders by default)
     unsigned int mRtcNumInputVideoTracks = getMaxSupportedVideoCallParticipants();
 };
 
