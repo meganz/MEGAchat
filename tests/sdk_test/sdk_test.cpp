@@ -3853,6 +3853,39 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     TestChatVideoListener localVideoListenerB;
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
 
+    // Make some testing with limit for simultaneous input video tracks in both accounts
+    LOG_debug << "Checking that default limit for simultaneous input video tracks is valid for both accounts";
+    ASSERT_NE(megaChatApi[a1]->getCurrentInputVideoTracksLimit(), MegaChatApi::INVALID_CALL_VIDEO_SENDERS)
+        << "Default limit for simultaneous input video tracks that call supports is invalid for primary account";
+
+    ASSERT_NE(megaChatApi[a2]->getCurrentInputVideoTracksLimit(), MegaChatApi::INVALID_CALL_VIDEO_SENDERS)
+        << "Default limit for simultaneous input video tracks that call supports is invalid for secondary account";
+
+    LOG_debug << "Trying to set and invalid limit for simultaneous input video tracks for both accounts";
+    unsigned int limitInputVideoTracks = static_cast<unsigned int>(megaChatApi[a1]->getMaxSupportedVideoCallParticipants()) + 1;
+
+    ASSERT_FALSE(megaChatApi[a1]->setCurrentInputVideoTracksLimit(limitInputVideoTracks))
+        << "setCurrentInputVideoTracksLimit should failed for an invalid numInputVideoTracks value for primary account";
+
+    ASSERT_FALSE(megaChatApi[a2]->setCurrentInputVideoTracksLimit(limitInputVideoTracks))
+        << "setCurrentInputVideoTracksLimit should failed for an invalid numInputVideoTracks value for secondary account";
+
+    LOG_debug << "Setting a valid limit for simultaneous input video tracks for both accounts";
+    limitInputVideoTracks -= 5;
+
+    ASSERT_TRUE(megaChatApi[a1]->setCurrentInputVideoTracksLimit(limitInputVideoTracks))
+        << "setCurrentInputVideoTracksLimit should succeed for a valid numInputVideoTracks value for primary account";
+
+    ASSERT_TRUE(megaChatApi[a2]->setCurrentInputVideoTracksLimit(limitInputVideoTracks))
+        << "setCurrentInputVideoTracksLimit should succeed for a valid numInputVideoTracks value for secondary account";
+
+    LOG_debug << "Checking that limit for simultaneous input video tracks has been updated properly";
+    ASSERT_EQ(megaChatApi[a1]->getCurrentInputVideoTracksLimit(), limitInputVideoTracks)
+        << "Default limit for simultaneous input video tracks that call supports has not been updated for primary account";
+
+    ASSERT_EQ(megaChatApi[a2]->getCurrentInputVideoTracksLimit(), limitInputVideoTracks)
+        << "Default limit for simultaneous input video tracks that call supports has not been updated for secondary account";
+
     // A starts a groupal meeting without audio, nor video
     LOG_debug << "Start Call";
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
