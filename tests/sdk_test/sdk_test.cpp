@@ -2985,9 +2985,9 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     ASSERT_FALSE(loadHistory(a1, chatid, chatroomListener)) << "History should be empty after retention history autotruncate";
 
     //===============================================================================================//
-    // Test6: Disable retention time, send some messages. Upon logout/login check msg's still exists
+    // Test6: Disable retention time, send some messages. Upon logout/login check msgs still exist
     //===============================================================================================//
-    LOG_debug << "[Test.RetentionHistory] Test6: Disable retention time, send some messages. Upon logout/login check msg's still exists";
+    LOG_debug << "[Test.RetentionHistory] Test6: Disable retention time, send some messages. Upon logout/login check msgs still exist";
     // Disable retention time
     retentionTimeChanged0 = &chatroomListener->retentionTimeUpdated[a1]; *retentionTimeChanged0 = false;
     retentionTimeChanged1 = &chatroomListener->retentionTimeUpdated[a2]; *retentionTimeChanged1 = false;
