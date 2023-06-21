@@ -4463,7 +4463,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
     // fetch scheduled meeting occurrences
     std::shared_ptr<::megachat::MegaChatScheduledMeetingOccurrList> occurrences;
-    const auto fetchOccurrences = [this, &occurrences](const unsigned int index, int expectedError,
+    const auto fetchOccurrences = [this, &occurrences](const unsigned int index, const int expectedError,
                                                        const SchedMeetingData& smData) -> void
     {
         // check if occurrence is inside requested range
@@ -4509,7 +4509,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
         if (!l) { return; }
         std::string text = "Error fetching occurrences. \nExpected occurrences: (";
         text.append(std::to_string(expectedOccurr)).append(")");
-        text.append("\nReceived occurrences: (").append(std::to_string(l->size())) .append(")\n{\n");
+        text.append("\nReceived occurrences: (").append(std::to_string(l->size())).append(")\n{\n");
         std::string schedIdB64;
         MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE;
         for (size_t i = 0; i < l->size(); ++i)
