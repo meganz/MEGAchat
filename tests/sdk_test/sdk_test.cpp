@@ -314,6 +314,7 @@ void MegaChatApiTest::SetUp()
 #endif
         megaApi[i] = new MegaApi(APPLICATION_KEY.c_str(), path, USER_AGENT_DESCRIPTION.c_str());
         megaApi[i]->setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
+        megaApi[i]->setLoggingName(to_string(i).c_str());
         megaApi[i]->addListener(this);
 
         megaChatApi[i] = new MegaChatApi(megaApi[i]);
