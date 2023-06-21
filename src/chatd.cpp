@@ -306,7 +306,7 @@ void Client::onKeepaliveSent()
 
 uint8_t Client::keepaliveType()
 {
-    return mKarereClient->isInBackground() ? OP_KEEPALIVEAWAY : OP_KEEPALIVE;
+    return static_cast<uint8_t>(mKarereClient->isInBackground() ? OP_KEEPALIVEAWAY : OP_KEEPALIVE);
 }
 
 std::shared_ptr<Chat> Client::chatFromId(const Id& chatid) const
@@ -1053,7 +1053,10 @@ void Connection::disconnect()
 void Connection::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mDnsCache.getIp(mShardNo, ipv4, ipv6);
+#ifndef NDEBUG
+    bool cachedIPs =
+#endif
+    mDnsCache.getIp(mShardNo, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
@@ -1610,7 +1613,7 @@ void Chat::join()
     mServerFetchState = kHistNotFetching;
     CHATID_LOG_DEBUG("Sending JOIN");
     sendCommand(Command(OP_JOIN) + mChatId + mChatdClient.mMyHandle + (int8_t)PRIV_NOCHANGE);
-    requestHistoryFromServer(-initialHistoryFetchCount);
+    requestHistoryFromServer(-static_cast<int32_t>(initialHistoryFetchCount));
 }
 
 void Chat::handlejoin()
@@ -1627,7 +1630,7 @@ void Chat::handlejoin()
     Command comm (OP_HANDLEJOIN);
     comm.append((const char*) &ph, Id::CHATLINKHANDLE);
     sendCommand(comm + mChatdClient.mMyHandle + (uint8_t)PRIV_RDONLY);
-    requestHistoryFromServer(-initialHistoryFetchCount);
+    requestHistoryFromServer(-static_cast<int32_t>(initialHistoryFetchCount));
 }
 
 void Chat::handleleave()
@@ -1813,7 +1816,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
                     return;
 
                 CHATID_LOG_DEBUG("Fetching history (%u messages) from server...", count);
-                requestHistoryFromServer(-count);
+                requestHistoryFromServer(-static_cast<int32_t>(count));
             }, mChatdClient.mKarereClient->appCtx);
         }
         mServerOldHistCbEnabled = true;
@@ -1856,7 +1859,7 @@ void Chat::requestNodeHistoryFromServer(Id oldestMsgid, uint32_t count)
         mAttachNodesRequestedToServer = count;
         assert(mAttachNodesReceived == 0);
         mAttachmentHistDoneReceived = false;
-        sendCommand(Command(OP_NODEHIST) + mChatId + oldestMsgid + -count);
+        sendCommand(Command(OP_NODEHIST) + mChatId + oldestMsgid + -static_cast<int32_t>(count));
     }, mChatdClient.mKarereClient->appCtx);
 }
 
@@ -2273,7 +2276,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                     chat.clearHistory();
                     // we were notifying NEWMSGs in result of JOINRANGEHIST, but after reload we start receiving OLDMSGs
                     chat.mServerOldHistCbEnabled = mChatdClient.mKarereClient->isChatRoomOpened(chatid);
-                    chat.requestHistoryFromServer(-chat.initialHistoryFetchCount);
+                    chat.requestHistoryFromServer(-static_cast<int32_t>(chat.initialHistoryFetchCount));
                 }
                 else if (op == OP_NEWKEY)
                 {
@@ -3102,9 +3105,9 @@ void Chat::manageReaction(const Message &message, const std::string &reaction, O
     assert(opcode == OP_ADDREACTION || opcode == OP_DELREACTION);
     std::shared_ptr<Buffer> data = mCrypto->reactionEncrypt(message, reaction);
     std::string encReaction(data->buf(), data->bufSize());
-    addPendingReaction(reaction, encReaction, message.id(), opcode);
-    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, opcode);
-    sendCommand(Command(opcode) + mChatId + client().myHandle() + message.id()
+    addPendingReaction(reaction, encReaction, message.id(), static_cast<uint8_t>(opcode));
+    CALL_DB(addPendingReaction, message.mId, reaction, encReaction, static_cast<uint8_t>(opcode));
+    sendCommand(Command(static_cast<uint8_t>(opcode)) + mChatId + client().myHandle() + message.id()
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
 }
 
@@ -3646,11 +3649,13 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     // if using current keyid or original keyid from msg, promise is resolved immediately
     if (pms.succeeded())
     {
+#ifndef NDEBUG
         MsgCommand *msgCmd = pms.value().first;
         KeyCommand *keyCmd = pms.value().second;
         assert(!keyCmd                                              // no newkey required...
                || (keyCmd->localKeyid() == msg->keyid               // ... or localkeyid is assigned to message
                    && isValidKeyxId(msgCmd->keyId())));             // and msgCmd's keyid is within the range of valid keyxid's
+#endif
 
         it->msgCmd = pms.value().first;
         it->keyCmd = pms.value().second;
@@ -3790,7 +3795,10 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         assert(count);  // an edit of a message in sending always indicates the former message is in the queue
         if (count)
         {
-            int countDb = mDbInterface->updateSendingItemsContentAndDelta(msg);
+#ifndef NDEBUG
+            int countDb =
+#endif
+            mDbInterface->updateSendingItemsContentAndDelta(msg);
             assert(countDb == count);
             CHATID_LOG_DEBUG("msgModify: updated the content and delta of %d message/s in the sending queue", count);
         }
@@ -3817,7 +3825,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
                 ? mLastTextMsg.xid()
                 : mLastTextMsg.id();
 
-        postMsgToSending(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD, upd, recipients);
+        postMsgToSending(static_cast<uint8_t>(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD), upd, recipients);
         if (lastMsgId == upd->id())
         {
             if (upd->isValidLastMessage())
@@ -4348,7 +4356,10 @@ Idx Chat::msgConfirm(const Id& msgxid, const Id& msgid, uint32_t timestamp)
     }
     if (count)
     {
-        int countDb = mDbInterface->updateSendingItemsMsgidAndOpcode(msgxid, msgid);
+#ifndef NDEBUG
+        int countDb =
+#endif
+        mDbInterface->updateSendingItemsMsgidAndOpcode(msgxid, msgid);
         assert(countDb == count);
         CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%s to msgid=%s of %d message/s in the sending queue", ID_CSTR(msgxid), ID_CSTR(msgid), count);
     }
@@ -4441,7 +4452,10 @@ void Chat::keyConfirm(KeyId keyxid, KeyId keyid)
     assert(count);  // a confirmed key should always indicate that a new message was sent
     if (count)
     {
-        int countDb = mDbInterface->updateSendingItemsKeyid(localKeyid, keyid);
+#ifndef NDEBUG
+        int countDb =
+#endif
+        mDbInterface->updateSendingItemsKeyid(localKeyid, keyid);
         assert(countDb == count);
         CHATID_LOG_DEBUG("keyConfirm: updated the localkeyid=%u to keyid=%u of %d message/s in the sending queue", localKeyid, keyid, count);
     }
@@ -5324,7 +5338,11 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
 
         return message;
     })
-    .then([wptr, this, isNew, isLocal, idx](Message* message)
+    .then([wptr, this, isNew, idx
+#ifndef NDEBUG
+          , isLocal
+#endif
+          ](Message* message)
     {
         if (wptr.deleted())
         {
@@ -6099,7 +6117,7 @@ bool Chat::findLastTextMsg()
             CHATID_LOG_DEBUG("lastTextMessage: fetching history from server");
 
             mServerOldHistCbEnabled = false;
-            requestHistoryFromServer(-initialHistoryFetchCount);
+            requestHistoryFromServer(-static_cast<int32_t>(initialHistoryFetchCount));
             mLastTextMsg.setState(LastTextMsgState::kFetching);
         }
 

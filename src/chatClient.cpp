@@ -415,7 +415,7 @@ bool Client::openDb(const std::string& sid)
                     {
                         db.query("ALTER TABLE `chats` ADD meeting tinyint default 0");
                     }
-                    catch (const std::runtime_error& e)
+                    catch (const std::runtime_error&)
                     {
                         // meeting column is already added
                     }
@@ -958,7 +958,7 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
             return err;
         });
     }
-    catch(std::exception& e)
+    catch(std::exception&)
     {
         std::string err("Failed to base64-decode chat title for chat ");
         err.append(ID_CSTR(chatId)).append(": ");
@@ -3628,14 +3628,20 @@ void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
     dbIntf = new ChatdSqliteDb(*mChat, parent.mKarereClient.db);
     if (mAppChatHandler)
     {
+        KR_LOG_WARNING("App chat handler is already set, remove it first");
+        assert(!mAppChatHandler); // keep original behavior in case this happens (it shouldn't)
         setAppChatHandler(mAppChatHandler);
     }
 }
 
-void ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
+bool ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
 {
     if (mAppChatHandler)
-        throw std::runtime_error("App chat handler is already set, remove it first");
+    {
+        KR_LOG_WARNING("App chat handler is already set, remove it first");
+        assert(!mAppChatHandler);
+        return false;
+    }
 
     mAppChatHandler = handler;
     chatd::DbInterface* dummyIntf = nullptr;
@@ -3644,6 +3650,7 @@ void ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
 //return to the event loop
     mChat->setListener(mAppChatHandler);
     mAppChatHandler->init(*mChat, dummyIntf);
+    return true;
 }
 
 void ChatRoom::removeAppChatHandler()
@@ -3816,7 +3823,7 @@ bool GroupChatRoom::isMember(const Id& peerid) const
 
 unsigned long GroupChatRoom::numMembers() const
 {
-    return mPeers.size() + 1;
+    return static_cast<unsigned long>(mPeers.size() + 1);
 }
 
 bool GroupChatRoom::isMeeting() const
@@ -4275,6 +4282,8 @@ void GroupChatRoom::setChatPrivateMode()
     }
 
     //Update strongvelope
+    KR_LOG_DEBUG("GroupChatRoom::setChatPrivateMode: EKR enabled (private chat) for chat: %s", karere::Id(mChatid).toString().c_str());
+
     chat().crypto()->setPrivateChatMode();
 
     //Update cache updating mode and ensure that meeting field is disabled (0)
@@ -5172,8 +5181,8 @@ std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t n
     }
 
     mNumNodes = numNodes;
-    mNumChats = numChats;
-    mNumContacts = numContacts;
+    mNumChats = static_cast<long>(numChats);
+    mNumContacts = static_cast<long>(numContacts);
 
     std::string json = toJson();
 
@@ -5189,7 +5198,7 @@ mega::dstime InitStats::currentTime()
 #if defined(_WIN32) && defined(_MSC_VER)
     struct __timeb64 tb;
     _ftime64(&tb);
-    return (tb.time * 1000) + (tb.millitm);
+    return static_cast<mega::dstime>((tb.time * 1000) + (tb.millitm));
 #else
     timespec ts;
     mega::m_clock_getmonotonictime(&ts);

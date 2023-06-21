@@ -34,7 +34,7 @@ enum TermCode: uint8_t
     kApiEndCall                 = 4,                    // < API/chatd ended call
     kPeerJoinTimeout            = 5,                    // < Nobody joined call
     kPushedToWaitingRoom        = 6,                    // < Our client has been removed from the call and pushed back into the waiting room
-    kKickedFromWaitingRoom      = 7,                    // < Revokes the join permission for our user that is into the waiting room
+    kKickedFromWaitingRoom      = 7,                    // < User has been kicked from call regardless of whether is in the call or in the waiting room
     kTooManyUserClients         = 8,                    // < Too many clients of same user connected
 
     //==============================================================================================
@@ -46,7 +46,7 @@ enum TermCode: uint8_t
     kNoMediaPath                = kFlagDisconn | 4,     // 68 < webRTC connection failed, no UDP connectivity
     //==============================================================================================
 
-    kErrSignaling               = kFlagError | 0,       // 128 < signalling error
+    kErrSignaling               = kFlagError | 0,       // 128 < signalling error | if client doesn't supports waiting rooms
     kErrNoCall                  = kFlagError | 1,       // 129 < attempted to join non-existing call
     kErrAuth                    = kFlagError | 2,       // 130 < authentication error
     kErrApiTimeout              = kFlagError | 3,       // 131 < ping timeout between SFU and API
@@ -64,6 +64,7 @@ enum CallState: uint8_t
     kStateInitial = 0,                  // < Call object was initialised
     kStateClientNoParticipating,        // < User is not partipating in the call
     kStateConnecting,                   // < Connecting to SFU
+    kInWaitingRoom,                     // < In a waiting room
     kStateJoining,                      // < Joining a call
     kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
@@ -161,9 +162,18 @@ public:
     virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
     virtual void onPermissionsChanged(const ICall& call) = 0;
+    virtual void onWrUsersAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* user) = 0;
+    virtual void onWrUsersDeny(const rtcModule::ICall& call, const ::mega::MegaHandleList* user) = 0;
+    virtual void onWrUserDump(const rtcModule::ICall& call) = 0;
+    virtual void onWrAllow(const rtcModule::ICall& call) = 0;
+    virtual void onWrDeny(const rtcModule::ICall& call) = 0;
+    virtual void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
+    virtual void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
+    virtual void onWrPushedFromCall(const rtcModule::ICall& call) = 0;
     virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
 };
 
+class KarereWaitingRoom;
 class ICall
 {
 public:
@@ -202,6 +212,7 @@ public:
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
     virtual bool hasRequestSpeak() const = 0;
+    virtual int getWrJoiningState() const = 0;
     virtual TermCode getTermCode() const = 0;
     virtual uint8_t getEndCallReason() const = 0;
 
@@ -211,6 +222,9 @@ public:
     virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
     virtual void stopSpeak(Cid_t cid = 0) = 0;
+    virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
+    virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
+    virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
@@ -228,7 +242,7 @@ public:
     virtual int64_t getInitialOffsetinMs() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
-
+    virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
     virtual bool isAllowSpeak() const = 0;
 };
 
@@ -260,6 +274,61 @@ public:
     virtual void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
+
+enum class WrState: int
+{
+    WR_UNKNOWN      = -1,   // client unknown joining status
+    WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+    WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
+};
+
+static bool isValidWrStatus(const WrState& value)
+{
+    return (value > WrState::WR_UNKNOWN && value <= WrState::WR_ALLOWED);
+}
+
+/**
+ * @brief This class represents waiting room users
+ *
+ * A waiting room, is effectively a list of users pending to enter a call
+ */
+class KarereWaitingRoom
+{
+public:
+    ~KarereWaitingRoom() = default;
+    KarereWaitingRoom() = default;
+    KarereWaitingRoom(const KarereWaitingRoom& other) = default;
+    KarereWaitingRoom(KarereWaitingRoom&& other) = delete;
+    KarereWaitingRoom& operator = (const KarereWaitingRoom& other) = delete;
+    KarereWaitingRoom& operator = (KarereWaitingRoom&& other) = delete;
+
+    void clear() { mWaitingRoomUsers.clear(); }
+
+    bool addOrUpdateUserStatus(const uint64_t& userid, const int& status)
+    {
+        if (!isValidWrStatus(static_cast<WrState>(status)))
+        {
+            assert(false);
+            return false;
+        }
+
+        mWaitingRoomUsers[userid] = static_cast<WrState>(status);
+        return true;
+    }
+
+    bool removeUser(const uint64_t& userid)
+    {
+        return mWaitingRoomUsers.erase(userid);
+    }
+
+    bool updateUsers(const std::set<karere::Id>& users, const WrState& status);
+    std::vector<uint64_t> getPeers() const;
+    int getPeerStatus(const uint64_t& peerid) const;
+    size_t size() const { return mWaitingRoomUsers.size(); }
+
+private:
+    std::map<uint64_t, WrState> mWaitingRoomUsers;
+};
 
 
 void globalCleanup();

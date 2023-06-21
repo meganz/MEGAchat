@@ -18,7 +18,11 @@
 	#define va_copy(d,s) ((d) = (s))
 #endif
 
+#if defined(_WIN32) && defined(_MSC_VER)
+#define strcasecmp(...) _stricmp(__VA_ARGS__)
+#else
 #define strcasecmp(...) stricmp(__VA_ARGS__)
+#endif
 
 ///windows doesn't have the _r function, but the non _r one is thread safe.
 ///we map the _r to non _r. NOTE: The caller must use the returned pointer,
@@ -105,6 +109,12 @@ Logger::Logger(unsigned aFlags, const char* timeFmt)
         log("LOGGER", 0, 0, "========== Application startup ===========\n");
 }
 
+// disable false positive warning in GCC 11+
+#if defined(__GNUC__) && !defined(__APPLE__) && !defined(__ANDROID__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
 inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix, const char* severity,
                                   unsigned flags)
 {
@@ -134,6 +144,10 @@ inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix,
         buf[bytesLogged++] = ' ';
     return bytesLogged;
 }
+
+#if defined(__GNUC__) && !defined(__APPLE__) && !defined(__ANDROID__)
+#pragma GCC diagnostic pop
+#endif
 
 void Logger::logv(const char* prefix, krLogLevel level, unsigned flags, const char* fmtString,
     va_list aVaList)
@@ -367,7 +381,7 @@ static size_t myStrncpy(char* dest, const char* src, size_t maxCount)
     }
     if (count > maxCount) //copy ermianted because we reached maxCount
     {
-        dptr[maxCount-1] = 0; //guarantee zero termination even if string is truncated
+        dest[maxCount-1] = 0; //guarantee zero termination even if string is truncated
         return maxCount-1; //we ate the last char to put te terinating zero there
     }
     return count-1;

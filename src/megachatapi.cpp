@@ -191,6 +191,7 @@ const char* MegaChatCall::termcodeToString(int termcode)
         case TERM_CODE_NO_PARTICIPATE:            return "User has been removed from chatroom";
         case TERM_CODE_TOO_MANY_CLIENTS:          return "Too many clients of same user connected";
         case TERM_CODE_PROTOCOL_VERSION:          return "SFU protocol version error";
+        case TERM_CODE_KICKED:                    return "User has been kicked from call";
     }
     return "Unknown call termcode";
 }
@@ -300,7 +301,7 @@ MegaHandleList *MegaChatCall::getPeeridParticipants() const
     return NULL;
 }
 
-MegaHandleList* MegaChatCall::getModerators() const
+const MegaHandleList* MegaChatCall::getModerators() const
 {
     return NULL;
 }
@@ -358,6 +359,21 @@ int MegaChatCall::getNetworkQuality() const
 bool MegaChatCall::hasRequestSpeak() const
 {
     return false;
+}
+
+int MegaChatCall::getWrJoiningState() const
+{
+    return 0;
+}
+
+const MegaChatWaitingRoom* MegaChatCall::getWaitingRoom() const
+{
+    return NULL;
+}
+
+const ::mega::MegaHandleList* MegaChatCall::getHandleList() const
+{
+    return NULL;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
@@ -1120,6 +1136,21 @@ void MegaChatApi::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clie
 void MegaChatApi::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
     pImpl->removeSpeaker(chatid, clientId, listener);
+}
+
+void MegaChatApi::pushUsersIntoWaitingRoom(MegaChatHandle chatid, MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    pImpl->pushUsersIntoWaitingRoom(chatid, users, all, listener);
+}
+
+void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users, MegaChatRequestListener* listener)
+{
+    pImpl->kickUsersFromCall(chatid, users, listener);
+}
+
+void MegaChatApi::allowUsersJoinCall(MegaChatHandle chatid, const MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    pImpl->allowUsersJoinCall(chatid, users, all, listener);
 }
 
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
