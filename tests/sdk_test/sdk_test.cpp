@@ -4375,13 +4375,13 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
         std::shared_ptr<MegaChatPeerList> peerList;
     } smDataTests127, smDataTests456;
 
-    const auto getChatIdStrB64 = [](const MegaChatHandle h) -> const char *
+    const auto getChatIdStrB64 = [](const MegaChatHandle h) -> std::string
     {
         const std::unique_ptr<char[]> idB64(MegaApi::userHandleToBase64(h));
         return idB64 ? idB64.get() : "INVALID chatId";
     };
 
-    const auto getSchedIdStrB64 = [](const MegaChatHandle h) -> const char *
+    const auto getSchedIdStrB64 = [](const MegaChatHandle h) -> std::string
     {
         const std::unique_ptr<char[]> idB64(MegaApi::userHandleToBase64(h));
         return idB64 ? idB64.get() : "INVALID schedId";
@@ -4500,7 +4500,8 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
         for (size_t i =  0; i < occurrences->size(); ++i)
         {
             const auto occurr = occurrences->at(i);
-            ASSERT_TRUE(isValidOccurr(occurr->startDateTime()) && isValidOccurr(occurr->endDateTime())) << "Some of received occurrences are out of specified range";
+            ASSERT_TRUE(isValidOccurr(occurr->startDateTime())) << "StartDateTime out of specified range for occurrence";
+            ASSERT_TRUE(isValidOccurr(occurr->endDateTime()))   << "EndDateTime out of specified range for occurrence";
         }
     };
 
@@ -4771,7 +4772,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     ASSERT_NO_FATAL_FAILURE({ fetchOccurrences(a1, MegaChatError::ERROR_OK, smData); });
     if (!occurrences || occurrences->size() != MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
     {
-        printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ);
+        if (occurrences) { printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ); }
         ASSERT_TRUE(false) << "Error fetching occurrences for primary account for chat: " << getChatIdStrB64(chatid);
     }
 
@@ -4784,7 +4785,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
         ASSERT_NO_FATAL_FAILURE({ fetchOccurrences(a1, MegaChatError::ERROR_OK, smData); });
         if (!occurrences || occurrences->size() != MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
         {
-            printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ);
+            if (occurrences) { printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ); }
             ASSERT_TRUE(false) << "Error fetching more occurrences for primary account for chat: " << getChatIdStrB64(chatid);
         }
     }
@@ -4818,7 +4819,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     ASSERT_NO_FATAL_FAILURE({ fetchOccurrences(a1, MegaChatError::ERROR_OK, smData); });
     if (!occurrences || occurrences->size())
     {
-        printOccurrences(occurrences.get(), 0);
+        if (occurrences) { printOccurrences(occurrences.get(), 0); }
         ASSERT_TRUE(false) << "No scheduled meeting occurrences for primary account should be received for chat: " << getChatIdStrB64(chatid);
     }
 
