@@ -157,8 +157,10 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     // 2. login
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     RequestTracker loginTracker;
-    session ? megaApi[accountIndex]->fastLogin(session, &loginTracker)
-              : megaApi[accountIndex]->login(mail.c_str(), pwd.c_str(), &loginTracker);
+    session && std::strlen(session)
+        ? megaApi[accountIndex]->fastLogin(session, &loginTracker)  // session must be not null and non empty
+        : megaApi[accountIndex]->login(mail.c_str(), pwd.c_str(), &loginTracker);
+
     int loginResult = loginTracker.waitForResult();
     EXPECT_EQ(loginResult, API_OK) << "Login failed. Error: " << loginResult << ' ' << loginTracker.getErrorString();
     if (loginResult != API_OK) return nullptr;
@@ -2893,6 +2895,11 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     std::unique_ptr<char[]> chatidB64(megaApi[a1]->handleToBase64(chatid));
     ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << chatidB64.get();
 
+    //=========================================================//
+    // Preconditions: Set secondary account priv to READ ONLY.
+    //=========================================================//
+    LOG_debug << "[Test.RetentionHistory] Preconditions: Set secondary account priv to READ ONLY.";
+
     // Set secondary account priv to READ ONLY
     if (chatroom->getPeerPrivilegeByHandle(uh) != PRIV_RO)
     {
@@ -2912,22 +2919,34 @@ TEST_F(MegaChatApiTest, RetentionHistory)
         ASSERT_EQ(*priv, MegaChatRoom::PRIV_RO) << "Privilege is incorrect";
     }
 
-    // Set retention time for an invalid handle
+    //=========================================================//
+    // Test1: Set retention time for an invalid handle.
+    //=========================================================//
+    LOG_debug << "[Test.RetentionHistory] Test1: Set retention time for an invalid handle.";
     ChatRequestTracker crtSetRetention;
     megaChatApi[a2]->setChatRetentionTime(MEGACHAT_INVALID_HANDLE, 1, &crtSetRetention);
     ASSERT_EQ(crtSetRetention.waitForResult(), MegaChatError::ERROR_ARGS) << "Set retention time: Unexpected error for Invalid handle. Error: " << crtSetRetention.getErrorString();
 
-    // Set retention time for a not found chatroom
+    //=========================================================//
+    // Test2: Set retention time for a not found chatroom.
+    //=========================================================//
+    LOG_debug << "[Test.RetentionHistory] Test2: Set retention time for a not found chatroom";
     ChatRequestTracker crtSetRetention2;
     megaChatApi[a2]->setChatRetentionTime(123456, 1, &crtSetRetention2);
     ASSERT_EQ(crtSetRetention2.waitForResult(), MegaChatError::ERROR_NOENT) << "Set retention time: Unexpected error for a not found chatroom. Error: " << crtSetRetention2.getErrorString();
 
-    // Set retention time without enough permissions
+    //=========================================================//
+    // Test3: Set retention time without enough permissions.
+    //=========================================================//
+    LOG_debug << "[Test.RetentionHistory] Test3: Set retention time without enough permissions.";
     ChatRequestTracker crtSetRetention3;
     megaChatApi[a2]->setChatRetentionTime(chatid, 1, &crtSetRetention3);
     ASSERT_EQ(crtSetRetention3.waitForResult(), MegaChatError::ERROR_ACCESS) << "Set retention time: Unexpected error for not enough permissions. Error: " << crtSetRetention3.getErrorString();
 
-    // Disable retention time
+    //=========================================================//
+    // Test4: Disable retention time.
+    //=========================================================//
+    LOG_debug << "[Test.RetentionHistory] Test4: Disable retention time.";
     if (chatroom->getRetentionTime() != 0)
     {
         // Disable retention time if any
@@ -2942,7 +2961,10 @@ TEST_F(MegaChatApiTest, RetentionHistory)
         ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
     }
 
-    // Send 5 messages
+    //=======================================================================================//
+    // Test5: Send some messages, then enable retention history, and wait for msg's removal
+    //=======================================================================================//
+    LOG_debug << "[Test.RetentionHistory] Test5: Send some messages, then enable retention history, and wait for msg's removal";
     std::string messageToSend = "Msg from " +account(a1).getEmail();
     for (int i = 0; i < 5; i++)
     {
@@ -2973,6 +2995,10 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     ASSERT_NE(*msgId1, MEGACHAT_INVALID_HANDLE) << "Wrong message id";
     ASSERT_FALSE(loadHistory(a1, chatid, chatroomListener)) << "History should be empty after retention history autotruncate";
 
+    //===============================================================================================//
+    // Test6: Disable retention time, send some messages. Upon logout/login check msgs still exist
+    //===============================================================================================//
+    LOG_debug << "[Test.RetentionHistory] Test6: Disable retention time, send some messages. Upon logout/login check msgs still exist";
     // Disable retention time
     retentionTimeChanged0 = &chatroomListener->retentionTimeUpdated[a1]; *retentionTimeChanged0 = false;
     retentionTimeChanged1 = &chatroomListener->retentionTimeUpdated[a2]; *retentionTimeChanged1 = false;
