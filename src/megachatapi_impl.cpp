@@ -4996,16 +4996,23 @@ bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *
         return false;
     }
 
-    sdkMutex.lock();
-
+    SdkMutexGuard g(sdkMutex);
     ChatRoom* chatroom = findChatRoom(chatid);
-    if (!chatroom || !chatroom->setAppChatHandler(getChatRoomHandler(chatid)))
+    if (!chatroom)
     {
+        API_LOG_WARNING("openChatRoom. chatroom not found. chatid: %s"
+                        , karere::Id(chatid).toString().c_str());
         return false;
     }
 
+    if (chatroom->appChatHandler())
+    {
+        API_LOG_WARNING("App chat handler is already set, remove it first. chatid: %s"
+                        , karere::Id(chatid).toString().c_str());
+        return false;
+    }
     addChatRoomListener(chatid, listener);
-    sdkMutex.unlock();
+    chatroom->setAppChatHandler(getChatRoomHandler(chatid));
     return chatroom;
 }
 
