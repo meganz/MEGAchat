@@ -5955,6 +5955,15 @@ public:
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief startMeetingBypassWaitingRoom
+     * @param chatid
+     * @param enableVideo
+     * @param enableAudio
+     * @param listener
+     */
+    void startMeetingBypassWaitingRoom(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
+
+    /**
      * @brief Hang up a call
      *
      * The associated request type with this request is MegaChatRequest::TYPE_HANG_CHAT_CALL

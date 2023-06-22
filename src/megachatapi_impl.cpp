@@ -1710,6 +1710,14 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             MegaChatHandle schedId = request->getUserHandle();
+            const bool adhoc = request->getPrivilege();
+            if (adhoc && (!chatroom->isWaitingRoom() || schedId != MEGACHAT_INVALID_HANDLE))
+            {
+                API_LOG_ERROR("Start call - trying to start adhoc meeting with the wrong params");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             if (schedId != MEGACHAT_INVALID_HANDLE &&
                     !dynamic_cast<GroupChatRoom *>(chatroom)->getScheduledMeetingsBySchedId(schedId))
             {
@@ -5706,13 +5714,14 @@ char *MegaChatApiImpl::getVideoDeviceSelected()
     return deviceName;
 }
 
-void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatHandle schedId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool adhoc, bool enableVideo, bool enableAudio, MegaChatHandle schedId, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_START_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
     request->setParamType(enableAudio);
     request->setUserHandle(schedId);
+    request->setPrivilege(adhoc);
     requestQueue.push(request);
     waiter->notify();
 }

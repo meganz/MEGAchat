@@ -261,6 +261,11 @@ void ChatListItemController::onSetWaitingRoom(bool enable)
     mMegaChatApi->setWaitingRoom(mItemId, enable);
 }
 
+void ChatListItemController::onAddhocCall()
+{
+    mMegaChatApi->startMeetingBypassWaitingRoom(mItemId, false, false);
+}
+
 void ChatListItemController::queryChatLink()
 {
     if (mItemId != MEGACHAT_INVALID_HANDLE)
