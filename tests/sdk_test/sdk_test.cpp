@@ -4466,6 +4466,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     const auto fetchOccurrences = [this, &occurrences](const unsigned int index, const int expectedError,
                                                        const SchedMeetingData& smData) -> void
     {
+        occurrences.reset();
         // check if occurrence is inside requested range
         const MegaChatTimeStamp sinceTs = smData.startDate;
         const auto isValidOccurr = [&sinceTs](const MegaChatTimeStamp& ts)
@@ -4578,7 +4579,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
             {
                 LOG_err << "Can't update scheduled meeting occurrence, fetching occurrences";
                 ASSERT_NO_FATAL_FAILURE({ fetchOccurrences(a1, MegaChatError::ERROR_OK, smData); });
-                printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ);
+                if (occurrences) { printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ); }
             }
             ASSERT_EQ(res, expectedError) << "Unexpected error while updating scheduled meeting occurrence. Error: " << res;
         }
