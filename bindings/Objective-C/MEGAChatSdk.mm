@@ -1746,8 +1746,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi ? self.megaChatApi->hasCallInChatRoom(chatId) : NO;
 }
 
-- (NSInteger)getMaxVideoCallParticipants {
-    return self.megaChatApi ? self.megaChatApi->getMaxVideoCallParticipants() : 0;
+- (NSInteger)getMaxSupportedVideoCallParticipants {
+    return self.megaChatApi ? self.megaChatApi->getMaxSupportedVideoCallParticipants() : 0;
 }
 
 - (NSInteger)getMaxCallParticipants {
@@ -1805,6 +1805,19 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
     }
     self.megaChatApi->stopLowResVideo(chatId, clientIdList.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setSFU:(NSInteger)sfuId {
+    if (!self.megaChatApi) return;
+    self.megaChatApi->setSFUid((int)sfuId);
+}
+
+- (NSInteger)getCurrentInputVideoTracksLimit {
+    return self.megaChatApi ? self.megaChatApi->getCurrentInputVideoTracksLimit() : 0;
+}
+
+- (BOOL)setCurrentInputVideoTracksLimit:(NSInteger)inputVideoTracks {
+    return self.megaChatApi ? self.megaChatApi->setCurrentInputVideoTracksLimit((int)inputVideoTracks) : NO;
 }
 
 #endif

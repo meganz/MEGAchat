@@ -5861,7 +5861,7 @@ public:
      * - if the chatroom doesn't exists.
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
-     * @see MegaChatApi::getMaxVideoCallParticipants
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -5914,7 +5914,7 @@ public:
      * - if the scheduled meeting doesn't exists
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
-     * @see MegaChatApi::getMaxVideoCallParticipants
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -5955,7 +5955,7 @@ public:
      * for this chat in progress.
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
-     * @see MegaChatApi::getMaxVideoCallParticipants
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
