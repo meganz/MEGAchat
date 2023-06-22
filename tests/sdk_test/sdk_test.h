@@ -545,10 +545,10 @@ public:
         return (finished() && request) ? request->getParamType() : 0;
     }
 
-    std::shared_ptr<::megachat::MegaChatScheduledMeetingOccurrList> getScheduledMeetings() const
+    auto getScheduledMeetings() const
     {
         return (finished() && request && request->getMegaChatScheduledMeetingOccurrList())
-                  ? std::shared_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
+                  ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
                   : nullptr;
     }
 

@@ -4462,7 +4462,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     };
 
     // fetch scheduled meeting occurrences
-    std::shared_ptr<::megachat::MegaChatScheduledMeetingOccurrList> occurrences;
+    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> occurrences;
     const auto fetchOccurrences = [this, &occurrences](const unsigned int index, const int expectedError,
                                                        const SchedMeetingData& smData) -> void
     {
