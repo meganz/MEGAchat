@@ -5829,6 +5829,7 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
      * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
+     * - MegaChatRequest::getPrivilege() - Returns 0 indicating that we don't want to start an adhoc call
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -5878,6 +5879,7 @@ public:
      * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
      * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
      * - MegaChatRequest::getUserHandle() - Returns the scheduled meeting id;
+     * - MegaChatRequest::getPrivilege() - Returns 0 indicating that we don't want to start an adhoc call
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -5955,11 +5957,58 @@ public:
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief startMeetingBypassWaitingRoom
-     * @param chatid
-     * @param enableVideo
-     * @param enableAudio
-     * @param listener
+     * @brief Starts a call bypassing waiting room in a chatroom that has this option enabled
+     *
+     * When waiting room is enabled, all participants will be redirected to it, when they start/answer a call.
+     * By calling to this method, we instruct server to ignore waiting room for this call, so all participants
+     * that answer that call will be redirected to it, without passing by the waiting room.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
+     * - MegaChatRequest::getUserHandle() - Returns the scheduled meeting id;
+     * - MegaChatRequest::getPrivilege() - Returns 1 indicating that we want to start an adhoc call
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if chatroom doesn't have waiting room option enabled
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     *  - if peer of a 1on1 chatroom it's a non visible contact
+     *  - if this function is called without being already connected to chatd.
+     *  - if the chatroom is in preview mode.
+     *  - if our own privilege is not MegaChatPeerList::PRIV_MODERATOR and the chatroom has waiting room option enabled.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
+     *
+     * The request will fail with MegaChatError::ERROR_EXISTS
+     * - if there is a previous attempt still in progress (the call doesn't exist yet)
+     * - if there is already another attempt to start a call for this chat, and call already exists but we don't participate
+     * - if the call already exists and we already participate
+     * In case that call already exists MegaChatRequest::getUserHandle will return its callid.
+     *
+     * The request will fail with MegaChatError::ERROR_NOENT
+     * - if the chatroom doesn't exists.
+     * - if the scheduled meeting doesn't exists
+     *
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxVideoCallParticipants
+     *
+     * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param schedId MegaChatHandle scheduled meeting id that identifies the scheduled meeting context in which we will start the call
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param enableAudio True for starting a call with audio (mute disabled)
+     * @param listener MegaChatRequestListener to track this request
      */
     void startMeetingBypassWaitingRoom(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
 
