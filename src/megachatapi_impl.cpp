@@ -1687,14 +1687,6 @@ void MegaChatApiImpl::sendPendingRequests()
                 break;
             }
 
-            if (chatroom->isWaitingRoom() && chatroom->ownPriv() < static_cast<Priv> (MegaChatPeerList::PRIV_MODERATOR))
-            {
-                API_LOG_ERROR("Start call - Refusing start a call with waiting room enabled, for non moderator users. Chatid: %s",
-                              karere::Id(chatid).toString().c_str());
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
-            }
-
             if (chatroom->previewMode())
             {
                 API_LOG_ERROR("Start call - Chatroom is in preview mode");
@@ -1732,6 +1724,14 @@ void MegaChatApiImpl::sendPendingRequests()
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
+               if (chatroom->isWaitingRoom() && chatroom->ownPriv() < static_cast<Priv> (MegaChatPeerList::PRIV_MODERATOR))
+               {
+                   API_LOG_ERROR("Start call - Refusing start a call with waiting room enabled, for non moderator users. Chatid: %s",
+                                 karere::Id(chatid).toString().c_str());
+                   errorCode = MegaChatError::ERROR_ACCESS;
+                   break;
+               }
+
                if (mClient->rtc->isCallStartInProgress(chatid))
                {
                    API_LOG_ERROR("Start call - start call attempt already in progress");
