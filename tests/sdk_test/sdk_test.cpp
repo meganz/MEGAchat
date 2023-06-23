@@ -369,7 +369,7 @@ void MegaChatApiTest::SetUp()
         mPresenceConfigUpdated[i] = false;
 
 #ifndef KARERE_DISABLE_WEBRTC
-        mCallReceived[i] = false;
+        mCallWithIdReceived[i] = false;
         mCallReceivedRinging[i] = false;
         mCallInProgress[i] = false;
         mCallDestroyed[i] = false;
@@ -3435,7 +3435,7 @@ TEST_F(MegaChatApiTest, Calls)
     // A calls B(B is logged out), B logins, B receives the call and B hangs up the call
     ASSERT_NO_FATAL_FAILURE({ logout(a2); });
     callInProgress = &mCallInProgress[a1]; *callInProgress = false;
-    bool *callReceived = &mCallReceived[a2]; *callReceived = false;
+    bool* callReceived = &mCallWithIdReceived[a2]; *callReceived = false;
     callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
@@ -4228,31 +4228,107 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         ASSERT_TRUE(mTerminationCode[a2] == MegaChatCall::TERM_CODE_KICKED) << "Unexpected termcode" << MegaChatCall::termcodeToString(mTerminationCode[a2]);
     };
 
+    auto startCallPrimaryAccount = [this, &a1, &a2, &chatid](const bool adhoc){
+
+        mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
+        mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
+        mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
+        mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
+
+        bool* receivedSecondary = adhoc
+                                      ? &mCallReceived[a2]
+                                      : &mCallReceivedRinging[a2];
+
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
+                          std::vector<bool *> {&mCallInProgress[a1], receivedSecondary},
+                          std::vector<string> {"mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
+                          "starting chat call from A",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, &a1, &chatid, &adhoc]()
+                          {
+                              ChatRequestTracker crtStartCall;
+                              adhoc
+                                  ? megaChatApi[a1]->startMeetingBypassWaitingRoom(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall)
+                                  : megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall);
+
+                              ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to start call. Error: " << crtStartCall.getErrorString();
+                          });
+        });
+    };
+
+    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool addhoc){
+
+        bool* waitingPrimary = nullptr;
+        bool* waitingSecondary = nullptr;
+
+        if (addhoc)
+        {
+            waitingPrimary = &mChatCallSessionStatusInProgress[a1];
+            waitingSecondary = &mChatCallSessionStatusInProgress[a2];
+        }
+        else
+        {
+            waitingPrimary = &mCallWrChanged[a1];
+            waitingSecondary = &mCallWR[a2];
+        }
+
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
+                          std::vector<bool *> { waitingPrimary, waitingSecondary },
+                          std::vector<string> { "waitingPrimary", "waitingSecondary" },
+                          "answering chat call from B",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, a2, chatid]()
+                          {
+                              ChatRequestTracker crtAnswerCall;
+                              megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtAnswerCall);
+                              ASSERT_EQ(crtAnswerCall.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to answer call. Error: " << crtAnswerCall.getErrorString();
+                          });
+        });
+    };
+
+    auto endCallPrimaryAccount = [this, &a1, &a2](const MegaChatHandle callId){
+        bool* callDestroyedA = &mCallDestroyed[a1]; *callDestroyedA = false;
+        bool* callDestroyedB = &mCallDestroyed[a2]; *callDestroyedB = false;
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          std::vector<bool *> { &mCallDestroyed[a1], &mCallDestroyed[a2] },
+                          std::vector<string> { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
+                          "A ends call for all participants",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, a1, callDestroyedA, callDestroyedB, callId]()
+                          {
+                              ChatRequestTracker crtEndCall;
+                              megaChatApi[a1]->endChatCall(callId, &crtEndCall);
+                              ASSERT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to end call. Error: " << crtEndCall.getErrorString();
+
+                              // Check the call was destroyed at both ends
+                              LOG_debug << "Now that A and B hung up, we can check if the call is destroyed";
+                              ASSERT_TRUE(waitForResponse(callDestroyedA)) <<
+                                  "The call for A should be already finished and it is not";
+                              LOG_debug << "Destroyed for A is OK, checking for B";
+                              ASSERT_TRUE(waitForResponse(callDestroyedB)) <<
+                                  "The call for B should be already finished and it is not";
+                              LOG_debug << "Destroyed for B is OK.";
+                          });
+        });
+    };
+
     // Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
-    // ------------------------------------------------------------------------------------------------------
+    // --------------------------------------------------------------------------------------------------------------
     LOG_debug << "T_WaitingRooms1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
     LOG_debug << "A starts the call";
-    mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
-    mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
-    mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
-    mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
-
-    ASSERT_NO_FATAL_FAILURE({
-        waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
-                      std::vector<bool *> {&mCallInProgress[a1], &mCallReceivedRinging[a2]},
-                      std::vector<string> {"mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
-                      "starting chat call from A",
-                      true /* wait for all exit flags*/,
-                      true /*reset flags*/,
-                      maxTimeout,
-                      [this, a1, chatid]()
-                      {
-                          ChatRequestTracker crtStartCall;
-                          megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall);
-                          ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to start call. Error: " << crtStartCall.getErrorString();
-                      });
-    });
+    ASSERT_NO_FATAL_FAILURE({startCallPrimaryAccount(false);});
 
     // B picks up the call
     mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
@@ -4269,22 +4345,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // B answers call and it's pushed into waiting room
     LOG_debug << "B Answers the call";
-    ASSERT_NO_FATAL_FAILURE({
-        waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
-                      std::vector<bool *> { &mCallWrChanged[a1], &mCallWR[a2] },
-                      std::vector<string> { "mCallWrChanged[a1]", "mCallWR[a2]" },
-                      "answering chat call from B",
-                      true /* wait for all exit flags*/,
-                      true /*reset flags*/,
-                      maxTimeout,
-                      [this, a2, chatid]()
-                      {
-                          ChatRequestTracker crtAnswerCall;
-                          megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtAnswerCall);
-                          ASSERT_EQ(crtAnswerCall.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to answer call. Error: " << crtAnswerCall.getErrorString();
-                      });
-    });
+    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(false);});
 
     std::unique_ptr<MegaChatCall> call(megaChatApi[a1]->getChatCall(chatid));
     std::unique_ptr<MegaChatWaitingRoom> wr(call && call->getWaitingRoom()
@@ -4313,28 +4374,48 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     kickFromCall();
 
     LOG_debug << "T_WaitingRooms: A ends call for all participants";
-    ASSERT_NO_FATAL_FAILURE({
-        waitForAction (1,
-                      std::vector<bool *> { &mCallDestroyed[a1], &mCallDestroyed[a2] },
-                      std::vector<string> { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
-                      "A ends call for all participants",
-                      true /* wait for all exit flags*/,
-                      true /*reset flags*/,
-                      maxTimeout,
-                      [this, a1, callid = auxCall->getCallId()]()
-                      {
-                          ChatRequestTracker crtEndCall;
-                          megaChatApi[a1]->endChatCall(callid, &crtEndCall);
-                          ASSERT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to end call. Error: " << crtEndCall.getErrorString();
-                      });
-    });
+    endCallPrimaryAccount(auxCall->getCallId());
+
+    auto changeApiUrl = [this, a1](const std::string url){
+        megaApi[a1]->changeApiUrl(url.c_str());
+        ChatRequestTracker crtRetryConn;
+        megaChatApi[a1]->retryPendingConnections(false, &crtRetryConn);
+        ASSERT_EQ(crtRetryConn.waitForResult(), MegaChatError::ERROR_OK) << "Failed to retry pending connections. Error: " << crtRetryConn.getErrorString();
+    };
+
+    // Test4: A starts call Bypassing waiting room, B Joins directly to the call
+    // --------------------------------------------------------------------------------------------------------------
+    changeApiUrl("https://staging.api.mega.co.nz/");
+    megaChatApi[a1]->setSFUid(336);
+    LOG_debug << "T_WaitingRooms4: A starts call Bypassing waiting room, B Joins directly to the call";
+    mCallIdExpectedReceived[a1] = mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
+    ASSERT_NO_FATAL_FAILURE({startCallPrimaryAccount(true);});
+
+    // B picks up the call
+    mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
+    auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
+    if (auxCall)
+    {
+        mCallIdExpectedReceived[a2] = auxCall->getCallId();
+    }
+
+    ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid from call emisor";
+    ASSERT_TRUE((mCallIdJoining[a1] == mCallIdRingIn[a2]) && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE)) << "A and B are in different call";
+    ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid for B from A (call emisor)";
+    LOG_debug << "B received the call";
+
+    LOG_debug << "B Answers the call";
+    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(true);});
+
+    LOG_debug << "T_WaitingRooms: A ends call for all participants";
+    endCallPrimaryAccount(auxCall->getCallId());
 
     // close & cleanup
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener.get());
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener.get());
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListenerA);
     megaChatApi[a2]->removeChatLocalVideoListener(chatid, &localVideoListenerB);
+    changeApiUrl("https://g.api.mega.co.nz/");
 }
 
 /**
@@ -5996,7 +6077,7 @@ bool* MegaChatApiTest::getChatCallStateFlag (unsigned int index, int state)
 {
     switch (state)
     {
-    case megachat::MegaChatCall::CALL_STATUS_INITIAL:     return &mCallReceived[index];
+    case megachat::MegaChatCall::CALL_STATUS_INITIAL:     return &mCallWithIdReceived[index];
     case megachat::MegaChatCall::CALL_STATUS_CONNECTING:  return &mCallConnecting[index];
     case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS: return &mCallInProgress[index];
     default:                                              break;
@@ -6316,8 +6397,9 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
                 /* we are waiting to receive a call status change (CALL_STATUS_INITIAL) generated in
                  * Call ctor, for a specific callid, this could be util for those scenarios where
                  * we receive multiple onChatCallUpdate like a login */
-                mCallReceived[apiIndex] = true;
+                mCallWithIdReceived[apiIndex] = true;
             }
+            mCallReceived[apiIndex] = true;
             break;
 
         case MegaChatCall::CALL_STATUS_IN_PROGRESS:

@@ -296,6 +296,7 @@ protected:
     std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
+    bool mCallWithIdReceived[NUM_ACCOUNTS];
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallReceivedRinging[NUM_ACCOUNTS];
     bool mCallInProgress[NUM_ACCOUNTS];
