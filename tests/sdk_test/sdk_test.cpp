@@ -4101,7 +4101,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     unsigned a1 = 0;
     unsigned a2 = 1;
 
-    // Prepare users, and chat room
+    // [Test preparation] Prepare users, and chat room
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     ASSERT_TRUE(primarySession);
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
@@ -4324,24 +4324,34 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         });
     };
 
-    // Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
+    auto picksUpCallSecondaryAccount = [this, &a1, &a2]() -> unique_ptr<MegaChatCall>
+    {
+        mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
+        unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
+        if (!auxCall)
+        {
+            return nullptr;
+        }
+
+        mCallIdExpectedReceived[a2] = auxCall->getCallId();
+        EXPECT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid from call emisor";
+        EXPECT_TRUE((mCallIdJoining[a1] == mCallIdRingIn[a2]) && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE)) << "A and B are in different call";
+        EXPECT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid for B from A (call emisor)";
+        LOG_debug << "B received the call";
+        return auxCall;
+    };
+
+    unique_ptr<MegaChatCall> auxCall;
+
+    // [Test1]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
     // --------------------------------------------------------------------------------------------------------------
     LOG_debug << "T_WaitingRooms1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
     LOG_debug << "A starts the call";
     ASSERT_NO_FATAL_FAILURE({startCallPrimaryAccount(false);});
 
     // B picks up the call
-    mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
-    unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
-    if (auxCall)
-    {
-        mCallIdExpectedReceived[a2] = auxCall->getCallId();
-    }
-
-    ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid from call emisor";
-    ASSERT_TRUE((mCallIdJoining[a1] == mCallIdRingIn[a2]) && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE)) << "A and B are in different call";
-    ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid for B from A (call emisor)";
-    LOG_debug << "B received the call";
+    LOG_debug << "B Pickups the call";
+    auxCall = picksUpCallSecondaryAccount();
 
     // B answers call and it's pushed into waiting room
     LOG_debug << "B Answers the call";
@@ -4359,7 +4369,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // because JOIN command is automatically managed by karere, and is only sent when user has permission to JOIN
     grantsJoinPermission();
 
-    // Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
+    // [Test2]: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
     // ------------------------------------------------------------------------------------------------------
     LOG_debug << "T_WaitingRooms2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)";
     pushIntoWr();
@@ -4368,7 +4378,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // In that case SFU would send WR_USERS_DENY to all moderators, however this is a race condition, as upon WR_ALLOW, karere automatically
     // sends JOIN command
 
-    // Test3: A kicks (completely disconnect) B from call
+    // [Test3]: A kicks (completely disconnect) B from call
     // ------------------------------------------------------------------------------------------------------
     LOG_debug << "T_WaitingRooms3: A kicks (completely disconnect) B from call";
     kickFromCall();
@@ -4383,7 +4393,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         ASSERT_EQ(crtRetryConn.waitForResult(), MegaChatError::ERROR_OK) << "Failed to retry pending connections. Error: " << crtRetryConn.getErrorString();
     };
 
-    // Test4: A starts call Bypassing waiting room, B Joins directly to the call
+    // [Test4]: A starts call Bypassing waiting room, B Joins directly to the call
     // --------------------------------------------------------------------------------------------------------------
     changeApiUrl("https://staging.api.mega.co.nz/");
     megaChatApi[a1]->setSFUid(336);
@@ -4392,12 +4402,8 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_NO_FATAL_FAILURE({startCallPrimaryAccount(true);});
 
     // B picks up the call
-    mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
-    auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
-    if (auxCall)
-    {
-        mCallIdExpectedReceived[a2] = auxCall->getCallId();
-    }
+    LOG_debug << "B Pickups the call";
+    auxCall = picksUpCallSecondaryAccount();
 
     ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid from call emisor";
     ASSERT_TRUE((mCallIdJoining[a1] == mCallIdRingIn[a2]) && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE)) << "A and B are in different call";
@@ -4410,7 +4416,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     LOG_debug << "T_WaitingRooms: A ends call for all participants";
     endCallPrimaryAccount(auxCall->getCallId());
 
-    // close & cleanup
+    // [Finishing test] close & cleanup
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener.get());
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener.get());
     megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListenerA);
