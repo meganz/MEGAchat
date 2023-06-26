@@ -36,6 +36,13 @@ const std::string ByeCommand::COMMAND_NAME              = "BYE";            // N
 const std::string ModAddCommand::COMMAND_NAME           = "MOD_ADD";        // Notifies that a moderator has been added to the moderator list
 const std::string ModDelCommand::COMMAND_NAME           = "MOD_DEL";        // Notifies that a moderator has been removed from the moderator list
 const std::string HelloCommand::COMMAND_NAME            = "HELLO";          // First command received after connecting to the SFU
+const std::string WrDumpCommand::COMMAND_NAME           = "WR_DUMP";        // Notifies the current waiting room status
+const std::string WrEnterCommand::COMMAND_NAME          = "WR_ENTER";       // Notifies moderators about user(s) that entered/were pushed in the waiting room
+const std::string WrLeaveCommand::COMMAND_NAME          = "WR_LEAVE";       // Notifies moderators about user(s) who left the waiting room (either entered the call or disconnected)
+const std::string WrAllowCommand::COMMAND_NAME          = "WR_ALLOW";       // Notifies that our user permission to enter the call has been granted (from waiting room)
+const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";        // Notifies that our user permission to enter the call has been denied (from waiting room)
+const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted to enter the call.
+const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied to enter the call
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
@@ -51,6 +58,9 @@ const std::string SfuConnection::CSFU_SPEAK_RQ          = "SPEAK_RQ";       // C
 const std::string SfuConnection::CSFU_SPEAK_RQ_DEL      = "SPEAK_RQ_DEL";   // Command sent to cancel a pending speak request
 const std::string SfuConnection::CSFU_SPEAK_DEL         = "SPEAKER_DEL";    // Command sent to request that an active speaker stops being one.
 const std::string SfuConnection::CSFU_BYE               = "BYE";            // Command sent to disconnect orderly from the call
+const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // Command sent to push all clients of sent peerId's (that are in the call) to the waiting room
+const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // Command sent to grant the specified users the permission to enter the call from the waiting room
+const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";        // Command sent to disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room
 
 CommandsQueue::CommandsQueue():
     isSending(false)
@@ -1565,10 +1575,17 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1), call);
+    commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
     commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
     commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
+    commands[WrDumpCommand::COMMAND_NAME] = mega::make_unique<WrDumpCommand>(std::bind(&sfu::SfuInterface::handleWrDump, &call, std::placeholders::_1), call);
+    commands[WrEnterCommand::COMMAND_NAME] = mega::make_unique<WrEnterCommand>(std::bind(&sfu::SfuInterface::handleWrEnter, &call, std::placeholders::_1), call);
+    commands[WrLeaveCommand::COMMAND_NAME] = mega::make_unique<WrLeaveCommand>(std::bind(&sfu::SfuInterface::handleWrLeave, &call, std::placeholders::_1), call);
+    commands[WrAllowCommand::COMMAND_NAME] = mega::make_unique<WrAllowCommand>(std::bind(&sfu::SfuInterface::handleWrAllow, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[WrDenyCommand::COMMAND_NAME] = mega::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call, std::placeholders::_1), call);
+    commands[WrUsersAllowCommand::COMMAND_NAME] = mega::make_unique<WrUsersAllowCommand>(std::bind(&sfu::SfuInterface::handleWrUsersAllow, &call, std::placeholders::_1), call);
+    commands[WrUsersDenyCommand::COMMAND_NAME] = mega::make_unique<WrUsersDenyCommand>(std::bind(&sfu::SfuInterface::handleWrUsersDeny, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
@@ -1774,7 +1791,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
-    if (prevCid) // cid 0 is invalid
+    if (prevCid != K_INVALID_CID)
     {
         // when reconnecting, send the SFU the CID of the previous connection, so it can kill it instantly
         json.AddMember("cid", prevCid, json.GetAllocator());
@@ -2046,6 +2063,73 @@ bool SfuConnection::sendBye(int termCode)
     json.Accept(writer);
     std::string command(buffer.GetString(), buffer.GetSize());
     return sendCommand(command);
+}
+
+
+bool SfuConnection::sendWrCommand(const std::string& commandStr, const std::set<karere::Id>& users, const bool all)
+{
+    if (users.empty() && !all)
+    {
+        SFU_LOG_WARNING("%s: invalid arguments provided", commandStr.c_str());
+        assert(false);
+        return false;
+    }
+
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    cmdValue.SetString(commandStr.c_str(), json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
+    addWrUsersArray(users, all, json);
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
+}
+
+bool SfuConnection::sendWrPush(const std::set<karere::Id>& users, const bool all)
+{
+    return sendWrCommand(SfuConnection::CSFU_WR_PUSH, users, all);
+}
+
+bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool all)
+{
+    return sendWrCommand(SfuConnection::CSFU_WR_ALLOW, users, all);
+}
+
+bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
+{
+    return sendWrCommand(SfuConnection::CSFU_WR_KICK, users);
+}
+
+bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json)
+{
+    if (users.empty())
+    {
+        if (!all)
+        {
+            SFU_LOG_WARNING("addWrUsersArray: empty user list and all param is false");
+            assert(false);
+            return false;
+        }
+        const std::string userStr = "*";
+        rapidjson::Value nameValue(rapidjson::kStringType);
+        nameValue.SetString(userStr.c_str(), static_cast<rapidjson::SizeType>(userStr.length()), json.GetAllocator());
+        json.AddMember(rapidjson::Value("users"), nameValue, json.GetAllocator());
+    }
+    else
+    {
+        rapidjson::Value usersArray(rapidjson::kArrayType);
+        for (const auto& user: users)
+        {
+            rapidjson::Value auxValue(rapidjson::kStringType);
+            auxValue.SetString(user.toString().c_str(), static_cast<rapidjson::SizeType>(user.toString().length()), json.GetAllocator());
+            usersArray.PushBack(auxValue, json.GetAllocator());
+        }
+        json.AddMember(rapidjson::Value("users"), usersArray, json.GetAllocator());
+    }
+    return true;
 }
 
 void SfuConnection::setConnState(SfuConnection::ConnState newState)
@@ -2501,7 +2585,21 @@ bool ByeCommand::processCommand(const rapidjson::Document& command)
         return false;
     }
 
-    return mComplete(reasonIterator->value.GetUint() /*termcode */);
+    bool wr = false;
+    rapidjson::Value::ConstMemberIterator wrIterator = command.FindMember("wr");
+    if (wrIterator != command.MemberEnd() && wrIterator->value.IsUint())
+    {
+        wr = wrIterator->value.GetUint();
+    }
+
+    std::string errMsg = "Unknown reason";
+    rapidjson::Value::ConstMemberIterator jsonErrMsgIterator = command.FindMember(Command::ERROR_IDENTIFIER.c_str());
+    if (jsonErrMsgIterator != command.MemberEnd() && jsonErrMsgIterator->value.IsString())
+    {
+        errMsg = jsonErrMsgIterator->value.GetString();
+    }
+
+    return mComplete(reasonIterator->value.GetUint() /*termcode */, wr, errMsg);
 }
 
 ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)
@@ -2622,6 +2720,149 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         }
     }
     return mComplete(cid, nAudioTracks, nVideoTracks, moderators, wr, allowed, wrUsers);
+}
+
+WrDumpCommand::WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrDumpCommand::processCommand(const rapidjson::Document& command)
+{
+    std::map<karere::Id, bool> users;
+    if (!parseUsersMap(users, command.GetObject()))
+    {
+        SFU_LOG_ERROR("WrDumpCommand: users array is ill-formed");
+        assert(false);
+        return false;
+    }
+    return mComplete(users);
+}
+
+WrEnterCommand::WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrEnterCommand::processCommand(const rapidjson::Document& command)
+{
+    std::map<karere::Id, bool> users;
+    if (!parseUsersMap(users, command.GetObject()))
+    {
+        SFU_LOG_ERROR("WrEnterCommand: users array is ill-formed");
+        assert(false);
+        return false;
+    }
+    return mComplete(users);
+}
+
+WrLeaveCommand::WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrLeaveCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
+    if (reasonIterator == command.MemberEnd() || !reasonIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("WrLeaveCommand: Received data doesn't have 'user' field");
+        assert(false);
+        return false;
+    }
+    std::string userIdString = reasonIterator->value.GetString();
+    ::mega::MegaHandle userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+    return mComplete(userId /*userid*/);
+}
+
+WrAllowCommand::WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrAllowCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
+    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'cid' field");
+        assert(false);
+        return false;
+    }
+    Cid_t cid = cidIterator->value.GetUint();
+
+    // parse moderators list
+    std::set<karere::Id> moderators;
+    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
+    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
+    {
+        parseUsersArray(moderators, modsIterator);
+    }
+    return mComplete(cid, moderators);
+}
+
+WrDenyCommand::WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrDenyCommand::processCommand(const rapidjson::Document& command)
+{
+    // parse moderators list
+    std::set<karere::Id> moderators;
+    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
+    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
+    {
+        parseUsersArray(moderators, modsIterator);
+    }
+    return mComplete(moderators);
+}
+
+WrUsersAllowCommand::WrUsersAllowCommand(const WrUsersAllowCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrUsersAllowCommand::processCommand(const rapidjson::Document& command)
+{
+    std::set<karere::Id> users;
+    rapidjson::Value::ConstMemberIterator usersIterator = command.FindMember("users");
+    if (usersIterator == command.MemberEnd() || !usersIterator->value.IsArray())
+    {
+        SFU_LOG_ERROR("WrUsersAllowCommand: Received data doesn't have 'users' array");
+        assert(false);
+        return false;
+    }
+
+    parseUsersArray(users, usersIterator);
+    return mComplete(users);
+}
+
+WrUsersDenyCommand::WrUsersDenyCommand(const WrUsersDenyCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WrUsersDenyCommand::processCommand(const rapidjson::Document& command)
+{
+    std::set<karere::Id> users;
+    rapidjson::Value::ConstMemberIterator usersIterator = command.FindMember("users");
+    if (usersIterator == command.MemberEnd() || !usersIterator->value.IsArray())
+    {
+        SFU_LOG_ERROR("WrUsersDenyCommand: Received data doesn't have 'users' array");
+        assert(false);
+        return false;
+    }
+
+    parseUsersArray(users, usersIterator);
+    return mComplete(users);
 }
 }
 #endif

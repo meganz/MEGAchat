@@ -25,8 +25,15 @@
 #include "megachatapi.h"
 #include <chatClient.h>
 #include <future>
+
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
 #include "gtest/gtest.h"
-#include <fstream>
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
@@ -193,8 +200,8 @@ protected:
 
     /* select a group chat room, by default with PRIV_MODERATOR for primary account
      * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param */
-    megachat::MegaChatHandle getGroupChatRoom(unsigned int a1, unsigned int a2,
-                                              megachat::MegaChatPeerList *peers, int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN, bool create = true, bool publicChat = false, const char *title = NULL);
+    megachat::MegaChatHandle getGroupChatRoom(const unsigned int a1, const  unsigned int a2, megachat::MegaChatPeerList* peers, const int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN,
+                                              const bool create = true, const bool publicChat = false, const bool meetingRoom = false, const bool waitingRoom = false);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -230,11 +237,37 @@ protected:
     void removePendingContactRequest(unsigned int accountIndex);
     void changeLastName(unsigned int accountIndex, std::string lastName);
 
+    // chatrooms auxiliar methods
+
+    void inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
+                       std::shared_ptr<TestChatRoomListener>chatroomListener);
+
+
+    void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
+                               std::shared_ptr<TestChatRoomListener>chatroomListener);
+
+    // calls auxiliar methods
+    // ----------------------------------------------------------------------------------------------------------------------------
+
+    // gets a pointer to the local flag that indicates if we have reached an specific callstate
+    bool* getChatCallStateFlag (unsigned int index, int state);
+
+    // resets the local flag that indicates if we have reached an specific call state
+    void resetTestChatCallState (unsigned int index, int state);
+
+    // waits for a specific callstate
+    void waitForChatCallState(unsigned int index, int state);
+
+    // ensures that <action> is executed successfully before maxAttempts and before timeout expires
+    // if call gets disconnected before action is executed, command queue will be cleared, so we need to wait
+    // until performer account is connected (CALL_STATUS_IN_PROGRESS) to SFU for that call and re-try <action>
+    void waitForCallAction (unsigned int pIdx, int maxAttempts, bool* exitFlag,  const char* errMsg, unsigned int timeout, std::function<void()>action);
+
     ::mega::MegaApi* megaApi[NUM_ACCOUNTS];
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
 
     // flags
-    bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TYPE_CHAT_SET_TITLE];
+    bool requestFlags[NUM_ACCOUNTS][::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES];
     bool initStateChanged[NUM_ACCOUNTS];
     int initState[NUM_ACCOUNTS];
     bool mChatConnectionOnline[NUM_ACCOUNTS];
@@ -259,14 +292,21 @@ protected:
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallReceivedRinging[NUM_ACCOUNTS];
     bool mCallInProgress[NUM_ACCOUNTS];
+    bool mCallLeft[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
     bool mCallConnecting[NUM_ACCOUNTS];
+    bool mCallWR[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
+    bool mCallWrChanged[NUM_ACCOUNTS];
+    bool mCallWrAllow[NUM_ACCOUNTS];
+    bool mCallWrDeny[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
@@ -401,26 +441,8 @@ private:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
 };
 
-class MegaChatApiUnitaryTest: public karere::IApp
+class MegaChatApiUnitaryTest: public ::testing::Test
 {
-public:
-    bool UNITARYTEST_ParseUrl();
-#ifndef KARERE_DISABLE_WEBRTC
-    bool UNITARYTEST_SfuDataReception();
-#endif
-
-    unsigned mOKTests = 0;
-    unsigned mFailedTests = 0;
-
-#ifndef KARERE_DISABLE_WEBRTC
-    friend sfu::SfuConnection;
-#endif
-
-   // karere::IApp implementation
-   IChatListHandler* chatListHandler() override;
-   void onPresenceConfigChanged(const presenced::Config& config, bool pending) override;
-   void onPresenceLastGreenUpdated(karere::Id userid, uint16_t lastGreen) override;
-   void onDbError(int error, const std::string &msg) override;
 };
 
 class ResultHandler
@@ -565,7 +587,7 @@ public:
     bool handleSpeakOffCommand(Cid_t cid) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
-    bool handleBye(unsigned termcode) override;
+    bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
     void onSendByeCommand() override;
@@ -573,8 +595,17 @@ public:
     bool error(unsigned int, const std::string &) override;
     bool processDeny(const std::string&, const std::string&) override;
     void logError(const char* error) override;
-    bool handleHello(const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks, const std::set<karere::Id>& mods,
-                     const bool wr, const bool allowed, const std::map<karere::Id, bool>& wrUsers) override;
+    bool handleHello(const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+                     const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                     const std::map<karere::Id, bool>& wrUsers) override;
+
+    bool handleWrDump(const std::map<karere::Id, bool>& users) override;
+    bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
+    bool handleWrLeave(const karere::Id& user) override;
+    bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
+    bool handleWrDeny(const std::set<karere::Id>& mods) override;
+    bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
+    bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
 };
 #endif
 #endif // CHATTEST_H

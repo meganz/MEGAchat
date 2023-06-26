@@ -170,7 +170,10 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         throw std::runtime_error("Incoming call from unknown contact");
     }
 
-    ChatWindow *window = itemController->showChatWindow();
+#ifndef NDEBUG
+    ChatWindow *window =
+#endif
+    itemController->showChatWindow();
     assert(window);
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
@@ -200,6 +203,15 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 assert(itemController->getMeetingView());
                 itemController->getMeetingView()->setConnecting();
                 break;
+            }
+            case megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM:
+            {
+                MeetingView* meetingView = itemController->getMeetingView();
+                if (meetingView)
+                {
+                    meetingView->updateLabel(call);
+                }
+                [[fallthrough]];
             }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
@@ -287,6 +299,14 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
     {
         assert(call->isOwnClientCaller());
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_DENY))
+    {
+        QMessageBox msg;
+        msg.setIcon(QMessageBox::Warning);
+        msg.setText("A moderator has rejected to enter the call from WR");
+        msg.exec();
     }
 }
 

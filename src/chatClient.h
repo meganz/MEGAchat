@@ -201,7 +201,7 @@ public:
      * The chatroom object does not take owhership of the handler,
      * so, on removal, the app should take care to free it if needed.
      */
-    void setAppChatHandler(IApp::IChatHandler* handler);
+    bool setAppChatHandler(IApp::IChatHandler* handler);
 
     /** @brief Removes the application-supplied chat event handler from the
      * room. It is up to the aplication to destroy it if needed.
