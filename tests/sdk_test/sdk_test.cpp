@@ -1744,11 +1744,17 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     ASSERT_EQ(chatroomListener->mConfirmedMessageHandle[a2], MEGACHAT_INVALID_HANDLE) << "Message confirmed, when it should fail";
 
     // Autojoin chat link
+    bool* flagChatsUpdated1 = &mChatsUpdated[a1]; *flagChatsUpdated1 = false;
+    mChatListUpdated[a1].clear();
     previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     ChatRequestTracker crtAutojoin;
     megaChatApi[a2]->autojoinPublicChat(chatid, &crtAutojoin);
     ASSERT_EQ(crtAutojoin.waitForResult(), MegaChatError::ERROR_OK) << "Failed to autojoin chat-link. Error: " << crtAutojoin.getErrorString();
     ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for update previewers";
+    ASSERT_TRUE(waitForResponse(flagChatsUpdated1)) << "Failed to receive onChatsUpdate after " << maxTimeout << " seconds";
+    ASSERT_TRUE(isChatroomUpdated(a1, chatid)) << "Chatroom " << chatid << " is not included in onChatsUpdate";
+    mChatListUpdated[a1].clear();
+
     MegaChatListItem *item = megaChatApi[a2]->getChatListItem(chatid);
     ASSERT_EQ(item->getNumPreviewers(), 0u) << "Wrong number of previewers.";
     delete item;
