@@ -6697,13 +6697,14 @@ unsigned int MegaChatApiImpl::getCurrentInputVideoTracksLimit() const
 {
     if (!mClient)
     {
-       API_LOG_DEBUG("Karere client not initialized");
+       API_LOG_ERROR("getCurrentInputVideoTracksLimit: Karere client not initialized");
        return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
     }
 
     SdkMutexGuard g(sdkMutex);
     if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
     {
+        API_LOG_ERROR("getCurrentInputVideoTracksLimit: Invalid value for simultaneous input video tracks");
         return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
     }
     return mClient->rtc->getNumInputVideoTracks();
@@ -6713,13 +6714,14 @@ bool MegaChatApiImpl::setCurrentInputVideoTracksLimit(const unsigned int numInpu
 {
     if (!mClient)
     {
-       API_LOG_DEBUG("Karere client not initialized");
+       API_LOG_ERROR("setCurrentInputVideoTracksLimit: Karere client not initialized");
        return false;
     }
 
     if (!isValidSimVideoTracks(numInputVideoTracks))
     {
-       API_LOG_DEBUG("Invalid value for simultaneous input video tracks: %d", numInputVideoTracks);
+       API_LOG_DEBUG("setCurrentInputVideoTracksLimit: Invalid value for simultaneous input "
+                     "video tracks: %d", numInputVideoTracks);
        return false;
     }
 

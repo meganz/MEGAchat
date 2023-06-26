@@ -310,8 +310,10 @@ promise::Promise<void> Call::join(karere::AvFlags avFlags)
 {
     if (!isValidInputVideoTracksLimit(mRtc.getNumInputVideoTracks()))
     {
+        const std::string errMsg = "join: Invalid value for simultaneous input video tracks";
+        RTCM_LOG_WARNING("%s", errMsg.c_str());
         assert(false);
-        return promise::Error("join: Invalid value for simultaneous input video tracks");
+        return promise::Error(errMsg);
     }
 
     mIsJoining = true; // set flag true to avoid multiple join call attempts
@@ -3552,8 +3554,10 @@ promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere:
 {
     if (!isValidInputVideoTracksLimit(mRtcNumInputVideoTracks))
     {
+        const std::string errMsg = "startCall: Invalid value for simultaneous input video tracks";
+        RTCM_LOG_WARNING("%s", errMsg.c_str());
         assert(false);
-        return promise::Error("startCall: Invalid value for simultaneous input video tracks");
+        return promise::Error(errMsg);
     }
 
     // add chatid to CallsAttempts to avoid multiple start call attempts
@@ -3941,6 +3945,7 @@ void RtcModuleSfu::setNumInputVideoTracks(const unsigned int numInputVideoTracks
 {
     if (!isValidInputVideoTracksLimit(mRtcNumInputVideoTracks))
     {
+        RTCM_LOG_WARNING("setNumInputVideoTracks: Invalid value for simultaneous input video tracks");
         assert(false);
         return;
     }
