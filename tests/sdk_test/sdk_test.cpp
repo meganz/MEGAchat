@@ -127,6 +127,12 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
         pwd = password;
     }
 
+    // Every karere::Client will add another logger -- will instantiate a MyMegaApi member,
+    // which will instantiate a new MyMegaLogger member, which (by default) will call
+    // MegaApi::addLoggerObject() which will add it to g_externalLogger.
+    // That has led to duplicated messages in the log file. Below is an attempt to work around that.
+    g_externalLogger.useOnlyFirstLogger();
+
     // 1. Initialize chat engine
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     int initializationState = megaChatApi[accountIndex]->init(session);
