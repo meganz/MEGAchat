@@ -1621,7 +1621,7 @@ public:
     mega::MegaHandleList *getChatCallsIds();
     bool hasCallInChatRoom(MegaChatHandle chatid);
     int getMaxCallParticipants();
-    int getMaxSupportedVideoCallParticipants();
+    unsigned int getMaxSupportedVideoCallParticipants();
     bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const;
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);

@@ -6057,9 +6057,9 @@ int MegaChatApiImpl::getMaxCallParticipants()
     return rtcModule::RtcConstant::kMaxCallReceivers;
 }
 
-int MegaChatApiImpl::getMaxSupportedVideoCallParticipants()
+unsigned int MegaChatApiImpl::getMaxSupportedVideoCallParticipants()
 {
-    return static_cast<int>(rtcModule::getMaxSupportedVideoCallParticipants());
+    return rtcModule::getMaxSupportedVideoCallParticipants();
 }
 
 bool MegaChatApiImpl::isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const

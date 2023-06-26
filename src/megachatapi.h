@@ -6350,7 +6350,7 @@ public:
      *
      * @return Maximum simultaneous input video tracks supported by MegaChat for a call
      */
-    int getMaxSupportedVideoCallParticipants();
+    unsigned int getMaxSupportedVideoCallParticipants() const;
 
     /**
      * @brief Returns if audio level monitor is enabled
