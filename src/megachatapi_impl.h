@@ -1520,7 +1520,7 @@ public:
     // Audio/Video devices
     mega::MegaStringList* getChatScreenDevices();
     mega::MegaStringList *getChatVideoInDevices();
-    void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
+    void setChatVideoInDevice(const char* device, const int type, MegaChatRequestListener* listener = NULL);
     char *getVideoDeviceSelected();
 
     // Calls

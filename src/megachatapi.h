@@ -2814,6 +2814,13 @@ public:
         CHAT_GET_READ       = 32, CHAT_GET_UNREAD       = 0,
     };
 
+    enum
+    {
+        TYPE_CAPTURER_UNKNOWN   = -1,   // unkown capturer device
+        TYPE_CAPTURER_VIDEO     = 0,    // camera capturer device
+        TYPE_CAPTURER_SCREEN    = 1,    // screen capturer device
+    };
+
     // SFUID default value. API will start calls in SFU server it consider
     static constexpr int SFU_ID_DEFAULT = -1;
 
@@ -5681,6 +5688,20 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Select the screen device to be used in calls
+     *
+     * Screen device identifiers are obtained with function MegaChatApi::getChatScreenDevices
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getText - Returns the device
+     *
+     * @param device Identifier of device to be selected
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setChatScreenDevice(const char *device, MegaChatRequestListener *listener =  NULL);
 
     /**
      * @brief Returns the video selected device name

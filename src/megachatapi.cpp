@@ -1064,7 +1064,12 @@ MegaStringList *MegaChatApi::getChatVideoInDevices()
 
 void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
 {
-    pImpl->setChatVideoInDevice(device, listener);
+    pImpl->setChatVideoInDevice(device, TYPE_CAPTURER_VIDEO, listener);
+}
+
+void MegaChatApi::setChatScreenDevice(const char* device, MegaChatRequestListener* listener)
+{
+    pImpl->setChatVideoInDevice(device, TYPE_CAPTURER_SCREEN, listener);
 }
 
 char *MegaChatApi::getVideoDeviceSelected()

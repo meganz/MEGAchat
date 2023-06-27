@@ -2043,7 +2043,7 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             const char *deviceName = request->getText();
-            if (!deviceName || !mClient->rtc->selectVideoInDevice(deviceName))
+            if (!deviceName || !mClient->rtc->selectVideoInDevice(deviceName, request->getPrivilege()))
             {
                 API_LOG_ERROR("Change video streaming source - device doesn't exist");
                 errorCode = MegaChatError::ERROR_ARGS;
@@ -5608,10 +5608,11 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
     return devices;
 }
 
-void MegaChatApiImpl::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
+void MegaChatApiImpl::setChatVideoInDevice(const char* device, const int type, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM, listener);
     request->setText(device);
+    request->setPrivilege(type);
     requestQueue.push(request);
     waiter->notify();
 }
