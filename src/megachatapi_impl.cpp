@@ -1681,8 +1681,7 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
             {
                 API_LOG_ERROR("Start call - Invalid value for simultaneous input video tracks");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (!chatroom->isGroup())
@@ -1836,8 +1835,7 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
             {
                 API_LOG_ERROR("Answer call - Invalid value for simultaneous input video tracks");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
