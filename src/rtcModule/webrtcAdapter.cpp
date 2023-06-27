@@ -270,7 +270,7 @@ rtc::scoped_refptr<webrtc::VideoTrackInterface> LocalStreamHandle::video()
     return mVideo;
 }
 
-VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &
+VideoManager* VideoManager::createVideoCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string &
 #if defined(__APPLE__) || defined(__ANDROID__)
                                    deviceName
 #endif
@@ -281,13 +281,26 @@ VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabil
                                    )
 {
 #ifdef __APPLE__
+    return nullptr // TODO implement
+#elif __ANDROID__
+    return nullptr // TODO implement
+#else
+    return new CaptureModuleLinux(capabilities);
+#endif
+}
+
+VideoManager *VideoManager::createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread *
+#ifdef __ANDROID__
+                                                    thread
+#endif
+                                                )
+{
+#ifdef __APPLE__
     return new OBJCCaptureModule(capabilities, deviceName);
 #elif __ANDROID__
     return new CaptureModuleAndroid(capabilities, deviceName, thread);
 #else
-    //return new CaptureModuleLinux(capabilities);
-    // test with screen capturer instead of camera
-    return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux();
+    return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux(static_cast<webrtc::DesktopCapturer::SourceId>(deviceId));
 #endif
 }
 

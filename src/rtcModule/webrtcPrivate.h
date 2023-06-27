@@ -603,13 +603,37 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
+    enum class CaptureDeviceType: int32_t
+    {
+        TYPE_CAPTURER_UNKNOWN   = -1,   // unkown capturer device
+        TYPE_CAPTURER_VIDEO     = 0,    // camera capturer device
+        TYPE_CAPTURER_SCREEN    = 1,    // screen capturer device
+    };
+
+    static constexpr webrtc::DesktopCapturer::SourceId invalDeviceId = -1;
+    static CaptureDeviceType convertIntoCaptureDeviceType(const int type)
+    {
+        const CaptureDeviceType aux = static_cast<CaptureDeviceType>(type);
+        if (isValidCaptureDeviceType(aux))
+        {
+            return aux;
+        }
+        return CaptureDeviceType::TYPE_CAPTURER_UNKNOWN;
+    }
+
+    static bool isValidCaptureDeviceType(const CaptureDeviceType type)
+    {
+        return type >= CaptureDeviceType::TYPE_CAPTURER_VIDEO
+               && type <= CaptureDeviceType::TYPE_CAPTURER_SCREEN;
+    }
+
     RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
                  WebsocketsIO& websocketIO, void *appCtx,
                  rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
     ICall* findCall(const karere::Id &callid) const override;
     ICall* findCallByChatid(const karere::Id &chatid) const override;
     bool isCallStartInProgress(const karere::Id &chatid) const override;
-    bool selectVideoInDevice(const std::string& device) override;
+    bool selectVideoInDevice(const std::string& device, const int type) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     std::set<std::pair<long int, std::string>>  getScreenDevices() override;
     promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey = nullptr) override;
@@ -635,12 +659,17 @@ public:
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoManager* getVideoDevice();
-    void changeVideoDevice(const std::string& device, bool shouldOpen);
+    void changeVideoDevice(const std::string& device, const long int screenDeviceId, bool shouldOpen, const CaptureDeviceType type);
     void openVideoDevice();
     void closeDevice();
 
     void* getAppCtx();
     std::string getDeviceInfo() const;
+
+    void setCaptureDeviceType (const CaptureDeviceType type)
+    {
+        mCaptureDeviceType = type;
+    }
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
@@ -648,8 +677,10 @@ private:
     MyMegaApi& mMegaApi;
     DNScache &mDnsCache;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
-    std::string mVideoDeviceSelected;
-    rtc::scoped_refptr<artc::VideoManager> mVideoDevice;
+    std::string mVideoDeviceSelected;  // id of selected video device
+    long int mScreenDeviceSelected = invalDeviceId; // id of selected screen device
+    CaptureDeviceType mCaptureDeviceType = CaptureDeviceType::TYPE_CAPTURER_UNKNOWN;
+    rtc::scoped_refptr<artc::VideoManager> mCapturerDevice;
     // count of times the device has been taken (without being released)
     unsigned int mDeviceTakenCount = 0;
     std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;

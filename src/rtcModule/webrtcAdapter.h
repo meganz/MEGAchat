@@ -428,7 +428,8 @@ class VideoManager : public rtc::RefCountedObject<webrtc::VideoTrackSourceInterf
 {
 public:
     virtual ~VideoManager(){}
-    static VideoManager* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
+    static VideoManager* createVideoCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string& deviceName, rtc::Thread* thread);
+    static VideoManager* createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread* thread);
     virtual void openDevice(const std::string &videoDevice) = 0;
     virtual void releaseDevice() = 0;
     virtual webrtc::VideoTrackSourceInterface* getVideoTrackSource() = 0;
@@ -439,7 +440,10 @@ public:
 class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoManager
 {
 public:
-    static CaptureScreenModuleLinux* createCaptureScreenModuleLinux() { return new CaptureScreenModuleLinux(); }
+    static CaptureScreenModuleLinux* createCaptureScreenModuleLinux(const webrtc::DesktopCapturer::SourceId deviceId)
+    {
+        return new CaptureScreenModuleLinux(deviceId);
+    }
 
     // ---- DesktopCapturer::Callback methods ----
     void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame) override
@@ -493,13 +497,7 @@ public:
     {
         const webrtc::DesktopCaptureOptions options = webrtc::DesktopCaptureOptions::CreateDefault();
         mScreenCapturer = webrtc::DesktopCapturer::CreateScreenCapturer(options);
-
-        webrtc::DesktopCapturer::SourceList sourceList;
-        if (mScreenCapturer->GetSourceList(&sourceList))
-        {
-            // Test with first element in the list
-            mScreenCapturer->SelectSource(sourceList.at(0).id);
-        }
+        mScreenCapturer->SelectSource(mDeviceId);
 
         if (!mScreenCapturer)
         {
@@ -568,7 +566,8 @@ public:
     }
 
 protected:
-    CaptureScreenModuleLinux(): mEndCapture(false)                                                  {}
+    CaptureScreenModuleLinux(const webrtc::DesktopCapturer::SourceId deviceId)
+        : mEndCapture(false), mDeviceId(deviceId)                                                   {}
     ~CaptureScreenModuleLinux() override                                                            {}
     void GenerateKeyFrame() override                                                                {}
     void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override          {}
@@ -587,6 +586,8 @@ private:
     rtc::VideoBroadcaster mBroadcaster;
     std::thread mScreenCapturerThread;
     std::atomic<bool> mEndCapture;
+    static constexpr webrtc::DesktopCapturer::SourceId invalDeviceId = -1;
+    webrtc::DesktopCapturer::SourceId mDeviceId = invalDeviceId;
 };
 
 class CaptureModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
