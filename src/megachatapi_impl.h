@@ -1327,8 +1327,19 @@ private:
     static int convertDbError(int errCode);
     bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
+    int performRequest_archiveChat(MegaChatRequestPrivate* request);
+    int performRequest_loadUserAttributes(MegaChatRequestPrivate* request);
+    int performRequest_setChatRetentionTime(MegaChatRequestPrivate* request);
+    int performRequest_manageReaction(MegaChatRequestPrivate* request);
+    int performRequest_importMessages(MegaChatRequestPrivate* request);
     int performRequest_sendTypingNotification(MegaChatRequestPrivate* request);
 #ifndef KARERE_DISABLE_WEBRTC
+    int performRequest_startChatCall(MegaChatRequestPrivate* request);
+    int performRequest_answerChatCall(MegaChatRequestPrivate* request);
+    int performRequest_hangChatCall(MegaChatRequestPrivate* request);
+    int performRequest_setAudioVideoEnable(MegaChatRequestPrivate* request);
+    int performRequest_setCallOnHold(MegaChatRequestPrivate* request);
+    int performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request);
     int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
     int performRequest_speakRequest(MegaChatRequestPrivate* request);
     int performRequest_speakApproval(MegaChatRequestPrivate* request);

@@ -4483,6 +4483,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
      * - MegaChatError::ERROR_NOENT - if chatRoom, scheduled meeting or occurrence to be modified could not be found
+     * - MegaChatError::ERROR_TOOMANY - occurrence could not be found in local and we need to fetch for more occurrences to API.
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
