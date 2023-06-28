@@ -1208,7 +1208,7 @@ int MegaChatApi::getMaxCallParticipants()
     return pImpl->getMaxCallParticipants();
 }
 
-unsigned int MegaChatApi::getMaxSupportedVideoCallParticipants() const
+int MegaChatApi::getMaxSupportedVideoCallParticipants() const
 {
     return pImpl->getMaxSupportedVideoCallParticipants();
 }

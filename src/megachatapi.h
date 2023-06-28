@@ -2954,7 +2954,7 @@ public:
     };
 
     // Invalid value for number of simultaneous video tracks the call supports.
-    static constexpr unsigned int INVALID_CALL_VIDEO_SENDERS = UINT32_MAX;
+    static constexpr int INVALID_CALL_VIDEO_SENDERS = -1;
 
     // SFUID default value. API will start calls in SFU server it consider
     static constexpr int SFU_ID_DEFAULT = -1;
@@ -6351,7 +6351,7 @@ public:
      *
      * @return Maximum simultaneous input video tracks supported by MegaChat for a call
      */
-    unsigned int getMaxSupportedVideoCallParticipants() const;
+    int getMaxSupportedVideoCallParticipants() const;
 
     /**
      * @brief Returns if audio level monitor is enabled
