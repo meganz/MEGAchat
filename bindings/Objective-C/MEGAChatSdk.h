@@ -699,7 +699,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable MEGAHandleList *)chatCallsWithState:(MEGAChatCallStatus)callState;
 - (nullable MEGAHandleList *)chatCallsIds;
 - (BOOL)hasCallInChatRoom:(uint64_t)chatId;
-- (NSInteger)getMaxSupportedVideoCallParticipants;
+- (NSUInteger)getMaxSupportedVideoCallParticipants;
 - (NSInteger)getMaxCallParticipants;
 - (uint64_t)myClientIdHandleForChatId:(uint64_t)chatId;
 - (BOOL)isAudioLevelMonitorEnabledForChatId:(uint64_t)chatId;
