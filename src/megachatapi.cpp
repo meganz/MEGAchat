@@ -1314,12 +1314,12 @@ void MegaChatApi::setSFUid(int sfuid)
     pImpl->setSFUid(sfuid);
 }
 
-unsigned int MegaChatApi::getCurrentInputVideoTracksLimit() const
+int MegaChatApi::getCurrentInputVideoTracksLimit() const
 {
     return pImpl->getCurrentInputVideoTracksLimit();
 }
 
-bool MegaChatApi::setCurrentInputVideoTracksLimit(const unsigned int numInputVideoTracks)
+bool MegaChatApi::setCurrentInputVideoTracksLimit(const int numInputVideoTracks)
 {
     return pImpl->setCurrentInputVideoTracksLimit(numInputVideoTracks);
 }

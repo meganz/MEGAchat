@@ -5839,7 +5839,7 @@ public:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
      *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
@@ -5891,7 +5891,7 @@ public:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
      *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
@@ -5941,7 +5941,7 @@ public:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
@@ -6834,7 +6834,7 @@ public:
      * @return returns INVALID_CALL_VIDEO_SENDERS if karere client is not valid, or current limit is not supported, otherwise
      * returns the current limit for simultaneous input video tracks that call supports.
      */
-    unsigned int getCurrentInputVideoTracksLimit() const;
+    int getCurrentInputVideoTracksLimit() const;
 
     /**
      * @brief Sets the current limit for simultaneous video tracks that call supports.
@@ -6845,7 +6845,7 @@ public:
      *
      * @return false if karere client is not valid, or numInputVideoTracks is not supported, otherwise returns true.
      */
-    bool setCurrentInputVideoTracksLimit(const unsigned int numInputVideoTracks);
+    bool setCurrentInputVideoTracksLimit(const int numInputVideoTracks);
 #endif
 
     static void setCatchException(bool enable);

@@ -6076,9 +6076,9 @@ int MegaChatApiImpl::getMaxCallParticipants()
     return rtcModule::RtcConstant::kMaxCallReceivers;
 }
 
-unsigned int MegaChatApiImpl::getMaxSupportedVideoCallParticipants()
+int MegaChatApiImpl::getMaxSupportedVideoCallParticipants()
 {
-    return rtcModule::getMaxSupportedVideoCallParticipants();
+    return static_cast<int>(rtcModule::getMaxSupportedVideoCallParticipants());
 }
 
 bool MegaChatApiImpl::isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const
@@ -6713,24 +6713,24 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 
 }
 
-unsigned int MegaChatApiImpl::getCurrentInputVideoTracksLimit() const
+int MegaChatApiImpl::getCurrentInputVideoTracksLimit() const
 {
     if (!mClient)
     {
        API_LOG_ERROR("getCurrentInputVideoTracksLimit: Karere client not initialized");
-       return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
+       return static_cast<int>(MegaChatApi::INVALID_CALL_VIDEO_SENDERS);
     }
 
     SdkMutexGuard g(sdkMutex);
     if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
     {
         API_LOG_ERROR("getCurrentInputVideoTracksLimit: Invalid value for simultaneous input video tracks");
-        return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
+       return static_cast<int>(MegaChatApi::INVALID_CALL_VIDEO_SENDERS);
     }
-    return mClient->rtc->getNumInputVideoTracks();
+    return static_cast<int>(mClient->rtc->getNumInputVideoTracks());
 }
 
-bool MegaChatApiImpl::setCurrentInputVideoTracksLimit(const unsigned int numInputVideoTracks)
+bool MegaChatApiImpl::setCurrentInputVideoTracksLimit(const int numInputVideoTracks)
 {
     if (!mClient)
     {
@@ -6738,15 +6738,16 @@ bool MegaChatApiImpl::setCurrentInputVideoTracksLimit(const unsigned int numInpu
        return false;
     }
 
-    if (!isValidSimVideoTracks(numInputVideoTracks))
+    const unsigned int auxNumInputVideoTracks = static_cast<unsigned int>(numInputVideoTracks);
+    if (!isValidSimVideoTracks(auxNumInputVideoTracks))
     {
        API_LOG_DEBUG("setCurrentInputVideoTracksLimit: Invalid value for simultaneous input "
-                     "video tracks: %d", numInputVideoTracks);
+                     "video tracks: %d", auxNumInputVideoTracks);
        return false;
     }
 
     SdkMutexGuard g(sdkMutex);
-    mClient->rtc->setNumInputVideoTracks(numInputVideoTracks);
+    mClient->rtc->setNumInputVideoTracks(auxNumInputVideoTracks);
     return true;
 }
 #endif
