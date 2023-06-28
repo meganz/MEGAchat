@@ -638,8 +638,9 @@ NS_ASSUME_NONNULL_BEGIN
                                     attributes:(nullable NSString *)attributes
                                       delegate:(id<MEGAChatRequestDelegate>)delegate;
 
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes;
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(NSInteger)startDate endDate:(NSInteger)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled flags:(MEGAChatScheduledFlags *)flags rules:(nullable MEGAChatScheduledRules *)rules;
+
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(NSInteger)startDate endDate:(NSInteger)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled flags:(MEGAChatScheduledFlags *)flags rules:(nullable MEGAChatScheduledRules *)rules delegate:(id<MEGAChatRequestDelegate>)delegate;
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled;
 
