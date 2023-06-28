@@ -1746,7 +1746,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi ? self.megaChatApi->hasCallInChatRoom(chatId) : NO;
 }
 
-- (NSUInteger)getMaxSupportedVideoCallParticipants {
+- (NSInteger)getMaxSupportedVideoCallParticipants {
     return self.megaChatApi ? self.megaChatApi->getMaxSupportedVideoCallParticipants() : 0;
 }
 
