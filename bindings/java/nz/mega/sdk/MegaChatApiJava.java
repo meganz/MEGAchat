@@ -177,6 +177,43 @@ public class MegaChatApiJava {
         megaChatApi.setPublicKeyPinning(enable);
     }
 
+    /**
+     * Change the SFU id
+     *
+     * This function allows to set the SFU server where all chat calls will be started
+     * It's only useful for testing or debugging purposes.
+     *
+     * Note: To restore default behavior (SFU assigned by API), sfuid param must be set to SFU_ID_DEFAULT
+     *
+     * @param sfuid New SFU id
+     */
+    public void setSFUid(int sfuid){
+        megaChatApi.setSFUid(sfuid);
+    }
+
+    /**
+     * Returns the current limit for simultaneous input video tracks that call supports.
+     *
+     * @return returns INVALID_CALL_VIDEO_SENDERS if karere client is not valid, or current limit is not supported, otherwise
+     * returns the current limit for simultaneous input video tracks that call supports.
+     */
+    public int getCurrentInputVideoTracksLimit() {
+        return megaChatApi.getCurrentInputVideoTracksLimit();
+    }
+
+    /**
+     * Sets the current limit for simultaneous video tracks that call supports.
+     *
+     * @param numInputVideoTracks the current limit for simultaneous video tracks that call supports.
+     * - Minimum value for this param is 1 (otherwise app won't be able to receive any video track)
+     * - Maximum value for this param is returned by MegaChatApi::getMaxSupportedVideoCallParticipants()
+     *
+     * @return false if karere client is not valid, or numInputVideoTracks is not supported, otherwise returns true.
+     */
+    public boolean setCurrentInputVideoTracksLimit(int numInputVideoTracks) {
+        return megaChatApi.setCurrentInputVideoTracksLimit(numInputVideoTracks);
+    }
+
     public void addChatRequestListener(MegaChatRequestListenerInterface listener)
     {
         megaChatApi.addChatRequestListener(createDelegateRequestListener(listener, false));
@@ -3403,11 +3440,15 @@ public class MegaChatApiJava {
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
+     *  - if our own privilege is not MegaChatPeerList::PRIV_MODERATOR and the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -3422,8 +3463,8 @@ public class MegaChatApiJava {
      * The request will fail with MegaChatError::ERROR_NOENT
      * - if the chatroom doesn't exists.
      *
-     * If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
-     * @see MegaChatApi::getMaxVideoCallParticipants
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3453,11 +3494,15 @@ public class MegaChatApiJava {
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
      *  - if peer of a 1on1 chatroom it's a non visible contact
      *  - if this function is called without being already connected to chatd.
      *  - if the chatroom is in preview mode.
+     *  - if our own privilege is not MegaChatPeerList::PRIV_MODERATOR and the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
@@ -3473,8 +3518,8 @@ public class MegaChatApiJava {
      * - if the chatroom doesn't exists.
      * - if the scheduled meeting doesn't exists
      *
-     * If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
-     * @see MegaChatApi::getMaxVideoCallParticipants
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3501,15 +3546,23 @@ public class MegaChatApiJava {
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getNumInputVideoTracks()
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS if the chatroom has waiting room option enabled.
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call and we can't join to it, or when the chat is public and there are too many participants
      * to start the call.
      *
-     * @note In case of group calls, if there is already too many peers sending video and there are no
-     * available video slots, the request will NOT fail, but video-flag will automatically be disabled.
+     * The request will fail with MegaChatError::ERROR_EXISTS if there is already another attempt to answer a call
+     * for this chat in progress.
+     *
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -3827,12 +3880,12 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Returns the maximum video call participants
+     * Returns the maximum simultaneous input video tracks supported by MegaChat for a call
      *
-     * @return Maximum video call participants
+     * @return Maximum simultaneous input video tracks supported by MegaChat for a call
      */
-    public int getMaxVideoCallParticipants() {
-        return megaChatApi.getMaxVideoCallParticipants();
+    public int getMaxSupportedVideoCallParticipants() {
+        return megaChatApi.getMaxSupportedVideoCallParticipants();
     }
 
     /**

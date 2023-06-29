@@ -228,7 +228,7 @@ public:
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
-    virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+    virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks,
                               const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                               const std::map<karere::Id, bool>& wrUsers) = 0;
 
@@ -469,7 +469,6 @@ class HelloCommand : public Command
 public:
     typedef std::function<bool(const Cid_t userid,
                                const unsigned int nAudioTracks,
-                               const unsigned int nVideoTracks,
                                const std::set<karere::Id>& mods,
                                const bool wr,
                                const bool allowed,
