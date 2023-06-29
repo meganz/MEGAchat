@@ -11627,19 +11627,13 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
         // hash -> fingerprint
-        const char *fingerprintMega = megaNode->getFingerprint();
-        char *fingerprint = NULL;
-        if (fingerprintMega)
-        {
-            fingerprint = MegaApiImpl::getMegaFingerprintFromSdkFingerprint(fingerprintMega);
-        }
+        string fingerprint = MegaNodePrivate::removeAppPrefixFromFingerprint(megaNode->getFingerprint());
 
-        if (fingerprint)
+        if (!fingerprint.empty())
         {
             rapidjson::Value fpValue(rapidjson::kStringType);
-            fpValue.SetString(fingerprint, static_cast<rapidjson::SizeType>(strlen(fingerprint)), jSonAttachmentNodes.GetAllocator());
+            fpValue.SetString(fingerprint.c_str(), static_cast<rapidjson::SizeType>(fingerprint.size()), jSonAttachmentNodes.GetAllocator());
             jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
-            delete [] fingerprint;
         }
 
         // fa -> image thumbnail/preview/mediainfo
@@ -11776,7 +11770,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             fp = iteratorFp->value.GetString();
         }
         // convert MEGA's fingerprint to the internal format used by SDK (includes size)
-        char *sdkFingerprint = !fp.empty() ? MegaApiImpl::getSdkFingerprintFromMegaFingerprint(fp.c_str(), size) : NULL;
+        string sdkFingerprint = MegaNodePrivate::addAppPrefixToFingerprint(fp, size);
 
         // nodetype
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
@@ -11807,12 +11801,10 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
 
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &fa, sdkFingerprint,
+                             megaHandle, &key, &fa, sdkFingerprint.empty() ? nullptr : sdkFingerprint.c_str(),
                              NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
-
-        delete [] sdkFingerprint;
     }
 
     return megaNodeList;
