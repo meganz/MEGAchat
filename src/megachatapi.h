@@ -5946,7 +5946,7 @@ public:
      * @param userId MegaChatHandle that identifies the user to ring again
      * @param listener MegaChatRequestListener to track this request
      */
-    void ringIndividualInACall(MegaChatHandle chatid, MegaChatHandle userId, MegaChatRequestListener* listener = nullptr);
+    void ringIndividualInACall(MegaChatHandle chatid, MegaChatHandle userId, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Answer a call received in a chat room

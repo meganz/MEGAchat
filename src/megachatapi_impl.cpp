@@ -5722,27 +5722,27 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
     const auto chatId = request->getChatHandle();
     if (chatId == MEGACHAT_INVALID_HANDLE)
     {
-        std::cout << "Ring individual in call: invalid chat id\n";
+        API_LOG_ERROR("Ring individual in call: invalid chat id");
         return MegaChatError::ERROR_ARGS;
     }
     const auto userToCallId = request->getUserHandle();
     if (userToCallId == MEGACHAT_INVALID_HANDLE)
     {
-        std::cout << "Ring individual in call: invalid user id\n";
+        API_LOG_ERROR("Ring individual in call: invalid user id");
         return MegaChatError::ERROR_ARGS;
     }
 
     ChatRoom *chatroom = findChatRoom(chatId);
     if (!chatroom)
     {
-        std::cout << "Error: chat room with id " << toHandle(chatId) << " not found\n";
+        API_LOG_ERROR("Error: chat room with id %s not found", ID_CSTR(chatId));
         return MegaChatError::ERROR_NOENT;
     }
 
     auto call = mClient->rtc->findCallByChatid(chatId);
     if (!call)
     {
-        std::cout << "Ring individual in call: no call found for chat id " << toHandle(chatId) << "\n";
+        API_LOG_ERROR("Ring individual in call: no call found for chat id %s", ID_CSTR(chatId));
         return MegaChatError::ERROR_NOENT;
     }
 

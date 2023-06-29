@@ -4112,7 +4112,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
 {
     const unsigned int a1 = 0, a2 = 1, a3 = 2;
 
-    LOG_verbose << "# Prepare users, and chat room";
+    LOG_debug << "# Prepare users, and chat room";
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     std::unique_ptr<char[]> tertiarySession(login(a3));  // user C
@@ -4124,7 +4124,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ensureContact(a1, a3);
     ensureContact(a2, a3);
 
-    LOG_verbose << "\tGet or create a group chatroom with all users";
+    LOG_debug << "\tGet or create a group chatroom with all users";
     const auto getContactUserHandle = [this](const auto src, const auto target) -> MegaChatHandle
     {
         std::unique_ptr<MegaUser> user(megaApi[src]->getContact(account(target).getEmail().c_str()));
@@ -4146,15 +4146,15 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a1, "A"));
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a2, "B"));
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a3, "C"));
-    LOG_verbose << "# Chat room for the 3 users created / retrieved";
+    LOG_debug << "# Chat room for the 3 users created / retrieved";
 
     const auto lHistory = [this, &chatId, l = chatroomListener.get()](const auto idx) { loadHistory(idx, chatId, l); };
     lHistory(a1);
     lHistory(a2);
     lHistory(a3);
-    LOG_verbose << "# History loaded for the 3 users";
+    LOG_debug << "# History loaded for the 3 users";
 
-    LOG_verbose << "+ A starts a groupal meeting without audio, nor video";
+    LOG_debug << "+ A starts a groupal meeting without audio, nor video";
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE; mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;  mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdRingIn[a3] = MEGACHAT_INVALID_HANDLE;  mChatIdRingInCall[a3] = MEGACHAT_INVALID_HANDLE;
@@ -4177,7 +4177,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
                                           {"mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
                                           "starting chat call from A", waitForAllExitFlags, resetFlags, maxTimeout, action));
 
-    LOG_verbose << "- B picking up the call";
+    LOG_debug << "- B picking up the call";
     mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
     unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall) mCallIdExpectedReceived[a2] = auxCall->getCallId();
@@ -4185,7 +4185,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid ChatId for B from A (call emisor)";
     ASSERT_TRUE((mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE) &&
                 (mCallIdRingIn[a2] == mCallIdJoining[a1])) << "A and B are in different call";
-    LOG_verbose << "- B received the call";
+    LOG_debug << "- B received the call";
 
     action = [this, &a2, &chatId, &enableVideo, &enableAudio]()
     {
@@ -4211,16 +4211,16 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
             mCallIdExpectedReceived[a3] = auxCall->getCallId();
             ASSERT_NE(auxCall->getCaller(), uhC) << "User C shouldn't be the caller";
         }
-        LOG_verbose << "/ C doesn't pick up the call";
         *exitFlag = false;
         mCallStopRinging[a3] = false;
         mCallIdStopRingIn[a3] = MEGACHAT_INVALID_HANDLE;
         mChatIdStopRingInCall[a3] = MEGACHAT_INVALID_HANDLE;
+        LOG_debug << "/ C doesn't pick up the call";
     };
     ASSERT_NO_FATAL_FAILURE(waitRingingForC());
 
     /////////// <optional>
-    LOG_verbose << "- B enabling audio in the call";
+    LOG_debug << "- B enabling audio in the call";
     const auto enableAudioFor = [this, &chatId](unsigned int performer, unsigned int receiver)
     {
         bool* exitFlag = &mChatCallAudioEnabled[receiver]; *exitFlag = false;
@@ -4231,10 +4231,10 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     };
     ASSERT_NO_FATAL_FAILURE(enableAudioFor(a2, a1));
 
-    LOG_verbose << "+ A enabling audio in the call";
+    LOG_debug << "+ A enabling audio in the call";
     ASSERT_NO_FATAL_FAILURE(enableAudioFor(a1, a2));
 
-    LOG_verbose << "- B disabling audio in the call";
+    LOG_debug << "- B disabling audio in the call";
     const auto disableAudioFor = [this, &chatId](unsigned int p, unsigned int r)
     {
         bool* exitFlag = &mChatCallAudioDisabled[r]; *exitFlag = false;
@@ -4245,14 +4245,13 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     };
     ASSERT_NO_FATAL_FAILURE(disableAudioFor(a2, a1));
 
-    LOG_verbose << "+ A disabling audio in the call";
+    LOG_debug << "+ A disabling audio in the call";
     ASSERT_NO_FATAL_FAILURE(disableAudioFor(a1, a2));
     /////////// </optional>
 
     const auto waitStopRingingForC = [this, &waitForAllExitFlags, &a3](const bool timeoutExpected = false)
     {
-        LOG_verbose << "# Wait for ringing timeout on C";
-        LOG_verbose << "# C's call stop ringing";
+        LOG_debug << "# Wait for ringing timeout on C";
         bool* exitFlag = &mCallStopRinging[a3];
         ASSERT_TRUE(timeoutExpected || waitForMultiResponse({exitFlag}, waitForAllExitFlags))
             << "Timeout for C waiting the ringing to stop";
@@ -4263,6 +4262,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
             ASSERT_EQ(mCallIdStopRingIn[a3], mCallIdExpectedReceived[a3]) << pref << "unexpected call id";
             ASSERT_NE(mChatIdStopRingInCall[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing chat id";
             *exitFlag = false;
+            LOG_debug << "# C's call stop ringing";
         }
         else
         {
@@ -4271,7 +4271,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     };
     ASSERT_NO_FATAL_FAILURE(waitStopRingingForC());
 
-    LOG_verbose << "+ A rings C individually";
+    LOG_debug << "+ A rings C individually";
     auto& userId = uhC;
     auto& callId = mCallIdExpectedReceived[a3];
     LOG_debug << "\tchatId " << toHandle(chatId) << " userId " << toHandle(userId) << " callId " << toHandle(callId);
@@ -4285,14 +4285,14 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(action());
 
 
-    LOG_verbose << "/ C ignores individual ringing";
-    LOG_verbose << "/ C waits for individual ringing timeout";
+    LOG_debug << "/ C acknowledges individual ringing";
     ASSERT_NO_FATAL_FAILURE(waitRingingForC());
+    LOG_debug << "/ C waits for individual ringing timeout";
     const bool isRingingIndividuallyTimeoutMissing = true;
     ASSERT_NO_FATAL_FAILURE(waitStopRingingForC(isRingingIndividuallyTimeoutMissing));
 
 
-    LOG_verbose << "- B hangs up the call";
+    LOG_debug << "- B hangs up the call";
     bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1]; *sessionWasDestroyedA = false;
     bool* sessionWasDestroyedB = &mChatSessionWasDestroyed[a2]; *sessionWasDestroyedB = false;
     bool* callDestroyedA = &mCallDestroyed[a1]; *callDestroyedA = false;
@@ -4311,14 +4311,14 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
         };
         const std::string msg {"hanging up chat call at account " + std::to_string(u)};
         ASSERT_NO_FATAL_FAILURE(waitForCallAction(u, MAX_ATTEMPTS, &exitFlag, msg.c_str(), maxTimeout, action));
-        LOG_verbose << "# Call finished for account " << u + 1;
+        LOG_debug << "# Call finished for account " << u + 1;
     };
     ASSERT_NO_FATAL_FAILURE(hangUpCall(a2, mCallIdRingIn[a2]));
 
-    LOG_verbose << "+ A hangs up the call";
+    LOG_debug << "+ A hangs up the call";
     ASSERT_NO_FATAL_FAILURE(hangUpCall(a1, mCallIdJoining[a1]));
 
-    LOG_verbose << "# Checking session B and session A destruction"; // no session for C since it didn't join
+    LOG_debug << "# Checking session B and session A destruction"; // no session for C since it didn't join
     const auto checkSessionDestroyed = [this, w = &waitForAllExitFlags](const auto& f, const std::string& msg)
     {
         ASSERT_TRUE(waitForMultiResponse({f}, w)) << "Timeout expired for " << msg << " receiving session destroyed notification";
@@ -4326,7 +4326,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(checkSessionDestroyed(sessionWasDestroyedB, "B"));
     ASSERT_NO_FATAL_FAILURE(checkSessionDestroyed(sessionWasDestroyedA, "A"));
 
-    LOG_verbose << "# Checking call destruction for A, B, and C";
+    LOG_debug << "# Checking call destruction for A, B, and C";
     const auto checkCallDestroyed = [this, w = &waitForAllExitFlags](const auto& f, const std::string& msg)
     { ASSERT_TRUE(waitForMultiResponse({f}, w)) << msg; };
     static const std::string err = "'s call should already be finished and it is not";
@@ -4334,12 +4334,12 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedB, "B" + err));
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedC, "C" + err + "(it never started)"));
 
-    LOG_verbose << "# Leaving the chat room for each user";
+    LOG_debug << "# Leaving the chat room for each user";
     leaveChat(a1, chatId);
     leaveChat(a2, chatId);
     leaveChat(a3, chatId);
 
-    LOG_verbose << "# Closing chat room for each user and removing its localVideoListener";
+    LOG_debug << "# Closing chat room for each user and removing its localVideoListener";
     const auto closeChatRoom =
         [this, &chatId, l = chatroomListener.get()](const auto u){ megaChatApi[u]->closeChatRoom(chatId, l); };
     closeChatRoom(a1);
@@ -6521,10 +6521,6 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     {
         if (api->getNumCalls() > 1)
         {
-            // Hangup in progress call and answer the new call
-//                api->hangChatCall(mCallId[apiIndex]);
-//                api->answerChatCall(call->getChatid());
-
             // Hangup in coming call
             api->hangChatCall(call->getCallId());
         }
