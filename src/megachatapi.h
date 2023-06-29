@@ -2311,6 +2311,7 @@ public:
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
         TYPE_UPDATE_SCHEDULED_MEETING, TYPE_WR_PUSH, TYPE_WR_ALLOW, TYPE_WR_KICK,
+        TYPE_RING_INDIVIDUAL_IN_CALL,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -2952,6 +2953,9 @@ public:
         CHAT_GET_ACTIVE     = 16, CHAT_GET_NON_ACTIVE   = 0,
         CHAT_GET_READ       = 32, CHAT_GET_UNREAD       = 0,
     };
+
+    // Invalid value for number of simultaneous video tracks the call supports.
+    static constexpr int INVALID_CALL_VIDEO_SENDERS = -1;
 
     // SFUID default value. API will start calls in SFU server it consider
     static constexpr int SFU_ID_DEFAULT = -1;
@@ -5835,6 +5839,9 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
      *  - if peer of a 1on1 chatroom it's a non visible contact
@@ -5856,7 +5863,7 @@ public:
      * - if the chatroom doesn't exists.
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
-     * @see MegaChatApi::getMaxVideoCallParticipants
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -5884,6 +5891,9 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
      *  - if peer of a 1on1 chatroom it's a non visible contact
@@ -5906,7 +5916,7 @@ public:
      * - if the scheduled meeting doesn't exists
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
-     * @see MegaChatApi::getMaxVideoCallParticipants
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -5917,6 +5927,36 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Ring a user in chatroom with an ongoing call that they didn't pick up
+     *
+     * When a call is started and one user doesn't pick it up, ringing stops for that user/participant after a given time.
+     * This function can be used to force another ringing event at said user/participant.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RING_INDIVIDUAL_IN_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle() - Returns the user's id to ring again
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - if chat id provided as param is invalid
+     * - if user id to ring again provided as param is invalid
+     *
+     * The request will fail with MegaChatError::ERROR_NOENT
+     * - if the chatroom doesn't exists.
+     * - if an ongoing call cannot be found for the chat id provided as a param
+     *
+     * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @param chatId MegaChatHandle that identifies the chat room
+     * @param userId MegaChatHandle that identifies the user to ring again
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void ringIndividualInACall(MegaChatHandle chatid, MegaChatHandle userId, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Answer a call received in a chat room
@@ -5931,6 +5971,9 @@ public:
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getFlag - Returns effective video flag (see note)
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
      *
@@ -5944,7 +5987,7 @@ public:
      * for this chat in progress.
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
-     * @see MegaChatApi::getMaxVideoCallParticipants
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
@@ -6335,11 +6378,11 @@ public:
     int getMaxCallParticipants();
 
     /**
-     * @brief Returns the maximum video call participants
+     * @brief Returns the maximum simultaneous input video tracks supported by MegaChat for a call
      *
-     * @return Maximum video call participants
+     * @return Maximum simultaneous input video tracks supported by MegaChat for a call
      */
-    int getMaxVideoCallParticipants();
+    int getMaxSupportedVideoCallParticipants() const;
 
     /**
      * @brief Returns if audio level monitor is enabled
@@ -6815,6 +6858,25 @@ public:
      * @param sfuid New SFU id
      */
     void setSFUid(int sfuid);
+
+    /**
+     * @brief Returns the current limit for simultaneous input video tracks that call supports.
+     *
+     * @return returns INVALID_CALL_VIDEO_SENDERS if karere client is not valid, or current limit is not supported, otherwise
+     * returns the current limit for simultaneous input video tracks that call supports.
+     */
+    int getCurrentInputVideoTracksLimit() const;
+
+    /**
+     * @brief Sets the current limit for simultaneous video tracks that call supports.
+     *
+     * @param numInputVideoTracks the current limit for simultaneous video tracks that call supports.
+     * - Minimum value for this param is 1 (otherwise app won't be able to receive any video track)
+     * - Maximum value for this param is returned by MegaChatApi::getMaxSupportedVideoCallParticipants()
+     *
+     * @return false if karere client is not valid, or numInputVideoTracks is not supported, otherwise returns true.
+     */
+    bool setCurrentInputVideoTracksLimit(const int numInputVideoTracks);
 #endif
 
     static void setCatchException(bool enable);

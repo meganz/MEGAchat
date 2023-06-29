@@ -1678,6 +1678,12 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_NOENT;
             }
 
+            if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
+            {
+                API_LOG_ERROR("Start call - Invalid value for simultaneous input video tracks");
+                return MegaChatError::ERROR_ARGS;
+            }
+
             if (!chatroom->isGroup())
             {
                 uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
@@ -1824,6 +1830,12 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             {
                 API_LOG_ERROR("Answer call - chatroom isn't in online state");
                 return MegaChatError::ERROR_ACCESS;
+            }
+
+            if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
+            {
+                API_LOG_ERROR("Answer call - Invalid value for simultaneous input video tracks");
+                return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
@@ -5732,6 +5744,54 @@ void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, boo
     waiter->notify();
 }
 
+int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPrivate* request)
+{
+    const auto chatId = request->getChatHandle();
+    if (chatId == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("Ring individual in call: invalid chat id");
+        return MegaChatError::ERROR_ARGS;
+    }
+    const auto userToCallId = request->getUserHandle();
+    if (userToCallId == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("Ring individual in call: invalid user id");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    ChatRoom *chatroom = findChatRoom(chatId);
+    if (!chatroom)
+    {
+        API_LOG_ERROR("Error: chat room with id %s not found", ID_CSTR(chatId));
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    auto call = mClient->rtc->findCallByChatid(chatId);
+    if (!call)
+    {
+        API_LOG_ERROR("Ring individual in call: no call found for chat id %s", ID_CSTR(chatId));
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    auto callId = call->getCallid();
+    Chat &chat = chatroom->chat();
+    chat.ringIndividualInACall(userToCallId, callId);
+    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+
+    return MegaChatError::ERROR_OK;
+}
+
+void MegaChatApiImpl::ringIndividualInACall(MegaChatHandle chatId, MegaChatHandle userId, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RING_INDIVIDUAL_IN_CALL, listener);
+    request->setChatHandle(chatId);
+    request->setUserHandle(userId);
+    request->setPerformRequest([this, request]() { return performRequest_sendRingIndividualInACall(request); });
+
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_ANSWER_CHAT_CALL, listener);
@@ -6064,11 +6124,15 @@ int MegaChatApiImpl::getMaxCallParticipants()
     return rtcModule::RtcConstant::kMaxCallReceivers;
 }
 
-int MegaChatApiImpl::getMaxVideoCallParticipants()
+int MegaChatApiImpl::getMaxSupportedVideoCallParticipants()
 {
-    return rtcModule::RtcConstant::kMaxCallVideoSenders;
+    return static_cast<int>(rtcModule::getMaxSupportedVideoCallParticipants());
 }
 
+bool MegaChatApiImpl::isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const
+{
+    return rtcModule::isValidInputVideoTracksLimit(maxSimVideoTracks);
+}
 
 bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
@@ -6697,6 +6761,43 @@ rtcModule::ICall *MegaChatApiImpl::findCall(MegaChatHandle chatid)
 
 }
 
+int MegaChatApiImpl::getCurrentInputVideoTracksLimit() const
+{
+    if (!mClient)
+    {
+       API_LOG_ERROR("getCurrentInputVideoTracksLimit: Karere client not initialized");
+       return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
+    }
+
+    SdkMutexGuard g(sdkMutex);
+    if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
+    {
+        API_LOG_ERROR("getCurrentInputVideoTracksLimit: Invalid value for simultaneous input video tracks");
+       return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
+    }
+    return static_cast<int>(mClient->rtc->getNumInputVideoTracks());
+}
+
+bool MegaChatApiImpl::setCurrentInputVideoTracksLimit(const int numInputVideoTracks)
+{
+    if (!mClient)
+    {
+       API_LOG_ERROR("setCurrentInputVideoTracksLimit: Karere client not initialized");
+       return false;
+    }
+
+    const unsigned int auxNumInputVideoTracks = static_cast<unsigned int>(numInputVideoTracks);
+    if (!isValidSimVideoTracks(auxNumInputVideoTracks))
+    {
+       API_LOG_DEBUG("setCurrentInputVideoTracksLimit: Invalid value for simultaneous input "
+                     "video tracks: %d", auxNumInputVideoTracks);
+       return false;
+    }
+
+    SdkMutexGuard g(sdkMutex);
+    mClient->rtc->setNumInputVideoTracks(auxNumInputVideoTracks);
+    return true;
+}
 #endif
 
 void MegaChatApiImpl::cleanChatHandlers()
@@ -7171,6 +7272,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SET_BACKGROUND_STATUS: return "SET_BACKGROUND_STATUS";
         case TYPE_RETRY_PENDING_CONNECTIONS: return "RETRY_PENDING_CONNECTIONS";
         case TYPE_START_CHAT_CALL: return "START_CHAT_CALL";
+        case TYPE_RING_INDIVIDUAL_IN_CALL: return "RING_INDIVIDUAL_IN_CALL";
         case TYPE_ANSWER_CHAT_CALL: return "ANSWER_CHAT_CALL";
         case TYPE_DISABLE_AUDIO_VIDEO_CALL: return "DISABLE_AUDIO_VIDEO_CALL";
         case TYPE_HANG_CHAT_CALL: return "HANG_CHAT_CALL";
@@ -11627,19 +11729,13 @@ std::string JSonUtils::generateAttachNodeJSon(MegaNodeList *nodes, uint8_t type)
         jsonNode.AddMember(rapidjson::Value("s"), rapidjson::Value(megaNode->getSize()), jSonAttachmentNodes.GetAllocator());
 
         // hash -> fingerprint
-        const char *fingerprintMega = megaNode->getFingerprint();
-        char *fingerprint = NULL;
-        if (fingerprintMega)
-        {
-            fingerprint = MegaApiImpl::getMegaFingerprintFromSdkFingerprint(fingerprintMega);
-        }
+        string fingerprint = MegaNodePrivate::removeAppPrefixFromFingerprint(megaNode->getFingerprint());
 
-        if (fingerprint)
+        if (!fingerprint.empty())
         {
             rapidjson::Value fpValue(rapidjson::kStringType);
-            fpValue.SetString(fingerprint, static_cast<rapidjson::SizeType>(strlen(fingerprint)), jSonAttachmentNodes.GetAllocator());
+            fpValue.SetString(fingerprint.c_str(), static_cast<rapidjson::SizeType>(fingerprint.size()), jSonAttachmentNodes.GetAllocator());
             jsonNode.AddMember(rapidjson::Value("hash"), fpValue, jSonAttachmentNodes.GetAllocator());
-            delete [] fingerprint;
         }
 
         // fa -> image thumbnail/preview/mediainfo
@@ -11776,7 +11872,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             fp = iteratorFp->value.GetString();
         }
         // convert MEGA's fingerprint to the internal format used by SDK (includes size)
-        char *sdkFingerprint = !fp.empty() ? MegaApiImpl::getSdkFingerprintFromMegaFingerprint(fp.c_str(), size) : NULL;
+        string sdkFingerprint = MegaNodePrivate::addAppPrefixToFingerprint(fp, size);
 
         // nodetype
         rapidjson::Value::ConstMemberIterator iteratorType = file.FindMember("t");
@@ -11807,12 +11903,10 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         }
 
         MegaNodePrivate node(nameString.c_str(), type, size, timeStamp, timeStamp,
-                             megaHandle, &key, &fa, sdkFingerprint,
+                             megaHandle, &key, &fa, sdkFingerprint.empty() ? nullptr : sdkFingerprint.c_str(),
                              NULL, INVALID_HANDLE, INVALID_HANDLE, NULL, NULL, false, true);
 
         megaNodeList->addNode(&node);
-
-        delete [] sdkFingerprint;
     }
 
     return megaNodeList;

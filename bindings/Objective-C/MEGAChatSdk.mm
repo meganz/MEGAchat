@@ -1458,14 +1458,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 }
 
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(NSInteger)startDate endDate:(NSInteger)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled flags:(MEGAChatScheduledFlags *)flags rules:(MEGAChatScheduledRules *)rules {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, cancelled, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency));
+    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, (int)startDate, (int)endDate, title.UTF8String, description.UTF8String, cancelled, flags.getCPtr, rules.getCPtr);
 }
 
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(NSInteger)startDate endDate:(NSInteger)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled flags:(MEGAChatScheduledFlags *)flags rules:(MEGAChatScheduledRules *)rules delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, cancelled, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency), [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, (int)startDate, (int)endDate, title.UTF8String, description.UTF8String, cancelled,  flags.getCPtr, rules.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled {
@@ -1746,8 +1746,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi ? self.megaChatApi->hasCallInChatRoom(chatId) : NO;
 }
 
-- (NSInteger)getMaxVideoCallParticipants {
-    return self.megaChatApi ? self.megaChatApi->getMaxVideoCallParticipants() : 0;
+- (NSInteger)getMaxSupportedVideoCallParticipants {
+    return self.megaChatApi ? self.megaChatApi->getMaxSupportedVideoCallParticipants() : 0;
 }
 
 - (NSInteger)getMaxCallParticipants {
@@ -1805,6 +1805,19 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
     }
     self.megaChatApi->stopLowResVideo(chatId, clientIdList.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setSFU:(NSInteger)sfuId {
+    if (!self.megaChatApi) return;
+    self.megaChatApi->setSFUid((int)sfuId);
+}
+
+- (NSInteger)getCurrentInputVideoTracksLimit {
+    return self.megaChatApi ? self.megaChatApi->getCurrentInputVideoTracksLimit() : 0;
+}
+
+- (BOOL)setCurrentInputVideoTracksLimit:(NSInteger)inputVideoTracks {
+    return self.megaChatApi ? self.megaChatApi->setCurrentInputVideoTracksLimit((int)inputVideoTracks) : NO;
 }
 
 #endif
