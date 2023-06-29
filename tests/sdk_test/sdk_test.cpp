@@ -4166,7 +4166,7 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
  *
  * Requirements:
  *      - 3 accounts
- *      - All accounts should be conctacts
+ *      - All accounts should be contacts
  * (if not accomplished, the test automatically solves them)
  *
  * This test does the following:
