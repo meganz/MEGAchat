@@ -461,7 +461,7 @@ public:
     void onSendByeCommand() override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
-    bool handleHello (const Cid_t cid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
+    bool handleHello (const Cid_t cid, const unsigned int nVideoTracks,
                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                       const std::map<karere::Id, bool>& wrUsers) override;
 
@@ -683,6 +683,8 @@ public:
 
     void* getAppCtx();
     std::string getDeviceInfo() const;
+    unsigned int getNumInputVideoTracks() const override;
+    void setNumInputVideoTracks(const unsigned int numInputVideoTracks) override;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
@@ -698,6 +700,9 @@ private:
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;
+
+    // Current limit for simultaneous input video tracks that call supports. (kMaxCallVideoSenders by default)
+    unsigned int mRtcNumInputVideoTracks = getMaxSupportedVideoCallParticipants();
 };
 
 void globalCleanup();

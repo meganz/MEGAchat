@@ -700,7 +700,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (nullable MEGAHandleList *)chatCallsWithState:(MEGAChatCallStatus)callState;
 - (nullable MEGAHandleList *)chatCallsIds;
 - (BOOL)hasCallInChatRoom:(uint64_t)chatId;
-- (NSInteger)getMaxVideoCallParticipants;
+- (NSInteger)getMaxSupportedVideoCallParticipants;
 - (NSInteger)getMaxCallParticipants;
 - (uint64_t)myClientIdHandleForChatId:(uint64_t)chatId;
 - (BOOL)isAudioLevelMonitorEnabledForChatId:(uint64_t)chatId;
@@ -710,6 +710,10 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)stopHiResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)requestLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)stopLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setSFU:(NSInteger)sfuId;
+- (NSInteger)getCurrentInputVideoTracksLimit;
+- (BOOL)setCurrentInputVideoTracksLimit:(NSInteger)inputVideoTracks;
+
 #endif
 
 #pragma mark - Debug log messages
