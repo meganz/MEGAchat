@@ -4199,17 +4199,25 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
                                           {"mChatCallSessionStatusInProgress[a1]", "mChatCallSessionStatusInProgress[a2]"},
                                           "answering chat call from B", waitForAllExitFlags, resetFlags, maxTimeout, action));
 
-    const auto callIgnoredByC = [this, &waitForAllExitFlags, &a1, &a3, &auxCall]()
+    const auto waitRingingForC = [this, &waitForAllExitFlags, &a1, &a3, &uhC, &auxCall]()
     {
         bool* exitFlag = &mCallReceivedRinging[a3];
-        waitForMultiResponse({exitFlag}, waitForAllExitFlags);
+        ASSERT_TRUE(waitForMultiResponse({exitFlag}, waitForAllExitFlags)) << "Timeout waiting for C acknowledging the call";
         ASSERT_NE(mChatIdRingInCall[a3], MEGACHAT_INVALID_HANDLE) << "Invalid ChatId for C from A";
         ASSERT_TRUE((mCallIdRingIn[a3] != MEGACHAT_INVALID_HANDLE) &&
                     (mCallIdRingIn[a3] == mCallIdJoining[a1])) << "C and A are in different calls";
-        if (auxCall) mCallIdExpectedReceived[a3] = auxCall->getCallId();
+        if (auxCall)
+        {
+            mCallIdExpectedReceived[a3] = auxCall->getCallId();
+            ASSERT_NE(auxCall->getCaller(), uhC) << "User C shouldn't be the caller";
+        }
         LOG_verbose << "/ C doesn't pick up the call";
+        *exitFlag = false;
+        mCallStopRinging[a3] = false;
+        mCallIdStopRingIn[a3] = MEGACHAT_INVALID_HANDLE;
+        mChatIdStopRingInCall[a3] = MEGACHAT_INVALID_HANDLE;
     };
-    ASSERT_NO_FATAL_FAILURE(callIgnoredByC());
+    ASSERT_NO_FATAL_FAILURE(waitRingingForC());
 
     /////////// <optional>
     LOG_verbose << "- B enabling audio in the call";
@@ -4241,17 +4249,27 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(disableAudioFor(a1, a2));
     /////////// </optional>
 
-    const auto waitCRingingTimeout = [this, &waitForAllExitFlags, &a3]()
+    const auto waitStopRingingForC = [this, &waitForAllExitFlags, &a3](const bool timeoutExpected = false)
     {
         LOG_verbose << "# Wait for ringing timeout on C";
-        bool* exitFlag = &mCallReceivedRinging[a3];
-        *exitFlag = false;
-        waitForMultiResponse({exitFlag}, waitForAllExitFlags);
-        ASSERT_NE(mChatIdRingInCall[a3], MEGACHAT_INVALID_HANDLE) << "error on C ringing timeout";
-        *exitFlag = false;
         LOG_verbose << "# C's call stop ringing";
+        bool* exitFlag = &mCallStopRinging[a3];
+        ASSERT_TRUE(timeoutExpected || waitForMultiResponse({exitFlag}, waitForAllExitFlags))
+            << "Timeout for C waiting the ringing to stop";
+        if (!timeoutExpected)
+        {
+            const std::string pref {"error on C ringing timeout: "};
+            ASSERT_NE(mCallIdStopRingIn[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing call id";
+            ASSERT_EQ(mCallIdStopRingIn[a3], mCallIdExpectedReceived[a3]) << pref << "unexpected call id";
+            ASSERT_NE(mChatIdStopRingInCall[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing chat id";
+            *exitFlag = false;
+        }
+        else
+        {
+            LOG_debug << "# C didn't receive a stop ringing call but it was expected";
+        }
     };
-    ASSERT_NO_FATAL_FAILURE(waitCRingingTimeout());
+    ASSERT_NO_FATAL_FAILURE(waitStopRingingForC());
 
     LOG_verbose << "+ A rings C individually";
     auto& userId = uhC;
@@ -4268,9 +4286,10 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
 
 
     LOG_verbose << "/ C ignores individual ringing";
-    ASSERT_NO_FATAL_FAILURE(callIgnoredByC());
     LOG_verbose << "/ C waits for individual ringing timeout";
-    ASSERT_NO_FATAL_FAILURE(waitCRingingTimeout());
+    ASSERT_NO_FATAL_FAILURE(waitRingingForC());
+    const bool isRingingIndividuallyTimeoutMissing = true;
+    ASSERT_NO_FATAL_FAILURE(waitStopRingingForC(isRingingIndividuallyTimeoutMissing));
 
 
     LOG_verbose << "- B hangs up the call";
@@ -6498,7 +6517,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     unsigned int apiIndex = getMegaChatApiIndex(api);
     ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatCallUpdate()";
 
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS) && call->isRinging())
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
     {
         if (api->getNumCalls() > 1)
         {
@@ -6513,11 +6532,20 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         if (mCallIdExpectedReceived[apiIndex] == MEGACHAT_INVALID_HANDLE
                 || mCallIdExpectedReceived[apiIndex] == call->getCallId())
         {
-            /* we are waiting to receive a ringing call for a specific callid, this could be util
-             * for those scenarios where we receive multiple onChatCallUpdate like a login */
-            mCallReceivedRinging[apiIndex] = true;
-            mChatIdRingInCall[apiIndex] = call->getChatid();
-            mCallIdRingIn[apiIndex] = call->getCallId();
+            if (call->isRinging())
+            {
+                /* we are waiting to receive a ringing call for a specific callid, this could be util
+                 * for those scenarios where we receive multiple onChatCallUpdate like a login */
+                mCallReceivedRinging[apiIndex] = true;
+                mChatIdRingInCall[apiIndex] = call->getChatid();
+                mCallIdRingIn[apiIndex] = call->getCallId();
+            }
+            else
+            {
+                mCallStopRinging[apiIndex] = true;
+                mCallIdStopRingIn[apiIndex] = call->getCallId();
+                mChatIdStopRingInCall[apiIndex] = call->getChatid();
+            }
         }
     }
 

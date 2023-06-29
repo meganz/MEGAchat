@@ -308,6 +308,7 @@ protected:
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallReceivedRinging[NUM_ACCOUNTS];
+    bool mCallStopRinging[NUM_ACCOUNTS];
     bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallLeft[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
@@ -318,8 +319,10 @@ protected:
     bool mCallWrAllow[NUM_ACCOUNTS];
     bool mCallWrDeny[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mChatIdStopRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdStopRingIn[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     megachat::MegaChatHandle mSchedIdUpdated[NUM_ACCOUNTS];
