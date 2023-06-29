@@ -40,7 +40,7 @@ static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
 static constexpr unsigned int MAX_ATTEMPTS = 3;
 static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
-static const unsigned int NUM_ACCOUNTS = 2;
+static const unsigned int NUM_ACCOUNTS = 3;
 
 #define TEST_LOG_ERROR(a, message) \
     do { \
@@ -196,12 +196,22 @@ protected:
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
+    bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
 
     /* select a group chat room, by default with PRIV_MODERATOR for primary account
-     * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param */
-    megachat::MegaChatHandle getGroupChatRoom(const unsigned int a1, const  unsigned int a2, megachat::MegaChatPeerList* peers, const int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN,
-                                              const bool create = true, const bool publicChat = false, const bool meetingRoom = false, const bool waitingRoom = false);
+     * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param
+     * it allows finding/creating a group chat of more than 2 participants where the creator is a[0]
+     * param a contains the same participants as param peers + the user who will create the chat (a[0])
+     * ToDo: consider removing peers param and create from `a` param in this function instead
+     */
+    megachat::MegaChatHandle getGroupChatRoom(const std::vector<unsigned int>& a,
+                                              megachat::MegaChatPeerList* peers,
+                                              const int a1Priv = megachat::MegaChatPeerList::PRIV_MODERATOR,
+                                              const bool create = true,
+                                              const bool publicChat = false,
+                                              const bool meetingRoom = false,
+                                              const bool waitingRoom = false);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -298,6 +308,7 @@ protected:
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallReceived[NUM_ACCOUNTS];
     bool mCallReceivedRinging[NUM_ACCOUNTS];
+    bool mCallStopRinging[NUM_ACCOUNTS];
     bool mCallInProgress[NUM_ACCOUNTS];
     bool mCallLeft[NUM_ACCOUNTS];
     bool mCallDestroyed[NUM_ACCOUNTS];
@@ -308,8 +319,10 @@ protected:
     bool mCallWrAllow[NUM_ACCOUNTS];
     bool mCallWrDeny[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdRingInCall[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mChatIdStopRingInCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mChatIdInProgressCall[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdRingIn[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mCallIdStopRingIn[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
     megachat::MegaChatHandle mSchedIdUpdated[NUM_ACCOUNTS];

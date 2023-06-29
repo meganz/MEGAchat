@@ -1093,6 +1093,11 @@ void MegaChatApi::startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle s
    pImpl->startChatCall(chatid, enableVideo, enableAudio, schedId, listener);
 }
 
+void MegaChatApi::ringIndividualInACall(MegaChatHandle chatId, MegaChatHandle userId, MegaChatRequestListener* listener)
+{
+    pImpl->ringIndividualInACall(chatId, userId, listener);
+}
+
 void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
     pImpl->answerChatCall(chatid, enableVideo, enableAudio, listener);

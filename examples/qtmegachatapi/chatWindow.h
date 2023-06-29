@@ -113,6 +113,7 @@ class ChatWindow : public QDialog,
         void onMsgListRequestHistory();
         void onMemberSetPriv();
         void onMemberRemove();
+        void onRingUser() const;
         void onMsgSendBtn();
         void onMemberAdd();
         void onMembersBtn(bool);
