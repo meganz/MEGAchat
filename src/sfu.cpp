@@ -1327,14 +1327,42 @@ bool SfuConnection::isDisconnected() const
     return (mConnState <= kDisconnected);
 }
 
-promise::Promise<void> SfuConnection::connect()
+void SfuConnection::connect()
 {
     assert (mConnState == kConnNew);
-    return reconnect()
-    .fail([](const ::promise::Error& err)
+    doReconnect(false /*initialBackoff*/);
+}
+
+void SfuConnection::doReconnect(const bool applyInitialBackoff)
+{
+    auto wptr = weakHandle();
+    const auto reconnectFunc = [this, wptr]()
     {
-        SFU_LOG_DEBUG("SfuConnection::connect(): Error connecting to server after getting URL: %s", err.what());
-    });
+        if (wptr.deleted()) { return; }
+
+        reconnect()
+        .fail([](const ::promise::Error& err)
+        {
+            SFU_LOG_DEBUG("SfuConnection::reconnect(): Error connecting to SFU server: %s", err.what());
+        });
+    };
+
+    if (!applyInitialBackoff || !getInitialBackoff())
+    {
+        reconnectFunc(); // start reconnection attempt immediately
+    }
+    else
+    {
+        /* A SFU connection attempt is considered as succeeded, just when client receives ANSWER command.
+         * RetryController algorithm already manages failed connection attempts (adding an exponential backoff),
+         * but in case LWS connection to SFU succeeded but client gets disconnected before receiving ANSWER command,
+         * we also need to add a backoff to prevent hammering SFU (which triggers DDOS protection)
+         */
+        mConnectTimer = karere::setTimeout([reconnectFunc, wptr]()
+        {
+            reconnectFunc();
+        }, getInitialBackoff() * 100, mAppCtx);
+    }
 }
 
 void SfuConnection::disconnect(bool withoutReconnection)
@@ -1422,6 +1450,7 @@ void SfuConnection::retryPendingConnection(bool disconnect)
      * as in case we have reached max SFU records (abs(kSfuShardEnd - kSfuShardStart)),
      * mCurrentShardForSfu will be reset, so oldest records will be overwritten by new ones
      */
+    const auto oldConnState = mConnState;
     assert(mSfuUrl.isValid());
     if (mConnState == kConnNew)
     {
@@ -1435,7 +1464,8 @@ void SfuConnection::retryPendingConnection(bool disconnect)
 
         setConnState(kDisconnected);
         abortRetryController();
-        reconnect();
+        doReconnect(oldConnState >= kConnected /*initialBackoff*/);
+
     }
     else if (mRetryCtrl && mRetryCtrl->state() == karere::rh::State::kStateRetryWait)
     {
@@ -2065,6 +2095,16 @@ bool SfuConnection::sendBye(int termCode)
     return sendCommand(command);
 }
 
+void SfuConnection::clearInitialBackoff()       { mInitialBackoff = 0; }
+void SfuConnection::incrementInitialBackoff()   { ++mInitialBackoff; }
+unsigned int SfuConnection::getInitialBackoff() const
+{
+    // returns initial backoff in milliseconds
+    if (!mInitialBackoff)                     { return mInitialBackoff; }
+    if (mInitialBackoff >= maxInitialBackoff) { return maxInitialBackoff; }
+    return 10 * mInitialBackoff;
+}
+
 
 bool SfuConnection::sendWrCommand(const std::string& commandStr, const std::set<karere::Id>& users, const bool all)
 {
@@ -2180,7 +2220,11 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
     else if (mConnState == kConnected)
     {
         SFU_LOG_DEBUG("Sfu connected to %s", mTargetIp.c_str());
-
+        /* Increment InitialBackoff as we have completed LWS conenction to SFU, but this connection attempt
+         * can't be considered succeeded, until we have received ANSWER command.
+         * In case of disconnection before receiving ANSWER command, next connection attempt will have a backoff to avoid hammering SFU
+         */
+        incrementInitialBackoff();
         mDnsCache.connectDoneByHost(mSfuUrl.host, mTargetIp);
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
@@ -2249,7 +2293,7 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
         if (!mRetryCtrl)
         {
             SFU_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
-            reconnect(); // start retry controller
+            doReconnect(false /*initialBackoff*/); // start retry controller
         }
         return;
     }
@@ -2270,7 +2314,7 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
         SFU_LOG_DEBUG("Socket close at state kLoggedIn");
 
         assert(!mRetryCtrl);
-        reconnect(); //start retry controller
+        doReconnect(true /*initialBackoff*/); //start retry controller
     }
     else // oldState is kResolving or kConnecting
          // -> tell retry controller that the connect attempt failed

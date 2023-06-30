@@ -616,6 +616,7 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
+    static constexpr unsigned int maxInitialBackoff = 100;   // (in milliseconds) max initial backoff for SFU connection attempt
     static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
     static constexpr uint8_t kNoMediaPathTimeout = 6;        // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
@@ -627,7 +628,8 @@ public:
     bool isOnline() const;
     bool isJoined() const;
     bool isDisconnected() const;
-    promise::Promise<void> connect();
+    void connect();
+    void doReconnect(const bool applyInitialBackoff);
     void disconnect(bool withoutReconnection = false);
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
@@ -654,6 +656,9 @@ public:
     bool sendSpeakReqDel(Cid_t cid = 0);
     bool sendSpeakDel(Cid_t cid = 0);
     bool sendBye(int termCode);
+    void clearInitialBackoff();
+    void incrementInitialBackoff();
+    unsigned int getInitialBackoff() const;
 
     // Waiting room related commands
     bool sendWrCommand(const std::string& commandStr, const std::set<karere::Id>& users, const bool all = false);
@@ -714,6 +719,15 @@ protected:
     CommandsQueue mCommandsQueue;
     std::thread::id mMainThreadId; // thread id to ensure that CommandsQueue is accessed from a single thread
     DNScache &mDnsCache;
+
+    /* Initial backoff for retry controller (in milliseconds)
+     * A connection to SFU can be considered succeeded, just when client receives ANSWER command.
+     * Extend lifetime of retry controller far away than LWS connection, doesn't make sense for this particular scenario.
+     * The best solution is adding a initial backoff that will start in 0 and will be incremented when we establish LWS connection.
+     *
+     * If connection is dropped down before receiving the ANSWER command, the next attempt will be delayed.
+     */
+     unsigned int mInitialBackoff = 0;
 };
 
 /**
