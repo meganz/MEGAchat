@@ -4488,8 +4488,8 @@ public:
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
-     * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp UTC)
-     * @param overrides new start date time of the occurrence with the format (unix timestamp UTC)
+     * @param overrides start date time that along with schedId identifies the occurrence with the format (unix timestamp UTC)
+     * @param newStartDate new start date time of the occurrence with the format (unix timestamp UTC)
      * @param newEndDate new end date time of the occurrence with the format (unix timestamp UTC)
      * @param cancelled True if scheduled meeting occurrence is going to be cancelled
      * @param listener MegaChatRequestListener to track this request
