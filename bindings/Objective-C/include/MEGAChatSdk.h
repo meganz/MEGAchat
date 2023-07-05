@@ -20,6 +20,8 @@
 #import "MEGAChatScheduledMeetingDelegate.h"
 #import "ListenerDispatch.h"
 #import "MEGAChatScheduledRules.h"
+#import "MEGAChatScheduledMeetingList.h"
+#import "MEGAChatScheduledMeetingOccurrence.h"
 
 #import "MEGASdk.h"
 
