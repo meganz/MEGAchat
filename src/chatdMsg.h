@@ -744,7 +744,9 @@ public:
                 rapidjson::StringStream stringStream(changedJson.get());
                 rapidjson::Document document;
                 document.ParseStream(stringStream);
-                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                auto er = document.GetParseError();
+                if (er != rapidjson::ParseErrorCode::kParseErrorNone
+                    && er != rapidjson::ParseErrorCode::kParseErrorDocumentEmpty)
                 {
                    return NULL;
                 }
