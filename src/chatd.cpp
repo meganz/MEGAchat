@@ -519,6 +519,8 @@ void Chat::login()
             join();
         }
     }
+
+    mHasMoreHistoryInDb = mOldestKnownMsgId != info.newestDbId;
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
@@ -2052,7 +2054,11 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // in the buffer (and in the loaded range) are unseen - so we just loaded
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
-        throw std::runtime_error(mChatId.toString()+": Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of "+std::to_string((int64_t)mOldestKnownMsgId.val));
+    {
+        CHATID_LOG_ERROR("%s: Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of %s", mChatId.toString().c_str(), std::to_string((int64_t)mOldestKnownMsgId.val).c_str());
+        assert(messages.size() >= count || !mHasMoreHistoryInDb);
+    }
+
     return static_cast<Idx>(messages.size());
 }
 
@@ -4882,7 +4888,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     mOldestKnownMsgId = msg.id();
 
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
-    mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
+    mHasMoreHistoryInDb = mOldestKnownMsgId && at(lownum()).id() != mOldestKnownMsgId;
     truncateAttachmentHistory();
     calculateUnreadCount();
 }
