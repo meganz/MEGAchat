@@ -715,8 +715,8 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
 
 void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action)
 {
-    ASSERT_TRUE(exitFlags.size() == flagsStr.size() || flagsStr.empty()) << "waitForCallAction: no valid action provided";
-    ASSERT_TRUE(action) << "waitForCallAction: no valid action provided";
+    ASSERT_TRUE(exitFlags.size() == flagsStr.size() || flagsStr.empty()) << "waitForAction: invalid flags provided";
+    ASSERT_TRUE(action) << "waitForAction: no valid action provided";
 
     if (resetFlags)
     {
@@ -6415,6 +6415,7 @@ void MegaChatApiTest::inviteToChat (const unsigned int& a1, const unsigned int& 
     mChatListUpdated[a2].clear();
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 bool* MegaChatApiTest::getChatCallStateFlag (unsigned int index, int state)
 {
     switch (state)
@@ -6425,7 +6426,7 @@ bool* MegaChatApiTest::getChatCallStateFlag (unsigned int index, int state)
     default:                                              break;
     }
 
-    ADD_FAILURE() << "Invalid account state";
+    ADD_FAILURE() << "Invalid account state " << state;
     return nullptr;
 }
 
@@ -6471,6 +6472,7 @@ void MegaChatApiTest::waitForCallAction (unsigned int pIdx, int maxAttempts, boo
         }
     }
 }
+#endif
 
 void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsigned int& a2, const MegaChatHandle& uh, const MegaChatHandle& chatid,
                                            const int privilege, std::shared_ptr<TestChatRoomListener>chatroomListener)
