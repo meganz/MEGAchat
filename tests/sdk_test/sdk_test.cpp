@@ -5026,6 +5026,17 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests127.rules = rules;
     ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (a1, smDataTests127); });
 
+    /// <fetching new ScheduledMeeting MegaChatMessage>
+    auto& uh = a2;
+    auto crListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
+    ASSERT_TRUE(megaChatApi[uh]->openChatRoom(chatid, crListener.get())) << "Cannot open chatroom";
+
+    const auto ret = megaChatApi[uh]->loadMessages(chatid, 10);
+
+    megaChatApi[uh]->closeChatRoom(chatid, crListener.get());
+    crListener.reset();
+    /// </fetching new ScheduledMeeting MegaChatMessage>
+
     const MegaChatHandle schedId = mSchedIdUpdated[a1];
     SchedMeetingData smData; // Designated initializers generate too many warnings (gcc)
     smData.chatId = chatid;
@@ -7006,6 +7017,19 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
         else if (msg->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT)
         {
             msgContactReceived[apiIndex] = true;
+        }
+        else if (msg->getType() == MegaChatMessage::TYPE_SCHED_MEETING)
+        {
+            const auto smId = msg->getUserHandle();
+            const auto id = msg->getHandleOfAction();
+            const auto changes = msg->getPrivilege();
+            LOG_debug << "\n\t\t\t" << apiIndex << " account\n\t\t\t"
+                      << ::mega::toHandle(MEGACHAT_INVALID_HANDLE) << " invalid handle\n\t\t\t"
+                      << ::mega::toHandle(smId) << " msg->getUserHandle()\n\t\t\t"
+                      << ::mega::toHandle(id) << " msg->getHandleOfAction()\n\t\t\t"
+                      << changes << " priv";
+            ASSERT_NE(id, MEGACHAT_INVALID_HANDLE);
+            ASSERT_EQ(changes, 0);
         }
 
         msgLoaded[apiIndex] = true;
