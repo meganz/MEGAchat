@@ -4955,9 +4955,8 @@ time_t Chat::handleRetentionTime(bool updateTimer)
         CALL_DB(setLastReceived, 0);
 
         mAttachmentNodes->truncateHistory(Id::inval());
-
-        resetOldestKnownMsgId();
         mNextHistFetchIdx = CHATD_IDX_INVALID;
+        getOldestKnownMsgIdFromDb(); // get oldest known msgId from Db if any
     }
     else
     {
