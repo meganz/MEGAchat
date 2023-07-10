@@ -494,10 +494,7 @@ void Chat::login()
     // In both cases (join/joinrangehist), don't block history messages being sent to app
     mServerOldHistCbEnabled = false;
 
-    ChatDbInfo info;
-    mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
-
+    ChatDbInfo&& info = getOldestKnownMsgIdFromDb();
     sendReactionSn();
 
     if (previewMode())
@@ -1944,9 +1941,7 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     assert(mDbInterface);
     initChat();
     mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(*mDbInterface, *this));
-    ChatDbInfo info;
-    mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
+    ChatDbInfo&& info = getOldestKnownMsgIdFromDb();
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
@@ -2055,9 +2050,18 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
     {
+        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99018, "Can't load expected messages count from Db and mHasMoreHistoryInDb is true", false, static_cast<const char*>(nullptr));
         CHATID_LOG_ERROR("getHistoryFromDb: Loaded msg's from Db < expected count (%d < %d) for chatid: %s, but we still haven't seen mOldestKnownMsgId of %s"
                           , messages.size(), count, mChatId.toString().c_str(), std::to_string((int64_t)mOldestKnownMsgId.val).c_str());
         assert(messages.size() >= count || !mHasMoreHistoryInDb);
+
+        // try to update mOldestKnownMsgId with current Db state
+        getOldestKnownMsgIdFromDb();
+        mHasMoreHistoryInDb = hasMoreHistoryInDb();
+        if (mHasMoreHistoryInDb)
+        {
+            CHATID_LOG_ERROR("getHistoryFromDb: mHasMoreHistoryInDb still true after call getOldestKnownMsgIdFromDb");
+        }
     }
 
     return static_cast<Idx>(messages.size());
@@ -5053,6 +5057,14 @@ Id Chat::makeRandomId()
 void Chat::resetOldestKnownMsgId()
 {
     mOldestKnownMsgId = karere::Id::null();
+}
+
+ChatDbInfo Chat::getOldestKnownMsgIdFromDb()
+{
+    ChatDbInfo info;
+    mDbInterface->getHistoryInfo(info);
+    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
+    return info;
 }
 
 bool Chat::hasMoreHistoryInDb() const

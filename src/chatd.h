@@ -920,6 +920,7 @@ protected:
     karere::Id makeRandomId();
     void resetOldestKnownMsgId();
     bool hasMoreHistoryInDb() const;
+    ChatDbInfo getOldestKnownMsgIdFromDb();
     void login();
     void join();
     void handlejoin();
