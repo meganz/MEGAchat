@@ -496,7 +496,7 @@ void Chat::login()
 
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores 0 at ChatDbInfo::oldestDbId
+    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
 
     sendReactionSn();
 
@@ -1946,7 +1946,7 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(*mDbInterface, *this));
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores 0 at ChatDbInfo::oldestDbId
+    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
@@ -2055,7 +2055,8 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
     {
-        CHATID_LOG_ERROR("%s: Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of %s", mChatId.toString().c_str(), std::to_string((int64_t)mOldestKnownMsgId.val).c_str());
+        CHATID_LOG_ERROR("getHistoryFromDb: Loaded msg's from Db < expected count (%d < %d) for chatid: %s, but we still haven't seen mOldestKnownMsgId of %s"
+                          , messages.size(), count, mChatId.toString().c_str(), std::to_string((int64_t)mOldestKnownMsgId.val).c_str());
         assert(messages.size() >= count || !mHasMoreHistoryInDb);
     }
 
@@ -4959,7 +4960,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
         // Find oldest msg id in loaded messages in RAM
         if (!mBackwardList.empty())
         {
-            mOldestKnownMsgId =  mBackwardList.back()->id();
+            mOldestKnownMsgId = mBackwardList.back()->id();
         }
         else if (!mForwardList.empty())
         {
