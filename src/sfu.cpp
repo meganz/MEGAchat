@@ -1360,7 +1360,7 @@ void SfuConnection::doReconnect(const bool applyInitialBackoff)
          * but in case LWS connection to SFU succeeded but client gets disconnected before receiving ANSWER command,
          * we also need to add a backoff to prevent hammering SFU (which triggers DDOS protection)
          */
-        mConnectTimer = karere::setTimeout([reconnectFunc, wptr]()
+        mConnectTimer = karere::setTimeout([this, reconnectFunc, wptr]()
         {
             mConnectTimer = 0;
             reconnectFunc();
