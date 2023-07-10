@@ -689,6 +689,9 @@ protected:
     /** Handler of the timeout for the connection establishment */
     megaHandle mConnectTimer = 0;
 
+    /** Cancels connect timer in case is set **/
+    void cancelConnectTimer();
+
     /** Input promise for the RetryController
      *  - If it fails: a new attempt is schedulled
      *  - If it success: the reconnection is taken as done */

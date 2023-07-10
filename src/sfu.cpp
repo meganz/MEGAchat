@@ -1347,6 +1347,8 @@ void SfuConnection::doReconnect(const bool applyInitialBackoff)
         });
     };
 
+    cancelConnectTimer(); // cancel connect timer in case is set
+
     if (!applyInitialBackoff || !getInitialBackoff())
     {
         reconnectFunc(); // start reconnection attempt immediately
@@ -2172,6 +2174,15 @@ bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const boo
     return true;
 }
 
+void SfuConnection::cancelConnectTimer()
+{
+    if (mConnectTimer)
+    {
+        karere::cancelTimeout(mConnectTimer, mAppCtx);
+        mConnectTimer = 0;
+    }
+}
+
 void SfuConnection::setConnState(SfuConnection::ConnState newState)
 {
     if (newState == mConnState)
@@ -2199,11 +2210,7 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         }
 
         // if connect-timer is running, it must be reset (kResolving --> kDisconnected)
-        if (mConnectTimer)
-        {
-            karere::cancelTimeout(mConnectTimer, mAppCtx);
-            mConnectTimer = 0;
-        }
+        cancelConnectTimer();
 
         // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
         auto wptr = weakHandle();
@@ -2229,12 +2236,7 @@ void SfuConnection::setConnState(SfuConnection::ConnState newState)
         assert(!mConnectPromise.done());
         mConnectPromise.resolve();
         mRetryCtrl.reset();
-
-        if (mConnectTimer)
-        {
-            karere::cancelTimeout(mConnectTimer, mAppCtx);
-            mConnectTimer = 0;
-        }
+        cancelConnectTimer();  // cancel connect timer in case is set
     }
 }
 
