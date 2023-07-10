@@ -918,6 +918,8 @@ protected:
     bool sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd);
     void flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();
+    void resetOldestKnownMsgId();
+    bool hasMoreHistoryInDb() const;
     void login();
     void join();
     void handlejoin();
