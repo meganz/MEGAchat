@@ -38,7 +38,7 @@ public:
         {
             assert(false);  // if there's an oldest message, there should be always a newest message, even if it's the same one
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
-            info.oldestDbId = 0;
+            info.oldestDbId = karere::Id::null();
         }
         SqliteStmt stmt3(mDb, "select last_seen, last_recv from chats where chatid=?");
         stmt3 << mChat.chatId();

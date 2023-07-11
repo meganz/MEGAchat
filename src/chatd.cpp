@@ -494,22 +494,19 @@ void Chat::login()
     // In both cases (join/joinrangehist), don't block history messages being sent to app
     mServerOldHistCbEnabled = false;
 
-    ChatDbInfo info;
-    mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId;
-
+    ChatDbInfo&& info = getDbHistInfoAndInitOldestKnownMsgId();
     sendReactionSn();
 
     if (previewMode())
     {
-        if (mOldestKnownMsgId) //if we have local history
+        if (!mOldestKnownMsgId.isNull()) //if we have local history
             handlejoinRangeHist(info);
         else
             handlejoin();
     }
     else
     {
-        if (mOldestKnownMsgId) //if we have local history
+        if (!mOldestKnownMsgId.isNull()) //if we have local history
         {
             joinRangeHist(info);
             retryPendingReactions();
@@ -520,7 +517,7 @@ void Chat::login()
         }
     }
 
-    mHasMoreHistoryInDb = mOldestKnownMsgId != info.newestDbId;
+    mHasMoreHistoryInDb = hasMoreHistoryInDb();
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
@@ -1944,9 +1941,7 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     assert(mDbInterface);
     initChat();
     mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(*mDbInterface, *this));
-    ChatDbInfo info;
-    mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId;
+    ChatDbInfo&& info = getDbHistInfoAndInitOldestKnownMsgId();
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
@@ -1963,7 +1958,7 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
         mAttachmentNodes->setHaveAllHistory(true);
     }
 
-    if (!mOldestKnownMsgId)
+    if (mOldestKnownMsgId.isNull())
     {
         //no history in db
         mHasMoreHistoryInDb = false;
@@ -2055,8 +2050,18 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
     {
-        CHATID_LOG_ERROR("%s: Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of %s", mChatId.toString().c_str(), std::to_string((int64_t)mOldestKnownMsgId.val).c_str());
+        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99018, "Can't load expected messages count from Db and mHasMoreHistoryInDb is true", false, static_cast<const char*>(nullptr));
+        CHATID_LOG_ERROR("getHistoryFromDb: Loaded msg's from Db < expected count (%d < %d) for chatid: %s, but we still haven't seen mOldestKnownMsgId of %s"
+                          , messages.size(), count, mChatId.toString().c_str(), std::to_string((int64_t)mOldestKnownMsgId.val).c_str());
         assert(messages.size() >= count || !mHasMoreHistoryInDb);
+
+        // try to update mOldestKnownMsgId with current Db state
+        getDbHistInfoAndInitOldestKnownMsgId();
+        mHasMoreHistoryInDb = hasMoreHistoryInDb();
+        if (mHasMoreHistoryInDb)
+        {
+            CHATID_LOG_ERROR("getHistoryFromDb: mHasMoreHistoryInDb still true after call getOldestKnownMsgIdFromDb");
+        }
     }
 
     return static_cast<Idx>(messages.size());
@@ -3226,7 +3231,7 @@ void Chat::initChat()
 
     mForwardStart = CHATD_IDX_RANGE_MIDDLE;
 
-    mOldestKnownMsgId = 0;
+    resetOldestKnownMsgId();
     mLastSeenIdx = CHATD_IDX_INVALID;
     mLastReceivedIdx = CHATD_IDX_INVALID;
     mNextHistFetchIdx = CHATD_IDX_INVALID;
@@ -4888,7 +4893,8 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     mOldestKnownMsgId = msg.id();
 
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
-    mHasMoreHistoryInDb = mOldestKnownMsgId && at(lownum()).id() != mOldestKnownMsgId;
+    mHasMoreHistoryInDb = hasMoreHistoryInDb();
+
     truncateAttachmentHistory();
     calculateUnreadCount();
 }
@@ -4930,6 +4936,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
     {
         mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+        resetOldestKnownMsgId();
         mHaveAllHistory = true;
         mHasMoreHistoryInDb = false;
         CALL_DB(setHaveAllHistory, true);
@@ -4948,24 +4955,14 @@ time_t Chat::handleRetentionTime(bool updateTimer)
         CALL_DB(setLastReceived, 0);
 
         mAttachmentNodes->truncateHistory(Id::inval());
-
-        mOldestKnownMsgId = 0;
         mNextHistFetchIdx = CHATD_IDX_INVALID;
     }
     else
     {
-        // Find oldest msg id in loaded messages in RAM
-        if (!mBackwardList.empty())
-        {
-            mOldestKnownMsgId =  mBackwardList.back()->id();
-        }
-        else if (!mForwardList.empty())
-        {
-            mOldestKnownMsgId = mForwardList.front()->id();
-        }
-
         truncateAttachmentHistory();
     }
+
+    getDbHistInfoAndInitOldestKnownMsgId(); // get oldest known msgId from Db if any
 
     if (notifyUnreadChanged)
     {
@@ -5045,6 +5042,36 @@ Id Chat::makeRandomId()
     static std::uniform_int_distribution<uint64_t>distrib(0, 0xffffffffffffffff);
     static std::random_device rd;
     return distrib(rd);
+}
+
+void Chat::resetOldestKnownMsgId()
+{
+    mOldestKnownMsgId = karere::Id::null();
+}
+
+ChatDbInfo Chat::getDbHistInfoAndInitOldestKnownMsgId()
+{
+    ChatDbInfo info;
+    mDbInterface->getHistoryInfo(info);
+    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
+    return info;
+}
+
+bool Chat::hasMoreHistoryInDb() const
+{
+    if (mOldestKnownMsgId.isNull()) { return false; }
+
+    const Message* msg = findOrNull(lownum());
+    if (!msg)
+    {
+        CHATD_LOG_ERROR("hasMoreHistoryInDb: Can't find msg in RAM with Idx: %d", lownum());
+        assert(false);
+        return false;
+    }
+
+    // if Id of msg with oldest Idx in RAM is different than stored in Db (and both are valid)
+    // we can assume that we have more history in Db
+    return msg->id() != mOldestKnownMsgId;
 }
 
 void Chat::deleteOlderMessagesIncluding(Idx idx)

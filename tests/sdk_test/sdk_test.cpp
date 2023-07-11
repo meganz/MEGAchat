@@ -715,8 +715,8 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
 
 void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action)
 {
-    ASSERT_TRUE(exitFlags.size() == flagsStr.size() || flagsStr.empty()) << "waitForCallAction: no valid action provided";
-    ASSERT_TRUE(action) << "waitForCallAction: no valid action provided";
+    ASSERT_TRUE(exitFlags.size() == flagsStr.size() || flagsStr.empty()) << "waitForAction: invalid flags provided";
+    ASSERT_TRUE(action) << "waitForAction: no valid action provided";
 
     if (resetFlags)
     {
@@ -4426,6 +4426,12 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
  * + Test3: A kicks (completely disconnect) B from call
  *
  */
+struct MrProper
+{
+    std::function<void()> cleanup;
+    ~MrProper() { cleanup(); }
+};
+
 TEST_F(MegaChatApiTest, WaitingRooms)
 {
     unsigned a1 = 0;
@@ -4591,6 +4597,34 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     {
         mCallIdExpectedReceived[a2] = auxCall->getCallId();
     }
+    const auto testCleanup = [this, a1, a2, chatid, callid = auxCall->getCallId(),
+                              crl = chatroomListener.get(), lvlA = &localVideoListenerA, lvlB = &localVideoListenerB]()
+    {
+        LOG_debug << "T_WaitingRooms: A ends call for all participants";
+        ASSERT_NO_FATAL_FAILURE({
+                waitForAction (1,
+                               std::vector<bool *> { &mCallDestroyed[a1], &mCallDestroyed[a2] },
+                               std::vector<string> { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
+                               "A ends call for all participants",
+                               true /* wait for all exit flags*/,
+                               true /*reset flags*/,
+                               maxTimeout,
+                               [this, a1, callid]()
+                                   {
+                                       ChatRequestTracker crtEndCall;
+                                       megaChatApi[a1]->endChatCall(callid, &crtEndCall);
+                                       ASSERT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                                           << "Failed to end call. Error: " << crtEndCall.getErrorString();
+                                   });
+            });
+
+        LOG_debug << "Unregistering chatRoomListeners and localVideoListeners";
+        megaChatApi[a1]->closeChatRoom(chatid, crl);
+        megaChatApi[a2]->closeChatRoom(chatid, crl);
+        megaChatApi[a1]->removeChatLocalVideoListener(chatid, lvlA);
+        megaChatApi[a2]->removeChatLocalVideoListener(chatid, lvlB);
+    };
+    MrProper p {testCleanup};
 
     ASSERT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid from call emisor";
     ASSERT_TRUE((mCallIdJoining[a1] == mCallIdRingIn[a2]) && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE)) << "A and B are in different call";
@@ -4641,30 +4675,6 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // ------------------------------------------------------------------------------------------------------
     LOG_debug << "T_WaitingRooms3: A kicks (completely disconnect) B from call";
     kickFromCall();
-
-    LOG_debug << "T_WaitingRooms: A ends call for all participants";
-    ASSERT_NO_FATAL_FAILURE({
-        waitForAction (1,
-                      std::vector<bool *> { &mCallDestroyed[a1], &mCallDestroyed[a2] },
-                      std::vector<string> { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
-                      "A ends call for all participants",
-                      true /* wait for all exit flags*/,
-                      true /*reset flags*/,
-                      maxTimeout,
-                      [this, a1, callid = auxCall->getCallId()]()
-                      {
-                          ChatRequestTracker crtEndCall;
-                          megaChatApi[a1]->endChatCall(callid, &crtEndCall);
-                          ASSERT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to end call. Error: " << crtEndCall.getErrorString();
-                      });
-    });
-
-    // close & cleanup
-    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener.get());
-    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener.get());
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListenerA);
-    megaChatApi[a2]->removeChatLocalVideoListener(chatid, &localVideoListenerB);
 }
 
 /**
@@ -6415,6 +6425,7 @@ void MegaChatApiTest::inviteToChat (const unsigned int& a1, const unsigned int& 
     mChatListUpdated[a2].clear();
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 bool* MegaChatApiTest::getChatCallStateFlag (unsigned int index, int state)
 {
     switch (state)
@@ -6425,7 +6436,7 @@ bool* MegaChatApiTest::getChatCallStateFlag (unsigned int index, int state)
     default:                                              break;
     }
 
-    ADD_FAILURE() << "Invalid account state";
+    ADD_FAILURE() << "Invalid account state " << state;
     return nullptr;
 }
 
@@ -6471,6 +6482,7 @@ void MegaChatApiTest::waitForCallAction (unsigned int pIdx, int maxAttempts, boo
         }
     }
 }
+#endif
 
 void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsigned int& a2, const MegaChatHandle& uh, const MegaChatHandle& chatid,
                                            const int privilege, std::shared_ptr<TestChatRoomListener>chatroomListener)
