@@ -4956,22 +4956,13 @@ time_t Chat::handleRetentionTime(bool updateTimer)
 
         mAttachmentNodes->truncateHistory(Id::inval());
         mNextHistFetchIdx = CHATD_IDX_INVALID;
-        getDbHistInfoAndInitOldestKnownMsgId(); // get oldest known msgId from Db if any
     }
     else
     {
-        // Find oldest msg id in loaded messages in RAM
-        if (!mBackwardList.empty())
-        {
-            mOldestKnownMsgId = mBackwardList.back()->id();
-        }
-        else if (!mForwardList.empty())
-        {
-            mOldestKnownMsgId = mForwardList.front()->id();
-        }
-
         truncateAttachmentHistory();
     }
+
+    getDbHistInfoAndInitOldestKnownMsgId(); // get oldest known msgId from Db if any
 
     if (notifyUnreadChanged)
     {
