@@ -494,7 +494,7 @@ void Chat::login()
     // In both cases (join/joinrangehist), don't block history messages being sent to app
     mServerOldHistCbEnabled = false;
 
-    ChatDbInfo&& info = getOldestKnownMsgIdFromDb();
+    ChatDbInfo&& info = getDbHistInfoAndInitOldestKnownMsgId();
     sendReactionSn();
 
     if (previewMode())
@@ -1941,7 +1941,7 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     assert(mDbInterface);
     initChat();
     mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(*mDbInterface, *this));
-    ChatDbInfo&& info = getOldestKnownMsgIdFromDb();
+    ChatDbInfo&& info = getDbHistInfoAndInitOldestKnownMsgId();
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
@@ -2056,7 +2056,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
         assert(messages.size() >= count || !mHasMoreHistoryInDb);
 
         // try to update mOldestKnownMsgId with current Db state
-        getOldestKnownMsgIdFromDb();
+        getDbHistInfoAndInitOldestKnownMsgId();
         mHasMoreHistoryInDb = hasMoreHistoryInDb();
         if (mHasMoreHistoryInDb)
         {
@@ -4956,7 +4956,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
 
         mAttachmentNodes->truncateHistory(Id::inval());
         mNextHistFetchIdx = CHATD_IDX_INVALID;
-        getOldestKnownMsgIdFromDb(); // get oldest known msgId from Db if any
+        getDbHistInfoAndInitOldestKnownMsgId(); // get oldest known msgId from Db if any
     }
     else
     {
@@ -5058,7 +5058,7 @@ void Chat::resetOldestKnownMsgId()
     mOldestKnownMsgId = karere::Id::null();
 }
 
-ChatDbInfo Chat::getOldestKnownMsgIdFromDb()
+ChatDbInfo Chat::getDbHistInfoAndInitOldestKnownMsgId()
 {
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
