@@ -1578,7 +1578,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
     commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
-    commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
+    commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
     commands[WrDumpCommand::COMMAND_NAME] = mega::make_unique<WrDumpCommand>(std::bind(&sfu::SfuInterface::handleWrDump, &call, std::placeholders::_1), call);
     commands[WrEnterCommand::COMMAND_NAME] = mega::make_unique<WrEnterCommand>(std::bind(&sfu::SfuInterface::handleWrEnter, &call, std::placeholders::_1), call);
     commands[WrLeaveCommand::COMMAND_NAME] = mega::make_unique<WrLeaveCommand>(std::bind(&sfu::SfuInterface::handleWrLeave, &call, std::placeholders::_1), call);
@@ -2668,17 +2668,6 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'na' field");
     }
 
-    unsigned int nVideoTracks = 0;
-    rapidjson::Value::ConstMemberIterator nvIterator = command.FindMember("nv");
-    if (nvIterator != command.MemberEnd() && cidIterator->value.IsUint())
-    {
-        nVideoTracks = nvIterator->value.GetUint();
-    }
-    else
-    {
-        SFU_LOG_ERROR("HelloCommand: Received data doesn't have 'nv' field");
-    }
-
     // parse moderators list
     std::set<karere::Id> moderators;
     rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
@@ -2719,7 +2708,7 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
             return false;
         }
     }
-    return mComplete(cid, nAudioTracks, nVideoTracks, moderators, wr, allowed, wrUsers);
+    return mComplete(cid, nAudioTracks, moderators, wr, allowed, wrUsers);
 }
 
 WrDumpCommand::WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call)

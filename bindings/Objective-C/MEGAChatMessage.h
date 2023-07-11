@@ -62,6 +62,20 @@ typedef NS_ENUM(NSInteger, MEGAChatMessageEndCallReason) {
     MEGAChatMessageEndCallReasonByModerator = 6,
 };
 
+typedef NS_ENUM(NSInteger, MEGAChatMessageScheduledMeetingChangeType) {
+    MEGAChatMessageScheduledMeetingChangeTypeParent             = 1,
+    MEGAChatMessageScheduledMeetingChangeTypeTimezone           = 2,
+    MEGAChatMessageScheduledMeetingChangeTypeStartDate          = 3,
+    MEGAChatMessageScheduledMeetingChangeTypeEndDate            = 4,
+    MEGAChatMessageScheduledMeetingChangeTypeTitle              = 5,
+    MEGAChatMessageScheduledMeetingChangeTypeDescription        = 6,
+    MEGAChatMessageScheduledMeetingChangeTypeAttributes         = 7,
+    MEGAChatMessageScheduledMeetingChangeTypeOverride           = 8,
+    MEGAChatMessageScheduledMeetingChangeTypeCancelled          = 9,
+    MEGAChatMessageScheduledMeetingChangeTypeFlags              = 10,
+    MEGAChatMessageScheduledMeetingChangeTypeRules              = 11,
+};
+
 NS_ASSUME_NONNULL_BEGIN
 
 @interface MEGAChatMessage : NSObject
@@ -99,6 +113,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (uint64_t)userHandleAtIndex:(NSUInteger)index;
 - (nullable NSString *)userNameAtIndex:(NSUInteger)index;
 - (nullable NSString *)userEmailAtIndex:(NSUInteger)index;
+- (BOOL)hasScheduledMeetingChangeForType:(MEGAChatMessageScheduledMeetingChangeType)changeType;
 
 + (NSString *)stringForChangeType:(MEGAChatMessageChangeType)changeType;
 + (NSString *)stringForStatus:(MEGAChatMessageStatus)status;

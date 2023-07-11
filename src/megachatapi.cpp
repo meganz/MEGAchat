@@ -1098,6 +1098,11 @@ void MegaChatApi::startMeetingBypassWaitingRoom(const MegaChatHandle chatid, con
     pImpl->startChatCall(chatid, true /*adhoc*/, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE, listener);
 }
 
+void MegaChatApi::ringIndividualInACall(MegaChatHandle chatId, MegaChatHandle userId, MegaChatRequestListener* listener)
+{
+    pImpl->ringIndividualInACall(chatId, userId, listener);
+}
+
 void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
     pImpl->answerChatCall(chatid, enableVideo, enableAudio, listener);
@@ -1213,9 +1218,9 @@ int MegaChatApi::getMaxCallParticipants()
     return pImpl->getMaxCallParticipants();
 }
 
-int MegaChatApi::getMaxVideoCallParticipants()
+int MegaChatApi::getMaxSupportedVideoCallParticipants() const
 {
-    return pImpl->getMaxVideoCallParticipants();
+    return pImpl->getMaxSupportedVideoCallParticipants();
 }
 
 bool MegaChatApi::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
@@ -1317,6 +1322,16 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatH
 void MegaChatApi::setSFUid(int sfuid)
 {
     pImpl->setSFUid(sfuid);
+}
+
+int MegaChatApi::getCurrentInputVideoTracksLimit() const
+{
+    return pImpl->getCurrentInputVideoTracksLimit();
+}
+
+bool MegaChatApi::setCurrentInputVideoTracksLimit(const int numInputVideoTracks)
+{
+    return pImpl->setCurrentInputVideoTracksLimit(numInputVideoTracks);
 }
 #endif
 
