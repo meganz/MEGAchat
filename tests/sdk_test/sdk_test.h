@@ -25,6 +25,7 @@
 #include "megachatapi.h"
 #include <chatClient.h>
 #include <future>
+#include <fstream> // Win build requires it
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -256,6 +257,7 @@ protected:
     void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                                std::shared_ptr<TestChatRoomListener>chatroomListener);
 
+#ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
 
@@ -272,6 +274,7 @@ protected:
     // if call gets disconnected before action is executed, command queue will be cleared, so we need to wait
     // until performer account is connected (CALL_STATUS_IN_PROGRESS) to SFU for that call and re-try <action>
     void waitForCallAction (unsigned int pIdx, int maxAttempts, bool* exitFlag,  const char* errMsg, unsigned int timeout, std::function<void()>action);
+#endif
 
     ::mega::MegaApi* megaApi[NUM_ACCOUNTS];
     megachat::MegaChatApi* megaChatApi[NUM_ACCOUNTS];
