@@ -1714,9 +1714,9 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
 
             MegaChatHandle schedId = request->getUserHandle();
             const bool waitingRoom = request->getPrivilege();
-            if (waitingRoom != chatroom->isWaitingRoom())
+            if (waitingRoom && !chatroom->isWaitingRoom())
             {
-                API_LOG_ERROR("Start call - trying to start a meeting with the wrong params");
+                API_LOG_ERROR("Start call - trying to start a call in a waiting room chat, but option is currently disabled");
                 return MegaChatError::ERROR_ARGS;
             }
 

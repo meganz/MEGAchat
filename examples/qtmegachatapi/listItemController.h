@@ -84,7 +84,7 @@ public slots:
     void onSetOpenInvite(bool enable);
     void onSetSpeakRequest(bool enable);
     void onSetWaitingRoom(bool enable);
-    void onAddhocCall();
+    void onWaitingRoomCall();
 
 private:
     void onPushReceived(unsigned int type);

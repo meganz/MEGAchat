@@ -454,8 +454,8 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
 
     QMenu* callsMenu = menu.addMenu("Call's management");
-    auto actAdhocCall = callsMenu->addAction(tr("Add-hoc call"));
-    connect(actAdhocCall, SIGNAL(triggered()), mController, SLOT(onAddhocCall()));
+    auto actAdhocCall = callsMenu->addAction(tr("Waiting Room Call"));
+    connect(actAdhocCall, SIGNAL(triggered()), mController, SLOT(onWaitingRoomCall()));
 
     QMenu *roomMenu = menu.addMenu("Room's management");
 

@@ -6001,11 +6001,10 @@ public:
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Starts a call bypassing waiting room in a chatroom that has this option enabled
+     * @brief Starts a call in a chatroom with waiting room option enabled
      *
-     * When waiting room is enabled, all participants will be redirected to it, when they start/answer a call.
-     * By calling to this method, we instruct server to ignore waiting room for this call, so all participants
-     * that answer that call will be redirected to it, without passing by the waiting room.
+     * When waiting room is enabled, all participants will be redirected to it, when they start/answer a call,
+     * unless the user that starts the call, instruct server to bypass waiting room. Check schedId param below.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -6049,12 +6048,15 @@ public:
      * To receive call notifications, the app needs to register MegaChatCallListener.
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param schedId MegaChatHandle scheduled meeting id that identifies the scheduled meeting context in which we will start the call
+     * @param schedId MegaChatHandle scheduled meeting id, that identifies the scheduled meeting context in which we will start the call.
+     *  - If it's valid, users will be redirected to Waiting room when they answer, but the call and call won't ring to the rest of participants
+     *    The rest of participants will be notified that there's a new call via MegaChatCallListener::onChatCallUpdate.
+     *  - If it's MEGACHAT_INVALID_HANDLE, Waiting room will be ignored, and call will ring for the rest of participants
      * @param enableVideo True for audio-video call, false for audio call
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void startMeetingBypassWaitingRoom(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
+    void startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Hang up a call
