@@ -5037,13 +5037,15 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (a1, smDataTests127); });
 
     /// <fetching new ScheduledMeeting MegaChatMessage>
-    auto& uh = a2;
+    auto& uIndex = a2;
     auto crListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
-    ASSERT_TRUE(megaChatApi[uh]->openChatRoom(chatid, crListener.get())) << "Cannot open chatroom";
+    ASSERT_TRUE(megaChatApi[uIndex]->openChatRoom(chatid, crListener.get())) << "Cannot open chatroom";
 
-    const auto ret = megaChatApi[uh]->loadMessages(chatid, 10);
+    bool* flagHistoryLoaded = &crListener->historyLoaded[uIndex]; *flagHistoryLoaded = false;
+    ASSERT_NE(megaChatApi[uIndex]->loadMessages(chatid, 10), MegaChatApi::SOURCE_ERROR);
+    ASSERT_TRUE(waitForResponse(flagHistoryLoaded)) << "Expired timeout for loading history";
 
-    megaChatApi[uh]->closeChatRoom(chatid, crListener.get());
+    megaChatApi[uIndex]->closeChatRoom(chatid, crListener.get());
     crListener.reset();
     /// </fetching new ScheduledMeeting MegaChatMessage>
 
