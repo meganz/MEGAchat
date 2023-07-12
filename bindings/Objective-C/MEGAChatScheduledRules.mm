@@ -52,12 +52,18 @@ using namespace mega;
     return self;
 }
 
+- (void)dealloc {
+    if (self.cMemoryOwn){
+        delete _megaChatScheduledRules;
+    }
+}
+
 - (MegaChatScheduledRules *)getCPtr {
     return self.megaChatScheduledRules;
 }
 
 - (instancetype)clone {
-    return self.megaChatScheduledRules ? [[MEGAChatScheduledRules alloc] initWithMegaChatScheduledRules:self.megaChatScheduledRules cMemoryOwn:YES] : nil;
+    return self.megaChatScheduledRules ? [[MEGAChatScheduledRules alloc] initWithMegaChatScheduledRules:self.megaChatScheduledRules->copy() cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatScheduledRulesFrequency)frequency {

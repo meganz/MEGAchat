@@ -1458,14 +1458,52 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 }
 
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(NSInteger)startDate endDate:(NSInteger)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled flags:(MEGAChatScheduledFlags *)flags rules:(MEGAChatScheduledRules *)rules {
+- (void)updateScheduledMeeting:(uint64_t)chatId
+                   scheduledId:(uint64_t)scheduledId
+                      timezone:(NSString *)timezone
+                     startDate:(uint64_t)startDate
+                       endDate:(uint64_t)endDate
+                         title:(NSString *)title
+                   description:(NSString *)description
+                     cancelled:(BOOL)cancelled
+                         flags:(MEGAChatScheduledFlags *)flags
+                     rules:(MEGAChatScheduledRules *)rules {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, (int)startDate, (int)endDate, title.UTF8String, description.UTF8String, cancelled, flags.getCPtr, rules.getCPtr);
+    self.megaChatApi->updateScheduledMeeting(chatId,
+                                             scheduledId,
+                                             timezone.UTF8String,
+                                             startDate,
+                                             endDate,
+                                             title.UTF8String,
+                                             description.UTF8String,
+                                             cancelled,
+                                             flags.getCPtr,
+                                             rules.getCPtr);
 }
 
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(NSInteger)startDate endDate:(NSInteger)endDate title:(NSString *)title description:(NSString *)description cancelled:(BOOL)cancelled flags:(MEGAChatScheduledFlags *)flags rules:(MEGAChatScheduledRules *)rules delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)updateScheduledMeeting:(uint64_t)chatId
+                   scheduledId:(uint64_t)scheduledId
+                      timezone:(NSString *)timezone
+                     startDate:(uint64_t)startDate
+                       endDate:(uint64_t)endDate
+                         title:(NSString *)title
+                   description:(NSString *)description
+                     cancelled:(BOOL)cancelled
+                         flags:(MEGAChatScheduledFlags *)flags
+                     rules:(MEGAChatScheduledRules *)rules
+                      delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, (int)startDate, (int)endDate, title.UTF8String, description.UTF8String, cancelled,  flags.getCPtr, rules.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->updateScheduledMeeting(chatId,
+                                             scheduledId,
+                                             timezone.UTF8String,
+                                             startDate,
+                                             endDate,
+                                             title.UTF8String,
+                                             description.UTF8String,
+                                             cancelled,
+                                             flags.getCPtr,
+                                             rules.getCPtr,
+                                             [self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeGlobalUserInitiated]);
 }
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled {
@@ -1475,7 +1513,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeetingOccurrence(chatId, scheduledId, overrides, newStartDate, newEndDate, newCancelled, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->updateScheduledMeetingOccurrence(chatId, scheduledId, overrides, newStartDate, newEndDate, newCancelled, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeGlobalUserInitiated]);
 }
 
 - (void)removeScheduledMeeting:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId {
