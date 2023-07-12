@@ -16,7 +16,7 @@ using namespace megachat;
 @implementation MEGAChatSession
 
 - (instancetype)initWithMegaChatSession:(MegaChatSession *)megaChatSession cMemoryOwn:(BOOL)cMemoryOwn {
-    NSParameterAssert(MEGAChatSession);
+    NSParameterAssert(megaChatSession);
     
     if (self = [super init]) {
         _megaChatSession = megaChatSession;

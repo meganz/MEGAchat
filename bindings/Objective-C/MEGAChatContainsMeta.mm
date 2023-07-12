@@ -19,7 +19,7 @@ using namespace megachat;
 @implementation MEGAChatContainsMeta
 
 - (instancetype)initWithMegaChatContainsMeta:(MegaChatContainsMeta *)megaChatContainsMeta cMemoryOwn:(BOOL)cMemoryOwn {
-    NSParameterAssert(megaChatMessage);
+    NSParameterAssert(megaChatContainsMeta);
     
     if (self = [super init]) {
         _megaChatContainsMeta = megaChatContainsMeta;
