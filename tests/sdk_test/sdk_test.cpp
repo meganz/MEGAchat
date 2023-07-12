@@ -4321,25 +4321,19 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(disableAudioFor(a1, a2));
     /////////// </optional>
 
-    const auto waitStopRingingForC = [this, &waitForAllExitFlags, &a3](const bool timeoutExpected = false)
+    const auto waitStopRingingForC = [this, &waitForAllExitFlags, &a3]()
     {
         LOG_debug << "# Wait for ringing timeout on C";
         bool* exitFlag = &mCallStopRinging[a3];
-        ASSERT_TRUE(timeoutExpected || waitForMultiResponse({exitFlag}, waitForAllExitFlags))
+        ASSERT_TRUE(waitForMultiResponse({exitFlag}, waitForAllExitFlags))
             << "Timeout for C waiting the ringing to stop";
-        if (!timeoutExpected)
-        {
-            const std::string pref {"error on C ringing timeout: "};
-            ASSERT_NE(mCallIdStopRingIn[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing call id";
-            ASSERT_EQ(mCallIdStopRingIn[a3], mCallIdExpectedReceived[a3]) << pref << "unexpected call id";
-            ASSERT_NE(mChatIdStopRingInCall[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing chat id";
-            *exitFlag = false;
-            LOG_debug << "# C's call stop ringing";
-        }
-        else
-        {
-            LOG_debug << "# C didn't receive a stop ringing call but it was expected";
-        }
+
+        const std::string pref {"error on C ringing timeout: "};
+        ASSERT_NE(mCallIdStopRingIn[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing call id";
+        ASSERT_EQ(mCallIdStopRingIn[a3], mCallIdExpectedReceived[a3]) << pref << "unexpected call id";
+        ASSERT_NE(mChatIdStopRingInCall[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing chat id";
+        *exitFlag = false;
+        LOG_debug << "# C's call stop ringing";
     };
     ASSERT_NO_FATAL_FAILURE(waitStopRingingForC());
 
@@ -4360,9 +4354,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     LOG_debug << "/ C acknowledges individual ringing";
     ASSERT_NO_FATAL_FAILURE(waitRingingForC());
     LOG_debug << "/ C waits for individual ringing timeout";
-    const bool isRingingIndividuallyTimeoutMissing = false;
-    ASSERT_NO_FATAL_FAILURE(waitStopRingingForC(isRingingIndividuallyTimeoutMissing));
-
+    ASSERT_NO_FATAL_FAILURE(waitStopRingingForC());
 
     LOG_debug << "- B hangs up the call";
     bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1]; *sessionWasDestroyedA = false;
