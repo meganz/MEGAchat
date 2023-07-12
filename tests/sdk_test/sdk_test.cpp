@@ -4197,8 +4197,6 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ensureContact(a2, a3);
 
     LOG_debug << "\tGet or create a group chatroom with all users";
-    LOG_debug << "\tSwitching to staging (Shard 2) for group creation";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
     const auto getContactUserHandle = [this](const auto src, const auto target) -> MegaChatHandle
     {
         std::unique_ptr<MegaUser> user(megaApi[src]->getContact(account(target).getEmail().c_str()));
@@ -4213,8 +4211,6 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NE(chatId, MEGACHAT_INVALID_HANDLE) << "Common chat for all users not found.";
     ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatId), MegaChatApi::CHAT_CONNECTION_ONLINE)
         << "Not connected to chatd for account " << account(a1).getEmail() << "(" << a1 + 1 << ")";
-    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation\n";
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 
     auto chatroomListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatId);
     const auto openChatRoom = [this, &chatId, l = chatroomListener.get()](const auto idx, const std::string& u)
