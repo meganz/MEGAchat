@@ -3132,11 +3132,10 @@ void Chat::manageReaction(const Message &message, const std::string &reaction, O
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
 }
 
-void Chat::ringIndividualInACall(karere::Id userToCallId, karere::Id callId)
+void Chat::ringIndividualInACall(const karere::Id& userToCallId, const karere::Id& callId, const int16_t ringTimeout)
 {
     const Opcode opcode = OP_RINGUSER;
     static const int8_t callState = 1;
-    static const int16_t ringTimeout = 3; // Magic number to be defined by Product
     sendCommand(Command(opcode) + mChatId + userToCallId + callId + callState + ringTimeout);
 }
 

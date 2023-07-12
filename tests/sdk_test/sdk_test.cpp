@@ -4343,13 +4343,13 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     LOG_debug << "\tchatId " << toHandle(chatId) << " userId " << toHandle(userId) << " callId " << toHandle(callId);
     action = [this, &a1, &chatId, &userId, &callId]()
     {
+        const int ringTimeout = 3; // ring timeout set specifically for this test
         ChatRequestTracker crtRingIndividualCall;
-        megaChatApi[a1]->ringIndividualInACall(chatId, userId, &crtRingIndividualCall);
+        megaChatApi[a1]->ringIndividualInACall(chatId, userId, ringTimeout, &crtRingIndividualCall);
         ASSERT_EQ(crtRingIndividualCall.waitForResult(), MegaChatError::ERROR_OK)
             << "Failed to ring individual in a call. Error: " << crtRingIndividualCall.getErrorString();
     };
     ASSERT_NO_FATAL_FAILURE(action());
-
 
     LOG_debug << "/ C acknowledges individual ringing";
     ASSERT_NO_FATAL_FAILURE(waitRingingForC());
