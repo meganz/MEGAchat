@@ -2053,7 +2053,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
         mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99018, "Can't load expected messages count from Db and mHasMoreHistoryInDb is true", false, static_cast<const char*>(nullptr));
         CHATID_LOG_ERROR("getHistoryFromDb: Loaded msg's from Db < expected count (%d < %d) for chatid: %s, but we still haven't seen mOldestKnownMsgId of %s"
                           , messages.size(), count, mChatId.toString().c_str(), std::to_string((int64_t)mOldestKnownMsgId.val).c_str());
-        assert(messages.size() >= count || !mHasMoreHistoryInDb);
+        assert(!((messages.size() < count) && mHasMoreHistoryInDb));
 
         // try to update mOldestKnownMsgId with current Db state
         getDbHistInfoAndInitOldestKnownMsgId();
@@ -4936,7 +4936,6 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
     {
         mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
-        resetOldestKnownMsgId();
         mHaveAllHistory = true;
         mHasMoreHistoryInDb = false;
         CALL_DB(setHaveAllHistory, true);
