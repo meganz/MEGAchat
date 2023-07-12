@@ -402,13 +402,13 @@ void Client::cancelRetentionTimer(bool resetTs)
 void Client::setRetentionTimer()
 {
     time_t retentionPeriod = mRetentionCheckTs - time(nullptr);
-    assert(retentionPeriod > 0); // next timer period (in seconds) must be a valid
-
-    // Avoid set timer with a smaller period than kMinRetentionTimeout, upon previous timer expiration.
-    // If there's an active timer, it's licit to set a timer with a smaller period than kMinRetentionTimeout.
-    retentionPeriod = (!mRetentionTimer && retentionPeriod > 0 && retentionPeriod < kMinRetentionTimeout)
-            ? kMinRetentionTimeout
-            : retentionPeriod;
+    if ((retentionPeriod <= 0) // if mRetentionCheckTs has passed, set to kMinRetentionTimeout
+        // Avoid set timer with a smaller period than kMinRetentionTimeout, upon previous timer expiration.
+        // If there's an active timer, it's licit to set a timer with a smaller period than kMinRetentionTimeout.
+        || (!mRetentionTimer && retentionPeriod < kMinRetentionTimeout))
+    {
+        retentionPeriod = kMinRetentionTimeout;
+    }
 
     cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckTs
     CHATD_LOG_DEBUG("set timer for next retention history check to %ld (seconds):", retentionPeriod);
