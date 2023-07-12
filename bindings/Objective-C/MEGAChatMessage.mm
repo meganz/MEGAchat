@@ -147,7 +147,8 @@ using namespace megachat;
 }
 
 - (MEGAHandleList *)handleList {
-    return self.megaChatMessage ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatMessage->getMegaHandleList() cMemoryOwn:YES] : nil;
+    if (!self.megaChatMessage) return nil;
+    return self.megaChatMessage->getMegaHandleList() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatMessage->getMegaHandleList()->copy() cMemoryOwn:YES] : nil;
 }
 
 - (NSInteger)duration {
@@ -184,6 +185,10 @@ using namespace megachat;
 
 - (NSString *)userEmailAtIndex:(NSUInteger)index {
     return self.megaChatMessage ? [[NSString alloc] initWithUTF8String:self.megaChatMessage->getUserEmail((unsigned int)index)] : nil;
+}
+
+- (BOOL)hasScheduledMeetingChangeForType:(MEGAChatMessageScheduledMeetingChangeType)changeType {
+    return self.megaChatMessage ? self.megaChatMessage->hasSchedMeetingChanged((int)changeType) : NO;
 }
 
 + (NSString *)stringForChangeType:(MEGAChatMessageChangeType)changeType {
@@ -294,6 +299,9 @@ using namespace megachat;
             break;
         case MEGAChatMessageTypeVoiceClip:
             result = @"Voice clip";
+            break;
+        case MEGAChatMessageTypeScheduledMeeting:
+            result = @"Scheduled Meeting";
             break;
         default:
             result = @"Default";

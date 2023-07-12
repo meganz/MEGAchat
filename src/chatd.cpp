@@ -1565,6 +1565,24 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(ID_CSTR(rsn));
             return tmpString;
         }
+        case OP_RINGUSER:
+        {
+            string tmpString;
+            karere::Id chatid = data.read<uint64_t>(1);
+            karere::Id userid = data.read<uint64_t>(9);
+            karere::Id callid = data.read<uint64_t>(17);
+            uint8_t callState = data.read<uint8_t>(25);
+            tmpString.append("RINGUSER chatid: ");
+            tmpString.append(ID_CSTR(chatid));
+            tmpString.append(" userid: ");
+            tmpString.append(ID_CSTR(userid));
+            tmpString.append(" callid: ");
+            tmpString.append(ID_CSTR(callid));
+            tmpString.append(" callstate: ");
+            tmpString.append(std::to_string(callState));
+
+            return tmpString;
+        }
 
         default:
             return opcodeToStr(opcode);
@@ -3109,6 +3127,13 @@ void Chat::manageReaction(const Message &message, const std::string &reaction, O
     CALL_DB(addPendingReaction, message.mId, reaction, encReaction, static_cast<uint8_t>(opcode));
     sendCommand(Command(static_cast<uint8_t>(opcode)) + mChatId + client().myHandle() + message.id()
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
+}
+
+void Chat::ringIndividualInACall(karere::Id userToCallId, karere::Id callId)
+{
+    const Opcode opcode = OP_RINGUSER;
+    static const int8_t callState = 1;
+    sendCommand(Command(opcode) + mChatId + userToCallId + callId + callState);
 }
 
 void Chat::sendReactionSn()

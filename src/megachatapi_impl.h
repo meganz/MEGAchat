@@ -1327,8 +1327,19 @@ private:
     static int convertDbError(int errCode);
     bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
+    int performRequest_archiveChat(MegaChatRequestPrivate* request);
+    int performRequest_loadUserAttributes(MegaChatRequestPrivate* request);
+    int performRequest_setChatRetentionTime(MegaChatRequestPrivate* request);
+    int performRequest_manageReaction(MegaChatRequestPrivate* request);
+    int performRequest_importMessages(MegaChatRequestPrivate* request);
     int performRequest_sendTypingNotification(MegaChatRequestPrivate* request);
 #ifndef KARERE_DISABLE_WEBRTC
+    int performRequest_startChatCall(MegaChatRequestPrivate* request);
+    int performRequest_answerChatCall(MegaChatRequestPrivate* request);
+    int performRequest_hangChatCall(MegaChatRequestPrivate* request);
+    int performRequest_setAudioVideoEnable(MegaChatRequestPrivate* request);
+    int performRequest_setCallOnHold(MegaChatRequestPrivate* request);
+    int performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request);
     int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
     int performRequest_speakRequest(MegaChatRequestPrivate* request);
     int performRequest_speakApproval(MegaChatRequestPrivate* request);
@@ -1339,6 +1350,7 @@ private:
     int performRequest_removeSpeaker(MegaChatRequestPrivate* request);
     int performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request);
     int performRequest_kickUsersFromCall(MegaChatRequestPrivate* request);
+    int performRequest_sendRingIndividualInACall(MegaChatRequestPrivate* request);
 #endif
     int performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request);
     int performRequest_fetchScheduledMeetingOccurrences(MegaChatRequestPrivate* request);
@@ -1375,6 +1387,8 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
     rtcModule::ICall* findCall(MegaChatHandle chatid);
+    int getCurrentInputVideoTracksLimit() const;
+    bool setCurrentInputVideoTracksLimit(const int numInputVideoTracks);
 #endif
 
     static void setCatchException(bool enable);
@@ -1598,6 +1612,7 @@ public:
 
     // Calls
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void ringIndividualInACall(MegaChatHandle chatId, MegaChatHandle userId, MegaChatRequestListener* listener = nullptr);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
@@ -1619,7 +1634,8 @@ public:
     mega::MegaHandleList *getChatCallsIds();
     bool hasCallInChatRoom(MegaChatHandle chatid);
     int getMaxCallParticipants();
-    int getMaxVideoCallParticipants();
+    int getMaxSupportedVideoCallParticipants();
+    bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const;
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);

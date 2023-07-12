@@ -119,7 +119,7 @@ using namespace megachat;
 
 - (MEGAChatScheduledFlags *)flags {
     if (!self.megaChatScheduledMeeting) return nil;
-    return [MEGAChatScheduledFlags.alloc initWithMegaChatScheduledFlags:self.megaChatScheduledMeeting->flags() cMemoryOwn:YES];
+    return [MEGAChatScheduledFlags.alloc initWithMegaChatScheduledFlags:self.megaChatScheduledMeeting->flags()->copy() cMemoryOwn:YES];
 }
 
 - (MEGAChatScheduledRules *)rules {

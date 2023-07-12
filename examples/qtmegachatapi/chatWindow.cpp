@@ -846,6 +846,10 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             auto actRemove = entry->addAction(tr("Remove from chat"));
             actRemove->setProperty("userHandle", userhandle);
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
+
+            auto actRing = entry->addAction(tr("Ring user"));
+            actRing->setProperty("userHandle", userhandle);
+            connect(actRing, SIGNAL(triggered()), this, SLOT(onRingUser()));
         }
 
         if (privilege != megachat::MegaChatRoom::PRIV_RM)
@@ -1050,6 +1054,15 @@ void ChatWindow::onMemberRemove()
     {
         mMegaChatApi->removeFromChat(mChatRoom->getChatId(), userhandle);
     }
+}
+
+void ChatWindow::onRingUser() const
+{
+    const QAction* action = qobject_cast<QAction *>(sender());
+    if (!action) { return; }
+
+    const QVariant uHandle = action->property("userHandle");
+    mMegaChatApi->ringIndividualInACall(mChatRoom->getChatId(), static_cast<MegaChatHandle>(uHandle.toLongLong()));
 }
 
 void ChatWindow::onMemberSetPriv()
