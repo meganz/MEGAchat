@@ -4398,11 +4398,6 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedB, "B" + err));
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedC, "C" + err + "(it never started)"));
 
-    LOG_debug << "# Leaving the chat room for each user";
-    leaveChat(a1, chatId);
-    leaveChat(a2, chatId);
-    leaveChat(a3, chatId);
-
     LOG_debug << "# Closing chat room for each user and removing its localVideoListener";
     const auto closeChatRoom =
         [this, &chatId, l = chatroomListener.get()](const auto u){ megaChatApi[u]->closeChatRoom(chatId, l); };
