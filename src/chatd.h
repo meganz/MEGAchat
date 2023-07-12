@@ -1425,7 +1425,7 @@ public:
     uint32_t getRetentionTime() const;
     Priv getOwnprivilege() const;
 
-    void ringIndividualInACall(karere::Id userToCallId, karere::Id callId);
+    void ringIndividualInACall(const karere::Id &userToCallId, const karere::Id &callId, const int16_t ringTimeout);
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

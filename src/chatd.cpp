@@ -1572,6 +1572,7 @@ string Command::toString(const StaticBuffer& data)
             karere::Id userid = data.read<uint64_t>(9);
             karere::Id callid = data.read<uint64_t>(17);
             uint8_t callState = data.read<uint8_t>(25);
+            uint16_t ringTimeout = data.read<uint16_t>(26);
             tmpString.append("RINGUSER chatid: ");
             tmpString.append(ID_CSTR(chatid));
             tmpString.append(" userid: ");
@@ -1580,6 +1581,8 @@ string Command::toString(const StaticBuffer& data)
             tmpString.append(ID_CSTR(callid));
             tmpString.append(" callstate: ");
             tmpString.append(std::to_string(callState));
+            tmpString.append(" ringing timeout: ");
+            tmpString.append(std::to_string(ringTimeout));
 
             return tmpString;
         }
@@ -3129,11 +3132,11 @@ void Chat::manageReaction(const Message &message, const std::string &reaction, O
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
 }
 
-void Chat::ringIndividualInACall(karere::Id userToCallId, karere::Id callId)
+void Chat::ringIndividualInACall(const karere::Id& userToCallId, const karere::Id& callId, const int16_t ringTimeout)
 {
     const Opcode opcode = OP_RINGUSER;
     static const int8_t callState = 1;
-    sendCommand(Command(opcode) + mChatId + userToCallId + callId + callState);
+    sendCommand(Command(opcode) + mChatId + userToCallId + callId + callState + ringTimeout);
 }
 
 void Chat::sendReactionSn()

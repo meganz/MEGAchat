@@ -1408,6 +1408,9 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         return false;
     }
 
+    // clear initial backoff as this connection attempt has succeeded
+    mSfuConnection->clearInitialBackoff();
+
     // set my own client-id (cid)
     mMyPeer->setCid(cid);
 

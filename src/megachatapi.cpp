@@ -1093,9 +1093,9 @@ void MegaChatApi::startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle s
    pImpl->startChatCall(chatid, enableVideo, enableAudio, schedId, listener);
 }
 
-void MegaChatApi::ringIndividualInACall(MegaChatHandle chatId, MegaChatHandle userId, MegaChatRequestListener* listener)
+void MegaChatApi::ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener)
 {
-    pImpl->ringIndividualInACall(chatId, userId, listener);
+    pImpl->ringIndividualInACall(chatId, userId, ringTimeout, listener);
 }
 
 void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)

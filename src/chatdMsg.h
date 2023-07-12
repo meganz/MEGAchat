@@ -552,7 +552,7 @@ enum Opcode
       * @brief
       * C->S: Call again user who didn't pick up the call
       *
-      * Receive: <chatid.8> <userid.8> <callid.8> <callstate.1>
+      * Receive: <chatid.8> <userid.8> <callid.8> <callstate.1> <timeout.2>
       */
     OP_RINGUSER = 59,
 
