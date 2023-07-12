@@ -1612,7 +1612,7 @@ public:
 
     // Calls
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
-    void ringIndividualInACall(MegaChatHandle chatId, MegaChatHandle userId, MegaChatRequestListener* listener = nullptr);
+    void ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener = nullptr);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
