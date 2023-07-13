@@ -613,7 +613,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatRoomList *)chatRoomsByType:(MEGAChatType)type {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatRoomList alloc] initWithMegaChatRoomList:self.megaChatApi->getChatRoomsByType(type) cMemoryOwn:YES];
+    return [[MEGAChatRoomList alloc] initWithMegaChatRoomList:self.megaChatApi->getChatRoomsByType((int)type) cMemoryOwn:YES];
 }
 
 - (MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId {
@@ -661,7 +661,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatListItemList *)chatListItemsByMask:(MEGAChatListMask)mask filter:(MEGAChatListFilter)filter {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(mask, filter) cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems((int)mask, (int)filter) cMemoryOwn:YES];
 }
 
 - (uint64_t)chatIdByUserHandle:(uint64_t)userHandle {
@@ -1381,7 +1381,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask {
     if (self.megaChatApi) {
-        return self.megaChatApi->hasChatOptionEnabled(option, chatOptionsBitMask);
+        return self.megaChatApi->hasChatOptionEnabled((int)option, (int)chatOptionsBitMask);
     }
     return NO;
 }
