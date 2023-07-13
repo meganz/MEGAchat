@@ -5092,10 +5092,13 @@ void Chat::deleteOlderMessagesIncluding(Idx idx)
     else
     {
         long startOffset = mForwardStart - idx - 1; // decrement 1 to include own idx
-        auto itStart = mBackwardList.begin() + startOffset;
+        auto itStart = static_cast<size_t>(startOffset) < mBackwardList.size()
+                           ? mBackwardList.begin() + startOffset
+                           : mBackwardList.end();
+
         auto itEnd = mBackwardList.end();
 
-        if (itStart >= mBackwardList.end()) // ensure that first element iterator is valid
+        if (itStart == mBackwardList.end()) // ensure that first element iterator is valid
         {
             /* - In case part of the history we want to remove was only loaded in DB we'll get an invalid startOffset
              * - In case there's only 1 message in mBackwardList and we are truncating history
