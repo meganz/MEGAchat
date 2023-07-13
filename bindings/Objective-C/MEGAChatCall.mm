@@ -150,7 +150,7 @@ using namespace megachat;
 - (NSString *)termcodeString:(MEGAChatCallTermCode)termcode {
     if (!self.megaChatCall) return @"";
 
-    const char *val = self.megaChatCall->termcodeToString(termcode);
+    const char *val = self.megaChatCall->termcodeToString((int)termcode);
     if (!val) return @"";
     return @(val);
 }
