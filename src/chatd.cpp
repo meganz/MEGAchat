@@ -5060,8 +5060,8 @@ bool Chat::hasMoreHistoryInDb() const
     if (!msg)
     {
         CHATD_LOG_ERROR("hasMoreHistoryInDb: Can't find msg in RAM with Idx: %d", lownum());
-        assert(false);
-        return false;
+        assert(msg);
+        return true;
     }
 
     // if Id of msg with oldest Idx in RAM is different than stored in Db (and both are valid)
