@@ -1663,6 +1663,7 @@ struct ChatDbInfo
 {
     karere::Id oldestDbId;
     karere::Id newestDbId;
+    Idx oldestDbIdx = CHATD_IDX_INVALID;
     Idx newestDbIdx;
     karere::Id lastSeenId;
     karere::Id lastRecvId;

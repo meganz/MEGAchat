@@ -4927,11 +4927,8 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     CALL_DB(retentionHistoryTruncate, idx);
     cleanPendingReactionsOlderThan(idx); //clean pending reactions, including previous indexes
     deleteOlderMessagesIncluding(idx);
-
     removePendingRichLinks(idx);
-
-    // update oldest index in db
-    mOldestIdxInDb = (idx + 1 <= highnum()) ? idx + 1 : CHATD_IDX_INVALID;
+    getDbHistInfoAndInitOldestKnownMsgId(); // update mOldestKnownMsgId and mOldestIdxInDb from Db
 
     if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
     {
@@ -4960,8 +4957,6 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     {
         truncateAttachmentHistory();
     }
-
-    getDbHistInfoAndInitOldestKnownMsgId(); // get oldest known msgId from Db if any
 
     if (notifyUnreadChanged)
     {
@@ -5053,6 +5048,7 @@ ChatDbInfo Chat::getDbHistInfoAndInitOldestKnownMsgId()
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
     mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
+    mOldestIdxInDb = info.oldestDbIdx;   // if no db history, getHistoryInfo stores CHATD_IDX_INVALID at ChatDbInfo::oldestDbIdx
     return info;
 }
 
