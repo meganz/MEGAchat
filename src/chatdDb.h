@@ -23,10 +23,16 @@ public:
         info.newestDbIdx = stmt.intCol(1);
         if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
         {
+            /* TODO: add a method to reset ChatDbInfo values to invalid/default ones
+             * taking into account that newestDbIdx maybe could be set to CHATD_IDX_INVALID
+             * instead of 0 (check usages of newestDbIdx).
+             */
             void* voidmem = &info; // avoid compiler warning...
-            memset(voidmem, 0, sizeof(info)); //actually need to zero only oldestDbId
+            memset(voidmem, 0, sizeof(info));     //  need to set oldestDbId to zero
+            info.oldestDbIdx = CHATD_IDX_INVALID; //  set oldestDbIdx to invalid
             return;
         }
+        info.oldestDbIdx = minIdx;
         SqliteStmt stmt2(mDb, "select msgid from "+mHistTblName+" where chatid=?1 and idx=?2");
         stmt2 << mChat.chatId() << minIdx;
         stmt2.stepMustHaveData();
@@ -38,7 +44,7 @@ public:
         {
             assert(false);  // if there's an oldest message, there should be always a newest message, even if it's the same one
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
-            info.oldestDbId = 0;
+            info.oldestDbId = karere::Id::null();
         }
         SqliteStmt stmt3(mDb, "select last_seen, last_recv from chats where chatid=?");
         stmt3 << mChat.chatId();
