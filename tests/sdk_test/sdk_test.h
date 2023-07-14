@@ -148,6 +148,31 @@ class MegaChatApiTest :
         public megachat::MegaChatScheduledMeetingListener
 {
 public:
+    struct SchedMeetingData
+    {
+        megachat::MegaChatHandle chatId = megachat::MEGACHAT_INVALID_HANDLE;
+        megachat::MegaChatHandle schedId = megachat::MEGACHAT_INVALID_HANDLE;
+        std::string timeZone, title, description;
+        megachat::MegaChatTimeStamp startDate = 0, endDate = 0, overrides = 0, newStartDate = 0, newEndDate = 0;
+        bool cancelled = false, newCancelled = false, publicChat = false, speakRequest = false,
+            waitingRoom = false, openInvite = false, isMeeting = false;
+        std::shared_ptr<megachat::MegaChatScheduledFlags> flags;
+        std::shared_ptr<megachat::MegaChatScheduledRules> rules;
+        std::shared_ptr<megachat::MegaChatPeerList> peerList;
+    };
+
+    static std::string getChatIdStrB64(const megachat::MegaChatHandle h)
+    {
+        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
+        return idB64 ? idB64.get() : "INVALID chatId";
+    };
+
+    static std::string getSchedIdStrB64(const megachat::MegaChatHandle h)
+    {
+        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
+        return idB64 ? idB64.get() : "INVALID schedId";
+    };
+
     MegaChatApiTest();
     ~MegaChatApiTest();
 
@@ -213,6 +238,9 @@ protected:
                                               const bool publicChat = false,
                                               const bool meetingRoom = false,
                                               const bool waitingRoom = false);
+
+    void createChatroomAndSchedMeeting (const unsigned int index, megachat::MegaChatHandle chatid,
+                                       const unsigned int a1, const unsigned int a2, const SchedMeetingData& smData);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 

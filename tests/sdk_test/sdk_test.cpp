@@ -4802,33 +4802,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     unsigned a2 = 1;
 
     // aux data structure to handle lambdas' arguments
-    struct SchedMeetingData
-    {
-        MegaChatHandle chatId = MEGACHAT_INVALID_HANDLE;
-        MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE;
-        std::string timeZone, title, description;
-        MegaChatTimeStamp startDate = 0, endDate = 0, overrides = 0, newStartDate = 0, newEndDate = 0;
-        bool cancelled = false, newCancelled = false, publicChat = false, speakRequest = false,
-                waitingRoom = false, openInvite = false, isMeeting = false;
-        std::shared_ptr<MegaChatScheduledFlags> flags;
-        std::shared_ptr<MegaChatScheduledRules> rules;
-        std::shared_ptr<MegaChatPeerList> peerList;
-    } smDataTests127, smDataTests456;
-
-    const auto getChatIdStrB64 = [](const MegaChatHandle h) -> std::string
-    {
-        const std::unique_ptr<char[]> idB64(MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID chatId";
-    };
-
-    const auto getSchedIdStrB64 = [](const MegaChatHandle h) -> std::string
-    {
-        const std::unique_ptr<char[]> idB64(MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID schedId";
-    };
+    SchedMeetingData smDataTests127, smDataTests456;
 
     // remove scheduled meeting
-    const auto deleteSchedMeeting = [this, &a1, &a2, &getSchedIdStrB64](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
+    const auto deleteSchedMeeting = [this, &a1, &a2](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
     {
         bool exitFlag = false;
         mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
@@ -4864,7 +4841,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     };
 
     // update scheduled meeting
-    const auto updateSchedMeeting = [this, &a1, &a2, &getSchedIdStrB64](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
+    const auto updateSchedMeeting = [this, &a1, &a2](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
     {
         bool exitFlag = false;
         mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
@@ -4970,7 +4947,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     };
 
     // update scheduled meeting occurrence
-    const auto updateOccurrence = [this, &a1, &a2, &getSchedIdStrB64, &fetchOccurrences, &printOccurrences, &occurrences](const unsigned int index, const unsigned int maxAttempts,
+    const auto updateOccurrence = [this, &a1, &a2, &fetchOccurrences, &printOccurrences, &occurrences](const unsigned int index, const unsigned int maxAttempts,
                                                                       const int expectedError, const int repeatError, const SchedMeetingData& smData) -> void
     {
         bool exitFlag = false;
@@ -5050,7 +5027,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
     // create chatroom and scheduled meeting
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
-    const auto createChatroomAndSchedMeeting = [this, &a1, &a2, &chatid, &getChatIdStrB64] (const unsigned int index, const SchedMeetingData& smData) -> void
+    const auto createChatroomAndSchedMeeting = [this, &a1, &a2, &chatid] (const unsigned int index, const SchedMeetingData& smData) -> void
     {
 
         // reset sched meetings id and chatid to invalid handle
@@ -5909,6 +5886,42 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
 
     return targetChatid;
 }
+
+// create chatroom and scheduled meeting
+void MegaChatApiTest::createChatroomAndSchedMeeting (const unsigned int index, MegaChatHandle chatid,
+                                                                                                  const unsigned int a1, const unsigned int a2, const SchedMeetingData& smData)
+{
+
+    // reset sched meetings id and chatid to invalid handle
+    mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE;
+
+    // create Meeting room and scheduled meeting
+    ASSERT_NO_FATAL_FAILURE({
+        waitForAction (1,
+                      std::vector<bool *> { &mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2], &chatItemUpdated[a2]},
+                      std::vector<string> { "mChatSchedMeeting[a1]", "mChatSchedMeeting[a2]", "chatItemUpdated[a2]"},
+                      "Creating meeting room and scheduled meeting from A",
+                      true /* wait for all exit flags*/,
+                      true /*reset flags*/,
+                      maxTimeout,
+                      [&api = megaChatApi[index], &d = smData, &chatid]()
+                      {
+                          ChatRequestTracker crtCreateAndSchedule;
+                          api->createChatroomAndSchedMeeting(d.peerList.get(), d.isMeeting, d.publicChat,
+                                                             d.title.c_str(), d.speakRequest, d.waitingRoom,
+                                                             d.openInvite, d.timeZone.c_str(), d.startDate, d.endDate,
+                                                             d.description.c_str(), d.flags.get(), d.rules.get(), nullptr /*attributes*/,
+                                                             &crtCreateAndSchedule);
+                          ASSERT_EQ(crtCreateAndSchedule.waitForResult(), MegaChatError::ERROR_OK)
+                              << "Failed to create chatroom and scheduled meeting. Error: " << crtCreateAndSchedule.getErrorString();
+                          chatid = crtCreateAndSchedule.getChatHandle();
+                          ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Invalid chatroom handle";
+                      });
+    });
+
+    ASSERT_NE(mSchedIdUpdated[a1], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for primary account could not be created. chatId: " << getChatIdStrB64(chatid);
+    ASSERT_NE(mSchedIdUpdated[a2], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for secondary account could not be created. chatId: " << getChatIdStrB64(chatid);
+};
 
 MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned int a2)
 {
