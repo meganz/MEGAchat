@@ -10653,6 +10653,10 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                     }
                 }
             }
+            else
+            {
+                API_LOG_ERROR("Error parsing Message for TYPE_SCHED_MEETING");
+            }
            break;
         }
         case MegaChatMessage::TYPE_SET_RETENTION_TIME:
