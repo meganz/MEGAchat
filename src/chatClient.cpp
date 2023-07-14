@@ -687,7 +687,7 @@ int Client::importMessages(const char *externalDbPath)
                 continue;
             }
 
-            chat.msgImport(move(msg), isUpdate);
+            chat.msgImport(std::move(msg), isUpdate);
             (isUpdate) ? countUpdated++ : countAdded++;
 
             KR_LOG_DEBUG("importMessages: message added (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
@@ -741,7 +741,7 @@ int Client::importMessages(const char *externalDbPath)
                     KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %s that must be deleted due to retention time policy", msg->id().toString().c_str());
                     continue;
                 }
-                chat.msgImport(move(msg), true);
+                chat.msgImport(std::move(msg), true);
                 countUpdated++;
 
                 KR_LOG_DEBUG("importMessages: message updated (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());

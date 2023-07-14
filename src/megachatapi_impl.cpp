@@ -6657,7 +6657,7 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
         }
     }
 
-    return new MegaStringListPrivate(move(reactions));
+    return new MegaStringListPrivate(std::move(reactions));
 }
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
@@ -6733,7 +6733,7 @@ MegaStringList *MegaChatApiImpl::getChatInDevices(const std::set<string> &device
         buffer.push_back(device);
     }
 
-    return new MegaStringListPrivate(move(buffer));
+    return new MegaStringListPrivate(std::move(buffer));
 }
 
 void MegaChatApiImpl::cleanCalls()
@@ -12272,7 +12272,7 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
             case MegaChatContainsMeta::CONTAINS_META_GIPHY:
             {
                 auto giphy = parseGiphy(document);
-                containsMeta->setGiphy(move(giphy));
+                containsMeta->setGiphy(std::move(giphy));
                 break;
             }
             default:
