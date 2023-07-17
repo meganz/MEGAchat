@@ -4430,7 +4430,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     unsigned a1 = 0;
     unsigned a2 = 1;
 
-    // [Test preparation] Prepare users, and chat room
+    // Test preparation. Prepare users, and chat room
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     ASSERT_TRUE(primarySession);
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
@@ -4474,6 +4474,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     smDataTests127.flags = nullptr;  // flags is not a mandatory field
     smDataTests127.rules = rules;
 
+    // Test preconditions: Get a meeting room with a scheduled meeting associated
     // Waiting rooms currently just works if there's a scheduled meeting created for the chatroom
     LOG_debug << "Test preconditions: Get a meeting room with a scheduled meeting associated";
     std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
@@ -4596,14 +4597,14 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         ASSERT_TRUE(mTerminationCode[a2] == MegaChatCall::TERM_CODE_KICKED) << "Unexpected termcode" << MegaChatCall::termcodeToString(mTerminationCode[a2]);
     };
 
-    auto startCallPrimaryAccount = [this, &a1, &a2, &chatid](const bool waitingRoom, const MegaChatHandle schedIdWr = MEGACHAT_INVALID_HANDLE){
+    auto startWaitingRoomCallPrimaryAccount = [this, &a1, &a2, &chatid](const MegaChatHandle schedIdWr = MEGACHAT_INVALID_HANDLE){
 
         mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
         mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
         mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
         mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
 
-        bool* receivedSecondary = waitingRoom
+        bool* receivedSecondary = schedIdWr != MEGACHAT_INVALID_HANDLE
                                       ? &mCallReceived[a2]
                                       : &mCallReceivedRinging[a2];
 
@@ -4615,33 +4616,30 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
                           maxTimeout,
-                          [this, &a1, &chatid, &waitingRoom, &schedIdWr]()
+                          [this, &a1, &chatid, &schedIdWr]()
                           {
                               ChatRequestTracker crtStartCall;
-                              waitingRoom
-                                  ? megaChatApi[a1]->startMeetingInWaitingRoomChat(chatid, schedIdWr, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall)
-                                  : megaChatApi[a1]->startChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall);
-
+                              megaChatApi[a1]->startMeetingInWaitingRoomChat(chatid, schedIdWr, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall);
                               ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
                                   << "Failed to start call. Error: " << crtStartCall.getErrorString();
                           });
         });
     };
 
-    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool addhoc){
+    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool waitingRoom){
 
         bool* waitingPrimary = nullptr;
         bool* waitingSecondary = nullptr;
 
-        if (addhoc)
-        {
-            waitingPrimary = &mChatCallSessionStatusInProgress[a1];
-            waitingSecondary = &mChatCallSessionStatusInProgress[a2];
-        }
-        else
+        if (waitingRoom) // peers that answers call will be redirectedinto waitinf room
         {
             waitingPrimary = &mCallWrChanged[a1];
             waitingSecondary = &mCallWR[a2];
+        }
+        else // waiting room will be bypassed by participants that answers the call
+        {
+            waitingPrimary = &mChatCallSessionStatusInProgress[a1];
+            waitingSecondary = &mChatCallSessionStatusInProgress[a2];
         }
 
         ASSERT_NO_FATAL_FAILURE({
@@ -4756,9 +4754,8 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     //          call won't ring for the rest of participants as schedId is provided
     // ----------------------------------------------------------------------------------------------------------------
     LOG_debug << "Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
-    ASSERT_NO_FATAL_FAILURE({startCallPrimaryAccount(true, schedId);});
+    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId);});
     unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(chatid));
-
 
     // B picks up the call
     LOG_debug << "B Pickups the call (should not ring)";
@@ -4766,7 +4763,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // B answers call and it's pushed into waiting room
     LOG_debug << "B Answers the call";
-    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(false);});
+    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(true /*waitingRoom*/);});
 
     std::unique_ptr<MegaChatCall> call(megaChatApi[a1]->getChatCall(chatid));
     std::unique_ptr<MegaChatWaitingRoom> wr(call && call->getWaitingRoom()
@@ -4803,7 +4800,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     megaChatApi[a1]->setSFUid(336);
     LOG_debug << "Test4: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)";
     mCallIdExpectedReceived[a1] = mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
-    ASSERT_NO_FATAL_FAILURE({startCallPrimaryAccount(true, MEGACHAT_INVALID_HANDLE /*schedId*/);});
+    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(MEGACHAT_INVALID_HANDLE /*schedId*/);});
 
     // B picks up the call and wait for ringing
     LOG_debug << "B Pickups the call and wait for ringing";
@@ -4812,7 +4809,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // B answers the call bypassing waiting room
     LOG_debug << "JDEBUG B Answers the call bypassing waiting room";
-    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(true /*adhoc*/);});
+    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(false /*waitingRoom*/);});
 }
 
 /**
@@ -5789,10 +5786,11 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
     auto hasValidSchedMeeting = [this](const MegaHandle chatid) -> bool
     {
         std::unique_ptr<MegaChatScheduledMeetingList> list(megaChatApi[0]->getScheduledMeetingsByChat(chatid));
-        if (!list || !list->size()) { return false; }
+        if (!list || list->size() != 1) { return false; } // just consider valid chatroom, those without childred scheduled meeting
         for (unsigned long i = 0; i < list->size(); i++)
         {
-            if (!list->at(i)->cancelled())
+            const auto sm = list->at(i);
+            if (sm && !sm->cancelled())
             {
                 return true;
             }
