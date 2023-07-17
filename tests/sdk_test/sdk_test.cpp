@@ -4455,15 +4455,52 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // Get a group chatroom with both users
     const MegaChatHandle uh = user->getHandle();
-    std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
-    const MegaChatHandle chatid = getGroupChatRoom({a1}, peers.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
-                                              true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/);
+    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
 
+    // Define a SchedMeetingData instance and initialize relevant fields
+    SchedMeetingData smDataTests127;
+    std::string timeZone = "Europe/Madrid";
+    const time_t now = time(nullptr);
+    const MegaChatTimeStamp startDate = now + 300;
+    const MegaChatTimeStamp endDate =  startDate + 600;
+    std::string title = "SMChat_" + std::to_string(now);
+    const std::shared_ptr<MegaChatPeerList> peerList(MegaChatPeerList::createInstance());
+    // create MegaChatScheduledRules
+    std::shared_ptr<MegaChatScheduledRules> rules(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_DAILY,
+                                                                                         MegaChatScheduledRules::INTERVAL_INVALID,
+                                                                                         MEGACHAT_INVALID_TIMESTAMP,
+                                                                                         nullptr, nullptr, nullptr));
+    peerList->addPeer(user->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    smDataTests127.peerList = peerList;
+    smDataTests127.isMeeting = true;
+    smDataTests127.publicChat = true;
+    smDataTests127.title = title;
+    smDataTests127.speakRequest = false;
+    smDataTests127.waitingRoom = true;
+    smDataTests127.openInvite = false;
+    smDataTests127.timeZone = timeZone;
+    smDataTests127.startDate = startDate;
+    smDataTests127.endDate = endDate;
+    smDataTests127.description = ""; // description is not a mandatory field
+    smDataTests127.flags = nullptr;  // flags is not a mandatory field
+    smDataTests127.rules = rules;
+
+    // Waiting rooms currently just works if there's a scheduled meeting created for the chatroom
+    LOG_debug << "Test preconditions: Create meeting room and scheduled meeting";
+    ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (chatid, a1, a2, smDataTests127); });
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Can't get/create a Meeting room with waiting room enabled";
     const std::unique_ptr<char[]> chatIdB64(MegaApi::userHandleToBase64(chatid));
     std::unique_ptr<MegaChatRoom> chatRoom(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom && chatRoom->isMeeting() && chatRoom->isWaitingRoom()) << "Can't retrieve Meeting room with waiting room enabled. chatid: "
                                                                                 << chatIdB64.get();
+
+    // get scheduled meeting for chatroom created
+    std::unique_ptr <MegaChatScheduledMeetingList> schedlist(megaChatApi[a1]->getScheduledMeetingsByChat(chatid));
+    ASSERT_TRUE(schedlist && schedlist->size() == 1) << "Chat doesn't have scheduled meetings";
+
+    const MegaChatScheduledMeeting* sm = schedlist->at(0);
+    ASSERT_TRUE(sm && sm->parentSchedId() == MEGACHAT_INVALID_HANDLE && sm->schedId() != MEGACHAT_INVALID_HANDLE) << "Invalid schedid";
+    const MegaChatHandle schedId = sm->schedId();
 
     ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatid), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
         "Not connected to chatd for account " << (a1+1) << ": " << account(a1).getEmail();

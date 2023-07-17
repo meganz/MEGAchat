@@ -6049,9 +6049,9 @@ public:
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param schedId MegaChatHandle scheduled meeting id, that identifies the scheduled meeting context in which we will start the call.
-     *  - If it's valid, users will be redirected to Waiting room when they answer, but the call and call won't ring to the rest of participants
+     *  - If it's valid, users will be redirected to Waiting room when they answer, but the call won't ring to the rest of participants
      *    The rest of participants will be notified that there's a new call via MegaChatCallListener::onChatCallUpdate.
-     *  - If it's MEGACHAT_INVALID_HANDLE, Waiting room will be ignored, and call will ring for the rest of participants
+     *  - If it's MEGACHAT_INVALID_HANDLE, Waiting room will be ignored, and call will ring for the rest of participants (Adhoc call)
      * @param enableVideo True for audio-video call, false for audio call
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
