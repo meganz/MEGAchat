@@ -5062,39 +5062,6 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
     // create chatroom and scheduled meeting
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
-    const auto createChatroomAndSchedMeeting = [this, &a1, &a2, &chatid] (const unsigned int index, const SchedMeetingData& smData) -> void
-    {
-
-        // reset sched meetings id and chatid to invalid handle
-        mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE;
-
-        // create Meeting room and scheduled meeting
-        ASSERT_NO_FATAL_FAILURE({
-        waitForAction (1,
-                       std::vector<bool *> { &mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2], &chatItemUpdated[a2]},
-                       std::vector<string> { "mChatSchedMeeting[a1]", "mChatSchedMeeting[a2]", "chatItemUpdated[a2]"},
-                       "Creating meeting room and scheduled meeting from A",
-                       true /* wait for all exit flags*/,
-                       true /*reset flags*/,
-                       maxTimeout,
-                       [&api = megaChatApi[index], &d = smData, &chatid]()
-                       {
-                            ChatRequestTracker crtCreateAndSchedule;
-                            api->createChatroomAndSchedMeeting(d.peerList.get(), d.isMeeting, d.publicChat,
-                                                                           d.title.c_str(), d.speakRequest, d.waitingRoom,
-                                                                           d.openInvite, d.timeZone.c_str(), d.startDate, d.endDate,
-                                                                           d.description.c_str(), d.flags.get(), d.rules.get(), nullptr /*attributes*/,
-                                                                           &crtCreateAndSchedule);
-                            ASSERT_EQ(crtCreateAndSchedule.waitForResult(), MegaChatError::ERROR_OK)
-                                        << "Failed to create chatroom and scheduled meeting. Error: " << crtCreateAndSchedule.getErrorString();
-                            chatid = crtCreateAndSchedule.getChatHandle();
-                            ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Invalid chatroom handle";
-                       });
-        });
-
-        ASSERT_NE(mSchedIdUpdated[a1], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for primary account could not be created. chatId: " << getChatIdStrB64(chatid);
-        ASSERT_NE(mSchedIdUpdated[a2], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for secondary account could not be created. chatId: " << getChatIdStrB64(chatid);
-    };
 
     //================================================================================//
     // TEST preparation
@@ -5146,7 +5113,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests127.description = ""; // description is not a mandatory field
     smDataTests127.flags = nullptr;  // flags is not a mandatory field
     smDataTests127.rules = rules;
-    ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (a1, smDataTests127); });
+    ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (chatid, a1, a2, smDataTests127); });
 
     /// <fetching new ScheduledMeeting MegaChatMessage>
     auto& uIndex = a2;
