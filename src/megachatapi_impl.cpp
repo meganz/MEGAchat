@@ -1903,11 +1903,9 @@ int MegaChatApiImpl::performRequest_hangChatCall(MegaChatRequestPrivate* request
             }
 
             rtcModule::ICall* call = mClient->rtc->findCall(callid);
-
             if (!call)
             {
                 API_LOG_ERROR("Hang up call - There is not any call with that callid");
-                assert(call); // assert before assignment, to avoid "value never read" clang DeadStores warning
                 return MegaChatError::ERROR_NOENT;
             }
 
