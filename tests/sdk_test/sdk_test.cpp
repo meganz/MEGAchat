@@ -4321,25 +4321,19 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(disableAudioFor(a1, a2));
     /////////// </optional>
 
-    const auto waitStopRingingForC = [this, &waitForAllExitFlags, &a3](const bool timeoutExpected = false)
+    const auto waitStopRingingForC = [this, &waitForAllExitFlags, &a3]()
     {
         LOG_debug << "# Wait for ringing timeout on C";
         bool* exitFlag = &mCallStopRinging[a3];
-        ASSERT_TRUE(timeoutExpected || waitForMultiResponse({exitFlag}, waitForAllExitFlags))
+        ASSERT_TRUE(waitForMultiResponse({exitFlag}, waitForAllExitFlags))
             << "Timeout for C waiting the ringing to stop";
-        if (!timeoutExpected)
-        {
-            const std::string pref {"error on C ringing timeout: "};
-            ASSERT_NE(mCallIdStopRingIn[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing call id";
-            ASSERT_EQ(mCallIdStopRingIn[a3], mCallIdExpectedReceived[a3]) << pref << "unexpected call id";
-            ASSERT_NE(mChatIdStopRingInCall[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing chat id";
-            *exitFlag = false;
-            LOG_debug << "# C's call stop ringing";
-        }
-        else
-        {
-            LOG_debug << "# C didn't receive a stop ringing call but it was expected";
-        }
+
+        const std::string pref {"error on C ringing timeout: "};
+        ASSERT_NE(mCallIdStopRingIn[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing call id";
+        ASSERT_EQ(mCallIdStopRingIn[a3], mCallIdExpectedReceived[a3]) << pref << "unexpected call id";
+        ASSERT_NE(mChatIdStopRingInCall[a3], MEGACHAT_INVALID_HANDLE) << pref << "missing chat id";
+        *exitFlag = false;
+        LOG_debug << "# C's call stop ringing";
     };
     ASSERT_NO_FATAL_FAILURE(waitStopRingingForC());
 
@@ -4349,20 +4343,18 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     LOG_debug << "\tchatId " << toHandle(chatId) << " userId " << toHandle(userId) << " callId " << toHandle(callId);
     action = [this, &a1, &chatId, &userId, &callId]()
     {
+        const int ringTimeout = 3; // ring timeout set specifically for this test
         ChatRequestTracker crtRingIndividualCall;
-        megaChatApi[a1]->ringIndividualInACall(chatId, userId, &crtRingIndividualCall);
+        megaChatApi[a1]->ringIndividualInACall(chatId, userId, ringTimeout, &crtRingIndividualCall);
         ASSERT_EQ(crtRingIndividualCall.waitForResult(), MegaChatError::ERROR_OK)
             << "Failed to ring individual in a call. Error: " << crtRingIndividualCall.getErrorString();
     };
     ASSERT_NO_FATAL_FAILURE(action());
 
-
     LOG_debug << "/ C acknowledges individual ringing";
     ASSERT_NO_FATAL_FAILURE(waitRingingForC());
     LOG_debug << "/ C waits for individual ringing timeout";
-    const bool isRingingIndividuallyTimeoutMissing = true;
-    ASSERT_NO_FATAL_FAILURE(waitStopRingingForC(isRingingIndividuallyTimeoutMissing));
-
+    ASSERT_NO_FATAL_FAILURE(waitStopRingingForC());
 
     LOG_debug << "- B hangs up the call";
     bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1]; *sessionWasDestroyedA = false;
@@ -4405,11 +4397,6 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedA, "A" + err));
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedB, "B" + err));
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedC, "C" + err + "(it never started)"));
-
-    LOG_debug << "# Leaving the chat room for each user";
-    leaveChat(a1, chatId);
-    leaveChat(a2, chatId);
-    leaveChat(a3, chatId);
 
     LOG_debug << "# Closing chat room for each user and removing its localVideoListener";
     const auto closeChatRoom =
@@ -5163,6 +5150,19 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests127.flags = nullptr;  // flags is not a mandatory field
     smDataTests127.rules = rules;
     ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (a1, smDataTests127); });
+
+    /// <fetching new ScheduledMeeting MegaChatMessage>
+    auto& uIndex = a2;
+    auto crListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
+    ASSERT_TRUE(megaChatApi[uIndex]->openChatRoom(chatid, crListener.get())) << "Cannot open chatroom";
+
+    bool* flagHistoryLoaded = &crListener->historyLoaded[uIndex]; *flagHistoryLoaded = false;
+    ASSERT_NE(megaChatApi[uIndex]->loadMessages(chatid, 10), MegaChatApi::SOURCE_ERROR);
+    ASSERT_TRUE(waitForResponse(flagHistoryLoaded)) << "Expired timeout for loading history";
+
+    megaChatApi[uIndex]->closeChatRoom(chatid, crListener.get());
+    crListener.reset();
+    /// </fetching new ScheduledMeeting MegaChatMessage>
 
     const MegaChatHandle schedId = mSchedIdUpdated[a1];
     SchedMeetingData smData; // Designated initializers generate too many warnings (gcc)
@@ -7217,6 +7217,19 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
         else if (msg->getType() == MegaChatMessage::TYPE_CONTACT_ATTACHMENT)
         {
             msgContactReceived[apiIndex] = true;
+        }
+        else if (msg->getType() == MegaChatMessage::TYPE_SCHED_MEETING)
+        {
+            const auto smId = msg->getUserHandle();
+            const auto id = msg->getHandleOfAction();
+            const auto changes = msg->getPrivilege();
+            LOG_debug << "\n\t\t\t" << apiIndex << " account\n\t\t\t"
+                      << ::mega::toHandle(MEGACHAT_INVALID_HANDLE) << " invalid handle\n\t\t\t"
+                      << ::mega::toHandle(smId) << " msg->getUserHandle()\n\t\t\t"
+                      << ::mega::toHandle(id) << " msg->getHandleOfAction()\n\t\t\t"
+                      << changes << " priv";
+            ASSERT_NE(id, MEGACHAT_INVALID_HANDLE);
+            ASSERT_EQ(changes, 0);
         }
 
         msgLoaded[apiIndex] = true;

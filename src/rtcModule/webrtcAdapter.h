@@ -290,7 +290,7 @@ public:
       SdpSetLocalCallbacks::PromiseType promise;
       auto observer= rtc::scoped_refptr<SdpSetLocalCallbacks>(new SdpSetLocalCallbacks(promise, mObserver->mAppCtx));
       observer->AddRef();
-      get()->SetLocalDescription(move(desc), observer);
+      get()->SetLocalDescription(std::move(desc), observer);
       return promise;
   }
 
@@ -300,7 +300,7 @@ public:
       SdpSetRemoteCallbacks::PromiseType promise;
       auto observer = rtc::scoped_refptr<SdpSetRemoteCallbacks>(new SdpSetRemoteCallbacks(promise, mObserver->mAppCtx));
       observer->AddRef();
-      get()->SetRemoteDescription(move(desc), observer);
+      get()->SetRemoteDescription(std::move(desc), observer);
       return promise;
   }
 };

@@ -5766,6 +5766,12 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         return MegaChatError::ERROR_ARGS;
     }
 
+    if (request->getParamType() <= 0)
+    {
+        API_LOG_ERROR("Ring individual in call: invalid ring timeout");
+        return MegaChatError::ERROR_ARGS;
+    }
+
     ChatRoom *chatroom = findChatRoom(chatId);
     if (!chatroom)
     {
@@ -5782,18 +5788,20 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
 
     auto callId = call->getCallid();
     Chat &chat = chatroom->chat();
-    chat.ringIndividualInACall(userToCallId, callId);
+    const int16_t ringTimeout = static_cast<int16_t>(request->getParamType());
+    chat.ringIndividualInACall(userToCallId, callId, ringTimeout);
     fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
 
     return MegaChatError::ERROR_OK;
 }
 
-void MegaChatApiImpl::ringIndividualInACall(MegaChatHandle chatId, MegaChatHandle userId, MegaChatRequestListener* listener)
+void MegaChatApiImpl::ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RING_INDIVIDUAL_IN_CALL, listener);
     request->setChatHandle(chatId);
     request->setUserHandle(userId);
     request->setPerformRequest([this, request]() { return performRequest_sendRingIndividualInACall(request); });
+    request->setParamType(ringTimeout);
     requestQueue.push(request);
     waiter->notify();
 }
@@ -6656,7 +6664,7 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
         }
     }
 
-    return new MegaStringListPrivate(move(reactions));
+    return new MegaStringListPrivate(std::move(reactions));
 }
 
 MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaChatHandle msgid, const char *reaction)
@@ -6732,7 +6740,7 @@ MegaStringList *MegaChatApiImpl::getChatInDevices(const std::set<string> &device
         buffer.push_back(device);
     }
 
-    return new MegaStringListPrivate(move(buffer));
+    return new MegaStringListPrivate(std::move(buffer));
 }
 
 void MegaChatApiImpl::cleanCalls()
@@ -10652,6 +10660,10 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                     }
                 }
             }
+            else
+            {
+                API_LOG_ERROR("Error parsing Message for TYPE_SCHED_MEETING");
+            }
            break;
         }
         case MegaChatMessage::TYPE_SET_RETENTION_TIME:
@@ -12271,7 +12283,7 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
             case MegaChatContainsMeta::CONTAINS_META_GIPHY:
             {
                 auto giphy = parseGiphy(document);
-                containsMeta->setGiphy(move(giphy));
+                containsMeta->setGiphy(std::move(giphy));
                 break;
             }
             default:

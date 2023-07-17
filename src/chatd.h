@@ -918,6 +918,9 @@ protected:
     bool sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd);
     void flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();
+    void resetOldestKnownMsgId();
+    bool hasMoreHistoryInDb() const;
+    ChatDbInfo getDbHistInfoAndInitOldestKnownMsgId();
     void login();
     void join();
     void handlejoin();
@@ -1425,7 +1428,7 @@ public:
     uint32_t getRetentionTime() const;
     Priv getOwnprivilege() const;
 
-    void ringIndividualInACall(karere::Id userToCallId, karere::Id callId);
+    void ringIndividualInACall(const karere::Id &userToCallId, const karere::Id &callId, const int16_t ringTimeout);
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
@@ -1660,6 +1663,7 @@ struct ChatDbInfo
 {
     karere::Id oldestDbId;
     karere::Id newestDbId;
+    Idx oldestDbIdx = CHATD_IDX_INVALID;
     Idx newestDbIdx;
     karere::Id lastSeenId;
     karere::Id lastRecvId;

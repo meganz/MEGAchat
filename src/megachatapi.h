@@ -5956,9 +5956,10 @@ public:
      *
      * @param chatId MegaChatHandle that identifies the chat room
      * @param userId MegaChatHandle that identifies the user to ring again
+     * @param ringTimeout timeout in seconds (greater than 0) for the call to stop ringing
      * @param listener MegaChatRequestListener to track this request
      */
-    void ringIndividualInACall(MegaChatHandle chatid, MegaChatHandle userId, MegaChatRequestListener* listener = NULL);
+    void ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Answer a call received in a chat room
