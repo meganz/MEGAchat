@@ -239,8 +239,8 @@ protected:
                                               const bool meetingRoom = false,
                                               const bool waitingRoom = false);
 
-    void createChatroomAndSchedMeeting (const unsigned int index, megachat::MegaChatHandle chatid,
-                                       const unsigned int a1, const unsigned int a2, const SchedMeetingData& smData);
+    void createChatroomAndSchedMeeting(megachat::MegaChatHandle& chatid, const unsigned int a1,
+                                       const unsigned int a2, const SchedMeetingData& smData);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
