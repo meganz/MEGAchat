@@ -1716,7 +1716,8 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             const bool waitingRoom = request->getPrivilege();
             if (waitingRoom && !chatroom->isWaitingRoom())
             {
-                API_LOG_ERROR("Start call - trying to start a call in a waiting room chat, but option is currently disabled");
+                API_LOG_ERROR("Start call - trying to start a call in a waiting room chat, but option is currently disabled. Chatid: %s"
+                              , karere::Id(chatid).toString().c_str());
                 return MegaChatError::ERROR_ARGS;
             }
 

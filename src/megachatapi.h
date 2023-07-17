@@ -5834,7 +5834,7 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
      * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
-     * - MegaChatRequest::getPrivilege() - Returns 0 indicating that we don't want to start an adhoc call
+     * - MegaChatRequest::getPrivilege() - Returns 0 indicating that we want to start a call in a chatroom with waiting room disabled
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -5887,7 +5887,7 @@ public:
      * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
      * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
      * - MegaChatRequest::getUserHandle() - Returns the scheduled meeting id;
-     * - MegaChatRequest::getPrivilege() - Returns 0 indicating that we don't want to start an adhoc call
+     * - MegaChatRequest::getPrivilege() - Returns 0 indicating that we want to start a call in a chatroom with waiting room disabled
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -6012,7 +6012,7 @@ public:
      * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
      * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
      * - MegaChatRequest::getUserHandle() - Returns the scheduled meeting id;
-     * - MegaChatRequest::getPrivilege() - Returns 1 indicating that we want to start an adhoc call
+     * - MegaChatRequest::getPrivilege() - Returns 1 indicating that we want to start a call in a chatroom with waiting room enabled
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -6041,6 +6041,9 @@ public:
      * The request will fail with MegaChatError::ERROR_NOENT
      * - if the chatroom doesn't exists.
      * - if the scheduled meeting doesn't exists
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - if chatroom has waiting room option disabled
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxVideoCallParticipants

@@ -4499,11 +4499,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     std::unique_ptr<MegaChatRoom> chatRoom(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom && chatRoom->isMeeting() && chatRoom->isWaitingRoom()) << "Can't retrieve Meeting room with waiting room enabled. chatid: "
                                                                                 << chatIdB64.get();
-
     // get scheduled meeting for chatroom created
     std::unique_ptr <MegaChatScheduledMeetingList> schedlist(megaChatApi[a1]->getScheduledMeetingsByChat(chatid));
     ASSERT_TRUE(schedlist && schedlist->size() == 1) << "Chat doesn't have scheduled meetings";
-
     const MegaChatScheduledMeeting* sm = schedlist->at(0);
     ASSERT_TRUE(sm && sm->parentSchedId() == MEGACHAT_INVALID_HANDLE && sm->schedId() != MEGACHAT_INVALID_HANDLE) << "Invalid schedid";
     const MegaChatHandle schedId = sm->schedId();
