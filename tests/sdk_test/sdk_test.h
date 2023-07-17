@@ -237,7 +237,8 @@ protected:
                                               const bool create = true,
                                               const bool publicChat = false,
                                               const bool meetingRoom = false,
-                                              const bool waitingRoom = false);
+                                              const bool waitingRoom = false,
+                                              SchedMeetingData* schedMeetingData = nullptr);
 
     void createChatroomAndSchedMeeting(megachat::MegaChatHandle& chatid, const unsigned int a1,
                                        const unsigned int a2, const SchedMeetingData& smData);
