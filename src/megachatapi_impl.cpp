@@ -10533,6 +10533,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
     megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
     mStringList = msg->getStringList() ? unique_ptr<MegaStringList>(msg->getStringList()->copy()) : nullptr;
+    mStringListMap = msg->getStringListMap() ? unique_ptr<MegaStringListMap>(msg->getStringListMap()->copy()) : nullptr;
 
     if (msg->getUsersCount() != 0)
     {
@@ -10642,15 +10643,32 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
 
                 if (schedInfo->mSchedInfo && !schedInfo->mSchedInfo->empty())
                 {
+                    mStringListMap.reset(::mega::MegaStringListMap::createInstance());
                     mStringList.reset(::mega::MegaStringList::createInstance());
-                    for (const auto& m: *schedInfo->mSchedInfo.get())
+                    auto map = *schedInfo->mSchedInfo;
+                    auto addElement = [&map, this](unsigned int index)
                     {
-                        if (m.first == karere::SC_TITLE) // currently just store old - new title
+                        auto it = map.find(index);
+                        if (it != map.end())
                         {
-                            mStringList->add(m.second.first.c_str());
-                            mStringList->add(m.second.second.c_str());
+                            std::string key = std::to_string(index);
+                            std::unique_ptr<MegaStringList> sl(MegaStringList::createInstance());
+                            sl->add(it->second.first.c_str());
+                            sl->add(it->second.second.c_str());
+                            mStringListMap->set(key.c_str(), sl.release());
                         }
-                    }
+                    };
+
+                    // just add those fields that have changed
+                    addElement(karere::SC_PARENT);
+                    addElement(karere::SC_TZONE);
+                    addElement(karere::SC_START);
+                    addElement(karere::SC_END);
+                    addElement(karere::SC_TITLE);
+                    addElement(karere::SC_ATTR);
+                    addElement(karere::SC_CANC);
+                    addElement(karere::SC_FLAGS);
+                    addElement(karere::SC_RULES);
                 }
             }
             else
@@ -10968,6 +10986,19 @@ bool MegaChatMessagePrivate::hasSchedMeetingChanged(unsigned int change) const
 const MegaStringList* MegaChatMessagePrivate::getStringList() const
 {
     return mStringList.get();
+}
+
+const MegaStringListMap* MegaChatMessagePrivate::getStringListMap() const
+{
+    return mStringListMap.get();
+}
+
+const MegaStringList* MegaChatMessagePrivate::getScheduledMeetingChange(unsigned int changeType) const
+{
+    if (!mStringListMap) { return nullptr; }
+
+    std::string changeStr = std::to_string(changeType);
+    return mStringListMap->get(changeStr.c_str());
 }
 
 bool MegaChatMessagePrivate::isGiphy() const

@@ -2182,6 +2182,9 @@ public:
      */
     virtual const mega::MegaStringList* getStringList() const;
 
+    virtual const mega::MegaStringListMap* getStringListMap() const;
+    virtual const mega::MegaStringList* getScheduledMeetingChange(unsigned int changeType) const;
+
      /** @brief Return the id for messages in manual sending status / queue
      *
      * This value can be used to identify the message moved into the manual-send
