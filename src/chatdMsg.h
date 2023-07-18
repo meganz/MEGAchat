@@ -754,30 +754,121 @@ public:
                 SchedMeetingInfo* info = new SchedMeetingInfo;
                 karere::karere_sched_bs_t bs = 0;
 
+                // auxiliar lambdas to help with changeset parsing process
+                auto getFieldFromString = [](const std::string fieldStr) -> unsigned int
+                {
+                    if (fieldStr.compare("p"))  { return karere::SC_PARENT; }
+                    if (fieldStr.compare("tz")) { return karere::SC_TZONE; }
+                    if (fieldStr.compare("s"))  { return karere::SC_START; }
+                    if (fieldStr.compare("e"))  { return karere::SC_END; }
+                    if (fieldStr.compare("t"))  { return karere::SC_TITLE; }
+                    if (fieldStr.compare("d"))  { return karere::SC_DESC; }
+                    if (fieldStr.compare("at")) { return karere::SC_ATTR; }
+                    if (fieldStr.compare("c"))  { return karere::SC_CANC; }
+                    if (fieldStr.compare("f"))  { return karere::SC_FLAGS; }
+                    if (fieldStr.compare("r"))  { return karere::SC_RULES; }
+
+                    return karere::SC_FLAGS_SIZE;
+                };
+
+                auto checkLongFieldChanged = [] (rapidjson::Value::ConstMemberIterator& it, const std::string& fieldStr) -> bool
+                {
+                    // long field changes comes with a single digit (1) indicating it has changed, but is not provided for size reasons
+                    if (!it->value.IsNumber())
+                    {
+                        KR_LOG_DEBUG("checkLongFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
+                        assert(false);
+                        return false;
+                    }
+
+                    int v = static_cast<int>(it->value.GetInt());
+                    if (v != 1)
+                    {
+                        KR_LOG_DEBUG("checkLongFieldChanged: Invalid value: %d in changeset for field %s.",v, fieldStr.c_str());
+                        assert(false);
+                        return false;
+                    }
+                    return true;
+                };
+
+                auto getValue = [](rapidjson::Value::ConstMemberIterator& it, const size_t arrSize, const unsigned int field, const unsigned int index) -> std::string
+                {
+                    if (index >= arrSize) { return std::string(); }
+
+                    if (field == karere::SC_START || field == karere::SC_END)
+                    {
+                        if (!it->value[index].IsUint())
+                        {
+                            KR_LOG_DEBUG("getValue: Invalid value type for field: %d. Expected unsigned int value", field);
+                            assert(false);
+                            return std::string();;
+                        }
+                        return std::to_string(it->value[index].GetUint());
+                    }
+                    else
+                    {
+                        if (!it->value[index].IsString())
+                        {
+                            KR_LOG_DEBUG("getValue: Invalid value type for field: %d. Expected string value", field);
+                            assert(false);
+                            return std::string();;
+                        }
+                        return it->value[index].GetString();
+                    }
+                };
+
+                auto checkFieldChanged = [&getValue, &info]
+                    (rapidjson::Value::ConstMemberIterator& it, const unsigned int field, const std::string& fieldStr) -> bool
+                {
+                    if (!it->value.IsArray() || it->value.Empty() || it->value.Size() > 2)
+                    {
+                        KR_LOG_DEBUG("checkFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
+                        assert(false);
+                        return false;
+                    }
+
+                    std::string oldVal, newVal;
+                    const size_t arrSize = it->value.Size();
+                    oldVal = getValue(it, arrSize, field, 0);
+                    newVal = getValue(it, arrSize, field, 1);
+                    info->mSchedInfo->emplace(field, std::pair<std::string, std::string>(oldVal, newVal));
+                    return arrSize == 2 && !oldVal.empty() && !newVal.empty(); // if array has 2 elements, that field has changed
+                };
+
+                auto checkChanges = [&document, &getFieldFromString, &checkFieldChanged, &checkLongFieldChanged, &bs](const std::string fieldStr) -> void
+                {
+                    // if field is not present in json changeset, it has not changed
+                    rapidjson::Value::ConstMemberIterator it = document.FindMember(fieldStr.c_str());
+                    if (it == document.MemberEnd()) { return; }
+
+                    auto field = getFieldFromString(fieldStr);
+                    if (field == karere::SC_FLAGS_SIZE)
+                    {
+                        KR_LOG_DEBUG("checkChanges: Invalid fieldStr provided: %s", fieldStr.c_str());
+                        assert(false);
+                        return;
+                    }
+
+                    bool hasChanged = !it->value.IsArray()
+                                          ? checkLongFieldChanged(it, fieldStr)     // long field change (1 => if changed)
+                                          : checkFieldChanged(it, field, fieldStr); // field change array
+
+                    if (hasChanged) { bs[field] = 1; } // mark field as changed in bitset
+                };
+
                 if (!isDocEmpty)
                 {
-                    if (document.FindMember("tz") != document.MemberEnd())  { bs[karere::SC_TZONE] = 1; }
-                    if (document.FindMember("s") != document.MemberEnd())   { bs[karere::SC_START] = 1; }
-                    if (document.FindMember("e") != document.MemberEnd())   { bs[karere::SC_END] = 1; }
-                    if (document.FindMember("d") != document.MemberEnd())   { bs[karere::SC_DESC] = 1; }
-                    if (document.FindMember("p") != document.MemberEnd())   { bs[karere::SC_PARENT] = 1; }
-                    if (document.FindMember("c") != document.MemberEnd())   { bs[karere::SC_CANC] = 1; }
-                    if (document.FindMember("o") != document.MemberEnd())   { bs[karere::SC_OVERR] = 1; }
-                    if (document.FindMember("f") != document.MemberEnd())   { bs[karere::SC_FLAGS] = 1; }
-                    if (document.FindMember("r") != document.MemberEnd())   { bs[karere::SC_RULES] = 1; }
-                    if (document.FindMember("at") != document.MemberEnd())  { bs[karere::SC_ATTR] = 1; }
-
-                    rapidjson::Value::ConstMemberIterator itTitle = document.FindMember("t");
-                    if (itTitle != document.MemberEnd())
-                    {
-                        bs[karere::SC_TITLE] = 1;
-                        if (itTitle->value.IsArray() && itTitle->value.Size() == 2)
-                        {
-                            info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
-                            info->mSchedInfo->emplace(karere::SC_TITLE,
-                                                      std::pair<std::string, std::string>(itTitle->value[0].GetString(), itTitle->value[1].GetString()));
-                        }
-                    }
+                    info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
+                    checkChanges("tz");
+                    checkChanges("s");
+                    checkChanges("e");
+                    checkChanges("d");
+                    checkChanges("p");
+                    checkChanges("c");
+                    checkChanges("f");
+                    checkChanges("r");
+                    checkChanges("at");
+                    checkChanges("t");
                 }
 
                 info->mSchedId = schedId;
