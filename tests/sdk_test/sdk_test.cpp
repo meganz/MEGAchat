@@ -4797,7 +4797,6 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // [Test4]: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)
     //          call will ring for the rest of participants as schedId is not provided
     // --------------------------------------------------------------------------------------------------------------
-    megaChatApi[a1]->setSFUid(336);
     LOG_debug << "Test4: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)";
     mCallIdExpectedReceived[a1] = mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
     ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(MEGACHAT_INVALID_HANDLE /*schedId*/);});
