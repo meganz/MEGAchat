@@ -1713,14 +1713,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             }
 
             MegaChatHandle schedId = request->getUserHandle();
-            const bool waitingRoom = request->getPrivilege();
-            if (waitingRoom && !chatroom->isWaitingRoom())
-            {
-                API_LOG_ERROR("Start call - trying to start a call in a waiting room chat, but option is currently disabled. Chatid: %s"
-                              , karere::Id(chatid).toString().c_str());
-                return MegaChatError::ERROR_ARGS;
-            }
-
             if (schedId != MEGACHAT_INVALID_HANDLE &&
                     !dynamic_cast<GroupChatRoom *>(chatroom)->getScheduledMeetingsBySchedId(schedId))
             {
@@ -1734,6 +1726,16 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
+               const bool waitingRoom = request->getPrivilege();
+               if (waitingRoom != chatroom->isWaitingRoom())
+               {
+                   API_LOG_ERROR("Start call - trying to start a %s, but waiting room option is currently %s. Chatid: %s"
+                                 , waitingRoom ? "waiting room call" : "standard call"
+                                 , chatroom->isWaitingRoom() ? "enabled" : "disabled"
+                                 , karere::Id(chatid).toString().c_str());
+                   return MegaChatError::ERROR_ARGS;
+               }
+
                if (chatroom->isWaitingRoom() && chatroom->ownPriv() < static_cast<Priv> (MegaChatPeerList::PRIV_MODERATOR))
                {
                    API_LOG_ERROR("Start call - Refusing start a call with waiting room enabled, for non moderator users. Chatid: %s",

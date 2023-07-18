@@ -5829,6 +5829,9 @@ public:
     /**
      * @brief Start a call in a chat room
      *
+     * @note This method is not valid for chatrooms with waiting room option enabled, use MegaChatApi::startMeetingInWaitingRoomChat instead.
+     * Use MegaChatRoom::isWaitingRoom() to check if that option is enabled or not.
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
@@ -5863,6 +5866,9 @@ public:
      * The request will fail with MegaChatError::ERROR_NOENT
      * - if the chatroom doesn't exists.
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - if chatroom has waiting room option enabled
+     *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
@@ -5880,6 +5886,9 @@ public:
      *
      * When a scheduled meeting exists for a chatroom, and a call is started in that scheduled meeting context, it won't
      * ring the participants.
+     *
+     * @note This method is not valid for chatrooms with waiting room option enabled, use MegaChatApi::startMeetingInWaitingRoomChat instead.
+     * Use MegaChatRoom::isWaitingRoom() to check if that option is enabled or not.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -5916,6 +5925,9 @@ public:
      * The request will fail with MegaChatError::ERROR_NOENT
      * - if the chatroom doesn't exists.
      * - if the scheduled meeting doesn't exists
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - if chatroom has waiting room option enabled
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
@@ -6004,8 +6016,12 @@ public:
     /**
      * @brief Starts a call in a chatroom with waiting room option enabled
      *
-     * When waiting room is enabled, all participants will be redirected to it, when they start/answer a call,
-     * unless the user that starts the call, instruct server to bypass waiting room. Check schedId param below.
+     * When waiting room option is enabled for a chatroom, you can start a call in two different ways.
+     *   - start a waiting room call, where all participants will be redirected to waiting room, when they start/answer a call,
+     *     and it won't ring for the rest of participants.
+     *   - start an adhoc call where all participants will be redirected to the call (bypassing waiting room),
+     *     and it will ring for the rest of participants.
+     * Check schedId param below.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:

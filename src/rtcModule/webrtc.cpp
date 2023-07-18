@@ -2363,7 +2363,6 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 
 void Call::onSfuDisconnected()
 {
-
     if (isDestroying()) // we was trying to destroy call but we have received a sfu socket close (before processing BYE command)
     {
         if (!mSfuConnection->isSendingByeCommand())
