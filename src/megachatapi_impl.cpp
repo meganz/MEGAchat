@@ -10659,7 +10659,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                         }
                     };
 
-                    // just add those fields that have changed
+                    // just add those ones that have changed
                     addElement(karere::SC_PARENT);
                     addElement(karere::SC_TZONE);
                     addElement(karere::SC_START);
