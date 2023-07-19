@@ -10651,10 +10651,20 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                         auto it = map.find(index);
                         if (it != map.end())
                         {
+                            if (it->second.empty())
+                            {
+                                API_LOG_ERROR("addElement: empty values for changed field: %d", index);
+                                assert(false);
+                                return;
+                            }
                             std::string key = std::to_string(index);
                             std::unique_ptr<MegaStringList> sl(MegaStringList::createInstance());
-                            sl->add(it->second.first.c_str());
-                            sl->add(it->second.second.c_str());
+                            sl->add(it->second.at(0).c_str()); // add old value
+
+                            if (it->second.size() == 2)
+                            {
+                                sl->add(it->second.at(1).c_str()); // add new value if any
+                            }
                             mStringListMap->set(key.c_str(), sl.release());
                         }
                     };
@@ -10673,7 +10683,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
             }
             else
             {
-                API_LOG_ERROR("Error parsing Message for TYPE_SCHED_MEETING");
+                API_LOG_ERROR("addElementError parsing Message for TYPE_SCHED_MEETING");
             }
            break;
         }

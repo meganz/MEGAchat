@@ -228,6 +228,7 @@ typedef enum
     SC_TITLE            = 5,
     SC_DESC             = 6,
     SC_ATTR             = 7,
+    SC_OVERR            = 8,
     SC_CANC             = 9,
     SC_FLAGS            = 10,
     SC_RULES            = 11,

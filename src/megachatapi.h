@@ -8317,10 +8317,11 @@ public:
        SC_TITLE            = 5,
        SC_DESC             = 6,
        SC_ATTR             = 7,
-       SC_CANC             = 8,
-       SC_FLAGS            = 9,
-       SC_RULES            = 10,
-       SC_FLAGS_SIZE       = 11,
+       SC_OVERR            = 8,
+       SC_CANC             = 9,
+       SC_FLAGS            = 10,
+       SC_RULES            = 11,
+       SC_FLAGS_SIZE       = 12,
     };
 
     static constexpr unsigned int MAX_TITLE_LENGTH = 30;

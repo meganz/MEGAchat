@@ -707,7 +707,7 @@ public:
             unsigned long mSchedChanged;
 
             // maps a field id to a pair of strings <old value, new value>
-            std::unique_ptr<std::map<unsigned int, std::pair<std::string, std::string>>> mSchedInfo;
+            std::unique_ptr<std::map<unsigned int, std::vector<std::string>>> mSchedInfo;
 
             static SchedMeetingInfo* fromBuffer(const char* buffer, size_t len)
             {
@@ -757,16 +757,16 @@ public:
                 // auxiliar lambdas to help with changeset parsing process
                 auto getFieldFromString = [](const std::string fieldStr) -> unsigned int
                 {
-                    if (fieldStr.compare("p"))  { return karere::SC_PARENT; }
-                    if (fieldStr.compare("tz")) { return karere::SC_TZONE; }
-                    if (fieldStr.compare("s"))  { return karere::SC_START; }
-                    if (fieldStr.compare("e"))  { return karere::SC_END; }
-                    if (fieldStr.compare("t"))  { return karere::SC_TITLE; }
-                    if (fieldStr.compare("d"))  { return karere::SC_DESC; }
-                    if (fieldStr.compare("at")) { return karere::SC_ATTR; }
-                    if (fieldStr.compare("c"))  { return karere::SC_CANC; }
-                    if (fieldStr.compare("f"))  { return karere::SC_FLAGS; }
-                    if (fieldStr.compare("r"))  { return karere::SC_RULES; }
+                    if (!fieldStr.compare("p"))  { return karere::SC_PARENT; }
+                    if (!fieldStr.compare("tz")) { return karere::SC_TZONE; }
+                    if (!fieldStr.compare("s"))  { return karere::SC_START; }
+                    if (!fieldStr.compare("e"))  { return karere::SC_END; }
+                    if (!fieldStr.compare("t"))  { return karere::SC_TITLE; }
+                    if (!fieldStr.compare("d"))  { return karere::SC_DESC; }
+                    if (!fieldStr.compare("at")) { return karere::SC_ATTR; }
+                    if (!fieldStr.compare("c"))  { return karere::SC_CANC; }
+                    if (!fieldStr.compare("f"))  { return karere::SC_FLAGS; }
+                    if (!fieldStr.compare("r"))  { return karere::SC_RULES; }
 
                     return karere::SC_FLAGS_SIZE;
                 };
@@ -776,7 +776,7 @@ public:
                     // long field changes comes with a single digit (1) indicating it has changed, but is not provided for size reasons
                     if (!it->value.IsNumber())
                     {
-                        KR_LOG_DEBUG("checkLongFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
+                        KR_LOG_ERROR("checkLongFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
                         assert(false);
                         return false;
                     }
@@ -784,7 +784,7 @@ public:
                     int v = static_cast<int>(it->value.GetInt());
                     if (v != 1)
                     {
-                        KR_LOG_DEBUG("checkLongFieldChanged: Invalid value: %d in changeset for field %s.",v, fieldStr.c_str());
+                        KR_LOG_ERROR("checkLongFieldChanged: Invalid value: %d in changeset for field %s.",v, fieldStr.c_str());
                         assert(false);
                         return false;
                     }
@@ -799,9 +799,9 @@ public:
                     {
                         if (!it->value[index].IsUint())
                         {
-                            KR_LOG_DEBUG("getValue: Invalid value type for field: %d. Expected unsigned int value", field);
+                            KR_LOG_ERROR("getValue: Invalid value type for field: %d. Expected unsigned int value", field);
                             assert(false);
-                            return std::string();;
+                            return std::string();
                         }
                         return std::to_string(it->value[index].GetUint());
                     }
@@ -809,7 +809,7 @@ public:
                     {
                         if (!it->value[index].IsString())
                         {
-                            KR_LOG_DEBUG("getValue: Invalid value type for field: %d. Expected string value", field);
+                            KR_LOG_ERROR("getValue: Invalid value type for field: %d. Expected string value", field);
                             assert(false);
                             return std::string();;
                         }
@@ -822,17 +822,29 @@ public:
                 {
                     if (!it->value.IsArray() || it->value.Empty() || it->value.Size() > 2)
                     {
-                        KR_LOG_DEBUG("checkFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
+                        KR_LOG_ERROR("checkFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
                         assert(false);
                         return false;
                     }
 
-                    std::string oldVal, newVal;
                     const size_t arrSize = it->value.Size();
-                    oldVal = getValue(it, arrSize, field, 0);
-                    newVal = getValue(it, arrSize, field, 1);
-                    info->mSchedInfo->emplace(field, std::pair<std::string, std::string>(oldVal, newVal));
-                    return arrSize == 2 && !oldVal.empty() && !newVal.empty(); // if array has 2 elements, that field has changed
+                    const bool hasChanged = arrSize == 2;  // if array has 2 elements, we can assume that field has changed
+                    std::vector<std::string> auxVals;
+                    auxVals.emplace_back(getValue(it, arrSize, field, 0)); // read old value
+                    if (hasChanged)
+                    {
+                        // read new value
+                        auxVals.emplace_back(getValue(it, arrSize, field, 1));
+                    }
+                    if (hasChanged && auxVals.at(0).empty() && auxVals.at(1).empty())
+                    {
+                        // ignore those elements whose old and new value are empty
+                        KR_LOG_WARNING("checkFieldChanged: old and new values are empty in changeset for field %s.", fieldStr.c_str());
+                        return false;
+                    }
+
+                    info->mSchedInfo->emplace(field, auxVals);
+                    return hasChanged;
                 };
 
                 auto checkChanges = [&document, &getFieldFromString, &checkFieldChanged, &checkLongFieldChanged, &bs](const std::string fieldStr) -> void
@@ -844,7 +856,7 @@ public:
                     auto field = getFieldFromString(fieldStr);
                     if (field == karere::SC_FLAGS_SIZE)
                     {
-                        KR_LOG_DEBUG("checkChanges: Invalid fieldStr provided: %s", fieldStr.c_str());
+                        KR_LOG_ERROR("checkChanges: Invalid fieldStr provided: %s", fieldStr.c_str());
                         assert(false);
                         return;
                     }
@@ -858,7 +870,7 @@ public:
 
                 if (!isDocEmpty)
                 {
-                    info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
+                    info->mSchedInfo.reset(new std::map<unsigned int, std::vector<std::string>>());
                     checkChanges("tz");
                     checkChanges("s");
                     checkChanges("e");
