@@ -795,7 +795,11 @@ public:
                 {
                     if (index >= arrSize) { return std::string(); }
 
-                    if (field == karere::SC_START || field == karere::SC_END)
+                    if (field == karere::SC_RULES)
+                    {
+                        return std::string();
+                    }
+                    else if (field == karere::SC_START || field == karere::SC_END)
                     {
                         if (!it->value[index].IsUint())
                         {
@@ -836,12 +840,6 @@ public:
                         // read new value
                         auxVals.emplace_back(getValue(it, arrSize, field, 1));
                     }
-                    if (hasChanged && auxVals.at(0).empty() && auxVals.at(1).empty())
-                    {
-                        // ignore those elements whose old and new value are empty
-                        KR_LOG_WARNING("checkFieldChanged: old and new values are empty in changeset for field %s.", fieldStr.c_str());
-                        return false;
-                    }
 
                     info->mSchedInfo->emplace(field, auxVals);
                     return hasChanged;
@@ -881,6 +879,10 @@ public:
                     checkChanges("r");
                     checkChanges("at");
                     checkChanges("t");
+                }
+                else
+                {
+                    bs[karere::SC_NEW_SCHED] = 1;
                 }
 
                 info->mSchedId = schedId;

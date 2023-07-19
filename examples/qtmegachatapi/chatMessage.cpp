@@ -571,19 +571,27 @@ std::string ChatMessage::managementInfoToString() const
                 }
             };
 
+            getChangeListStr(MegaChatScheduledMeeting::SC_NEW_SCHED, "NEW");
             getChangeListStr(MegaChatScheduledMeeting::SC_PARENT, "p");
             getChangeListStr(MegaChatScheduledMeeting::SC_TZONE,  "tz");
             getChangeListStr(MegaChatScheduledMeeting::SC_START,  "s");
-            getChangeListStr(MegaChatScheduledMeeting::SC_END,    "s");
+            getChangeListStr(MegaChatScheduledMeeting::SC_END,    "e");
             getChangeListStr(MegaChatScheduledMeeting::SC_TITLE,  "t");
             getChangeListStr(MegaChatScheduledMeeting::SC_ATTR,   "at");
             getChangeListStr(MegaChatScheduledMeeting::SC_FLAGS,  "f");
             getChangeListStr(MegaChatScheduledMeeting::SC_RULES,  "r");
 
-            ret.append("User ").append(userHandle_64)
-                .append("modified scheduled meeting: ") .append(actionHandle_64)
-                .append("\nchangeset: ") .append(changeSet)
-                .append("\nchanges: ") .append(changeListStr);
+            ret.append("User ").append(userHandle_64).append(" ");
+            if (mMessage->hasSchedMeetingChanged(MegaChatScheduledMeeting::SC_NEW_SCHED))
+            {
+                ret.append("created new scheduled meeting: ") .append(actionHandle_64);
+            }
+            else
+            {
+                ret.append("modified scheduled meeting: ") .append(actionHandle_64)
+                    .append("\nchangeset: ") .append(changeSet)
+                    .append("\nchanges: ") .append(changeListStr);
+            }
             break;
         }
         default:
