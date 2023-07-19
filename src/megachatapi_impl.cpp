@@ -3077,8 +3077,10 @@ int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivat
                 return MegaChatError::ERROR_ARGS;
             }
 
-            if (!sm->timezone() && !sm->startDateTime() && !sm->endDateTime() && !sm->title()
-                                && !sm->description() && !sm->flags() && !sm->rules())
+            if (!sm->title()
+                || !sm->timezone()
+                || sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP
+                || sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP)
             {
                 return MegaChatError::ERROR_ARGS;
             }
@@ -3106,12 +3108,12 @@ int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivat
             }
 
             const KarereScheduledMeeting* currentMeeting = it->second.get();
-            std::string newTimezone = sm->timezone() ? sm->timezone() : currentMeeting->timezone();
+            std::string newTimezone = sm->timezone() ? sm->timezone() : std::string();
             MegaChatTimeStamp newStartDate = sm->startDateTime();
             MegaChatTimeStamp newEndDate = sm->endDateTime();
             bool cancelled = sm->cancelled();
             std::string newTitle = sm->title() ? sm->title() : currentMeeting->title();
-            std::string newDescription = sm->description() ? sm->description() : currentMeeting->description();
+            std::string newDescription = sm->description() ? sm->description() : std::string();
 
             std::unique_ptr<::mega::MegaScheduledFlags> newFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
             if (newFlags)
