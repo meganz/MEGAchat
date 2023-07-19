@@ -540,6 +540,52 @@ std::string ChatMessage::managementInfoToString() const
                     .append(" seconds");
             break;
         }
+        case megachat::MegaChatMessage::TYPE_SCHED_MEETING:
+        {
+            auto isEmpty = [](const mega::MegaStringList* l) -> bool
+            {
+                if (!l || !l->size()) { return true; }
+                for (int i = 0; i < l->size(); ++i)
+                {
+                    if (strlen(l->get(i)))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            std::string changeSet;
+            std::string changeListStr;
+            auto getChangeListStr = [this, &isEmpty, &changeSet, &changeListStr](const unsigned int change, std::string changeStr) -> void
+            {
+                changeSet.append(" ").append(changeStr).append(": ").append(std::to_string(mMessage->hasSchedMeetingChanged(change)));
+                const mega::MegaStringList* l = mMessage->getScheduledMeetingChange(change);
+                if (isEmpty(l)) { return; }
+
+                changeListStr.append("\n * ").append(changeStr).append("=>");
+                changeListStr.append(" Old: ").append(l->get(0));
+                if (l->size() == 2)
+                {
+                    changeListStr.append(" New: ").append(l->get(1));
+                }
+            };
+
+            getChangeListStr(MegaChatScheduledMeeting::SC_PARENT, "p");
+            getChangeListStr(MegaChatScheduledMeeting::SC_TZONE,  "tz");
+            getChangeListStr(MegaChatScheduledMeeting::SC_START,  "s");
+            getChangeListStr(MegaChatScheduledMeeting::SC_END,    "s");
+            getChangeListStr(MegaChatScheduledMeeting::SC_TITLE,  "t");
+            getChangeListStr(MegaChatScheduledMeeting::SC_ATTR,   "at");
+            getChangeListStr(MegaChatScheduledMeeting::SC_FLAGS,  "f");
+            getChangeListStr(MegaChatScheduledMeeting::SC_RULES,  "r");
+
+            ret.append("User ").append(userHandle_64)
+                .append("modified scheduled meeting: ") .append(actionHandle_64)
+                .append("\nchangeset: ") .append(changeSet)
+                .append("\nchanges: ") .append(changeListStr);
+            break;
+        }
         default:
         {
             ret.append("Management message with unknown type: ")

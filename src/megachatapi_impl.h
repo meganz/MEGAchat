@@ -1194,7 +1194,7 @@ public:
 
     const mega::MegaStringList* getStringList() const override;
     const mega::MegaStringListMap* getStringListMap() const override;
-    const mega::MegaStringList* getScheduledMeetingChange(unsigned int changeType) const override;
+    const mega::MegaStringList* getScheduledMeetingChange(const unsigned int changeType) const override;
 
     int getChanges() const override;
     bool hasChanged(int changeType) const override;

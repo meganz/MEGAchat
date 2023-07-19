@@ -11003,7 +11003,7 @@ const MegaStringListMap* MegaChatMessagePrivate::getStringListMap() const
     return mStringListMap.get();
 }
 
-const MegaStringList* MegaChatMessagePrivate::getScheduledMeetingChange(unsigned int changeType) const
+const MegaStringList* MegaChatMessagePrivate::getScheduledMeetingChange(const unsigned int changeType) const
 {
     if (!mStringListMap) { return nullptr; }
 

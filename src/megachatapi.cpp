@@ -2249,7 +2249,7 @@ const MegaStringListMap* MegaChatMessage::getStringListMap() const
     return NULL;
 }
 
-const MegaStringList* MegaChatMessage::getScheduledMeetingChange(unsigned int /*changeType*/) const
+const MegaStringList* MegaChatMessage::getScheduledMeetingChange(const unsigned int /*changeType*/) const
 {
     return NULL;
 }

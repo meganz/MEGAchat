@@ -2230,7 +2230,7 @@ public:
      * @return a MegaStringList list with the old [and new value] for a scheduled meeting specific field, or nullptr
      * in case that field has not changed or values are not available due to size reasons.
      */
-    virtual const mega::MegaStringList* getScheduledMeetingChange(unsigned int changeType) const;
+    virtual const mega::MegaStringList* getScheduledMeetingChange(const unsigned int changeType) const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *
