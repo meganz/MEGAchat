@@ -2254,6 +2254,11 @@ const MegaStringList* MegaChatMessage::getScheduledMeetingChange(const unsigned 
     return NULL;
 }
 
+const MegaChatScheduledRules* MegaChatMessage::getScheduledMeetingRules() const
+{
+    return NULL;
+}
+
 void MegaChatLogger::log(int , const char *)
 {
 

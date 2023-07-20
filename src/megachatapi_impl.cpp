@@ -10641,6 +10641,14 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 hAction = schedInfo->mSchedId; // reuse hAction to store schedId
                 priv = static_cast<int>(schedInfo->mSchedChanged);
 
+                if (schedInfo->mScheduledRules)
+                {
+                    ::mega::MegaScheduledRules* rules = schedInfo->mScheduledRules.get();
+                    mScheduledRules.reset(new MegaChatScheduledRulesPrivate(rules->freq(), rules->interval(),
+                                                                            rules->until(), rules->byWeekDay(),
+                                                                            rules->byMonthDay(), rules->byMonthWeekDay()));
+                }
+
                 if (schedInfo->mSchedInfo && !schedInfo->mSchedInfo->empty())
                 {
                     mStringListMap.reset(::mega::MegaStringListMap::createInstance());
@@ -11009,6 +11017,11 @@ const MegaStringList* MegaChatMessagePrivate::getScheduledMeetingChange(const un
 
     std::string changeStr = std::to_string(changeType);
     return mStringListMap->get(changeStr.c_str());
+}
+
+const MegaChatScheduledRules* MegaChatMessagePrivate::getScheduledMeetingRules() const
+{
+    return mScheduledRules.get();
 }
 
 bool MegaChatMessagePrivate::isGiphy() const

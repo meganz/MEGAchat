@@ -2232,6 +2232,18 @@ public:
      */
     virtual const mega::MegaStringList* getScheduledMeetingChange(const unsigned int changeType) const;
 
+    /**
+     * @brief Return MegaChatScheduledRules
+     *
+     * The MegaChatMessage retains the ownership of the MegaStringList.
+     *
+     * This funcion returns a valid value for:
+     * - MegaChatMessage::TYPE_SCHED_MEETING
+     *
+     * @return MegaChatScheduledRules if has changed or nullptr
+     */
+    virtual const MegaChatScheduledRules* getScheduledMeetingRules() const;
+
      /** @brief Return the id for messages in manual sending status / queue
      *
      * This value can be used to identify the message moved into the manual-send

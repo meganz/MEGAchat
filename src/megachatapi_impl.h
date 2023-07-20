@@ -1195,6 +1195,7 @@ public:
     const mega::MegaStringList* getStringList() const override;
     const mega::MegaStringListMap* getStringListMap() const override;
     const mega::MegaStringList* getScheduledMeetingChange(const unsigned int changeType) const override;
+    const MegaChatScheduledRules* getScheduledMeetingRules() const override;
 
     int getChanges() const override;
     bool hasChanged(int changeType) const override;
@@ -1235,6 +1236,7 @@ private:
     const MegaChatContainsMeta *mContainsMeta = NULL;
     std::unique_ptr<::mega::MegaStringList> mStringList;
     std::unique_ptr<::mega::MegaStringListMap> mStringListMap;
+    std::unique_ptr<MegaChatScheduledRules> mScheduledRules;
 };
 
 //Thread safe request queue
