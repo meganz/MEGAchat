@@ -7,6 +7,7 @@
 #include <memory>
 #include <map>
 #include "karereId.h"
+#include <megaapi.h>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <karereCommon.h>
@@ -706,6 +707,9 @@ public:
             // bitmask with the changed fields
             unsigned long mSchedChanged;
 
+            // Recurring rules
+            std::unique_ptr<mega::MegaScheduledRules> mScheduledRules;
+
             // maps a field id to a pair of strings <old value, new value>
             std::unique_ptr<std::map<unsigned int, std::vector<std::string>>> mSchedInfo;
 
@@ -791,15 +795,110 @@ public:
                     return true;
                 };
 
+                auto getRulesValue = [](rapidjson::Value::ConstMemberIterator& it,
+                                        const size_t arrSize, const unsigned int field,
+                                        const unsigned int index) -> mega::MegaScheduledRules*
+                {
+                    if (field != karere::SC_RULES)
+                    {
+                        assert(false);
+                        return nullptr;
+                    }
+
+                    if (index >= arrSize)             { return nullptr; } // out of bounds
+                    if (it->value[index].IsString())  { return nullptr; } // empty rules => r:[""]
+
+                    if (!it->value[index].IsObject())
+                    {
+                        KR_LOG_ERROR("getRulesValue: Invalid value type for field: %d. Expected object", field);
+                        assert(false);
+                        return nullptr;
+                    }
+
+                    std::string freq;
+                    rapidjson::Value::ConstMemberIterator itFreq = it->value[index].FindMember("f");
+                    if (itFreq != it->value[index].MemberEnd() && itFreq->value.IsString())
+                    {
+                        freq = itFreq->value.GetString();
+                    }
+
+                    int interval = 0;
+                    rapidjson::Value::ConstMemberIterator itInterval = it->value[index].FindMember("i");
+                    if (itInterval != it->value[index].MemberEnd() && itInterval->value.GetUint())
+                    {
+                        interval = static_cast<int>(itInterval->value.GetUint());
+                    }
+
+                    mega::MegaTimeStamp until = 0;
+                    rapidjson::Value::ConstMemberIterator itUntil = it->value[index].FindMember("u");
+                    if (itUntil != it->value[index].MemberEnd() && itUntil->value.IsUint64())
+                    {
+                        interval = itUntil->value.IsUint64();
+                    }
+
+                    std::unique_ptr<mega::MegaIntegerList> byWeekDay;
+                    rapidjson::Value::ConstMemberIterator itWd = it->value[index].FindMember("wd");
+                    if (itWd != it->value[index].MemberEnd() && itWd->value.IsArray() && it->value.Capacity())
+                    {
+                        byWeekDay.reset(mega::MegaIntegerList::createInstance());
+                        for (unsigned int i = 0; i < it->value.Capacity(); ++i)
+                        {
+                            if (!it->value[i].IsUint()) { continue; }
+                            byWeekDay->add(itWd->value[i].GetUint());
+                        }
+                    }
+
+                    std::unique_ptr<mega::MegaIntegerList> byMonthDay;
+                    rapidjson::Value::ConstMemberIterator itMd = it->value[index].FindMember("wd");
+                    if (itMd != it->value[index].MemberEnd() && itMd->value.IsArray() && it->value.Capacity())
+                    {
+                        byMonthDay.reset(mega::MegaIntegerList::createInstance());
+                        for (unsigned int i = 0; i < it->value.Capacity(); ++i)
+                        {
+                            if (!it->value[i].IsUint()) { continue; }
+                            byMonthDay->add(itMd->value[i].GetUint());
+                        }
+                    }
+
+                    std::unique_ptr<::mega::MegaIntegerMap> byMonthWeekDay;
+                    rapidjson::Value::ConstMemberIterator itMwd = it->value[index].FindMember("mwd");
+                    if (itMwd != it->value[index].MemberEnd() && itMwd->value.IsArray() && it->value.Capacity())
+                    {
+                        byMonthWeekDay.reset(mega::MegaIntegerMap::createInstance());
+                        for (unsigned int i = 0; i < itMwd->value.Capacity(); ++i)
+                        {
+                              if (itMwd->value[i].IsArray() && itMwd->value[i].GetArray().Capacity() == 2)
+                              {
+                                  auto subArr = itMwd->value[i].GetArray();
+                                  if (!subArr[0].IsUint() || !subArr[1].IsUint()) { continue; }
+                                  byMonthWeekDay->set(static_cast<int>(subArr[0].GetUint()),static_cast<int>(subArr[1].GetUint()));
+                              }
+                        }
+                    }
+
+                    auto getFreqVal = [](std::string freq) -> int
+                    {
+                        if (freq.compare("d")) { return mega::MegaScheduledRules::FREQ_DAILY;   }
+                        if (freq.compare("w")) { return mega::MegaScheduledRules::FREQ_WEEKLY;  }
+                        if (freq.compare("m")) { return mega::MegaScheduledRules::FREQ_MONTHLY; }
+
+                        return mega::MegaScheduledRules::FREQ_INVALID;
+                    };
+
+                    return mega::MegaScheduledRules::createInstance(getFreqVal(freq), interval, until, byWeekDay.get(), byMonthDay.get(), byMonthWeekDay.get());
+                };
+
                 auto getValue = [](rapidjson::Value::ConstMemberIterator& it, const size_t arrSize, const unsigned int field, const unsigned int index) -> std::string
                 {
                     if (index >= arrSize) { return std::string(); }
 
                     if (field == karere::SC_RULES)
                     {
+                        assert(false);
                         return std::string();
                     }
-                    else if (field == karere::SC_START || field == karere::SC_END)
+
+                    if (field == karere::SC_START || field == karere::SC_END || field == karere::SC_CANC)
                     {
                         if (!it->value[index].IsUint())
                         {
@@ -821,7 +920,7 @@ public:
                     }
                 };
 
-                auto checkFieldChanged = [&getValue, &info]
+                auto checkFieldChanged = [&getValue, &getRulesValue, &info]
                     (rapidjson::Value::ConstMemberIterator& it, const unsigned int field, const std::string& fieldStr) -> bool
                 {
                     if (!it->value.IsArray() || it->value.Empty() || it->value.Size() > 2)
@@ -833,15 +932,22 @@ public:
 
                     const size_t arrSize = it->value.Size();
                     const bool hasChanged = arrSize == 2;  // if array has 2 elements, we can assume that field has changed
-                    std::vector<std::string> auxVals;
-                    auxVals.emplace_back(getValue(it, arrSize, field, 0)); // read old value
-                    if (hasChanged)
+
+                    if (field != karere::SC_RULES)
                     {
-                        // read new value
-                        auxVals.emplace_back(getValue(it, arrSize, field, 1));
+                        std::vector<std::string> auxVals;
+                        auxVals.emplace_back(getValue(it, arrSize, field, 0)); // read old value
+                        if (hasChanged)
+                        {
+                            auxVals.emplace_back(getValue(it, arrSize, field, 1)); // read new value
+                        }
+                        info->mSchedInfo->emplace(field, auxVals);
+                    }
+                    else if (hasChanged)
+                    {
+                        info->mScheduledRules.reset(getRulesValue(it, arrSize, field, 1));
                     }
 
-                    info->mSchedInfo->emplace(field, auxVals);
                     return hasChanged;
                 };
 
