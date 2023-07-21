@@ -560,14 +560,66 @@ std::string ChatMessage::managementInfoToString() const
             auto getChangeListStr = [this, &isEmpty, &changeSet, &changeListStr](const unsigned int change, std::string changeStr) -> void
             {
                 changeSet.append(" ").append(changeStr).append(": ").append(std::to_string(mMessage->hasSchedMeetingChanged(change)));
-                const mega::MegaStringList* l = mMessage->getScheduledMeetingChange(change);
-                if (isEmpty(l)) { return; }
-
-                changeListStr.append("\n * ").append(changeStr).append("=>");
-                changeListStr.append(" Old: ").append(l->get(0));
-                if (l->size() == 2)
+                if (change == MegaChatScheduledMeeting::SC_RULES)
                 {
-                    changeListStr.append(" New: ").append(l->get(1));
+                    const MegaChatScheduledRules* rules = mMessage->getScheduledMeetingRules();
+                    if (!rules) { return; }
+
+                    changeListStr.append("\n * ").append(changeStr).append("=>");
+                    changeListStr.append("\n\t - Freq: ").append(std::to_string(rules->freq()));
+                    changeListStr.append("\n\t - Interval: ").append(std::to_string(rules->interval()));
+                    changeListStr.append("\n\t - Until: ").append(std::to_string(rules->until()));
+                    if (rules->byWeekDay())
+                    {
+                        changeListStr.append("\n\t - Wd: [");
+                        for(int i = 0; i < rules->byWeekDay()->size(); ++i)
+                        {
+                            changeListStr.append(" ").append(std::to_string(rules->byWeekDay()->get(i)));
+                        }
+                        changeListStr.append("]");
+                    }
+
+                    if (rules->byMonthDay())
+                    {
+                        changeListStr.append("\n\t - Md: [");
+                        for(int i = 0; i < rules->byMonthDay()->size(); ++i)
+                        {
+                            changeListStr.append(" ").append(std::to_string(rules->byMonthDay()->get(i)));
+                        }
+                        changeListStr.append("]");
+                    }
+
+                    if (rules->byMonthWeekDay())
+                    {
+                        mega::MegaIntegerList* keys = rules->byMonthWeekDay()->getKeys();
+                        if (!keys) { return; }
+                        changeListStr.append("\n\t - Mwd: [");
+
+                        for(int i = 0; i < keys->size(); ++i)
+                        {
+                            int64_t key = keys->get(i);
+                            mega::MegaIntegerList* values = rules->byMonthWeekDay()->get(key);
+                            if (!values || !values->size()) { continue; }
+
+                            for(int j = 0; j < values->size(); ++j)
+                            {
+                                changeListStr.append(" [").append(std::to_string(key)).append(", ").append(std::to_string(values->get(j))).append("]");
+                            }
+                        }
+                        changeListStr.append("]");
+                    }
+                }
+                else
+                {
+                    const mega::MegaStringList* l = mMessage->getScheduledMeetingChange(change);
+                    if (isEmpty(l)) { return; }
+
+                    changeListStr.append("\n * ").append(changeStr).append("=>");
+                    changeListStr.append(" Old: ").append(l->get(0));
+                    if (l->size() == 2)
+                    {
+                        changeListStr.append(" New: ").append(l->get(1));
+                    }
                 }
             };
 

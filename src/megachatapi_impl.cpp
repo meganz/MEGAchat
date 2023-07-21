@@ -10534,6 +10534,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
     mStringList = msg->getStringList() ? unique_ptr<MegaStringList>(msg->getStringList()->copy()) : nullptr;
     mStringListMap = msg->getStringListMap() ? unique_ptr<MegaStringListMap>(msg->getStringListMap()->copy()) : nullptr;
+    mScheduledRules = msg->getScheduledMeetingRules() ? unique_ptr<MegaChatScheduledRules>(msg->getScheduledMeetingRules()->copy()) : nullptr;
 
     if (msg->getUsersCount() != 0)
     {
