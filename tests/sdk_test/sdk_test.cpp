@@ -5111,9 +5111,12 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smData.chatId = chatid;
     smData.startDate = MEGACHAT_INVALID_TIMESTAMP;
     ASSERT_NO_FATAL_FAILURE({ fetchOccurrences(a1, MegaChatError::ERROR_OK, smData); });
-    if (!occurrences || occurrences->size() != MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
+    ASSERT_TRUE(occurrences) << "Null scheduled meeting occurrences list received for chat: " << getChatIdStrB64(chatid)
+                             << ". We should have received a valid occurrences list";
+
+    if (occurrences->size() != MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
     {
-        if (occurrences) { printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ); }
+        printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ);
         ASSERT_TRUE(false) << "Error fetching occurrences for primary account for chat: " << getChatIdStrB64(chatid);
     }
 
@@ -5158,10 +5161,12 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smData.chatId = chatid;
     smData.startDate = MEGACHAT_INVALID_TIMESTAMP;
     ASSERT_NO_FATAL_FAILURE({ fetchOccurrences(a1, MegaChatError::ERROR_OK, smData); });
-    if (!occurrences || occurrences->size())
+    ASSERT_TRUE(occurrences) << "Null scheduled meeting occurrences list received for chat: " << getChatIdStrB64(chatid)
+                             << ". We should have received an empty list";
+    if (occurrences->size())
     {
-        if (occurrences) { printOccurrences(occurrences.get(), 0); }
-        ASSERT_TRUE(false) << "No scheduled meeting occurrences for primary account should be received for chat: " << getChatIdStrB64(chatid);
+        printOccurrences(occurrences.get(), 0);
+        ASSERT_TRUE(false) << "Non empty scheduled meeting occurrences list received for chat: " << getChatIdStrB64(chatid);
     }
 
     //================================================================================//
