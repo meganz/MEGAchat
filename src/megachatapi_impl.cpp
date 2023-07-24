@@ -1736,13 +1736,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                    return MegaChatError::ERROR_ARGS;
                }
 
-               if (chatroom->isWaitingRoom() && chatroom->ownPriv() < static_cast<Priv> (MegaChatPeerList::PRIV_MODERATOR))
-               {
-                   API_LOG_ERROR("Start call - Refusing start a call with waiting room enabled, for non moderator users. Chatid: %s",
-                                 karere::Id(chatid).toString().c_str());
-                   return MegaChatError::ERROR_ACCESS;
-               }
-
                if (mClient->rtc->isCallStartInProgress(chatid))
                {
                    API_LOG_ERROR("Start call - start call attempt already in progress");
