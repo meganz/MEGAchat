@@ -4477,9 +4477,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // Test preconditions: Get a meeting room with a scheduled meeting associated
     // Waiting rooms currently just works if there's a scheduled meeting created for the chatroom
     LOG_debug << "Test preconditions: Get a meeting room with a scheduled meeting associated";
-    std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
-    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-    chatid = getGroupChatRoom({a1, a2}, peers.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
+    chatid = getGroupChatRoom({a1, a2}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
                                               true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/, &smDataTests127);
 
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Can't get/create a Meeting room with waiting room enabled";
