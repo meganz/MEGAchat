@@ -1085,12 +1085,17 @@ char *MegaChatApi::getVideoDeviceSelected()
 
 void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-    pImpl->startChatCall(chatid, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE /*schedId*/, listener);
+    pImpl->startChatCall(chatid, false /*waitingRoom*/, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE /*schedId*/, listener);
 }
 
 void MegaChatApi::startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-   pImpl->startChatCall(chatid, enableVideo, enableAudio, schedId, listener);
+   pImpl->startChatCall(chatid, false /*waitingRoom*/, enableVideo, enableAudio, schedId, listener);
+}
+
+void MegaChatApi::startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener *listener)
+{
+    pImpl->startChatCall(chatid, true /*waitingRoom*/, enableVideo, enableAudio, schedIdWr, listener);
 }
 
 void MegaChatApi::ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener)

@@ -261,6 +261,17 @@ void ChatListItemController::onSetWaitingRoom(bool enable)
     mMegaChatApi->setWaitingRoom(mItemId, enable);
 }
 
+void ChatListItemController::onWaitingRoomCall()
+{
+    /* schedId:
+     * - If valid, redirect users to waiting room and don't ring
+     * - If not valid, bypass waiting room and ring
+     */
+    std::string schedIdStr = mMainWindow->mApp->getText("Get schedId (valid: redirect wr and don't ring | invalid: bypass wr and ring)");
+    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
+    mMegaChatApi->startMeetingInWaitingRoomChat(mItemId, schedId, false, false);
+}
+
 void ChatListItemController::queryChatLink()
 {
     if (mItemId != MEGACHAT_INVALID_HANDLE)

@@ -918,6 +918,9 @@ protected:
     bool sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd);
     void flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();
+    void resetOldestKnownMsgId();
+    bool hasMoreHistoryInDb() const;
+    ChatDbInfo getDbHistInfoAndInitOldestKnownMsgId();
     void login();
     void join();
     void handlejoin();
@@ -1660,6 +1663,7 @@ struct ChatDbInfo
 {
     karere::Id oldestDbId;
     karere::Id newestDbId;
+    Idx oldestDbIdx = CHATD_IDX_INVALID;
     Idx newestDbIdx;
     karere::Id lastSeenId;
     karere::Id lastRecvId;

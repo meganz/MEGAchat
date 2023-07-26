@@ -402,13 +402,13 @@ void Client::cancelRetentionTimer(bool resetTs)
 void Client::setRetentionTimer()
 {
     time_t retentionPeriod = mRetentionCheckTs - time(nullptr);
-    assert(retentionPeriod > 0); // next timer period (in seconds) must be a valid
-
-    // Avoid set timer with a smaller period than kMinRetentionTimeout, upon previous timer expiration.
-    // If there's an active timer, it's licit to set a timer with a smaller period than kMinRetentionTimeout.
-    retentionPeriod = (!mRetentionTimer && retentionPeriod > 0 && retentionPeriod < kMinRetentionTimeout)
-            ? kMinRetentionTimeout
-            : retentionPeriod;
+    if ((retentionPeriod <= 0) // if mRetentionCheckTs has passed, set to kMinRetentionTimeout
+        // Avoid set timer with a smaller period than kMinRetentionTimeout, upon previous timer expiration.
+        // If there's an active timer, it's licit to set a timer with a smaller period than kMinRetentionTimeout.
+        || (!mRetentionTimer && retentionPeriod < kMinRetentionTimeout))
+    {
+        retentionPeriod = kMinRetentionTimeout;
+    }
 
     cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckTs
     CHATD_LOG_DEBUG("set timer for next retention history check to %ld (seconds):", retentionPeriod);
@@ -494,22 +494,19 @@ void Chat::login()
     // In both cases (join/joinrangehist), don't block history messages being sent to app
     mServerOldHistCbEnabled = false;
 
-    ChatDbInfo info;
-    mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId;
-
+    ChatDbInfo&& info = getDbHistInfoAndInitOldestKnownMsgId();
     sendReactionSn();
 
     if (previewMode())
     {
-        if (mOldestKnownMsgId) //if we have local history
+        if (!mOldestKnownMsgId.isNull()) //if we have local history
             handlejoinRangeHist(info);
         else
             handlejoin();
     }
     else
     {
-        if (mOldestKnownMsgId) //if we have local history
+        if (!mOldestKnownMsgId.isNull()) //if we have local history
         {
             joinRangeHist(info);
             retryPendingReactions();
@@ -519,6 +516,8 @@ void Chat::login()
             join();
         }
     }
+
+    mHasMoreHistoryInDb = hasMoreHistoryInDb();
 }
 
 Connection::Connection(Client& chatdClient, int shardNo)
@@ -1945,9 +1944,7 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     assert(mDbInterface);
     initChat();
     mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(*mDbInterface, *this));
-    ChatDbInfo info;
-    mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId;
+    ChatDbInfo&& info = getDbHistInfoAndInitOldestKnownMsgId();
     mLastSeenId = info.lastSeenId;
     mLastReceivedId = info.lastRecvId;
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
@@ -1964,7 +1961,7 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
         mAttachmentNodes->setHaveAllHistory(true);
     }
 
-    if (!mOldestKnownMsgId)
+    if (mOldestKnownMsgId.isNull())
     {
         //no history in db
         mHasMoreHistoryInDb = false;
@@ -2055,7 +2052,21 @@ Idx Chat::getHistoryFromDb(unsigned count)
     // in the buffer (and in the loaded range) are unseen - so we just loaded
     // more unseen messages
     if ((messages.size() < count) && mHasMoreHistoryInDb)
-        throw std::runtime_error(mChatId.toString()+": Db says it has no more messages, but we still haven't seen mOldestKnownMsgId of "+std::to_string((int64_t)mOldestKnownMsgId.val));
+    {
+        mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99018, "Can't load expected messages count from Db and mHasMoreHistoryInDb is true", false, static_cast<const char*>(nullptr));
+        CHATID_LOG_ERROR("getHistoryFromDb: Loaded msg's from Db < expected count (%d < %d) for chatid: %s, but we still haven't seen mOldestKnownMsgId of %s"
+                          , messages.size(), count, mChatId.toString().c_str(), std::to_string((int64_t)mOldestKnownMsgId.val).c_str());
+        assert(!((messages.size() < count) && mHasMoreHistoryInDb));
+
+        // try to update mOldestKnownMsgId with current Db state
+        getDbHistInfoAndInitOldestKnownMsgId();
+        mHasMoreHistoryInDb = hasMoreHistoryInDb();
+        if (mHasMoreHistoryInDb)
+        {
+            CHATID_LOG_ERROR("getHistoryFromDb: mHasMoreHistoryInDb still true after call getOldestKnownMsgIdFromDb");
+        }
+    }
+
     return static_cast<Idx>(messages.size());
 }
 
@@ -3223,7 +3234,7 @@ void Chat::initChat()
 
     mForwardStart = CHATD_IDX_RANGE_MIDDLE;
 
-    mOldestKnownMsgId = 0;
+    resetOldestKnownMsgId();
     mLastSeenIdx = CHATD_IDX_INVALID;
     mLastReceivedIdx = CHATD_IDX_INVALID;
     mNextHistFetchIdx = CHATD_IDX_INVALID;
@@ -4885,7 +4896,8 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     mOldestKnownMsgId = msg.id();
 
     // if truncate was received for a message not loaded in RAM, we may have more history in DB
-    mHasMoreHistoryInDb = at(lownum()).id() != mOldestKnownMsgId;
+    mHasMoreHistoryInDb = hasMoreHistoryInDb();
+
     truncateAttachmentHistory();
     calculateUnreadCount();
 }
@@ -4918,11 +4930,8 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     CALL_DB(retentionHistoryTruncate, idx);
     cleanPendingReactionsOlderThan(idx); //clean pending reactions, including previous indexes
     deleteOlderMessagesIncluding(idx);
-
     removePendingRichLinks(idx);
-
-    // update oldest index in db
-    mOldestIdxInDb = (idx + 1 <= highnum()) ? idx + 1 : CHATD_IDX_INVALID;
+    getDbHistInfoAndInitOldestKnownMsgId(); // update mOldestKnownMsgId and mOldestIdxInDb from Db
 
     if (mOldestIdxInDb == CHATD_IDX_INVALID) // If there's no messages in db
     {
@@ -4945,22 +4954,10 @@ time_t Chat::handleRetentionTime(bool updateTimer)
         CALL_DB(setLastReceived, 0);
 
         mAttachmentNodes->truncateHistory(Id::inval());
-
-        mOldestKnownMsgId = 0;
         mNextHistFetchIdx = CHATD_IDX_INVALID;
     }
     else
     {
-        // Find oldest msg id in loaded messages in RAM
-        if (!mBackwardList.empty())
-        {
-            mOldestKnownMsgId =  mBackwardList.back()->id();
-        }
-        else if (!mForwardList.empty())
-        {
-            mOldestKnownMsgId = mForwardList.front()->id();
-        }
-
         truncateAttachmentHistory();
     }
 
@@ -5044,6 +5041,37 @@ Id Chat::makeRandomId()
     return distrib(rd);
 }
 
+void Chat::resetOldestKnownMsgId()
+{
+    mOldestKnownMsgId = karere::Id::null();
+}
+
+ChatDbInfo Chat::getDbHistInfoAndInitOldestKnownMsgId()
+{
+    ChatDbInfo info;
+    mDbInterface->getHistoryInfo(info);
+    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
+    mOldestIdxInDb = info.oldestDbIdx;   // if no db history, getHistoryInfo stores CHATD_IDX_INVALID at ChatDbInfo::oldestDbIdx
+    return info;
+}
+
+bool Chat::hasMoreHistoryInDb() const
+{
+    if (mOldestKnownMsgId.isNull()) { return false; }
+
+    const Message* msg = findOrNull(lownum());
+    if (!msg)
+    {
+        CHATD_LOG_ERROR("hasMoreHistoryInDb: Can't find msg in RAM with Idx: %d", lownum());
+        assert(msg);
+        return true;
+    }
+
+    // if Id of msg with oldest Idx in RAM is different than stored in Db (and both are valid)
+    // we can assume that we have more history in Db
+    return msg->id() != mOldestKnownMsgId;
+}
+
 void Chat::deleteOlderMessagesIncluding(Idx idx)
 {
     if (idx >= mForwardStart)
@@ -5067,13 +5095,18 @@ void Chat::deleteOlderMessagesIncluding(Idx idx)
     else
     {
         long startOffset = mForwardStart - idx - 1; // decrement 1 to include own idx
-        auto itStart = mBackwardList.begin() + startOffset;
+        auto itStart = static_cast<size_t>(startOffset) < mBackwardList.size()
+                           ? mBackwardList.begin() + startOffset
+                           : mBackwardList.end();
+
         auto itEnd = mBackwardList.end();
 
         if (itStart == mBackwardList.end()) // ensure that first element iterator is valid
         {
-            // in case there's only 1 message in mBackwardList and we are truncating history
-            // we want to preserve truncate message, and remove next one, but there are no more messages
+            /* - In case part of the history we want to remove was only loaded in DB we'll get an invalid startOffset
+             * - In case there's only 1 message in mBackwardList and we are truncating history
+             *   we want to preserve truncate message, and remove next one, but there are no more messages so well get an invalid startOffset
+            */
             return;
         }
 
