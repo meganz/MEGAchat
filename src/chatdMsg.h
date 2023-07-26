@@ -779,6 +779,7 @@ public:
                 {
                     if (it->value.IsNumber())
                     {
+                        assert(field == karere::SC_DESC); // currently only description can be received with this format
                         // long field changes comes with a single digit (1) indicating it has changed, but is not provided for size reasons
                         int v = static_cast<int>(it->value.GetInt());
                         if (v != 1)
@@ -792,6 +793,7 @@ public:
 
                     if (it->value.IsString())
                     {
+                        assert(field == karere::SC_PARENT); // currently only parent sched id can be received with this format
                         std::string stdVal = it->value.GetString();
                         if (stdVal.empty()) { return false; }
 
@@ -910,7 +912,10 @@ public:
                         return std::string();
                     }
 
-                    if (field == karere::SC_START || field == karere::SC_END || field == karere::SC_CANC)
+                    if (field == karere::SC_START
+                        || field == karere::SC_END
+                        || field == karere::SC_CANC
+                        || field == karere::SC_FLAGS) // fields with numeric format
                     {
                         if (!it->value[index].IsUint())
                         {
@@ -920,7 +925,7 @@ public:
                         }
                         return std::to_string(it->value[index].GetUint());
                     }
-                    else
+                    else // fields with string format
                     {
                         if (!it->value[index].IsString())
                         {
@@ -932,20 +937,21 @@ public:
                     }
                 };
 
-                auto checkFieldChanged = [&getValue, &getRulesValue, &info]
+                auto checkArrFieldChanged = [&getValue, &getRulesValue, &info]
                     (rapidjson::Value::ConstMemberIterator& it, const unsigned int field, const std::string& fieldStr) -> bool
                 {
                     if (!it->value.IsArray() || it->value.Empty() || it->value.Size() > 2)
                     {
-                        KR_LOG_ERROR("checkFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
+                        KR_LOG_ERROR("checkArrFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
                         assert(false);
                         return false;
                     }
 
+                    const bool rulesField = field == karere::SC_RULES;
                     const size_t arrSize = it->value.Size();
                     const bool hasChanged = arrSize == 2;  // if array has 2 elements, we can assume that field has changed
 
-                    if (field != karere::SC_RULES)
+                    if (!rulesField)
                     {
                         std::vector<std::string> auxVals;
                         auxVals.emplace_back(getValue(it, arrSize, field, 0)); // read old value
@@ -955,7 +961,7 @@ public:
                         }
                         info->mSchedInfo->emplace(field, auxVals);
                     }
-                    else if (hasChanged)
+                    else if (hasChanged) // parse rules field changes
                     {
                         info->mScheduledRules.reset(getRulesValue(it, arrSize, field, 1));
                     }
@@ -963,7 +969,7 @@ public:
                     return hasChanged;
                 };
 
-                auto checkChanges = [&document, &getFieldFromString, &checkFieldChanged, &checkNonArrFieldChanged, &bs](const std::string fieldStr) -> void
+                auto checkChanges = [&document, &getFieldFromString, &checkArrFieldChanged, &checkNonArrFieldChanged, &bs](const std::string fieldStr) -> void
                 {
                     // if field is not present in json changeset, it has not changed
                     rapidjson::Value::ConstMemberIterator it = document.FindMember(fieldStr.c_str());
@@ -978,8 +984,8 @@ public:
                     }
 
                     bool hasChanged = !it->value.IsArray()
-                                          ? checkNonArrFieldChanged(it, field, fieldStr)     // long field change (1 => if changed)
-                                          : checkFieldChanged(it, field, fieldStr); // field change array
+                                          ? checkNonArrFieldChanged(it, field, fieldStr)    // non array received for field changes
+                                          : checkArrFieldChanged(it, field, fieldStr);      // array received for field changes
 
                     if (hasChanged) { bs[field] = 1; } // mark field as changed in bitset
                 };
