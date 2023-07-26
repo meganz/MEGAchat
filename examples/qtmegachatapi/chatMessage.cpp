@@ -615,23 +615,28 @@ std::string ChatMessage::managementInfoToString() const
                     if (isEmpty(l)) { return; }
 
                     changeListStr.append("\n * ").append(changeStr).append("=>");
-                    changeListStr.append(" Old: ").append(l->get(0));
-                    if (l->size() == 2)
+
+                    if (l->size() == 1)
+                    {   changeListStr.append(" Current: ").append(l->get(0)); }
+                    else if (l->size() == 2)
                     {
+                        changeListStr.append(" Old: ").append(l->get(0));
                         changeListStr.append(" New: ").append(l->get(1));
                     }
                 }
             };
 
             getChangeListStr(MegaChatScheduledMeeting::SC_NEW_SCHED, "NEW");
-            getChangeListStr(MegaChatScheduledMeeting::SC_PARENT, "p");
-            getChangeListStr(MegaChatScheduledMeeting::SC_TZONE,  "tz");
-            getChangeListStr(MegaChatScheduledMeeting::SC_START,  "s");
-            getChangeListStr(MegaChatScheduledMeeting::SC_END,    "e");
-            getChangeListStr(MegaChatScheduledMeeting::SC_TITLE,  "t");
-            getChangeListStr(MegaChatScheduledMeeting::SC_ATTR,   "at");
-            getChangeListStr(MegaChatScheduledMeeting::SC_FLAGS,  "f");
-            getChangeListStr(MegaChatScheduledMeeting::SC_RULES,  "r");
+            getChangeListStr(MegaChatScheduledMeeting::SC_PARENT,    "p");
+            getChangeListStr(MegaChatScheduledMeeting::SC_TZONE,     "tz");
+            getChangeListStr(MegaChatScheduledMeeting::SC_START,     "s");
+            getChangeListStr(MegaChatScheduledMeeting::SC_END,       "e");
+            getChangeListStr(MegaChatScheduledMeeting::SC_TITLE,     "t");
+            getChangeListStr(MegaChatScheduledMeeting::SC_DESC,      "d");
+            getChangeListStr(MegaChatScheduledMeeting::SC_ATTR,      "at");
+            getChangeListStr(MegaChatScheduledMeeting::SC_FLAGS,     "f");
+            getChangeListStr(MegaChatScheduledMeeting::SC_RULES,     "r");
+            getChangeListStr(MegaChatScheduledMeeting::SC_CANC,      "c");
 
             ret.append("User ").append(userHandle_64).append(" ");
             if (mMessage->hasSchedMeetingChanged(MegaChatScheduledMeeting::SC_NEW_SCHED))

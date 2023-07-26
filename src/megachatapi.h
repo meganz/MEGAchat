@@ -2210,6 +2210,14 @@ public:
      *        - If field has changed, this method returns a MegaStringList with two elements, the first one corresponds to old value,
      *          and the second one to the new one.
      *
+     * For some fields values stored at MegaStringList you need to consider:
+     *  - MegaChatScheduledMeeting::SC_PARENT    [1]  - C string (null terminated) that represents a handle encoded in Base64
+     *  - MegaChatScheduledMeeting::SC_TZONE     [2]  - C string (null terminated) that represents timezone encoded in Base64
+     *  - MegaChatScheduledMeeting::SC_START     [3]  - C string (null terminated) that represents a unix timestamp UTC
+     *  - MegaChatScheduledMeeting::SC_END       [4]  - C string (null terminated) that represents a unix timestamp UTC
+     *  - MegaChatScheduledMeeting::SC_TITLE     [5]  - C string (null terminated) that represents scheduled meeting title encoded in Base64
+     *  - MegaChatScheduledMeeting::SC_CANC      [8]  - C string (null terminated) ("0" | "1)
+     *
      * The MegaChatMessage retains the ownership of the MegaStringList.
      *
      * This funcion returns a valid value for:
@@ -2224,8 +2232,10 @@ public:
      * - MegaChatScheduledMeeting::SC_DESC      [6]  - Description
      * - MegaChatScheduledMeeting::SC_ATTR      [7]  - Attributes
      * - MegaChatScheduledMeeting::SC_CANC      [8]  - Cancelled flag has changed
-     * - MegaChatScheduledMeeting::SC_FLAGS     [9] - Scheduled meetings flags have changed
-     * - MegaChatScheduledMeeting::SC_RULES     [10] - Repetition rules have changed
+     * - MegaChatScheduledMeeting::SC_FLAGS     [9]  - Scheduled meetings flags have changed
+     *
+     * In case you want to check current value for recurring rules, you need to call
+     * MegaChatMessage::getScheduledMeetingRules()
      *
      * @return a MegaStringList list with the old [and new value] for a scheduled meeting specific field, or nullptr
      * in case that field has not changed or values are not available due to size reasons.

@@ -775,24 +775,36 @@ public:
                     return karere::SC_FLAGS_SIZE;
                 };
 
-                auto checkLongFieldChanged = [] (rapidjson::Value::ConstMemberIterator& it, const std::string& fieldStr) -> bool
+                auto checkNonArrFieldChanged = [&info] (rapidjson::Value::ConstMemberIterator& it, const unsigned int field, const std::string& fieldStr) -> bool
                 {
-                    // long field changes comes with a single digit (1) indicating it has changed, but is not provided for size reasons
-                    if (!it->value.IsNumber())
+                    if (it->value.IsNumber())
                     {
-                        KR_LOG_ERROR("checkLongFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
-                        assert(false);
-                        return false;
+                        // long field changes comes with a single digit (1) indicating it has changed, but is not provided for size reasons
+                        int v = static_cast<int>(it->value.GetInt());
+                        if (v != 1)
+                        {
+                            KR_LOG_ERROR("checkNonArrFieldChanged: Invalid value: %d in changeset for field %s.",v, fieldStr.c_str());
+                            assert(false);
+                            return false;
+                        }
+                        return true;
                     }
 
-                    int v = static_cast<int>(it->value.GetInt());
-                    if (v != 1)
+                    if (it->value.IsString())
                     {
-                        KR_LOG_ERROR("checkLongFieldChanged: Invalid value: %d in changeset for field %s.",v, fieldStr.c_str());
-                        assert(false);
-                        return false;
+                        std::string stdVal = it->value.GetString();
+                        if (stdVal.empty()) { return false; }
+
+                        std::vector<std::string> auxVals;
+                        auxVals.emplace_back(stdVal);
+                        info->mSchedInfo->emplace(field, auxVals);
+                        return false; // for some fields, current value is included for rendering purposes,
+                                      // but it doesn't mean that field has changed.
                     }
-                    return true;
+
+                    KR_LOG_ERROR("checkNonArrFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
+                    assert(false);
+                    return false;
                 };
 
                 auto getRulesValue = [](rapidjson::Value::ConstMemberIterator& it,
@@ -951,7 +963,7 @@ public:
                     return hasChanged;
                 };
 
-                auto checkChanges = [&document, &getFieldFromString, &checkFieldChanged, &checkLongFieldChanged, &bs](const std::string fieldStr) -> void
+                auto checkChanges = [&document, &getFieldFromString, &checkFieldChanged, &checkNonArrFieldChanged, &bs](const std::string fieldStr) -> void
                 {
                     // if field is not present in json changeset, it has not changed
                     rapidjson::Value::ConstMemberIterator it = document.FindMember(fieldStr.c_str());
@@ -966,7 +978,7 @@ public:
                     }
 
                     bool hasChanged = !it->value.IsArray()
-                                          ? checkLongFieldChanged(it, fieldStr)     // long field change (1 => if changed)
+                                          ? checkNonArrFieldChanged(it, field, fieldStr)     // long field change (1 => if changed)
                                           : checkFieldChanged(it, field, fieldStr); // field change array
 
                     if (hasChanged) { bs[field] = 1; } // mark field as changed in bitset
