@@ -4833,6 +4833,9 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     unsigned a1 = 0;
     unsigned a2 = 1;
 
+    LOG_debug << "\tSwitching to staging (Shard 2) for group creation (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+
     // aux data structure to handle lambdas' arguments
     SchedMeetingData smDataTests127, smDataTests456;
 
@@ -5365,6 +5368,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smData.chatId = chatid;
     smData.schedId = schedId;
     ASSERT_NO_FATAL_FAILURE({ deleteSchedMeeting(a1, MegaChatError::ERROR_OK, smData); });
+
+    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
+
 }
 #endif
 
