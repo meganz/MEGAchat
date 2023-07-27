@@ -5096,16 +5096,56 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
         return msg;
     };
 
-    auto checkSchedMeetMsgChanges = [] (const MegaChatMessage* msg, const std::vector<unsigned int>& flags) -> bool
+    const auto schedChangeToString = [] (const unsigned int flag) -> std::string
+    {
+        if (flag == MegaChatScheduledMeeting::SC_NEW_SCHED)     { return "New"; }
+        if (flag == MegaChatScheduledMeeting::SC_PARENT)        { return "p"; }
+        if (flag == MegaChatScheduledMeeting::SC_TZONE)         { return "tz"; }
+        if (flag == MegaChatScheduledMeeting::SC_START)         { return "s"; }
+        if (flag == MegaChatScheduledMeeting::SC_END)           { return "e"; }
+        if (flag == MegaChatScheduledMeeting::SC_TITLE)         { return "t"; }
+        if (flag == MegaChatScheduledMeeting::SC_DESC)          { return "d"; }
+        if (flag == MegaChatScheduledMeeting::SC_ATTR)          { return "at"; }
+        if (flag == MegaChatScheduledMeeting::SC_OVERR)         { return "o"; }
+        if (flag == MegaChatScheduledMeeting::SC_CANC)          { return "c"; }
+        if (flag == MegaChatScheduledMeeting::SC_FLAGS)         { return "f"; }
+        if (flag == MegaChatScheduledMeeting::SC_RULES)         { return "r"; }
+        if (flag == MegaChatScheduledMeeting::SC_FLAGS_SIZE)    { return "Invalid"; }
+        return "Unknown";
+    };
+
+    auto checkSchedMeetMsgChanges = [&schedChangeToString] (const MegaChatMessage* msg, const std::vector<unsigned int>& flags) -> bool
     {
         if (!msg) { return false;}
 
-        for (const auto f: flags)
+        bool match = true;
+        for (const auto flag: flags)
         {
-            if (!msg->hasSchedMeetingChanged(f)) { return false; }
+            if (!msg->hasSchedMeetingChanged(flag))
+            {
+                match = false;
+                break;
+            }
         };
 
-        return true;
+        if (!match)
+        {
+            std::string changesStr = "checkSchedMeetMsgChanges: Expected changes => [  ";
+            for (auto f: flags)
+            {
+                changesStr.append(schedChangeToString(f).append("  "));
+            }
+
+            changesStr.append("] Received changes: {  ");
+            for (unsigned int i = MegaChatScheduledMeeting::SC_NEW_SCHED; i < MegaChatScheduledMeeting::SC_FLAGS_SIZE; ++i)
+            {
+                changesStr.append(schedChangeToString(i)).append(": ").append(std::to_string(msg->hasSchedMeetingChanged(i)).append("  "));
+            }
+            changesStr.append("}");
+            LOG_err << changesStr;
+        }
+
+        return match;
     };
 
     auto checkSchedParentId = [] (const MegaChatMessage* msg, const MegaChatHandle parentSchedId) -> bool
