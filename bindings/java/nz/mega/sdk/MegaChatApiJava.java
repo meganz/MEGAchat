@@ -971,9 +971,9 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Modify an existing scheduled meeting
+     * Modify an existing scheduled meeting. This action won't create a child scheduled meeting
      *
-     * Note: this action won't create a child scheduled meeting
+     * @note: You need to provide the current values of scheduled meeting for those params that you don't want to modify
      *
      * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -990,7 +990,7 @@ public class MegaChatApiJava {
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if chatid or schedId are invalid
-     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, description, flags and rules are invalid
+     * - MegaChatError::ERROR_ARGS  - if title, timezone, startDateTime or endDateTime are invalid
      * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
      * - MegaChatError::ERROR_NOENT - if chatroom or scheduled meeting don't exist
      *
@@ -1000,10 +1000,11 @@ public class MegaChatApiJava {
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters.
+     * Provide nullptr to remove description
      * @param cancelled True if scheduled meeting is going to be cancelled
-     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
-     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
+     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class), or nullptr to remove current flags
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class), or nullptr to remove current repetition rules
      * @param listener MegaChatRequestListener to track this request
      */
     public void updateScheduledMeeting(long chatid, long schedId, String timezone, long startDate, long endDate, String title, String description, boolean cancelled, MegaChatScheduledFlags flags, MegaChatScheduledRules rules, MegaChatRequestListenerInterface listener) {
@@ -1011,9 +1012,9 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Modify an existing scheduled meeting
+     * Modify an existing scheduled meeting. This action won't create a child scheduled meeting
      *
-     * Note: this action won't create a child scheduled meeting
+     * @note: You need to provide the current values of scheduled meeting for those params that you don't want to modify
      *
      * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1030,7 +1031,7 @@ public class MegaChatApiJava {
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if chatid or schedId are invalid
-     * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, description, flags and rules are invalid
+     * - MegaChatError::ERROR_ARGS  - if title, timezone, startDateTime or endDateTime are invalid
      * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
      * - MegaChatError::ERROR_NOENT - if chatroom or scheduled meeting don't exist
      *
@@ -1040,10 +1041,11 @@ public class MegaChatApiJava {
      * @param startDate start date time of the meeting with the format (unix timestamp UTC)
      * @param endDate end date time of the meeting with the format (unix timestamp UTC)
      * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
-     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters.
+     * Provide nullptr to remove description
      * @param cancelled True if scheduled meeting is going to be cancelled
-     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class)
-     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class)
+     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class), or nullptr to remove current flags
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class), or nullptr to remove current repetition rules
      */
     public void updateScheduledMeeting(long chatid, long schedId, String timezone, long startDate, long endDate, String title, String description, boolean cancelled, MegaChatScheduledFlags flags, MegaChatScheduledRules rules) {
         megaChatApi.updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, cancelled, flags, rules);
