@@ -701,6 +701,9 @@ void MainWindow::on_bSettings_clicked()
     auto actPrintMyInfo = othersMenu->addAction(tr("Print my info"));
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
 
+    auto actPrintUserAlerts = othersMenu->addAction(tr("Print scheduled meetings user alerts"));
+    connect(actPrintUserAlerts, SIGNAL(triggered()), this, SLOT(onPrintUseralerts()));
+
     auto actRetryPendingConn = othersMenu->addAction(tr("Retry pending connections"));
     connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
 
@@ -790,6 +793,58 @@ void MainWindow::openChatPreview(bool create)
     }
 }
 
+void MainWindow::onPrintUseralerts()
+{
+    std::string text;
+    std::unique_ptr<MegaUserAlertList> ual(mMegaApi->getUserAlerts());
+    if (!ual || !ual->size()) { return; }
+
+    for (int i = 0; i < ual->size(); ++i)
+    {
+       const MegaUserAlert* alert = ual->get(i);
+       if (!alert ||
+           (alert->getType() != MegaUserAlert::TYPE_SCHEDULEDMEETING_NEW
+            && alert->getType() != MegaUserAlert::TYPE_SCHEDULEDMEETING_DELETED
+            && alert->getType() != MegaUserAlert::TYPE_SCHEDULEDMEETING_UPDATED))
+       {
+            continue;
+       }
+
+       std::unique_ptr<char[]> chatid_64(mMegaApi->userHandleToBase64(alert->getNodeHandle()));
+       std::unique_ptr<char[]> schedid_64(mMegaApi->userHandleToBase64(alert->getSchedId()));
+       std::unique_ptr<char[]> parentSchedid_64(mMegaApi->userHandleToBase64(alert->getPcrHandle()));
+
+       if (alert->getType() == MegaUserAlert::TYPE_SCHEDULEDMEETING_NEW)     { text.append("\n\n[Sm new]");     }
+       if (alert->getType() == MegaUserAlert::TYPE_SCHEDULEDMEETING_UPDATED) { text.append("\n\n[Sm updated]"); }
+       if (alert->getType() == MegaUserAlert::TYPE_SCHEDULEDMEETING_DELETED) { text.append("\n\n[Sm deleted]"); }
+       text.append("\n\tUserAlert Id: ").append(std::to_string(alert->getId()));
+       text.append("\n\tChatid: ").append(chatid_64.get());
+       text.append("\n\tSchedid: ").append(chatid_64.get());
+       text.append("\n\tParent: ").append(chatid_64.get());
+
+       text.append("\n\tFields changed: {");
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_TITLE))         { text.append(" T "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_DESCRIPTION))   { text.append(" D "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_CANCELLED))     { text.append(" C "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_TIMEZONE))      { text.append(" TZ "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_STARTDATE))     { text.append(" S "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_ENDDATE))       { text.append(" E "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_RULES))         { text.append(" R "); }
+       text.append(" }");
+    }
+
+    QDialog dialog;
+    QVBoxLayout layout(&dialog);
+    QTextEdit textEdit;
+    QPushButton closeBtn("Close");
+    dialog.resize(600, 400);
+    textEdit.setPlainText(text.c_str());
+    textEdit.setReadOnly(true);
+    layout.addWidget(&textEdit);
+    layout.addWidget(&closeBtn);
+    QObject::connect(&closeBtn, &QPushButton::clicked, &dialog, &QDialog::close);
+    dialog.exec();
+}
 
 void MainWindow::onPrintMyInfo()
 {
