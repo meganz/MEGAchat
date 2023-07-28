@@ -553,11 +553,6 @@ int64_t Call::getFinalTimeStamp() const
     return mFinalTs;
 }
 
-int64_t Call::getInitialOffsetinMs() const
-{
-    return mOffset;
-}
-
 const char *Call::stateToStr(CallState state)
 {
     switch(state)
