@@ -4516,11 +4516,17 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // Open chat link and check that wr flag and scheduled meetings are received upon onRequestFinish(TYPE_LOAD_PREVIEW)
     std::unique_ptr<char[]> tertiarySession(login(a3));  // user C
+    LOG_debug << "\tSwitching to staging (Shard 2) for group creation";
+    megaApi[a3]->changeApiUrl("https://staging.api.mega.co.nz/");
+
     ChatRequestTracker crtOpenLink;
     megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink);
     ASSERT_EQ(crtOpenLink.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
     ASSERT_TRUE(crtOpenLink.getPrivilege() /*wr flag*/ && crtOpenLink.hasScheduledMeetings());
     ASSERT_NO_FATAL_FAILURE({ logout(a3, true); });
+
+    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation\n";
+    megaApi[a3]->changeApiUrl("https://g.api.mega.co.nz/");
 
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom->getPeerPrivilegeByHandle(user->getHandle()) == megachat::MegaChatPeerList::PRIV_STANDARD)
