@@ -1015,11 +1015,13 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         const char *title = request->getText();
                         const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
 
-                        QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n\n Do you want to preview it?")
+                        QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n Waiting Room: %5 \n Scheduled meeting: %6 \n\n Do you want to preview it?")
                                 .arg(QString::fromStdString(request->getLink()))
                                 .arg(QString::fromStdString(chatHandle_64))
                                 .arg(QString(title))
-                                .arg(QString::fromStdString(std::to_string(numPeers)));
+                                .arg(QString::fromStdString(std::to_string(numPeers)))
+                                .arg(QString::fromStdString(std::to_string(request->getPrivilege())))
+                                .arg(QString::fromStdString(request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size() ? "1" : "0"));
 
                         QMessageBox msgBox;
                         msgBox.setWindowTitle("Check chat link");
@@ -1043,6 +1045,17 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 {
                     if (error == MegaChatError::ERROR_OK)
                     {
+                        std::string res;
+                        res += request->getPrivilege() ? "Waiting Room = 1 " : "Waiting Room = 0 ";
+                        res += request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size()
+                                   ? " Scheduled meeting = 1"
+                                   : " Scheduled meeting = 0";
+
+                        QMessageBox msgBox;
+                        msgBox.setText(res.c_str());
+                        msgBox.setWindowTitle("Check Chatlink");
+                        msgBox.exec();
+
                         const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
                         mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
                         mMainWin->reorderAppChatList();

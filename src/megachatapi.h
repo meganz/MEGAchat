@@ -4954,6 +4954,9 @@ public:
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
      * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
+     * - MegaChatRequest::getPrivilege - Returns 1 if chatRoom has waiting room option enabled, otherwise returns 0
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance
+     * (with a list of scheduled meetings associated to the chatroom) or nullptr if none.
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
