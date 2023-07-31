@@ -4795,12 +4795,6 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     {
         occurrences.reset();
         // check if occurrence is inside requested range
-        const MegaChatTimeStamp sinceTs = smData.startDate;
-        const auto isValidOccurr = [&sinceTs](const MegaChatTimeStamp& ts)
-        {
-            return sinceTs <= ts; // check until limit in this method when apps can filter ocurrences by that field
-        };
-
         bool exitFlag = false;
 
         // wait for onRequestFinish
@@ -4814,23 +4808,34 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                           maxTimeout,
                           [&api = megaChatApi[index], &d = smData, &expectedError, &exitFlag, &occurrences]()
                           {
+                              const MegaChatTimeStamp sinceTs = d.startDate;
+                              const auto isValidOccurr = [&sinceTs](const MegaChatTimeStamp& ts)
+                              {
+                                  return sinceTs <= ts; // check until limit in this method when apps can filter ocurrences by that field
+                              };
+
                               ChatRequestTracker crtFetchOccurrences;
                               api->fetchScheduledMeetingOccurrencesByChat(d.chatId, d.startDate, &crtFetchOccurrences);
-                              ASSERT_EQ(crtFetchOccurrences.waitForResult(), expectedError)
-                                  << "Unexpected error while fetching scheduled meetings. Error: " << crtFetchOccurrences.getErrorString();
+
+                              const int errCode = crtFetchOccurrences.waitForResult();
+                              ASSERT_EQ(errCode, expectedError) << "Unexpected error while fetching scheduled meetings. Error: "
+                                                                << crtFetchOccurrences.getErrorString();
+
+                              if (!errCode && !crtFetchOccurrences.hasScheduledMeetings())
+                              {
+                                  LOG_err << "fetchScheduledMeetingOccurrencesByChat finished Ok but no scheduled meeting occurrences list received";
+                              }
                               occurrences = crtFetchOccurrences.getScheduledMeetings();
+
+                              for (size_t i =  0; i < occurrences->size(); ++i)
+                              {
+                                  const auto occurr = occurrences->at(i);
+                                  ASSERT_TRUE(isValidOccurr(occurr->startDateTime())) << "StartDateTime out of specified range for occurrence";
+                                  ASSERT_TRUE(isValidOccurr(occurr->endDateTime()))   << "EndDateTime out of specified range for occurrence";
+                              }
                               exitFlag = true;
                           });
         });
-
-        if (!occurrences) return;
-
-        for (size_t i =  0; i < occurrences->size(); ++i)
-        {
-            const auto occurr = occurrences->at(i);
-            ASSERT_TRUE(isValidOccurr(occurr->startDateTime())) << "StartDateTime out of specified range for occurrence";
-            ASSERT_TRUE(isValidOccurr(occurr->endDateTime()))   << "EndDateTime out of specified range for occurrence";
-        }
     };
 
     auto printOccurrences = [](const::megachat::MegaChatScheduledMeetingOccurrList* l, const int expectedOccurr) -> void
