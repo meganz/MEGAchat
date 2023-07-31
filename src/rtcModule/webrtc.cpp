@@ -553,11 +553,6 @@ int64_t Call::getFinalTimeStamp() const
     return mFinalTs;
 }
 
-int64_t Call::getInitialOffsetinMs() const
-{
-    return mOffset;
-}
-
 const char *Call::stateToStr(CallState state)
 {
     switch(state)
@@ -1227,9 +1222,16 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
 
 bool Call::isUdpDisconnected() const
 {
-    return (mInitialTs
-            && mStats.mSamples.mT.empty()
-            && (time(nullptr) - (mInitialTs - mOffset/1000) > sfu::SfuConnection::kNoMediaPathTimeout));
+    if (!mInitialTs)
+    {
+        // peerconnection establishment starts as soon ANSWER is sent to the client
+        // we never have reached kStateInProgress, as mInitialTs is set when we reach kStateInProgress (upon ANSWER command is received)
+        RTCM_LOG_ERROR("onConnectionChange(kDisconnected) received but mInitialTs is not initialized");
+        assert(false);
+        return true;
+    }
+
+    return (mStats.mSamples.mT.empty() && (time(nullptr) - mInitialTs > sfu::SfuConnection::kNoMediaPathTimeout));
 }
 
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
