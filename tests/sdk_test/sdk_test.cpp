@@ -4816,24 +4816,22 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
                               ChatRequestTracker crtFetchOccurrences;
                               api->fetchScheduledMeetingOccurrencesByChat(d.chatId, d.startDate, &crtFetchOccurrences);
-
                               const int errCode = crtFetchOccurrences.waitForResult();
-                              ASSERT_EQ(errCode, expectedError) << "Unexpected error while fetching scheduled meetings. Error: "
-                                                                << crtFetchOccurrences.getErrorString();
+                              exitFlag = true; // set exitFlag as true as waitForAction is waiting for it
+                              ASSERT_EQ(errCode, expectedError) << "Unexpected error while fetching scheduled meetings. Error: " << crtFetchOccurrences.getErrorString();
 
-                              if (!errCode && !crtFetchOccurrences.hasScheduledMeetings())
+                              if (!errCode)
                               {
-                                  LOG_err << "fetchScheduledMeetingOccurrencesByChat finished Ok but no scheduled meeting occurrences list received";
+                                  ASSERT_TRUE(crtFetchOccurrences.hasScheduledMeetings()) << "fetchScheduledMeetingOccurrencesByChat finished Ok "
+                                                                                             "but no scheduled meeting occurrences list received";
+                                  occurrences = crtFetchOccurrences.getScheduledMeetings();
+                                  for (size_t i =  0; i < occurrences->size(); ++i)
+                                  {
+                                      const auto occurr = occurrences->at(i);
+                                      ASSERT_TRUE(isValidOccurr(occurr->startDateTime())) << "StartDateTime out of specified range for occurrence";
+                                      ASSERT_TRUE(isValidOccurr(occurr->endDateTime()))   << "EndDateTime out of specified range for occurrence";
+                                  }
                               }
-                              occurrences = crtFetchOccurrences.getScheduledMeetings();
-
-                              for (size_t i =  0; i < occurrences->size(); ++i)
-                              {
-                                  const auto occurr = occurrences->at(i);
-                                  ASSERT_TRUE(isValidOccurr(occurr->startDateTime())) << "StartDateTime out of specified range for occurrence";
-                                  ASSERT_TRUE(isValidOccurr(occurr->endDateTime()))   << "EndDateTime out of specified range for occurrence";
-                              }
-                              exitFlag = true;
                           });
         });
     };
