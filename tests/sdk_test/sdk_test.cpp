@@ -4114,9 +4114,10 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     {
         ChatRequestTracker crtHangup;
         api->hangChatCall(ringInHandle, &crtHangup);
-        ASSERT_EQ(crtHangup.waitForResult(), MegaChatError::ERROR_OK)
-                << "Failed to hangup call (B). Error: " << crtHangup.getErrorString();
+        auto res = crtHangup.waitForResult();
         hangupCallExitFlag = true;
+        ASSERT_EQ(res, MegaChatError::ERROR_OK)
+                << "Failed to hangup call (B). Error: " << crtHangup.getErrorString();
     };
     ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a2 /*performer*/, MAX_ATTEMPTS, &hangupCallExitFlag, "hanging up chat call at account B", maxTimeout, action);
@@ -4135,9 +4136,10 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     {
         ChatRequestTracker crtHangup;
         api->hangChatCall(joinIdHandle, &crtHangup);
-        ASSERT_EQ(crtHangup.waitForResult(), MegaChatError::ERROR_OK)
-                << "Failed to hangup call (A). Error: " << crtHangup.getErrorString();
+        auto res = crtHangup.waitForResult();
         hangupCallExitFlag = true;
+        ASSERT_EQ(res, MegaChatError::ERROR_OK)
+                << "Failed to hangup call (A). Error: " << crtHangup.getErrorString();
     };
     ASSERT_NO_FATAL_FAILURE({
     waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, &hangupCallExitFlag, "hanging up chat call at account A", maxTimeout, action);
@@ -4369,9 +4371,10 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
         {
             ChatRequestTracker crtHangup;
             megaChatApi[u]->hangChatCall(callId, &crtHangup);
-            ASSERT_EQ(crtHangup.waitForResult(), MegaChatError::ERROR_OK)
-                << "Failed to hangup call (" << u + 1 << "). Error: " << crtHangup.getErrorString();
+            auto res = crtHangup.waitForResult();
             exitFlag = true;
+            ASSERT_EQ(res, MegaChatError::ERROR_OK)
+                << "Failed to hangup call (" << u + 1 << "). Error: " << crtHangup.getErrorString();
         };
         const std::string msg {"hanging up chat call at account " + std::to_string(u)};
         ASSERT_NO_FATAL_FAILURE(waitForCallAction(u, MAX_ATTEMPTS, &exitFlag, msg.c_str(), maxTimeout, action));
@@ -4856,9 +4859,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                        {
                             ChatRequestTracker crtRemoveMeeting;
                             api->removeScheduledMeeting(d.chatId, d.schedId, &crtRemoveMeeting);
-                            ASSERT_EQ(crtRemoveMeeting.waitForResult(), expectedError)
-                                        << "Unexpected error while removing scheduled meeting. Error: " << crtRemoveMeeting.getErrorString();
+                            auto res = crtRemoveMeeting.waitForResult();
                             exitFlag = true;
+                            ASSERT_EQ(res, expectedError)
+                                        << "Unexpected error while removing scheduled meeting. Error: " << crtRemoveMeeting.getErrorString();
                        });
         });
         if (expectedError != MegaChatError::ERROR_OK) { return; }
@@ -4893,9 +4897,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                             ChatRequestTracker crtUpdateMeeting;
                             api->updateScheduledMeeting(d.chatId, d.schedId, d.timeZone.c_str(), d.startDate, d.endDate, d.title.c_str(),
                                                                        d.description.c_str(), d.cancelled, d.flags.get(), d.rules.get(), &crtUpdateMeeting);
-                            ASSERT_EQ(crtUpdateMeeting.waitForResult(), expectedError)
-                                        << "Unexpected error when updating scheduled meeting. Error: " << crtUpdateMeeting.getErrorString();
+                            auto res = crtUpdateMeeting.waitForResult();
                             exitFlag = true;
+                            ASSERT_EQ(res, expectedError)
+                                        << "Unexpected error when updating scheduled meeting. Error: " << crtUpdateMeeting.getErrorString();
                        });
         });
 
@@ -4938,10 +4943,11 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                           {
                               ChatRequestTracker crtFetchOccurrences;
                               api->fetchScheduledMeetingOccurrencesByChat(d.chatId, d.startDate, &crtFetchOccurrences);
-                              ASSERT_EQ(crtFetchOccurrences.waitForResult(), expectedError)
+                              auto res = crtFetchOccurrences.waitForResult();
+                              exitFlag = true;
+                              ASSERT_EQ(res, expectedError)
                                   << "Unexpected error while fetching scheduled meetings. Error: " << crtFetchOccurrences.getErrorString();
                               occurrences = crtFetchOccurrences.getScheduledMeetings();
-                              exitFlag = true;
                           });
         });
 
