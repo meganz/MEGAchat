@@ -561,12 +561,12 @@ public:
         return (finished() && request) ? request->getParamType() : 0;
     }
 
-    auto hasScheduledMeetings() const
+    bool hasScheduledMeetings() const
     {
         return finished() && request && request->getMegaChatScheduledMeetingOccurrList();
     }
 
-    auto getScheduledMeetings() const
+    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> getScheduledMeetings() const
     {
         return hasScheduledMeetings()
                   ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
