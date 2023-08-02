@@ -1810,6 +1810,31 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Allows to enable/disable the waiting room option for a chat room
+     *
+     * If waiting room option is enabled, during calls non moderator members, will be placed into a waiting room.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
+     * - MegaChatRequest::getPrivilege - Returns MegaChatApi:::CHAT_OPTION_WAITING_ROOM
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
+     * - MegaChatError::ERROR_ARGS - If the chatroom is a 1on1 chat
+     * - MegaChatError::ERROR_ACCESS - If the caller is not an operator.
+     * - MegaChatError::ERROR_EXIST - If the value of enabled is the same as waiting room option
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enabled True if we want to enable waiting room, otherwise false.
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void setWaitingRoom(long chatid, boolean enabled, MegaChatRequestListenerInterface listener){
+        megaChatApi.setWaitingRoom(chatid, enabled, createDelegateRequestListener(listener));
+    }
+
+    /**
      * Set the status of the app
      * <p>
      * Apps in mobile devices can be in different status. Typically, foreground and
