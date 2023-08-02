@@ -4836,6 +4836,9 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     unsigned a1 = 0;
     unsigned a2 = 1;
 
+    LOG_debug << "\tSwitching to staging (Shard 2) for group creation (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+
     // aux data structure to handle lambdas' arguments
     SchedMeetingData smDataTests127, smDataTests456;
 
@@ -5066,6 +5069,117 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     // create chatroom and scheduled meeting
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
 
+    auto getLastMsgIfManagement = [this] (const unsigned uIndex, const MegaChatHandle chatid, const int expectedType) -> MegaChatMessage*
+    {
+        auto crListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
+        if (!megaChatApi[uIndex]->openChatRoom(chatid, crListener.get()))
+        {
+            LOG_debug << "getLastMsgIfManagement: Cannot open chatroom" << getChatIdStrB64(chatid);
+            return nullptr;
+        }
+        loadHistory(uIndex, chatid, crListener.get());
+        megaChatApi[uIndex]->closeChatRoom(chatid, crListener.get());
+
+        std::unique_ptr<MegaChatListItem> lItem(megaChatApi[uIndex]->getChatListItem(chatid));
+        if (!lItem)
+        {
+            LOG_debug << "getLastMsgIfManagement: Cannot get chatlist item for chat" << getChatIdStrB64(chatid);
+            return nullptr;
+        }
+
+        if (lItem->getLastMessageType() != expectedType)
+        {
+            LOG_debug << "getLastMsgIfManagement: last message in chat: " << getChatIdStrB64(chatid) << "is not of type: " << expectedType;
+            return nullptr;
+        }
+
+        MegaChatMessage* msg = megaChatApi[uIndex]->getMessage(chatid, lItem->getLastMessageId());
+        if (!msg || msg->getType() != expectedType)
+        {
+            return nullptr;
+        }
+
+        return msg;
+    };
+
+    const auto schedChangeToString = [] (const unsigned int flag) -> std::string
+    {
+        if (flag == MegaChatScheduledMeeting::SC_NEW_SCHED)     { return "New"; }
+        if (flag == MegaChatScheduledMeeting::SC_PARENT)        { return "p"; }
+        if (flag == MegaChatScheduledMeeting::SC_TZONE)         { return "tz"; }
+        if (flag == MegaChatScheduledMeeting::SC_START)         { return "s"; }
+        if (flag == MegaChatScheduledMeeting::SC_END)           { return "e"; }
+        if (flag == MegaChatScheduledMeeting::SC_TITLE)         { return "t"; }
+        if (flag == MegaChatScheduledMeeting::SC_DESC)          { return "d"; }
+        if (flag == MegaChatScheduledMeeting::SC_ATTR)          { return "at"; }
+        if (flag == MegaChatScheduledMeeting::SC_OVERR)         { return "o"; }
+        if (flag == MegaChatScheduledMeeting::SC_CANC)          { return "c"; }
+        if (flag == MegaChatScheduledMeeting::SC_FLAGS)         { return "f"; }
+        if (flag == MegaChatScheduledMeeting::SC_RULES)         { return "r"; }
+        if (flag == MegaChatScheduledMeeting::SC_FLAGS_SIZE)    { return "Invalid"; }
+        return "Unknown";
+    };
+
+    auto checkSchedMeetMsgChanges = [&schedChangeToString] (const MegaChatMessage* msg, const std::vector<unsigned int>& flags) -> bool
+    {
+        if (!msg) { return false;}
+
+        bool match = true;
+        for (const auto flag: flags)
+        {
+            if (!msg->hasSchedMeetingChanged(flag))
+            {
+                match = false;
+                break;
+            }
+        };
+
+        if (!match)
+        {
+            std::string changesStr = "checkSchedMeetMsgChanges: Expected changes => [  ";
+            for (auto f: flags)
+            {
+                changesStr.append(schedChangeToString(f).append("  "));
+            }
+
+            changesStr.append("] Received changes: {  ");
+            for (unsigned int i = MegaChatScheduledMeeting::SC_NEW_SCHED; i < MegaChatScheduledMeeting::SC_FLAGS_SIZE; ++i)
+            {
+                changesStr.append(schedChangeToString(i)).append(": ").append(std::to_string(msg->hasSchedMeetingChanged(i)).append("  "));
+            }
+            changesStr.append("}");
+            LOG_err << changesStr;
+        }
+
+        return match;
+    };
+
+    auto checkSchedParentId = [] (const MegaChatMessage* msg, const MegaChatHandle parentSchedId) -> bool
+    {
+        if (!msg) { return false;}
+        const MegaStringList* l = msg->getScheduledMeetingChange(MegaChatScheduledMeeting::SC_PARENT);
+        const bool msgHasParentId = l && l->size() == 1;
+
+        return parentSchedId != MEGACHAT_INVALID_HANDLE
+            ? msgHasParentId && MegaApi::base64ToUserHandle(l->get(0)) == parentSchedId
+            : !msgHasParentId;
+    };
+
+    const auto checkSchedMeetMsg = [&getLastMsgIfManagement, &checkSchedMeetMsgChanges, &checkSchedParentId]
+        (unsigned int index, const MegaChatHandle chatid, const MegaChatHandle parentSchedId
+         , const std::vector<unsigned int> changes, const std::string msg) -> void
+    {
+        // fetch last message that must be of type: TYPE_SCHED_MEETING and check that msg changes, matches with expected ones
+        std::unique_ptr<MegaChatMessage> lastManagementMsg(getLastMsgIfManagement(index, chatid, megachat::MegaChatMessage::TYPE_SCHED_MEETING));
+        ASSERT_TRUE(lastManagementMsg) << msg << " .Can't retrieve last message or it's type is not expected one";
+
+        ASSERT_TRUE(checkSchedMeetMsgChanges(lastManagementMsg.get(), changes))
+            << msg << " .Unexpected changeset received for sched meeting management msg";
+
+        ASSERT_TRUE(checkSchedParentId(lastManagementMsg.get(), parentSchedId /*expected parent SchedId*/))
+            << msg << " .Unexpected parentSchedId in sched meeting management msg";
+    };
+
     //================================================================================//
     // TEST preparation
     //================================================================================//
@@ -5118,18 +5232,12 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests127.rules = rules;
     ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (chatid, a1, a2, smDataTests127); });
 
-    /// <fetching new ScheduledMeeting MegaChatMessage>
-    auto& uIndex = a2;
-    auto crListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
-    ASSERT_TRUE(megaChatApi[uIndex]->openChatRoom(chatid, crListener.get())) << "Cannot open chatroom";
-
-    bool* flagHistoryLoaded = &crListener->historyLoaded[uIndex]; *flagHistoryLoaded = false;
-    ASSERT_NE(megaChatApi[uIndex]->loadMessages(chatid, 10), MegaChatApi::SOURCE_ERROR);
-    ASSERT_TRUE(waitForResponse(flagHistoryLoaded)) << "Expired timeout for loading history";
-
-    megaChatApi[uIndex]->closeChatRoom(chatid, crListener.get());
-    crListener.reset();
-    /// </fetching new ScheduledMeeting MegaChatMessage>
+    // check that SC_NEW_SCHED management msg content is expected
+    ASSERT_NO_FATAL_FAILURE({ checkSchedMeetMsg(a2
+                                                , chatid
+                                                , MEGACHAT_INVALID_HANDLE
+                                                , std::vector<unsigned int> { MegaChatScheduledMeeting::SC_NEW_SCHED }
+                                                , "TEST_1"); });
 
     const MegaChatHandle schedId = mSchedIdUpdated[a1];
     SchedMeetingData smData; // Designated initializers generate too many warnings (gcc)
@@ -5163,6 +5271,13 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests127.timeZone = timeZone;
     ASSERT_NO_FATAL_FAILURE({ updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests127); });
 
+    // check that SC_NEW_SCHED management msg content is expected
+    ASSERT_NO_FATAL_FAILURE({ checkSchedMeetMsg(a2
+                                                , chatid
+                                                , MEGACHAT_INVALID_HANDLE
+                                                , std::vector<unsigned int> { MegaChatScheduledMeeting::SC_TZONE }
+                                                , "TEST_3"); });
+
     //================================================================================//
     // TEST 4. Update a scheduled meeting occurrence with invalid schedId (Error)
     //================================================================================//
@@ -5190,6 +5305,14 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     auto sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatid, mSchedIdUpdated[a1]));
     ASSERT_TRUE(sched);
     ASSERT_EQ(sched->parentSchedId(), schedId) << "Child scheduled meeting for primary account has not been received scheduled meeting id: " <<  getSchedIdStrB64(schedId);
+
+    // check that SC_NEW_SCHED management msg content is expected
+    ASSERT_NO_FATAL_FAILURE({ checkSchedMeetMsg(a2
+                                                , chatid
+                                                , schedId
+                                                , std::vector<unsigned int> { MegaChatScheduledMeeting::SC_START
+                                                                          , MegaChatScheduledMeeting::SC_END }
+                                                , "TEST_5"); });
 
     const MegaChatHandle childSchedId = sched->schedId();
     smData = SchedMeetingData(); // Designated initializers generate too many warnings (gcc)
@@ -5243,6 +5366,14 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     ASSERT_TRUE(sched->cancelled()) << "Scheduled meeting occurrence could not be cancelled, scheduled meeting id: "
                                     <<  getSchedIdStrB64(schedId) << " overrides: " << std::to_string(overrides);
 
+
+    // check that SC_NEW_SCHED management msg content is expected
+    ASSERT_NO_FATAL_FAILURE({ checkSchedMeetMsg(a2
+                                                , chatid
+                                                , schedId
+                                                , std::vector<unsigned int> { MegaChatScheduledMeeting::SC_CANC }
+                                                , "TEST_7"); });
+
     //================================================================================//
     // TEST 8. Cancel entire series
     //================================================================================//
@@ -5258,6 +5389,13 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
         if (occurrences) { printOccurrences(occurrences.get(), 0); }
         ASSERT_TRUE(false) << "No scheduled meeting occurrences for primary account should be received for chat: " << getChatIdStrB64(chatid);
     }
+
+    // check that SC_NEW_SCHED management msg content is expected
+    ASSERT_NO_FATAL_FAILURE({ checkSchedMeetMsg(a2
+                                                , chatid
+                                                , MEGACHAT_INVALID_HANDLE
+                                                , std::vector<unsigned int> { MegaChatScheduledMeeting::SC_CANC }
+                                                , "TEST_8"); });
 
     //================================================================================//
     // TEST 9. Delete scheduled meeting with invalid schedId (Error)
@@ -5276,6 +5414,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smData.chatId = chatid;
     smData.schedId = schedId;
     ASSERT_NO_FATAL_FAILURE({ deleteSchedMeeting(a1, MegaChatError::ERROR_OK, smData); });
+
+    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
+
 }
 #endif
 
@@ -5944,7 +6086,6 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
 void MegaChatApiTest::createChatroomAndSchedMeeting(MegaChatHandle& chatid, const unsigned int a1,
                                                     const unsigned int a2, const SchedMeetingData& smData)
 {
-
     // reset sched meetings id and chatid to invalid handle
     mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE;
 
@@ -7186,19 +7327,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
         {
             msgContactReceived[apiIndex] = true;
         }
-        else if (msg->getType() == MegaChatMessage::TYPE_SCHED_MEETING)
-        {
-            const auto smId = msg->getUserHandle();
-            const auto id = msg->getHandleOfAction();
-            const auto changes = msg->getPrivilege();
-            LOG_debug << "\n\t\t\t" << apiIndex << " account\n\t\t\t"
-                      << ::mega::toHandle(MEGACHAT_INVALID_HANDLE) << " invalid handle\n\t\t\t"
-                      << ::mega::toHandle(smId) << " msg->getUserHandle()\n\t\t\t"
-                      << ::mega::toHandle(id) << " msg->getHandleOfAction()\n\t\t\t"
-                      << changes << " priv";
-            ASSERT_NE(id, MEGACHAT_INVALID_HANDLE);
-            ASSERT_EQ(changes, 0);
-        }
+        // else if MegaChatMessage::TYPE_SCHED_MEETING => no changes required
 
         msgLoaded[apiIndex] = true;
     }
