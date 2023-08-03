@@ -120,6 +120,8 @@ void Call::setState(CallState newState)
 
     if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
     {
+        clearInitialTs(); // reset initial ts for call
+
         auto wptr = weakHandle();
         mConnectTimer = karere::setTimeout([this, wptr]()
         {
@@ -138,7 +140,7 @@ void Call::setState(CallState newState)
         }, kConnectingTimeout * 1000, mRtc.getAppCtx());
     }
 
-    if (newState == CallState::kStateInProgress)
+    if (newState == CallState::kStateInProgress)  // when ANSWER command is received
     {
         if (mConnectTimer) // cancel timer, as we have joined call before mConnectTimer expired
         {
@@ -146,8 +148,7 @@ void Call::setState(CallState newState)
             mConnectTimer = 0;
         }
 
-        // initial ts is set when user has joined to the call
-        mInitialTs = time(nullptr);
+        captureInitialTs(); // initial ts is set when user has joined to the call
     }
     else if (newState == CallState::kStateDestroyed)
     {
@@ -1222,7 +1223,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
 
 bool Call::isUdpDisconnected() const
 {
-    if (!mInitialTs)
+    if (!mega::isValidTimeStamp(getInitialTimeStamp()))
     {
         // peerconnection establishment starts as soon ANSWER is sent to the client
         // we never have reached kStateInProgress, as mInitialTs is set when we reach kStateInProgress (upon ANSWER command is received)
@@ -1231,7 +1232,7 @@ bool Call::isUdpDisconnected() const
         return true;
     }
 
-    return (mStats.mSamples.mT.empty() && (time(nullptr) - mInitialTs > sfu::SfuConnection::kNoMediaPathTimeout));
+    return (mStats.mSamples.mT.empty() && (time(nullptr) - getInitialTimeStamp() > sfu::SfuConnection::kNoMediaPathTimeout));
 }
 
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
@@ -1283,9 +1284,9 @@ void Call::sendStats(const TermCode& termCode)
     }
 
     assert(isValidConnectionTermcode(termCode));
-    mStats.mDuration = mInitialTs
-            ? static_cast<uint64_t>((time(nullptr) - mInitialTs) * 1000)  // ms
-            : 0; // in case we have not joined SFU yet, send duration = 0
+    mStats.mDuration = mega::isValidTimeStamp(getInitialTimeStamp()) // mInitialTs
+                           ? static_cast<uint64_t>((time(nullptr) - getInitialTimeStamp()) * 1000)  // ms
+                           : mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
     mStats.mMaxPeers = mMaxPeers;
     mStats.mTermCode = static_cast<int32_t>(termCode);
     mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());

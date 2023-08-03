@@ -419,6 +419,8 @@ public:
 
     void setWrFlag(bool enabled)    { mIsWaitingRoomEnabled = enabled; }
     bool isWrFlagEnabled() const    { return mIsWaitingRoomEnabled;    }
+    void clearInitialTs()           { mInitialTs = mega::mega_invalid_timestamp; }
+    void captureInitialTs()         { mInitialTs = ::mega::m_time(nullptr); }
 
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
