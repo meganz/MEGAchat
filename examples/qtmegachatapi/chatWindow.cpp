@@ -683,15 +683,24 @@ void ChatWindow::setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetIte
     {
         case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-        item->setSizeHint(QSize(item->sizeHint().height(), 150));
-        break;
+            item->setSizeHint(QSize(item->sizeHint().height(), 150));
+            break;
         }
 
         case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
         {
-        item->setSizeHint(QSize(item->sizeHint().height(), 150));
-        break;
+            item->setSizeHint(QSize(item->sizeHint().height(), 150));
+            break;
         }
+
+        case megachat::MegaChatMessage::TYPE_SCHED_MEETING:
+        {
+            item->setSizeHint(QSize(item->sizeHint().height(), 300));
+            break;
+        }
+
+        default:
+            break;
     }
 }
 
