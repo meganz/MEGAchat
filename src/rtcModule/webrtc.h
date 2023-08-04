@@ -178,6 +178,7 @@ class ICall
 {
 public:
     virtual karere::Id getCallid() const = 0;
+    virtual bool isSpeakRequestEnabled() const = 0;
     virtual karere::Id getChatid() const = 0;
     virtual karere::Id getCallerid() const = 0;
     virtual CallState getState() const = 0;

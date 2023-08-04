@@ -261,6 +261,11 @@ int MegaChatCall::getEndCallReason() const
     return 0;
 }
 
+bool MegaChatCall::isSpeakRequestEnabled() const
+{
+    return false;
+}
+
 int MegaChatCall::getNotificationType() const
 {
     return 0;

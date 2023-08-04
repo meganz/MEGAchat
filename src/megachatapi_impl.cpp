@@ -7856,6 +7856,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
             ? static_cast<uint8_t>(MegaChatCall::END_CALL_REASON_INVALID)
             : call.getEndCallReason();
 
+    mSpeakRequest = call.isSpeakRequestEnabled();
+
     for (const auto& participant: call.getParticipants())
     {
         mParticipants.push_back(participant);
@@ -7907,6 +7909,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mModerators.reset(call.getModerators() ? call.getModerators()->copy() : nullptr);
     mParticipants = call.mParticipants;
     mHandleList.reset(call.getHandleList() ? call.getHandleList()->copy() : nullptr);
+    mSpeakRequest = call.isSpeakRequestEnabled();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
@@ -7996,6 +7999,11 @@ int MegaChatCallPrivate::getTermCode() const
 int MegaChatCallPrivate::getEndCallReason() const
 {
     return mEndCallReason;
+}
+
+bool MegaChatCallPrivate::isSpeakRequestEnabled() const
+{
+    return mSpeakRequest;
 }
 
 int MegaChatCallPrivate::getNotificationType() const

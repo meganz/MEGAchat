@@ -263,6 +263,7 @@ public:
     virtual int64_t getFinalTimeStamp() const override;
     virtual int getTermCode() const override;
     int getEndCallReason() const override;
+    bool isSpeakRequestEnabled() const override;
     int getNotificationType() const override;
     virtual bool isRinging() const override;
     virtual bool isOwnModerator() const override;
@@ -336,6 +337,7 @@ protected:
     bool mIsSpeakAllow = false;
     bool mHasRequestSpeak = false;
     bool mOwnModerator = false;
+    bool mSpeakRequest = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
 };

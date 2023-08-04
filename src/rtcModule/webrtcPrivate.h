@@ -321,6 +321,7 @@ public:
 
     void setCallerId(const karere::Id& callerid) override;
     karere::Id getCallid() const override;
+    bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
 
     // request to speak, or cancels a previous request (add = false)
     void requestSpeaker(bool add = true) override;
@@ -401,7 +402,6 @@ public:
 
     // set/get speakRequest flag
     void setSpeakRequest(const bool enabled)    { mSpeakRequest = enabled; }
-    bool isSpeakRequestEnabled() const          { return mSpeakRequest; }
 
     // set definitive endCallReason
     void setEndCallReason(uint8_t reason);

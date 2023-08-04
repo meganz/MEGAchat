@@ -877,6 +877,16 @@ public:
     virtual int getEndCallReason() const;
 
     /**
+     * @brief Returns if speak request option is enabled for this call
+     *
+     * If speak request option is enabled, non moderator users must request permission to speak.
+     * Check MegaChatApi::requestSpeak documentation.
+     *
+     * @return if speak request option is enabled for this call
+     */
+    virtual bool isSpeakRequestEnabled() const;
+
+    /**
      * @brief Return the notification type, when a call notification is forwarded to the apps
      *
      * @note this value only will be valid in the following scenarios:
