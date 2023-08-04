@@ -1058,6 +1058,7 @@ void MegaChatApiImpl::sendPendingRequests()
                    request->setChatHandle(chatId);
                    request->setNumber(numPeers);
                    request->setText(decryptedTitle.c_str());
+                   request->setPrivilege(result->getParamType()); // waiting room flag
                    if (result->getMegaHandleList())
                    {
                        request->setMegaHandleList(result->getMegaHandleList());
@@ -1067,6 +1068,24 @@ void MegaChatApiImpl::sendPendingRequests()
                    if (meeting)
                    {
                        request->setParamType(1);
+                   }
+
+                   if (result->getMegaScheduledMeetingList() && result->getMegaScheduledMeetingList()->size())
+                   {
+                       std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+                       const MegaScheduledMeetingList* smList = result->getMegaScheduledMeetingList();
+                       for (unsigned long i = 0; i < smList->size(); ++i)
+                       {
+                           if (smList->at(i) == nullptr)
+                           {
+                               API_LOG_ERROR("Null scheduled meeting at MegaScheduledMeetingList received upon mcphurl");
+                               assert(false);
+                               continue;
+                           }
+
+                           l->insert(new MegaChatScheduledMeetingPrivate(new MegaChatScheduledMeetingPrivate(*smList->at(i))));
+                       }
+                       request->setMegaChatScheduledMeetingList(l.get());
                    }
 
                    //Check chat link

@@ -1032,6 +1032,22 @@ public:
     MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate&&) = delete;
     MegaChatScheduledMeetingPrivate& operator=(const MegaChatScheduledMeetingPrivate&) = delete;
     MegaChatScheduledMeetingPrivate& operator=(const MegaChatScheduledMeetingPrivate&&) = delete;
+    MegaChatScheduledMeetingPrivate(const mega::MegaScheduledMeeting& msm)
+        : mKScheduledMeeting(std::make_unique<karere::KarereScheduledMeeting>(msm.chatid()
+                                                                              , msm.organizerUserid()
+                                                                              , msm.timezone() ? msm.timezone() : std::string()
+                                                                              , msm.startDateTime()
+                                                                              , msm.endDateTime()
+                                                                              , msm.title() ? msm.title() : std::string()
+                                                                              , msm.description() ? msm.description() : std::string()
+                                                                              , msm.schedId()
+                                                                              , msm.parentSchedId()
+                                                                              , msm.cancelled()
+                                                                              , msm.attributes() ? msm.attributes() : std::string()
+                                                                              , msm.overrides()
+                                                                              , msm.flags() ? std::make_unique<karere::KarereScheduledFlags>(msm.flags()).get() : nullptr
+                                                                              , msm.rules() ? std::make_unique<karere::KarereScheduledRules>(msm.rules()).get() : nullptr))
+    {}
 
     void setChanged(const unsigned long val) { mChanged = megachat_sched_bs_t(val); }
 
