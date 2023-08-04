@@ -44,7 +44,7 @@ using namespace megachat;
 }
 
 - (instancetype)clone {
-    return self.megaChatScheduledFlags ? [[MEGAChatScheduledFlags alloc] initWithMegaChatScheduledFlags:self.megaChatScheduledFlags cMemoryOwn:YES] : nil;
+    return self.megaChatScheduledFlags ? [[MEGAChatScheduledFlags alloc] initWithMegaChatScheduledFlags:self.megaChatScheduledFlags->copy() cMemoryOwn:YES] : nil;
 }
 
 - (BOOL)isEmpty {

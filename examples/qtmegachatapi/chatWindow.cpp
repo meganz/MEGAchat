@@ -1061,8 +1061,11 @@ void ChatWindow::onRingUser() const
     const QAction* action = qobject_cast<QAction *>(sender());
     if (!action) { return; }
 
+    std::string auxTimeout = mMainWin->mApp->getText("Get ringing timeout (>0) in seconds");
+    if (auxTimeout.empty()) { return; }
+
     const QVariant uHandle = action->property("userHandle");
-    mMegaChatApi->ringIndividualInACall(mChatRoom->getChatId(), static_cast<MegaChatHandle>(uHandle.toLongLong()));
+    mMegaChatApi->ringIndividualInACall(mChatRoom->getChatId(), static_cast<MegaChatHandle>(uHandle.toLongLong()), atoi(auxTimeout.c_str()));
 }
 
 void ChatWindow::onMemberSetPriv()

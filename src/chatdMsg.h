@@ -552,7 +552,7 @@ enum Opcode
       * @brief
       * C->S: Call again user who didn't pick up the call
       *
-      * Receive: <chatid.8> <userid.8> <callid.8> <callstate.1>
+      * Receive: <chatid.8> <userid.8> <callid.8> <callstate.1> <timeout.2>
       */
     OP_RINGUSER = 59,
 
@@ -744,35 +744,42 @@ public:
                 rapidjson::StringStream stringStream(changedJson.get());
                 rapidjson::Document document;
                 document.ParseStream(stringStream);
-                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                const auto er = document.GetParseError();
+                const bool isDocEmpty = er == rapidjson::ParseErrorCode::kParseErrorDocumentEmpty;
+                if (!isDocEmpty && er != rapidjson::ParseErrorCode::kParseErrorNone)
                 {
                    return NULL;
                 }
 
                 SchedMeetingInfo* info = new SchedMeetingInfo;
                 karere::karere_sched_bs_t bs = 0;
-                if (document.FindMember("tz") != document.MemberEnd())  { bs[karere::SC_TZONE] = 1; }
-                if (document.FindMember("s") != document.MemberEnd())   { bs[karere::SC_START] = 1; }
-                if (document.FindMember("e") != document.MemberEnd())   { bs[karere::SC_END] = 1; }
-                if (document.FindMember("d") != document.MemberEnd())   { bs[karere::SC_DESC] = 1; }
-                if (document.FindMember("p") != document.MemberEnd())   { bs[karere::SC_PARENT] = 1; }
-                if (document.FindMember("c") != document.MemberEnd())   { bs[karere::SC_CANC] = 1; }
-                if (document.FindMember("o") != document.MemberEnd())   { bs[karere::SC_OVERR] = 1; }
-                if (document.FindMember("f") != document.MemberEnd())   { bs[karere::SC_FLAGS] = 1; }
-                if (document.FindMember("r") != document.MemberEnd())   { bs[karere::SC_RULES] = 1; }
-                if (document.FindMember("at") != document.MemberEnd())  { bs[karere::SC_ATTR] = 1; }
 
-                rapidjson::Value::ConstMemberIterator itTitle = document.FindMember("t");
-                if (itTitle != document.MemberEnd())
+                if (!isDocEmpty)
                 {
-                    bs[karere::SC_TITLE] = 1;
-                    if (itTitle->value.IsArray() && itTitle->value.Size() == 2)
+                    if (document.FindMember("tz") != document.MemberEnd())  { bs[karere::SC_TZONE] = 1; }
+                    if (document.FindMember("s") != document.MemberEnd())   { bs[karere::SC_START] = 1; }
+                    if (document.FindMember("e") != document.MemberEnd())   { bs[karere::SC_END] = 1; }
+                    if (document.FindMember("d") != document.MemberEnd())   { bs[karere::SC_DESC] = 1; }
+                    if (document.FindMember("p") != document.MemberEnd())   { bs[karere::SC_PARENT] = 1; }
+                    if (document.FindMember("c") != document.MemberEnd())   { bs[karere::SC_CANC] = 1; }
+                    if (document.FindMember("o") != document.MemberEnd())   { bs[karere::SC_OVERR] = 1; }
+                    if (document.FindMember("f") != document.MemberEnd())   { bs[karere::SC_FLAGS] = 1; }
+                    if (document.FindMember("r") != document.MemberEnd())   { bs[karere::SC_RULES] = 1; }
+                    if (document.FindMember("at") != document.MemberEnd())  { bs[karere::SC_ATTR] = 1; }
+
+                    rapidjson::Value::ConstMemberIterator itTitle = document.FindMember("t");
+                    if (itTitle != document.MemberEnd())
                     {
-                        info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
-                        info->mSchedInfo->emplace(karere::SC_TITLE,
-                                    std::pair<std::string, std::string>(itTitle->value[0].GetString(), itTitle->value[1].GetString()));
+                        bs[karere::SC_TITLE] = 1;
+                        if (itTitle->value.IsArray() && itTitle->value.Size() == 2)
+                        {
+                            info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
+                            info->mSchedInfo->emplace(karere::SC_TITLE,
+                                                      std::pair<std::string, std::string>(itTitle->value[0].GetString(), itTitle->value[1].GetString()));
+                        }
                     }
                 }
+
                 info->mSchedId = schedId;
                 info->mSchedChanged = bs.to_ulong();
                 return info;
