@@ -399,6 +399,10 @@ public:
     // set temporal endCallReason (when call is not destroyed immediately)
     void setTempEndCallReason(uint8_t reason);
 
+    // set/get speakRequest flag
+    void setSpeakRequest(const bool enabled)    { mSpeakRequest = enabled; }
+    bool isSpeakRequestEnabled() const          { return mSpeakRequest; }
+
     // set definitive endCallReason
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
@@ -461,7 +465,7 @@ public:
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nVideoTracks,
-                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                      const std::set<karere::Id>& mods, const bool wr, const bool speakRequest, const bool allowed,
                       const std::map<karere::Id, bool>& wrUsers) override;
 
     // --- SfuInterface methods (waiting room related methods) ---
@@ -523,6 +527,9 @@ protected:
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
+
+    // speak request flag
+    bool mSpeakRequest = false;
 
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;

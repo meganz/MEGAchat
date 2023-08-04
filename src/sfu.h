@@ -229,7 +229,7 @@ public:
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
     virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks,
-                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                              const std::set<karere::Id>& mods, const bool wr, bool speakRequest, const bool allowed,
                               const std::map<karere::Id, bool>& wrUsers) = 0;
 
     virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
@@ -471,6 +471,7 @@ public:
                                const unsigned int nAudioTracks,
                                const std::set<karere::Id>& mods,
                                const bool wr,
+                               const bool speakRequest,
                                const bool allowed,
                                const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
 

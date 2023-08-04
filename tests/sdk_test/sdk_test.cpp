@@ -7921,7 +7921,7 @@ void MockupCall::logError(const char *)
 }
 
 bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/,
-                             const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
+                             const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*speakRequest*/, const bool /*allowed*/,
                              const std::map<karere::Id, bool>& /*wrUsers*/)
 {
     return true;

@@ -2203,7 +2203,7 @@ bool Call::handleModDel(uint64_t userid)
 }
 
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
-                                   const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                                   const std::set<karere::Id>& mods, const bool wr, const bool speakRequest, const bool allowed,
                                    const std::map<karere::Id, bool>& wrUsers)
 {
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
@@ -2214,6 +2214,8 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
         return false;
     }
     mNumInputVideoTracks = numInputVideoTracks; // Set the maximum number of simultaneous video tracks the call supports
+
+    setSpeakRequest(speakRequest);
 
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);

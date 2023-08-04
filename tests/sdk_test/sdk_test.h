@@ -655,7 +655,7 @@ public:
     bool processDeny(const std::string&, const std::string&) override;
     void logError(const char* error) override;
     bool handleHello(const Cid_t userid, const unsigned int nAudioTracks,
-                     const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                     const std::set<karere::Id>& mods, const bool wr, const bool speakRequest, const bool allowed,
                      const std::map<karere::Id, bool>& wrUsers) override;
 
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;
