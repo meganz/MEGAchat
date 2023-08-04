@@ -2395,7 +2395,7 @@ int MegaChatApiImpl::performRequest_speakRequest(MegaChatRequestPrivate* request
                 return MegaChatError::ERROR_ACCESS;
             }
 
-            call->requestSpeaker(enable);
+            call->requestSpeak(enable);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             return MegaChatError::ERROR_OK;

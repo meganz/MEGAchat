@@ -324,7 +324,7 @@ public:
     bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
 
     // request to speak, or cancels a previous request (add = false)
-    void requestSpeaker(bool add = true) override;
+    void requestSpeak(bool add = true) override;
     bool hasRequestSpeak() const override;
     int getWrJoiningState() const override;
 

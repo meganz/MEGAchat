@@ -614,7 +614,7 @@ bool Call::isAllowSpeak() const
     return mSpeakerState == SpeakerState::kActive;
 }
 
-void Call::requestSpeaker(bool add)
+void Call::requestSpeak(bool add)
 {
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
     {
