@@ -4975,11 +4975,14 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                                   ASSERT_TRUE(crtFetchOccurrences.hasScheduledMeetingOccurrList()) << "fetchScheduledMeetingOccurrencesByChat finished Ok "
                                                                                              "but no scheduled meeting occurrences list received";
                                   occurrences = crtFetchOccurrences.getScheduledMeetingsOccurrences();
-                                  for (size_t i =  0; i < occurrences->size(); ++i)
+                                  if (occurrences)
                                   {
-                                      const auto occurr = occurrences->at(i);
-                                      ASSERT_TRUE(isValidOccurr(occurr->startDateTime())) << "StartDateTime out of specified range for occurrence";
-                                      ASSERT_TRUE(isValidOccurr(occurr->endDateTime()))   << "EndDateTime out of specified range for occurrence";
+                                      for (size_t i =  0; i < occurrences->size(); ++i)
+                                      {
+                                          const auto occurr = occurrences->at(i);
+                                          ASSERT_TRUE(isValidOccurr(occurr->startDateTime())) << "StartDateTime out of specified range for occurrence";
+                                          ASSERT_TRUE(isValidOccurr(occurr->endDateTime()))   << "EndDateTime out of specified range for occurrence";
+                                      }
                                   }
                               }
                           });
