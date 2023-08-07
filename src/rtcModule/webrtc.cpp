@@ -121,6 +121,7 @@ void Call::setState(CallState newState)
     if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
     {
         clearConnInitialTs(); // reset initial ts for call
+        clearJoinOffset();    // reset join offset
 
         auto wptr = weakHandle();
         mConnectTimer = karere::setTimeout([this, wptr]()
@@ -1395,7 +1396,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
     return true;
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t duration, std::vector<sfu::Peer>& peers,
+bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers
                                , std::set<karere::Id>& moderators, bool ownMod)
@@ -1424,6 +1425,9 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     // set moderator list and ownModerator value
     setOwnModerator(ownMod);
     mModerators = moderators;
+
+    // set join offset
+    setJoinOffset(static_cast<int64_t>(callJoinOffset));
 
     // this promise will be resolved when all ephemeral keys (for users with SFU > V0) have been verified and derived
     // in case of any of the keys can't be verified or derived, the peer will be added anyway.
@@ -1559,7 +1563,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     // wait until all peers ephemeral keys have been verified and derived
     auto auxwptr = weakHandle();
     keyDerivationPms
-    ->then([auxwptr, vthumbs, speakers, duration, sdp, keysVerified, this]
+    ->then([auxwptr, vthumbs, speakers, sdp, keysVerified, this]
     {
         if (auxwptr.deleted())
         {
@@ -1593,7 +1597,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         assert(mRtcConn);
         auto wptr = weakHandle();
         mRtcConn.setRemoteDescription(std::move(sdpInterface))
-        .then([wptr, this, vthumbs, speakers, duration]()
+        .then([wptr, this, vthumbs, speakers]()
         {
             if (wptr.deleted())
             {
@@ -1629,8 +1633,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             }
 
             setState(CallState::kStateInProgress);
-
-            mOffset = static_cast<int64_t>(duration);
             enableStats();
         })
         .fail([wptr, this](const ::promise::Error& err)
@@ -3131,7 +3133,7 @@ void Call::initStatsValues()
 void Call::enableStats()
 {
     mStats.mCid = getOwnCid();
-    mStats.mTimeOffset = static_cast<uint64_t>(mOffset);
+    mStats.mTimeOffset = getJoinOffset();
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
     {

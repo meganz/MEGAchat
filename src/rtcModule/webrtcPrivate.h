@@ -419,6 +419,9 @@ public:
 
     void setWrFlag(bool enabled)            { mIsWaitingRoomEnabled = enabled; }
     bool isWrFlagEnabled() const            { return mIsWaitingRoomEnabled;    }
+    void clearJoinOffset()                  { mJoinOffset = mega::mega_invalid_timestamp; }
+    void setJoinOffset(const int64_t t)     { mJoinOffset = t; }
+    int64_t getJoinOffset() const           { return mJoinOffset; }
 
     // Connection initial timestamp related methods: mConnInitialTs is initialized every time we receive ANSWER command
     // and must be reset when we start as new reconnection attempt
@@ -457,7 +460,7 @@ public:
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
-    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t ts, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
@@ -529,7 +532,7 @@ protected:
     // state of joining status for our own client, when waiting room is enabled
     WrState mWrJoiningState = WrState::WR_UNKNOWN;
 
-    int64_t mOffset = 0;        // duration of call when we joined (millis)
+    int64_t mJoinOffset = 0;    // offset ts when we join within the call respect the call start (millis)
     int64_t mFinalTs = 0;       // end of the call (seconds)
 
     // duration of call since the last time we effectively join call, until we start a new reconnection attempt or call finish (seconds)
