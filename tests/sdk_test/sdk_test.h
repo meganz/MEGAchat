@@ -610,7 +610,7 @@ public:
 
     std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> getScheduledMeetingsOccurrences() const
     {
-        return hasScheduledMeetings()
+        return hasScheduledMeetingOccurrList()
                   ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
                   : nullptr;
     }
