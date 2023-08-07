@@ -120,7 +120,7 @@ void Call::setState(CallState newState)
 
     if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
     {
-        clearInitialTs(); // reset initial ts for call
+        clearConnInitialTs(); // reset initial ts for call
 
         auto wptr = weakHandle();
         mConnectTimer = karere::setTimeout([this, wptr]()
@@ -148,7 +148,8 @@ void Call::setState(CallState newState)
             mConnectTimer = 0;
         }
 
-        captureInitialTs(); // initial ts is set when user has joined to the call
+        captureConnInitialTs(); // connection initial ts, is set every time we receive ANSWER command (when we are effectively connected to call)
+        captureCallInitialTs(); // call initial ts for call (will persist while call is alive)
     }
     else if (newState == CallState::kStateDestroyed)
     {
@@ -544,9 +545,9 @@ bool Call::isOutgoing() const
     return mCallerId == mMyPeer->getPeerid();
 }
 
-int64_t Call::getInitialTimeStamp() const
+int64_t Call::getCallInitialTimeStamp() const
 {
-    return mInitialTs;
+    return mCallInitialTs;
 }
 
 int64_t Call::getFinalTimeStamp() const
@@ -1223,7 +1224,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
 
 bool Call::isUdpDisconnected() const
 {
-    if (!mega::isValidTimeStamp(getInitialTimeStamp()))
+    if (!mega::isValidTimeStamp(getConnInitialTimeStamp()))
     {
         // peerconnection establishment starts as soon ANSWER is sent to the client
         // we never have reached kStateInProgress, as mInitialTs is set when we reach kStateInProgress (upon ANSWER command is received)
@@ -1232,7 +1233,7 @@ bool Call::isUdpDisconnected() const
         return true;
     }
 
-    return (mStats.mSamples.mT.empty() && (time(nullptr) - getInitialTimeStamp() > sfu::SfuConnection::kNoMediaPathTimeout));
+    return (mStats.mSamples.mT.empty() && (time(nullptr) - getConnInitialTimeStamp() > sfu::SfuConnection::kNoMediaPathTimeout));
 }
 
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
@@ -1284,8 +1285,8 @@ void Call::sendStats(const TermCode& termCode)
     }
 
     assert(isValidConnectionTermcode(termCode));
-    mStats.mDuration = mega::isValidTimeStamp(getInitialTimeStamp()) // mInitialTs
-                           ? static_cast<uint64_t>((time(nullptr) - getInitialTimeStamp()) * 1000)  // ms
+    mStats.mDuration = mega::isValidTimeStamp(getConnInitialTimeStamp()) // mInitialTs
+                           ? static_cast<uint64_t>((time(nullptr) - getConnInitialTimeStamp()) * 1000)  // ms
                            : mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
     mStats.mMaxPeers = mMaxPeers;
     mStats.mTermCode = static_cast<int32_t>(termCode);

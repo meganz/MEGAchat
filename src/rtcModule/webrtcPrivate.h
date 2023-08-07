@@ -354,7 +354,7 @@ public:
 
     bool isOutgoing() const override;   // true if your user started the call
 
-    int64_t getInitialTimeStamp() const override;
+    int64_t getCallInitialTimeStamp() const override;
     int64_t getFinalTimeStamp() const override;
 
     karere::AvFlags getLocalAvFlags() const override;
@@ -417,10 +417,24 @@ public:
     Cid_t getPrevCid() const;
     bool checkWrFlag() const;
 
-    void setWrFlag(bool enabled)    { mIsWaitingRoomEnabled = enabled; }
-    bool isWrFlagEnabled() const    { return mIsWaitingRoomEnabled;    }
-    void clearInitialTs()           { mInitialTs = mega::mega_invalid_timestamp; }
-    void captureInitialTs()         { mInitialTs = ::mega::m_time(nullptr); }
+    void setWrFlag(bool enabled)            { mIsWaitingRoomEnabled = enabled; }
+    bool isWrFlagEnabled() const            { return mIsWaitingRoomEnabled;    }
+
+    // Connection initial timestamp related methods: mConnInitialTs is initialized every time we receive ANSWER command
+    // and must be reset when we start as new reconnection attempt
+    void clearConnInitialTs()               { mConnInitialTs = mega::mega_invalid_timestamp; }
+    void captureConnInitialTs()             { mConnInitialTs = ::mega::m_time(nullptr); }
+    int64_t getConnInitialTimeStamp() const { return mConnInitialTs; }
+
+    void captureCallInitialTs()
+    {
+        // this is captured only the first time we effectively join the call
+        // and will persists until the call is destroyed
+        if (!mega::isValidTimeStamp(mCallInitialTs))
+        {
+            mCallInitialTs = ::mega::m_time(nullptr);
+        }
+    }
 
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
@@ -506,16 +520,23 @@ protected:
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
     bool mIsReconnectingToChatd = false;
 
+    // audio level monitor is enabled or not
+    bool mAudioLevelMonitor = false;
+
     // state of request to speak for own user in this call
     SpeakerState mSpeakerState = SpeakerState::kPending;
 
     // state of joining status for our own client, when waiting room is enabled
     WrState mWrJoiningState = WrState::WR_UNKNOWN;
 
-    int64_t mInitialTs = 0; // when we joined the call (seconds)
-    int64_t mOffset = 0;    // duration of call when we joined (millis)
-    int64_t mFinalTs = 0;   // end of the call (seconds)
-    bool mAudioLevelMonitor = false;
+    int64_t mOffset = 0;        // duration of call when we joined (millis)
+    int64_t mFinalTs = 0;       // end of the call (seconds)
+
+    // duration of call since the last time we effectively join call, until we start a new reconnection attempt or call finish (seconds)
+    int64_t mConnInitialTs = 0;
+
+    // duration of the call since the first time we effectively join call, until it finish (seconds)
+    int64_t mCallInitialTs = mega::mega_invalid_timestamp;
 
     // Number of SFU->client audio tracks that the client must allocate. This is equal to the maximum number of simultaneous speakers the call supports.
     uint32_t mNumInputAudioTracks = 0;
