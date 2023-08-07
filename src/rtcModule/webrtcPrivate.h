@@ -509,7 +509,7 @@ protected:
     bool mIsReconnectingToChatd = false;
 
     // state of request to speak for own user in this call
-    SpeakerState mSpeakerState = SpeakerState::kPending;
+    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
 
     // state of joining status for our own client, when waiting room is enabled
     WrState mWrJoiningState = WrState::WR_UNKNOWN;

@@ -931,6 +931,8 @@ void Call::joinSfu()
     getLocalStreams();
     setState(CallState::kStateJoining);
 
+    // even if you are moderator, currently you need to send SPEAK_RQ (which is immediately approved by SFU)
+    mSpeakerState = isOwnPrivModerator() && isSpeakRequestEnabled() ? SpeakerState::kPending : SpeakerState::kNoSpeaker;
     webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
     options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
@@ -1436,6 +1438,26 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         keyDerivationPms->resolve();
     }
 
+    if (isSpeakRequestEnabled() && isOwnPrivModerator())
+    {
+        if (mSpeakerState == SpeakerState::kActive)
+        {
+            RTCM_LOG_WARNING("handleAnswerCommand: unexpected mSpeakerState: %d", mSpeakerState);
+            assert(false); // this should not happen with current SFU behavior.
+                           // If happens it's not a problem but better to be aware of this.
+        }
+        else
+        {
+            if (mSpeakerState == SpeakerState::kNoSpeaker)
+            {
+                RTCM_LOG_WARNING("handleAnswerCommand: unexpected mSpeakerState: %d", mSpeakerState);
+                assert(false);
+                mSpeakerState = SpeakerState::kPending; // set speaker state to kPending
+            }
+             requestSpeak(true); // request to speak
+        }
+    }
+
     auto keysVerified = std::make_shared<std::vector<bool>>();
     auto onKeyVerified = [max = peers.size(), keysVerified, keyDerivationPms](const bool verified) -> void
     {
@@ -1900,19 +1922,14 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
         }
         session->setSpeakRequested(false);
     }
-    else if (mSpeakerState == SpeakerState::kPending)
+    else // own peer
     {
-        // only update audio tracks if mSpeakerState is pending to be accepted
+        // our current speaker state is kActive, so no need to do anything with SPEAK_RQ_DEL
+        if (mSpeakerState == SpeakerState::kActive) { return true; }
+
         mSpeakerState = SpeakerState::kNoSpeaker;
         updateAudioTracks();
     }
-    else    // own cid, but SpeakerState is not kPending
-    {
-        RTCM_LOG_ERROR("handleSpeakReqDelCommand: Received delSpeakRequest for own cid %u without a pending requests", cid);
-        assert(false);
-        return false;
-    }
-
     return true;
 }
 
@@ -1925,18 +1942,21 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
         return false;
     }
 
-    if (!cid && mSpeakerState == SpeakerState::kPending)
+    if (cid)
     {
+        // todo: peer updated
+    }
+    else if (mSpeakerState != SpeakerState::kActive) // SPEAK_ON received for own Cid and not active yet
+    {
+        if (isSpeakRequestEnabled() && mSpeakerState != SpeakerState::kPending)
+        {
+            RTCM_LOG_WARNING("handleSpeakOnCommand: Received speak on for own cid %u without a pending requests", cid);
+            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
+        }
+
         mSpeakerState = SpeakerState::kActive;
         updateAudioTracks();
     }
-    else if (!cid)    // own cid, but SpeakerState is not kPending
-    {
-        RTCM_LOG_ERROR("handleSpeakOnCommand: Received speak on for own cid %u without a pending requests", cid);
-        assert(false);
-        return false;
-    }
-
     return true;
 }
 
