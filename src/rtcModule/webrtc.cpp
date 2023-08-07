@@ -1963,8 +1963,8 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
     {
         if (isSpeakRequestEnabled() && mSpeakerState != SpeakerState::kPending)
         {
+            // This could happen if moderator sends SPEAK_RQ but this client didn't sent any previous request (check if this could happen)
             RTCM_LOG_WARNING("handleSpeakOnCommand: Received speak on for own cid %u without a pending requests", cid);
-            assert(false); // theoretically, it should not happen. If so, it may worth to investigate
         }
 
         mSpeakerState = SpeakerState::kActive;
