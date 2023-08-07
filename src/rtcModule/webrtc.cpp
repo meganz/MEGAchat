@@ -1373,7 +1373,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
         if (oldAudioFlag != session->getAvFlags().audio() && session->getAvFlags().audio())
         {
             assert(false);
-            RTCM_LOG_WARNING("handleAvCommand: invalid amid received for peer cid %u", cid);
+            RTCM_LOG_WARNING("handleAvCommand: invalid amid received for peer cid: %u with audio flag enabled", cid);
             return false;
         }
 
@@ -1388,7 +1388,6 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
         sfu::TrackDescriptor trackDescriptor;
         trackDescriptor.mMid = aMid;
         trackDescriptor.mReuse = true;
-
         addSpeaker(cid, trackDescriptor);
     }
 
@@ -1648,7 +1647,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 Session* sess = getSession(cid);
                 if (!sess)
                 {
-                    RTCM_LOG_WARNING("handleAnswerCommand: unknown cid: %d in speakers field", cid);
+                    RTCM_LOG_WARNING("handleAnswerCommand: unknown cid: %u in speakers field", cid);
                     continue;
                 }
                 sess->setSpeakPermission(true); // set speak permission true
@@ -1993,7 +1992,6 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         }
 
         session->setSpeakPermission(false);
-        // check what todo here ?? => currently we call removeSpeaker(cid);
     }
     else if (mSpeakerState == SpeakerState::kActive)
     {
@@ -2964,7 +2962,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             }
         }
 
-        Session *sess = getSession(cid);
+        Session* sess = getSession(cid);
         if (!sess)
         {
             RTCM_LOG_ERROR("handleIncomingVideo: session with CID %u not found", cid);
@@ -3039,6 +3037,14 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
+    if (!sess->hasSpeakPermission())
+    {
+        RTCM_LOG_ERROR("AddSpeaker: should not receive amid for peer without speak permission,"
+                       " callid: %s, cid: %u", getCallid().toString().c_str(), cid);
+        assert(false);
+        return;
+    }
+
     const std::vector<std::string> ivs = sess->getPeer().getIvs();
     assert(ivs.size() >= kAudioTrack);
     slot->assignAudioSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
@@ -3047,13 +3053,24 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
 
 void Call::removeSpeaker(Cid_t cid)
 {
-    auto it = mSessions.find(cid);
-    if (it == mSessions.end())
+    Session* sess = getSession(cid);
+    if (!sess)
     {
-        RTCM_LOG_ERROR("removeSpeaker: unknown cid");
+        RTCM_LOG_WARNING("removeSpeaker: unknown cid: %u", cid);
         return;
     }
-    it->second->disableAudioSlot();
+
+    if (sess->getAudioSlot())
+    {
+        if (!sess->hasSpeakPermission())
+        {
+            RTCM_LOG_ERROR("removeSpeaker: trying to remove a speaker whose permission to speak was disabled"
+                           " callid: %s, cid: %u", getCallid().toString().c_str(), cid);
+            assert(false);
+            return;
+        }
+        sess->disableAudioSlot();
+    }
 }
 
 sfu::Peer& Call::getMyPeer()
@@ -4416,6 +4433,13 @@ void Session::setAvFlags(karere::AvFlags flags)
 
 void Session::setSpeakPermission(const bool hasSpeakPermission)
 {
+    if (hasSpeakPermission == mPeer.hasSpeakPermission())
+    {
+        RTCM_LOG_WARNING("setSpeakPermission: peer with Cid %d already had speakPermission: %s"
+                         , mPeer.getCid()
+                         , hasSpeakPermission ? "enabled" : "disabled");
+        return;
+    }
     mPeer.setSpeakPermission(hasSpeakPermission);
 }
 
@@ -4589,7 +4613,7 @@ void AudioLevelMonitor::onAudioDetected(bool audioDetected)
     }
     else
     {
-        RTCM_LOG_WARNING("AudioLevelMonitor::onAudioDetected: session with Cid: %d not found", mCid);
+        RTCM_LOG_WARNING("AudioLevelMonitor::onAudioDetected: session with Cid: %u not found", mCid);
     }
 }
 }
