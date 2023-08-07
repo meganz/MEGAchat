@@ -20,37 +20,31 @@ public:
         SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid=?1");
         stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
         auto minIdx = stmt.intCol(0); //WARNING: the chatd implementation uses uint32_t values for idx.
-        info.newestDbIdx = stmt.intCol(1);
+        info.setNewestDbIdx(stmt.intCol(1));
         if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
         {
-            /* TODO: add a method to reset ChatDbInfo values to invalid/default ones
-             * taking into account that newestDbIdx maybe could be set to CHATD_IDX_INVALID
-             * instead of 0 (check usages of newestDbIdx).
-             */
-            void* voidmem = &info; // avoid compiler warning...
-            memset(voidmem, 0, sizeof(info));     //  need to set oldestDbId to zero
-            info.oldestDbIdx = CHATD_IDX_INVALID; //  set oldestDbIdx to invalid
+            info.reset(); // reset ChatDbInfo values to invalid/default ones
             return;
         }
-        info.oldestDbIdx = minIdx;
+        info.setOldestDbIdx(minIdx);
         SqliteStmt stmt2(mDb, "select msgid from "+mHistTblName+" where chatid=?1 and idx=?2");
         stmt2 << mChat.chatId() << minIdx;
         stmt2.stepMustHaveData();
-        info.oldestDbId = stmt2.uint64Col(0);
-        stmt2.reset().bind(2, info.newestDbIdx);
+        info.setOldestDbId(stmt2.uint64Col(0));
+        stmt2.reset().bind(2, info.getNewestDbIdx());
         stmt2.stepMustHaveData();
-        info.newestDbId = stmt2.uint64Col(0);
-        if (!info.newestDbId)
+        info.setNewestDbId(stmt2.uint64Col(0));
+        if (info.getNewestDbId().isNull())
         {
             assert(false);  // if there's an oldest message, there should be always a newest message, even if it's the same one
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
-            info.oldestDbId = karere::Id::null();
+            info.setOldestDbId(karere::Id::null());
         }
         SqliteStmt stmt3(mDb, "select last_seen, last_recv from chats where chatid=?");
         stmt3 << mChat.chatId();
         stmt3.stepMustHaveData();
-        info.lastSeenId = stmt3.uint64Col(0);
-        info.lastRecvId = stmt3.uint64Col(1);
+        info.setLastSeenId(stmt3.uint64Col(0));
+        info.setLastRecvId(stmt3.uint64Col(1));
     }
     void assertAffectedRowCount(int count, const char* opname=nullptr)
     {

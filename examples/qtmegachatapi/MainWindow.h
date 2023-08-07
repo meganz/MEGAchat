@@ -224,6 +224,7 @@ class MainWindow :
         void onTwoFactorGetCode();
         void onTwoFactorDisable();
         void onTwoFactorCheck();
+        void onPrintUseralerts();
         void onPrintMyInfo();
         void on_mLogout_clicked();
         void onCatchUp();

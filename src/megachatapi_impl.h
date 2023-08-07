@@ -1032,6 +1032,22 @@ public:
     MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate&&) = delete;
     MegaChatScheduledMeetingPrivate& operator=(const MegaChatScheduledMeetingPrivate&) = delete;
     MegaChatScheduledMeetingPrivate& operator=(const MegaChatScheduledMeetingPrivate&&) = delete;
+    MegaChatScheduledMeetingPrivate(const mega::MegaScheduledMeeting& msm)
+        : mKScheduledMeeting(std::make_unique<karere::KarereScheduledMeeting>(msm.chatid()
+                                                                              , msm.organizerUserid()
+                                                                              , msm.timezone() ? msm.timezone() : std::string()
+                                                                              , msm.startDateTime()
+                                                                              , msm.endDateTime()
+                                                                              , msm.title() ? msm.title() : std::string()
+                                                                              , msm.description() ? msm.description() : std::string()
+                                                                              , msm.schedId()
+                                                                              , msm.parentSchedId()
+                                                                              , msm.cancelled()
+                                                                              , msm.attributes() ? msm.attributes() : std::string()
+                                                                              , msm.overrides()
+                                                                              , msm.flags() ? std::make_unique<karere::KarereScheduledFlags>(msm.flags()).get() : nullptr
+                                                                              , msm.rules() ? std::make_unique<karere::KarereScheduledRules>(msm.rules()).get() : nullptr))
+    {}
 
     void setChanged(const unsigned long val) { mChanged = megachat_sched_bs_t(val); }
 
@@ -1193,6 +1209,9 @@ public:
     bool hasSchedMeetingChanged(unsigned int change) const override;
 
     const mega::MegaStringList* getStringList() const override;
+    const mega::MegaStringListMap* getStringListMap() const override;
+    const mega::MegaStringList* getScheduledMeetingChange(const unsigned int changeType) const override;
+    const MegaChatScheduledRules* getScheduledMeetingRules() const override;
 
     int getChanges() const override;
     bool hasChanged(int changeType) const override;
@@ -1232,6 +1251,8 @@ private:
     mega::MegaHandleList *megaHandleList = NULL;
     const MegaChatContainsMeta *mContainsMeta = NULL;
     std::unique_ptr<::mega::MegaStringList> mStringList;
+    std::unique_ptr<::mega::MegaStringListMap> mStringListMap;
+    std::unique_ptr<MegaChatScheduledRules> mScheduledRules;
 };
 
 //Thread safe request queue
@@ -1611,7 +1632,7 @@ public:
     char *getVideoDeviceSelected();
 
     // Calls
-    void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool waitingRoom, bool enableVideo = true,  bool enableAudio = true, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
     void ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener = nullptr);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);

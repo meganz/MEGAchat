@@ -1661,12 +1661,45 @@ static inline const char* connStateToStr(Connection::State state)
 
 struct ChatDbInfo
 {
-    karere::Id oldestDbId;
-    karere::Id newestDbId;
+public:
+    ChatDbInfo() = default;
+    ~ChatDbInfo() = default;
+    ChatDbInfo(const ChatDbInfo& other) = default;
+    ChatDbInfo(ChatDbInfo&& other) = delete;
+    ChatDbInfo& operator = (const ChatDbInfo& other) = delete;
+    ChatDbInfo& operator = (ChatDbInfo&& other) = delete;
+
+    void reset()
+    {
+        oldestDbId = karere::Id::null();
+        newestDbId = karere::Id::null();
+        lastSeenId = karere::Id::null();
+        lastRecvId = karere::Id::null();
+        oldestDbIdx = CHATD_IDX_INVALID;
+        newestDbIdx = CHATD_IDX_RANGE_MIDDLE; // default value for newestDbIdx must be 0
+    }
+
+    Idx getOldestDbIdx() const                  { return oldestDbIdx; }
+    Idx getNewestDbIdx() const                  { return newestDbIdx; }
+    const karere::Id& getOldestDbId() const     { return oldestDbId; }
+    const karere::Id& getNewestDbId() const     { return newestDbId; }
+    const karere::Id& getLastSeenId() const     { return lastSeenId; }
+    const karere::Id& getlastRecvId() const     { return lastRecvId; }
+
+    void setOldestDbId(const karere::Id& id)    { oldestDbId = id; }
+    void setNewestDbId(const karere::Id& id)    { newestDbId = id; }
+    void setLastSeenId(const karere::Id& id)    { lastSeenId = id; }
+    void setLastRecvId(const karere::Id& id)    { lastRecvId = id; }
+    void setOldestDbIdx(const Idx idx)          { oldestDbIdx = idx; }
+    void setNewestDbIdx(const Idx idx)          { newestDbIdx = idx; }
+
+private:
+    karere::Id oldestDbId = karere::Id::null();
+    karere::Id newestDbId = karere::Id::null();
+    karere::Id lastSeenId = karere::Id::null();
+    karere::Id lastRecvId = karere::Id::null();
     Idx oldestDbIdx = CHATD_IDX_INVALID;
-    Idx newestDbIdx;
-    karere::Id lastSeenId;
-    karere::Id lastRecvId;
+    Idx newestDbIdx = CHATD_IDX_RANGE_MIDDLE;
 };
 
 class DbInterface

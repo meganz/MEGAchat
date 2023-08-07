@@ -1945,8 +1945,8 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     initChat();
     mAttachmentNodes = std::unique_ptr<FilteredHistory>(new FilteredHistory(*mDbInterface, *this));
     ChatDbInfo&& info = getDbHistInfoAndInitOldestKnownMsgId();
-    mLastSeenId = info.lastSeenId;
-    mLastReceivedId = info.lastRecvId;
+    mLastSeenId = info.getLastSeenId();
+    mLastReceivedId = info.getlastRecvId();
     mLastSeenIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastSeenId);
     mLastReceivedIdx = mDbInterface->getIdxOfMsgidFromHistory(mLastReceivedId);
     std::string reactionSn = mDbInterface->getReactionSn();
@@ -1971,11 +1971,11 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     }
     else
     {
-        assert(info.newestDbIdx != CHATD_IDX_INVALID);
+        assert(info.getNewestDbIdx() != CHATD_IDX_INVALID);
         mHasMoreHistoryInDb = true;
-        mForwardStart = info.newestDbIdx + 1;
+        mForwardStart = info.getNewestDbIdx() + 1;
         CHATID_LOG_DEBUG("Db has local history: %s - %s (middle point: %u)",
-            ID_CSTR(info.oldestDbId), ID_CSTR(info.newestDbId), mForwardStart);
+            ID_CSTR(info.getOldestDbId()), ID_CSTR(info.getNewestDbId()), mForwardStart);
         loadAndProcessUnsent();
         getHistoryFromDb(initialHistoryFetchCount); // ensure we have a minimum set of messages loaded and ready
     }
@@ -4211,25 +4211,25 @@ void Chat::removeManualSend(uint64_t rowid)
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::joinRangeHist(const ChatDbInfo& dbInfo)
 {
-    assert(dbInfo.oldestDbId && dbInfo.newestDbId);
+    assert(!dbInfo.getOldestDbId().isNull() && !dbInfo.getNewestDbId().isNull());
     mServerFetchState = kHistFetchingNewFromServer;
 
     mFetchRequest.push(FetchType::kFetchMessages);
-    sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.oldestDbId + at(highnum()).id());
+    sendCommand(Command(OP_JOINRANGEHIST) + mChatId + dbInfo.getOldestDbId() + at(highnum()).id());
 }
 
 // after a reconnect, we tell the chatd the oldest and newest buffered message
 void Chat::handlejoinRangeHist(const ChatDbInfo& dbInfo)
 {
     assert(previewMode());
-    assert(dbInfo.oldestDbId && dbInfo.newestDbId);
+    assert(!dbInfo.getOldestDbId().isNull() && !dbInfo.getNewestDbId().isNull());
     mServerFetchState = kHistFetchingNewFromServer;
 
     uint64_t ph = getPublicHandle();
     Command comm (OP_HANDLEJOINRANGEHIST);
     comm.append((const char*) &ph, Id::CHATLINKHANDLE);
     mFetchRequest.push(FetchType::kFetchMessages);
-    sendCommand(comm + dbInfo.oldestDbId + at(highnum()).id());
+    sendCommand(comm + dbInfo.getOldestDbId() + at(highnum()).id());
 }
 
 Client::~Client()
@@ -5050,8 +5050,8 @@ ChatDbInfo Chat::getDbHistInfoAndInitOldestKnownMsgId()
 {
     ChatDbInfo info;
     mDbInterface->getHistoryInfo(info);
-    mOldestKnownMsgId = info.oldestDbId; // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
-    mOldestIdxInDb = info.oldestDbIdx;   // if no db history, getHistoryInfo stores CHATD_IDX_INVALID at ChatDbInfo::oldestDbIdx
+    mOldestKnownMsgId = info.getOldestDbId(); // if no db history, getHistoryInfo stores Id::null() at ChatDbInfo::oldestDbId
+    mOldestIdxInDb = info.getOldestDbIdx();   // if no db history, getHistoryInfo stores CHATD_IDX_INVALID at ChatDbInfo::oldestDbIdx
     return info;
 }
 
