@@ -1645,6 +1645,13 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             {
                 Cid_t cid = speak.first;
                 const sfu::TrackDescriptor& speakerDecriptor = speak.second;
+                Session* sess = getSession(cid);
+                if (!sess)
+                {
+                    RTCM_LOG_WARNING("handleAnswerCommand: unknown cid: %d in speakers field", cid);
+                    continue;
+                }
+                sess->setSpeakPermission(true); // set speak permission true
                 addSpeaker(cid, speakerDecriptor);
             }
 
@@ -1942,11 +1949,18 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
         return false;
     }
 
-    if (cid)
+    if (cid) // SPEAK_ON received for another peer
     {
-        // todo: peer updated
+        Session* session = getSession(cid);
+        if (!session)
+        {
+            RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
+            return false;
+        }
+
+        session->setSpeakPermission(true);
     }
-    else if (mSpeakerState != SpeakerState::kActive) // SPEAK_ON received for own Cid and not active yet
+    else if (mSpeakerState != SpeakerState::kActive)
     {
         if (isSpeakRequestEnabled() && mSpeakerState != SpeakerState::kPending)
         {
@@ -1971,8 +1985,15 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
 
     if (cid)
     {
-        assert(cid != getOwnCid());
-        removeSpeaker(cid);
+        Session* session = getSession(cid);
+        if (!session)
+        {
+            RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
+            return false;
+        }
+
+        session->setSpeakPermission(false);
+        // check what todo here ?? => currently we call removeSpeaker(cid);
     }
     else if (mSpeakerState == SpeakerState::kActive)
     {
@@ -4391,6 +4412,16 @@ void Session::setAvFlags(karere::AvFlags flags)
     onHoldChanged
         ? mSessionHandler->onOnHold(*this)              // notify session onHold Change
         : mSessionHandler->onRemoteFlagsChanged(*this); // notify remote AvFlags Change
+}
+
+void Session::setSpeakPermission(const bool hasSpeakPermission)
+{
+    mPeer.setSpeakPermission(hasSpeakPermission);
+}
+
+bool Session::hasSpeakPermission() const
+{
+    return mPeer.hasSpeakPermission();
 }
 
 RemoteAudioSlot *Session::getAudioSlot()

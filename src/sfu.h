@@ -81,6 +81,9 @@ public:
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
 
+    void setSpeakPermission(const bool hasSpeakPermission) { mHasSpeakPermission = hasSpeakPermission; }
+    bool hasSpeakPermission() const                        { return mHasSpeakPermission; }
+
     bool isModerator() const;
     void setModerator(bool isModerator);
 
@@ -108,9 +111,20 @@ protected:
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
-
     // initialization vector
     std::vector<std::string> mIvs;
+
+    /* The ability to speak for a call participant depend on 2 factors:
+     *  1) The speak permission (mHasSpeakPermission stores this permission up to date with SFU)
+     *      1.1) If peer is moderator, needs to send SPEAK_RQ automatically upon ANSWER command reception. Speak request
+     *           is approved immediately by SFU, and a SPEAK_ON command will be received
+     *
+     *      1.2) If peer is not moderator, needs to manually send SPEAK_RQ to SFU that will broadcast it to all moderators.
+     *           When speak request is approved by a moderator, a SPEAK_ON command will be received
+     *
+     *  2) The audio flag must be enabled (AV command required)
+     */
+    bool mHasSpeakPermission = false;
 
     /*
      * Moderator role for this call

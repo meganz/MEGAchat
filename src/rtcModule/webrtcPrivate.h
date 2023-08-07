@@ -163,6 +163,9 @@ public:
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
+    void setSpeakPermission(const bool hasSpeakPermission);
+    bool hasSpeakPermission() const;
+
     void disableAudioSlot();
     void setSpeakRequested(bool requested);
     void setAudioDetected(bool audioDetected);    
