@@ -120,7 +120,7 @@ void Call::setState(CallState newState)
 
     if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
     {
-        clearConnInitialTs(); // reset initial ts for call
+        clearConnInitialTs(); // reset initial ts for current call connection
         clearJoinOffset();    // reset join offset
 
         auto wptr = weakHandle();
