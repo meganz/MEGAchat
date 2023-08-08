@@ -1665,7 +1665,7 @@ public:
     ChatDbInfo() = default;
     ~ChatDbInfo() = default;
     ChatDbInfo(const ChatDbInfo& other) = default;
-    ChatDbInfo(ChatDbInfo&& other) = delete;
+    ChatDbInfo(ChatDbInfo&& other) = default;
     ChatDbInfo& operator = (const ChatDbInfo& other) = delete;
     ChatDbInfo& operator = (ChatDbInfo&& other) = delete;
 
