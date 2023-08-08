@@ -9300,7 +9300,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatH
 {}
 
 MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate* mcsmp)
-    : mKScheduledMeeting(mcsmp->mKScheduledMeeting->copy())
+    : mKScheduledMeeting(mcsmp->mKScheduledMeeting->copy()), mChanged(mcsmp->getChanges())
 {}
 
 MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* ksm)

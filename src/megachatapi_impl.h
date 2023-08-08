@@ -1050,6 +1050,7 @@ public:
     {}
 
     void setChanged(const unsigned long val) { mChanged = megachat_sched_bs_t(val); }
+    megachat_sched_bs_t getChanges() const   { return mChanged; }
 
     megachat_sched_bs_t getChanged() const   { return mChanged; }
     MegaChatHandle chatId() const override;
@@ -1073,10 +1074,10 @@ public:
     MegaChatScheduledMeetingPrivate* copy() const override { return new MegaChatScheduledMeetingPrivate(this); }
 
 private:
+    std::unique_ptr<karere::KarereScheduledMeeting> mKScheduledMeeting;
+
     // changed bitmap
     megachat_sched_bs_t mChanged;
-
-    std::unique_ptr<karere::KarereScheduledMeeting> mKScheduledMeeting;
 
     // temp memory must be held somewhere since there is a data transformation and ownership is not returned in the getters
     mutable std::unique_ptr<MegaChatScheduledFlags> mTransformedMCSFlags;
