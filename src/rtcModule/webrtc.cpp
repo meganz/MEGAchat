@@ -121,7 +121,7 @@ void Call::setState(CallState newState)
     if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
     {
         clearConnInitialTs(); // reset initial ts for current call connection
-        clearJoinOffset();    // reset join offset
+        clearJoinOffset();    // reset join offset, the offset is received upon ANSWER command in 't' param
 
         auto wptr = weakHandle();
         mConnectTimer = karere::setTimeout([this, wptr]()
