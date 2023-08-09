@@ -30,10 +30,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mEndCall = new QPushButton("End call", this);
     connect(mEndCall, SIGNAL(released()), this, SLOT(onEndCall()));
     mEndCall->setVisible(false);
-    mRequestSpeaker = new QPushButton("ReqSpeaker", this);
+    mRequestSpeaker = new QPushButton("Send speak request", this);
     connect(mRequestSpeaker, &QAbstractButton::clicked, this, [=](){onRequestSpeak(true);});
     mRequestSpeaker->setVisible(false);
-    mRequestSpeakerCancel = new QPushButton("Cancel ReqSpeaker", this);
+    mRequestSpeakerCancel = new QPushButton("Cancel speak request", this);
     connect(mRequestSpeakerCancel, &QAbstractButton::clicked, this, [=](){onRequestSpeak(false);});
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio = new QPushButton("Audio-disable", this);
@@ -48,7 +48,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
     mAudioMonitor->setVisible(false);
 
-    mRemOwnSpeaker = new QPushButton("Remove own speaker", this);
+    mRemOwnSpeaker = new QPushButton("Remove own user speaker", this);
     connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
     mRemOwnSpeaker->setVisible(false);
 
@@ -559,8 +559,8 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string requestHiRes("Request hiRes");
     std::string stopThumb("Stop vThumb");
     std::string stopHiRes("Stop hiRes");
-    std::string approveSpeak("Approve Speak");
-    std::string rejectSpeak("Reject Speak");
+    std::string approveSpeak("Approve Speak request");
+    std::string rejectSpeak("Reject Speak request");
     std::string pushWr("Push waiting room");
     std::string kickWr("Kick waiting room");
     submenu.addAction(requestThumb.c_str());
@@ -607,12 +607,8 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     if (call && moderator)
     {
        submenu.addAction(requestDelSpeaker.c_str());
-       megachat::MegaChatSession* session = call->getMegaChatSession(cid);
-       if (session->hasRequestSpeak())
-       {
-           submenu.addAction(approveSpeak.c_str());
-           submenu.addAction(rejectSpeak.c_str());
-       }
+       submenu.addAction(approveSpeak.c_str());
+       submenu.addAction(rejectSpeak.c_str());
 
        QMenu* wrMenu = submenu.addMenu("Waiting Room management");
        wrMenu->addAction(pushWr.c_str());
@@ -731,9 +727,9 @@ void MeetingView::onEnableVideo()
     }
 }
 
-void MeetingView::onRemoveSpeaker(uint32_t)
+void MeetingView::onRemoveSpeaker(megachat::MegaChatHandle cid)
 {
-    mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+    mMegaChatApi.removeSpeaker(mChatid, cid);
 }
 
 void MeetingView::onRemoveSpeaker()
