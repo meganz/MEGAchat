@@ -161,6 +161,16 @@ public:
         std::shared_ptr<megachat::MegaChatPeerList> peerList;
     };
 
+    struct MrProper
+    {
+        MrProper(std::function<void(megachat::MegaChatHandle)> f, const megachat::MegaChatHandle chatid)
+            : mCleanup(f), mChatid(chatid){}
+
+        std::function<void(megachat::MegaChatHandle)> mCleanup;
+        megachat::MegaChatHandle mChatid;
+        ~MrProper() { mCleanup(mChatid); }
+    };
+
     static std::string getChatIdStrB64(const megachat::MegaChatHandle h)
     {
         const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
