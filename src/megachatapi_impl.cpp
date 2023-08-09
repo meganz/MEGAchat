@@ -1987,7 +1987,7 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
             {
                 if (enable)
                 {
-                    if (call->isAllowSpeak())
+                    if (call->isOwnUserAllowSpeak())
                     {
                         requestedFlags.add(karere::AvFlags::kAudio);
                     }

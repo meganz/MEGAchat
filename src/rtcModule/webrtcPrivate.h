@@ -364,7 +364,7 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     const KarereWaitingRoom* getWaitingRoom() const override;
-    bool isAllowSpeak() const override;
+    bool isOwnUserAllowSpeak() const override;
 
     //
     // ------ end ICall methods -----

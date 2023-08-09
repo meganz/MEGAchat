@@ -609,7 +609,7 @@ const KarereWaitingRoom* Call::getWaitingRoom() const
     return mWaitingRoom.get();
 }
 
-bool Call::isAllowSpeak() const
+bool Call::isOwnUserAllowSpeak() const
 {
     return mSpeakerState == SpeakerState::kActive;
 }

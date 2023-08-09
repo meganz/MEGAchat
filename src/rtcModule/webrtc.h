@@ -243,7 +243,7 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
-    virtual bool isAllowSpeak() const = 0;
+    virtual bool isOwnUserAllowSpeak() const = 0;
 };
 
 class RtcModule
