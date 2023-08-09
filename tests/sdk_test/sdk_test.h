@@ -148,6 +148,55 @@ class MegaChatApiTest :
         public megachat::MegaChatScheduledMeetingListener
 {
 public:
+    struct testData
+    {
+        unsigned a1 = 0;       // primary account index
+        unsigned a2 = 0;       // secondary account index
+        megachat::MegaChatHandle chatid; // chatid of chatroom that will be used in the test
+
+        // number of accounts that will be used in the test (including primary account)
+        size_t accountsSize = 0;
+
+        bool loadHistoryAtInit = false;
+        bool addVideoListeners = false;
+
+        // vector of sessions returned by MegaChatApiTest::login (including primary account)
+        std::vector<std::unique_ptr<char[]>> sessions;
+
+        // vector of MegaUser (including primary account)
+        std::vector<std::unique_ptr<mega::MegaUser>> users;
+
+        // peer list with the participants of the chatroom used for the test (primary account not included)
+        std::unique_ptr<megachat::MegaChatPeerList> peers;
+
+        // vector of user handles (including primary account)
+        std::vector<megachat::MegaChatHandle> uhandles;
+
+        // vector of TestChatVideoListeners
+        std::vector<TestChatVideoListener> localVideoListeners;
+
+        // TestChatRoomListener shared by all accounts
+        std::unique_ptr<TestChatRoomListener>chatroomListener;
+
+        testData(const unsigned idx1, const unsigned idx2, const size_t accSize, const bool loadHist, const bool addVListeners)
+            :a1(idx1), a2(idx2), accountsSize(accSize), loadHistoryAtInit(loadHist), addVideoListeners(addVListeners)
+        {
+            users.resize(accountsSize);
+            uhandles.resize(accountsSize);
+            sessions.resize(accountsSize);
+            localVideoListeners.resize(accountsSize);
+        }
+
+        bool isvalid()
+        {
+            return a1 != a2 && accountsSize >= 2
+                   && uhandles.size() == accountsSize
+                   && sessions.size() == accountsSize
+                   && localVideoListeners.size() == accountsSize;
+        }
+
+    };
+
     struct SchedMeetingData
     {
         megachat::MegaChatHandle chatId = megachat::MEGACHAT_INVALID_HANDLE;
@@ -163,12 +212,12 @@ public:
 
     struct MrProper
     {
-        MrProper(std::function<void(megachat::MegaChatHandle)> f, const megachat::MegaChatHandle chatid)
-            : mCleanup(f), mChatid(chatid){}
+        MrProper(std::function<void(std::shared_ptr<testData> d)> f
+                 , std::shared_ptr<testData> tData) : mCleanup(f), d(tData){}
 
-        std::function<void(megachat::MegaChatHandle)> mCleanup;
-        megachat::MegaChatHandle mChatid;
-        ~MrProper() { mCleanup(mChatid); }
+        std::function<void(std::shared_ptr<testData>)> mCleanup;
+        std::shared_ptr<testData> d;
+        ~MrProper() { mCleanup(d); }
     };
 
     static std::string getChatIdStrB64(const megachat::MegaChatHandle h)
@@ -295,6 +344,9 @@ protected:
 
     void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                                std::shared_ptr<TestChatRoomListener>chatroomListener);
+
+    // initializations required before starting any test
+    void testInit (std::shared_ptr<testData> d);
 
 #ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
