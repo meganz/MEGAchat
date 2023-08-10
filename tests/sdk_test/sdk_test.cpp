@@ -4172,13 +4172,17 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
         endChatCall(d->chatid, d->primaryIdx, d->accountIndexes);
     };
 
-    // Test start
+    // init data test
     d.init(0 /*primIdx*/
-           , std::set<unsigned int> {0, 1} /*accountIdxs*/,
-           true /*loadHistoryAtInit*/, true /*hasChatListeners*/, true /*hasVideoListeners*/);
-
+           , std::set<unsigned int> {0, 1} /*accountIdxs*/
+           , true /*loadHistoryAtInit*/
+           , true /*hasChatListeners*/
+           , true /*hasVideoListeners*/);
     ASSERT_NO_FATAL_FAILURE({ initTestDataSet(); });
-    MrProper p (testCleanup, &d); // must be created after calling testInit
+
+    // when this object goes out of scope, testCleanup will be executed ending any call in this chat and freeing any resource associated to it
+    // this object must be created after calling testInit
+    MrProper p (testCleanup, &d);
     LOG_debug << "Starting test RaiseHandToSpeakCall after initialization";
 }
 
@@ -4757,14 +4761,15 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         megaChatApi[a2]->removeChatLocalVideoListener(chatid, lvlB);
     };
 
-    // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
+    // init data test
     d.init(0/*primIdx*/
            , std::set<unsigned int> {0, 1} /*accountIdxs*/
            , true /*loadHistoryAtInit*/
            , false /*hasCListeners*/
-           , false /*hasVideoListeners*/);
+           , false /*hasVideoListeners*/
+           , chatid);
 
-    d.chatid = chatid;
+    // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
     MrProper p (testCleanup, &d);
 
     // [Test1]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
@@ -6871,7 +6876,7 @@ void MegaChatApiTest::clearTestDataSet()
 #endif
 }
 
-void MegaChatApiTest::initTestDataSet ()
+void MegaChatApiTest::initTestDataSet()
 {
     // Login with all accounts
     std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)

@@ -178,8 +178,10 @@ public:
         std::unique_ptr<TestChatRoomListener>chatroomListener;
         testData() = default;
         void init(const unsigned primIdx, const std::set<unsigned int>& accountIdxs, const bool loadHist
-                  , const bool hasCListeners, const bool hasVListeners)
+                  , const bool hasCListeners, const bool hasVListeners
+                  , ::megachat::MegaChatHandle testChatid = ::megachat::MEGACHAT_INVALID_HANDLE)
         {
+            chatid = testChatid;
             primaryIdx = primIdx;
             loadHistoryAtInit = loadHist;
             hasVideoListeners = hasVListeners;
