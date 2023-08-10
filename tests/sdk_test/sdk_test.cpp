@@ -4165,12 +4165,11 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
 TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 {
-
-    std::shared_ptr<testData> d (new testData(0/*primary idx*/, 1/*secondary idx*/, 2 /*accounts size*/,
-                                 true /*loadHistoryAtInit*/, true /*addVideoListeners*/));
+    d.init(0/*primary idx*/, 1/*secondary idx*/, 2 /*accounts size*/,
+                                 true /*loadHistoryAtInit*/, true /*addVideoListeners*/);
 
     // cleanup method that will be executed in MrProper dtor
-    std::function<void(std::shared_ptr<testData>)> testCleanup = [this] (std::shared_ptr<testData> d) -> void
+    std::function<void(testData*)> testCleanup = [this] (testData* d) -> void
     {
         ASSERT_TRUE(d) << "testInit: invalid testData";
 
@@ -4201,20 +4200,23 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
         // else => call doesn't exists anymore for this chat, the main purpose of this method is cleaning up test environment
         //         so in case there's no call, we can assume that it has ended by any other reason
 
-        LOG_debug << "Unregistering chatRoomListeners and localVideoListeners";
+        LOG_debug << "Unregistering chatRoomListeners";
         megaChatApi[d->a1]->closeChatRoom(chatid, d->chatroomListener.get());
         megaChatApi[d->a2]->closeChatRoom(chatid, d->chatroomListener.get());
 
-        if(d->addVideoListeners)
+#ifndef KARERE_DISABLE_WEBRTC
+        LOG_debug << "Unregistering localVideoListeners";
+        if (d->addVideoListeners)
         {
             megaChatApi[d->a1]->removeChatLocalVideoListener(chatid, &d->localVideoListeners[d->a1]);
             megaChatApi[d->a2]->removeChatLocalVideoListener(chatid, &d->localVideoListeners[d->a2]);
         }
+#endif
     };
 
     // Test start
-    ASSERT_NO_FATAL_FAILURE({ testInit(d); });
-    MrProper p (testCleanup, d); // must be created after calling testInit
+    ASSERT_NO_FATAL_FAILURE({ initTestDataSet(); });
+    MrProper p (testCleanup, &d); // must be created after calling testInit
     LOG_debug << "Starting test RaiseHandToSpeakCall after initialization";
 }
 
@@ -4777,9 +4779,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         return auxCall;
     };
 
-    std::function<void(std::shared_ptr<testData>)> testCleanup = [this, a1, a2, crl = chatroomListener.get(),
+    std::function<void(testData*)> testCleanup = [this, a1, crl = chatroomListener.get(),
                                                        lvlA = &localVideoListenerA, lvlB = &localVideoListenerB]
-        (std::shared_ptr<testData> d) -> void
+        (testData* d) -> void
     {
         ASSERT_TRUE(d) << "auxtestCleanup: invalid testData"; // TODO replace by definitive testCleanup
 
@@ -4819,10 +4821,10 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     };
 
     // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
-    std::shared_ptr<testData> d (new testData(0/*primary idx*/, 1/*secondary idx*/, 2 /*accounts size*/,
-                                             true /*loadHistoryAtInit*/, true /*addVideoListeners*/));
-    d->chatid = chatid;
-    MrProper p (testCleanup, d);
+    d.init(0/*primary idx*/, 1/*secondary idx*/, 2 /*accounts size*/,
+                                             true /*loadHistoryAtInit*/, true /*addVideoListeners*/);
+    d.chatid = chatid;
+    MrProper p (testCleanup, &d);
 
     // [Test1]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
     //          call won't ring for the rest of participants as schedId is provided
@@ -6906,59 +6908,58 @@ void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaEr
     requestFlags[apiIndex][request->getType()] = true;
 }
 
-void MegaChatApiTest::testInit (std::shared_ptr<testData> d)
+void MegaChatApiTest::initTestDataSet ()
 {
-    ASSERT_TRUE(d) << "testInit: invalid testData";
-
     // Login with both accounts
-    d->sessions[d->a1] = std::unique_ptr<char[]>(login(d->a1));   // primary acccount (user A)
-    ASSERT_TRUE(d->sessions[d->a1]) << "Login with account index: " << d->a1 << " failed";
+    d.sessions[d.a1] = std::unique_ptr<char[]>(login(d.a1));   // primary acccount (user A)
+    ASSERT_TRUE(d.sessions[d.a1]) << "Login with account index: " << d.a1 << " failed";
 
-    d->sessions[d->a2] = std::unique_ptr<char[]>(login(d->a2));   // secondary acccount (user B)
-    ASSERT_TRUE(d->sessions[d->a2]) << "Login with account index: " << d->a2 << " failed";;
+    d.sessions[d.a2] = std::unique_ptr<char[]>(login(d.a2));   // secondary acccount (user B)
+    ASSERT_TRUE(d.sessions[d.a2]) << "Login with account index: " << d.a2 << " failed";;
 
     // Ensure both accounts are contacts
-    d->users[d->a1] = std::unique_ptr<MegaUser>(megaApi[d->a2]->getContact(account(d->a1).getEmail().c_str()));   // primary account user
-    d->users[d->a2] = std::unique_ptr<MegaUser>(megaApi[d->a1]->getContact(account(d->a2).getEmail().c_str()));   // secondary account user
-    if (!d->users[d->a2] || d->users[d->a2]->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+    d.users[d.a1] = std::unique_ptr<MegaUser>(megaApi[d.a2]->getContact(account(d.a1).getEmail().c_str()));   // primary account user
+    d.users[d.a2] = std::unique_ptr<MegaUser>(megaApi[d.a1]->getContact(account(d.a2).getEmail().c_str()));   // secondary account user
+    if (!d.users[d.a2] || d.users[d.a2]->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE({ makeContact(d->a1, d->a2); });
+        ASSERT_NO_FATAL_FAILURE({ makeContact(d.a1, d.a2); });
     }
 
-    d->uhandles[d->a1] = d->users[d->a1]->getHandle();
-    d->uhandles[d->a2] = d->users[d->a2]->getHandle();
+    d.uhandles[d.a1] = d.users[d.a1]->getHandle();
+    d.uhandles[d.a2] = d.users[d.a2]->getHandle();
 
     // Get a group chatroom with both users
-    d->peers.reset(MegaChatPeerList::createInstance());
-    d->peers->addPeer(d->uhandles[d->a2], MegaChatPeerList::PRIV_STANDARD);
-    d->chatid = getGroupChatRoom({d->a1, d->a2}, d->peers.get());
-    ASSERT_NE(d->chatid, MEGACHAT_INVALID_HANDLE) << "Common chat for both users not found->";
-    ASSERT_EQ(megaChatApi[d->a1]->getChatConnectionState(d->chatid), MegaChatApi::CHAT_CONNECTION_ONLINE)
-        << "Not connected to chatd for account " << (d->a1+1) << ": "
-        << account(d->a1).getEmail();
+    d.peers.reset(MegaChatPeerList::createInstance());
+    d.peers->addPeer(d.uhandles[d.a2], MegaChatPeerList::PRIV_STANDARD);
+    d.chatid = getGroupChatRoom({d.a1, d.a2}, d.peers.get());
+    ASSERT_NE(d.chatid, MEGACHAT_INVALID_HANDLE) << "Common chat for both users not found.";
+    ASSERT_EQ(megaChatApi[d.a1]->getChatConnectionState(d.chatid), MegaChatApi::CHAT_CONNECTION_ONLINE)
+        << "Not connected to chatd for account " << (d.a1+1) << ": "
+        << account(d.a1).getEmail();
 
     // Open chatroom with both accounts
-    d->chatroomListener.reset(new TestChatRoomListener(this, megaChatApi, d->chatid));
-    ASSERT_TRUE(megaChatApi[d->a1]->openChatRoom(d->chatid, d->chatroomListener.get())) << "Can't open chatRoom user A";
-    ASSERT_TRUE(megaChatApi[d->a2]->openChatRoom(d->chatid, d->chatroomListener.get())) << "Can't open chatRoom user B";
+    d.chatroomListener.reset(new TestChatRoomListener(this, megaChatApi, d.chatid));
+    ASSERT_TRUE(megaChatApi[d.a1]->openChatRoom(d.chatid, d.chatroomListener.get())) << "Can't open chatRoom user A";
+    ASSERT_TRUE(megaChatApi[d.a2]->openChatRoom(d.chatid, d.chatroomListener.get())) << "Can't open chatRoom user B";
 
     // Load history for the selected chat in both accounts (optional)
-    if (d->loadHistoryAtInit)
+    if (d.loadHistoryAtInit)
     {
-        loadHistory(d->a1, d->chatid, d->chatroomListener.get());
-        loadHistory(d->a2, d->chatid, d->chatroomListener.get());
+        loadHistory(d.a1, d.chatid, d.chatroomListener.get());
+        loadHistory(d.a2, d.chatid, d.chatroomListener.get());
     }
 
+#ifndef KARERE_DISABLE_WEBRTC
     // Register video listeners for both accounts (optional)
-    if (d->addVideoListeners)
+    if (d.addVideoListeners)
     {
-        d->localVideoListeners[d->a1] = TestChatVideoListener();
-        d->localVideoListeners[d->a2] = TestChatVideoListener();
-        megaChatApi[d->a1]->addChatLocalVideoListener(d->chatid, &d->localVideoListeners[d->a1]);
-        megaChatApi[d->a2]->addChatLocalVideoListener(d->chatid, &d->localVideoListeners[d->a2]);
+        d.localVideoListeners[d.a1] = TestChatVideoListener();
+        d.localVideoListeners[d.a2] = TestChatVideoListener();
+        megaChatApi[d.a1]->addChatLocalVideoListener(d.chatid, &d.localVideoListeners[d.a1]);
+        megaChatApi[d.a2]->addChatLocalVideoListener(d.chatid, &d.localVideoListeners[d.a2]);
     }
-
-    ASSERT_TRUE(d->isvalid()) << "testData could not be initialized properly";
+#endif
+    ASSERT_TRUE(d.isvalid()) << "testData could not be initialized properly";
 }
 
 void MegaChatApiTest::onChatsUpdate(MegaApi* api, MegaTextChatList *chats)

@@ -172,27 +172,37 @@ public:
         // vector of user handles (including primary account)
         std::vector<megachat::MegaChatHandle> uhandles;
 
+#ifndef KARERE_DISABLE_WEBRTC
         // vector of TestChatVideoListeners
         std::vector<TestChatVideoListener> localVideoListeners;
+#endif
 
         // TestChatRoomListener shared by all accounts
         std::unique_ptr<TestChatRoomListener>chatroomListener;
-
-        testData(const unsigned idx1, const unsigned idx2, const size_t accSize, const bool loadHist, const bool addVListeners)
-            :a1(idx1), a2(idx2), accountsSize(accSize), loadHistoryAtInit(loadHist), addVideoListeners(addVListeners)
+        testData() = default;
+        void init(const unsigned idx1, const unsigned idx2, const size_t accSize, const bool loadHist, const bool addVListeners)
         {
+            a1 = idx1;
+            a2 = idx2;
+            accountsSize = accSize;
+            loadHistoryAtInit = loadHist;
+            addVideoListeners = addVListeners;
             users.resize(accountsSize);
             uhandles.resize(accountsSize);
             sessions.resize(accountsSize);
+#ifndef KARERE_DISABLE_WEBRTC
             localVideoListeners.resize(accountsSize);
+#endif
         }
 
         bool isvalid()
         {
             return a1 != a2 && accountsSize >= 2
                    && uhandles.size() == accountsSize
-                   && sessions.size() == accountsSize
-                   && localVideoListeners.size() == accountsSize;
+#ifndef KARERE_DISABLE_WEBRTC
+                   && localVideoListeners.size() == accountsSize
+#endif
+                   && sessions.size() == accountsSize;
         }
 
     };
@@ -212,11 +222,11 @@ public:
 
     struct MrProper
     {
-        MrProper(std::function<void(std::shared_ptr<testData> d)> f
-                 , std::shared_ptr<testData> tData) : mCleanup(f), d(tData){}
+        MrProper(std::function<void(testData* d)> f
+                 , testData* tData) : mCleanup(f), d(tData){}
 
-        std::function<void(std::shared_ptr<testData>)> mCleanup;
-        std::shared_ptr<testData> d;
+        std::function<void(testData*)> mCleanup;
+        testData* d;
         ~MrProper() { mCleanup(d); }
     };
 
@@ -346,7 +356,7 @@ protected:
                                std::shared_ptr<TestChatRoomListener>chatroomListener);
 
     // initializations required before starting any test
-    void testInit (std::shared_ptr<testData> d);
+    void initTestDataSet ();
 
 #ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
@@ -398,6 +408,8 @@ protected:
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
+
+    testData d; // basic test data common to all tests
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallWithIdReceived[NUM_ACCOUNTS];
