@@ -158,7 +158,8 @@ public:
         size_t accountsSize = 0;
 
         bool loadHistoryAtInit = false;
-        bool addVideoListeners = false;
+        bool hasVideoListeners = false;
+        bool hasChatListeners = false;
 
         // vector of sessions returned by MegaChatApiTest::login (including primary account)
         std::vector<std::unique_ptr<char[]>> sessions;
@@ -180,13 +181,15 @@ public:
         // TestChatRoomListener shared by all accounts
         std::unique_ptr<TestChatRoomListener>chatroomListener;
         testData() = default;
-        void init(const unsigned idx1, const unsigned idx2, const size_t accSize, const bool loadHist, const bool addVListeners)
+        void init(const unsigned idx1, const unsigned idx2, const size_t accSize, const bool loadHist
+                  , const bool hasCListeners, const bool hasVListeners)
         {
             a1 = idx1;
             a2 = idx2;
             accountsSize = accSize;
             loadHistoryAtInit = loadHist;
-            addVideoListeners = addVListeners;
+            hasVideoListeners = hasVListeners;
+            hasChatListeners = hasCListeners;
             users.resize(accountsSize);
             uhandles.resize(accountsSize);
             sessions.resize(accountsSize);
@@ -355,8 +358,13 @@ protected:
     void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                                std::shared_ptr<TestChatRoomListener>chatroomListener);
 
+    // cleanup common to all tests
+    void clearTestDataSet();
+
     // initializations required before starting any test
-    void initTestDataSet ();
+    void initTestDataSet();
+
+    void endChatCall(const megachat::MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants);
 
 #ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
