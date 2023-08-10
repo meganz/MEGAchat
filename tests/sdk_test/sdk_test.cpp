@@ -4166,15 +4166,16 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
 TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 {
+    // specific test cleanup method that will be executed in MrProper dtor
     std::function<void(testData*)> testCleanup = [this] (testData* d) -> void
     {
-        // specific test cleanup method that will be executed in MrProper dtor
-        endChatCall(d->chatid, d->a1, std::set<unsigned int> {d->a1, d->a2});
+        endChatCall(d->chatid, d->primaryIdx, d->accountIndexes);
     };
 
     // Test start
-    d.init(0/*primary idx*/, 1/*secondary idx*/, 2 /*accounts size*/,
-           true /*loadHistoryAtInit*/, true /*hasCListeners*/, true /*hasVideoListeners*/);
+    d.init(0 /*primIdx*/
+           , std::set<unsigned int> {0, 1} /*accountIdxs*/,
+           true /*loadHistoryAtInit*/, true /*hasChatListeners*/, true /*hasVideoListeners*/);
 
     ASSERT_NO_FATAL_FAILURE({ initTestDataSet(); });
     MrProper p (testCleanup, &d); // must be created after calling testInit
@@ -4746,7 +4747,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     {
         ASSERT_TRUE(d) << "auxtestCleanup: invalid testData"; // TODO replace by definitive testCleanup
 
-        endChatCall(d->chatid, d->a1, std::set<unsigned int> {d->a1, d->a2});
+        endChatCall(d->chatid, d->primaryIdx, d->accountIndexes);
 
         MegaChatHandle chatid = d->chatid;
         LOG_debug << "Unregistering chatRoomListeners and localVideoListeners";
@@ -4757,10 +4758,12 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     };
 
     // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
-    d.init(0/*primary idx*/, 1/*secondary idx*/, 2 /*accounts size*/
-                                            , true /*loadHistoryAtInit*/
-                                            , false /*hasCListeners*/
-                                            , false /*hasVideoListeners*/);
+    d.init(0/*primIdx*/
+           , std::set<unsigned int> {0, 1} /*accountIdxs*/
+           , true /*loadHistoryAtInit*/
+           , false /*hasCListeners*/
+           , false /*hasVideoListeners*/);
+
     d.chatid = chatid;
     MrProper p (testCleanup, &d);
 
@@ -6851,70 +6854,98 @@ void MegaChatApiTest::clearTestDataSet()
     if (d.hasChatListeners)
     {
         LOG_debug << "Unregistering chatRoomListeners";
-        megaChatApi[d.a1]->closeChatRoom(d.chatid, d.chatroomListener.get());
-        megaChatApi[d.a2]->closeChatRoom(d.chatid, d.chatroomListener.get());
+        std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
+        {
+            megaChatApi[idx]->closeChatRoom(d.chatid, d.chatroomListener.get());
+        });
     }
-
+#ifndef KARERE_DISABLE_WEBRTC
     if (d.hasVideoListeners)
     {
         LOG_debug << "Unregistering localVideoListeners";
-        megaChatApi[d.a1]->removeChatLocalVideoListener(d.chatid, &d.localVideoListeners[d.a1]);
-        megaChatApi[d.a2]->removeChatLocalVideoListener(d.chatid, &d.localVideoListeners[d.a2]);
+        std::for_each(d.mapLocalVideoListeners.begin(), d.mapLocalVideoListeners.end(), [this](auto& it)
+        {
+            megaChatApi[it.first]->removeChatLocalVideoListener(d.chatid, &it.second);
+        });
     }
+#endif
 }
 
 void MegaChatApiTest::initTestDataSet ()
 {
-    // Login with both accounts
-    d.sessions[d.a1] = std::unique_ptr<char[]>(login(d.a1));   // primary acccount (user A)
-    ASSERT_TRUE(d.sessions[d.a1]) << "Login with account index: " << d.a1 << " failed";
-
-    d.sessions[d.a2] = std::unique_ptr<char[]>(login(d.a2));   // secondary acccount (user B)
-    ASSERT_TRUE(d.sessions[d.a2]) << "Login with account index: " << d.a2 << " failed";;
-
-    // Ensure both accounts are contacts
-    d.users[d.a1] = std::unique_ptr<MegaUser>(megaApi[d.a2]->getContact(account(d.a1).getEmail().c_str()));   // primary account user
-    d.users[d.a2] = std::unique_ptr<MegaUser>(megaApi[d.a1]->getContact(account(d.a2).getEmail().c_str()));   // secondary account user
-    if (!d.users[d.a2] || d.users[d.a2]->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+    // Login with all accounts
+    std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
     {
-        ASSERT_NO_FATAL_FAILURE({ makeContact(d.a1, d.a2); });
-    }
+        d.sessions[idx] = std::unique_ptr<char[]>(login(idx));   // primary acccount (user A)
+        ASSERT_TRUE(d.sessions[idx]) << "Login with account index: " << idx << " failed";
+    });
 
-    d.uhandles[d.a1] = d.users[d.a1]->getHandle();
-    d.uhandles[d.a2] = d.users[d.a2]->getHandle();
+    // Ensure all accounts are contacts between them
+    std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
+    {
+        std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this, idx](unsigned int auxidx)
+        {
+            if (idx == auxidx) { return;}
 
-    // Get a group chatroom with both users
-    d.peers.reset(MegaChatPeerList::createInstance());
-    d.peers->addPeer(d.uhandles[d.a2], MegaChatPeerList::PRIV_STANDARD);
-    d.chatid = getGroupChatRoom({d.a1, d.a2}, d.peers.get());
+            std::unique_ptr<MegaUser> u(megaApi[idx]->getContact(account(auxidx).getEmail().c_str()));
+            if (!u || u->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+            {
+               ASSERT_NO_FATAL_FAILURE({ makeContact(idx, auxidx); });
+               u.reset(megaApi[idx]->getContact(account(auxidx).getEmail().c_str()));
+               ASSERT_TRUE(u && u->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+                   << "Can't establish contact relationship between accounts" << idx << " and " << auxidx;
+            }
+
+            if (d.uhandles.find(auxidx) == d.uhandles.end()) { d.uhandles.emplace(auxidx, u->getHandle()); }
+        });
+    });
+
+    std::for_each(d.uhandles.begin(), d.uhandles.end(), [](auto it)
+    {
+        ASSERT_TRUE(it.second != ::megachat::MEGACHAT_INVALID_HANDLE) << "User handle list contains invalid handles";
+    });
+
+    std::vector<unsigned int> accIdxVector(d.accountIndexes.begin(), d.accountIndexes.end());
+    std::for_each(d.uhandles.begin(), d.uhandles.end(), [this](auto it)
+    {
+        if (it.first != d.primaryIdx) { d.peers->addPeer(it.second, MegaChatPeerList::PRIV_STANDARD);}
+    });
+
+    // Get a group chatroom with both usersXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+    d.chatid = getGroupChatRoom(accIdxVector, d.peers.get());
     ASSERT_NE(d.chatid, MEGACHAT_INVALID_HANDLE) << "Common chat for both users not found.";
-    ASSERT_EQ(megaChatApi[d.a1]->getChatConnectionState(d.chatid), MegaChatApi::CHAT_CONNECTION_ONLINE)
-        << "Not connected to chatd for account " << (d.a1+1) << ": "
-        << account(d.a1).getEmail();
+    ASSERT_EQ(megaChatApi[d.primaryIdx]->getChatConnectionState(d.chatid), MegaChatApi::CHAT_CONNECTION_ONLINE)
+        << "Not connected to chatd for account " << (d.primaryIdx + 1) << ": "
+        << account(d.primaryIdx).getEmail();
 
     // Open chatroom with both accounts (optional)
     if (d.hasChatListeners)
     {
         d.chatroomListener.reset(new TestChatRoomListener(this, megaChatApi, d.chatid));
-        ASSERT_TRUE(megaChatApi[d.a1]->openChatRoom(d.chatid, d.chatroomListener.get())) << "Can't open chatRoom user A";
-        ASSERT_TRUE(megaChatApi[d.a2]->openChatRoom(d.chatid, d.chatroomListener.get())) << "Can't open chatRoom user B";
+        std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
+        {
+            ASSERT_TRUE(megaChatApi[idx]->openChatRoom(d.chatid, d.chatroomListener.get())) << "Can't open chatRoom account index: " << idx;
+        });
     }
 
     // Load history for the selected chat in both accounts (optional)
     if (d.loadHistoryAtInit)
     {
-        loadHistory(d.a1, d.chatid, d.chatroomListener.get());
-        loadHistory(d.a2, d.chatid, d.chatroomListener.get());
+        std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
+        {
+            loadHistory(idx, d.chatid, d.chatroomListener.get());
+        });
     }
 
 #ifndef KARERE_DISABLE_WEBRTC
     // Register video listeners for both accounts (optional)
     if (d.hasVideoListeners)
     {
-        d.localVideoListeners[d.a1] = TestChatVideoListener();
-        d.localVideoListeners[d.a2] = TestChatVideoListener();
-        megaChatApi[d.a1]->addChatLocalVideoListener(d.chatid, &d.localVideoListeners[d.a1]);
-        megaChatApi[d.a2]->addChatLocalVideoListener(d.chatid, &d.localVideoListeners[d.a2]);
+        std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
+        {
+            d.mapLocalVideoListeners.emplace(idx, TestChatVideoListener());
+            megaChatApi[idx]->addChatLocalVideoListener(d.chatid, &d.mapLocalVideoListeners[idx]);
+        });
     }
 #endif
     ASSERT_TRUE(d.isvalid()) << "testData could not be initialized properly";

@@ -150,12 +150,8 @@ class MegaChatApiTest :
 public:
     struct testData
     {
-        unsigned a1 = 0;       // primary account index
-        unsigned a2 = 0;       // secondary account index
+        unsigned primaryIdx = 0;         // primary account index
         megachat::MegaChatHandle chatid; // chatid of chatroom that will be used in the test
-
-        // number of accounts that will be used in the test (including primary account)
-        size_t accountsSize = 0;
 
         bool loadHistoryAtInit = false;
         bool hasVideoListeners = false;
@@ -164,50 +160,39 @@ public:
         // vector of sessions returned by MegaChatApiTest::login (including primary account)
         std::vector<std::unique_ptr<char[]>> sessions;
 
-        // vector of MegaUser (including primary account)
-        std::vector<std::unique_ptr<mega::MegaUser>> users;
-
         // peer list with the participants of the chatroom used for the test (primary account not included)
         std::unique_ptr<megachat::MegaChatPeerList> peers;
 
         // vector of user handles (including primary account)
-        std::vector<megachat::MegaChatHandle> uhandles;
+        std::map<unsigned int, megachat::MegaChatHandle> uhandles;
+
+        // vector of user indexes (including primary account)
+        std::set<unsigned int> accountIndexes;
 
 #ifndef KARERE_DISABLE_WEBRTC
         // vector of TestChatVideoListeners
-        std::vector<TestChatVideoListener> localVideoListeners;
+        std::map<unsigned int, TestChatVideoListener> mapLocalVideoListeners;
 #endif
 
         // TestChatRoomListener shared by all accounts
         std::unique_ptr<TestChatRoomListener>chatroomListener;
         testData() = default;
-        void init(const unsigned idx1, const unsigned idx2, const size_t accSize, const bool loadHist
+        void init(const unsigned primIdx, const std::set<unsigned int>& accountIdxs, const bool loadHist
                   , const bool hasCListeners, const bool hasVListeners)
         {
-            a1 = idx1;
-            a2 = idx2;
-            accountsSize = accSize;
+            primaryIdx = primIdx;
             loadHistoryAtInit = loadHist;
             hasVideoListeners = hasVListeners;
             hasChatListeners = hasCListeners;
-            users.resize(accountsSize);
-            uhandles.resize(accountsSize);
-            sessions.resize(accountsSize);
-#ifndef KARERE_DISABLE_WEBRTC
-            localVideoListeners.resize(accountsSize);
-#endif
+            accountIndexes = accountIdxs;
+            sessions.resize(accountIndexes.size());
+            peers.reset(megachat::MegaChatPeerList::createInstance());
         }
 
         bool isvalid()
         {
-            return a1 != a2 && accountsSize >= 2
-                   && uhandles.size() == accountsSize
-#ifndef KARERE_DISABLE_WEBRTC
-                   && localVideoListeners.size() == accountsSize
-#endif
-                   && sessions.size() == accountsSize;
+            return accountIndexes.size() >= 2 && sessions.size() == accountIndexes.size();
         }
-
     };
 
     struct SchedMeetingData
