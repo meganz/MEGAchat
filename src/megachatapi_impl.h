@@ -1032,8 +1032,25 @@ public:
     MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate&&) = delete;
     MegaChatScheduledMeetingPrivate& operator=(const MegaChatScheduledMeetingPrivate&) = delete;
     MegaChatScheduledMeetingPrivate& operator=(const MegaChatScheduledMeetingPrivate&&) = delete;
+    MegaChatScheduledMeetingPrivate(const mega::MegaScheduledMeeting& msm)
+        : mKScheduledMeeting(std::make_unique<karere::KarereScheduledMeeting>(msm.chatid()
+                                                                              , msm.organizerUserid()
+                                                                              , msm.timezone() ? msm.timezone() : std::string()
+                                                                              , msm.startDateTime()
+                                                                              , msm.endDateTime()
+                                                                              , msm.title() ? msm.title() : std::string()
+                                                                              , msm.description() ? msm.description() : std::string()
+                                                                              , msm.schedId()
+                                                                              , msm.parentSchedId()
+                                                                              , msm.cancelled()
+                                                                              , msm.attributes() ? msm.attributes() : std::string()
+                                                                              , msm.overrides()
+                                                                              , msm.flags() ? std::make_unique<karere::KarereScheduledFlags>(msm.flags()).get() : nullptr
+                                                                              , msm.rules() ? std::make_unique<karere::KarereScheduledRules>(msm.rules()).get() : nullptr))
+    {}
 
     void setChanged(const unsigned long val) { mChanged = megachat_sched_bs_t(val); }
+    megachat_sched_bs_t getChanges() const   { return mChanged; }
 
     megachat_sched_bs_t getChanged() const   { return mChanged; }
     MegaChatHandle chatId() const override;
@@ -1057,10 +1074,10 @@ public:
     MegaChatScheduledMeetingPrivate* copy() const override { return new MegaChatScheduledMeetingPrivate(this); }
 
 private:
+    std::unique_ptr<karere::KarereScheduledMeeting> mKScheduledMeeting;
+
     // changed bitmap
     megachat_sched_bs_t mChanged;
-
-    std::unique_ptr<karere::KarereScheduledMeeting> mKScheduledMeeting;
 
     // temp memory must be held somewhere since there is a data transformation and ownership is not returned in the getters
     mutable std::unique_ptr<MegaChatScheduledFlags> mTransformedMCSFlags;

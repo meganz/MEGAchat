@@ -591,7 +591,19 @@ public:
         return (finished() && request) ? request->getParamType() : 0;
     }
 
-    auto getScheduledMeetings() const
+    int getPrivilege() const
+    {
+        return (finished() && request) ? request->getPrivilege() : 0;
+    }
+
+    auto hasScheduledMeetings() const
+    {
+        return finished() && request
+                && request->getMegaChatScheduledMeetingList()
+                && request->getMegaChatScheduledMeetingList()->size();
+    }
+
+    auto getScheduledMeetingsOccurrences() const
     {
         return (finished() && request && request->getMegaChatScheduledMeetingOccurrList())
                   ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())

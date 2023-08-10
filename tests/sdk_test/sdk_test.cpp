@@ -4430,8 +4430,9 @@ struct MrProper
 
 TEST_F(MegaChatApiTest, WaitingRooms)
 {
-    unsigned a1 = 0;
-    unsigned a2 = 1;
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+    const unsigned a3 = 2;
 
     // Test preparation. Prepare users, and chat room
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
@@ -4510,6 +4511,25 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     {
         ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
     }
+
+    // Create chat link
+    ChatRequestTracker crtCreateLink;
+    megaChatApi[a1]->createChatLink(chatid, &crtCreateLink);
+    ASSERT_EQ(crtCreateLink.waitForResult(), MegaChatError::ERROR_OK) << "Creating chat link failed. Should have succeeded!";
+
+    // Open chat link and check that wr flag and scheduled meetings are received upon onRequestFinish(TYPE_LOAD_PREVIEW)
+    std::unique_ptr<char[]> tertiarySession(login(a3));  // user C
+    LOG_debug << "\tSwitching to staging (Shard 2) for group creation";
+    megaApi[a3]->changeApiUrl("https://staging.api.mega.co.nz/");
+
+    ChatRequestTracker crtOpenLink;
+    megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink);
+    ASSERT_EQ(crtOpenLink.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
+    ASSERT_TRUE(crtOpenLink.getPrivilege() /*wr flag*/ && crtOpenLink.hasScheduledMeetings());
+    ASSERT_NO_FATAL_FAILURE({ logout(a3, true); });
+
+    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation\n";
+    megaApi[a3]->changeApiUrl("https://g.api.mega.co.nz/");
 
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom->getPeerPrivilegeByHandle(user->getHandle()) == megachat::MegaChatPeerList::PRIV_STANDARD)
@@ -4950,7 +4970,8 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                               exitFlag = true;
                               ASSERT_EQ(res, expectedError)
                                   << "Unexpected error while fetching scheduled meetings. Error: " << crtFetchOccurrences.getErrorString();
-                              occurrences = crtFetchOccurrences.getScheduledMeetings();
+
+                              occurrences = crtFetchOccurrences.getScheduledMeetingsOccurrences();
                           });
         });
 
