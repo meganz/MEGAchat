@@ -512,8 +512,8 @@ protected:
     {
         assert(!resultReceived); // call this function only once!
         errorStr.swap(errStr);
-        promiseResult.set_value(errCode);
         resultReceived = true;
+        promiseResult.set_value(errCode);
     }
 
     bool finished() const { return resultReceived; }
@@ -596,16 +596,21 @@ public:
         return (finished() && request) ? request->getPrivilege() : 0;
     }
 
-    auto hasScheduledMeetings() const
+    bool hasScheduledMeetings() const
     {
         return finished() && request
                 && request->getMegaChatScheduledMeetingList()
                 && request->getMegaChatScheduledMeetingList()->size();
     }
 
-    auto getScheduledMeetingsOccurrences() const
+    bool hasScheduledMeetingOccurrList() const
     {
-        return (finished() && request && request->getMegaChatScheduledMeetingOccurrList())
+        return finished() && request && request->getMegaChatScheduledMeetingOccurrList();
+    }
+
+    std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> getScheduledMeetingsOccurrences() const
+    {
+        return hasScheduledMeetingOccurrList()
                   ? std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList>(request->getMegaChatScheduledMeetingOccurrList()->copy())
                   : nullptr;
     }
