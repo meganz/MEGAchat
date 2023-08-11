@@ -4973,7 +4973,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                               if (!errCode)
                               {
                                   ASSERT_TRUE(crtFetchOccurrences.hasScheduledMeetingOccurrList()) << "fetchScheduledMeetingOccurrencesByChat finished Ok "
-                                                                                             "but no scheduled meeting occurrences list received";
+												   << "but no scheduled meeting occurrences list received";
                                   occurrences = crtFetchOccurrences.getScheduledMeetingsOccurrences();
                                   if (occurrences)
                                   {
