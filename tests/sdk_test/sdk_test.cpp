@@ -4167,23 +4167,37 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 {
     // specific test cleanup method that will be executed in MrProper dtor
-    std::function<void(testData*)> testCleanup = [this] (testData* d) -> void
+    std::function<void(TestData*)> testCleanup = [this] (TestData* d) -> void
     {
         endChatCall(d->chatid, d->primaryIdx, d->accountIndexes);
     };
+
+    // empty peerlist to find/create meeting room without participants except primary account
+    std::unique_ptr<megachat::MegaChatPeerList> customPeerList(megachat::MegaChatPeerList::createInstance());
+
+    std::unique_ptr<ChatroomCreationOptions> opt(new ChatroomCreationOptions(megachat::MegaChatPeerList::PRIV_MODERATOR
+                                                                             , true /*create*/, true /*pubchat*/, true /*mr*/
+                                                                             , false /*wr*/, true /*sr*/, false /*oi*/
+                                                                             , nullptr, customPeerList.get()));
 
     // init data test
     d.init(0 /*primIdx*/
            , std::set<unsigned int> {0, 1} /*accountIdxs*/
            , true /*loadHistoryAtInit*/
            , true /*hasChatListeners*/
-           , true /*hasVideoListeners*/);
+           , true /*hasVideoListeners*/
+           , opt.get());
     ASSERT_NO_FATAL_FAILURE({ initTestDataSet(); });
 
     // when this object goes out of scope, testCleanup will be executed ending any call in this chat and freeing any resource associated to it
     // this object must be created after calling testInit
     MrProper p (testCleanup, &d);
-    LOG_debug << "Starting test RaiseHandToSpeakCall after initialization";
+    LOG_debug << "[Test.RaiseHandToSpeakCall] Starting test after initialization";
+
+    //=========================================================//
+    // Test1:
+    //=========================================================//
+    LOG_debug << "[Test.RaiseHandToSpeakCall] Test1:";
 }
 
 /**
@@ -4497,7 +4511,8 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // Waiting rooms currently just works if there's a scheduled meeting created for the chatroom
     LOG_debug << "Test preconditions: Get a meeting room with a scheduled meeting associated";
     chatid = getGroupChatRoom({a1, a2}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
-                                              true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/, &smDataTests127);
+                                              true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/,
+                                              false /*speakRequest*/, false /*openInvite*/, &smDataTests127);
 
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Can't get/create a Meeting room with waiting room enabled";
     const std::unique_ptr<char[]> chatIdB64(MegaApi::userHandleToBase64(chatid));
@@ -4745,9 +4760,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         return auxCall;
     };
 
-    std::function<void(testData*)> testCleanup = [this, a1, crl = chatroomListener.get(),
+    std::function<void(TestData*)> testCleanup = [this, a1, crl = chatroomListener.get(),
                                                        lvlA = &localVideoListenerA, lvlB = &localVideoListenerB]
-        (testData* d) -> void
+        (TestData* d) -> void
     {
         ASSERT_TRUE(d) << "auxtestCleanup: invalid testData"; // TODO replace by definitive testCleanup
 
@@ -4761,12 +4776,17 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         megaChatApi[a2]->removeChatLocalVideoListener(chatid, lvlB);
     };
 
+    std::unique_ptr<ChatroomCreationOptions> opt(new ChatroomCreationOptions(megachat::MegaChatPeerList::PRIV_MODERATOR
+                                                                             , true /*create*/, true /*pubchat*/, true /*mr*/
+                                                                             , true /*wr*/, false /*sr*/, false /*oi*/
+                                                                             , &smDataTests127, peerList.get()));
     // init data test
     d.init(0/*primIdx*/
            , std::set<unsigned int> {0, 1} /*accountIdxs*/
            , true /*loadHistoryAtInit*/
            , false /*hasCListeners*/
            , false /*hasVideoListeners*/
+           , opt.get()
            , chatid);
 
     // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
@@ -5879,7 +5899,8 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>& a, MegaChatPeerList* peers,
                                                  const int a1Priv, const bool create, const bool publicChat,
-                                                 const bool meetingRoom, const bool waitingRoom, SchedMeetingData* schedMeetingData)
+                                                 const bool meetingRoom, const bool waitingRoom,
+                                                 const bool speakRequest, const bool openInvite, SchedMeetingData* schedMeetingData)
 {
     static const std::string errBadParam = "getGroupChatRoom: Attempting to get a group chat for ";
     if (a.size() > NUM_ACCOUNTS)
@@ -5894,14 +5915,15 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
     }
     if (!peers)
     {
-        LOG_err << errBadParam << "an empty list of peers";
+        LOG_err << errBadParam << "a peerslist not provided";
         return MEGACHAT_INVALID_HANDLE;
     }
-    if (a.size() != static_cast<std::size_t>(peers->size() + 1)) // a1 (AKA perfomer) not included in peers list
+    if (!peers->size() && !meetingRoom)
     {
-        LOG_err << errBadParam << "different test accounts (" << a.size() << ") and peers total (" << peers->size() << ")";
+        LOG_err << errBadParam << "an empty list of peers and non meeting room flag";
         return MEGACHAT_INVALID_HANDLE;
     }
+
     for (std::vector<unsigned int>::size_type i = 1; i < a.size(); ++i)
     {
         const auto& currentA = a[i];
@@ -5982,7 +6004,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
     };
 
     auto createChat =
-        [this, &a, &peers, &waitingRoom, &meetingRoom, &publicChat, &waitForChatCreation, schedMeetingData]() -> MegaChatHandle
+        [this, &a, &peers, &waitingRoom, &speakRequest, &openInvite, &meetingRoom, &publicChat, &waitForChatCreation, schedMeetingData]() -> MegaChatHandle
     {
         ChatRequestTracker crtCreateChat;
         std::for_each(std::begin(a), std::end(a), [this](const auto& ai)
@@ -6008,11 +6030,11 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
             LOG_debug << "getGroupChatRoom: Creating a meetingroom";
             if (peers->size())
             {
+                // however we probably want to find for a chat with peers so we should not make this fail.
                 LOG_err << "there's no interface to create a Meeting room with more participants";
-                return MEGACHAT_INVALID_HANDLE;
             }
-            megaChatApi[chatUserCreator]->createMeeting(title.c_str(), false /*speakRequest*/, waitingRoom,
-                                                        false /*openInvite*/, &crtCreateChat);
+            megaChatApi[chatUserCreator]->createMeeting(title.c_str(), speakRequest, waitingRoom
+                                                        , openInvite, &crtCreateChat);
         }
         else if (publicChat)
         {
@@ -6055,19 +6077,24 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
             const MegaChatRoom* chat = chats->get(i);
             if (!isChatCandidate(chat)) continue;
 
-            // all peers must be in this chat, otherwise this is not the chat we are looking for
-            bool skip = false;
-            for (unsigned int u = 0; u < chat->getPeerCount(); ++u)
+            if (peers->size())
             {
-                skip = !inPeersParam(chat->getPeerHandle(u));
+                // all peers must be in this chat, otherwise this is not the chat we are looking for
+                bool skip = false;
+                for (unsigned int u = 0; u < chat->getPeerCount(); ++u)
+                {
+                    skip = !inPeersParam(chat->getPeerHandle(u));
+                }
+                if (skip) continue;
             }
-            if (skip) continue;
+            // # else => if peers is empty, we may want to create an empty meeting room
 
             const auto foundChatid = chat->getChatId();
             unique_ptr<char[]> base64(::MegaApi::handleToBase64(foundChatid));
             LOG_debug << "getGroupChatRoom: existing chat found, chatid: " << base64.get();
             return foundChatid;
         }
+        LOG_debug << "getGroupChatRoom: non existing chat found with selected criteria";
         return MEGACHAT_INVALID_HANDLE;
     };
 
@@ -6878,7 +6905,7 @@ void MegaChatApiTest::clearTestDataSet()
 
 void MegaChatApiTest::initTestDataSet()
 {
-    // Login with all accounts
+    // Login with all accounts available
     std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
     {
         d.sessions[idx] = std::unique_ptr<char[]>(login(idx));   // primary acccount (user A)
@@ -6910,43 +6937,68 @@ void MegaChatApiTest::initTestDataSet()
         ASSERT_TRUE(it.second != ::megachat::MEGACHAT_INVALID_HANDLE) << "User handle list contains invalid handles";
     });
 
-    std::vector<unsigned int> accIdxVector(d.accountIndexes.begin(), d.accountIndexes.end());
+    ChatroomCreationOptions* o = d.mChatOptions.get();
+    ASSERT_TRUE(d.mChatOptions) << "initTestDataSet: invalid chat options";
+
+    // add all available peers to TestData::peers except primary account
     std::for_each(d.uhandles.begin(), d.uhandles.end(), [this](auto it)
     {
         if (it.first != d.primaryIdx) { d.peers->addPeer(it.second, MegaChatPeerList::PRIV_STANDARD);}
     });
 
-    // Get a group chatroom with both usersXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-    d.chatid = getGroupChatRoom(accIdxVector, d.peers.get());
+    // get peer list provided in test (customPeerList) or default peer list (TestData::peers)
+    megachat::MegaChatPeerList* peerList = o->customPeerList.get()
+                                               ? o->customPeerList.get() // override list in TestData with ChatroomCreationOptions one
+                                               : d.peers.get();
+    ASSERT_TRUE(peerList) << "initTestDataSet: invalid peer list for chatroom creation";
+
+    // Although TestData::accountIndexes contains all the accounts configured for this test, we'll only use primary account index (mandatory)
+    // and indexes of peers included in peerList, to create the chatroom and register required listeners
+    // The reason is that for some tests, we may need to use all accounts but the chatroom must be created/selected just for a subset of all the available accounts
+    std::vector<unsigned int> accIdxVector = { d.primaryIdx };
+    for (int i = 0; i < peerList->size(); ++i)
+    {
+        const MegaChatHandle h = peerList->getPeerHandle(i);
+        std::for_each(d.uhandles.begin(), d.uhandles.end(), [&accIdxVector, &h](const auto it)
+        {
+            if (h == it.second) { accIdxVector.emplace_back(it.first); }
+        });
+    }
+
+    // Create or get (if exists) a group chatroom with specified conditions in automated test
+    d.chatid = getGroupChatRoom(accIdxVector, peerList, o->a1Priv, o->create, o->publicChat
+                                , o->meetingRoom, o->waitingRoom, o->speakRequest
+                                , o->openInvite, o->schedMeetingData.get());
+
     ASSERT_NE(d.chatid, MEGACHAT_INVALID_HANDLE) << "Common chat for both users not found.";
     ASSERT_EQ(megaChatApi[d.primaryIdx]->getChatConnectionState(d.chatid), MegaChatApi::CHAT_CONNECTION_ONLINE)
         << "Not connected to chatd for account " << (d.primaryIdx + 1) << ": "
         << account(d.primaryIdx).getEmail();
 
-    // Open chatroom with both accounts (optional)
+    // Open chatroom for all chat participants accounts (optional)
     if (d.hasChatListeners)
     {
         d.chatroomListener.reset(new TestChatRoomListener(this, megaChatApi, d.chatid));
-        std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
+        std::for_each(accIdxVector.begin(), accIdxVector.end(), [this](unsigned int idx)
         {
             ASSERT_TRUE(megaChatApi[idx]->openChatRoom(d.chatid, d.chatroomListener.get())) << "Can't open chatRoom account index: " << idx;
         });
     }
 
-    // Load history for the selected chat in both accounts (optional)
+    // Load history for the selected chat for all chat participants accounts (optional)
     if (d.loadHistoryAtInit)
     {
-        std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
+        std::for_each(accIdxVector.begin(), accIdxVector.end(), [this](unsigned int idx)
         {
             loadHistory(idx, d.chatid, d.chatroomListener.get());
         });
     }
 
 #ifndef KARERE_DISABLE_WEBRTC
-    // Register video listeners for both accounts (optional)
+    // Register video listeners for all chat participants accounts (optional)
     if (d.hasVideoListeners)
     {
-        std::for_each(d.accountIndexes.begin(), d.accountIndexes.end(), [this](unsigned int idx)
+        std::for_each(accIdxVector.begin(), accIdxVector.end(), [this](unsigned int idx)
         {
             d.mapLocalVideoListeners.emplace(idx, TestChatVideoListener());
             megaChatApi[idx]->addChatLocalVideoListener(d.chatid, &d.mapLocalVideoListeners[idx]);
