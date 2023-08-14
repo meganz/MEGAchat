@@ -143,6 +143,7 @@ public:
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
     virtual bool isModerator() const = 0;
+    virtual bool hasSpeakPermission() const = 0;
 };
 
 class ICall;

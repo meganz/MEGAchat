@@ -4375,6 +4375,11 @@ bool Session::isModerator() const
     return mPeer.isModerator();
 }
 
+bool Session::hasSpeakPermission() const
+{
+    return mPeer.hasSpeakPermission();
+}
+
 void Session::notifyHiResReceived()
 {
     mSessionHandler->onHiResReceived(*this);
@@ -4441,11 +4446,7 @@ void Session::setSpeakPermission(const bool hasSpeakPermission)
         return;
     }
     mPeer.setSpeakPermission(hasSpeakPermission);
-}
-
-bool Session::hasSpeakPermission() const
-{
-    return mPeer.hasSpeakPermission();
+    // need to add a new callback to notify change in speak permission for peer
 }
 
 RemoteAudioSlot *Session::getAudioSlot()

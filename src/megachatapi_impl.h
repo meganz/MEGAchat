@@ -213,6 +213,7 @@ public:
     virtual bool hasRequestSpeak() const override;
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
+    virtual bool hasSpeakPermission() const override;
     virtual bool isModerator() const override;
 
     char* avFlagsToString() const override;
@@ -236,6 +237,7 @@ private:
     bool mHasHiResTrack = false;
     bool mHasLowResTrack = false;
     bool mIsModerator = false;
+    bool mHasSpeakPermission = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall

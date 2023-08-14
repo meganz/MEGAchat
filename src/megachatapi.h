@@ -427,8 +427,19 @@ public:
      *
      * @return True if peer associated to the session, has moderator role in the call
      */
-
     virtual bool isModerator() const;
+
+    /**
+     * @brief Returns if peer associated to the session, has speak permission
+     *
+     * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
+     *
+     * @note The value returned by this method doesn't means that the peer is sending audio, but only that is has permission to speak.
+     * TODO : complete
+     *
+     * @return True if peer associated to the session, has permission to speak (just valid if speakRequest option is enabled for chat)
+     */
+    virtual bool hasSpeakPermission() const;
 
     /**
      * @brief Returns session av flags in a readable format

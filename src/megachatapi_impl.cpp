@@ -7608,6 +7608,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , mHasHiResTrack(session.hasHighResolutionTrack())
     , mHasLowResTrack(session.hasLowResolutionTrack())
     , mIsModerator(session.isModerator())
+    , mHasSpeakPermission(session.hasSpeakPermission())
 {
 }
 
@@ -7623,6 +7624,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mHasHiResTrack(session.mHasHiResTrack)
     , mHasLowResTrack(session.mHasLowResTrack)
     , mIsModerator(session.isModerator())
+    , mHasSpeakPermission(session.hasSpeakPermission())
 {
 }
 
@@ -7757,6 +7759,11 @@ bool MegaChatSessionPrivate::canRecvVideoHiRes() const
 bool MegaChatSessionPrivate::canRecvVideoLowRes() const
 {
     return mHasLowResTrack;
+}
+
+bool MegaChatSessionPrivate::hasSpeakPermission() const
+{
+    return mHasSpeakPermission;
 }
 
 bool MegaChatSessionPrivate::isModerator() const
