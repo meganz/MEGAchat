@@ -221,6 +221,8 @@ public:
             , publicChat(opt.publicChat)
             , meetingRoom(opt.meetingRoom)
             , waitingRoom(opt.waitingRoom)
+            , speakRequest(opt.speakRequest)
+            , openInvite(opt.openInvite)
             , schedMeetingData(opt.schedMeetingData ? opt.schedMeetingData->copy() : nullptr)
             , customPeerList(opt.customPeerList ? opt.customPeerList->copy() : nullptr)
         {
@@ -257,7 +259,7 @@ public:
 #endif
 
         // TestChatRoomListener shared by all accounts
-        std::unique_ptr<TestChatRoomListener>chatroomListener;
+        std::shared_ptr<TestChatRoomListener>chatroomListener;
         TestData() = default;
         void init(const unsigned primIdx, const std::set<unsigned int>& accountIdxs, const bool loadHist
                   , const bool hasCListeners, const bool hasVListeners, const ChatroomCreationOptions* opt
@@ -362,7 +364,8 @@ protected:
      */
     megachat::MegaChatHandle getGroupChatRoom(const std::vector<unsigned int>& a,
                                               megachat::MegaChatPeerList* peers,
-                                              const int a1Priv = megachat::MegaChatPeerList::PRIV_MODERATOR,
+                                              unsigned int primaryIdx = 0, // primary account index by default
+                                              const int primaryPriv = megachat::MegaChatPeerList::PRIV_MODERATOR,
                                               const bool create = true,
                                               const bool publicChat = false,
                                               const bool meetingRoom = false,

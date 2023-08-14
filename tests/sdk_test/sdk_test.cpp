@@ -424,10 +424,9 @@ void MegaChatApiTest::TearDown()
                 {
                     MegaChatPeerList *peers = MegaChatPeerList::createInstance();
                     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-                    chatToSkip = getGroupChatRoom({i, a2}, peers, MegaChatPeerList::PRIV_UNKNOWN, false);
+                    chatToSkip = getGroupChatRoom({i, a2}, peers, i, MegaChatPeerList::PRIV_MODERATOR, false);
                     delete peers;
                 }
-
                 clearAndLeaveChats(i, chatToSkip);
             }
         }
@@ -3877,7 +3876,7 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
                      "Not connected to chatd for account " << (a1+1) << ": " <<
                      account(a1).getEmail();
 
-    std::unique_ptr<TestChatRoomListener>chatroomListener(new TestChatRoomListener(this,
+    std::shared_ptr<TestChatRoomListener>chatroomListener(new TestChatRoomListener(this,
                                                                                    megaChatApi,
                                                                                    chatid));
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener.get())) <<
@@ -4176,8 +4175,9 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
     std::unique_ptr<megachat::MegaChatPeerList> customPeerList(megachat::MegaChatPeerList::createInstance());
 
     std::unique_ptr<ChatroomCreationOptions> opt(new ChatroomCreationOptions(megachat::MegaChatPeerList::PRIV_MODERATOR
-                                                                             , true /*create*/, true /*pubchat*/, true /*mr*/
-                                                                             , false /*wr*/, true /*sr*/, false /*oi*/
+                                                                             , true /*create*/, true /*pubchat*/, true /*meeting room*/
+                                                                             , false /*waiting room*/, true /*speak request*/
+                                                                             , false /*open invite*/
                                                                              , nullptr, customPeerList.get()));
 
     // init data test
@@ -4510,7 +4510,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // Test preconditions: Get a meeting room with a scheduled meeting associated
     // Waiting rooms currently just works if there's a scheduled meeting created for the chatroom
     LOG_debug << "Test preconditions: Get a meeting room with a scheduled meeting associated";
-    chatid = getGroupChatRoom({a1, a2}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
+    chatid = getGroupChatRoom({a1, a2}, peerList.get(), a1 /*primaryIdx*/, megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
                                               true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/,
                                               false /*speakRequest*/, false /*openInvite*/, &smDataTests127);
 
@@ -5897,8 +5897,8 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
     return false;
 }
 
-MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>& a, MegaChatPeerList* peers,
-                                                 const int a1Priv, const bool create, const bool publicChat,
+MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>& a, MegaChatPeerList* peers, unsigned int primaryIdx,
+                                                 const int primaryPriv, const bool create, const bool publicChat,
                                                  const bool meetingRoom, const bool waitingRoom,
                                                  const bool speakRequest, const bool openInvite, SchedMeetingData* schedMeetingData)
 {
@@ -5939,9 +5939,9 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
         }
     }
 
-    auto hasValidSchedMeeting = [this](const MegaHandle chatid) -> bool
+    auto hasValidSchedMeeting = [this, &primaryIdx](const MegaHandle chatid) -> bool
     {
-        std::unique_ptr<MegaChatScheduledMeetingList> list(megaChatApi[0]->getScheduledMeetingsByChat(chatid));
+        std::unique_ptr<MegaChatScheduledMeetingList> list(megaChatApi[primaryIdx]->getScheduledMeetingsByChat(chatid));
         if (!list || list->size() != 1) { return false; } // just consider valid chatroom, those without childred scheduled meeting
         for (unsigned long i = 0; i < list->size(); i++)
         {
@@ -6004,7 +6004,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
     };
 
     auto createChat =
-        [this, &a, &peers, &waitingRoom, &speakRequest, &openInvite, &meetingRoom, &publicChat, &waitForChatCreation, schedMeetingData]() -> MegaChatHandle
+        [this, &a, &peers, &primaryIdx, &waitingRoom, &speakRequest, &openInvite, &meetingRoom, &publicChat, &waitForChatCreation, schedMeetingData]() -> MegaChatHandle
     {
         ChatRequestTracker crtCreateChat;
         std::for_each(std::begin(a), std::end(a), [this](const auto& ai)
@@ -6013,7 +6013,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
             mChatConnectionOnline[ai] = false;
         });
 
-        const auto& chatUserCreator = a[0];
+        const auto& chatUserCreator = primaryIdx;
         const std::string title = "chat_" + std::to_string(m_time(nullptr));
         if (schedMeetingData)
         {
@@ -6051,18 +6051,22 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
     };
 
     auto findChat =
-        [this, &a, &peers, &a1Priv, &waitingRoom, &meetingRoom, &publicChat, &schedMeeting = schedMeetingData, hasValidSchedMeeting]() -> MegaChatHandle
+        [this, &a, &peers, &primaryIdx, &primaryPriv, &create, &waitingRoom, &meetingRoom, &speakRequest, &openInvite, &publicChat, schedMeeting = (schedMeetingData != nullptr), hasValidSchedMeeting]() -> MegaChatHandle
     {
         const auto isChatCandidate =
-            [&peers, &a1Priv, &publicChat, &waitingRoom, &meetingRoom, &schedMeeting, hasValidSchedMeeting](const MegaChatRoom* chat) -> bool
+            [&peers, &primaryPriv, &create, &publicChat, &waitingRoom, &speakRequest, &openInvite, &meetingRoom, &schedMeeting, hasValidSchedMeeting](const MegaChatRoom* chat) -> bool
         {
-            return !(!chat->isGroup() || !chat->isActive()
-                    || (chat->isPublic() != publicChat)
-                    || (chat->isWaitingRoom() != waitingRoom)
-                    || (chat->isMeeting() != meetingRoom)
-                    || (schedMeeting && !hasValidSchedMeeting(chat->getChatId()))
-                    || (static_cast<int>(chat->getPeerCount()) != peers->size())
-                    || (a1Priv != megachat::MegaChatPeerList::PRIV_UNKNOWN && a1Priv != chat->getOwnPrivilege()));
+            return (chat->isGroup()
+                    && chat->isActive()
+                    && (chat->isPublic() == publicChat)
+                    && (chat->isWaitingRoom() == waitingRoom)
+                    && (chat->isSpeakRequest() == speakRequest)
+                    && (chat->isOpenInvite() == openInvite)
+                    && (chat->isMeeting() == meetingRoom)
+                    && (schedMeeting == hasValidSchedMeeting(chat->getChatId()))
+                    && (static_cast<int>(chat->getPeerCount()) == peers->size())
+                    && (primaryPriv != megachat::MegaChatPeerList::PRIV_UNKNOWN)
+                    && (primaryPriv == chat->getOwnPrivilege()));
         };
         const auto inPeersParam = [&peers](const MegaChatHandle& ph) -> bool
         {
@@ -6070,7 +6074,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
             for (int idx = 0; !found && idx < peers->size(); ++idx) found = peers->getPeerHandle(idx) == ph;
             return found;
         };
-        const auto& chatUserCreator = a[0];
+        const auto& chatUserCreator = primaryIdx;
         std::unique_ptr<MegaChatRoomList> chats(megaChatApi[chatUserCreator]->getChatRooms());
         for (unsigned i = 0; i < chats->size(); ++i)
         {
@@ -6094,7 +6098,7 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
             LOG_debug << "getGroupChatRoom: existing chat found, chatid: " << base64.get();
             return foundChatid;
         }
-        LOG_debug << "getGroupChatRoom: non existing chat found with selected criteria";
+        LOG_debug << "getGroupChatRoom: non existing chat found with selected criteria, " << (create ? "we are going to create it" :"create flag is disabled");
         return MEGACHAT_INVALID_HANDLE;
     };
 
@@ -6966,7 +6970,7 @@ void MegaChatApiTest::initTestDataSet()
     }
 
     // Create or get (if exists) a group chatroom with specified conditions in automated test
-    d.chatid = getGroupChatRoom(accIdxVector, peerList, o->a1Priv, o->create, o->publicChat
+    d.chatid = getGroupChatRoom(accIdxVector, peerList, d.primaryIdx /*primaryIdx*/, o->a1Priv, o->create, o->publicChat
                                 , o->meetingRoom, o->waitingRoom, o->speakRequest
                                 , o->openInvite, o->schedMeetingData.get());
 
