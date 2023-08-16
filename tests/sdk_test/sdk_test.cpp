@@ -7442,8 +7442,8 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
         case MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION:
         {
-            mCallLeft[apiIndex] = true;
             mTerminationCode[apiIndex] = call->getTermCode();
+            mCallLeft[apiIndex] = true;
             break;
         }
 
