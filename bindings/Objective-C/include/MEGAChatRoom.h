@@ -59,6 +59,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 
 @property (readonly, nonatomic) NSUInteger previewersCount;
 @property (nonatomic, readonly, getter=isOpenInviteEnabled) BOOL openInviteEnabled;
+@property (nonatomic, readonly, getter=isWaitingRoomEnabled) BOOL waitingRoomEnabled;
 
 
 - (instancetype)clone;
