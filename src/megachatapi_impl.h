@@ -273,6 +273,7 @@ public:
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientId) override;
+    MegaChatSession *getMegaChatSessionByUserHandle(MegaChatHandle userId) const override;
     virtual int getNumParticipants() const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
     virtual const mega::MegaHandleList* getModerators() const override;
