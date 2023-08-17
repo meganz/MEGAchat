@@ -1740,6 +1740,8 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
 
 bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int speaker, int vthumbs)
 {
+    // keep this assert to ensure that audio flag is not sent upon JOIN command
+    assert(!karere::AvFlags(static_cast<uint8_t>(avFlags)).audio());
     rapidjson::Document json(rapidjson::kObjectType);
 
     rapidjson::Value cmdValue(rapidjson::kStringType);

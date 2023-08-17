@@ -948,6 +948,17 @@ void Call::joinSfu()
             return ::promise::_Void();
         }
 
+        if (isSpeakRequestEnabled() && getLocalAvFlags().audio())
+        {
+            // we can't send audio flag enabled at JOIN command, if speak request is enabled, you first need to be approved as
+            // speaker (by SFU if you are moderator or by another moderator if not) and then you can send an AV command
+            // with audio enabled to enable audio flag
+            orderedCallDisconnect(TermCode::kErrClientGeneral
+                                  , std::string("audio flags cannot be enabled if speak request is also enabled for call"));
+            assert(false);
+            return ::promise::_Void();
+        }
+
         if (mState != kStateJoining)
         {
             RTCM_LOG_WARNING("joinSfu: get unexpected state change at createOffer");
@@ -1008,8 +1019,27 @@ void Call::joinSfu()
         if (ephemeralKey.empty())
         {
             orderedCallDisconnect(TermCode::kErrorCrypto, std::string("Error generating ephemeral keypair"));
+            return;
         }
-        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getPrevCid(), mSpeakerState, kInitialvthumbCount);
+
+        /* if speak request is disabled, but user wants to start call with audio enabled,
+         * we need to need to send JOIN command with audio flag disabled, just followed by AV command with audio enabled
+         * (no need to wait for answer command so we can send just after send JOIN).
+         * this workaround is required by SFU, as with protocol V2 or greater, it doesn't expect audio flag enabled at any case at JOIN command.
+         */
+        bool sendAv = false;
+        karere::AvFlags joinFlags = getLocalAvFlags();
+        if (!isSpeakRequestEnabled() && getLocalAvFlags().audio())
+        {
+            sendAv = true;
+            joinFlags.remove(karere::AvFlags::kAudio);
+        }
+
+        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, joinFlags.value(), getPrevCid(), mSpeakerState, kInitialvthumbCount);
+        if (sendAv) // if speak request is disabled but audio flag was enabled by user, then send AV command to enable
+        {
+            mSfuConnection->sendAv(getLocalAvFlags().value());
+        }
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
