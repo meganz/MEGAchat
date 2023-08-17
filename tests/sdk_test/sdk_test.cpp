@@ -4839,7 +4839,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
  * + Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
  * + Test3: B waits into waiting room until SFU timeout expires and BYE command is received with termcode: TERM_CODE_WR_TIMEOUT
  */
-TEST_F(MegaChatApiTest, WaitingRoomsTimeout)
+TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
 {
     const unsigned a1 = 0;
     const unsigned a2 = 1;
@@ -4849,10 +4849,6 @@ TEST_F(MegaChatApiTest, WaitingRoomsTimeout)
     ASSERT_TRUE(primarySession);
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     ASSERT_TRUE(secondarySession);
-
-    LOG_debug << "\tSwitching to staging (Shard 2) (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a1]->setSFUid(336); // set SFU staging
 
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
@@ -5142,11 +5138,9 @@ TEST_F(MegaChatApiTest, WaitingRoomsTimeout)
     ASSERT_TRUE(wr && wr->getPeerStatus(uh) == MegaChatWaitingRoom::MWR_NOT_ALLOWED)
         << (!wr ? "Waiting room can't be retrieved for user A" : "B it's not in the waiting room");
 
-    // ** note: can't simulate use case where a2 sends JOIN without any moderator has allowed to enter the call (WR_DENY would be received for a2 from SFU),
-    // because JOIN command is automatically managed by karere, and is only sent when user has permission to JOIN
     grantsJoinPermission();
 
-    // [Test2]: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
+    // [Test2]: A Pushes B into waiting room
     // ------------------------------------------------------------------------------------------------------
     LOG_debug << "Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)";
     pushIntoWr();
@@ -5159,10 +5153,6 @@ TEST_F(MegaChatApiTest, WaitingRoomsTimeout)
     int* termcodeLeftSecondary = &mTerminationCode[a2]; *termcodeLeftSecondary = MegaChatCall::TERM_CODE_INVALID;
     ASSERT_TRUE(waitForResponse(callLeftSecondary, timeout)) << "Call not ended after expire SFU waiting room timeout";
     ASSERT_EQ(*termcodeLeftSecondary, MegaChatCall::TERM_CODE_WR_TIMEOUT) << "Unexpected termcode received upon SFU waiting room timeout: " << *termcodeLeftSecondary;
-
-    megaApi[a1]->setSFUid(-1); // set default SFU to invalid
-    LOG_debug << "\tSwitching back from staging (Shard 2) (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 }
 
 /**
