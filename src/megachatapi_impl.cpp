@@ -1739,6 +1739,12 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_NOENT;
             }
 
+            if (chatroom->isSpeakRequest() && request->getFlag())
+            {
+                API_LOG_ERROR("Start call - can't start a call with audio enabled if speak request is enabled for chatroom");
+                return MegaChatError::ERROR_ARGS;
+            }
+
             bool enableVideo = request->getFlag();
             bool enableAudio = request->getParamType();
             karere::AvFlags avFlags(enableAudio, enableVideo);
@@ -1877,6 +1883,12 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             {
                 API_LOG_ERROR("Answer call - joining call attempt already in progress");
                 return MegaChatError::ERROR_EXIST;
+            }
+
+            if (chatroom->isSpeakRequest() && request->getFlag())
+            {
+                API_LOG_ERROR("Answer call - can't answer call with audio enabled if speak request is enabled for chatroom");
+                return MegaChatError::ERROR_ARGS;
             }
 
             bool enableVideo = request->getFlag();

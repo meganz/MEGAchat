@@ -5943,6 +5943,10 @@ public:
      * The request will fail with MegaChatError::ERROR_ARGS
      * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true and enableAudio param is also true.
+     *   You can't start a call with audio enabled if speak request option is also enabled.
+     *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
      *  - if peer of a 1on1 chatroom it's a non visible contact
@@ -6026,6 +6030,10 @@ public:
      * The request will fail with MegaChatError::ERROR_ARGS
      * - if chatroom has waiting room option enabled
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true and enableAudio param is also true.
+     *   You can't start a call with audio enabled if speak request option is also enabled.
+     *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
@@ -6085,6 +6093,10 @@ public:
      *
      * The request will fail with MegaChatError::ERROR_ARGS
      * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true and enableAudio param is also true.
+     *   You can't answer a call with audio enabled if speak request option is also enabled.
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
@@ -6158,6 +6170,10 @@ public:
      *
      * The request will fail with MegaChatError::ERROR_ARGS
      * - if chatroom has waiting room option disabled
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true and enableAudio param is also true.
+     *   You can't start a call with audio enabled if speak request option is also enabled.
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxVideoCallParticipants
