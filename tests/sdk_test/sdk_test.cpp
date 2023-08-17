@@ -4165,6 +4165,31 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
 TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 {
+    auto checkSpeakPermissions = [this](const unsigned int performerIdx, bool isMod) -> void
+    {
+        // in this test we assume that speak request option is enabled for chatroom
+        std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(d.chatid));
+        ASSERT_TRUE(call) << "Call could not be retrieved for account: " << performerIdx;
+        ASSERT_TRUE(call->isSpeakRequestEnabled()) << "Speak request is disabled for call: " << getChatIdStrB64(call->getCallId());
+
+        // check own speak permissions
+        ASSERT_TRUE(call->isOwnModerator() || !isMod) << "Unexpected call permission for account: " << performerIdx;
+        ASSERT_TRUE(call->hasSpeakPermission() || !isMod) << "Unexpected speak permission for account: " << performerIdx;
+        ASSERT_TRUE(!call->hasLocalAudio()) << "Audio is flag is enabled for account: " << performerIdx;
+
+        // check speak permissions for the rest of participants
+        std::unique_ptr<MegaHandleList> sessionsList(call->getSessionsClientid());
+        for (unsigned int i = 0; i < sessionsList->size(); ++i )
+        {
+            auto cid = sessionsList->get(i);
+            MegaChatSession* sess = call->getMegaChatSession(cid);
+            ASSERT_TRUE(sess) << "account session could not be retrieved for cid: " << i;
+            ASSERT_TRUE(!sess->hasAudio()) << "session is ummuted for cid: " << i;
+            ASSERT_TRUE(!sess->isModerator() ? !sess->hasSpeakPermission() : sess->hasSpeakPermission())
+                << "Unexpected speak permission for cid: " << i;
+        }
+    };
+
     // specific test cleanup method that will be executed in MrProper dtor
     std::function<void(TestData*)> testCleanup = [this] (TestData* d) -> void
     {
@@ -4173,7 +4198,6 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 
     // empty peerlist to find/create meeting room without participants except primary account
     std::unique_ptr<megachat::MegaChatPeerList> customPeerList(megachat::MegaChatPeerList::createInstance());
-
     std::unique_ptr<ChatroomCreationOptions> opt(new ChatroomCreationOptions(megachat::MegaChatPeerList::PRIV_MODERATOR
                                                                              , true /*create*/, true /*pubchat*/, true /*meeting room*/
                                                                              , false /*waiting room*/, true /*speak request*/
@@ -4208,11 +4232,17 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 
     // meetings rooms cannot be created with peers (not public interface at MegaChatApi)
     ASSERT_NO_FATAL_FAILURE(inviteToChat(d.primaryIdx, a2, secondaryUserHandle /*userHandle*/, d.chatid, MegaChatPeerList::PRIV_STANDARD, d.chatroomListener));
+    const bool primaryAccMod = chatRoom->getOwnPrivilege() == MegaChatRoom::PRIV_MODERATOR;
+    const bool secondaryAccMod = chatRoom->getPeerPrivilegeByHandle(secondaryUserHandle) == MegaChatRoom::PRIV_MODERATOR;
 
     //========================================================================//
     // Test1: Start call in a meeting room with speak request option enabled
     //========================================================================//
     LOG_debug << "[Test.RaiseHandToSpeakCall] Test1:";
+    ASSERT_NO_FATAL_FAILURE({ startChatCall(d.chatid,  a1, std::set<unsigned int> {a2}, /*enableVideo*/ false, /*enableAudio*/ false); });
+    ASSERT_NO_FATAL_FAILURE({ answerChatCall(d.chatid, a2, std::set<unsigned int> {a1}, /*enableVideo*/ false, /*enableAudio*/ false); });
+    ASSERT_NO_FATAL_FAILURE({ checkSpeakPermissions(a1, primaryAccMod);});
+    ASSERT_NO_FATAL_FAILURE({ checkSpeakPermissions(a2, secondaryAccMod);});
 }
 
 /**
