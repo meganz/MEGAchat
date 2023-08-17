@@ -426,6 +426,8 @@ protected:
     // initializations required before starting any test
     void initTestDataSet();
 
+    void startChatCall(const megachat::MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
+    void answerChatCall(const megachat::MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
     void endChatCall(const megachat::MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants);
 
 #ifndef KARERE_DISABLE_WEBRTC

@@ -4180,9 +4180,12 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
                                                                              , false /*open invite*/
                                                                              , nullptr, customPeerList.get()));
 
+    unsigned int a1 = 0; // primary account
+    unsigned int a2 = 1; // secondary account
+
     // init data test
     d.init(0 /*primIdx*/
-           , std::set<unsigned int> {0, 1} /*accountIdxs*/
+           , std::set<unsigned int> {a1, a2} /*accountIdxs*/
            , true /*loadHistoryAtInit*/
            , true /*hasChatListeners*/
            , true /*hasVideoListeners*/
@@ -4194,9 +4197,21 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
     MrProper p (testCleanup, &d);
     LOG_debug << "[Test.RaiseHandToSpeakCall] Starting test after initialization";
 
-    //=========================================================//
-    // Test1:
-    //=========================================================//
+    std::unique_ptr<MegaChatRoom> chatRoom(megaChatApi[a1]->getChatRoom(d.chatid));
+    ASSERT_TRUE(chatRoom) << "Can't retrieve chatroom for chatid: " << getChatIdStrB64(d.chatid);
+    ASSERT_EQ(chatRoom->getOwnPrivilege(), MegaChatRoom::PRIV_MODERATOR) << "Unexpected chat permission for primary account, chatid: " << getChatIdStrB64(d.chatid);
+    ASSERT_TRUE(chatRoom->isSpeakRequest()) << "Chatroom speakRequest option disabled, chatid: " << getChatIdStrB64(d.chatid);
+
+    auto auxit = d.uhandles.find(a2);
+    ASSERT_TRUE(auxit != d.uhandles.end()) <<  "Secondary account handle cannot be found at TestData::uhandles";
+    MegaChatHandle secondaryUserHandle = auxit->second;
+
+    // meetings rooms cannot be created with peers (not public interface at MegaChatApi)
+    ASSERT_NO_FATAL_FAILURE(inviteToChat(d.primaryIdx, a2, secondaryUserHandle /*userHandle*/, d.chatid, MegaChatPeerList::PRIV_STANDARD, d.chatroomListener));
+
+    //========================================================================//
+    // Test1: Start call in a meeting room with speak request option enabled
+    //========================================================================//
     LOG_debug << "[Test.RaiseHandToSpeakCall] Test1:";
 }
 
@@ -7019,6 +7034,67 @@ void MegaChatApiTest::initTestDataSet()
     }
 #endif
     ASSERT_TRUE(d.isvalid()) << "testData could not be initialized properly";
+}
+
+void MegaChatApiTest::startChatCall(const MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio)
+{
+    std::string msg = "Account with index "; msg.append(std::to_string(performerIdx)).append("starts call");
+    std::vector<bool *> exitFlags   { &mCallInProgress[performerIdx] };
+    std::vector<string> exiFlagsStr { std::string("mCallInProgress[") + std::string(std::to_string(performerIdx)) + std::string("]")};
+    for (auto idx : participants)
+    {
+        exitFlags.emplace_back(&mCallReceivedRinging[idx]);
+        exiFlagsStr.emplace_back(std::string("mCallReceivedRinging[") + std::string(std::to_string(idx)) + std::string("]"));
+    }
+
+    // Start chat call
+    ASSERT_NO_FATAL_FAILURE({
+    waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
+                   exitFlags,
+                   exiFlagsStr,
+                   msg.c_str(),
+                   true /* wait for all exit flags*/,
+                   true /* reset flags */,
+                   maxTimeout,
+                   [this, &chatid, &performerIdx, &enableVideo, &enableAudio]()
+                                {
+                                    ChatRequestTracker crtCall;
+                                    megaChatApi[performerIdx]->startChatCall(chatid, enableVideo, enableAudio, &crtCall);
+                                    ASSERT_EQ(crtCall.waitForResult(), MegaChatError::ERROR_OK)
+                                        << "Failed to start call from account: " << performerIdx
+                                        << ". Error: " << crtCall.getErrorString();
+                                });
+    });
+}
+
+void MegaChatApiTest::answerChatCall(const MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio)
+{
+    std::string msg = "Account with index "; msg.append(std::to_string(performerIdx)).append(" answers call");
+    std::vector<bool *> exiFlags;
+    std::vector<string> exiFlagsStr;
+    for (auto idx : participants)
+    {
+        exiFlags.emplace_back(&mChatCallSessionStatusInProgress[idx]);
+        exiFlagsStr.emplace_back(std::string("mChatCallSessionStatusInProgress[") + std::string(std::to_string(idx)) + std::string("]"));
+    }
+
+    ASSERT_NO_FATAL_FAILURE({
+    waitForAction (1, // just one attempt as call could be answered properly but any of the other flags not received
+                   exiFlags,
+                   exiFlagsStr,
+                   msg.c_str(),
+                   true /* wait for all exit flags*/,
+                   true /* reset flags */,
+                   maxTimeout,
+                   [this, &performerIdx, &chatid, &enableVideo, &enableAudio]()
+                                {
+                                    ChatRequestTracker crtAnswerCall;
+                                    megaChatApi[performerIdx]->answerChatCall(chatid, enableVideo, enableAudio, &crtAnswerCall);
+                                    ASSERT_EQ(crtAnswerCall.waitForResult(), MegaChatError::ERROR_OK)
+                                        << "Failed to answer call from account: " << performerIdx
+                                        << ". Error: " << crtAnswerCall.getErrorString();
+                                });
+    });
 }
 
 void MegaChatApiTest::endChatCall(const MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants)
