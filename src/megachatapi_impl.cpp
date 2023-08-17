@@ -1058,7 +1058,10 @@ void MegaChatApiImpl::sendPendingRequests()
                    request->setChatHandle(chatId);
                    request->setNumber(numPeers);
                    request->setText(decryptedTitle.c_str());
-                   request->setPrivilege(result->getParamType()); // waiting room flag
+
+                   ::mega::ChatOptions_t opts = static_cast<::mega::ChatOptions_t>(result->getParamType());
+                   ::mega::ChatOptions chatOptions(opts);
+                   request->setPrivilege(chatOptions.waitingRoom());
                    if (result->getMegaHandleList())
                    {
                        request->setMegaHandleList(result->getMegaHandleList());
@@ -1099,9 +1102,10 @@ void MegaChatApiImpl::sendPendingRequests()
                        Id ph = result->getNodeHandle();
                        request->setUserHandle(ph.val);
 
-                       GroupChatRoom *room = (GroupChatRoom*) findChatRoom(chatId);
+                       GroupChatRoom* room = (GroupChatRoom*) findChatRoom(chatId);
                        if (room)
                        {
+                           room->importChatRoomOptionsFromVal(opts);
                            if (room->isActive()
                               || (!room->isActive() && !room->previewMode()))
                            {
@@ -1131,7 +1135,7 @@ void MegaChatApiImpl::sendPendingRequests()
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
                            uint32_t ts = static_cast<uint32_t>(result->getNumber());
 
-                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting);
+                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts);
                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                            fireOnChatRequestFinish(request, megaChatError);
                        }
