@@ -962,18 +962,6 @@ public:
     virtual MegaChatSession *getMegaChatSession(MegaChatHandle clientId);
 
     /**
-     * @brief Returns the session for a client given it's user handle
-     *
-     * If \c userId has not any session in the call NULL will be returned
-     *
-     * You take the ownership of the returned value.
-     *
-     * @param clientId MegaChatHandle that identifies the user handle
-     * @return Session for \c userId
-     */
-    virtual MegaChatSession* getMegaChatSessionByUserHandle(MegaChatHandle userId) const;
-
-    /**
      * @brief Returns the handle of the peer that has been added/removed to call
      *
      * This function only returns a valid value when MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified

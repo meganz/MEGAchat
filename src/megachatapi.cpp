@@ -296,11 +296,6 @@ MegaChatSession *MegaChatCall::getMegaChatSession(MegaChatHandle /*clientid*/)
     return NULL;
 }
 
-MegaChatSession* MegaChatCall::getMegaChatSessionByUserHandle(MegaChatHandle userId) const
-{
-    return NULL;
-}
-
 MegaChatHandle MegaChatCall::getPeeridCallCompositionChange() const
 {
     return MEGACHAT_INVALID_HANDLE;

@@ -8073,25 +8073,6 @@ MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle clientId
     return NULL;
 }
 
-MegaChatSession* MegaChatCallPrivate::getMegaChatSessionByUserHandle(MegaChatHandle userId) const
-{
-    for (const auto& it: mSessions)
-    {
-        if (!it.second)
-        {
-            assert(false);
-            API_LOG_ERROR("Invalid MegaChatSession for userId %s", Base64Str<MegaClient::USERHANDLE>(userId));
-            return nullptr;
-        }
-
-        if (it.second->getPeerid() == userId)
-        {
-            return it.second->copy();
-        }
-    }
-    return nullptr;
-}
-
 int MegaChatCallPrivate::getNumParticipants() const
 {
     return static_cast<int>(mParticipants.size());
