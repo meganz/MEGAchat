@@ -434,7 +434,7 @@ public:
      *
      * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
      *
-     * @note The value returned by this method doesn't means that the peer is sending audio, but only that is has permission to speak.
+     * @note The value returned by this method doesn't means that the peer is sending audio, but only that it has permission to speak.
      * TODO : complete
      *
      * @return True if peer associated to the session, has permission to speak (just valid if speakRequest option is enabled for chat)
@@ -794,6 +794,18 @@ public:
      * @return true if this call has an specific change
      */
     virtual bool hasChanged(int changeType) const;
+
+    /**
+     * @brief Returns if our own peer, has speak permission
+     *
+     * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
+     *
+     * @note The value returned by this method doesn't means that the peer is sending audio, but only that it has permission to speak.
+     * TODO : complete
+     *
+     * @return True if peer associated to the session, has permission to speak (just valid if speakRequest option is enabled for chat)
+     */
+    virtual bool hasSpeakPermission() const;
 
     /**
      * @brief Returns if local audio is detected

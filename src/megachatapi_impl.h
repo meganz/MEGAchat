@@ -259,6 +259,7 @@ public:
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
+    bool hasSpeakPermission() const override;
 
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
@@ -340,6 +341,7 @@ protected:
     bool mHasRequestSpeak = false;
     bool mOwnModerator = false;
     bool mSpeakRequest = false;
+    bool mHasSpeakPermission = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
 };

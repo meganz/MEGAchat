@@ -7864,6 +7864,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
+    mHasSpeakPermission = call.isOwnUserAllowSpeak();
     mInitialTs = call.getCallInitialTimeStamp();
     mFinalTs = call.getFinalTimeStamp();
     mNetworkQuality = call.getNetworkQuality();
@@ -7907,6 +7908,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mIsCaller = call.isOutgoing();
     mIsOwnClientCaller = call.isOwnClientCaller();
     mLocalAVFlags = call.mLocalAVFlags;
+    mHasSpeakPermission = call.hasSpeakPermission();
     mChanged = call.mChanged;
     mInitialTs = call.mInitialTs;
     mFinalTs = call.mFinalTs;
@@ -7979,6 +7981,11 @@ int MegaChatCallPrivate::getChanges() const
 bool MegaChatCallPrivate::hasChanged(int changeType) const
 {
     return (mChanged & changeType);
+}
+
+bool MegaChatCallPrivate::hasSpeakPermission() const
+{
+    return mHasSpeakPermission;
 }
 
 int64_t MegaChatCallPrivate::getDuration() const

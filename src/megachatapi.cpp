@@ -241,6 +241,11 @@ bool MegaChatCall::hasChanged(int ) const
     return false;
 }
 
+bool MegaChatCall::hasSpeakPermission() const
+{
+    return false;
+}
+
 int64_t MegaChatCall::getDuration() const
 {
     return 0;
