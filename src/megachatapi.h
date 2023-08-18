@@ -569,6 +569,13 @@ public:
         SFU_DENY_JOIN                     = 1,    // JOIN command denied by SFU
     };
 
+    enum
+    {
+        SPEAKER_STATUS_DISABLED = 0,
+        SPEAKER_STATUS_PENDING  = 1,
+        SPEAKER_STATUS_ACTIVE   = 2,
+    };
+
     virtual ~MegaChatCall();
 
     /**
@@ -805,7 +812,7 @@ public:
      *
      * @return True if peer associated to the session, has permission to speak (just valid if speakRequest option is enabled for chat)
      */
-    virtual bool hasSpeakPermission() const;
+    virtual bool hasPermissionToSpeak() const;
 
     /**
      * @brief Returns if local audio is detected
@@ -1076,6 +1083,20 @@ public:
     virtual bool isOwnClientCaller() const;
 
     /**
+     * @brief Returns the current speak status for our own client
+     *
+     * The value returned by this method is valid just if MegaChatCall::isSpeakRequestEnabled() returns true.
+     *
+     * This method can return the following values:
+     * - MegaChatCall::SPEAKER_STATUS_DISABLED = 0,
+     * - MegaChatCall::SPEAKER_STATUS_PENDING  = 1,
+     * - MegaChatCall::SPEAKER_STATUS_ACTIVE   = 2,
+     *
+     * @return the current speak status for our own client
+     */
+    virtual unsigned int getSpeakerState() const;
+
+    /**
      * @brief Returns the handle from user that has started the call
      *
      * This function only returns a valid value when call is or has gone through CALL_STATUS_RING_IN state.
@@ -1112,7 +1133,7 @@ public:
      *
      * @return True if user is allowed to speak in the call
      */
-    virtual bool isSpeakAllow() const;
+    virtual bool isSpeakAllowed() const;
 
     /**
      * @brief Returns network quality
@@ -1138,7 +1159,7 @@ public:
      *
      * @return true if we have request speak
      */
-    virtual bool hasRequestSpeak() const;
+    virtual bool hasPendingSpeakRequest() const;
 
     /**
      * @brief Returns our current permission to join the call (just valid if we are in a waiting room)

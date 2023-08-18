@@ -329,6 +329,7 @@ public:
     void requestSpeak(bool add = true) override;
     bool hasRequestSpeak() const override;
     int getWrJoiningState() const override;
+    unsigned int getSpeakerState() const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;

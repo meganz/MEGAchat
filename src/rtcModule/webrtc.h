@@ -114,11 +114,10 @@ class SessionHandler
 {
 public:
     virtual ~SessionHandler(){}
-    virtual void onSpeakRequest(ISession& session, bool requested) = 0;
+    virtual void onSpeakRequest(ISession& session) = 0;
     virtual void onVThumbReceived(ISession& session) = 0;
     virtual void onHiResReceived(ISession& session) = 0;
     virtual void onDestroySession(ISession& session) = 0;
-    virtual void onAudioRequested(ISession& session) = 0;
     virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
@@ -155,7 +154,6 @@ public:
     virtual void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) = 0;
     virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
-    virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
@@ -172,6 +170,7 @@ public:
     virtual void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
     virtual void onWrPushedFromCall(const rtcModule::ICall& call) = 0;
     virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
+    virtual void onSpeakStatusUpdate(const rtcModule::ICall& call) = 0;
 };
 
 class KarereWaitingRoom;
@@ -214,6 +213,7 @@ public:
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
     virtual bool hasRequestSpeak() const = 0;
+    virtual unsigned int getSpeakerState() const = 0;
     virtual int getWrJoiningState() const = 0;
     virtual TermCode getTermCode() const = 0;
     virtual uint8_t getEndCallReason() const = 0;

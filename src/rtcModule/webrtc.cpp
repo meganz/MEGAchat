@@ -468,6 +468,11 @@ bool Call::hasRequestSpeak() const
     return mSpeakerState == SpeakerState::kPending;
 }
 
+unsigned int Call::getSpeakerState() const
+{
+    return mSpeakerState;
+}
+
 int Call::getWrJoiningState() const
 {
     return static_cast<int>(mWrJoiningState);
@@ -623,13 +628,16 @@ void Call::requestSpeak(bool add)
     {
         mSpeakerState = SpeakerState::kPending;
         mSfuConnection->sendSpeakReq();
+        mCallHandler.onSpeakStatusUpdate(*this);
         return;
     }
 
     if (mSpeakerState == SpeakerState::kPending && !add)
     {
+        // cancel a in flight request
         mSpeakerState = SpeakerState::kNoSpeaker;
         mSfuConnection->sendSpeakReqDel();
+        mCallHandler.onSpeakStatusUpdate(*this);
         return;
     }
 }
@@ -930,12 +938,12 @@ void Call::joinSfu()
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
     size_t hiresTrackIndex = 0;
     createTransceivers(hiresTrackIndex);
-    mSpeakerState = SpeakerState::kPending;
     getLocalStreams();
     setState(CallState::kStateJoining);
 
     // even if you are moderator, currently you need to send SPEAK_RQ (which is immediately approved by SFU)
     mSpeakerState = isOwnPrivModerator() && isSpeakRequestEnabled() ? SpeakerState::kPending : SpeakerState::kNoSpeaker;
+    mCallHandler.onSpeakStatusUpdate(*this);
     webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
     options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
@@ -1488,6 +1496,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 RTCM_LOG_WARNING("handleAnswerCommand: unexpected mSpeakerState: %d", mSpeakerState);
                 assert(false);
                 mSpeakerState = SpeakerState::kPending; // set speaker state to kPending
+                mCallHandler.onSpeakStatusUpdate(*this);
             }
              requestSpeak(true); // request to speak
         }
@@ -1964,11 +1973,17 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
     }
     else // own peer
     {
-        // our current speaker state is kActive, so no need to do anything with SPEAK_RQ_DEL
-        if (mSpeakerState == SpeakerState::kActive) { return true; }
+        // if our current speaker state is kActive    => ignore SPEAK_RQ_DEL
+        // if our current speaker state is kNoSpeaker => ignore SPEAK_RQ_DEL (no changes in speaker state)
+        if (mSpeakerState == SpeakerState::kActive
+            || mSpeakerState == SpeakerState::kNoSpeaker)
+        {
+            return true;
+        }
 
         mSpeakerState = SpeakerState::kNoSpeaker;
         updateAudioTracks();
+        mCallHandler.onSpeakStatusUpdate(*this);
     }
     return true;
 }
@@ -2003,6 +2018,7 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
 
         mSpeakerState = SpeakerState::kActive;
         updateAudioTracks();
+        mCallHandler.onSpeakStatusUpdate(*this);
     }
     return true;
 }
@@ -2032,6 +2048,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
         mSpeakerState = SpeakerState::kNoSpeaker;
         muteMyClientFromSfu();
+        mCallHandler.onSpeakStatusUpdate(*this);
     }
     else // SPEAK_OFF received own cid, but SpeakerState is not kActive
     {
@@ -4537,7 +4554,7 @@ void Session::setModerator(bool isModerator)
 void Session::setSpeakRequested(bool requested)
 {
     mHasRequestSpeak = requested;
-    mSessionHandler->onAudioRequested(*this);
+    mSessionHandler->onSpeakRequest(*this);
 }
 
 const karere::Id& Session::getPeerid() const

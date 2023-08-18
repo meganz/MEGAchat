@@ -7861,14 +7861,12 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mCallerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
     mIsOwnClientCaller = call.isOwnClientCaller();
+    mSpeakerState = call.getSpeakerState(); // speaker state
     mIgnored = call.isIgnored();
-    mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
-    mHasSpeakPermission = call.isOwnUserAllowSpeak();
-    mInitialTs = call.getCallInitialTimeStamp();
     mFinalTs = call.getFinalTimeStamp();
+    mInitialTs = call.getCallInitialTimeStamp();
     mNetworkQuality = call.getNetworkQuality();
-    mHasRequestSpeak = call.hasRequestSpeak();
     mTermCode = convertTermCode(call.getTermCode());
     mWrJoiningState = call.getWrJoiningState();
     mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? new MegaChatWaitingRoomPrivate(*call.getWaitingRoom()) : nullptr);
@@ -7908,7 +7906,6 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mIsCaller = call.isOutgoing();
     mIsOwnClientCaller = call.isOwnClientCaller();
     mLocalAVFlags = call.mLocalAVFlags;
-    mHasSpeakPermission = call.hasSpeakPermission();
     mChanged = call.mChanged;
     mInitialTs = call.mInitialTs;
     mFinalTs = call.mFinalTs;
@@ -7918,13 +7915,12 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mEndCallReason = call.mEndCallReason;
     mOwnModerator = call.isOwnModerator();
     mRinging = call.mRinging;
+    mSpeakerState = call.getSpeakerState();
     mIgnored = call.mIgnored;
     mPeerId = call.mPeerId;
     mCallCompositionChange = call.mCallCompositionChange;
     mCallerId = call.mCallerId;
-    mIsSpeakAllow = call.isSpeakAllow();
     mNetworkQuality = call.getNetworkQuality();
-    mHasRequestSpeak = call.hasRequestSpeak();
     mWrJoiningState = call.getWrJoiningState();
     mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? call.getWaitingRoom()->copy() : nullptr);
     mModerators.reset(call.getModerators() ? call.getModerators()->copy() : nullptr);
@@ -7983,9 +7979,9 @@ bool MegaChatCallPrivate::hasChanged(int changeType) const
     return (mChanged & changeType);
 }
 
-bool MegaChatCallPrivate::hasSpeakPermission() const
+bool MegaChatCallPrivate::hasPermissionToSpeak() const
 {
-    return mHasSpeakPermission;
+    return mSpeakerState == SPEAKER_STATUS_ACTIVE;
 }
 
 int64_t MegaChatCallPrivate::getDuration() const
@@ -8122,6 +8118,11 @@ bool MegaChatCallPrivate::isOwnClientCaller() const
     return mIsOwnClientCaller;
 }
 
+unsigned int MegaChatCallPrivate::getSpeakerState() const
+{
+    return mSpeakerState;
+}
+
 MegaChatHandle MegaChatCallPrivate::getCaller() const
 {
     return mCallerId;
@@ -8137,9 +8138,9 @@ bool MegaChatCallPrivate::isOnHold() const
     return mLocalAVFlags.isOnHold();
 }
 
-bool MegaChatCallPrivate::isSpeakAllow() const
+bool MegaChatCallPrivate::isSpeakAllowed() const
 {
-    return mIsSpeakAllow;
+    return mSpeakerState == SPEAKER_STATUS_ACTIVE && hasLocalAudio();
 }
 
 int MegaChatCallPrivate::getNetworkQuality() const
@@ -8147,9 +8148,9 @@ int MegaChatCallPrivate::getNetworkQuality() const
     return mNetworkQuality;
 }
 
-bool MegaChatCallPrivate::hasRequestSpeak() const
+bool MegaChatCallPrivate::hasPendingSpeakRequest() const
 {
-    return mHasRequestSpeak;
+    return mSpeakerState == SPEAKER_STATUS_PENDING;
 }
 
 int MegaChatCallPrivate::getWrJoiningState() const
@@ -11287,6 +11288,13 @@ void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::st
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+void MegaChatCallHandler::onSpeakStatusUpdate(const rtcModule::ICall& call)
+{
+    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_SPEAK);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
 void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModule::ICall &call)
 {
     MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);
@@ -11295,13 +11303,6 @@ void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModul
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(sess);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_STATUS);
     mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
-}
-
-void MegaChatCallHandler::onAudioApproved(const rtcModule::ICall &call)
-{
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_SPEAK);
-    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call)
@@ -11377,7 +11378,7 @@ MegaChatSessionHandler::~MegaChatSessionHandler()
 {
 }
 
-void MegaChatSessionHandler::onSpeakRequest(rtcModule::ISession &session, bool /*requested*/)
+void MegaChatSessionHandler::onSpeakRequest(rtcModule::ISession &session)
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED);
@@ -11420,13 +11421,6 @@ void MegaChatSessionHandler::onDestroySession(rtcModule::ISession &session)
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_STATUS);
-    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
-}
-
-void MegaChatSessionHandler::onAudioRequested(rtcModule::ISession &session)
-{
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
-    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 

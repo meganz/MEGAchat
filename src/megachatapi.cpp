@@ -241,7 +241,7 @@ bool MegaChatCall::hasChanged(int ) const
     return false;
 }
 
-bool MegaChatCall::hasSpeakPermission() const
+bool MegaChatCall::hasPermissionToSpeak() const
 {
     return false;
 }
@@ -346,6 +346,11 @@ bool MegaChatCall::isOwnClientCaller() const
     return false;
 }
 
+unsigned int MegaChatCall::getSpeakerState() const
+{
+    return 0;
+}
+
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
@@ -361,7 +366,7 @@ const char* MegaChatCall::getGenericMessage() const
     return NULL;
 }
 
-bool MegaChatCall::isSpeakAllow() const
+bool MegaChatCall::isSpeakAllowed() const
 {
     return false;
 }
@@ -371,7 +376,7 @@ int MegaChatCall::getNetworkQuality() const
     return 0;
 }
 
-bool MegaChatCall::hasRequestSpeak() const
+bool MegaChatCall::hasPendingSpeakRequest() const
 {
     return false;
 }
