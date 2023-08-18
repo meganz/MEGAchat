@@ -1739,7 +1739,7 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_NOENT;
             }
 
-            if (chatroom->isSpeakRequest() && request->getFlag())
+            if (chatroom->isSpeakRequest() && request->getParamType())
             {
                 API_LOG_ERROR("Start call - can't start a call with audio enabled if speak request is enabled for chatroom");
                 return MegaChatError::ERROR_ARGS;
@@ -1885,7 +1885,7 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
                 return MegaChatError::ERROR_EXIST;
             }
 
-            if (chatroom->isSpeakRequest() && request->getFlag())
+            if (chatroom->isSpeakRequest() && request->getParamType())
             {
                 API_LOG_ERROR("Answer call - can't answer call with audio enabled if speak request is enabled for chatroom");
                 return MegaChatError::ERROR_ARGS;
