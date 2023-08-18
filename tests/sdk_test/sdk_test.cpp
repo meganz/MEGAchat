@@ -4857,8 +4857,6 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     }
 
     const MegaChatHandle uh = user->getHandle();
-    MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
-
     // Define a SchedMeetingData instance and initialize relevant fields
     SchedMeetingData smDataTest;
     std::string timeZone = "Europe/Madrid";
@@ -4890,7 +4888,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     // Test preconditions: Get a meeting room with a scheduled meeting associated
     // Waiting rooms currently just works if there's a scheduled meeting created for the chatroom
     LOG_debug << "Test preconditions: Get a meeting room with a scheduled meeting associated";
-    chatid = getGroupChatRoom({a1, a2}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
+    const MegaChatHandle chatid = getGroupChatRoom({a1, a2}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
                               true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/, &smDataTest);
 
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Can't get/create a Meeting room with waiting room enabled";
@@ -4902,7 +4900,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     std::unique_ptr <MegaChatScheduledMeetingList> schedlist(megaChatApi[a1]->getScheduledMeetingsByChat(chatid));
     ASSERT_TRUE(schedlist && schedlist->size() == 1) << "Chat doesn't have scheduled meetings";
     const MegaChatScheduledMeeting* sm = schedlist->at(0);
-    ASSERT_TRUE(sm && sm->parentSchedId() == MEGACHAT_INVALID_HANDLE && sm->schedId() != MEGACHAT_INVALID_HANDLE) << "Invalid schedid";
+    ASSERT_TRUE(sm && sm->parentSchedId() == MEGACHAT_INVALID_HANDLE && sm->schedId() != MEGACHAT_INVALID_HANDLE) << "Invalid scheduled meeting";
     const MegaChatHandle schedId = sm->schedId();
 
     ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatid), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
@@ -4939,25 +4937,20 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     TestChatVideoListener localVideoListenerB;
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
 
-    auto grantsJoinPermission = [this, a1, a2, chatid, uh]()
+    auto grantsJoinPermission = [this, &a1, &a2, &chatid, &uh]()
     {
         // A grants permission to B for joining call
         mUsersAllowJoin[a1].clear();
         bool* allowJoin = &mUsersAllowJoin[a1][uh]; *allowJoin = false; // important to initialize, otherwise key won't exists on map
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1,
-                          std::vector<bool *> {allowJoin,
-                              &mCallWrAllow[a2]
-                          },
-                          std::vector<string> {
-                              "allowJoin",
-                              "&mCallWrAllow[a2]"
-                          },
+                          { allowJoin, &mCallWrAllow[a2] },
+                          { "allowJoin", "&mCallWrAllow[a2]" },
                           "grants B Join permission to call from A",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
                           maxTimeout,
-                          [this, a1, chatid, uh](){
+                          [this, &a1, &chatid, &uh](){
                               ChatRequestTracker crtAllowJoin;
                               std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
                               hl->addMegaHandle(uh);
@@ -4968,17 +4961,17 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
         });
     };
 
-    auto pushIntoWr = [this, a1, a2, chatid, uh]()
+    auto pushIntoWr = [this, &a1, &a2, &chatid, &uh]()
     {
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1,
-                          std::vector<bool *> {&mCallWrChanged[a1], &mCallWR[a2]},
-                          std::vector<string> {"&mCallWrChanged[a1]", "&mCallWR[a2]"},
+                          { &mCallWrChanged[a1], &mCallWR[a2] },
+                          { "&mCallWrChanged[a1]", "&mCallWR[a2]" },
                           "grants B Join permission to call from A",
                           true /* wait for all exit flags*/,
                           true /* reset flags*/,
                           maxTimeout,
-                          [this, a1, chatid, uh](){
+                          [this, &a1, &chatid, &uh](){
                               ChatRequestTracker crtPushWr;
                               std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
                               hl->addMegaHandle(uh);
@@ -5002,8 +4995,8 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
 
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
-                          std::vector<bool *> {&mCallInProgress[a1], receivedSecondary},
-                          std::vector<string> {"mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
+                          { &mCallInProgress[a1], receivedSecondary },
+                          { "mCallInProgress[a1]", "mCallReceivedRinging[a2]" },
                           "starting chat call from A",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
@@ -5036,13 +5029,13 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
 
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
-                          std::vector<bool *> { waitingPrimary, waitingSecondary },
-                          std::vector<string> { "waitingPrimary", "waitingSecondary" },
+                          { waitingPrimary, waitingSecondary },
+                          { "waitingPrimary", "waitingSecondary" },
                           "answering chat call from B",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
                           maxTimeout,
-                          [this, a2, chatid]()
+                          [this, &a2, &chatid]()
                           {
                               ChatRequestTracker crtAnswerCall;
                               megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtAnswerCall);
@@ -5064,14 +5057,14 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
         mCallIdExpectedReceived[a2] = auxCall->getCallId();
         if (isRingingExpected)
         {
-            EXPECT_TRUE((mCallIdJoining[a1] == mCallIdRingIn[a2]) && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE)) << "A and B are in different call";
             EXPECT_NE(mChatIdRingInCall[a2], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid for B from A (call emisor)";
+            EXPECT_TRUE((mCallIdJoining[a1] == mCallIdRingIn[a2]) && (mCallIdRingIn[a2] != MEGACHAT_INVALID_HANDLE)) << "A and B are in different call";
         }
         LOG_debug << "B received the call";
         return auxCall;
     };
 
-    std::function<void(MegaChatHandle)> testCleanup = [this, a1, a2, crl = chatroomListener.get(),
+    std::function<void(MegaChatHandle)> testCleanup = [this, &a1, &a2, crl = chatroomListener.get(),
                                                        lvlA = &localVideoListenerA, lvlB = &localVideoListenerB]
         (MegaChatHandle chatid) -> void
     {
@@ -5083,13 +5076,13 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
             ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid callid";
             ASSERT_NO_FATAL_FAILURE({
                 waitForAction (1,
-                              std::vector<bool *> { &mCallDestroyed[a1], &mCallDestroyed[a2] },
-                              std::vector<string> { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
+                              { &mCallDestroyed[a1], &mCallDestroyed[a2] },
+                              { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
                               "A ends call for all participants",
                               true /* wait for all exit flags*/,
                               true /*reset flags*/,
                               maxTimeout,
-                              [this, a1, callid = call->getCallId()]()
+                              [this, &a1, callid = call->getCallId()]()
                               {
                                   ChatRequestTracker crtEndCall;
                                   megaChatApi[a1]->endChatCall(callid, &crtEndCall);
