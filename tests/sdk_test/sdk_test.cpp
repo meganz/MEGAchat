@@ -4850,12 +4850,13 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     ASSERT_TRUE(secondarySession);
 
-    std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!areContact(a1, a2))
     {
         ASSERT_NO_FATAL_FAILURE({ makeContact(a1, a2); });
     }
 
+    std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
+    ASSERT_TRUE(user) << "Cannot get contact for secondary account";
     const MegaChatHandle uh = user->getHandle();
     // Define a SchedMeetingData instance and initialize relevant fields
     SchedMeetingData smDataTest;
