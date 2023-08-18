@@ -4411,8 +4411,8 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
 
 /**
  * @brief MegaChatApiTest.WaitingRooms
- * + Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
- *          call won't ring for the rest of participants
+ * + Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
+ *          Call won't ring for the rest of participants
  * + Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
  * + Test3: A kicks (completely disconnect) B from call
  * + Test4: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)
@@ -4771,8 +4771,8 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
     MrProper p (testCleanup, chatid);
 
-    // [Test1]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
-    //          call won't ring for the rest of participants as schedId is provided
+    // [Test1]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
+    //          Call won't ring for the rest of participants as schedId is provided
     // ----------------------------------------------------------------------------------------------------------------
     LOG_debug << "Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
     ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId);});
@@ -4834,8 +4834,8 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
 /**
  * @brief MegaChatApiTest.WaitingRoomsTimeout
- * + Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
- *          call won't ring for the rest of participants
+ * + Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
+ *          Call won't ring for the rest of participants
  * + Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
  * + Test3: B waits into waiting room until SFU timeout expires and BYE command is received with termcode: TERM_CODE_WR_TIMEOUT
  */
@@ -4851,17 +4851,16 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     ASSERT_TRUE(secondarySession);
 
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
-    if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+    if (!areContact(a1, a2))
     {
         ASSERT_NO_FATAL_FAILURE({ makeContact(a1, a2); });
     }
 
-    // Get a group chatroom with both users
     const MegaChatHandle uh = user->getHandle();
     MegaChatHandle chatid = MEGACHAT_INVALID_HANDLE;
 
     // Define a SchedMeetingData instance and initialize relevant fields
-    SchedMeetingData smDataTests127;
+    SchedMeetingData smDataTest;
     std::string timeZone = "Europe/Madrid";
     const time_t now = time(nullptr);
     const MegaChatTimeStamp startDate = now + 300;
@@ -4874,25 +4873,25 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
                                                                                          MEGACHAT_INVALID_TIMESTAMP,
                                                                                          nullptr, nullptr, nullptr));
     peerList->addPeer(user->getHandle(), MegaChatPeerList::PRIV_STANDARD);
-    smDataTests127.peerList = peerList;
-    smDataTests127.isMeeting = true;
-    smDataTests127.publicChat = true;
-    smDataTests127.title = title;
-    smDataTests127.speakRequest = false;
-    smDataTests127.waitingRoom = true;
-    smDataTests127.openInvite = false;
-    smDataTests127.timeZone = timeZone;
-    smDataTests127.startDate = startDate;
-    smDataTests127.endDate = endDate;
-    smDataTests127.description = ""; // description is not a mandatory field
-    smDataTests127.flags = nullptr;  // flags is not a mandatory field
-    smDataTests127.rules = rules;
+    smDataTest.peerList = peerList;
+    smDataTest.isMeeting = true;
+    smDataTest.publicChat = true;
+    smDataTest.title = title;
+    smDataTest.speakRequest = false;
+    smDataTest.waitingRoom = true;
+    smDataTest.openInvite = false;
+    smDataTest.timeZone = timeZone;
+    smDataTest.startDate = startDate;
+    smDataTest.endDate = endDate;
+    smDataTest.description = ""; // description is not a mandatory field
+    smDataTest.flags = nullptr;  // flags is not a mandatory field
+    smDataTest.rules = rules;
 
     // Test preconditions: Get a meeting room with a scheduled meeting associated
     // Waiting rooms currently just works if there's a scheduled meeting created for the chatroom
     LOG_debug << "Test preconditions: Get a meeting room with a scheduled meeting associated";
     chatid = getGroupChatRoom({a1, a2}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
-                              true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/, &smDataTests127);
+                              true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/, &smDataTest);
 
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Can't get/create a Meeting room with waiting room enabled";
     const std::unique_ptr<char[]> chatIdB64(MegaApi::userHandleToBase64(chatid));
@@ -4926,8 +4925,6 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     ChatRequestTracker crtCreateLink;
     megaChatApi[a1]->createChatLink(chatid, &crtCreateLink);
     ASSERT_EQ(crtCreateLink.waitForResult(), MegaChatError::ERROR_OK) << "Creating chat link failed. Should have succeeded!";
-
-    chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom->getPeerPrivilegeByHandle(user->getHandle()) == megachat::MegaChatPeerList::PRIV_STANDARD)
         << "Can't update Meeting room aux user permission to standard:";
 
@@ -5115,8 +5112,8 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
     MrProper p (testCleanup, chatid);
 
-    // [Test1]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call
-    //          call won't ring for the rest of participants as schedId is provided
+    // [Test1]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
+    //          Call won't ring for the rest of participants as schedId is provided
     // ----------------------------------------------------------------------------------------------------------------
     LOG_debug << "Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
     ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId);});
@@ -5148,7 +5145,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     // [Test3]: B waits into waiting room until SFU timeout expires and BYE command is received with termcode: TERM_CODE_WR_TIMEOUT
     // ----------------------------------------------------------------------------------------------------------------------------
     LOG_debug << "Test3: B waits into waiting room until SFU timeout expires and BYE command is received with termcode: TERM_CODE_WR_TIMEOUT";
-    unsigned int timeout = maxTimeout + 60; // SFU timeout for waiting room is 10 minutes, so we need to add an extra period to deal with any posible delay
+    unsigned int timeout = 660; // SFU timeout for waiting room is 10 minutes, so we need to add an extra period to deal with any posible delay
     bool* callLeftSecondary = &mCallLeft[a2]; *callLeftSecondary = false;
     int* termcodeLeftSecondary = &mTerminationCode[a2]; *termcodeLeftSecondary = MegaChatCall::TERM_CODE_INVALID;
     ASSERT_TRUE(waitForResponse(callLeftSecondary, timeout)) << "Call not ended after expire SFU waiting room timeout";
