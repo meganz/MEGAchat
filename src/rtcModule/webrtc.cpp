@@ -1043,7 +1043,8 @@ void Call::joinSfu()
             joinFlags.remove(karere::AvFlags::kAudio);
         }
 
-        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, joinFlags.value(), getPrevCid(), mSpeakerState, kInitialvthumbCount);
+        bool speakImmediately = isSpeakRequestEnabled() ? isOwnPrivModerator() : true;
+        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, joinFlags.value(), getPrevCid(), speakImmediately, kInitialvthumbCount);
         if (sendAv) // if speak request is disabled but audio flag was enabled by user, then send AV command to enable
         {
             mSfuConnection->sendAv(getLocalAvFlags().value());
