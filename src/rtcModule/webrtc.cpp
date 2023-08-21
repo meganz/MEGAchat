@@ -4497,6 +4497,7 @@ void Session::setSpeakPermission(const bool hasSpeakPermission)
         return;
     }
     mPeer.setSpeakPermission(hasSpeakPermission);
+    mSessionHandler->onSpeakStatusUpdate(*this);
     // need to add a new callback to notify change in speak permission for peer
 }
 

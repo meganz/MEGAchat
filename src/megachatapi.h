@@ -104,6 +104,7 @@ public:
         CHANGE_TYPE_SESSION_ON_HOLD = 0x20,         /// Session is on hold
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
         CHANGE_TYPE_PERMISSIONS = 0x80,             /// Indicates that peer moderator role status has changed
+        CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Speak permission has changed for peer
     };
 
     enum {
@@ -491,7 +492,7 @@ public:
         CHANGE_TYPE_RINGING_STATUS = 0x04,          /// Peer has changed its ringing state
         CHANGE_TYPE_CALL_COMPOSITION = 0x08,        /// Call composition has changed (User added or removed from call)
         CHANGE_TYPE_CALL_ON_HOLD = 0x10,            /// Call is set onHold
-        CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak has been enabled
+        CHANGE_TYPE_CALL_SPEAK = 0x20,              /// Speak permission has changed for own peer
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if we are speaking
         CHANGE_TYPE_NETWORK_QUALITY = 0x80,         /// Network quality has changed
         CHANGE_TYPE_OUTGOING_RINGING_STOP = 0x100,  /// Call (1on1) outgoing ringing has stopped (only valid if our own client has started the call)

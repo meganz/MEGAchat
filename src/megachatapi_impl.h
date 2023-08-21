@@ -754,6 +754,7 @@ public:
     void onOnHold(rtcModule::ISession& session) override;
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
     void onPermissionsChanged(rtcModule::ISession& session) override;
+    void onSpeakStatusUpdate(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

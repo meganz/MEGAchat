@@ -122,6 +122,7 @@ public:
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
     virtual void onPermissionsChanged(ISession& session) = 0;
+    virtual void onSpeakStatusUpdate(rtcModule::ISession& session) = 0;
 };
 
 class ISession
