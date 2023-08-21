@@ -1999,13 +1999,14 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
             {
                 if (enable)
                 {
-                    if (call->isOwnUserAllowSpeak())
+                    if (!call->isSpeakRequestEnabled() || call->isOwnUserAllowSpeak())
                     {
+                        // just try to unmute if we have speak permission or speak request is disabled
                         requestedFlags.add(karere::AvFlags::kAudio);
                     }
                     else
                     {
-                        API_LOG_WARNING("Enable audio - isn't allow, peer doesn't have speaker permission");
+                        API_LOG_WARNING("Enable audio - isn't allow, peer doesn't have speak permission");
                         return MegaChatError::ERROR_ACCESS;
                     }
                 }
