@@ -948,15 +948,17 @@ void Call::joinSfu()
     options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     auto wptr = weakHandle();
+    bool rejoin = getPrevCid() != K_INVALID_CID;
     mRtcConn.createOffer(options)
-    .then([wptr, this, hiresTrackIndex](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
+    .then([wptr, this, hiresTrackIndex, &rejoin](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
     {
         if (wptr.deleted())
         {
             return ::promise::_Void();
         }
 
-        if (isSpeakRequestEnabled() && getLocalAvFlags().audio())
+
+        if (isSpeakRequestEnabled() && !rejoin && getLocalAvFlags().audio())
         {
             // we can't send audio flag enabled at JOIN command, if speak request is enabled, you first need to be approved as
             // speaker (by SFU if you are moderator or by another moderator if not) and then you can send an AV command
@@ -996,7 +998,7 @@ void Call::joinSfu()
         KR_THROW_IF_FALSE(sdpInterface->ToString(&mSdpStr));
         return mRtcConn.setLocalDescription(std::move(sdpInterface));   // takes onwership of sdp
     })
-    .then([wptr, this]()
+    .then([wptr, this, &rejoin]()
     {
         if (wptr.deleted())
         {
@@ -1037,7 +1039,7 @@ void Call::joinSfu()
          */
         bool sendAv = false;
         karere::AvFlags joinFlags = getLocalAvFlags();
-        if (!isSpeakRequestEnabled() && getLocalAvFlags().audio())
+        if (rejoin && !isSpeakRequestEnabled() && getLocalAvFlags().audio())
         {
             sendAv = true;
             joinFlags.remove(karere::AvFlags::kAudio);
