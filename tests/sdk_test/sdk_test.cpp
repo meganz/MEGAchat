@@ -5237,6 +5237,40 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     ASSERT_TRUE(sched->cancelled()) << "Scheduled meeting occurrence could not be cancelled, scheduled meeting id: "
                                     <<  getSchedIdStrB64(schedId) << " overrides: " << std::to_string(overrides);
 
+
+    //================================================================================//
+    // TEST 8. Test negative offset at byMonthWeekDay
+    //================================================================================//
+    LOG_debug << "TEST_ScheduledMeetings 8: Test negative offset at byMonthWeekDay";
+    const int interval = 1;
+    const int offset = -1;
+    const int day = 1;
+    std::unique_ptr<::mega::MegaIntegerMap> byMonthWeekDay(::mega::MegaIntegerMap::createInstance());
+    byMonthWeekDay->set(offset, day);
+    smDataTests127.rules.reset(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_MONTHLY,
+                                                                      interval,
+                                                                      MEGACHAT_INVALID_TIMESTAMP,
+                                                                      nullptr, nullptr, byMonthWeekDay.get()));
+
+    ASSERT_NO_FATAL_FAILURE({ updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests127); });
+    auto aschedMeet = getSchedMeeting(a1, smDataTests127);
+    ASSERT_TRUE(aschedMeet) << "Can't retrieve scheduled meeting for chat " << getChatIdStrB64(chatid);
+    const auto recvRules = aschedMeet->rules();
+    ASSERT_TRUE(recvRules) << "Can't retrieve scheduled meeting rules for chat " << getChatIdStrB64(chatid);
+    const ::mega::MegaIntegerMap* recvByMonthWeekDay = recvRules->byMonthWeekDay();
+    ASSERT_TRUE(recvByMonthWeekDay) << "Can't retrieve ByMonthWeekDay for chat " << getChatIdStrB64(chatid);
+    ASSERT_EQ(recvByMonthWeekDay->size(), smDataTests127.rules->byMonthWeekDay()->size())
+        << "Unexpected size for ByMonthWeekDay for chat " << getChatIdStrB64(chatid);
+
+    // check negative offset values at ByMonthWeekDay (-1, 1) Last Monday of each month
+    std::unique_ptr<MegaIntegerList> days(recvByMonthWeekDay->get(offset));
+    ASSERT_TRUE(days) << "No key : " << offset << " exists at auxByMonthWeekDay for chat " << getChatIdStrB64(chatid);;
+    ASSERT_EQ(days->size(), smDataTests127.rules->byMonthWeekDay()->size()) << "Unexpected byMonthWeekDay size "
+                                                                            << days->size() << " for chat " << getChatIdStrB64(chatid);
+    ASSERT_EQ(days->get(0), day) << "Unexpected value: " << days->get(0)
+                                 << ", expected one(" << day
+                                 << ") for key: " << offset << "in chat " << getChatIdStrB64(chatid);
+
     //================================================================================//
     // TEST 8. Cancel entire series
     //================================================================================//
