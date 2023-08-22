@@ -2585,7 +2585,7 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
 {
     mCallHandler.onCallDeny(*this, cmd, msg); // notify apps about the denied command
 
-    if (cmd == "audio") // audio ummute has been denied by SFU
+    if (cmd == "audio") // audio ummute has been denied by SFU, disable audio flag local
     {
         muteMyClientFromSfu();
     }

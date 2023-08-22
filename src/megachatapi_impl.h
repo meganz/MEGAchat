@@ -292,7 +292,6 @@ public:
     const MegaChatWaitingRoom* getWaitingRoom() const override;
 
     void setStatus(int status);
-    void setLocalAudioVideoFlags(karere::AvFlags localAVFlags);
     void removeChanges();
     void setChange(int changed);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);

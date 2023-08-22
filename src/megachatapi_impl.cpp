@@ -8191,17 +8191,6 @@ void MegaChatCallPrivate::setStatus(int status)
     }
 }
 
-void MegaChatCallPrivate::setLocalAudioVideoFlags(AvFlags localAVFlags)
-{
-    if (mLocalAVFlags == localAVFlags)
-    {
-        return;
-    }
-
-    mLocalAVFlags = localAVFlags;
-    mChanged |= MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS;
-}
-
 void MegaChatCallPrivate::removeChanges()
 {
     mChanged = MegaChatCall::CHANGE_TYPE_NO_CHANGES;
