@@ -232,8 +232,8 @@ public:
     struct TestData
     {
         unsigned primaryIdx = 0;         // primary account index
-        megachat::MegaChatHandle chatid; // chatid of chatroom that will be used in the test
-
+        // chatid of chatroom that will be used in the test
+        megachat::MegaChatHandle chatid = megachat::MEGACHAT_INVALID_HANDLE;
         bool loadHistoryAtInit = false;
         bool hasVideoListeners = false;
         bool hasChatListeners = false;
@@ -290,6 +290,12 @@ public:
         std::function<void(TestData*)> mCleanup;
         TestData* d;
         ~MrProper() { mCleanup(d); }
+    };
+
+    static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
+    {
+        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
+        return idB64 ? idB64.get() : "INVALID callid";
     };
 
     static std::string getChatIdStrB64(const megachat::MegaChatHandle h)
@@ -480,6 +486,8 @@ protected:
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mSessSpeakRequests[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mSessSpeakPerm[NUM_ACCOUNTS];
 
     TestData d; // basic test data common to all tests
 
@@ -493,6 +501,8 @@ protected:
     bool mCallDestroyed[NUM_ACCOUNTS];
     bool mCallConnecting[NUM_ACCOUNTS];
     bool mCallWR[NUM_ACCOUNTS];
+    bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
+    unsigned mOwnSpeakStatus[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
     bool mCallWrChanged[NUM_ACCOUNTS];
     bool mCallWrAllow[NUM_ACCOUNTS];
@@ -514,9 +524,11 @@ protected:
     bool mChatCallAudioDisabled[NUM_ACCOUNTS];
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
-    bool mChatCallSilenceReq[NUM_ACCOUNTS];
+    bool mSessSpeakReqRecv[NUM_ACCOUNTS];
     bool mSchedMeetingUpdated[NUM_ACCOUNTS];
     bool mSchedOccurrUpdated[NUM_ACCOUNTS];
+    bool mSessSpeakPermChanged[NUM_ACCOUNTS];
+    bool mOwnFlagsChanged[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
