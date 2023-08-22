@@ -386,13 +386,11 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     /**
-     * @brief Returns if peer has request speak
+     * @brief Returns if peer has a pending speak request
      *
-     * @note This functionality is ready but it shouldn't be used at this moment
-     *
-     * @return true if has request speak
+     * @return true if peer has a pending speak request
      */
-    virtual bool hasRequestSpeak() const;
+    virtual bool hasPendingSpeakRequest() const;
 
     /**
      * @brief Returns if audio is detected for this session
@@ -1133,10 +1131,13 @@ public:
     virtual const char* getGenericMessage() const;
 
     /**
-     * @brief Returns if user can speak in a call
+     * @brief Returns if user is allowed to speak in the call
+     *
+     * This method returns true if own user have permission to speak and also is unmuted (audio flag enabled)
+     * - Check MegaChatCall::hasPermissionToSpeak to know if own peer has permission to speak
+     * - Check MegaChatCall::hasLocalAudio to know if audio flag is enabled or not (own peer muted or not)
      *
      * @note If there isn't a call in that chatroom, this method returns false
-     * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @return True if user is allowed to speak in the call
      */
@@ -1160,11 +1161,9 @@ public:
     virtual int getNetworkQuality() const;
 
     /**
-     * @brief Returns if we have request speak
+     * @brief Returns if our own peer has a pending speak request
      *
-     * @note This functionality is ready but it shouldn't be used at this moment
-     *
-     * @return true if we have request speak
+     * @return true if our own peer has a pending speak request
      */
     virtual bool hasPendingSpeakRequest() const;
 
@@ -6376,8 +6375,6 @@ public:
      * - MegaChatError::ERROR_ACCESS - if clientId is not MEGACHAT_INVALID_HANDLE (own user),
      * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
      *
-     * @note This functionality is ready but it shouldn't be used at this moment
-     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientId MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
      * @param listener MegaChatRequestListener to track this request
@@ -6657,8 +6654,6 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that it is a enable request operation
      *
-     * @note This functionality is ready but it shouldn't be used at this moment
-     *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
@@ -6671,8 +6666,6 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that it is a remove request operation
-     *
-     * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -6689,8 +6682,6 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that approve the request
      * - MegaChatRequest::getUserHandle - Returns the clientId of the user
-     *
-     * @note This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientId MegaChatHandle that identifies client

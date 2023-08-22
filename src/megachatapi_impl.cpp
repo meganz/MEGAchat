@@ -7632,7 +7632,7 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mAvFlags(session.getAvFlags())
     , mTermCode(session.getTermCode())
     , mChanged(session.getChanges())
-    , mHasRequestSpeak(session.hasRequestSpeak())
+    , mHasRequestSpeak(session.hasPendingSpeakRequest())
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.mHasHiResTrack)
     , mHasLowResTrack(session.mHasLowResTrack)
@@ -7759,7 +7759,7 @@ bool MegaChatSessionPrivate::isAudioDetected() const
     return mAudioDetected;
 }
 
-bool MegaChatSessionPrivate::hasRequestSpeak() const
+bool MegaChatSessionPrivate::hasPendingSpeakRequest() const
 {
     return mHasRequestSpeak;
 }

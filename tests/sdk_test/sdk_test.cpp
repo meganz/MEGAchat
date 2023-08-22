@@ -7653,7 +7653,7 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
                 || !mChatCallSessionStatusInProgress[apiIndex];
             break;
         case MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED:
-            mSessSpeakRequests[apiIndex][session->getClientid()] = session->hasRequestSpeak();
+            mSessSpeakRequests[apiIndex][session->getClientid()] = session->hasPendingSpeakRequest();
             mSessSpeakReqRecv[apiIndex] = true;
             break;
         case MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD:

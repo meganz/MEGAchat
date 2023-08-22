@@ -210,7 +210,7 @@ public:
     virtual int getTermCode() const override;
     virtual bool hasChanged(int changeType) const override;
     virtual bool isAudioDetected() const override;
-    virtual bool hasRequestSpeak() const override;
+    virtual bool hasPendingSpeakRequest() const override;
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
     virtual bool hasSpeakPermission() const override;

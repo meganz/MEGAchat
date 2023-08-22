@@ -140,7 +140,7 @@ bool MegaChatSession::hasChanged(int) const
     return false;
 }
 
-bool MegaChatSession::hasRequestSpeak() const
+bool MegaChatSession::hasPendingSpeakRequest() const
 {
     return false;
 }
