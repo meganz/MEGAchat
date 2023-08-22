@@ -1061,7 +1061,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                    ::mega::ChatOptions_t opts = static_cast<::mega::ChatOptions_t>(result->getParamType());
                    ::mega::ChatOptions chatOptions(opts);
-                   request->setPrivilege(chatOptions.waitingRoom());
+                   request->setPrivilege(chatOptions.value());
                    if (result->getMegaHandleList())
                    {
                        request->setMegaHandleList(result->getMegaHandleList());

@@ -1014,13 +1014,21 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         int numPeers = static_cast<int>(request->getNumber());
                         const char *title = request->getText();
                         const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
+                        const int chatOptions = request->getPrivilege();
+                        const bool wr = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions);
+                        const bool sr = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions);
+                        const bool oi = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions);
 
-                        QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n Waiting Room: %5 \n Scheduled meeting: %6 \n\n Do you want to preview it?")
+                        QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n Waiting Room: %5 "
+                                               "\n Speak request: %6 \n Open invite Room: %7 \n Scheduled meeting: %8 "
+                                               "\n\n Do you want to preview it?")
                                 .arg(QString::fromStdString(request->getLink()))
                                 .arg(QString::fromStdString(chatHandle_64))
                                 .arg(QString(title))
                                 .arg(QString::fromStdString(std::to_string(numPeers)))
-                                .arg(QString::fromStdString(std::to_string(request->getPrivilege())))
+                                .arg(QString::fromStdString(std::to_string(wr)))
+                                .arg(QString::fromStdString(std::to_string(sr)))
+                                .arg(QString::fromStdString(std::to_string(oi)))
                                 .arg(QString::fromStdString(request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size() ? "1" : "0"));
 
                         QMessageBox msgBox;
@@ -1045,8 +1053,14 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 {
                     if (error == MegaChatError::ERROR_OK)
                     {
+                        const int chatOptions = request->getPrivilege();
+                        const bool wr = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions);
+                        const bool sr = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions);
+                        const bool oi = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions);
                         std::string res;
-                        res += request->getPrivilege() ? "Waiting Room = 1 " : "Waiting Room = 0 ";
+                        res += wr ? "Waiting Room = 1 "  : "Waiting Room = 0 ";
+                        res += sr ? "Speak request = 1 " : "Speak request = 0 ";
+                        res += oi ? "Open invite = 1 "   : "Open invite = 0 ";
                         res += request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size()
                                    ? " Scheduled meeting = 1"
                                    : " Scheduled meeting = 0";

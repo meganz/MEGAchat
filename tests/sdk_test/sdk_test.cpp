@@ -4525,7 +4525,10 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ChatRequestTracker crtOpenLink;
     megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink);
     ASSERT_EQ(crtOpenLink.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
-    ASSERT_TRUE(crtOpenLink.getPrivilege() /*wr flag*/ && crtOpenLink.hasScheduledMeetings());
+
+    const int chatOptions = crtOpenLink.getPrivilege();
+    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions)
+                && crtOpenLink.hasScheduledMeetings());
     ASSERT_NO_FATAL_FAILURE({ logout(a3, true); });
 
     LOG_debug << "\tSwitching back from staging (Shard 2) for group creation\n";
