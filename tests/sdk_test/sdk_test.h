@@ -658,8 +658,8 @@ protected:
     {
         assert(!resultReceived); // call this function only once!
         errorStr.swap(errStr);
-        resultReceived = true;
         promiseResult.set_value(errCode);
+        resultReceived = true;
     }
 
     bool finished() const { return resultReceived; }
