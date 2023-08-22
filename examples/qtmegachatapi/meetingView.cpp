@@ -150,11 +150,27 @@ void MeetingView::updateAudioMonitor(bool enabled)
 
 void MeetingView::updateLabel(megachat::MegaChatCall *call)
 {
+    std::string on  = "<span style='font-weight:normal; color:#00AA00'>1</span>";
+    std::string off = "<span style='font-weight:normal; color:#AA0000'>0</span>";
     std::string txt = call->isOwnModerator() ? QString::fromUtf8("<span style='font-size:25px'>\xE2\x99\x9A</span>").toStdString() : std::string();
     txt.append (" Participants: ")
             .append(std::to_string(call->getNumParticipants()))
             .append("  State: ")
-            .append(callStateToString(*call));
+            .append(callStateToString(*call))
+            .append("<span style='font-weight:normal'>")
+            .append("<br /> Speak request is enabled: ")
+            .append(call->isSpeakRequestEnabled() ? on : off)
+            .append("<br /> Audio flag: ")
+            .append(call->hasLocalAudio() ? on : off)
+            .append("<br /> Video flag: ")
+            .append(call->hasLocalAudio() ? on : off)
+            .append("<br /> Has speak permission: ")
+            .append(call->hasPermissionToSpeak() ? on : off)
+            .append("<br /> Has pending speak request: ")
+            .append(call->hasPendingSpeakRequest() ? on : off)
+            .append("<br /> Moderator: ")
+            .append(call->isOwnModerator() ? on : off)
+            .append("</span>");
 
     if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM)
     {
@@ -746,8 +762,8 @@ void MeetingView::onEnableAudioMonitor(bool)
 
 void MeetingView::onJoinCallWithVideo()
 {
-    QString audiostr = QInputDialog::getText(this, tr("Enable audio"), tr("Do you want to enable audio? (just allowed if speak request is disabled)"));
-    if (audiostr != "0" || audiostr != "1") { return; }
+    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio? (just allowed if speak request is disabled)"));
+    if (audiostr != "0" && audiostr != "1") { return; }
     int audio = atoi(audiostr.toStdString().c_str());
     mMegaChatApi.startChatCall(mChatid, true /*video*/, audio);
 }
@@ -811,8 +827,8 @@ void MeetingView::onKickWr()
 
 void MeetingView::onJoinCallWithoutVideo()
 {
-    QString audiostr = QInputDialog::getText(this, tr("Enable audio"), tr("Do you want to enable audio? (just allowed if speak request is disabled)"));
-    if (audiostr != "0" || audiostr != "1") { return; }
+    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio? (just allowed if speak request is disabled)"));
+    if (audiostr != "0" && audiostr != "1") { return; }
     int audio = atoi(audiostr.toStdString().c_str());
     mMegaChatApi.startChatCall(mChatid, false, audio);
 }
