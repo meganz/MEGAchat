@@ -153,9 +153,11 @@ public:
     virtual MegaChatHandle getClientid() const;
 
     /**
-     * @brief Returns audio state for the session
+     * @brief Returns if audio flags are enabled for the session (peer is muted or not)
      *
-     * @return true if audio is enable, false if audio is disable
+     * Check MegaChatSession::hasSpeakPermission() to know if peer has permission to speak
+     *
+     * @return true if audio flags are enabled for the session (peer is muted or not)
      */
     virtual bool hasAudio() const;
 
@@ -434,9 +436,10 @@ public:
      * @brief Returns if peer associated to the session, has speak permission
      *
      * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
+     * @note: if speak request is disabled, all peers are considered to have permission to speak.
      *
      * @note The value returned by this method doesn't means that the peer is sending audio, but only that it has permission to speak.
-     * TODO : complete
+     * Check MegaChatSession::hasAudio() to know if peer is muted or not (audio flags enabled)
      *
      * @return True if peer associated to the session, has permission to speak (just valid if speakRequest option is enabled for chat)
      */
@@ -630,9 +633,11 @@ public:
     virtual MegaChatHandle getCallId() const;
 
     /**
-     * @brief Return audio state for local
+     * @brief Return if local audio flags are enabled (own peer is muted or not)
      *
-     * @return true if audio is enable, false if audio is disable
+     * Check MegaChatCall::hasPermissionToSpeak to know if own peer has permission to speak.
+     *
+     * @return true if local audio flags are enabled (own peer is muted or not)
      */
     virtual bool hasLocalAudio() const;
 
@@ -807,9 +812,10 @@ public:
      * @brief Returns if our own peer, has speak permission
      *
      * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
+     * @note: if speak request is disabled, all peers are considered to have permission to speak.
      *
      * @note The value returned by this method doesn't means that the peer is sending audio, but only that it has permission to speak.
-     * TODO : complete
+     * Check MegaChatCall::hasLocalAudio() to know if peer is muted or not (audio flags enabled)
      *
      * @return True if peer associated to the session, has permission to speak (just valid if speakRequest option is enabled for chat)
      */
