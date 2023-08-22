@@ -3123,7 +3123,6 @@ void Call::removeSpeaker(Cid_t cid)
             RTCM_LOG_ERROR("removeSpeaker: trying to remove a speaker whose permission to speak was disabled"
                            " callid: %s, cid: %u", getCallid().toString().c_str(), cid);
             assert(false);
-            return;
         }
         sess->disableAudioSlot();
     }
