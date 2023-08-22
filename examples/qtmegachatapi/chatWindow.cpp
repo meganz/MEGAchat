@@ -1132,7 +1132,10 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
+    std::string audiostr = mMainWin->mApp->getText("Do you want to enable audio? (just allowed if speak request is disabled)");
+    if (audiostr != "0" || audiostr != "1") { return; }
+    int audio = atoi(audiostr.c_str());
+    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video, audio);
 }
 
 #endif

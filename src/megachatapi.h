@@ -6014,7 +6014,7 @@ public:
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = false, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Start a call in a chatroom without ringing the participants (just for scheduled meeting context)
@@ -6079,7 +6079,7 @@ public:
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener* listener = NULL);
+    void startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo = true, bool enableAudio = false, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Ring a user in chatroom with an ongoing call that they didn't pick up
@@ -6154,7 +6154,7 @@ public:
      * @param enableAudio True for answering a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = true, MegaChatRequestListener *listener = NULL);
+    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = false, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Starts a call in a chatroom with waiting room option enabled
@@ -6223,7 +6223,7 @@ public:
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
+    void startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio = false, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Hang up a call

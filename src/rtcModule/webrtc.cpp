@@ -1039,7 +1039,9 @@ void Call::joinSfu()
          */
         bool sendAv = false;
         karere::AvFlags joinFlags = getLocalAvFlags();
-        if (rejoin && !isSpeakRequestEnabled() && getLocalAvFlags().audio())
+        if (!rejoin
+            && !isSpeakRequestEnabled()
+            && getLocalAvFlags().audio())
         {
             sendAv = true;
             joinFlags.remove(karere::AvFlags::kAudio);
@@ -2049,8 +2051,8 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     else if (mSpeakerState == SpeakerState::kActive)
     {
         // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-        mSpeakerState = SpeakerState::kNoSpeaker;
         muteMyClientFromSfu();
+        mSpeakerState = SpeakerState::kNoSpeaker;
         mCallHandler.onSpeakStatusUpdate(*this);
     }
     else // SPEAK_OFF received own cid, but SpeakerState is not kActive
