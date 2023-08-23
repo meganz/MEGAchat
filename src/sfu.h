@@ -114,15 +114,11 @@ protected:
     // initialization vector
     std::vector<std::string> mIvs;
 
-    /* The ability to speak for a call participant depend on 2 factors:
-     *  1) The speak permission (mHasSpeakPermission stores this permission up to date with SFU)
-     *      1.1) If peer is moderator, needs to send SPEAK_RQ automatically upon ANSWER command reception. Speak request
-     *           is approved immediately by SFU, and a SPEAK_ON command will be received
+    /* The speak permission (mHasSpeakPermission stores this permission up to date with SFU)
+     *      1.1) If peer is moderator. SFU sends a SPEAK_ON command to inform that peer is a speaker
      *
-     *      1.2) If peer is not moderator, needs to manually send SPEAK_RQ to SFU that will broadcast it to all moderators.
+     *      1.2) If peer is not moderator, needs to manually send SPEAK_RQ to SFU that will be broadcasted it to all moderators.
      *           When speak request is approved by a moderator, a SPEAK_ON command will be received
-     *
-     *  2) The audio flag must be enabled (AV command required)
      */
     bool mHasSpeakPermission = false;
 

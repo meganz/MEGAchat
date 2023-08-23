@@ -334,7 +334,10 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
         int ringingWindowOption = mRingingWindow->exec();
         if (ringingWindowOption == QMessageBox::Yes)
         {
-            mMegaChatApi.answerChatCall(mChatid, true, false /*enableAudio*/);
+            QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio? (just allowed if speak request is disabled)"));
+            if (audiostr != "0" && audiostr != "1") { return; }
+            int audio = atoi(audiostr.toStdString().c_str());
+            mMegaChatApi.answerChatCall(mChatid, true, audio);
         }
         else if (ringingWindowOption == QMessageBox::Cancel)
         {
