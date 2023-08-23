@@ -624,17 +624,17 @@ bool Call::isOwnUserAllowSpeak() const
 
 void Call::requestSpeak(bool add)
 {
+    assert((mSpeakerState == SpeakerState::kNoSpeaker && add)
+           || mSpeakerState == SpeakerState::kPending && !add);
+
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
     {
-        mSpeakerState = SpeakerState::kPending;
         mSfuConnection->sendSpeakReq();
-        mCallHandler.onSpeakStatusUpdate(*this);
         return;
     }
-
-    if (mSpeakerState == SpeakerState::kPending && !add)
+    else if (mSpeakerState == SpeakerState::kPending && !add)
     {
-        // cancel a in flight request
+        // cancel a request in-flight
         mSpeakerState = SpeakerState::kNoSpeaker;
         mSfuConnection->sendSpeakReqDel();
         mCallHandler.onSpeakStatusUpdate(*this);
@@ -1500,10 +1500,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             {
                 RTCM_LOG_WARNING("handleAnswerCommand: unexpected mSpeakerState: %d", mSpeakerState);
                 assert(false);
-                mSpeakerState = SpeakerState::kPending; // set speaker state to kPending
-                mCallHandler.onSpeakStatusUpdate(*this);
             }
-             requestSpeak(true); // request to speak
+            requestSpeak(true); // request to speak
         }
     }
 
@@ -1931,7 +1929,7 @@ bool Call::handleHiResStopCommand()
 
 bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
-    if (mState != kStateInProgress && mState != kStateJoining)
+    if (mState == kStateJoining)
     {
         RTCM_LOG_WARNING("handleSpeakReqsCommand: get unexpected state");
         assert(false); // theoretically, it should not happen. If so, it may worth to investigate
@@ -1951,8 +1949,12 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
             }
             session->setSpeakRequested(true);
         }
+        else // own cid
+        {
+            mSpeakerState = SpeakerState::kPending;
+            mCallHandler.onSpeakStatusUpdate(*this);
+        }
     }
-
     return true;
 }
 
