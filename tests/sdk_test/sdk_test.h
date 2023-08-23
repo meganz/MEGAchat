@@ -159,143 +159,6 @@ public:
         std::shared_ptr<megachat::MegaChatScheduledFlags> flags;
         std::shared_ptr<megachat::MegaChatScheduledRules> rules;
         std::shared_ptr<megachat::MegaChatPeerList> peerList;
-
-        SchedMeetingData& operator=(const SchedMeetingData&) = default;
-        SchedMeetingData* copy() const { return new SchedMeetingData(*this); }
-        SchedMeetingData() = default;
-        SchedMeetingData(const SchedMeetingData& sm)
-            : chatId(sm.chatId), schedId(sm.schedId), timeZone(sm.timeZone)
-            , title(sm.title), description(sm.description), startDate(sm.startDate)
-            , endDate(sm.endDate), overrides(sm.overrides), newStartDate(sm.newEndDate)
-            , newEndDate(sm.newEndDate), cancelled(sm.cancelled), newCancelled(sm.newCancelled)
-            , publicChat(sm.publicChat), speakRequest(sm.speakRequest), waitingRoom(sm.waitingRoom)
-            , openInvite(sm.openInvite), isMeeting(sm.isMeeting)
-            , flags(sm.flags ? sm.flags->copy() : nullptr)
-            , rules(sm.rules ? sm.rules->copy() : nullptr)
-            , peerList(sm.peerList ? sm.peerList->copy() : nullptr)
-        {
-        }
-    };
-    struct ChatroomCreationOptions
-    {
-        int a1Priv = megachat::MegaChatPeerList::PRIV_UNKNOWN;
-        bool create = false;
-        bool publicChat = false;
-        bool meetingRoom = false;
-        bool waitingRoom = false;
-        bool speakRequest = false;
-        bool openInvite = false;
-        std::unique_ptr<SchedMeetingData> schedMeetingData;
-
-        // custom peer list with the participants of the chatroom used for the test,
-        // in case you don't want to use TestData peerlist (default)
-        std::unique_ptr<megachat::MegaChatPeerList> customPeerList;
-
-        ChatroomCreationOptions() = default;
-        ChatroomCreationOptions* copy() const { return new ChatroomCreationOptions(*this); }
-
-        ChatroomCreationOptions(int priv,
-                                bool cr,
-                                bool pub,
-                                bool mr,
-                                bool wr,
-                                bool sr,
-                                bool oi,
-                                SchedMeetingData* sm,
-                                megachat::MegaChatPeerList* peers)
-            : a1Priv(priv)
-            , create(cr)
-            , publicChat(pub)
-            , meetingRoom(mr)
-            , waitingRoom(wr)
-            , speakRequest(sr)
-            , openInvite(oi)
-            , schedMeetingData(sm ? sm->copy() : nullptr)
-            , customPeerList(peers ? peers->copy() : nullptr)
-        {
-        }
-
-        ChatroomCreationOptions(const ChatroomCreationOptions& opt)
-            : a1Priv(opt.a1Priv)
-            , create(opt.create)
-            , publicChat(opt.publicChat)
-            , meetingRoom(opt.meetingRoom)
-            , waitingRoom(opt.waitingRoom)
-            , speakRequest(opt.speakRequest)
-            , openInvite(opt.openInvite)
-            , schedMeetingData(opt.schedMeetingData ? opt.schedMeetingData->copy() : nullptr)
-            , customPeerList(opt.customPeerList ? opt.customPeerList->copy() : nullptr)
-        {
-        }
-    };
-
-    struct TestData
-    {
-        unsigned primaryIdx = 0;         // primary account index
-        // chatid of chatroom that will be used in the test
-        megachat::MegaChatHandle chatid = megachat::MEGACHAT_INVALID_HANDLE;
-        bool loadHistoryAtInit = false;
-        bool hasVideoListeners = false;
-        bool hasChatListeners = false;
-
-        // vector of sessions returned by MegaChatApiTest::login (including primary account)
-        std::vector<std::unique_ptr<char[]>> sessions;
-
-        // peer list with the participants of the chatroom used for the test (primary account not included)
-        std::unique_ptr<megachat::MegaChatPeerList> peers;
-
-        // vector of user handles (including primary account)
-        std::map<unsigned int, megachat::MegaChatHandle> uhandles;
-
-        // vector of user indexes (including primary account)
-        std::set<unsigned int> accountIndexes;
-
-        // chatroom options required to get/create chatroom for test
-        std::unique_ptr<ChatroomCreationOptions> mChatOptions;
-
-#ifndef KARERE_DISABLE_WEBRTC
-        // vector of TestChatVideoListeners
-        std::map<unsigned int, TestChatVideoListener> mapLocalVideoListeners;
-#endif
-
-        // TestChatRoomListener shared by all accounts
-        std::shared_ptr<TestChatRoomListener>chatroomListener;
-        TestData() = default;
-        void init(const unsigned primIdx, const std::set<unsigned int>& accountIdxs, const bool loadHist
-                  , const bool hasCListeners, const bool hasVListeners, const ChatroomCreationOptions* opt
-                  , ::megachat::MegaChatHandle testChatid = ::megachat::MEGACHAT_INVALID_HANDLE)
-        {
-            chatid = testChatid;
-            primaryIdx = primIdx;
-            loadHistoryAtInit = loadHist;
-            hasVideoListeners = hasVListeners;
-            hasChatListeners = hasCListeners;
-            accountIndexes = accountIdxs;
-            sessions.resize(accountIndexes.size());
-            peers.reset(megachat::MegaChatPeerList::createInstance());
-            mChatOptions.reset(opt ? opt->copy() : nullptr);
-        }
-
-        bool isvalid()
-        {
-            return accountIndexes.size() >= 2 && sessions.size() == accountIndexes.size();
-        }
-    };
-
-    struct MrProper
-    {
-        MrProper(std::function<void(TestData* d)> f
-                 , TestData* tData) : mCleanup(f), d(tData){}
-
-        std::function<void(TestData*)> mCleanup;
-        TestData* d;
-        ~MrProper() { mCleanup(d); }
-    };
-
-    static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
-    {
-        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID callid";
     };
 
     static std::string getChatIdStrB64(const megachat::MegaChatHandle h)
@@ -370,14 +233,11 @@ protected:
      */
     megachat::MegaChatHandle getGroupChatRoom(const std::vector<unsigned int>& a,
                                               megachat::MegaChatPeerList* peers,
-                                              unsigned int primaryIdx = 0, // primary account index by default
-                                              const int primaryPriv = megachat::MegaChatPeerList::PRIV_MODERATOR,
+                                              const int a1Priv = megachat::MegaChatPeerList::PRIV_MODERATOR,
                                               const bool create = true,
                                               const bool publicChat = false,
                                               const bool meetingRoom = false,
                                               const bool waitingRoom = false,
-                                              const bool speakRequest = false,
-                                              const bool openInvite = false,
                                               SchedMeetingData* schedMeetingData = nullptr);
 
     void createChatroomAndSchedMeeting(megachat::MegaChatHandle& chatid, const unsigned int a1,
@@ -425,16 +285,6 @@ protected:
 
     void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                                std::shared_ptr<TestChatRoomListener>chatroomListener);
-
-    // cleanup common to all tests
-    void clearTestDataSet();
-
-    // initializations required before starting any test
-    void initTestDataSet();
-
-    void startChatCall(const megachat::MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
-    void answerChatCall(const megachat::MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
-    void endChatCall(const megachat::MegaChatHandle chatid, unsigned int performerIdx, std::set<unsigned int> participants);
 
 #ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
@@ -486,10 +336,6 @@ protected:
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
-    std::map <::megachat::MegaChatHandle, bool> mSessSpeakRequests[NUM_ACCOUNTS];
-    std::map <::megachat::MegaChatHandle, bool> mSessSpeakPerm[NUM_ACCOUNTS];
-
-    TestData d; // basic test data common to all tests
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallWithIdReceived[NUM_ACCOUNTS];
@@ -501,8 +347,6 @@ protected:
     bool mCallDestroyed[NUM_ACCOUNTS];
     bool mCallConnecting[NUM_ACCOUNTS];
     bool mCallWR[NUM_ACCOUNTS];
-    bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
-    unsigned mOwnSpeakStatus[NUM_ACCOUNTS];
     int mTerminationCode[NUM_ACCOUNTS];
     bool mCallWrChanged[NUM_ACCOUNTS];
     bool mCallWrAllow[NUM_ACCOUNTS];
@@ -524,11 +368,9 @@ protected:
     bool mChatCallAudioDisabled[NUM_ACCOUNTS];
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
-    bool mSessSpeakReqRecv[NUM_ACCOUNTS];
+    bool mChatCallSilenceReq[NUM_ACCOUNTS];
     bool mSchedMeetingUpdated[NUM_ACCOUNTS];
     bool mSchedOccurrUpdated[NUM_ACCOUNTS];
-    bool mSessSpeakPermChanged[NUM_ACCOUNTS];
-    bool mOwnFlagsChanged[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -670,8 +512,8 @@ protected:
     {
         assert(!resultReceived); // call this function only once!
         errorStr.swap(errStr);
-        promiseResult.set_value(errCode);
         resultReceived = true;
+        promiseResult.set_value(errCode);
     }
 
     bool finished() const { return resultReceived; }
@@ -818,7 +660,7 @@ public:
     bool processDeny(const std::string&, const std::string&) override;
     void logError(const char* error) override;
     bool handleHello(const Cid_t userid, const unsigned int nAudioTracks,
-                     const std::set<karere::Id>& mods, const bool wr, const bool speakRequest, const bool allowed,
+                     const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                      const std::map<karere::Id, bool>& wrUsers) override;
 
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;
