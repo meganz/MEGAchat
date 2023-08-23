@@ -195,6 +195,7 @@ public:
     virtual int getStatus() const override;
     virtual MegaChatHandle getPeerid() const override;
     virtual MegaChatHandle getClientid() const override;
+    bool isSpeakAllowed() const override;
     virtual bool hasAudio() const override;
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;

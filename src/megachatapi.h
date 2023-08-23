@@ -153,9 +153,21 @@ public:
     virtual MegaChatHandle getClientid() const;
 
     /**
+     * @brief Returns if peer associated to this session is allowed to speak in the call
+     *
+     * The hability to speak in a call depends on two factors:
+     *	1) Peer must have speak permission      (Check MegaChatSession::hasSpeakPermission for more information)
+     *  2) Peer must have audio av flag enabled (unmuted) (Check MegaChatSession::hasAudio for more information)
+     *
+     * @return True if peer associated to this session is allowed to speak in the call
+     */
+    virtual bool isSpeakAllowed() const;
+
+    /**
      * @brief Returns if audio flags are enabled for the session (peer is muted or not)
      *
-     * Check MegaChatSession::hasSpeakPermission() to know if peer has permission to speak
+     * A peer with audio flag enabled, is not necessarily allowed to speak, it also must have speak permission
+     * Check MegaChatSession::isSpeakAllowed() to know if peer is allowed to speak
      *
      * @return true if audio flags are enabled for the session (peer is muted or not)
      */
@@ -434,12 +446,11 @@ public:
      * @brief Returns if peer associated to the session, has speak permission
      *
      * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
-     * @note: if speak request is disabled, all peers are considered to have permission to speak.
      *
-     * @note The value returned by this method doesn't means that the peer is sending audio, but only that it has permission to speak.
-     * Check MegaChatSession::hasAudio() to know if peer is muted or not (audio flags enabled)
+     * A peer with speak permission, is not necessarily allowed to speak, it also must have audio flag enabled (unmuted)
+     * Check MegaChatSession::isSpeakAllowed() to know if peer has audio flag enabled
      *
-     * @return True if peer associated to the session, has permission to speak (just valid if speakRequest option is enabled for chat)
+     * @return True if peer associated to the session, has permission to speak
      */
     virtual bool hasSpeakPermission() const;
 
@@ -633,7 +644,8 @@ public:
     /**
      * @brief Return if local audio flags are enabled (own peer is muted or not)
      *
-     * Check MegaChatCall::hasPermissionToSpeak to know if own peer has permission to speak.
+     * An user with local audio flags enabled, is not necessarily allowed to speak, it also must have speak permission
+     * Check MegaChatCall::isSpeakAllowed to know if own peer is allowed to speak.
      *
      * @return true if local audio flags are enabled (own peer is muted or not)
      */
@@ -810,12 +822,11 @@ public:
      * @brief Returns if our own peer, has speak permission
      *
      * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
-     * @note: if speak request is disabled, all peers are considered to have permission to speak.
      *
-     * @note The value returned by this method doesn't means that the peer is sending audio, but only that it has permission to speak.
-     * Check MegaChatCall::hasLocalAudio() to know if peer is muted or not (audio flags enabled)
+     * An user with speak permission, is not necessarily allowed to speak, it also must have audio av flag enabled (unmuted).
+     * Check MegaChatCall::isSpeakAllowed
      *
-     * @return True if peer associated to the session, has permission to speak (just valid if speakRequest option is enabled for chat)
+     * @return True if our own peer, has speak permission
      */
     virtual bool hasPermissionToSpeak() const;
 
@@ -914,8 +925,11 @@ public:
     /**
      * @brief Returns if speak request option is enabled for this call
      *
-     * If speak request option is enabled, non moderator users must request permission to speak.
+     * If speak request option is enabled, users with non-host role, must request permission to speak.
      * Check MegaChatApi::requestSpeak documentation.
+     *
+     * An user with speak permission, is not necessarily allowed to speak, it also must have audio av flag enabled.
+     * Check MegaChatCall::isSpeakAllowed
      *
      * @return if speak request option is enabled for this call
      */
@@ -1090,12 +1104,13 @@ public:
     /**
      * @brief Returns the current speak status for our own client
      *
-     * The value returned by this method is valid just if MegaChatCall::isSpeakRequestEnabled() returns true.
+     * The value returned by this method is valid just if MegaChatCall::isSpeakRequestEnabled()
+     * returns true.
      *
      * This method can return the following values:
-     * - MegaChatCall::SPEAKER_STATUS_DISABLED = 0,
-     * - MegaChatCall::SPEAKER_STATUS_PENDING  = 1,
-     * - MegaChatCall::SPEAKER_STATUS_ACTIVE   = 2,
+     * - MegaChatCall::SPEAKER_STATUS_DISABLED = 0 => we don't have speak permission
+     * - MegaChatCall::SPEAKER_STATUS_PENDING  = 1 => we are pending to be granted to speak
+     * - MegaChatCall::SPEAKER_STATUS_ACTIVE   = 2 => we have speak permission
      *
      * @return the current speak status for our own client
      */
@@ -1131,15 +1146,15 @@ public:
     virtual const char* getGenericMessage() const;
 
     /**
-     * @brief Returns if user is allowed to speak in the call
+     * @brief Returns if our own user is allowed to speak in the call
      *
-     * This method returns true if own user have permission to speak and also is unmuted (audio flag enabled)
-     * - Check MegaChatCall::hasPermissionToSpeak to know if own peer has permission to speak
-     * - Check MegaChatCall::hasLocalAudio to know if audio flag is enabled or not (own peer muted or not)
+     * The hability to speak in a call depends on two factors:
+     *	1) User must have speak permission      (Check MegaChatCall::hasPermissionToSpeak for more information)
+     *  2) User must have audio av flag enabled (unmuted) (Check MegaChatCall::hasLocalAudio for more information)
      *
      * @note If there isn't a call in that chatroom, this method returns false
      *
-     * @return True if user is allowed to speak in the call
+     * @return True if our own user is allowed to speak in the call
      */
     virtual bool isSpeakAllowed() const;
 

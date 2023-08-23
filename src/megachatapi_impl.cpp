@@ -7671,6 +7671,11 @@ MegaChatHandle MegaChatSessionPrivate::getClientid() const
     return mClientId;
 }
 
+bool MegaChatSessionPrivate::isSpeakAllowed() const
+{
+    return hasAudio() && hasSpeakPermission();
+}
+
 bool MegaChatSessionPrivate::hasAudio() const
 {
     return mAvFlags.audio();
@@ -8147,7 +8152,7 @@ bool MegaChatCallPrivate::isOnHold() const
 
 bool MegaChatCallPrivate::isSpeakAllowed() const
 {
-    return mSpeakerState == SPEAKER_STATUS_ACTIVE && hasLocalAudio();
+    return hasPermissionToSpeak() && hasLocalAudio();
 }
 
 int MegaChatCallPrivate::getNetworkQuality() const

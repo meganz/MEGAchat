@@ -69,6 +69,11 @@ MegaChatHandle MegaChatSession::getClientid() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
+bool MegaChatSession::isSpeakAllowed() const
+{
+    return false;
+}
+
 bool MegaChatSession::hasAudio() const
 {
     return false;
