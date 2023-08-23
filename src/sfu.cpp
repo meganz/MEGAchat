@@ -1738,8 +1738,9 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
     return true;
 }
 
-bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, const bool speaker, int vthumbs)
+bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int vthumbs)
 {
+    assert(!karere::AvFlags(static_cast<uint8_t>(avFlags)).audio());
     rapidjson::Document json(rapidjson::kObjectType);
 
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -1828,13 +1829,6 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
     {
         // when reconnecting, send the SFU the CID of the previous connection, so it can kill it instantly
         json.AddMember("cid", prevCid, json.GetAllocator());
-    }
-
-    if (speaker)
-    {
-        rapidjson::Value speakerValue(rapidjson::kNumberType);
-        speakerValue.SetInt(speaker);
-        json.AddMember("spk", speakerValue, json.GetAllocator());
     }
 
     if (vthumbs > 0)

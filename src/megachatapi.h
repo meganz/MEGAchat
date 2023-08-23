@@ -5983,8 +5983,7 @@ public:
      * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If MegaChatRoom::isSpeakRequest() returns true and enableAudio param is also true.
-     *   You can't start a call with audio enabled if speak request option is also enabled.
+     * - If MegaChatRoom::isSpeakRequest() returns true, enableAudio param is also true, and we don't have moderator role in the call.
      *
      * The request will fail with MegaChatError::ERROR_ACCESS
      *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
@@ -6019,7 +6018,7 @@ public:
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void startChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = false, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Start a call in a chatroom without ringing the participants (just for scheduled meeting context)
@@ -6070,8 +6069,7 @@ public:
      * - if chatroom has waiting room option enabled
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If MegaChatRoom::isSpeakRequest() returns true and enableAudio param is also true.
-     *   You can't start a call with audio enabled if speak request option is also enabled.
+     * - If MegaChatRoom::isSpeakRequest() returns true, enableAudio param is also true, and we don't have moderator role in the call.
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
@@ -6084,7 +6082,7 @@ public:
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo = true, bool enableAudio = false, MegaChatRequestListener* listener = NULL);
+    void startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo, bool enableAudio, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Ring a user in chatroom with an ongoing call that they didn't pick up
@@ -6134,8 +6132,7 @@ public:
      * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If MegaChatRoom::isSpeakRequest() returns true and enableAudio param is also true.
-     *   You can't answer a call with audio enabled if speak request option is also enabled.
+     * - If MegaChatRoom::isSpeakRequest() returns true, enableAudio param is also true, and we don't have moderator role in the call.
      *
      * The request will fail with MegaChatError::ERROR_ACCESS when this function is
      * called without being already connected to chatd.
@@ -6159,7 +6156,7 @@ public:
      * @param enableAudio True for answering a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void answerChatCall(MegaChatHandle chatid, bool enableVideo = true, bool enableAudio = false, MegaChatRequestListener *listener = NULL);
+    void answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Starts a call in a chatroom with waiting room option enabled
@@ -6211,8 +6208,7 @@ public:
      * - if chatroom has waiting room option disabled
      *
      * The request will fail with MegaChatError::ERROR_ARGS
-     * - If MegaChatRoom::isSpeakRequest() returns true and enableAudio param is also true.
-     *   You can't start a call with audio enabled if speak request option is also enabled.
+     * - If MegaChatRoom::isSpeakRequest() returns true, enableAudio param is also true, and we don't have moderator role in the call.
      *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxVideoCallParticipants
@@ -6228,7 +6224,7 @@ public:
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio = false, MegaChatRequestListener* listener = NULL);
+    void startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Hang up a call

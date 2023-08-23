@@ -3681,7 +3681,7 @@ TEST_F(MegaChatApiTest, DISABLED_ManualCalls)
     mChatIdRingInCall[a1] = MEGACHAT_INVALID_HANDLE;
     ASSERT_TRUE(waitForResponse(callReceivedRinging)) << "Timeout expired for receiving a call";
     ASSERT_NE(mChatIdRingInCall[a1], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid from call emisor";
-    megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
+    megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true, false);
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
 
     sleep(5);
@@ -3809,7 +3809,7 @@ TEST_F(MegaChatApiTest, DISABLED_ManualGroupCalls)
     mChatIdRingInCall[a1] = MEGACHAT_INVALID_HANDLE;
     ASSERT_TRUE(waitForResponse(callReceived)) << "Timeout expired for receiving a call";
     ASSERT_NE(mChatIdRingInCall[a1], MEGACHAT_INVALID_HANDLE) << "Invalid Chatid from call emisor";
-    megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true);
+    megaChatApi[a1]->answerChatCall(mChatIdRingInCall[a1], true, false);
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListener);
 
     sleep(40);  // wait to receive some traffic

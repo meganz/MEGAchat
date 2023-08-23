@@ -625,7 +625,7 @@ bool Call::isOwnUserAllowSpeak() const
 void Call::requestSpeak(bool add)
 {
     assert((mSpeakerState == SpeakerState::kNoSpeaker && add)
-           || mSpeakerState == SpeakerState::kPending && !add);
+           ||(mSpeakerState == SpeakerState::kPending && !add));
 
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
     {
@@ -948,24 +948,11 @@ void Call::joinSfu()
     options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     auto wptr = weakHandle();
-    bool rejoin = getPrevCid() != K_INVALID_CID;
     mRtcConn.createOffer(options)
-    .then([wptr, this, hiresTrackIndex, &rejoin](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
+    .then([wptr, this, hiresTrackIndex](webrtc::SessionDescriptionInterface* sdp) -> promise::Promise<void>
     {
         if (wptr.deleted())
         {
-            return ::promise::_Void();
-        }
-
-
-        if (isSpeakRequestEnabled() && !rejoin && getLocalAvFlags().audio())
-        {
-            // we can't send audio flag enabled at JOIN command, if speak request is enabled, you first need to be approved as
-            // speaker (by SFU if you are moderator or by another moderator if not) and then you can send an AV command
-            // with audio enabled to enable audio flag
-            orderedCallDisconnect(TermCode::kErrClientGeneral
-                                  , std::string("audio flags cannot be enabled if speak request is also enabled for call"));
-            assert(false);
             return ::promise::_Void();
         }
 
@@ -998,7 +985,7 @@ void Call::joinSfu()
         KR_THROW_IF_FALSE(sdpInterface->ToString(&mSdpStr));
         return mRtcConn.setLocalDescription(std::move(sdpInterface));   // takes onwership of sdp
     })
-    .then([wptr, this, &rejoin]()
+    .then([wptr, this]()
     {
         if (wptr.deleted())
         {
@@ -1032,24 +1019,34 @@ void Call::joinSfu()
             return;
         }
 
-        /* if speak request is disabled, but user wants to start call with audio enabled,
-         * we need to need to send JOIN command with audio flag disabled, just followed by AV command with audio enabled
-         * (no need to wait for answer command so we can send just after send JOIN).
-         * this workaround is required by SFU, as with protocol V2 or greater, it doesn't expect audio flag enabled at any case at JOIN command.
-         */
-        bool sendAv = false;
-        karere::AvFlags joinFlags = getLocalAvFlags();
-        if (!rejoin
-            && !isSpeakRequestEnabled()
-            && getLocalAvFlags().audio())
+        if (getLocalAvFlags().audio()
+            && isSpeakRequestEnabled() && !isOwnPrivModerator())
         {
-            sendAv = true;
-            joinFlags.remove(karere::AvFlags::kAudio);
+            // If speak request is enabled and we want to start call with audio enabled, we must be a moderator,
+            // otherwise we need to manually send SPEAK_RQ and receive SPEAK_ON (when we are approved by a moderator)
+            // before sending AV command to enable audio
+            orderedCallDisconnect(TermCode::kErrClientGeneral
+                                  , std::string("audio flags cannot be enabled"
+                                              " if speak request is also enabled for call"
+                                              " and we are non-host"));
+            assert(false);
+            return;
         }
 
-        bool speakImmediately = isSpeakRequestEnabled() ? isOwnPrivModerator() : true;
-        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, joinFlags.value(), getPrevCid(), speakImmediately, kInitialvthumbCount);
-        if (sendAv) // if speak request is disabled but audio flag was enabled by user, then send AV command to enable
+        bool sendAv = false;
+        karere::AvFlags joinFlags = getLocalAvFlags();
+        if (joinFlags.audio())
+        {
+            /* SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
+             *  - 1) send JOIN command with audio flag disabled
+             *  - 2) send an AV command enabling audio flag (immediately after send JOIN)
+             */
+            joinFlags.remove(karere::AvFlags::kAudio);
+            sendAv = true;
+        }
+
+        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, joinFlags.value(), getPrevCid(), kInitialvthumbCount);
+        if (sendAv)
         {
             mSfuConnection->sendAv(getLocalAvFlags().value());
         }
