@@ -624,9 +624,6 @@ bool Call::isOwnUserAllowSpeak() const
 
 void Call::requestSpeak(bool add)
 {
-    assert((mSpeakerState == SpeakerState::kNoSpeaker && add)
-           ||(mSpeakerState == SpeakerState::kPending && !add));
-
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
     {
         mSfuConnection->sendSpeakReq();
@@ -640,6 +637,7 @@ void Call::requestSpeak(bool add)
         mCallHandler.onSpeakStatusUpdate(*this);
         return;
     }
+    assert(false); // unexpected speaker state
 }
 
 bool Call::isSpeakAllow() const
