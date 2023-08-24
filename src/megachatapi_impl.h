@@ -260,7 +260,7 @@ public:
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
-    bool hasPermissionToSpeak() const override;
+    bool hasSpeakPermission() const override;
 
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
@@ -334,7 +334,7 @@ protected:
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
     int mNotificationType = MegaChatCall::NOTIFICATION_TYPE_INVALID;
-    unsigned int mSpeakerState = 0; //create enum at MegaChatCall class => kNoSpeaker = 0, kPending = 1, kActive = 2,
+    unsigned int mSpeakerState = 0;
     bool mIgnored = false;
     bool mRinging = false;
     bool mIsCaller = false;

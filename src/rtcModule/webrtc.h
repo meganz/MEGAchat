@@ -213,15 +213,15 @@ public:
     virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
-    virtual bool hasRequestSpeak() const = 0;
-    virtual unsigned int getSpeakerState() const = 0;
+    virtual bool hasPendingSpeakRequest() const = 0;
+    virtual unsigned int getOwnSpeakerState() const = 0;
     virtual int getWrJoiningState() const = 0;
     virtual TermCode getTermCode() const = 0;
     virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(const karere::Id &callerid) = 0;
     virtual bool alreadyParticipating() = 0;
-    virtual void requestSpeak(bool add = true) = 0;
+    virtual void requestSpeak(const bool add = true) = 0;
     virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
     virtual void stopSpeak(Cid_t cid = 0) = 0;
@@ -245,7 +245,7 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
-    virtual bool isOwnUserAllowSpeak() const = 0;
+    virtual bool hasOwnUserSpeakPermission() const = 0;
 };
 
 class RtcModule

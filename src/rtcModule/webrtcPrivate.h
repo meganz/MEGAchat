@@ -326,10 +326,10 @@ public:
     bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
 
     // request to speak, or cancels a previous request (add = false)
-    void requestSpeak(bool add = true) override;
-    bool hasRequestSpeak() const override;
+    void requestSpeak(const bool add = true) override;
+    bool hasPendingSpeakRequest() const override;
     int getWrJoiningState() const override;
-    unsigned int getSpeakerState() const override;
+    unsigned int getOwnSpeakerState() const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
@@ -364,7 +364,7 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     const KarereWaitingRoom* getWaitingRoom() const override;
-    bool isOwnUserAllowSpeak() const override;
+    bool hasOwnUserSpeakPermission() const override;
 
     //
     // ------ end ICall methods -----
@@ -403,7 +403,7 @@ public:
     // set temporal endCallReason (when call is not destroyed immediately)
     void setTempEndCallReason(uint8_t reason);
 
-    // set/get speakRequest flag
+    // set speakRequest flag
     void setSpeakRequest(const bool enabled)    { mSpeakRequest = enabled; }
 
     // set definitive endCallReason

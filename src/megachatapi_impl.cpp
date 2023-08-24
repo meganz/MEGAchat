@@ -2005,7 +2005,7 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
             {
                 if (enable)
                 {
-                    if (!call->isSpeakRequestEnabled() || call->isOwnUserAllowSpeak())
+                    if (!call->isSpeakRequestEnabled() || call->hasOwnUserSpeakPermission())
                     {
                         // just try to unmute if we have speak permission or speak request is disabled
                         requestedFlags.add(karere::AvFlags::kAudio);
@@ -7873,7 +7873,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mCallerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
     mIsOwnClientCaller = call.isOwnClientCaller();
-    mSpeakerState = call.getSpeakerState(); // speaker state
+    mSpeakerState = call.getOwnSpeakerState(); // speaker state
     mIgnored = call.isIgnored();
     mLocalAVFlags = call.getLocalAvFlags();
     mFinalTs = call.getFinalTimeStamp();
@@ -7991,7 +7991,7 @@ bool MegaChatCallPrivate::hasChanged(int changeType) const
     return (mChanged & changeType);
 }
 
-bool MegaChatCallPrivate::hasPermissionToSpeak() const
+bool MegaChatCallPrivate::hasSpeakPermission() const
 {
     return mSpeakerState == SPEAKER_STATUS_ACTIVE;
 }
@@ -8152,7 +8152,7 @@ bool MegaChatCallPrivate::isOnHold() const
 
 bool MegaChatCallPrivate::isSpeakAllowed() const
 {
-    return hasPermissionToSpeak() && hasLocalAudio();
+    return hasSpeakPermission() && hasLocalAudio();
 }
 
 int MegaChatCallPrivate::getNetworkQuality() const

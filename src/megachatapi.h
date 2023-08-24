@@ -828,7 +828,7 @@ public:
      *
      * @return True if our own peer, has speak permission
      */
-    virtual bool hasPermissionToSpeak() const;
+    virtual bool hasSpeakPermission() const;
 
     /**
      * @brief Returns if local audio is detected

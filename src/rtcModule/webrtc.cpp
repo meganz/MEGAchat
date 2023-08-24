@@ -463,12 +463,12 @@ int Call::getNetworkQuality() const
     return mNetworkQuality;
 }
 
-bool Call::hasRequestSpeak() const
+bool Call::hasPendingSpeakRequest() const
 {
     return mSpeakerState == SpeakerState::kPending;
 }
 
-unsigned int Call::getSpeakerState() const
+unsigned int Call::getOwnSpeakerState() const
 {
     return mSpeakerState;
 }
@@ -617,19 +617,19 @@ const KarereWaitingRoom* Call::getWaitingRoom() const
     return mWaitingRoom.get();
 }
 
-bool Call::isOwnUserAllowSpeak() const
+bool Call::hasOwnUserSpeakPermission() const
 {
     return mSpeakerState == SpeakerState::kActive;
 }
 
-void Call::requestSpeak(bool add)
+void Call::requestSpeak(const bool add)
 {
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
     {
         mSfuConnection->sendSpeakReq();
         return;
     }
-    else if (mSpeakerState == SpeakerState::kPending && !add)
+    else if (hasPendingSpeakRequest() && !add)
     {
         mSfuConnection->sendSpeakReqDel(); // cancel a request in-flight
         return;
@@ -639,7 +639,7 @@ void Call::requestSpeak(bool add)
 
 bool Call::isSpeakAllow() const
 {
-    return mSpeakerState == SpeakerState::kActive && getLocalAvFlags().audio();
+    return hasOwnUserSpeakPermission() && getLocalAvFlags().audio();
 }
 
 void Call::approveSpeakRequest(Cid_t cid, bool allow)
@@ -935,7 +935,6 @@ void Call::joinSfu()
     createTransceivers(hiresTrackIndex);
     getLocalStreams();
     setState(CallState::kStateJoining);
-    mCallHandler.onSpeakStatusUpdate(*this);
     webrtc::PeerConnectionInterface::RTCOfferAnswerOptions options;
     options.offer_to_receive_audio = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
     options.offer_to_receive_video = webrtc::PeerConnectionInterface::RTCOfferAnswerOptions::kMaxOfferToReceiveMedia;
@@ -1020,7 +1019,7 @@ void Call::joinSfu()
             orderedCallDisconnect(TermCode::kErrClientGeneral
                                   , std::string("audio flags cannot be enabled"
                                               " if speak request is also enabled for call"
-                                              " and we are non-host"));
+                                              " and we are non moderator"));
             assert(false);
             return;
         }
@@ -1914,12 +1913,6 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
         }
         else // own cid
         {
-            if (mState == kStateJoining)
-            {
-                RTCM_LOG_WARNING("handleSpeakReqsCommand: we are already in kStateJoining state");
-                assert(false); // theoretically, it should not happen. If so, it may worth to investigate
-                return false;
-            }
             mSpeakerState = SpeakerState::kPending;
             mCallHandler.onSpeakStatusUpdate(*this);
         }
@@ -1957,7 +1950,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 
 bool Call::handleSpeakOnCommand(Cid_t cid)
 {
-    if (cid) // SPEAK_ON received for another peer
+    if (cid)
     {
         Session* session = getSession(cid);
         if (!session)
@@ -1968,7 +1961,7 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
         }
         session->setSpeakPermission(true);
     }
-    else
+    else // SPEAK_ON received for own peer
     {
         if (mSpeakerState == SpeakerState::kActive)
         {
@@ -1996,7 +1989,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         }
         session->setSpeakPermission(false);
     }
-    else
+    else // SPEAK_OFF received for own peer
     {
         if (mSpeakerState == SpeakerState::kNoSpeaker)
         {

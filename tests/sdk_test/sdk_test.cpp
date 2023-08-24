@@ -4304,7 +4304,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 
         // check own speak permissions
         ASSERT_TRUE(call->isOwnModerator() || !isMod) << "Unexpected call permission for account: " << performerIdx;
-        ASSERT_TRUE(call->hasPermissionToSpeak() || !isMod) << "Unexpected speak permission for account: " << performerIdx;
+        ASSERT_TRUE(call->hasSpeakPermission() || !isMod) << "Unexpected speak permission for account: " << performerIdx;
         ASSERT_TRUE(!call->hasLocalAudio()) << "Audio is flag is enabled for account: " << performerIdx;
 
         // check speak permissions for the rest of participants

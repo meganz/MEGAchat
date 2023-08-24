@@ -165,7 +165,7 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append("<br /> Video flag: ")
             .append(call->hasLocalAudio() ? on : off)
             .append("<br /> Has speak permission: ")
-            .append(call->hasPermissionToSpeak() ? on : off)
+            .append(call->hasSpeakPermission() ? on : off)
             .append("<br /> Has pending speak request: ")
             .append(call->hasPendingSpeakRequest() ? on : off)
             .append("<br /> Moderator: ")
@@ -334,7 +334,7 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
         int ringingWindowOption = mRingingWindow->exec();
         if (ringingWindowOption == QMessageBox::Yes)
         {
-            QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio? (just allowed if speak request is disabled)"));
+            QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
             if (audiostr != "0" && audiostr != "1") { return; }
             int audio = atoi(audiostr.toStdString().c_str());
             mMegaChatApi.answerChatCall(mChatid, true, audio);
@@ -746,7 +746,7 @@ void MeetingView::onEnableVideo()
     }
 }
 
-void MeetingView::onRemoveSpeaker(megachat::MegaChatHandle cid)
+void MeetingView::onRemoveSpeaker(const megachat::MegaChatHandle cid)
 {
     mMegaChatApi.removeSpeaker(mChatid, cid);
 }
@@ -765,7 +765,7 @@ void MeetingView::onEnableAudioMonitor(bool)
 
 void MeetingView::onJoinCallWithVideo()
 {
-    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio? (just allowed if speak request is disabled)"));
+    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
     if (audiostr != "0" && audiostr != "1") { return; }
     int audio = atoi(audiostr.toStdString().c_str());
     mMegaChatApi.startChatCall(mChatid, true /*video*/, audio);
@@ -830,7 +830,7 @@ void MeetingView::onKickWr()
 
 void MeetingView::onJoinCallWithoutVideo()
 {
-    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio? (just allowed if speak request is disabled)"));
+    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
     if (audiostr != "0" && audiostr != "1") { return; }
     int audio = atoi(audiostr.toStdString().c_str());
     mMegaChatApi.startChatCall(mChatid, false /*video*/, audio);

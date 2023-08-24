@@ -246,7 +246,7 @@ bool MegaChatCall::hasChanged(int ) const
     return false;
 }
 
-bool MegaChatCall::hasPermissionToSpeak() const
+bool MegaChatCall::hasSpeakPermission() const
 {
     return false;
 }
