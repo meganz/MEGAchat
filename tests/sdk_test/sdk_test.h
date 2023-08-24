@@ -161,6 +161,12 @@ public:
         std::shared_ptr<megachat::MegaChatPeerList> peerList;
     };
 
+    static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
+    {
+        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
+        return idB64 ? idB64.get() : "INVALID callid";
+    };
+
     static std::string getChatIdStrB64(const megachat::MegaChatHandle h)
     {
         const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
@@ -238,6 +244,7 @@ protected:
                                               const bool publicChat = false,
                                               const bool meetingRoom = false,
                                               const bool waitingRoom = false,
+                                              const bool speakRequest = false,
                                               SchedMeetingData* schedMeetingData = nullptr);
 
     void createChatroomAndSchedMeeting(megachat::MegaChatHandle& chatid, const unsigned int a1,
@@ -289,6 +296,9 @@ protected:
 #ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
+
+    void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
+    void answerChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
 
     // gets a pointer to the local flag that indicates if we have reached an specific callstate
     bool* getChatCallStateFlag (unsigned int index, int state);
@@ -371,6 +381,13 @@ protected:
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
     bool mSchedMeetingUpdated[NUM_ACCOUNTS];
     bool mSchedOccurrUpdated[NUM_ACCOUNTS];
+    bool mSessSpeakPermChanged[NUM_ACCOUNTS];
+    bool mOwnFlagsChanged[NUM_ACCOUNTS];
+    bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
+    bool mSessSpeakReqRecv[NUM_ACCOUNTS];
+    unsigned mOwnSpeakStatus[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mSessSpeakPerm[NUM_ACCOUNTS];
+    std::map <::megachat::MegaChatHandle, bool> mSessSpeakRequests[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -660,7 +677,7 @@ public:
     bool processDeny(const std::string&, const std::string&) override;
     void logError(const char* error) override;
     bool handleHello(const Cid_t userid, const unsigned int nAudioTracks,
-                     const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                     const std::set<karere::Id>& mods, const bool wr, const bool speakRequest, const bool allowed,
                      const std::map<karere::Id, bool>& wrUsers) override;
 
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;
