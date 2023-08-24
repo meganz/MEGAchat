@@ -537,7 +537,8 @@ public:
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
         TERM_CODE_TOO_MANY_CLIENTS          = 5,    // Too many clients of same user connected
         TERM_CODE_PROTOCOL_VERSION          = 6,    // SFU protocol version error
-        TERM_CODE_KICKED                    = 7     // User has been kicked from call
+        TERM_CODE_KICKED                    = 7,    // User has been kicked from call
+        TERM_CODE_WR_TIMEOUT                = 8,    // Timed out waiting to be allowed from waiting room into call
     };
 
     enum
@@ -853,6 +854,7 @@ public:
      *      - TERM_CODE_REJECT
      *      - TERM_CODE_NO_PARTICIPATE
      *      - TERM_CODE_KICKED
+     *      - TERM_CODE_WR_TIMEOUT
      *
      * @return error or warning code for this call
      */
@@ -2181,6 +2183,78 @@ public:
      * for scheduled meetings params changed
      */
     virtual const mega::MegaStringList* getStringList() const;
+
+    /**
+     * @brief Returns a MegaStringListMap list relative to the action
+     *
+     * The MegaChatMessage retains the ownership of the MegaStringListMap.
+     *
+     * This funcion returns a valid value for:
+     * - MegaChatMessage::TYPE_SCHED_MEETING. check MegaChatMessage::getScheduledMeetingChange to
+     *   know which scheduled meeting fields have changed
+     *
+     * @return a MegaStringListMap list relative to the action for scheduled meetings params changed or nullptr
+     * in case no scheduled meeting param has changed (i.e new scheduled meeting created)
+     *
+     */
+    virtual const mega::MegaStringListMap* getStringListMap() const;
+
+    /**
+     * @brief Returns a MegaStringList with the old and new value for a scheduled meeting specific field.
+     *
+     * @important: This method only returns old and new values for a scheduled meeting field, so it cannot be used
+     *             to check if one scheduled meeting field has changed, use MegaChatMessage::hasSchedMeetingChanged instead.
+     *             Some fields could have changed but for size reasons old and new valuees are not available.
+     *
+     * @note: - If field has not changed, or it's values are not available due to size reasons (i.e description), this method returns nullptr
+     *        - If field has not changed, but just old value for that field is available (for rendering purposes), this method returns
+     *          a MegaStringList with one element
+     *        - If field has changed, this method returns a MegaStringList with two elements, the first one corresponds to old value,
+     *          and the second one to the new one.
+     *
+     * For some fields values stored at MegaStringList you need to consider:
+     *  - MegaChatScheduledMeeting::SC_PARENT    [1]  - C string (null terminated) that represents a handle encoded in Base64
+     *  - MegaChatScheduledMeeting::SC_TZONE     [2]  - C string (null terminated) that represents timezone encoded in Base64
+     *  - MegaChatScheduledMeeting::SC_START     [3]  - C string (null terminated) that represents a unix timestamp UTC
+     *  - MegaChatScheduledMeeting::SC_END       [4]  - C string (null terminated) that represents a unix timestamp UTC
+     *  - MegaChatScheduledMeeting::SC_TITLE     [5]  - C string (null terminated) that represents scheduled meeting title encoded in Base64
+     *  - MegaChatScheduledMeeting::SC_CANC      [8]  - C string (null terminated) ("0" | "1)
+     *
+     * The MegaChatMessage retains the ownership of the MegaStringList.
+     *
+     * This funcion returns a valid value for:
+     * - MegaChatMessage::TYPE_SCHED_MEETING
+     *
+     * @param changeType The type of change to check. It can be one of the following values:
+     * - MegaChatScheduledMeeting::SC_PARENT    [1]  - Parent scheduled meeting id
+     * - MegaChatScheduledMeeting::SC_TZONE     [2]  - Timezone
+     * - MegaChatScheduledMeeting::SC_START     [3]  - Start date time
+     * - MegaChatScheduledMeeting::SC_END       [4]  - End date time
+     * - MegaChatScheduledMeeting::SC_TITLE     [5]  - Title
+     * - MegaChatScheduledMeeting::SC_DESC      [6]  - Description
+     * - MegaChatScheduledMeeting::SC_ATTR      [7]  - Attributes
+     * - MegaChatScheduledMeeting::SC_CANC      [8]  - Cancelled flag has changed
+     * - MegaChatScheduledMeeting::SC_FLAGS     [9]  - Scheduled meetings flags have changed
+     *
+     * In case you want to check current value for recurring rules, you need to call
+     * MegaChatMessage::getScheduledMeetingRules()
+     *
+     * @return a MegaStringList list with the old [and new value] for a scheduled meeting specific field, or nullptr
+     * in case that field has not changed or values are not available due to size reasons.
+     */
+    virtual const mega::MegaStringList* getScheduledMeetingChange(const unsigned int changeType) const;
+
+    /**
+     * @brief Return MegaChatScheduledRules
+     *
+     * The MegaChatMessage retains the ownership of the MegaStringList.
+     *
+     * This funcion returns a valid value for:
+     * - MegaChatMessage::TYPE_SCHED_MEETING
+     *
+     * @return MegaChatScheduledRules if has changed or nullptr
+     */
+    virtual const MegaChatScheduledRules* getScheduledMeetingRules() const;
 
      /** @brief Return the id for messages in manual sending status / queue
      *
@@ -4954,6 +5028,9 @@ public:
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
      * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
+     * - MegaChatRequest::getPrivilege - Returns 1 if chatRoom has waiting room option enabled, otherwise returns 0
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance
+     * (with a list of scheduled meetings associated to the chatroom) or nullptr if none.
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat

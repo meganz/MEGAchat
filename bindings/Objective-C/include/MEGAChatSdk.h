@@ -450,6 +450,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since delegate:(id<MEGAChatRequestDelegate>)delegate;
 
+- (void)setWaitingRoom:(BOOL)enabled chatId:(uint64_t)chatId;
+
+- (void)setWaitingRoom:(BOOL)enabled chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC

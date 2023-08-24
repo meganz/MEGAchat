@@ -1058,6 +1058,7 @@ void MegaChatApiImpl::sendPendingRequests()
                    request->setChatHandle(chatId);
                    request->setNumber(numPeers);
                    request->setText(decryptedTitle.c_str());
+                   request->setPrivilege(result->getParamType()); // waiting room flag
                    if (result->getMegaHandleList())
                    {
                        request->setMegaHandleList(result->getMegaHandleList());
@@ -1067,6 +1068,24 @@ void MegaChatApiImpl::sendPendingRequests()
                    if (meeting)
                    {
                        request->setParamType(1);
+                   }
+
+                   if (result->getMegaScheduledMeetingList() && result->getMegaScheduledMeetingList()->size())
+                   {
+                       std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
+                       const MegaScheduledMeetingList* smList = result->getMegaScheduledMeetingList();
+                       for (unsigned long i = 0; i < smList->size(); ++i)
+                       {
+                           if (smList->at(i) == nullptr)
+                           {
+                               API_LOG_ERROR("Null scheduled meeting at MegaScheduledMeetingList received upon mcphurl");
+                               assert(false);
+                               continue;
+                           }
+
+                           l->insert(new MegaChatScheduledMeetingPrivate(new MegaChatScheduledMeetingPrivate(*smList->at(i))));
+                       }
+                       request->setMegaChatScheduledMeetingList(l.get());
                    }
 
                    //Check chat link
@@ -7798,6 +7817,7 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrClientGeneral:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kUnKnownTermCode:
+        case rtcModule::TermCode::kWaitingRoomAllowTimeout:
             return SESS_TERM_CODE_NON_RECOVERABLE;
 
         case rtcModule::TermCode::kRtcDisconn:
@@ -7826,7 +7846,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
-    mInitialTs = call.getInitialTimeStamp();
+    mInitialTs = call.getCallInitialTimeStamp();
     mFinalTs = call.getFinalTimeStamp();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
@@ -8241,6 +8261,9 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
 
         case rtcModule::TermCode::kKickedFromWaitingRoom:
             return TERM_CODE_KICKED;
+
+        case rtcModule::TermCode::kWaitingRoomAllowTimeout:
+            return TERM_CODE_WR_TIMEOUT;
 
         // Added here to avoid warning, as an user that is pushed into a wr, is still in the call
         // but waiting to be granted to access, unlike the other termcodes that means that user
@@ -9281,7 +9304,7 @@ MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatH
 {}
 
 MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const MegaChatScheduledMeetingPrivate* mcsmp)
-    : mKScheduledMeeting(mcsmp->mKScheduledMeeting->copy())
+    : mKScheduledMeeting(mcsmp->mKScheduledMeeting->copy()), mChanged(mcsmp->getChanges())
 {}
 
 MegaChatScheduledMeetingPrivate::MegaChatScheduledMeetingPrivate(const karere::KarereScheduledMeeting* ksm)
@@ -10537,6 +10560,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     megaNodeList = msg->getMegaNodeList() ? msg->getMegaNodeList()->copy() : NULL;
     megaHandleList = msg->getMegaHandleList() ? msg->getMegaHandleList()->copy() : NULL;
     mStringList = msg->getStringList() ? unique_ptr<MegaStringList>(msg->getStringList()->copy()) : nullptr;
+    mStringListMap = msg->getStringListMap() ? unique_ptr<MegaStringListMap>(msg->getStringListMap()->copy()) : nullptr;
+    mScheduledRules = msg->getScheduledMeetingRules() ? unique_ptr<MegaChatScheduledRules>(msg->getScheduledMeetingRules()->copy()) : nullptr;
 
     if (msg->getUsersCount() != 0)
     {
@@ -10644,22 +10669,57 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
                 hAction = schedInfo->mSchedId; // reuse hAction to store schedId
                 priv = static_cast<int>(schedInfo->mSchedChanged);
 
+                if (schedInfo->mScheduledRules)
+                {
+                    ::mega::MegaScheduledRules* rules = schedInfo->mScheduledRules.get();
+                    mScheduledRules.reset(new MegaChatScheduledRulesPrivate(rules->freq(), rules->interval(),
+                                                                            rules->until(), rules->byWeekDay(),
+                                                                            rules->byMonthDay(), rules->byMonthWeekDay()));
+                }
+
                 if (schedInfo->mSchedInfo && !schedInfo->mSchedInfo->empty())
                 {
+                    mStringListMap.reset(::mega::MegaStringListMap::createInstance());
                     mStringList.reset(::mega::MegaStringList::createInstance());
-                    for (const auto& m: *schedInfo->mSchedInfo.get())
+                    auto map = *schedInfo->mSchedInfo;
+                    auto addElement = [&map, this](unsigned int index)
                     {
-                        if (m.first == karere::SC_TITLE) // currently just store old - new title
+                        auto it = map.find(index);
+                        if (it != map.end())
                         {
-                            mStringList->add(m.second.first.c_str());
-                            mStringList->add(m.second.second.c_str());
+                            if (it->second.empty())
+                            {
+                                API_LOG_ERROR("addElement: empty values for changed field: %d", index);
+                                assert(false);
+                                return;
+                            }
+                            std::string key = std::to_string(index);
+                            std::unique_ptr<MegaStringList> sl(MegaStringList::createInstance());
+                            sl->add(it->second.at(0).c_str()); // add old value
+
+                            if (it->second.size() == 2)
+                            {
+                                sl->add(it->second.at(1).c_str()); // add new value if any
+                            }
+                            mStringListMap->set(key.c_str(), sl.release());
                         }
-                    }
+                    };
+
+                    // just add those ones that have changed
+                    addElement(karere::SC_PARENT);
+                    addElement(karere::SC_TZONE);
+                    addElement(karere::SC_START);
+                    addElement(karere::SC_END);
+                    addElement(karere::SC_TITLE);
+                    addElement(karere::SC_ATTR);
+                    addElement(karere::SC_CANC);
+                    addElement(karere::SC_FLAGS);
+                    addElement(karere::SC_RULES);
                 }
             }
             else
             {
-                API_LOG_ERROR("Error parsing Message for TYPE_SCHED_MEETING");
+                API_LOG_ERROR("addElementError parsing Message for TYPE_SCHED_MEETING");
             }
            break;
         }
@@ -10972,6 +11032,24 @@ bool MegaChatMessagePrivate::hasSchedMeetingChanged(unsigned int change) const
 const MegaStringList* MegaChatMessagePrivate::getStringList() const
 {
     return mStringList.get();
+}
+
+const MegaStringListMap* MegaChatMessagePrivate::getStringListMap() const
+{
+    return mStringListMap.get();
+}
+
+const MegaStringList* MegaChatMessagePrivate::getScheduledMeetingChange(const unsigned int changeType) const
+{
+    if (!mStringListMap) { return nullptr; }
+
+    std::string changeStr = std::to_string(changeType);
+    return mStringListMap->get(changeStr.c_str());
+}
+
+const MegaChatScheduledRules* MegaChatMessagePrivate::getScheduledMeetingRules() const
+{
+    return mScheduledRules.get();
 }
 
 bool MegaChatMessagePrivate::isGiphy() const
