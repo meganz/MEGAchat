@@ -844,10 +844,14 @@ promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
     return api.call(&::mega::MegaApi::getChatLinkURL, publicHandle);
 }
 
-void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey
-                                  , const std::string &url, uint32_t ts, bool meeting, const ::mega::ChatOptions_t opts)
+void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle,
+                                  std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts,
+                                  bool meeting, const ::mega::ChatOptions_t opts)
 {
-    GroupChatRoom* room = new GroupChatRoom(*chats, chatId, static_cast<unsigned char>(shard), chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph, unifiedKey, meeting, opts);
+    GroupChatRoom* room = new GroupChatRoom(*chats, chatId, static_cast<unsigned char>(shard),
+                                            chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph,
+                                            unifiedKey, meeting, opts);
+
     chats->emplace(chatId, room);
     if (!mDnsCache.hasRecord(shard))
     {
