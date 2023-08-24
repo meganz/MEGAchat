@@ -5025,7 +5025,6 @@ public:
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
-     * - MegaChatRequest::getPrivilege - Returns 1 if chatRoom has waiting room option enabled, otherwise returns 0
      * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance
      * (with a list of scheduled meetings associated to the chatroom) or nullptr if none.
      * - MegaChatRequest::getPrivilege - Returns the values of chatroom options speakRequest, waitingRoom, openInvite in a bitmask.

@@ -1061,7 +1061,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
                    ::mega::ChatOptions_t opts = static_cast<::mega::ChatOptions_t>(result->getParamType());
                    ::mega::ChatOptions chatOptions(opts);
-                   request->setPrivilege(chatOptions.value());
+                   request->setPrivilege(opts);
                    if (result->getMegaHandleList())
                    {
                        request->setMegaHandleList(result->getMegaHandleList());
@@ -1102,7 +1102,7 @@ void MegaChatApiImpl::sendPendingRequests()
                        Id ph = result->getNodeHandle();
                        request->setUserHandle(ph.val);
 
-                       GroupChatRoom* room = (GroupChatRoom*) findChatRoom(chatId);
+                       GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
                        if (room)
                        {
                            room->importChatRoomOptionsFromVal(opts);
