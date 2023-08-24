@@ -1010,22 +1010,36 @@ void Call::joinSfu()
             return;
         }
 
-        if (getLocalAvFlags().audio()
+        karere::AvFlags joinFlags = getLocalAvFlags();
+        if (joinFlags.audio()
             && isSpeakRequestEnabled() && !isOwnPrivModerator())
         {
-            // If speak request is enabled and we want to start call with audio enabled, we must be a moderator,
-            // otherwise we need to manually send SPEAK_RQ and receive SPEAK_ON (when we are approved by a moderator)
-            // before sending AV command to enable audio
-            orderedCallDisconnect(TermCode::kErrClientGeneral
-                                  , std::string("audio flags cannot be enabled"
-                                              " if speak request is also enabled for call"
-                                              " and we are non moderator"));
-            assert(false);
-            return;
+            const bool isReconnecting = getPrevCid() != K_INVALID_CID;
+            if (!isReconnecting)
+            {
+                // If speak request is enabled and we want to start call with audio enabled, we must be a moderator,
+                // otherwise we need to manually send SPEAK_RQ and receive SPEAK_ON (when we are approved by a moderator)
+                // before sending AV command to enable audio
+                orderedCallDisconnect(TermCode::kErrClientGeneral
+                                      , std::string("audio flags cannot be enabled"
+                                                  " if speak request is also enabled for call"
+                                                  " and we are non moderator"));
+                assert(false);
+                return;
+            }
+            else
+            {
+                // we are non-host and we are trying to reconnect. we had permission to speak before reconnect as
+                // audio flags are enabled. We can't send audio flag enabled in JOIN command as we says below.
+                mSpeakerState = SpeakerState::kNoSpeaker;
+                mCallHandler.onSpeakStatusUpdate(*this);
+                muteMyClient();
+                RTCM_LOG_DEBUG("joinSfu: re-joining to SFU with audio disabled, as speak request "
+                               "is enabled and our peer is non-host");
+            }
         }
 
         bool sendAv = false;
-        karere::AvFlags joinFlags = getLocalAvFlags();
         if (joinFlags.audio())
         {
             /* SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
@@ -1998,7 +2012,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         }
 
         // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-        muteMyClientFromSfu();
+        muteMyClient();
         mSpeakerState = SpeakerState::kNoSpeaker;
         mCallHandler.onSpeakStatusUpdate(*this);
     }
@@ -2527,7 +2541,7 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
 
     if (cmd == "audio") // audio ummute has been denied by SFU, disable audio flag local
     {
-        muteMyClientFromSfu();
+        muteMyClient();
     }
     else if (cmd == "JOIN")
     {
@@ -3262,7 +3276,7 @@ const mega::ECDH* Call::getMyEphemeralKeyPair() const
     return mEphemeralKeyPair.get();
 }
 
-void Call::muteMyClientFromSfu()
+void Call::muteMyClient()
 {
     if (!getLocalAvFlags().audio())
     {
