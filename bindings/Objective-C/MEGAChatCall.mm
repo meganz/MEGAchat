@@ -215,6 +215,18 @@ using namespace megachat;
         case MEGAChatCallTermCodeNoParticipate:
             result = @"Removed from chatroom";
             break;
+        case MEGAChatCallTermCodeTooManyClients:
+            result = @"Too many clients";
+            break;
+        case MEGAChatCallTermCodeProtocolVersion:
+            result = @"Protocol version";
+            break;
+        case MEGAChatCallTermCodeKicked:
+            result = @"Kicked";
+            break;
+        case MEGAChatCallTermCodeWaitingRoomTimeout:
+            result = @"Waiting room timeout";
+            break;
     }
     return result;
 }
