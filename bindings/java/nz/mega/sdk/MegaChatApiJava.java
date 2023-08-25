@@ -3820,6 +3820,121 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Push a list of users (for all it's connected clients) into the waiting room.
+     *
+     * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
+     * This method can be called just by users with moderator role
+     *
+     * @note: This method won't have any effect for moderator users already joined into the call,
+     * as well as non-moderator users that are already in the waiting room.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_WR_PUSH
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicates that all users with non moderator role, must be pushed into waiting room
+     * - MegaChatRequest::getMegaHandleList - Returns the list of users that must be pushed into waiting room
+     *
+     * On the onRequestFinish error, if the error code associated to the MegaChatError is ERROR_OK:
+     * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED,
+     *   notifying about users that could be pushed or not into the waiting room.
+     *   (check MegaChatCall::getHandleList to get users that have been pushed into the waiting room)
+     *   (check MegaChatCall::getWaitingRoom to get the users in the waiting room and their current joining status)
+     *   (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_DENY,
+     *   just if any of the users provided in users list, is not in the call, but has permission to enter it (use case non valid for moderators users in the list)
+     *   (check MegaChatCall::getHandleList to get moderator users that were tried to push into the waiting room, but didn't joined call yet.
+     *
+     * @note: Afected user clients by this action, will receive an MegaChatCallListener::onChatCallUpdate callback with change type
+     * MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL, indicating that it's client has been pushed into a waiting room.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
+     * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, if there's not a call in the specified chatroom, or waiting room is disabled
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param users MegaHandleList with the users that must be pushed into waiting room.
+     * If param all is true, users param will be ignored.
+     * @param all if true indicates that all users with non moderator role, must be pushed into waiting room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void pushUsersIntoWaitingRoom(long chatid, MegaHandleList users, boolean all, MegaChatRequestListenerInterface listener){
+        megaChatApi.pushUsersIntoWaitingRoom(chatid, users, all, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room.
+     *
+     * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
+     * This method has to be called only by a user with moderator role
+     *
+     * If this action has succeed, for those users that are effectively kicked from call, every conected user will receive a callback MegaChatSession with change MegaChatSession::CHANGE_TYPE_STATUS
+     * and MegaChatSession::getStatus == MegaChatSession::SESSION_STATUS_DESTROYED.
+     *
+     * @note: This method won't have any effect for users with moderator role.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_WR_KICK
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getMegaHandleList - Returns the list of users that must be disconnected from call
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
+     * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists , if there's no a call in the specified chatroom, or waiting room is disabled
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param users MegaHandleList with the users that must be disconnected from call
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void kickUsersFromCall(long chatid, MegaHandleList users, MegaChatRequestListenerInterface listener){
+        megaChatApi.kickUsersFromCall(chatid, users, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Allow a list of users in the waiting room to join the call.
+     *
+     * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
+     * This method can be called just by users with moderator role
+     *
+     * @note: This method won't have any effect for non-moderator users already joined into the call, as well as users with moderator role.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_WR_ALLOW
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicates that all users with non moderator role, must be allowed to join the call
+     * - MegaChatRequest::getMegaHandleList - Returns the list of users that must be allowed to join the call
+     *
+     * On the onRequestFinish error, if the error code associated to the MegaChatError is ERROR_OK:
+     * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW,
+     *   notifying about users that have been granted to enter the call.
+     *   (check MegaChatCall::getHandleList to get users that have been granted to enter the call
+     *   (check MegaChatCall::getWaitingRoom to get the users in the waiting room and their current joining status)
+     *   (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * - Users with moderator role, will receive an MegaChatCallListener::onChatCallUpdate callback with change type MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE,
+     *   notifying about users that have been left the waiting room (already joined the call)
+     *   (check MegaChatCall::getHandleList to get users that have been left the waiting room
+     *   (check MegaChatCall::getWaitingRoom to get the users in the waiting room and their current joining status)
+     *   (check MegaChatCall::getModerators to get the updated moderators list)
+     *
+     * @note: Afected user clients by this action, will receive an MegaChatCallListener::onChatCallUpdate callback with change type
+     * MegaChatCall::CHANGE_TYPE_WR_ALLOW, indicating that it's client has been allowed to join call (no further action required by apps to complete call join)
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
+     * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, if there's not a call in the specified chatroom, or waiting room is disabled
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param users MegaHandleList with the users that must be allowed into waiting room.
+     * If param all is true, users param will be ignored.
+     * @param all if true indicates that all users with non moderator role, must be pushed into waiting room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void allowUsersJoinCall(long chatid, MegaHandleList handles, boolean all, MegaChatRequestListenerInterface listener){
+        megaChatApi.allowUsersJoinCall(chatid, handles, all, createDelegateRequestListener(listener));
+    }
+
+    /**
      * Set/unset a call on hold
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CALL_ON_HOLD
