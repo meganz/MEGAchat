@@ -11,7 +11,7 @@ typedef NS_ENUM (NSInteger, MEGAChatWaitingRoomStatus) {
 
 @interface MEGAChatWaitingRoom : NSObject
 
-@property (nonatomic, readonly) MEGAHandleList *peers;
+@property (nullable, nonatomic, readonly) MEGAHandleList *peers;
 @property (nonatomic, readonly) int64_t size;
 
 - (MEGAChatWaitingRoomStatus)peerStatus:(uint64_t)peerId;

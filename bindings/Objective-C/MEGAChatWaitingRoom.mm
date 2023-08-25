@@ -43,7 +43,7 @@ using namespace megachat;
 }
 
 -(MEGAHandleList *)peers {
-    return self.megaChatWaitingRoom ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatWaitingRoom->getPeers() cMemoryOwn: YES] : nil;
+    return self.megaChatWaitingRoom->getPeers() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatWaitingRoom->getPeers() cMemoryOwn: YES] : nil;
 }
 
 - (MEGAChatWaitingRoomStatus)peerStatus:(uint64_t)peerId {
