@@ -1060,7 +1060,6 @@ void MegaChatApiImpl::sendPendingRequests()
                    request->setText(decryptedTitle.c_str());
 
                    ::mega::ChatOptions_t opts = static_cast<::mega::ChatOptions_t>(result->getParamType());
-                   ::mega::ChatOptions chatOptions(opts);
                    request->setPrivilege(opts);
                    if (result->getMegaHandleList())
                    {
