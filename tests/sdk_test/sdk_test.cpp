@@ -5227,7 +5227,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     // Waiting rooms currently just works if there's a scheduled meeting created for the chatroom
     LOG_debug << "Test preconditions: Get a meeting room with a scheduled meeting associated";
     const MegaChatHandle chatid = getGroupChatRoom({a1, a2}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/,
-                              true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/, &smDataTest);
+                              true /*publicChat*/, true /*meetingRoom*/, true /*waitingRoom*/, false /*speakRequest*/, &smDataTest);
 
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Can't get/create a Meeting room with waiting room enabled";
     const std::unique_ptr<char[]> chatIdB64(MegaApi::userHandleToBase64(chatid));
