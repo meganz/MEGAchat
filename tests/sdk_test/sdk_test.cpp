@@ -5174,7 +5174,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
 
     // aux data structure to handle lambdas' arguments
-    SchedMeetingData smDataTests127, smDataTests456;
+    SchedMeetingData smDataTests12389, smDataTests457;
 
     // remove scheduled meeting
     const auto deleteSchedMeeting = [this, &a1, &a2](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
@@ -5556,20 +5556,20 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                                                                                          MegaChatScheduledRules::INTERVAL_INVALID,
                                                                                          MEGACHAT_INVALID_TIMESTAMP,
                                                                                          nullptr, nullptr, nullptr));
-    smDataTests127.peerList = peerList;
-    smDataTests127.isMeeting = true;
-    smDataTests127.publicChat = true;
-    smDataTests127.title = title;
-    smDataTests127.speakRequest = false;
-    smDataTests127.waitingRoom = false;
-    smDataTests127.openInvite = false;
-    smDataTests127.timeZone = timeZone;
-    smDataTests127.startDate = startDate;
-    smDataTests127.endDate = endDate;
-    smDataTests127.description = ""; // description is not a mandatory field
-    smDataTests127.flags = nullptr;  // flags is not a mandatory field
-    smDataTests127.rules = rules;
-    ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (chatid, a1, a2, smDataTests127); });
+    smDataTests12389.peerList = peerList;
+    smDataTests12389.isMeeting = true;
+    smDataTests12389.publicChat = true;
+    smDataTests12389.title = title;
+    smDataTests12389.speakRequest = false;
+    smDataTests12389.waitingRoom = false;
+    smDataTests12389.openInvite = false;
+    smDataTests12389.timeZone = timeZone;
+    smDataTests12389.startDate = startDate;
+    smDataTests12389.endDate = endDate;
+    smDataTests12389.description = ""; // description is not a mandatory field
+    smDataTests12389.flags = nullptr;  // flags is not a mandatory field
+    smDataTests12389.rules = rules;
+    ASSERT_NO_FATAL_FAILURE({ createChatroomAndSchedMeeting (chatid, a1, a2, smDataTests12389); });
 
     // check that SC_NEW_SCHED management msg content is expected
     ASSERT_NO_FATAL_FAILURE({ checkSchedMeetMsg(a2
@@ -5595,20 +5595,20 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     timeZone = "Europe/Borlin"; // invalid timezone
     title.append("(updated)");
     description.append("(updated)");
-    smDataTests127.chatId = chatid;
-    smDataTests127.schedId = schedId;
-    smDataTests127.timeZone = timeZone;
-    smDataTests127.title = title;
-    smDataTests127.cancelled = false;
-    ASSERT_NO_FATAL_FAILURE({ updateSchedMeeting(a1, MegaChatError::ERROR_ARGS, smDataTests127); });
+    smDataTests12389.chatId = chatid;
+    smDataTests12389.schedId = schedId;
+    smDataTests12389.timeZone = timeZone;
+    smDataTests12389.title = title;
+    smDataTests12389.cancelled = false;
+    ASSERT_NO_FATAL_FAILURE({ updateSchedMeeting(a1, MegaChatError::ERROR_ARGS, smDataTests12389); });
 
     //================================================================================//
     // TEST 3. Update previous recurrent scheduled meeting with valid data
     //================================================================================//
     LOG_debug << "TEST_ScheduledMeetings 3: Update a recurrent scheduled meeting";
     timeZone = "Europe/Dublin";
-    smDataTests127.timeZone = timeZone;
-    ASSERT_NO_FATAL_FAILURE({ updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests127); });
+    smDataTests12389.timeZone = timeZone;
+    ASSERT_NO_FATAL_FAILURE({ updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests12389); });
 
     // check that SC_NEW_SCHED management msg content is expected
     ASSERT_NO_FATAL_FAILURE({ checkSchedMeetMsg(a2
@@ -5621,12 +5621,12 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     // TEST 4. Update a scheduled meeting occurrence with invalid schedId (Error)
     //================================================================================//
     LOG_debug << "TEST_ScheduledMeetings 4: Update a scheduled meeting occurrence with invalid schedId (Error)";
-    smDataTests456.chatId = chatid;
-    smDataTests456.overrides = startDate;
-    smDataTests456.newStartDate = startDate;
-    smDataTests456.newEndDate = endDate;
-    smDataTests456.newCancelled = false;
-    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 1/*maxAttempts*/, MegaChatError::ERROR_NOENT, MegaChatError::ERROR_TOOMANY, smDataTests456); });
+    smDataTests457.chatId = chatid;
+    smDataTests457.overrides = startDate;
+    smDataTests457.newStartDate = startDate;
+    smDataTests457.newEndDate = endDate;
+    smDataTests457.newCancelled = false;
+    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 1/*maxAttempts*/, MegaChatError::ERROR_NOENT, MegaChatError::ERROR_TOOMANY, smDataTests457); });
 
     //================================================================================//
     // TEST 5. Update a scheduled meeting occurrence (new child sched meeting created)
@@ -5636,11 +5636,11 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     const MegaChatTimeStamp auxStartDate =  startDate + 120;
     const MegaChatTimeStamp auxEndDate = endDate + 120;
     // update occurrence and ensure that we have received a new child scheduled meeting whose parent is the original sched meeting and contains the updated occurrence
-    smDataTests456.schedId = schedId;
-    smDataTests456.overrides = overrides;
-    smDataTests456.newStartDate = auxStartDate;
-    smDataTests456.newEndDate = auxEndDate;
-    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 3/*maxAttempts*/, MegaChatError::ERROR_OK, MegaChatError::ERROR_TOOMANY, smDataTests456); });
+    smDataTests457.schedId = schedId;
+    smDataTests457.overrides = overrides;
+    smDataTests457.newStartDate = auxStartDate;
+    smDataTests457.newEndDate = auxEndDate;
+    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 3/*maxAttempts*/, MegaChatError::ERROR_OK, MegaChatError::ERROR_TOOMANY, smDataTests457); });
     auto sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatid, mSchedIdUpdated[a1]));
     ASSERT_TRUE(sched);
     ASSERT_EQ(sched->parentSchedId(), schedId) << "Child scheduled meeting for primary account has not been received scheduled meeting id: " <<  getSchedIdStrB64(schedId);
@@ -5696,10 +5696,10 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     //================================================================================//
     LOG_debug << "TEST_ScheduledMeetings 7: Cancel a scheduled meeting occurrence";
     overrides = auxStartDate;
-    smDataTests456.schedId = childSchedId;
-    smDataTests456.overrides = overrides;
-    smDataTests456.newCancelled = true;
-    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 3/*maxAttempts*/, MegaChatError::ERROR_OK, MegaChatError::ERROR_TOOMANY, smDataTests456); });
+    smDataTests457.schedId = childSchedId;
+    smDataTests457.overrides = overrides;
+    smDataTests457.newCancelled = true;
+    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 3/*maxAttempts*/, MegaChatError::ERROR_OK, MegaChatError::ERROR_TOOMANY, smDataTests457); });
     sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatid, mSchedIdUpdated[a1]));
     ASSERT_TRUE(sched);
     ASSERT_EQ(sched->schedId(), childSchedId) << "Scheduled meeting id: " << getSchedIdStrB64(schedId)
@@ -5707,7 +5707,6 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
     ASSERT_TRUE(sched->cancelled()) << "Scheduled meeting occurrence could not be cancelled, scheduled meeting id: "
                                     <<  getSchedIdStrB64(schedId) << " overrides: " << std::to_string(overrides);
-
 
     // check that SC_NEW_SCHED management msg content is expected
     ASSERT_NO_FATAL_FAILURE({ checkSchedMeetMsg(a2
@@ -5717,11 +5716,44 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                                                 , "TEST_7"); });
 
     //================================================================================//
-    // TEST 8. Cancel entire series
+    // TEST 8. Test negative offset at byMonthWeekDay
     //================================================================================//
-    LOG_debug << "TEST_ScheduledMeetings 8: Update a recurrent scheduled meeting";
-    smDataTests127.cancelled = true;
-    updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests127);
+    LOG_debug << "TEST_ScheduledMeetings 8: Test negative offset at byMonthWeekDay";
+    const int interval = 1;
+    const int offset = -1;
+    const int day = 1;
+    std::unique_ptr<::mega::MegaIntegerMap> byMonthWeekDay(::mega::MegaIntegerMap::createInstance());
+    byMonthWeekDay->set(offset, day);
+    smDataTests12389.rules.reset(MegaChatScheduledRules::createInstance(MegaChatScheduledRules::FREQ_MONTHLY,
+                                                                      interval,
+                                                                      MEGACHAT_INVALID_TIMESTAMP,
+                                                                      nullptr, nullptr, byMonthWeekDay.get()));
+
+    ASSERT_NO_FATAL_FAILURE({ updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests12389); });
+    auto aschedMeet = getSchedMeeting(a1, smDataTests12389);
+    ASSERT_TRUE(aschedMeet) << "Can't retrieve scheduled meeting for chat " << getChatIdStrB64(chatid);
+    const auto recvRules = aschedMeet->rules();
+    ASSERT_TRUE(recvRules) << "Can't retrieve scheduled meeting rules for chat " << getChatIdStrB64(chatid);
+    const ::mega::MegaIntegerMap* recvByMonthWeekDay = recvRules->byMonthWeekDay();
+    ASSERT_TRUE(recvByMonthWeekDay) << "Can't retrieve ByMonthWeekDay for chat " << getChatIdStrB64(chatid);
+    ASSERT_EQ(recvByMonthWeekDay->size(), smDataTests12389.rules->byMonthWeekDay()->size())
+        << "Unexpected size for ByMonthWeekDay for chat " << getChatIdStrB64(chatid);
+
+    // check negative offset values at ByMonthWeekDay (-1, 1) Last Monday of each month
+    std::unique_ptr<MegaIntegerList> days(recvByMonthWeekDay->get(offset));
+    ASSERT_TRUE(days) << "No key : " << offset << " exists at auxByMonthWeekDay for chat " << getChatIdStrB64(chatid);;
+    ASSERT_EQ(days->size(), smDataTests12389.rules->byMonthWeekDay()->size()) << "Unexpected byMonthWeekDay size "
+                                                                            << days->size() << " for chat " << getChatIdStrB64(chatid);
+    ASSERT_EQ(days->get(0), day) << "Unexpected value: " << days->get(0)
+                                 << ", expected one(" << day
+                                 << ") for key: " << offset << "in chat " << getChatIdStrB64(chatid);
+
+    //================================================================================//
+    // TEST 9. Cancel entire series
+    //================================================================================//
+    LOG_debug << "TEST_ScheduledMeetings 9: Update a recurrent scheduled meeting";
+    smDataTests12389.cancelled = true;
+    updateSchedMeeting(a1, MegaChatError::ERROR_OK, smDataTests12389);
     smData = SchedMeetingData(); // Designated initializers generate too many warnings (gcc)
     smData.chatId = chatid;
     smData.startDate = MEGACHAT_INVALID_TIMESTAMP;
@@ -5742,18 +5774,18 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                                                 , "TEST_8"); });
 
     //================================================================================//
-    // TEST 9. Delete scheduled meeting with invalid schedId (Error)
+    // TEST 10. Delete scheduled meeting with invalid schedId (Error)
     //================================================================================//
-    LOG_debug << "TEST_ScheduledMeetings 9: remove a scheduled meeting occurrence with invalid schedId (Error)";
+    LOG_debug << "TEST_ScheduledMeetings 10: remove a scheduled meeting occurrence with invalid schedId (Error)";
     smData = SchedMeetingData(); // Designated initializers generate too many warnings (gcc)
     smData.chatId = chatid;
     smData.schedId = MEGACHAT_INVALID_HANDLE;
     ASSERT_NO_FATAL_FAILURE({ deleteSchedMeeting(a1, MegaChatError::ERROR_ARGS, smData); });
 
     //================================================================================//
-    // TEST 10. Delete scheduled meeting
+    // TEST 11. Delete scheduled meeting
     //================================================================================//
-    LOG_debug << "TEST_ScheduledMeetings 10: remove a scheduled meeting occurrence";
+    LOG_debug << "TEST_ScheduledMeetings 11: remove a scheduled meeting occurrence";
     smData = SchedMeetingData(); // Designated initializers generate too many warnings (gcc)
     smData.chatId = chatid;
     smData.schedId = schedId;
