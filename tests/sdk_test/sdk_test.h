@@ -273,7 +273,7 @@ protected:
 
     int purgeLocalTree(const std::string& path);
     void purgeCloudTree(unsigned int accountIndex, ::mega::MegaNode* node);
-    void clearAndLeaveChats(unsigned int accountIndex, megachat::MegaChatHandle skipChatId =  megachat::MEGACHAT_INVALID_HANDLE);
+    void clearAndLeaveChats(unsigned accountIndex, const std::vector<megachat::MegaChatHandle>& skipChats);
     void removePendingContactRequest(unsigned int accountIndex);
     void changeLastName(unsigned int accountIndex, std::string lastName);
 

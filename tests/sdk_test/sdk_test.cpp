@@ -416,18 +416,25 @@ void MegaChatApiTest::TearDown()
             if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
                     megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION )
             {
-                unsigned int a2 = (i == 0) ? 1 : 0;  // FIXME: find solution for more than 2 accounts
-                MegaChatHandle chatToSkip = MEGACHAT_INVALID_HANDLE;
-                MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(account(a2).getEmail().c_str());
-                if (uh != MEGACHAT_INVALID_HANDLE)
+                vector<MegaChatHandle> chatsToSkip;
+                for (unsigned a2 = 0; a2 < NUM_ACCOUNTS; ++a2)
                 {
-                    MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-                    peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-                    chatToSkip = getGroupChatRoom({i, a2}, peers, MegaChatPeerList::PRIV_UNKNOWN, false);
-                    delete peers;
+                    if (a2 == i)
+                    {
+                        continue;
+                    }
+
+                    MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(account(a2).getEmail().c_str());
+                    if (uh != MEGACHAT_INVALID_HANDLE)
+                    {
+                        std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
+                        peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
+                        MegaChatHandle chatToSkip = getGroupChatRoom({i, a2}, peers.get(), MegaChatPeerList::PRIV_UNKNOWN, false);
+                        chatsToSkip.push_back(chatToSkip);
+                    }
                 }
 
-                clearAndLeaveChats(i, chatToSkip);
+                clearAndLeaveChats(i, chatsToSkip);
             }
         }
 
@@ -7012,9 +7019,9 @@ void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
     delete children;
 }
 
-void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHandle skipChatId)
+void MegaChatApiTest::clearAndLeaveChats(unsigned accountIndex, const vector<MegaChatHandle>& skipChats)
 {
-    MegaChatRoomList *chatRooms = megaChatApi[accountIndex]->getChatRooms();
+    std::unique_ptr<MegaChatRoomList> chatRooms(megaChatApi[accountIndex]->getChatRooms());
 
     for (unsigned int i = 0; i < chatRooms->size(); ++i)
     {
@@ -7027,14 +7034,12 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned int accountIndex, MegaChatHand
             TEST_LOG_ERROR(crtClearHist.waitForResult() == MegaChatError::ERROR_OK, "Failed to truncate history. Error: " + crtClearHist.getErrorString());
         }
 
-        if (chatroom->isGroup() && chatroom->isActive() && chatroom->getChatId() != skipChatId)
+        if (chatroom->isGroup() && chatroom->isActive() &&
+            std::find(skipChats.begin(), skipChats.end(), chatroom->getChatId()) == skipChats.end())
         {
             leaveChat(accountIndex, chatroom->getChatId());
         }
     }
-
-    delete chatRooms;
-    chatRooms = NULL;
 }
 
 void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
