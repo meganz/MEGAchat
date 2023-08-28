@@ -5025,6 +5025,7 @@ public:
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
+     * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
      * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance
      * (with a list of scheduled meetings associated to the chatroom) or nullptr if none.
      * - MegaChatRequest::getPrivilege - Returns the values of chatroom options speakRequest, waitingRoom, openInvite in a bitmask.
@@ -5060,6 +5061,7 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
+     * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
      * - MegaChatRequest::getPrivilege - Returns the values of chatroom options speakRequest, waitingRoom, openInvite in a bitmask.
      *  + To check if speakRequest is enabled for chatroom, you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, bitmask)
