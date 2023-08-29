@@ -537,7 +537,8 @@ public:
         TERM_CODE_NO_PARTICIPATE            = 4,    // User has been removed from chatroom
         TERM_CODE_TOO_MANY_CLIENTS          = 5,    // Too many clients of same user connected
         TERM_CODE_PROTOCOL_VERSION          = 6,    // SFU protocol version error
-        TERM_CODE_KICKED                    = 7     // User has been kicked from call
+        TERM_CODE_KICKED                    = 7,    // User has been kicked from call
+        TERM_CODE_WR_TIMEOUT                = 8,    // Timed out waiting to be allowed from waiting room into call
     };
 
     enum
@@ -853,6 +854,7 @@ public:
      *      - TERM_CODE_REJECT
      *      - TERM_CODE_NO_PARTICIPATE
      *      - TERM_CODE_KICKED
+     *      - TERM_CODE_WR_TIMEOUT
      *
      * @return error or warning code for this call
      */
@@ -8335,7 +8337,9 @@ public:
     virtual void setByMonthDay(const ::mega::MegaIntegerList* byMonthDay);
 
     /**
-     * @brief Sets one or multiple weekday offset (ie: [5,4] event will occur every 5th Thursday of each month)
+     * @brief Sets one or multiple weekday offset
+     * + Positive offset: (ie: [5,4] event will occur every 5th Thursday of each month)
+     * + Negative offset: (ie: [-1,1] event will occur every last Monday of each month)
      *
      * @return A MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset
      */
@@ -8386,7 +8390,9 @@ public:
     virtual const mega::MegaIntegerList* byMonthDay() const;
 
     /**
-     * @brief Returns a MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset (ie: [5,4] event will occur every 5th Thursday of each month)
+     * @brief Returns a MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset
+     * + Positive offset: (ie: [5,4] event will occur every 5th Thursday of each month)
+     * + Negative offset: (ie: [-1,1] event will occur every last Monday of each month)
      *
      * @return A MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset
      */

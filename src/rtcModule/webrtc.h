@@ -36,6 +36,7 @@ enum TermCode: uint8_t
     kPushedToWaitingRoom        = 6,                    // < Our client has been removed from the call and pushed back into the waiting room
     kKickedFromWaitingRoom      = 7,                    // < User has been kicked from call regardless of whether is in the call or in the waiting room
     kTooManyUserClients         = 8,                    // < Too many clients of same user connected
+    kWaitingRoomAllowTimeout    = 9,                    // < Timed out waiting to be allowed from waiting room into call
 
     //==============================================================================================
 

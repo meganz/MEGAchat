@@ -1219,6 +1219,7 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kErrClientGeneral:         return "Client general error";
         case kErrGeneral:               return "SFU general error";
         case kUnKnownTermCode:          return "unknown error";
+        case kWaitingRoomAllowTimeout:  return "Timed out waiting to be allowed from waiting room into call";
         default:                        return "invalid connection termcode";
     }
 }
@@ -2130,7 +2131,8 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
     }
     else
     {
-        if (auxTermCode == kKickedFromWaitingRoom)
+        if (auxTermCode == kKickedFromWaitingRoom           // => we have been kicked from call
+            || auxTermCode == kWaitingRoomAllowTimeout)     // => timed out waiting to be allowed from waiting room into call
         {
             auto wptr = weakHandle();
             karere::marshallCall([wptr, auxTermCode, this]()

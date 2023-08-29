@@ -192,6 +192,7 @@ const char* MegaChatCall::termcodeToString(int termcode)
         case TERM_CODE_TOO_MANY_CLIENTS:          return "Too many clients of same user connected";
         case TERM_CODE_PROTOCOL_VERSION:          return "SFU protocol version error";
         case TERM_CODE_KICKED:                    return "User has been kicked from call";
+        case TERM_CODE_WR_TIMEOUT:                return "Timed out waiting to be allowed from waiting room into call";
     }
     return "Unknown call termcode";
 }
