@@ -947,6 +947,66 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)allowUsersJoinCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->allowUsersJoinCall(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)allowUsersJoinCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->allowUsersJoinCall(chatId, users.getCPtr);
+    }
+}
+
+- (void)kickUsersFromCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->kickUsersFromCall(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)kickUsersFromCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->kickUsersFromCall(chatId, users.getCPtr);
+    }
+}
+
+- (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->pushUsersIntoWaitingRoom(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->pushUsersIntoWaitingRoom(chatId, users.getCPtr);
+    }
+}
+
 - (void)autojoinPublicChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->autojoinPublicChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
