@@ -1011,8 +1011,7 @@ void Call::joinSfu()
         }
 
         karere::AvFlags joinFlags = getLocalAvFlags();
-        if (joinFlags.audio()
-            && isSpeakRequestEnabled() && !isOwnPrivModerator())
+        if (joinFlags.audio() && isSpeakRequestEnabled() && !isOwnPrivModerator())
         {
             const bool isReconnecting = getPrevCid() != K_INVALID_CID;
             if (!isReconnecting)
@@ -1020,8 +1019,8 @@ void Call::joinSfu()
                 // If speak request is enabled and we want to start call with audio enabled, we must be a moderator,
                 // otherwise we need to manually send SPEAK_RQ and receive SPEAK_ON (when we are approved by a moderator)
                 // before sending AV command to enable audio
-                orderedCallDisconnect(TermCode::kErrClientGeneral
-                                      , std::string("audio flags cannot be enabled"
+                orderedCallDisconnect(TermCode::kErrClientGeneral, 
+                                      std::string("audio flags cannot be enabled"
                                                   " if speak request is also enabled for call"
                                                   " and we are non moderator"));
                 assert(false);
@@ -1030,7 +1029,7 @@ void Call::joinSfu()
             else
             {
                 // we are non-host and we are trying to reconnect. we had permission to speak before reconnect as
-                // audio flags are enabled. We can't send audio flag enabled in JOIN command as we says below.
+                // audio flags are enabled. We can't send audio flag enabled in JOIN command as we say below.
                 mSpeakerState = SpeakerState::kNoSpeaker;
                 mCallHandler.onSpeakStatusUpdate(*this);
                 muteMyClient();
@@ -2254,8 +2253,8 @@ bool Call::handleModDel(uint64_t userid)
 }
 
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
-                                   const std::set<karere::Id>& mods, const bool wr, const bool speakRequest, const bool allowed,
-                                   const std::map<karere::Id, bool>& wrUsers)
+                       const std::set<karere::Id>& mods, const bool wr, const bool speakRequest,
+                       const bool allowed, const std::map<karere::Id, bool>& wrUsers)
 {
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();

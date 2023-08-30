@@ -239,8 +239,8 @@ public:
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
     virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks,
-                              const std::set<karere::Id>& mods, const bool wr, bool speakRequest, const bool allowed,
-                              const std::map<karere::Id, bool>& wrUsers) = 0;
+                              const std::set<karere::Id>& mods, const bool wr, bool speakRequest,
+                              const bool allowed, const std::map<karere::Id, bool>& wrUsers) = 0;
 
     virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
     virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
@@ -654,7 +654,9 @@ public:
     void checkThreadId();
     const karere::Url& getSfuUrl();
 
-    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int vthumbs = -1);
+    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey,
+                 int avFlags, Cid_t prevCid, int vthumbs = -1);
+
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);
     bool sendGetVtumbs(const std::vector<Cid_t>& cids);

@@ -487,8 +487,8 @@ public:
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nVideoTracks,
-                      const std::set<karere::Id>& mods, const bool wr, const bool speakRequest, const bool allowed,
-                      const std::map<karere::Id, bool>& wrUsers) override;
+                      const std::set<karere::Id>& mods, const bool wr, const bool speakRequest,
+                      const bool allowed, const std::map<karere::Id, bool>& wrUsers) override;
 
     // --- SfuInterface methods (waiting room related methods) ---
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;

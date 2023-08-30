@@ -7874,7 +7874,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mCallerId = call.getCallerid();
     mIsCaller = call.isOutgoing();
     mIsOwnClientCaller = call.isOwnClientCaller();
-    mSpeakerState = call.getOwnSpeakerState(); // speaker state
+    mSpeakerState = call.getOwnSpeakerState();
     mIgnored = call.isIgnored();
     mLocalAVFlags = call.getLocalAvFlags();
     mFinalTs = call.getFinalTimeStamp();
