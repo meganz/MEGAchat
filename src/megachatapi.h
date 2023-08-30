@@ -398,9 +398,9 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     /**
-     * @brief Returns if peer has a pending speak request
+     * @brief Returns if peer has a speak request pending to be approved by a host
      *
-     * @return true if peer has a pending speak request
+     * @return true if peer has a speak request pending to be approved by a host
      */
     virtual bool hasPendingSpeakRequest() const;
 
@@ -1178,9 +1178,9 @@ public:
     virtual int getNetworkQuality() const;
 
     /**
-     * @brief Returns if our own peer has a pending speak request
+     * @brief Returns if our own peer has a speak request pending to be approved by a host
      *
-     * @return true if our own peer has a pending speak request
+     * @return true if our own peer has a speak request pending to be approved by a host
      */
     virtual bool hasPendingSpeakRequest() const;
 

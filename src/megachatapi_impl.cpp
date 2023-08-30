@@ -11295,7 +11295,7 @@ void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::st
 
 void MegaChatCallHandler::onSpeakStatusUpdate(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_SPEAK);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }

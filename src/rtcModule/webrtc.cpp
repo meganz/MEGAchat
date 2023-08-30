@@ -627,14 +627,15 @@ void Call::requestSpeak(const bool add)
     if (mSpeakerState == SpeakerState::kNoSpeaker && add)
     {
         mSfuConnection->sendSpeakReq();
-        return;
     }
     else if (hasPendingSpeakRequest() && !add)
     {
         mSfuConnection->sendSpeakReqDel(); // cancel a request in-flight
-        return;
     }
-    assert(false); // unexpected speaker state
+    else
+    {
+        assert(false); // unexpected speaker state
+    }
 }
 
 bool Call::isSpeakAllow() const
@@ -1964,7 +1965,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 
 bool Call::handleSpeakOnCommand(Cid_t cid)
 {
-    if (cid)
+    if (cid != K_INVALID_CID)
     {
         Session* session = getSession(cid);
         if (!session)

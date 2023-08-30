@@ -758,12 +758,8 @@ bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
     {
         cid = cidIterator->value.GetUint();
-        return mComplete(cid);
     }
-    else
-    {
-        return mComplete(cid);
-    }
+    return mComplete(cid);
 }
 
 SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete, SfuInterface &call)

@@ -334,7 +334,7 @@ protected:
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
     int mNotificationType = MegaChatCall::NOTIFICATION_TYPE_INVALID;
-    unsigned int mSpeakerState = 0;
+    unsigned int mSpeakerState = SPEAKER_STATUS_DISABLED;
     bool mIgnored = false;
     bool mRinging = false;
     bool mIsCaller = false;

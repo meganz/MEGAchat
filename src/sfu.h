@@ -654,6 +654,7 @@ public:
     void checkThreadId();
     const karere::Url& getSfuUrl();
 
+    // Important: SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
     bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey,
                  int avFlags, Cid_t prevCid, int vthumbs = -1);
 
