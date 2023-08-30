@@ -4519,6 +4519,20 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
     }
 
+    if (!chatRoom->isSpeakRequest())
+    {
+        ChatRequestTracker crtChatOpt;
+        megaChatApi[a1]->setSpeakRequest(chatid, true, &crtChatOpt);
+        ASSERT_EQ(crtChatOpt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to enable speak request. Error: " << crtChatOpt.getErrorString();
+    }
+
+    if (!chatRoom->isOpenInvite())
+    {
+        ChatRequestTracker crtChatOpt1;
+        megaChatApi[a1]->setOpenInvite(chatid, true, &crtChatOpt1);
+        ASSERT_EQ(crtChatOpt1.waitForResult(), MegaChatError::ERROR_OK) << "Failed to enable open invite. Error: " << crtChatOpt1.getErrorString();
+    }
+
     // Create chat link
     ChatRequestTracker crtCreateLink;
     megaChatApi[a1]->createChatLink(chatid, &crtCreateLink);
@@ -4532,9 +4546,21 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ChatRequestTracker crtOpenLink;
     megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink);
     ASSERT_EQ(crtOpenLink.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
-    ASSERT_TRUE(crtOpenLink.getPrivilege() /*wr flag*/ && crtOpenLink.hasScheduledMeetings());
-    ASSERT_NO_FATAL_FAILURE({ logout(a3, true); });
 
+    const int chatOptions = crtOpenLink.getPrivilege();
+    ASSERT_TRUE(crtOpenLink.hasScheduledMeetings()) << "Chatroom doesn't have scheduled meeting enabled";
+    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions))  << "Waiting room is disabled";
+    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions)) << "Speak request is disabled";
+    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions))   << "Open invite is disabled";
+
+    if (!chatRoom->isSpeakRequest())
+    {
+        ChatRequestTracker crtChatOpt;
+        megaChatApi[a1]->setSpeakRequest(chatid, false, &crtChatOpt);
+        ASSERT_EQ(crtChatOpt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to disable speak request. Error: " << crtChatOpt.getErrorString();
+    }
+
+    ASSERT_NO_FATAL_FAILURE({ logout(a3, true); });
     LOG_debug << "\tSwitching back from staging (Shard 2) for group creation\n";
     megaApi[a3]->changeApiUrl("https://g.api.mega.co.nz/");
 
