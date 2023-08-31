@@ -1950,8 +1950,8 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
     }
     else // own peer
     {
-        if (mSpeakerState == SpeakerState::kActive        //  => ignore SPEAK_RQ_DEL (we already have permission to speak)
-            || mSpeakerState == SpeakerState::kNoSpeaker) //  => ignore SPEAK_RQ_DEL (no changed)
+        if (mSpeakerState == SpeakerState::kActive        //  => ignore SPEAK_RQ_DEL (we already had permission to speak)
+            || mSpeakerState == SpeakerState::kNoSpeaker) //  => ignore SPEAK_RQ_DEL (speaker state was already kNoSpeaker)
         {
             return true;
         }
@@ -3079,6 +3079,7 @@ void Call::removeSpeaker(Cid_t cid)
             RTCM_LOG_ERROR("removeSpeaker: trying to remove a speaker whose permission to speak was disabled"
                            " callid: %s, cid: %u", getCallid().toString().c_str(), cid);
             assert(false);
+            // even if we didn't have speak permission, we need to disable audio slot (if any)
         }
         sess->disableAudioSlot();
     }
