@@ -459,8 +459,8 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         return false;
     }
 
-    // call start ts (ms)
-    uint64_t callDuration = tsIterator->value.GetUint64();
+    // offset ts when we join within the call respect the call start (ms)
+    uint64_t callJoinOffset = tsIterator->value.GetUint64();
 
     // parse moderators list
     std::set<karere::Id> moderators;
@@ -492,7 +492,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     std::map<Cid_t, TrackDescriptor> vthumbs;
     parseTracks(command, "vthumbs", vthumbs);
 
-    return mComplete(cid, sdp, callDuration, peers, keystrmap, vthumbs, speakers, moderators, ownModerator);
+    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, moderators, ownModerator);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator &it) const

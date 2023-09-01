@@ -7817,6 +7817,7 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrClientGeneral:
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kUnKnownTermCode:
+        case rtcModule::TermCode::kWaitingRoomAllowTimeout:
             return SESS_TERM_CODE_NON_RECOVERABLE;
 
         case rtcModule::TermCode::kRtcDisconn:
@@ -7845,7 +7846,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mIgnored = call.isIgnored();
     mIsSpeakAllow = call.isSpeakAllow();
     mLocalAVFlags = call.getLocalAvFlags();
-    mInitialTs = call.getInitialTimeStamp();
+    mInitialTs = call.getCallInitialTimeStamp();
     mFinalTs = call.getFinalTimeStamp();
     mNetworkQuality = call.getNetworkQuality();
     mHasRequestSpeak = call.hasRequestSpeak();
@@ -8260,6 +8261,9 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
 
         case rtcModule::TermCode::kKickedFromWaitingRoom:
             return TERM_CODE_KICKED;
+
+        case rtcModule::TermCode::kWaitingRoomAllowTimeout:
+            return TERM_CODE_WR_TIMEOUT;
 
         // Added here to avoid warning, as an user that is pushed into a wr, is still in the call
         // but waiting to be granted to access, unlike the other termcodes that means that user

@@ -120,6 +120,9 @@ void Call::setState(CallState newState)
 
     if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
     {
+        clearConnInitialTs(); // reset initial ts for current call connection
+        clearJoinOffset();    // reset join offset, the offset is received upon ANSWER command in 't' param
+
         auto wptr = weakHandle();
         mConnectTimer = karere::setTimeout([this, wptr]()
         {
@@ -138,7 +141,7 @@ void Call::setState(CallState newState)
         }, kConnectingTimeout * 1000, mRtc.getAppCtx());
     }
 
-    if (newState == CallState::kStateInProgress)
+    if (newState == CallState::kStateInProgress)  // when ANSWER command is received
     {
         if (mConnectTimer) // cancel timer, as we have joined call before mConnectTimer expired
         {
@@ -146,8 +149,8 @@ void Call::setState(CallState newState)
             mConnectTimer = 0;
         }
 
-        // initial ts is set when user has joined to the call
-        mInitialTs = time(nullptr);
+        captureConnInitialTs(); // connection initial ts, is set every time we receive ANSWER command (when we are effectively connected to call)
+        captureCallInitialTs(); // call initial ts for call (will persist while call is alive)
     }
     else if (newState == CallState::kStateDestroyed)
     {
@@ -543,9 +546,9 @@ bool Call::isOutgoing() const
     return mCallerId == mMyPeer->getPeerid();
 }
 
-int64_t Call::getInitialTimeStamp() const
+int64_t Call::getCallInitialTimeStamp() const
 {
-    return mInitialTs;
+    return mCallInitialTs;
 }
 
 int64_t Call::getFinalTimeStamp() const
@@ -1216,13 +1219,14 @@ std::string Call::connectionTermCodeToString(const TermCode &termcode) const
         case kErrClientGeneral:         return "Client general error";
         case kErrGeneral:               return "SFU general error";
         case kUnKnownTermCode:          return "unknown error";
+        case kWaitingRoomAllowTimeout:  return "Timed out waiting to be allowed from waiting room into call";
         default:                        return "invalid connection termcode";
     }
 }
 
 bool Call::isUdpDisconnected() const
 {
-    if (!mInitialTs)
+    if (!mega::isValidTimeStamp(getConnInitialTimeStamp()))
     {
         // peerconnection establishment starts as soon ANSWER is sent to the client
         // we never have reached kStateInProgress, as mInitialTs is set when we reach kStateInProgress (upon ANSWER command is received)
@@ -1231,7 +1235,7 @@ bool Call::isUdpDisconnected() const
         return true;
     }
 
-    return (mStats.mSamples.mT.empty() && (time(nullptr) - mInitialTs > sfu::SfuConnection::kNoMediaPathTimeout));
+    return (mStats.mSamples.mT.empty() && (time(nullptr) - getConnInitialTimeStamp() > sfu::SfuConnection::kNoMediaPathTimeout));
 }
 
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
@@ -1283,9 +1287,9 @@ void Call::sendStats(const TermCode& termCode)
     }
 
     assert(isValidConnectionTermcode(termCode));
-    mStats.mDuration = mInitialTs
-            ? static_cast<uint64_t>((time(nullptr) - mInitialTs) * 1000)  // ms
-            : 0; // in case we have not joined SFU yet, send duration = 0
+    mStats.mDuration = mega::isValidTimeStamp(getConnInitialTimeStamp()) // mInitialTs
+                           ? static_cast<uint64_t>((time(nullptr) - getConnInitialTimeStamp()) * 1000)  // ms
+                           : mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
     mStats.mMaxPeers = mMaxPeers;
     mStats.mTermCode = static_cast<int32_t>(termCode);
     mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
@@ -1393,7 +1397,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
     return true;
 }
 
-bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t duration, std::vector<sfu::Peer>& peers,
+bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers
                                , std::set<karere::Id>& moderators, bool ownMod)
@@ -1422,6 +1426,9 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     // set moderator list and ownModerator value
     setOwnModerator(ownMod);
     mModerators = moderators;
+
+    // set join offset
+    setJoinOffset(static_cast<int64_t>(callJoinOffset));
 
     // this promise will be resolved when all ephemeral keys (for users with SFU > V0) have been verified and derived
     // in case of any of the keys can't be verified or derived, the peer will be added anyway.
@@ -1557,7 +1564,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     // wait until all peers ephemeral keys have been verified and derived
     auto auxwptr = weakHandle();
     keyDerivationPms
-    ->then([auxwptr, vthumbs, speakers, duration, sdp, keysVerified, this]
+    ->then([auxwptr, vthumbs, speakers, sdp, keysVerified, this]
     {
         if (auxwptr.deleted())
         {
@@ -1591,7 +1598,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         assert(mRtcConn);
         auto wptr = weakHandle();
         mRtcConn.setRemoteDescription(std::move(sdpInterface))
-        .then([wptr, this, vthumbs, speakers, duration]()
+        .then([wptr, this, vthumbs, speakers]()
         {
             if (wptr.deleted())
             {
@@ -1627,8 +1634,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             }
 
             setState(CallState::kStateInProgress);
-
-            mOffset = static_cast<int64_t>(duration);
             enableStats();
         })
         .fail([wptr, this](const ::promise::Error& err)
@@ -2126,7 +2131,8 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
     }
     else
     {
-        if (auxTermCode == kKickedFromWaitingRoom)
+        if (auxTermCode == kKickedFromWaitingRoom           // => we have been kicked from call
+            || auxTermCode == kWaitingRoomAllowTimeout)     // => timed out waiting to be allowed from waiting room into call
         {
             auto wptr = weakHandle();
             karere::marshallCall([wptr, auxTermCode, this]()
@@ -3129,7 +3135,7 @@ void Call::initStatsValues()
 void Call::enableStats()
 {
     mStats.mCid = getOwnCid();
-    mStats.mTimeOffset = static_cast<uint64_t>(mOffset);
+    mStats.mTimeOffset = getJoinOffset();
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
     {
