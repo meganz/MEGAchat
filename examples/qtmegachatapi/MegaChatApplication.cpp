@@ -1006,6 +1006,20 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 MegaChatHandle chatid = request->getChatHandle();
                 bool checkChatLink = !request->getFlag();
 
+                std::string schedlistStr = "\nscheduled meetings list: ";
+                const MegaChatScheduledMeetingList* smlist (request->getMegaChatScheduledMeetingList());
+                if (smlist)
+                {
+                    for (size_t i = 0; i < smlist->size(); ++i)
+                    {
+                        std::unique_ptr<char[]> schedid_64(mMegaApi->userHandleToBase64(smlist->at(i)->schedId()));
+                        schedlistStr.append("\n\tSchedid: ")
+                            .append(schedid_64 ? schedid_64.get() : "")
+                            .append(" Title: ")
+                            .append(smlist->at(i)->title());
+                    }
+                }
+
                 //Check chat link
                 if (checkChatLink)
                 {
@@ -1020,7 +1034,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         const bool oi = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions);
 
                         QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n Waiting Room: %5 "
-                                               "\n Speak request: %6 \n Open invite Room: %7 \n Scheduled meeting: %8 "
+                                               "\n Speak request: %6 \n Open invite Room: %7 \n Scheduled meeting list: %8 "
                                                "\n\n Do you want to preview it?")
                                 .arg(QString::fromStdString(request->getLink()))
                                 .arg(QString::fromStdString(chatHandle_64))
@@ -1029,7 +1043,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                                 .arg(QString::fromStdString(std::to_string(wr)))
                                 .arg(QString::fromStdString(std::to_string(sr)))
                                 .arg(QString::fromStdString(std::to_string(oi)))
-                                .arg(QString::fromStdString(request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size() ? "1" : "0"));
+                                .arg(QString::fromStdString(schedlistStr.c_str()));
 
                         QMessageBox msgBox;
                         msgBox.setWindowTitle("Check chat link");
@@ -1061,9 +1075,7 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         res += wr ? "Waiting Room = 1 "  : "Waiting Room = 0 ";
                         res += sr ? "Speak request = 1 " : "Speak request = 0 ";
                         res += oi ? "Open invite = 1 "   : "Open invite = 0 ";
-                        res += request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size()
-                                   ? " Scheduled meeting = 1"
-                                   : " Scheduled meeting = 0";
+                        res += schedlistStr;
 
                         QMessageBox msgBox;
                         msgBox.setText(res.c_str());

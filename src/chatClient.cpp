@@ -846,11 +846,11 @@ promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
 
 void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle,
                                   std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts,
-                                  bool meeting, const ::mega::ChatOptions_t opts)
+                                  bool meeting, const ::mega::ChatOptions_t opts, const mega::MegaScheduledMeetingList* smList)
 {
     GroupChatRoom* room = new GroupChatRoom(*chats, chatId, static_cast<unsigned char>(shard),
                                             chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph,
-                                            unifiedKey, meeting, opts);
+                                            unifiedKey, meeting, opts, smList);
 
     chats->emplace(chatId, room);
     if (!mDnsCache.hasRecord(shard))
@@ -2561,7 +2561,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
     mIsInitializing = false;
 
     // Add scheduled meeting list and notify app
-    addSchedMeetings(aChat);
+    addSchedMeetings(aChat.getScheduledMeetingList());
 
     if (aChat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
             || aChat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
@@ -2610,7 +2610,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 //Load chatLink
 GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts, bool aIsArchived, const std::string& title,
-    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting, const mega::ChatOptions_t options)
+    const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting, const mega::ChatOptions_t options,
+    const mega::MegaScheduledMeetingList* smList)
   : ChatRoom(parent, chatid, true, aShard, aOwnPriv, ts, aIsArchived, title)
     , mRoomGui(nullptr), mMeeting(meeting), mChatOptions(options)
 {
@@ -2633,6 +2634,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
 
     mRoomGui = addAppItem();
     mIsInitializing = false;
+    addSchedMeetings(smList);
 }
 
 void GroupChatRoom::initWithChatd(bool isPublic, std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, Id ph)
@@ -4181,8 +4183,8 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
              && chat.getScheduledMeetingList()->size()
              && mScheduledMeetings.empty())
     {
-         // if chat from API have scheduled meetings, but we don't have those meetings stored in karere
-         addSchedMeetings(chat);
+        // if chat from API have scheduled meetings, but we don't have those meetings stored in karere
+        addSchedMeetings(chat.getScheduledMeetingList());
     }
 
     if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
@@ -4331,13 +4333,13 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
     if (oldOptions.openInvite() != newOptions.openInvite())     { notifyChatOptionsChanged(mega::ChatOptions::kOpenInvite); }
 }
 
-void GroupChatRoom::addSchedMeetings(const mega::MegaTextChat& chat)
+void GroupChatRoom::addSchedMeetings(const mega::MegaScheduledMeetingList* schedMeetings)
 {
-    if (!chat.getScheduledMeetingList() || !chat.getScheduledMeetingList()->size())
+    if (!schedMeetings || !schedMeetings->size())
     {
         return;
     }
-    const mega::MegaScheduledMeetingList* schedMeetings = chat.getScheduledMeetingList();
+
     for (unsigned int i = 0; i < schedMeetings->size(); i++)
     {
         auto res = mScheduledMeetings.emplace(schedMeetings->at(i)->schedId(), new KarereScheduledMeeting(schedMeetings->at(i)));

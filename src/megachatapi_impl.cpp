@@ -1072,10 +1072,10 @@ void MegaChatApiImpl::sendPendingRequests()
                        request->setParamType(1);
                    }
 
-                   if (result->getMegaScheduledMeetingList() && result->getMegaScheduledMeetingList()->size())
+                   const MegaScheduledMeetingList* smList = result->getMegaScheduledMeetingList();
+                   if (smList && smList->size())
                    {
                        std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-                       const MegaScheduledMeetingList* smList = result->getMegaScheduledMeetingList();
                        for (unsigned long i = 0; i < smList->size(); ++i)
                        {
                            if (smList->at(i) == nullptr)
@@ -1104,6 +1104,8 @@ void MegaChatApiImpl::sendPendingRequests()
                        GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
                        if (room)
                        {
+                           // add sched meetings if any
+                           room->addSchedMeetings(smList);
                            room->importChatRoomOptionsFromVal(opts);
                            if (room->isActive()
                               || (!room->isActive() && !room->previewMode()))
@@ -1134,7 +1136,7 @@ void MegaChatApiImpl::sendPendingRequests()
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
                            uint32_t ts = static_cast<uint32_t>(result->getNumber());
 
-                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts);
+                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                            fireOnChatRequestFinish(request, megaChatError);
                        }
