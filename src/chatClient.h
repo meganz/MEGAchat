@@ -376,7 +376,6 @@ protected:
     ScheduledMeetingHandler& schedMeetingHandler();
     void setChatPrivateMode();
     void updateChatOptions(mega::ChatOptions_t opt);
-    void addSchedMeetings(const mega::MegaTextChat& chat);
     void updateSchedMeetings(const mega::MegaTextChat& chat);
     void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
     void loadSchedMeetingsFromDb();
@@ -417,7 +416,7 @@ protected:
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
-                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting, const mega::ChatOptions_t options);
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting, const mega::ChatOptions_t options, const mega::MegaScheduledMeetingList* smList);
 
     ~GroupChatRoom();
 
@@ -476,9 +475,9 @@ public:
     promise::Promise<void> setChatRoomOption(int option, bool enabled);
 
     /**
-     * @brief Imports chatroom options from numeric value
+     * @brief Adds a list of scheduled meetings for chatroom
      */
-    void importChatRoomOptionsFromVal(const ::mega::ChatOptions_t opts);
+    void addSchedMeetings(const mega::MegaScheduledMeetingList* schedMeetings);
 
     // searchs a scheduled meeting by schedId
     const KarereScheduledMeeting* getScheduledMeetingsBySchedId(const karere::Id& schedId) const;
@@ -1070,7 +1069,7 @@ public:
      * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
      * to avoid that openChatPreview creates the chat room
      */
-    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting, const mega::ChatOptions_t opts);
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting, const mega::ChatOptions_t opts, const mega::MegaScheduledMeetingList* smList);
 
     /**
      * @brief This function allows to create a scheduled meeting.
