@@ -1477,7 +1477,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         const auto& it = keystrmap.find(peer.getCid());
         const auto& keyStr = it != keystrmap.end() ? it->second : std::string();
 
-        // update isModerator by checking if peer is included in mods list received upon HELLO
+        // check if peerid is included in mods list received upon HELLO
         peer.setModerator(mModerators.find(peer.getPeerid()) != mModerators.end());
         if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion())) // there's no ephemeral key, just add peer
         {
@@ -2218,7 +2218,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
 
-    // set moderator list and ownModerator value
+    // copy moderator list, and check if our own user is moderator
     setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
     mModerators = mods;
 

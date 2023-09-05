@@ -543,7 +543,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
                  return;
             }
 
-            // update isModerator at handleAnwerCommand with mod list received at HELLO command
+            // update isModerator for every peer, at handleAnwerCommand with mod list received at HELLO command
             unsigned av = avIterator->value.GetUint();
             Peer peer(userId, static_cast<sfu::SfuProtocol>(sfuVersion), av, &ivs, cid, false /*isModerator*/);
             peers.push_back(std::move(peer));
