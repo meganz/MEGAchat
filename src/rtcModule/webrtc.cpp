@@ -1124,7 +1124,7 @@ void Call::clearResources(const TermCode& termCode)
     RTCM_LOG_DEBUG("clearResources, termcode (%u): %s", termCode, connectionTermCodeToString(termCode).c_str());
     disableStats();
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
-
+    clearPendingPeers();
     mModerators.clear();            // clear moderators list and ownModerator
     mMyPeer->setModerator(false);
 
@@ -1484,6 +1484,12 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     {
         const auto& it = keystrmap.find(peer.getCid());
         const auto& keyStr = it != keystrmap.end() ? it->second : std::string();
+        if (!addPendingPeer(cid))
+        {
+            RTCM_LOG_WARNING("handleAnswerCommand: duplicated peer at mPeersVerification, with cid: %d ", cid);
+            assert(false);
+            continue;
+        }
 
         if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion())) // there's no ephemeral key, just add peer
         {
@@ -2008,6 +2014,13 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
         return false;
     }
 
+    if (!addPendingPeer(cid))
+    {
+        RTCM_LOG_WARNING("handlePeerJoin: duplicated peer at mPeersVerification, with cid: %d ", cid);
+        assert(false);
+        return false;
+    }
+
     std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (mModerators.find(userid) != mModerators.end())));
     if (sfu::isInitialSfuVersion(sfuProtoVersion))
     {
@@ -2076,10 +2089,18 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
         return false;
     }
 
+    if (isPeerPendingToAdd(cid))
+    {
+        RTCM_LOG_WARNING("handlePeerLeft: peer with cid: %d, is still pending to verify it's ephemeral key");
+    }
+
+    // reject peer promise (if still undone) and remove from map; finally check
+    // if was added to sessions map, and perform required operations with that session
+    removePendingPeer(cid);
     auto it = mSessions.find(cid);
     if (it == mSessions.end())
     {
-        RTCM_LOG_ERROR("handlePeerLeft: unknown cid");
+        RTCM_LOG_WARNING("handlePeerLeft: cid: % not found in sessions map", cid);
         return false;
     }
 
@@ -3229,8 +3250,16 @@ void Call::muteMyClientFromSfu()
 
 void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
 {
+    if (!isPeerPendingToAdd(peer.getCid()))
+    {
+        RTCM_LOG_WARNING("addPeer: Unexpected peer state at mPeersVerification. Cid: %d", peer.getCid());
+        assert(false);
+        return;
+    }
     peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
     mSessions[peer.getCid()] = std::make_unique<Session>(peer);
+    assert(verifyPeer(peer.getCid()));
+    RTCM_LOG_WARNING("addPeer: peer verification finished. Cid: %d", peer.getCid());
     mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
 }
 
