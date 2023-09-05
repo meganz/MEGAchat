@@ -543,8 +543,8 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
                  return;
             }
 
-            // update isModerator for every peer, at handleAnwerCommand with mod list received at HELLO command
             unsigned av = avIterator->value.GetUint();
+            // default initialization of isModerator. It gets updated for every peer at handleAnwerCommand with mod list received at HELLO command later in the run flow
             Peer peer(userId, static_cast<sfu::SfuProtocol>(sfuVersion), av, &ivs, cid, false /*isModerator*/);
             peers.push_back(std::move(peer));
         }
