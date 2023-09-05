@@ -2942,11 +2942,6 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     return true;
 }
 
-void GroupChatRoom::importChatRoomOptionsFromVal(const ::mega::ChatOptions_t opts)
-{
-    mChatOptions.set(opts);
-}
-
 promise::Promise<void> GroupChatRoom::setChatRoomOption(int option, bool enabled)
 {
     auto wptr = getDelTracker();

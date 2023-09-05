@@ -1104,9 +1104,6 @@ void MegaChatApiImpl::sendPendingRequests()
                        GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
                        if (room)
                        {
-                           // add sched meetings if any
-                           room->addSchedMeetings(smList);
-                           room->importChatRoomOptionsFromVal(opts);
                            if (room->isActive()
                               || (!room->isActive() && !room->previewMode()))
                            {

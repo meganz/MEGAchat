@@ -479,11 +479,6 @@ public:
      */
     void addSchedMeetings(const mega::MegaScheduledMeetingList* schedMeetings);
 
-    /**
-     * @brief Imports chatroom options from numeric value
-     */
-    void importChatRoomOptionsFromVal(const ::mega::ChatOptions_t opts);
-
     // searchs a scheduled meeting by schedId
     const KarereScheduledMeeting* getScheduledMeetingsBySchedId(const karere::Id& schedId) const;
 
