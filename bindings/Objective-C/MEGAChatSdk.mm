@@ -467,6 +467,12 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)addChatCallDelegate:(id<MEGAChatCallDelegate>)delegate queueType:(ListenerQueueType)queueType {
+    if (self.megaChatApi) {
+        self.megaChatApi->addChatCallListener([self createDelegateMEGAChatCallListener:delegate singleListener:NO queueType:queueType]);
+    }
+}
+
 - (void)removeChatCallDelegate:(id<MEGAChatCallDelegate>)delegate {
     std::vector<DelegateMEGAChatCallListener *> listenersToRemove;
     
@@ -2041,9 +2047,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MegaChatCallListener *)createDelegateMEGAChatCallListener:(id<MEGAChatCallDelegate>)delegate singleListener:(BOOL)singleListener {
+    return [self createDelegateMEGAChatCallListener:delegate singleListener:singleListener queueType:ListenerQueueTypeMain];
+}
+
+- (MegaChatCallListener *)createDelegateMEGAChatCallListener:(id<MEGAChatCallDelegate>)delegate singleListener:(BOOL)singleListener queueType:(ListenerQueueType)queueType {
     if (delegate == nil) return nil;
     
-    DelegateMEGAChatCallListener *delegateListener = new DelegateMEGAChatCallListener(self, delegate, singleListener);
+    DelegateMEGAChatCallListener *delegateListener = new DelegateMEGAChatCallListener(self, delegate, singleListener, queueType);
     pthread_mutex_lock(&listenerMutex);
     _activeChatCallListeners.insert(delegateListener);
     pthread_mutex_unlock(&listenerMutex);
