@@ -576,7 +576,7 @@ protected:
     Cid_t mPrevCid = K_INVALID_CID;
     uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
 
-    // add peer to pending verification map
+    // add peer to pending verification map upon ANSWER|PEERJOIN commands
     bool addPendingPeer(const Cid_t cid)
     {
         if (mPeersVerification.find(cid) != mPeersVerification.end())
@@ -647,6 +647,7 @@ protected:
 
         return nullptr;
     }
+
     // call key for public chats (128-bit key)
     std::string mCallKey;
 

@@ -1484,7 +1484,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     {
         const auto& it = keystrmap.find(peer.getCid());
         const auto& keyStr = it != keystrmap.end() ? it->second : std::string();
-        if (!addPendingPeer(cid))
+        if (!addPendingPeer(peer.getCid()))
         {
             RTCM_LOG_WARNING("handleAnswerCommand: duplicated peer at mPeersVerification, with cid: %d ", cid);
             assert(false);
@@ -2100,7 +2100,7 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     auto it = mSessions.find(cid);
     if (it == mSessions.end())
     {
-        RTCM_LOG_WARNING("handlePeerLeft: cid: % not found in sessions map", cid);
+        RTCM_LOG_WARNING("handlePeerLeft: cid: %d not found in sessions map", cid);
         return false;
     }
 
@@ -3252,15 +3252,21 @@ void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
 {
     if (!isPeerPendingToAdd(peer.getCid()))
     {
+        // we could have received a PEERLEFT before peer's ephemeral key is verified
         RTCM_LOG_WARNING("addPeer: Unexpected peer state at mPeersVerification. Cid: %d", peer.getCid());
-        assert(false);
         return;
     }
     peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
     mSessions[peer.getCid()] = std::make_unique<Session>(peer);
+
+    /* We need to call onNewSession (as we set setSessionHandler there) before calling verifyPeer,
+     * otherwise after calling verifyPeer, threads waiting in then blocks, will execute code in lambdas
+     * and any call to mSessionHandler will fail as it's still unregistered
+     */
+    mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
+
     assert(verifyPeer(peer.getCid()));
     RTCM_LOG_WARNING("addPeer: peer verification finished. Cid: %d", peer.getCid());
-    mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
 }
 
 std::pair<std::string, std::string> Call::splitPubKey(const std::string& keyStr) const
