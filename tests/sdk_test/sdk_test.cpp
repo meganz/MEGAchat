@@ -4208,7 +4208,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
     const std::shared_ptr<MegaChatPeerList> peerList(MegaChatPeerList::createInstance());
     const MegaChatHandle chatid = getGroupChatRoom({a1}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/
                                                    , true /*publicChat*/, true /*meetingRoom*/
-                                                   , false /*waitingRoom*/, true /*speakRequest*/, nullptr);
+                                                   , false /*waitingRoom*/, true /*speakRequest*/);
 
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "Can't get/create a chat room with speak request enabled.";
     const std::unique_ptr<char[]> chatIdB64(MegaApi::userHandleToBase64(chatid));
@@ -4341,7 +4341,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
                           });
         });
 
-        ASSERT_EQ(mSessSpeakRequests[moderatorIdx].size(), 1) << "Unexpected speak request list size for account index: " << moderatorIdx;
+        ASSERT_EQ(mSessSpeakRequests[moderatorIdx].size(), 1u) << "Unexpected speak request list size for account index: " << moderatorIdx;
         ASSERT_EQ(mSessSpeakRequests[moderatorIdx].begin()->second, true) << "Speak request not received for account index: " << moderatorIdx;
         clientId = mSessSpeakRequests[moderatorIdx].begin()->first;
 
@@ -4364,7 +4364,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
                           true /* wait for all exit flags*/,
                           true /* reset flags */,
                           maxTimeout,
-                          [this, moderatorIdx, &clientId, &approve, &chatid]()
+                          [this, &moderatorIdx, &clientId, &approve, &chatid]()
                           {
                               ChatRequestTracker crtSpeakReq;
                               approve
@@ -4382,7 +4382,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 
         if (approve)
         {
-            ASSERT_EQ(mSessSpeakPerm[moderatorIdx].size(), 1);
+            ASSERT_EQ(mSessSpeakPerm[moderatorIdx].size(), 1u);
             ASSERT_EQ(mSessSpeakPerm[moderatorIdx].begin()->second, approve)  << "onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION) not received for peercid: " << clientId;
         }
     };
@@ -7417,13 +7417,13 @@ void MegaChatApiTest::inviteToChat (const unsigned int& a1, const unsigned int& 
 
 void MegaChatApiTest::startChatCall(const MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio)
 {
-    std::string msg = "Account with index "; msg.append(std::to_string(performerIdx)).append("starts call");
+    std::string msg = "Account with index " + std::to_string(performerIdx) + " starts call";
     std::vector<bool *> exitFlags   { &mCallInProgress[performerIdx] };
-    std::vector<string> exiFlagsStr { std::string("mCallInProgress[") + std::string(std::to_string(performerIdx)) + std::string("]")};
+    std::vector<string> exiFlagsStr { "mCallInProgress[" + std::to_string(performerIdx) + "]" };
     for (auto idx : participants)
     {
         exitFlags.emplace_back(&mCallReceivedRinging[idx]);
-        exiFlagsStr.emplace_back(std::string("mCallReceivedRinging[") + std::string(std::to_string(idx)) + std::string("]"));
+        exiFlagsStr.emplace_back("mCallReceivedRinging[" + std::to_string(idx) + "]");
     }
 
     // Start chat call
@@ -7448,13 +7448,13 @@ void MegaChatApiTest::startChatCall(const MegaChatHandle chatid, const unsigned 
 
 void MegaChatApiTest::answerChatCall(const MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio)
 {
-    std::string msg = "Account with index "; msg.append(std::to_string(performerIdx)).append(" answers call");
+    std::string msg = "Account with index " + std::to_string(performerIdx) + " answers call";
     std::vector<bool *> exiFlags;
     std::vector<string> exiFlagsStr;
     for (auto idx : participants)
     {
         exiFlags.emplace_back(&mChatCallSessionStatusInProgress[idx]);
-        exiFlagsStr.emplace_back(std::string("mChatCallSessionStatusInProgress[") + std::string(std::to_string(idx)) + std::string("]"));
+        exiFlagsStr.emplace_back("mChatCallSessionStatusInProgress[" + std::to_string(idx) + "]");
     }
 
     ASSERT_NO_FATAL_FAILURE({

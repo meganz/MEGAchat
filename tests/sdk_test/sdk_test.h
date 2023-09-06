@@ -386,8 +386,8 @@ protected:
     bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
     bool mSessSpeakReqRecv[NUM_ACCOUNTS];
     unsigned mOwnSpeakStatus[NUM_ACCOUNTS];
-    std::map <::megachat::MegaChatHandle, bool> mSessSpeakPerm[NUM_ACCOUNTS];
-    std::map <::megachat::MegaChatHandle, bool> mSessSpeakRequests[NUM_ACCOUNTS];
+    std::map<::megachat::MegaChatHandle, bool> mSessSpeakPerm[NUM_ACCOUNTS];
+    std::map<::megachat::MegaChatHandle, bool> mSessSpeakRequests[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
