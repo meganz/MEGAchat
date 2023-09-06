@@ -4538,31 +4538,44 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     megaChatApi[a1]->createChatLink(chatid, &crtCreateLink);
     ASSERT_EQ(crtCreateLink.waitForResult(), MegaChatError::ERROR_OK) << "Creating chat link failed. Should have succeeded!";
 
-    // Open chat link and check that wr flag and scheduled meetings are received upon onRequestFinish(TYPE_LOAD_PREVIEW)
-    std::unique_ptr<char[]> tertiarySession(login(a3));  // user C
-    LOG_debug << "\tSwitching to staging (Shard 2) for group creation";
-    megaApi[a3]->changeApiUrl("https://staging.api.mega.co.nz/");
+    // Init anonymous in terciary account and connect
+    initState[a3] = megaChatApi[a3]->initAnonymous();
+    ASSERT_EQ(initState[a3], MegaChatApi::INIT_ANONYMOUS) << "Init sesion in anonymous mode for terciary account failed";
+    std::unique_ptr<char[]>tertiarySession(megaApi[a3]->dumpSession());
 
+    // Open chat link and check that wr flag and scheduled meetings are received upon onRequestFinish(TYPE_LOAD_PREVIEW)
     ChatRequestTracker crtOpenLink;
+    bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink);
     ASSERT_EQ(crtOpenLink.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
+    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for close preview";
 
+    // check chatroom options upon onRequestFinish (TYPE_LOAD_PREVIEW)
     const int chatOptions = crtOpenLink.getPrivilege();
     ASSERT_TRUE(crtOpenLink.hasScheduledMeetings()) << "Chatroom doesn't have scheduled meeting enabled";
     ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions))  << "Waiting room is disabled";
     ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions)) << "Speak request is disabled";
     ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions))   << "Open invite is disabled";
 
+    // get scheduled meeting list from chatroom
+    std::unique_ptr<MegaChatScheduledMeetingList> smlist(megaChatApi[a3]->getScheduledMeetingsByChat(chatid));
+    ASSERT_TRUE(smlist && smlist->size()) << "Chatroom doesn't have scheduled meetings";
+
+    // Close preview
+    *previewsUpdated = false;
+    megaChatApi[a3]->closeChatPreview(chatid);
+    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for close preview";
+
+    // logout from terciary account
+    ASSERT_NO_FATAL_FAILURE({ logout(a3); });
+
+    // disable speak request again
     if (!chatRoom->isSpeakRequest())
     {
         ChatRequestTracker crtChatOpt;
         megaChatApi[a1]->setSpeakRequest(chatid, false, &crtChatOpt);
         ASSERT_EQ(crtChatOpt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to disable speak request. Error: " << crtChatOpt.getErrorString();
     }
-
-    ASSERT_NO_FATAL_FAILURE({ logout(a3, true); });
-    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation\n";
-    megaApi[a3]->changeApiUrl("https://g.api.mega.co.nz/");
 
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom->getPeerPrivilegeByHandle(user->getHandle()) == megachat::MegaChatPeerList::PRIV_STANDARD)
@@ -8196,7 +8209,7 @@ bool MockupCall::handleAvCommand(Cid_t, unsigned, uint32_t)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::map<Cid_t, sfu::TrackDescriptor>&, std::set<karere::Id>&, bool)
+bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::map<Cid_t, sfu::TrackDescriptor>&)
 {
     return true;
 }

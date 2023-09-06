@@ -1126,8 +1126,6 @@ void Call::clearResources(const TermCode& termCode)
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
     clearPendingPeers();
     mModerators.clear();            // clear moderators list and ownModerator
-    mMyPeer->setModerator(false);
-
     mVThumb.reset();
     mHiRes.reset();
     mAudio.reset();
@@ -1399,8 +1397,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
 
 bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, std::string>& keystrmap,
-                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers
-                               , std::set<karere::Id>& moderators, bool ownMod)
+                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
     if (mState != kStateJoining)
     {
@@ -1422,10 +1419,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     // update max peers seen in call
     mMaxPeers = static_cast<uint8_t> (peers.size() > mMaxPeers ? peers.size() : mMaxPeers);
-
-    // set moderator list and ownModerator value
-    setOwnModerator(ownMod);
-    mModerators = moderators;
 
     // set join offset
     setJoinOffset(static_cast<int64_t>(callJoinOffset));
@@ -1491,6 +1484,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             continue;
         }
 
+        // check if peerid is included in mods list received upon HELLO
+        peer.setModerator(mModerators.find(peer.getPeerid()) != mModerators.end());
         if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion())) // there's no ephemeral key, just add peer
         {
             addPeerWithEphemKey(peer, true, std::string());
@@ -2245,7 +2240,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
 
-    // set moderator list and ownModerator value
+    // copy moderator list, and check if our own user is moderator
     setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
     mModerators = mods;
 

@@ -6,10 +6,11 @@
 
 using namespace megachat;
 
-DelegateMEGAChatCallListener::DelegateMEGAChatCallListener(MEGAChatSdk *megaChatSdk, id<MEGAChatCallDelegate>listener, bool singleListener) {
+DelegateMEGAChatCallListener::DelegateMEGAChatCallListener(MEGAChatSdk *megaChatSdk, id<MEGAChatCallDelegate>listener, bool singleListener, ListenerQueueType queueType) {
     this->megaChatSdk = megaChatSdk;
     this->listener = listener;
     this->singleListener = singleListener;
+    this->queueType = queueType;
 }
 
 id<MEGAChatCallDelegate>DelegateMEGAChatCallListener::getUserListener() {
