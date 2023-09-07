@@ -408,7 +408,6 @@ public:
     static EndCallReason getEndCallReasonFromTermcode(const TermCode& termCode);
 
     void clearParticipants();
-    std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
     bool isValidWrJoiningState() const;
     void clearWrJoiningState();
