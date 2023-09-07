@@ -666,6 +666,8 @@ public:
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
+    bool isDestroyingCall() const;
+    void setDestroyingCall(const bool isDestroying);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
@@ -731,6 +733,16 @@ protected:
      * If connection is dropped down before receiving the ANSWER command, the next attempt will be delayed.
      */
      unsigned int mInitialBackoff = 0;
+
+     /* This var is set true, when are going to destroy the call due to any of the following reasons:
+      * - BYE command received with non retriable termcode
+      * - SFU error received
+      * - DELCALLREASON
+      * - Our own user doesn't participate in chatroom
+      * - We have completed reconnectin into an empty chatroom
+      * - Reconnection attempt has not succeeded after max timeout
+      */
+     bool mIsDestroyingCall = false;
 };
 
 /**
