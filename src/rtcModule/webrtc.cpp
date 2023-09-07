@@ -4195,6 +4195,8 @@ void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
 
 void RemoteAudioSlot::enableAudioMonitor(bool enable)
 {
+    if (enable == mAudioLevelMonitorEnabled) { return; }
+
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
     webrtc::AudioTrackInterface* audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
     if (!audioTrack)
@@ -4204,13 +4206,20 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
         return;
     }
 
-    if (enable && !mAudioLevelMonitorEnabled)
+    if (!mAudioLevelMonitor)
+    {
+        RTCM_LOG_DEBUG("enableAudioMonitor: AudioMonitor is null");
+        assert(false);
+        return;
+    }
+
+    if (enable)
     {
         mAudioLevelMonitorEnabled = true;
         mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
     }
-    else if (!enable && mAudioLevelMonitorEnabled)
+    else
     {
         mAudioLevelMonitorEnabled = false;
         mAudioLevelMonitor->onAudioDetected(false);
