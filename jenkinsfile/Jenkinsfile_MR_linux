@@ -1,3 +1,33 @@
+def setCommitStatus(String pStatus) {
+    switch (pStatus) {
+        case 'running':
+            pState = 'running'
+            pMessage = ":arrow_forward: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> job started :tools:<br/>URL: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'success':
+            pState = 'success'
+            pMessage = ":white_check_mark: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'aborted':
+            pState = 'canceled'
+            pMessage = ":interrobang: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> ABORTED :confused:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'failure':
+            pState = 'failed'
+            pMessage = ":red_circle: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> FAILURE :worried:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'unstable':
+            pState = 'failed'
+            pMessage = ":interrobang: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        default:
+            pState = 'failed'
+            pMessage = ":interrobang: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+    }
+    addGitLabMRComment(comment: pMessage)
+    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: pState)
+}
+
 pipeline {
     agent { label 'linux && amd64 && webrtc' }
     options {
@@ -8,80 +38,83 @@ pipeline {
     environment {
         BUILD_OPTIONS = ' '
         APIURL_TO_TEST = ' '
+        PIPELINE_NAME = 'Linux build & test'
     }
     stages {
-        stage('Get build parameters'){
-            parallel{
-                stage('Get current build description'){
-                    steps{
-                        script{
-                            println "${env.gitlabMergeRequestDescription}"
-                            env.currentBuildDescription = currentBuild.description
-                        }
+        stage('clean previous runs and update gitlab commit status'){
+            steps{
+                deleteDir()
+                setCommitStatus('running')
+            }
+        }
+        stage('Get current build description'){
+            steps{
+                script{
+                    println "${env.gitlabMergeRequestDescription}"
+                    env.currentBuildDescription = currentBuild.description
+                }
+            }
+        }
+        stage('Get build options'){
+            when {
+                allOf {
+                    expression { env.gitlabTriggerPhrase != null }
+                    expression { env.gitlabTriggerPhrase.contains('BUILD_OPTIONS') }
+                }
+            }
+            steps {
+                    script{
+                        BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\"" -f2', returnStdout: true).trim()
+                        println BUILD_OPTIONS
                     }
                 }
-                stage('Get build options'){
-                    when {
-                        allOf {
-                            expression { env.gitlabTriggerPhrase != null }
-                            expression { env.gitlabTriggerPhrase.contains('BUILD_OPTIONS') }
-                        }
-                    }
-                    steps {
-                        script{
-                            BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\"" -f2', returnStdout: true).trim()
-                            println BUILD_OPTIONS
-                        }
-                    }
-                    post{
-                        failure {
-                            addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the additional build parameters :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
-                        }
+                post{
+                    failure {
+                        setCommitStatus('failure')
                     }
                 }
-                stage('Get SDK branch'){
-                    when {
-                        expression {
-                            env.gitlabMergeRequestDescription.contains('SDK_BRANCH_TO_TEST')
-                        }
-                    }
-                    steps {
-                        script{
-                            env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_BRANCH_TO_TEST | awk -F "SDK_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
-                            println SDK_BRANCH
-                            if (SDK_BRANCH == ""){
-                                echo "SDK_BRANCH was not found on description so develop will be used by default"
-                            }
-                        }
-                    }
-                    post{
-                        failure {
-                            addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting the SDK branch :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
-                        }
+            }
+        stage('Get SDK branch'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('SDK_BRANCH_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_BRANCH_TO_TEST | awk -F "SDK_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    println SDK_BRANCH
+                    if (SDK_BRANCH == ""){
+                        echo "SDK_BRANCH was not found on description so develop will be used by default"
                     }
                 }
-                stage('Get API URL'){
-                    when {
-                        expression {
-                            env.gitlabMergeRequestDescription.contains('USE_APIURL_TO_TEST')
-                        }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure')
+                }
+            }
+        }
+        stage('Get API URL'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('USE_APIURL_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    APIURL_TO_TEST = sh(script: 'echo "$gitlabMergeRequestDescription" | grep USE_APIURL_TO_TEST | awk -F "USE_APIURL_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                        println APIURL_TO_TEST
+                    if (APIURL_TO_TEST == ""){
+                        APIURL_TO_TEST = "https://g.api.mega.co.nz/"
+                        echo "APIURL_TO_TEST was not found on description so ${APIURL_TO_TEST} will be used by default"
                     }
-                    steps {
-                        script{
-                            APIURL_TO_TEST = sh(script: 'echo "$gitlabMergeRequestDescription" | grep USE_APIURL_TO_TEST | awk -F "USE_APIURL_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
-                            println APIURL_TO_TEST
-                            if (APIURL_TO_TEST == ""){
-                                APIURL_TO_TEST = "https://g.api.mega.co.nz/"
-                                echo "APIURL_TO_TEST was not found on description so ${APIURL_TO_TEST} will be used by default"
-                            }
-                            echo "APIURL_TO_TEST will be ${APIURL_TO_TEST}"
-                        }
-                    }
-                    post{
-                        failure {
-                            addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} FAILURE when getting API URL :worried:<br/>Build results: [Jenkins [${env.JOB_NAME} ${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}" )
-                        }
-                    }
+                    echo "APIURL_TO_TEST will be ${APIURL_TO_TEST}"
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure')
                 }
             }
         }
@@ -117,6 +150,11 @@ pipeline {
                     sdk_sources_workspace = "${megachat_sources_workspace}/third-party/mega"
                 }
             }
+            post{
+                failure {
+                    setCommitStatus('failure')
+                }
+            }
         }
         stage('Build MEGAchat'){
             environment{
@@ -139,6 +177,11 @@ pipeline {
                     """
                 }
 
+            }
+            post{
+                failure {
+                    setCommitStatus('failure')
+                }
             }
         }
         stage('Run MEGAchat and SDK tests'){
@@ -190,23 +233,16 @@ pipeline {
                      archiveArtifacts artifacts: 'build/subfolder/test*.log*, build/subfolder/core.tar.gz', fingerprint: true
                 }
                 success {
-                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}" )
-                    updateGitlabCommitStatus(name: 'Linux build & test', state: 'success')
+                    setCommitStatus('success')
                 }
                 failure {
-                    addGitLabMRComment(comment: ":red_circle: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> FAILURE  :worried:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}" )
-                    updateGitlabCommitStatus(name: 'Linux build & test', state: 'failed')
-                    error "Marking parent job as failed because ${currentBuild.getFullDisplayName()}: ${currentBuild.getAbsoluteUrl()} has failed"
+                    setCommitStatus('failure')
                 }
                 aborted {
-                    addGitLabMRComment(comment: ":interrobang: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> ABORTED  :confused:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}" )
-                    updateGitlabCommitStatus(name: 'Linux build & test', state: 'canceled')
-                    error "Marking parent job as aborted because ${currentBuild.getFullDisplayName()}: ${currentBuild.getAbsoluteUrl()} has been canceled"
+                    setCommitStatus('aborted')
                 }
                 unstable {
-                    addGitLabMRComment(comment: ":interrobang: ${currentBuild.getProjectName()} :penguin: <b>Linux</b> UNSTABLE  :confused:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}" )
-                    updateGitlabCommitStatus(name: 'Linux build & test', state: 'failed')
-                    error "Marking parent job as failed because ${currentBuild.getFullDisplayName()}: ${currentBuild.getAbsoluteUrl()} has failed"
+                    setCommitStatus('unstable')
                 }
             }
         }
