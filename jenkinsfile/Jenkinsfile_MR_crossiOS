@@ -1,30 +1,35 @@
-def setCommitStatus(String pStatus) {
+def setCommitStatus(String pStatus, String errorHint = '') {
     switch (pStatus) {
         case 'running':
             pState = 'running'
-            pMessage = ":arrow_forward: ${currentBuild.getProjectName()} :green_apple: <b>iOS</b> job started :tools:<br/>URL: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ""
             break
         case 'success':
             pState = 'success'
-            pMessage = ":white_check_mark: ${currentBuild.getProjectName()} :green_apple: <b>iOS</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":white_check_mark: ${env.JOB_NAME} :green_apple: <b>iOS</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'aborted':
             pState = 'canceled'
-            pMessage = ":interrobang: ${currentBuild.getProjectName()} :green_apple: <b>iOS</b> ABORTED :confused:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>iOS</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'failure':
             pState = 'failed'
-            pMessage = ":red_circle: ${currentBuild.getProjectName()} :green_apple: <b>iOS</b> FAILURE :worried:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":red_circle: ${env.JOB_NAME} :green_apple: <b>iOS</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'unstable':
             pState = 'failed'
-            pMessage = ":interrobang: ${currentBuild.getProjectName()} :green_apple: <b>iOS</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>iOS</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         default:
             pState = 'failed'
-            pMessage = ":interrobang: ${currentBuild.getProjectName()} :green_apple: <b>iOS</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${currentBuild.getFullDisplayName()}]](${currentBuild.getAbsoluteUrl()})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>iOS</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
     }
-    addGitLabMRComment(comment: pMessage)
+    if (pMessage) {
+        if (errorHint) {
+             pMessage += '<br/> ' + errorHint
+        }
+        addGitLabMRComment(comment: pMessage)
+    }
     updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: pState)
 }
 
@@ -70,7 +75,7 @@ pipeline {
             }
             post{
                 failure {
-                    setCommitStatus('failure')
+                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
                 }
                 aborted {
                     setCommitStatus('aborted')
@@ -94,7 +99,7 @@ pipeline {
             }
             post{
                 failure {
-                    setCommitStatus('failure')
+                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
                 }
                 aborted {
                     setCommitStatus('aborted')
@@ -118,7 +123,7 @@ pipeline {
             }
             post{
                 failure {
-                    setCommitStatus('failure')
+                    setCommitStatus('failure', 'Failure when getting iOS branch. Is `IOS_BRANCH` variable well defined?')
                 }
                 aborted {
                     setCommitStatus('aborted')
@@ -144,7 +149,7 @@ pipeline {
             }
             post{
                 failure {
-                    setCommitStatus('failure')
+                    setCommitStatus('failure', 'Failure when getting API URL. Is `APIURL_TO_TEST` variable well defined?')
                 }
                 aborted {
                     setCommitStatus('aborted')
