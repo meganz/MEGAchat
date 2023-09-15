@@ -4,6 +4,7 @@
 #import "MEGASdk.h"
 #import "MEGAHandleList+init.h"
 #import "MEGAChatSession+init.h"
+#import "MEGAChatWaitingRoom+init.h"
 
 using namespace megachat;
 
@@ -137,6 +138,18 @@ using namespace megachat;
     
     NSUUID *uuid = [NSUUID.alloc initWithUUIDBytes:tempUuid];
     return uuid;
+}
+
+- (MEGAChatWaitingRoomStatus)waitingRoomJoiningStatus {
+    return self.megaChatCall ? MEGAChatWaitingRoomStatus(self.megaChatCall->getWrJoiningState()) : MEGAChatWaitingRoomStatusUnknown;
+}
+
+- (MEGAChatWaitingRoom *)waitingRoom {
+    return self.megaChatCall->getWaitingRoom() ? [[MEGAChatWaitingRoom alloc] initWithMegaChatWaitingRoom:self.megaChatCall->getWaitingRoom()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)waitingRoomHandleList {
+    return self.megaChatCall->getHandleList() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getHandleList()->copy() cMemoryOwn: YES] : nil;
 }
 
 - (nullable MEGAChatSession *)sessionForClientId:(uint64_t)clientId {

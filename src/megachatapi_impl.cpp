@@ -1058,7 +1058,9 @@ void MegaChatApiImpl::sendPendingRequests()
                    request->setChatHandle(chatId);
                    request->setNumber(numPeers);
                    request->setText(decryptedTitle.c_str());
-                   request->setPrivilege(result->getParamType()); // waiting room flag
+
+                   ::mega::ChatOptions_t opts = static_cast<::mega::ChatOptions_t>(result->getParamType());
+                   request->setPrivilege(opts);
                    if (result->getMegaHandleList())
                    {
                        request->setMegaHandleList(result->getMegaHandleList());
@@ -1070,10 +1072,10 @@ void MegaChatApiImpl::sendPendingRequests()
                        request->setParamType(1);
                    }
 
-                   if (result->getMegaScheduledMeetingList() && result->getMegaScheduledMeetingList()->size())
+                   const MegaScheduledMeetingList* smList = result->getMegaScheduledMeetingList();
+                   if (smList && smList->size())
                    {
                        std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-                       const MegaScheduledMeetingList* smList = result->getMegaScheduledMeetingList();
                        for (unsigned long i = 0; i < smList->size(); ++i)
                        {
                            if (smList->at(i) == nullptr)
@@ -1099,7 +1101,7 @@ void MegaChatApiImpl::sendPendingRequests()
                        Id ph = result->getNodeHandle();
                        request->setUserHandle(ph.val);
 
-                       GroupChatRoom *room = (GroupChatRoom*) findChatRoom(chatId);
+                       GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
                        if (room)
                        {
                            if (room->isActive()
@@ -1131,7 +1133,7 @@ void MegaChatApiImpl::sendPendingRequests()
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
                            uint32_t ts = static_cast<uint32_t>(result->getNumber());
 
-                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting);
+                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                            fireOnChatRequestFinish(request, megaChatError);
                        }
@@ -11244,6 +11246,7 @@ void MegaChatCallHandler::onWrUsersLeave(const rtcModule::ICall& call, const ::m
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE);
     chatCall->setHandleList(users);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg)

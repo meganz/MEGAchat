@@ -4292,9 +4292,9 @@ public:
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      * - MegaChatRequest::getText - Returns the title of the chat.
      * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
-     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
-     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
-     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
+     *  + To check if speakRequest was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, bitmask)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -4380,9 +4380,9 @@ public:
      * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
      * - MegaChatRequest::getText - Returns the title of the chat.
      * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
-     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
-     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
-     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
+     *  + To check if speakRequest was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, bitmask)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -4448,9 +4448,9 @@ public:
      * - MegaChatRequest::request->getNumber - Returns true if new chat is going to be a Meeting room
      * - MegaChatRequest::request->getPrivilege - Returns true is new chat is going to be a public chat room
      * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
-     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
-     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
-     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
+     *  + To check if speakRequest was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, bitmask)
      * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting
      *   (containing the params provided by user), or NULL in case request finished with an error.
      *
@@ -4695,9 +4695,9 @@ public:
      * - MegaChatRequest::getText - Returns the title of the chat.
      * - MegaChatRequest::getNumber - Returns always 1, since the chatroom is a meeting
      * - MegaChatRequest::getParamType - Returns the values of params speakRequest, waitingRoom, openInvite in a bitmask.
-     *  + To check if speakRequest was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_SPEAK_REQUEST, bitmask)
-     *  + To check if waitingRoom was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_WAITING_ROOM, bitmask)
-     *  + To check if openInvite was true you need to call MegaChatApiImpl::hasChatOptionEnabled(CHAT_OPTION_OPEN_INVITE, bitmask)
+     *  + To check if speakRequest was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite was true you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, bitmask)
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -5028,9 +5028,12 @@ public:
      * - MegaChatRequest::getUserHandle - Returns the public handle of chat.
      * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
      * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
-     * - MegaChatRequest::getPrivilege - Returns 1 if chatRoom has waiting room option enabled, otherwise returns 0
      * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance
      * (with a list of scheduled meetings associated to the chatroom) or nullptr if none.
+     * - MegaChatRequest::getPrivilege - Returns the values of chatroom options speakRequest, waitingRoom, openInvite in a bitmask.
+     *  + To check if speakRequest is enabled for chatroom, you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom is enabled for chatroom, you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite is enabled for chatroom, you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, bitmask)
      *
      * On the onRequestFinish, when the error code is MegaError::ERROR_OK, you need to call
      * MegaChatApi::openChatRoom to receive notifications related to this chat
@@ -5060,8 +5063,12 @@ public:
      * - MegaChatRequest::getChatHandle - Returns the chatid of the chat.
      * - MegaChatRequest::getNumber - Returns the number of peers in the chat.
      * - MegaChatRequest::getText - Returns the title of the chat that was actually saved.
-     * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
      * - MegaChatRequest::getParamType - Returns 1 if it's a meeting room
+     * - MegaChatRequest::getMegaHandleList - Returns a vector with one element (callid), if call doesn't exit it will be NULL
+     * - MegaChatRequest::getPrivilege - Returns the values of chatroom options speakRequest, waitingRoom, openInvite in a bitmask.
+     *  + To check if speakRequest is enabled for chatroom, you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, bitmask)
+     *  + To check if waitingRoom is enabled for chatroom, you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, bitmask)
+     *  + To check if openInvite is enabled for chatroom, you need to call MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, bitmask)
      *
      * @param link Null-terminated character string with the public chat link
      * @param listener MegaChatRequestListener to track this request
@@ -8330,7 +8337,9 @@ public:
     virtual void setByMonthDay(const ::mega::MegaIntegerList* byMonthDay);
 
     /**
-     * @brief Sets one or multiple weekday offset (ie: [5,4] event will occur every 5th Thursday of each month)
+     * @brief Sets one or multiple weekday offset
+     * + Positive offset: (ie: [5,4] event will occur every 5th Thursday of each month)
+     * + Negative offset: (ie: [-1,1] event will occur every last Monday of each month)
      *
      * @return A MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset
      */
@@ -8381,7 +8390,9 @@ public:
     virtual const mega::MegaIntegerList* byMonthDay() const;
 
     /**
-     * @brief Returns a MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset (ie: [5,4] event will occur every 5th Thursday of each month)
+     * @brief Returns a MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset
+     * + Positive offset: (ie: [5,4] event will occur every 5th Thursday of each month)
+     * + Negative offset: (ie: [-1,1] event will occur every last Monday of each month)
      *
      * @return A MegaIntegerMap <offset, weekday> that allows to specify one or multiple weekday offset
      */

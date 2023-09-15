@@ -947,6 +947,66 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)allowUsersJoinCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->allowUsersJoinCall(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)allowUsersJoinCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->allowUsersJoinCall(chatId, users.getCPtr);
+    }
+}
+
+- (void)kickUsersFromCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->kickUsersFromCall(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)kickUsersFromCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->kickUsersFromCall(chatId, users.getCPtr);
+    }
+}
+
+- (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->pushUsersIntoWaitingRoom(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->pushUsersIntoWaitingRoom(chatId, users.getCPtr);
+    }
+}
+
 - (void)autojoinPublicChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->autojoinPublicChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
@@ -1652,6 +1712,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 - (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
     if (self.megaChatApi) {
         self.megaChatApi->startChatCallNoRinging(chatId, scheduledId, enableVideo, enableAudio);
+    }
+}
+
+- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->startMeetingInWaitingRoomChat(chatId, scheduledId, enableVideo, enableAudio, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
+    if (self.megaChatApi) {
+        self.megaChatApi->startMeetingInWaitingRoomChat(chatId, scheduledId, enableVideo, enableAudio);
     }
 }
 

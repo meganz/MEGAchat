@@ -462,28 +462,12 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     // offset ts when we join within the call respect the call start (ms)
     uint64_t callJoinOffset = tsIterator->value.GetUint64();
 
-    // parse moderators list
-    std::set<karere::Id> moderators;
-    rapidjson::Value::ConstMemberIterator modsIterator = command.FindMember("mods");
-    if (modsIterator != command.MemberEnd() && modsIterator->value.IsArray())
-    {
-        parseUsersArray(moderators, modsIterator);
-    }
-
-    // parse own moderator permission
-    bool ownModerator = false;
-    rapidjson::Value::ConstMemberIterator modIterator = command.FindMember("mod");
-    if (modIterator != command.MemberEnd() && modIterator->value.IsUint())
-    {
-        ownModerator = modIterator->value.GetUint();
-    }
-
     std::vector<Peer> peers;
     std::map<Cid_t, std::string> keystrmap;
     rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
     if (peersIterator != command.MemberEnd() && peersIterator->value.IsArray())
     {
-        parsePeerObject(peers, keystrmap, moderators, peersIterator);
+        parsePeerObject(peers, keystrmap, peersIterator);
     }
 
     std::map<Cid_t, TrackDescriptor> speakers;
@@ -492,10 +476,10 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     std::map<Cid_t, TrackDescriptor> vthumbs;
     parseTracks(command, "vthumbs", vthumbs);
 
-    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, moderators, ownModerator);
+    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers);
 }
 
-void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
@@ -559,9 +543,9 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
                  return;
             }
 
-            bool isModerator = moderators.find(userId) != moderators.end();
             unsigned av = avIterator->value.GetUint();
-            Peer peer(userId, static_cast<sfu::SfuProtocol>(sfuVersion), av, &ivs, cid, isModerator);
+            // default initialization of isModerator. It gets updated for every peer at handleAnwerCommand with mod list received at HELLO command later in the run flow
+            Peer peer(userId, static_cast<sfu::SfuProtocol>(sfuVersion), av, &ivs, cid, false /*isModerator*/);
             peers.push_back(std::move(peer));
         }
         else
@@ -1594,7 +1578,7 @@ const karere::Url& SfuConnection::getSfuUrl()
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
     commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9), call);
+    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
     commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
     commands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
