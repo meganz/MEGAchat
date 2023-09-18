@@ -2112,6 +2112,12 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
         return false;
     }
 
+    if (isDestroying())
+    {
+        RTCM_LOG_WARNING("handleBye: call is already being destroyed");
+        return true;
+    }
+
     if (wr) // we have been moved into a waiting room
     {
         assert (auxTermCode == kPushedToWaitingRoom);
@@ -2518,6 +2524,18 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
 bool Call::error(unsigned int code, const std::string &errMsg)
 {
     TermCode connectionTermCode = static_cast<TermCode>(code);
+    if (!isValidConnectionTermcode(connectionTermCode))
+    {
+        RTCM_LOG_ERROR("Invalid termCode [%u] received at error command", connectionTermCode);
+        return false;
+    }
+
+    if (isDestroying())
+    {
+        RTCM_LOG_WARNING("SFU error command received [%u], but call is already being destroyed", connectionTermCode);
+        return true;
+    }
+
     if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
     {
         setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
