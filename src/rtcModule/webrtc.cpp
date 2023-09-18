@@ -4208,7 +4208,7 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
 
     if (!mAudioLevelMonitor)
     {
-        RTCM_LOG_DEBUG("enableAudioMonitor: AudioMonitor is null");
+        RTCM_LOG_WARNING("enableAudioMonitor: AudioMonitor is null");
         assert(false);
         return;
     }
