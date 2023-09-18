@@ -128,7 +128,7 @@ class RemoteAudioSlot : public RemoteSlot
 public:
     RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assignAudioSlot(Cid_t cid, IvStatic_t iv);
-    void enableAudioMonitor(bool enable);
+    bool enableAudioMonitor(const bool enable);
     void createDecryptor(Cid_t cid, IvStatic_t iv) override;
     void release() override;
 
@@ -304,7 +304,7 @@ public:
     promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
-    void enableAudioLevelMonitor(bool enable) override;
+    std::set<Cid_t> enableAudioLevelMonitor(const bool enable) override;
     bool isAudioLevelMonitorEnabled() const override;
 
     // called when the user wants to "mute" an incoming call (the call is kept in ringing state)

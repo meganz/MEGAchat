@@ -2364,10 +2364,19 @@ int MegaChatApiImpl::performRequest_enableAudioLevelMonitor(MegaChatRequestPriva
                 return MegaChatError::ERROR_ACCESS;
             }
 
-            call->enableAudioLevelMonitor(enable);
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+            int errCode = MegaChatError::ERROR_OK;
+            std::set<Cid_t> cidsFailed = call->enableAudioLevelMonitor(enable);
+            if (!cidsFailed.empty())
+            {
+                errCode = MegaChatError::ERROR_TOOMANY;
+                std::unique_ptr<MegaHandleList> l(MegaHandleList::createInstance());
+                std::for_each(cidsFailed.begin(), cidsFailed.end(), [&l](const auto &cid) { l->addMegaHandle(cid); });
+                request->setMegaHandleList(l.get());
+            }
+
+            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(errCode);
             fireOnChatRequestFinish(request, megaChatError);
-            return MegaChatError::ERROR_OK;
+            return errCode;
         }
 }
 

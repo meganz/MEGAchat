@@ -360,14 +360,19 @@ bool Call::isJoining() const
     return mIsJoining;
 }
 
-void Call::enableAudioLevelMonitor(bool enable)
+std::set<Cid_t> Call::enableAudioLevelMonitor(const bool enable)
 {
+    std::set<Cid_t> cidsFailed;
     mAudioLevelMonitor = enable;
     for (auto& itSession : mSessions)
     {
         if (!itSession.second->getAudioSlot()) { continue; }
-        itSession.second->getAudioSlot()->enableAudioMonitor(enable);
+        if (!itSession.second->getAudioSlot()->enableAudioMonitor(enable))
+        {
+            cidsFailed.emplace(itSession.first);
+        }
     }
+    return cidsFailed;
 }
 
 void Call::ignoreCall()
@@ -4193,9 +4198,13 @@ void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
     }
 }
 
-void RemoteAudioSlot::enableAudioMonitor(bool enable)
+bool RemoteAudioSlot::enableAudioMonitor(const bool enable)
 {
-    if (enable == mAudioLevelMonitorEnabled) { return; }
+    if (enable == mAudioLevelMonitorEnabled)
+    {
+        RTCM_LOG_DEBUG("enableAudioMonitor: audio level monitor already %s", enable ? " enabled " : "disabled");
+        return true;
+    }
 
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
     webrtc::AudioTrackInterface* audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
@@ -4203,14 +4212,14 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
     {
         RTCM_LOG_WARNING("enableAudioMonitor: non valid audiotrack");
         assert(false);
-        return;
+        return false;
     }
 
     if (!mAudioLevelMonitor)
     {
         RTCM_LOG_WARNING("enableAudioMonitor: AudioMonitor is null");
         assert(false);
-        return;
+        return false;
     }
 
     if (enable)
@@ -4225,6 +4234,7 @@ void RemoteAudioSlot::enableAudioMonitor(bool enable)
         mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
     }
+    return true;
 }
 
 void RemoteAudioSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
