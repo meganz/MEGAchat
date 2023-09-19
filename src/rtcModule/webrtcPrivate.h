@@ -519,6 +519,16 @@ protected:
     bool mIgnored = false;
     bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
 
+    /* This var is set true, when are going to destroy the call due to any of the following reasons:
+      * - BYE command received with non retriable termcode
+      * - SFU error received
+      * - DELCALLREASON
+      * - Our own user doesn't participate in chatroom
+      * - We have completed reconnection into an empty chatroom
+      * - Reconnection attempt has not succeeded after max timeout
+      */
+    bool mIsDestroyingCall = false;
+
     // this var detects if we are destroying call due to BYE command received, with non retriable termcode
     TermCode mByeTermCode = kUnKnownTermCode;
 

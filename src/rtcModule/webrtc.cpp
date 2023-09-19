@@ -3213,15 +3213,16 @@ void Call::disableStats()
 
 void Call::setDestroying(bool isDestroying)
 {
+    mIsDestroyingCall = isDestroying;
     if (mSfuConnection)
     {
-        mSfuConnection->setDestroyingCall(isDestroying);
+        mSfuConnection->setAvoidReconnect(isDestroying);
     }
 }
 
 bool Call::isDestroying()
 {
-    return mSfuConnection ? mSfuConnection->isDestroyingCall() : false;
+    return mIsDestroyingCall;
 }
 
 void Call::generateEphemeralKeyPair()

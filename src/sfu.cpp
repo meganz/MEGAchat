@@ -1319,7 +1319,7 @@ void SfuConnection::connect()
 
 void SfuConnection::doReconnect(const bool applyInitialBackoff)
 {
-    if (isDestroyingCall())
+    if (avoidReconnect())
     {
         SFU_LOG_DEBUG("Avoid reconnect to SFU, as we are destroying call");
         return;
@@ -2136,14 +2136,14 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
     return sendWrCommand(SfuConnection::CSFU_WR_KICK, users);
 }
 
-bool SfuConnection::isDestroyingCall() const
+bool SfuConnection::avoidReconnect() const
 {
-    return mIsDestroyingCall;
+    return mAvoidReconnect;
 }
 
-void SfuConnection::setDestroyingCall(const bool isDestroying)
+void SfuConnection::setAvoidReconnect(const bool avoidReconnect)
 {
-    mIsDestroyingCall = isDestroying;
+    mAvoidReconnect = avoidReconnect;
 }
 
 bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json)
