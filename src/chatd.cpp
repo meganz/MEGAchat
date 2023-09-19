@@ -5767,12 +5767,29 @@ void Chat::onUserLeave(const Id& userid)
 {
     assert(mOnlineState >= kChatStateJoining);
 
-    bool previewer = (userid == Id::null());  // the handle of a public chat (being previewer) has become invalid
-    if (userid == client().myHandle() || previewer)
+    // We should only receive JOIN with user 'AAAAAAAAAAA', if we are in preview mode
+    bool isPreviewerIdRecv = (userid == Id::null());
+    if (userid == client().myHandle() || isPreviewerIdRecv)
     {
+        if (isPreviewerIdRecv && !previewMode())
+        {
+            CHATID_LOG_ERROR("We have received JOIN -1 for user 'AAAAAAAAAAA', but we are not in "
+                             "preview mode. chat: %s", chatId().toString().c_str());
+            assert(false);
+            return;
+        }
+
         mOwnPrivilege = PRIV_NOTPRESENT;
-        disable(previewer);    // the ph is invalid -> do not keep trying to login into chatd anymore
+        disable(isPreviewerIdRecv);    // the ph is invalid -> do not keep trying to login into chatd anymore
         onPreviewersUpdate(0);
+
+        if (isPreviewerIdRecv)
+        {
+            // notify that our own user permission (in preview mode) has been updated to PRIV_NOTPRESENT
+            // probably chat-link has been invalidated, so chatd send us a JOIN command with priv -1
+            CHATID_LOG_DEBUG("our own user permission (in preview mode) has been updated to not present (-1)");
+            CALL_LISTENER(onUserLeave, userid);
+        }
 
         // due to a race-condition at client-side receiving the removal of own user from API and chatd,
         // if own user was the only moderator, chatd sends the JOIN 3 for remaining peers followed by the

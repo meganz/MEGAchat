@@ -3717,15 +3717,19 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 
 void GroupChatRoom::onUserLeave(Id userid)
 {
-    if (userid == parent.mKarereClient.myHandle())
+    if (userid == Id::null())
     {
+        if (!previewMode())
+        {
+            assert(false);
+            return;
+        }
+
+        // preview is not allowed anymore, notify the user and clean cache
         setRemoved();
     }
-    else if (userid == Id::null())
+    else if (userid == parent.mKarereClient.myHandle())
     {
-        // preview is not allowed anymore, notify the user and clean cache
-        assert(previewMode());
-
         setRemoved();
     }
     else
