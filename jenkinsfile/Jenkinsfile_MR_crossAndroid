@@ -1,0 +1,278 @@
+def setCommitStatus(String pStatus, String errorHint = '') {
+    switch (pStatus) {
+        case 'running':
+            pState = 'running'
+            pMessage = ""
+            break
+        case 'success':
+            pState = 'success'
+            pMessage = ":white_check_mark: ${env.JOB_NAME} :robot: <b>Android</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'aborted':
+            pState = 'canceled'
+            pMessage = ":interrobang: ${env.JOB_NAME} :robot: <b>Android</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'failure':
+            pState = 'failed'
+            pMessage = ":red_circle: ${env.JOB_NAME} :robot: <b>Android</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'unstable':
+            pState = 'failed'
+            pMessage = ":interrobang: ${env.JOB_NAME} :robot: <b>Android</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        default:
+            pState = 'failed'
+            pMessage = ":interrobang: ${env.JOB_NAME} :robot: <b>Android</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+    }
+    if (pMessage) {
+        if (errorHint) {
+             pMessage += '<br/> ' + errorHint
+        }
+        addGitLabMRComment(comment: pMessage)
+    }
+    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: pState)
+}
+
+pipeline {
+    agent { label 'linux && amd64 && android' }
+    options {
+        buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
+        gitLabConnection('GitLabConnectionJenkins')
+    }
+    environment {
+        BUILD_OPTIONS = ' '
+        APIURL_TO_TEST = ' '
+        PIPELINE_NAME = 'Android build'
+    }
+    stages {
+        stage('clean previous runs and update gitlab commit status'){
+            steps{
+                deleteDir()
+                setCommitStatus('running')
+            }
+        }
+        stage('Get current build description'){
+            steps{
+                script{
+                    println "${env.gitlabMergeRequestDescription}"
+                    env.currentBuildDescription = currentBuild.description
+                }
+            }
+        }
+        stage('Get build options'){
+            when {
+                allOf {
+                    expression { env.gitlabTriggerPhrase != null }
+                    expression { env.gitlabTriggerPhrase.contains('BUILD_OPTIONS') }
+                }
+            }
+            steps {
+                script{
+                    BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\"" -f2', returnStdout: true).trim()
+                    println BUILD_OPTIONS
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
+                }
+            }
+        }
+        stage('Get SDK branch'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('SDK_BRANCH_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_BRANCH_TO_TEST | awk -F "SDK_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    if (SDK_BRANCH == ""){
+                        echo "SDK_BRANCH was not found on description so develop will be used by default"
+                        env.SDK_BRANCH = 'develop'
+                    }
+                    println SDK_BRANCH
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+        stage('Get Android branch'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('ANDROID_BRANCH_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    env.ANDROID_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep ANDROID_BRANCH_TO_TEST | awk -F "ANDROID_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    if (ANDROID_BRANCH == ""){
+                        echo "ANDROID_BRANCH was not found on description so develop will be used by default"
+                        env.ANDROID_BRANCH = 'develop'
+                    }
+                    println ANDROID_BRANCH
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting android branch. Is `ANDROID_BRANCH` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+        stage('Get API URL'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('USE_APIURL_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    APIURL_TO_TEST = sh(script: 'echo "$gitlabMergeRequestDescription" | grep USE_APIURL_TO_TEST | awk -F "USE_APIURL_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    println APIURL_TO_TEST
+                    if (APIURL_TO_TEST == ""){
+                        APIURL_TO_TEST = "https://g.api.mega.co.nz/"
+                        echo "APIURL_TO_TEST was not found on description so ${APIURL_TO_TEST} will be used by default"
+                    }
+                    echo "APIURL_TO_TEST will be ${APIURL_TO_TEST}"
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting API URL. Is `APIURL_TO_TEST` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+        stage('Checkout SDK MEGAchat and Android'){
+            when {
+                anyOf {
+                    expression { env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'trigger compilation' || env.gitlabTriggerPhrase.startsWith('trigger compilation android'))  }
+                    allOf{
+                        expression { env.gitlabTriggerPhrase == null }
+                        triggeredBy "GitlabWebhookCause"
+                    }
+                }
+            }
+            steps {
+                updateGitlabCommitStatus(name: 'Android build', state: 'running')
+                deleteDir()
+                sh "echo Cloning android branch ${env.ANDROID_BRANCH}"
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "origin/${env.ANDROID_BRANCH}"]],
+                    userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:mobile/android/android.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                    extensions: [
+                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                        ]
+                ])
+                dir("sdk/src/main/jni/megachat/sdk"){
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                        userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:megachat/MEGAchat.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                            [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                        ]
+                    ])
+                    script{
+                        megachat_sources_workspace = WORKSPACE
+                    }
+                }
+                dir('sdk/src/main/jni/mega/sdk'){
+                    sh "echo Cloning SDK branch ${env.SDK_BRANCH}"
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${env.SDK_BRANCH}"]],
+                            userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:sdk/sdk.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                            extensions: [
+                                [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                            ]
+                    ])
+                    script{
+                        sdk_sources_workspace = WORKSPACE
+                    }
+                }
+                script{
+                    android_sources_workspace = WORKSPACE
+                    sdk_sources_workspace = "${megachat_sources_workspace}/third-party/mega"
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+        stage('Build MEGACHAT SDK and Android App'){
+            environment{
+                BUILD_ARCHS = "arm64-v8a"
+                ANDROID_HOME = "/home/jenkins/android-cmdlinetools/"
+                ANDROID_NDK_HOME ="/home/jenkins/android-ndk/"
+                DEFAULT_GOOGLE_MAPS_API_PATH = "/home/jenkins/android-default_google_maps_api"
+                ANDROID_WEBRTC="/home/jenkins/android-webrtc"
+                USE_PREBUILT_SDK = false
+                ARTIFACTORY_BASE_URL = "${env.REPOSITORY_URL}"
+            }
+            steps{
+                dir("sdk/src/main/jni"){
+                    script{
+                        env.PATH="${env.PATH}:${env.ANDROID_HOME}/cmdline-tools/tools/bin/"
+                    }
+                    sh """
+                        ln -sfrT ${ANDROID_WEBRTC} megachat/webrtc
+                        sed -i 's#JOBS=.*#JOBS=1#' build.sh
+                        sed -i 's#LOG_FILE=/dev/null#LOG_FILE=/dev/stdout#g' build.sh
+                        ./build.sh clean
+                        ./build.sh all
+                    """
+                }
+                sh """
+                    cp -r ${DEFAULT_GOOGLE_MAPS_API_PATH}/* app/src/
+                    ./gradlew --no-daemon --max-workers=1 assembleGms
+                """
+            }
+            post{
+                success{
+                    setCommitStatus('success')
+                }
+                failure{
+                    setCommitStatus('failure')
+                }
+                aborted{
+                    setCommitStatus('aborted')
+                }
+                unstable{
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+    }
+}
+// vim: syntax=groovy tabstop=4 shiftwidth=4
