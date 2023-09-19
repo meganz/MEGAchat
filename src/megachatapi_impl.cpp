@@ -1130,18 +1130,16 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                        GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
                        if (room)
                        {
-                           if (room->isActive()
-                              || (!room->isActive() && !room->previewMode()))
+                           int err = MegaChatError::ERROR_EXIST;
+                           const bool enablePreview = !room->isActive() && room->previewMode();
+                           if (enablePreview)
                            {
-                               MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
-                               fireOnChatRequestFinish(request, megaChatError);
-                           }
-                           else
-                           {
-                               MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                               err = MegaChatError::ERROR_OK;
                                room->enablePreview(ph);
-                               fireOnChatRequestFinish(request, megaChatError);
                            }
+
+                           MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err);
+                           fireOnChatRequestFinish(request, megaChatError);
                        }
                        else
                        {
