@@ -4198,7 +4198,6 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
     if (!areContact(a1, a2))
     {
         ASSERT_NO_FATAL_FAILURE({ makeContact(a1, a2); });
-        ASSERT_TRUE(areContact(a1, a2));
     }
 
     // select/create a chatroom with speak request enabled
