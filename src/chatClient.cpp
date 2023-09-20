@@ -4378,6 +4378,63 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaScheduledMeetingList* sched
     }
 }
 
+void GroupChatRoom::updateSchedMeetingsWithList(const mega::MegaScheduledMeetingList* smList)
+{
+    if (!smList) { return; }
+
+    // update sched meetings in ram with received ones in smList
+    for (unsigned int i = 0; i < smList->size(); ++i)
+    {
+        const mega::MegaScheduledMeeting* sm = smList->at(i);
+        auto it = mScheduledMeetings.find(sm->schedId());
+        if (it != mScheduledMeetings.end() && it->second)
+        {
+            const KarereScheduledMeeting* ksm = it->second.get();
+            KarereScheduledMeeting::sched_bs_t diff = ksm->compare(sm);
+
+            if (diff.any()) // sm has changed respect received data in smList
+            {
+                it->second.reset(new KarereScheduledMeeting(sm));
+                notifySchedMeetingUpdated(it->second.get(), diff.to_ulong());
+                getClientDbInterface().insertOrUpdateSchedMeeting(*it->second);
+            }
+        }
+        else // not found (new scheduled meeting), add it
+        {
+            auto res = mScheduledMeetings.emplace(sm->schedId(), new KarereScheduledMeeting(sm));
+            if (res.second)
+            {
+                notifySchedMeetingUpdated(res.first->second.get(), KarereScheduledMeeting::newSchedMeetingFlagsValue());
+                assert(res.first->second);
+                getClientDbInterface().insertOrUpdateSchedMeeting(*res.first->second);
+            }
+        }
+    }
+
+    // removed those sched meetings in ram not found in smList
+    for (auto it = mScheduledMeetings.begin(); it != mScheduledMeetings.end();)
+    {
+        auto auxit = it++;
+        if (!smList->getBySchedId(auxit->first))
+        {
+            notifySchedMeetingUpdated(auxit->second.get(), KarereScheduledMeeting::deletedSchedMeetingFlagsValue());
+            mScheduledMeetings.erase(auxit);
+        }
+    }
+
+    // clear list of current scheduled meetings occurrences from db by chatid
+    getClientDbInterface().clearSchedMeetingOcurrByChatid(chatid());
+
+    // clear list of current scheduled meetings occurrences in ram
+    mScheduledMeetingsOcurrences.clear();
+
+    // set occurrences loaded flag to false
+    mAllDbOccurrencesLoadedInRam = false;
+
+    // notify scheduled meetings occurrences for this chat have changed (in order to app discard them)
+    notifySchedMeetingOccurrencesUpdated(false /*append*/);
+}
+
 void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
 {
     if (!chat.getSchedMeetingsChanged())

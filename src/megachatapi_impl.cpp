@@ -1141,6 +1141,8 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                room->enablePreview(ph);
                            }
 
+                           // update sched meetings if necessary and notify app
+                           room->updateSchedMeetingsWithList(smList);
                            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err);
                            fireOnChatRequestFinish(request, megaChatError);
                        }

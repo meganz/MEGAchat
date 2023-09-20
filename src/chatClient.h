@@ -538,6 +538,7 @@ public:
     bool isWaitingRoom() const override;
     bool isSpeakRequest() const override;
     bool isOpenInvite() const override;
+    void updateSchedMeetingsWithList(const mega::MegaScheduledMeetingList* smList);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
