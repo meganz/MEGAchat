@@ -3169,6 +3169,26 @@ void ChatRoom::notifyRejoinedChat()
 
 void ChatRoomList::removeRoomPreview(Id chatid)
 {
+    auto it = find(chatid);
+    if (it == end())
+    {
+        CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
+        return;
+    }
+    if (!it->second->previewMode())
+    {
+        CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
+        return;
+    }
+
+    GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
+    groupchat->notifyPreviewClosed();
+    erase(it);
+    delete groupchat;
+}
+
+void ChatRoomList::removeRoomPreviewMarshall(Id chatid)
+{
     auto wptr = mKarereClient.weakHandle();
     marshallCall([wptr, this, chatid]()
     {
@@ -3176,23 +3196,7 @@ void ChatRoomList::removeRoomPreview(Id chatid)
         {
             return;
         }
-
-        auto it = find(chatid);
-        if (it == end())
-        {
-            CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
-            return;
-        }
-        if (!it->second->previewMode())
-        {
-            CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
-            return;
-        }
-
-        GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
-        groupchat->notifyPreviewClosed();
-        erase(it);
-        delete groupchat;
+        removeRoomPreview(chatid);
     },mKarereClient.appCtx);
 }
 
@@ -4155,6 +4159,20 @@ void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted
 
         makeTitleFromMemberNames();
     });
+}
+
+bool GroupChatRoom::hasChatLinkChanged(const uint64_t ph, const std::string &decryptedTitle,
+                                       const bool meeting, const ::mega::ChatOptions_t opts) const
+{
+    if ((ph != getPublicHandle())
+        || (meeting != mMeeting)
+        || (!mChatOptions.areEqual(opts))
+        || (titleString().compare(decryptedTitle)))
+    {
+        return true;
+    }
+
+    return false;
 }
 
 void GroupChatRoom::clearTitle()

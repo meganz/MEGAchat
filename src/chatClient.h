@@ -525,6 +525,13 @@ public:
      */
     size_t loadOccurresInMemoryFromDb();
 
+    /**
+     * @brief This method compares the Chatroom fields stored in ram, with information received from API via mcphurl
+     *
+     * @return true if API information differs from stored chatroom, otherwise returns false
+     */
+    bool hasChatLinkChanged(const uint64_t ph, const std::string &decryptedTitle, const bool meeting, const ::mega::ChatOptions_t opts) const;
+
     unsigned long numMembers() const override;
 
     bool isMeeting() const override;
@@ -545,6 +552,7 @@ public:
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom* addRoom(const mega::MegaTextChat &room);
     void removeRoomPreview(Id chatid);
+    void removeRoomPreviewMarshall(Id chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
