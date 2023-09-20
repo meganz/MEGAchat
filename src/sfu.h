@@ -666,6 +666,8 @@ public:
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
+    bool avoidReconnect() const;
+    void setAvoidReconnect(const bool avoidReconnect);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
@@ -731,6 +733,9 @@ protected:
      * If connection is dropped down before receiving the ANSWER command, the next attempt will be delayed.
      */
      unsigned int mInitialBackoff = 0;
+
+     // This flag prevents to start a new reconnection attempt, if we are currently destroying the call
+     bool mAvoidReconnect = false;
 };
 
 /**
