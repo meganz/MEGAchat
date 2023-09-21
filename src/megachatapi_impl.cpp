@@ -5486,7 +5486,8 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
                 }
             }
 
-            const Message *editedMsg = chatroom->chat().msgModify(*originalMsg, msg, msgLen, NULL, newtype);
+            karere::Id user {getMyUserHandle()};
+            const Message *editedMsg = chatroom->chat().msgModify(*originalMsg, msg, msgLen, &user, newtype);
             if (editedMsg)
             {
                 megaMsg = new MegaChatMessagePrivate(*editedMsg, Message::kSending, index);
