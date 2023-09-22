@@ -3030,7 +3030,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                 // Race condition, more than one session (still pending to be verified) tried to attach slot
                 // When Pms for this session has been resolved, another session (still pending to be verified)
                 // was trying to attach same slot so getAuxCid doesn't match with this cid
-                RTCM_LOG_ERROR("Temp CID %u doesn't match with this CID: %u", slot->getAuxCid(), cid);
+                RTCM_LOG_WARNING("Temp CID %u doesn't match with this CID: %u", slot->getAuxCid(), cid);
                 return;
             }
 
@@ -3114,7 +3114,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
             // Race condition, more than one session (still pending to be verified) tried to attach slot
             // When Pms for this session has been resolved, another session (still pending to be verified)
             // was trying to attach same slot so getAuxCid doesn't match with this cid
-            RTCM_LOG_ERROR("Temp CID %u doesn't match with this CID: %u", slot->getAuxCid(), cid);
+            RTCM_LOG_WARNING("Temp CID %u doesn't match with this CID: %u", slot->getAuxCid(), cid);
             return;
         }
 
