@@ -898,6 +898,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                   speakRequest:(BOOL)speakRequest
                    waitingRoom:(BOOL)waitingRoom
                     openInvite:(BOOL)openInvite
+                     queueType:(ListenerQueueType)queueType
                       delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->createMeeting(title.UTF8String,
@@ -906,7 +907,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                                         openInvite,
                                         [self createDelegateMEGAChatRequestListener:delegate
                                                                      singleListener:YES
-                                                                          queueType:ListenerQueueTypeGlobalBackground]);
+                                                                          queueType:queueType]);
     }
 }
 
