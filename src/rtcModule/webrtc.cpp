@@ -1363,8 +1363,10 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
         return false;
     }
 
-    pms->then([this, cid, av, aMid]()
+    auto wptr = weakHandle();
+    pms->then([this, cid, av, aMid, wptr]()
     {
+        if (wptr.deleted())  { return; }
         Session *session = getSession(cid);
         if (!session)
         {
@@ -1679,8 +1681,10 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
         return false;
     }
 
-    pms->then([this, keyid, cid, key]()
+    auto wptr = weakHandle();
+    pms->then([this, keyid, cid, key, wptr]()
     {
+        if (wptr.deleted())  { return; }
         Session* session = getSession(cid);
         if (!session)
         {
@@ -1908,8 +1912,10 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
             continue;
         }
 
-        pms->then([this, cid]()
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
         {
+            if (wptr.deleted())  { return; }
             Session *session = getSession(cid);
             assert(session);
             if (!session)
@@ -1947,8 +1953,10 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
             return false;
         }
 
-        pms->then([this, cid]()
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
         {
+            if (wptr.deleted())  { return; }
             Session *session = getSession(cid);
             assert(session);
             if (!session)
@@ -3003,8 +3011,11 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             return;
         }
 
-        pms->then([this, slot, cid, videoResolution]()
+        auto wptr = weakHandle();
+        slot->setAuxCid(cid);
+        pms->then([this, slot, cid, videoResolution, wptr]()
         {
+            if (wptr.deleted())  { return; }
             Session* sess = getSession(cid);
             if (!sess)
             {
@@ -3013,12 +3024,24 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                 return;
             }
 
+            if (slot->getAuxCid() != K_INVALID_CID
+                && slot->getAuxCid() != cid)
+            {
+                // Race condition, more than one session (still pending to be verified) tried to attach slot
+                // When Pms for this session has been resolved, another session (still pending to be verified)
+                // was trying to attach same slot so getAuxCid doesn't match with this cid
+                RTCM_LOG_ERROR("Temp CID %u doesn't match with this CID: %u", slot->getAuxCid(), cid);
+                return;
+            }
+
             const std::vector<std::string> ivs = sess->getPeer().getIvs();
             slot->assignVideoSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]), videoResolution);
             attachSlotToSession(*sess, slot, false, videoResolution);
         })
-        .fail([cid](const ::promise::Error&)
+        .fail([cid, slot, wptr](const ::promise::Error&)
         {
+            if (wptr.deleted())  { return; }
+            if (slot->getAuxCid() == cid) { slot->setAuxCid(K_INVALID_CID); }
             RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise was rejected for cid: %d", cid);
             return;
         });
@@ -3073,12 +3096,25 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         return;
     }
 
-    auxpms->then([this, slot, cid]()
+    auto wptr = weakHandle();
+    slot->setAuxCid(cid);
+    auxpms->then([this, slot, cid, wptr]()
     {
+        if (wptr.deleted())  { return; }
         Session* sess = getSession(cid);
         if (!sess)
         {
             RTCM_LOG_WARNING("AddSpeaker: unknown cid");
+            return;
+        }
+
+        if (slot->getAuxCid() != K_INVALID_CID
+            && slot->getAuxCid() != cid)
+        {
+            // Race condition, more than one session (still pending to be verified) tried to attach slot
+            // When Pms for this session has been resolved, another session (still pending to be verified)
+            // was trying to attach same slot so getAuxCid doesn't match with this cid
+            RTCM_LOG_ERROR("Temp CID %u doesn't match with this CID: %u", slot->getAuxCid(), cid);
             return;
         }
 
@@ -3087,8 +3123,10 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         slot->assignAudioSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
         attachSlotToSession(*sess, slot, true, kUndefined);
     })
-    .fail([cid](const ::promise::Error&)
+    .fail([cid, slot, wptr](const ::promise::Error&)
     {
+        if (wptr.deleted())  { return; }
+        if (slot->getAuxCid() == cid) { slot->setAuxCid(K_INVALID_CID); }
         RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %d", cid);
         return;
     });
@@ -4130,6 +4168,7 @@ void RemoteSlot::assign(Cid_t cid, IvStatic_t iv)
     assert(!mCid);
     createDecryptor(cid, iv);
     enableTrack(true, kRecv);
+    setAuxCid(K_INVALID_CID);
 }
 
 void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)

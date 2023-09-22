@@ -79,9 +79,12 @@ public:
     virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     virtual void release();
     Cid_t getCid() const { return mCid; }
+    Cid_t getAuxCid()const { return mAuxCid; }
+    void setAuxCid(const Cid_t cid) { mAuxCid = cid; }
 
 protected:
-    Cid_t mCid = 0;
+    Cid_t mCid = K_INVALID_CID;
+    Cid_t mAuxCid = K_INVALID_CID;
     void* mAppCtx;
     RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assign(Cid_t cid, IvStatic_t iv);
