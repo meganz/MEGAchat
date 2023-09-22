@@ -361,6 +361,11 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *, MegaChatHandle chatid, MegaC
         }
     }
 
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING))
+    {
+        meetingView->updateSession(*session);
+    }
+
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS) || session->hasChanged(MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL))
     {
         meetingView->updateSession(*session);

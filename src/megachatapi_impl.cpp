@@ -7716,6 +7716,11 @@ bool MegaChatSessionPrivate::isOnHold() const
     return mAvFlags.isOnHold();
 }
 
+bool MegaChatSessionPrivate::isRecording() const
+{
+    return mAvFlags.isRecording();
+}
+
 int MegaChatSessionPrivate::getChanges() const
 {
     return mChanged;
@@ -7792,6 +7797,13 @@ void MegaChatSessionPrivate::setOnHold(bool onHold)
     mAvFlags.setOnHold(onHold);
     mChanged |= CHANGE_TYPE_SESSION_ON_HOLD;
 }
+
+void MegaChatSessionPrivate::setRecording(const bool isRecording)
+{
+    mAvFlags.setRecording(isRecording);
+    mChanged |= CHANGE_TYPE_SESSION_ON_RECORDING;
+}
+
 
 void MegaChatSessionPrivate::setChange(int change)
 {
@@ -11423,6 +11435,13 @@ void MegaChatSessionHandler::onOnHold(rtcModule::ISession& session)
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setOnHold(session.getAvFlags().isOnHold());
+    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
+}
+
+void MegaChatSessionHandler::onRecordingChanged(rtcModule::ISession& session)
+{
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    megaSession->setRecording(session.getAvFlags().isRecording());
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 

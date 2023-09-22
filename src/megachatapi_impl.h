@@ -206,6 +206,7 @@ public:
     virtual bool isLowResCamera() const override;
     virtual bool isHiResCamera() const override;
     virtual bool isOnHold() const override;
+    virtual bool isRecording() const override;
     virtual int getChanges() const override;
     virtual int getTermCode() const override;
     virtual bool hasChanged(int changeType) const override;
@@ -221,6 +222,7 @@ public:
     void setAudioDetected(bool audioDetected);
     void setOnHold(bool onHold);
     void setChange(int change);
+    void setRecording(const bool isRecording);
     void removeChanges();
     int convertTermCode(rtcModule::TermCode termCode);
 
@@ -750,6 +752,7 @@ public:
     void onOnHold(rtcModule::ISession& session) override;
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
     void onPermissionsChanged(rtcModule::ISession& session) override;
+    void onRecordingChanged(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;
