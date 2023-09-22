@@ -2142,11 +2142,6 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
         return false;
     }
 
-    if (isPeerPendingToAdd(cid))
-    {
-        RTCM_LOG_WARNING("handlePeerLeft: peer with cid: %d, is still pending to verify it's ephemeral key");
-    }
-
     // reject peer promise (if still undone) and remove from map; finally check
     // if was added to sessions map, and perform required operations with that session
     removePendingPeer(cid);
@@ -2993,27 +2988,12 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
 
             RTCM_LOG_DEBUG("reassign slot with mid: %u from cid: %u to newcid: %u, reuse: %d ", mid, slot->getCid(), cid, trackDescriptor.second.mReuse);
 
-            promise::Promise<void>* pms = getPeerVerificationPms(slot->getCid());
-            if (!pms)
+            Session* oldSess = getSession(slot->getCid());
+            if (oldSess)
             {
-                RTCM_LOG_WARNING("handleIncomingVideo: PeerVerification promise not found for cid: %d", cid);
-                return;
+                // In case of Slot reassign for another peer (CID) or same peer (CID) slot reusing, we need to notify app about that
+                oldSess->disableVideoSlot(slot->getVideoResolution());
             }
-
-            pms->then([this, slot, oldcid = slot->getCid()]()
-            {
-                Session *oldSess = getSession(oldcid);
-                if (oldSess)
-                {
-                    // In case of Slot reassign for another peer (CID) or same peer (CID) slot reusing, we need to notify app about that
-                    oldSess->disableVideoSlot(slot->getVideoResolution());
-                }
-            })
-            .fail([oldcid = slot->getCid()](const ::promise::Error&)
-            {
-                RTCM_LOG_WARNING("handleIncomingVideo: PeerVerification promise was rejected for cid: %d", oldcid);
-                return;
-            });
         }
 
         promise::Promise<void>* pms = getPeerVerificationPms(cid);
@@ -3025,7 +3005,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
 
         pms->then([this, slot, cid, videoResolution]()
         {
-            Session *sess = getSession(cid);
+            Session* sess = getSession(cid);
             if (!sess)
             {
                 RTCM_LOG_ERROR("handleIncomingVideo: session with CID %u not found", cid);
@@ -3035,7 +3015,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
 
             const std::vector<std::string> ivs = sess->getPeer().getIvs();
             slot->assignVideoSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]), videoResolution);
-            attachSlotToSession(cid, slot, false, videoResolution);
+            attachSlotToSession(*sess, slot, false, videoResolution);
         })
         .fail([cid](const ::promise::Error&)
         {
@@ -3045,41 +3025,18 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
     }
 }
 
-void Call::attachSlotToSession (Cid_t cid, RemoteSlot* slot, bool audio, VideoResolution hiRes)
+void Call::attachSlotToSession (Session& session, RemoteSlot* slot, const bool audio, const VideoResolution hiRes)
 {
-    promise::Promise<void>* pms = getPeerVerificationPms(cid);
-    if (!pms)
+    if (audio)
     {
-        RTCM_LOG_WARNING("attachSlotToSession: PeerVerification promise not found for cid: %d", cid);
-        return;
+        session.setAudioSlot(static_cast<RemoteAudioSlot *>(slot));
     }
-
-    pms->then([this, slot, cid, audio, hiRes]()
+    else
     {
-        Session *session = getSession(cid);
-        assert(session);
-        if (!session)
-        {
-            RTCM_LOG_WARNING("attachSlotToSession: unknown peer cid %u", cid);
-            return;
-        }
-
-        if (audio)
-        {
-            session->setAudioSlot(static_cast<RemoteAudioSlot *>(slot));
-        }
-        else
-        {
-            hiRes
-                ? session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot))
-                : session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot));
-        }
-    })
-    .fail([cid](const ::promise::Error&)
-    {
-        RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise was rejected for cid: %d", cid);
-        return;
-    });
+        hiRes
+            ? session.setHiResSlot(static_cast<RemoteVideoSlot *>(slot))
+            : session.setVThumSlot(static_cast<RemoteVideoSlot *>(slot));
+    }
 }
 
 void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
@@ -3101,23 +3058,11 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     RemoteAudioSlot* slot = static_cast<RemoteAudioSlot*>(it->second.get());
     if (slot->getCid() != cid)
     {
-        promise::Promise<void>* pms = getPeerVerificationPms(slot->getCid());
-        if (pms)
+        Session* oldSess = getSession(slot->getCid());
+        if (oldSess)
         {
-            pms->then([this, oldcid = slot->getCid()]()
-            {
-                Session *oldSess = getSession(oldcid);
-                if (oldSess)
-                {
-                    // In case of Slot reassign for another peer (CID) we need to notify app about that
-                    oldSess->disableAudioSlot();
-                }
-            })
-            .fail([oldcid = slot->getCid()](const ::promise::Error&)
-            {
-                RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %d", oldcid);
-                return;
-            });
+            // In case of Slot reassign for another peer (CID) we need to notify app about that
+            oldSess->disableAudioSlot();
         }
     }
 
@@ -3130,7 +3075,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
 
     auxpms->then([this, slot, cid]()
     {
-        Session *sess = getSession(cid);
+        Session* sess = getSession(cid);
         if (!sess)
         {
             RTCM_LOG_WARNING("AddSpeaker: unknown cid");
@@ -3140,7 +3085,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         const std::vector<std::string> ivs = sess->getPeer().getIvs();
         assert(ivs.size() >= kAudioTrack);
         slot->assignAudioSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
-        attachSlotToSession(cid, slot, true, kUndefined);
+        attachSlotToSession(*sess, slot, true, kUndefined);
     })
     .fail([cid](const ::promise::Error&)
     {

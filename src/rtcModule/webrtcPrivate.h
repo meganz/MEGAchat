@@ -601,13 +601,15 @@ protected:
     bool removePendingPeer(const Cid_t cid)
     {
         auto it = mPeersVerification.find(cid);
-        if (it != mPeersVerification.end())
+        if (it == mPeersVerification.end())
         {
-            if (!it->second.done()) { it->second.reject("Rejecting peer pms upon removePendingPeer"); }
-            mPeersVerification.erase(it);
-            return true;
+            RTCM_LOG_WARNING("handlePeerLeft: peer with cid: %d, is still pending to verify it's ephemeral key");
+            return false;
         }
-        return false;
+
+        if (!it->second.done()) { it->second.reject("Rejecting peer pms upon removePendingPeer"); }
+        mPeersVerification.erase(it);
+        return true;
     }
 
     // check if peer is pending to be verified
@@ -715,7 +717,7 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
+    void attachSlotToSession (Session& session, RemoteSlot* slot, const bool audio, const VideoResolution hiRes);
     void initStatsValues();
     void enableStats();
     void disableStats();
