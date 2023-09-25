@@ -1722,15 +1722,27 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
-        self.megaChatApi->startMeetingInWaitingRoomChat(chatId, scheduledId, enableVideo, enableAudio, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+        self.megaChatApi->startMeetingInWaitingRoomChat(chatId, enableVideo, enableAudio, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
-- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
+- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
     if (self.megaChatApi) {
-        self.megaChatApi->startMeetingInWaitingRoomChat(chatId, scheduledId, enableVideo, enableAudio);
+        self.megaChatApi->startMeetingInWaitingRoomChat(chatId, enableVideo, enableAudio);
+    }
+}
+
+- (void)startMeetingInWaitingRoomChatNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->startMeetingInWaitingRoomChatNoRinging(chatId, scheduledId, enableVideo, enableAudio, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)startMeetingInWaitingRoomChatNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
+    if (self.megaChatApi) {
+        self.megaChatApi->startMeetingInWaitingRoomChatNoRinging(chatId, scheduledId, enableVideo, enableAudio);
     }
 }
 

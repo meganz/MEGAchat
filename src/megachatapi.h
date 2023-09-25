@@ -6161,7 +6161,72 @@ public:
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    void startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
+    void startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
+    
+    /**
+     * @brief Starts a call in a chatroom with waiting room option enabled without ringing all the participants
+     *
+     * When waiting room option is enabled for a chatroom, you can start a call in two different ways.
+     *   - start a waiting room call, where all participants will be redirected to waiting room, when they start/answer a call,
+     *     and it won't ring for the rest of participants.
+     *   - start an adhoc call where all participants will be redirected to the call (bypassing waiting room),
+     *     and it will ring for the rest of participants.
+     * Check schedId param below.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
+     * - MegaChatRequest::getUserHandle() - Returns the scheduled meeting id;
+     * - MegaChatRequest::getPrivilege() - Returns 1 indicating that we want to start a call in a chatroom with waiting room enabled
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if chatroom doesn't have waiting room option enabled
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     *  - if peer of a 1on1 chatroom it's a non visible contact
+     *  - if this function is called without being already connected to chatd.
+     *  - if the chatroom is in preview mode.
+     *  - if our own privilege is not MegaChatPeerList::PRIV_MODERATOR and the chatroom has waiting room option enabled.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
+     *
+     * The request will fail with MegaChatError::ERROR_EXISTS
+     * - if there is a previous attempt still in progress (the call doesn't exist yet)
+     * - if there is already another attempt to start a call for this chat, and call already exists but we don't participate
+     * - if the call already exists and we already participate
+     * In case that call already exists MegaChatRequest::getUserHandle will return its callid.
+     *
+     * The request will fail with MegaChatError::ERROR_NOENT
+     * - if the chatroom doesn't exists.
+     * - if the scheduled meeting doesn't exists
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - if chatroom has waiting room option disabled
+     *
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxVideoCallParticipants
+     *
+     * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param schedId MegaChatHandle scheduled meeting id, that identifies the scheduled meeting context in which we will start the call.
+     *  - If it's valid, users will be redirected to Waiting room when they answer, but the call won't ring to the rest of participants
+     *    The rest of participants will be notified that there's a new call via MegaChatCallListener::onChatCallUpdate.
+     *  - If it's MEGACHAT_INVALID_HANDLE, Waiting room will be ignored, and call will ring for the rest of participants (Adhoc call)
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param enableAudio True for starting a call with audio (mute disabled)
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void startMeetingInWaitingRoomChatNoRinging(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Hang up a call

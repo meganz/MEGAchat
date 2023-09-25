@@ -1094,7 +1094,12 @@ void MegaChatApi::startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle s
    pImpl->startChatCall(chatid, false /*waitingRoom*/, enableVideo, enableAudio, schedId, listener);
 }
 
-void MegaChatApi::startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener *listener)
+void MegaChatApi::startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, MegaChatRequestListener *listener)
+{
+    pImpl->startChatCall(chatid, true /*waitingRoom*/, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE, listener);
+}
+
+void MegaChatApi::startMeetingInWaitingRoomChatNoRinging(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener *listener)
 {
     pImpl->startChatCall(chatid, true /*waitingRoom*/, enableVideo, enableAudio, schedIdWr, listener);
 }
