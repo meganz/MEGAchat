@@ -3843,6 +3843,7 @@ TEST_F(MegaChatApiTest, DISABLED_ManualGroupCalls)
  * This test does the following:
  * + A starts a groupal Meeting in chat1 (without audio nor video)
  * - B answers call (without audio nor video)
+ * - A mutes B in call
  * - B puts call in hold on
  * + A puts call in hold on
  * + A releases hold on
@@ -3876,7 +3877,12 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     MegaChatHandle uh = user->getHandle();
     std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
     peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-    MegaChatHandle chatid = getGroupChatRoom({a1, a2}, peers.get());
+    MegaChatHandle chatid = getGroupChatRoom({a1, a2}, peers.get(),
+                                             megachat::MegaChatPeerList::PRIV_MODERATOR,
+                                             true /*create*/,
+                                             true /*meetingRoom*/,
+                                             false /*waitingRoom*/);
+
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) <<
                      "Common chat for both users not found.";
     ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatid), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
@@ -3990,11 +3996,30 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
                    [this, a2, chatid]()
                                 {
                                     ChatRequestTracker crtAnswerCall;
-                                    megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtAnswerCall);
+                                    megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ true, &crtAnswerCall);
                                     ASSERT_EQ(crtAnswerCall.waitForResult(), MegaChatError::ERROR_OK)
                                     << "Failed to answer call. Error: " << crtAnswerCall.getErrorString();
                                 });
     });
+
+    auxCall.reset(megaChatApi[a1]->getChatCall(chatid));
+    ASSERT_TRUE(auxCall) << "Can't get call from chatroom: " << getChatIdStrB64(chatid);
+    std::unique_ptr<MegaHandleList> hl(auxCall->getSessionsClientid());
+    ASSERT_TRUE(hl && hl->size()) << "Can't get a client id list from call";
+    MegaChatSession* secondarySess = auxCall->getMegaChatSession(hl->get(0));
+    ASSERT_TRUE(secondarySess) << "Can't get a session for clientid: " << hl->get(0);
+    MegaChatHandle secondaryCid = secondarySess->getClientid();
+    ASSERT_NE(secondaryCid, MEGACHAT_INVALID_HANDLE) << "Invalid client id for secondary session";
+
+    // A mutes B in the call
+    LOG_debug << "A mutes B in the call";
+    bool* remoteAvFlagsChanged = &mChatCallAudioDisabled[a1]; *remoteAvFlagsChanged = false; // a2 will receive onChatSessionUpdate (CHANGE_TYPE_REMOTE_AVFLAGS)
+    exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // a2 will receive onChatCallUpdate (CHANGE_TYPE_LOCAL_AVFLAGS)
+    action = [this, a1, chatid, secondaryCid](){ megaChatApi[a1]->mutePeers(chatid, secondaryCid); };
+    ASSERT_NO_FATAL_FAILURE({
+        waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving MUTED notification from SFU for secondary account", maxTimeout, action);
+    });
+    ASSERT_TRUE(waitForResponse(remoteAvFlagsChanged)) << "Timeout expired for Primary account receiving AvFlags update for Secondary account";
 
     // B puts the call on hold
     LOG_debug << "B setting the call on hold";
@@ -7521,6 +7546,12 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         default:
             break;
         }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
+    {
+        mChatCallAudioEnabled[apiIndex] = call->hasLocalAudio();
+        mChatCallAudioDisabled[apiIndex] = !call->hasLocalAudio();
     }
 
     LOG_debug << "On chat call change state ";
