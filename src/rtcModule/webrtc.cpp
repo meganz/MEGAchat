@@ -686,6 +686,12 @@ void Call::kickUsersFromCall(const std::set<karere::Id>& users) const
     mSfuConnection->sendWrKick(users);
 }
 
+void Call::mutePeers(const Cid_t& cid, const unsigned av) const
+{
+    assert(av == karere::AvFlags::kAudio);
+    mSfuConnection->sendMute(cid, av);
+}
+
 std::vector<Cid_t> Call::getSpeakerRequested()
 {
     std::vector<Cid_t> speakerRequested;
@@ -2374,6 +2380,21 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
+}
+
+bool Call::handleMutedCommand(const unsigned av)
+{
+    if (av != karere::AvFlags::kAudio)
+    {
+        // remove this checkup when video mute is implemented by SFU
+        SFU_LOG_WARNING("handleMuteCommand: Av flags not expected from SFU for MUTE command");
+        assert(false);
+        return false;
+    }
+
+    SFU_LOG_WARNING("handleMuteCommand: Muting our own client from SFU");
+    muteMyClientFromSfu();
+    return true;
 }
 
 void Call::onSfuDisconnected()

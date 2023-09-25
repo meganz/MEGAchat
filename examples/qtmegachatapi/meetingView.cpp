@@ -85,6 +85,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mKickWr, SIGNAL(clicked()), this, SLOT(onKickWr()));
     mKickWr->setVisible(true);
 
+    mMuteAll= new QPushButton("Mute all users", this);
+    connect(mMuteAll, SIGNAL(clicked()), this, SLOT(onMuteAll()));
+    mMuteAll->setVisible(true);
+
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -121,6 +125,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mAllowJoin);
     mButtonsLayout->addWidget(mPushWr);
     mButtonsLayout->addWidget(mKickWr);
+    mButtonsLayout->addWidget(mMuteAll);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -155,6 +160,14 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append(std::to_string(call->getNumParticipants()))
             .append("  State: ")
             .append(callStateToString(*call));
+
+    call->hasLocalAudio()
+        ? txt.append("<span style='color:#00AA00'> [A]</span>")
+        : txt.append("<span style='color:#AA0000'> [A]</span>");
+
+    call->hasLocalVideo()
+        ? txt.append("<span style='color:#00AA00'> [V]</span>")
+        : txt.append("<span style='color:#AA0000'> [V]</span>");
 
     if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM)
     {
@@ -563,6 +576,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string rejectSpeak("Reject Speak");
     std::string pushWr("Push waiting room");
     std::string kickWr("Kick waiting room");
+    std::string mute("Mute");
     submenu.addAction(requestThumb.c_str());
 
     QMenu *hiResMenuQuality = submenu.addMenu("Request hiRes with quality");
@@ -600,6 +614,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     //submenu.addAction(requestHiRes.c_str());
     submenu.addAction(stopThumb.c_str());
     submenu.addAction(stopHiRes.c_str());
+    submenu.addAction(mute.c_str());
 
     std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
     std::unique_ptr<megachat::MegaChatRoom> chatRoom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi. getChatRoom(mChatid));
@@ -675,6 +690,10 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
                 l->addMegaHandle(sess->getPeerid());
                 mMegaChatApi.kickUsersFromCall(call->getChatid(), l.get());
             }
+        }
+        else if (rightClickItem->text().contains(mute.c_str()))
+        {
+            mMegaChatApi.mutePeers(mChatid, cid);
         }
     }
 }
@@ -808,6 +827,11 @@ void MeetingView::onKickWr()
     std::unique_ptr<mega::MegaHandleList> handleList{mega::MegaHandleList::createInstance()};
     handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
     mMegaChatApi.kickUsersFromCall(mChatid, handleList.get());
+}
+
+void MeetingView::onMuteAll()
+{
+    mMegaChatApi.mutePeers(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
 
 void MeetingView::onJoinCallWithoutVideo()

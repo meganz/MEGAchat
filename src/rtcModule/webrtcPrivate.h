@@ -337,6 +337,7 @@ public:
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
     void kickUsersFromCall(const std::set<karere::Id>& users) const override;
+    void mutePeers(const Cid_t& cid, const unsigned av) const override;
 
     void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
@@ -491,6 +492,8 @@ public:
     bool handleWrDeny(const std::set<karere::Id>& mods) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
+
+    bool handleMutedCommand(const unsigned av) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     bool processDeny(const std::string& cmd, const std::string& msg) override;

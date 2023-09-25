@@ -8361,4 +8361,8 @@ bool MockupCall::handleWrUsersDeny(const std::set<karere::Id>& /*users*/)
     return true;
 }
 
+bool MockupCall::handleMutedCommand(const unsigned /*av*/)
+{
+    return true;
+}
 #endif

@@ -1373,6 +1373,7 @@ private:
     int performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request);
     int performRequest_kickUsersFromCall(MegaChatRequestPrivate* request);
     int performRequest_sendRingIndividualInACall(MegaChatRequestPrivate* request);
+    int performRequest_mutePeersInCall(MegaChatRequestPrivate* request);
 #endif
     int performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request);
     int performRequest_fetchScheduledMeetingOccurrences(MegaChatRequestPrivate* request);
@@ -1648,6 +1649,7 @@ public:
     void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
+    void mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener = nullptr);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
     MegaChatCall *getChatCallByCallId(MegaChatHandle callId);

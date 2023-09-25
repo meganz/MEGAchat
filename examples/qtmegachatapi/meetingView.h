@@ -77,6 +77,7 @@ protected:
     QPushButton* mAllowJoin;
     QPushButton* mPushWr;
     QPushButton* mKickWr;
+    QPushButton* mMuteAll;
     QLabel* mOnHoldLabel;
     QLabel* mLabel;
 
@@ -102,6 +103,7 @@ public slots:
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();
+    void onMuteAll();
     void onWrShow();
     void onAllowJoin();
     void onPushWr();
