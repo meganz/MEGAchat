@@ -265,6 +265,7 @@ NS_ASSUME_NONNULL_BEGIN
                   speakRequest:(BOOL)speakRequest
                    waitingRoom:(BOOL)waitingRoom
                     openInvite:(BOOL)openInvite
+                     queueType:(ListenerQueueType)queueType
                       delegate:(id<MEGAChatRequestDelegate>)delegate;
 
 - (void)queryChatLink:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
