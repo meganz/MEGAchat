@@ -1319,6 +1319,12 @@ void SfuConnection::connect()
 
 void SfuConnection::doReconnect(const bool applyInitialBackoff)
 {
+    if (avoidReconnect())
+    {
+        SFU_LOG_DEBUG("Avoid reconnect to SFU, as we are destroying call");
+        return;
+    }
+
     auto wptr = weakHandle();
     const auto reconnectFunc = [this, wptr]()
     {
@@ -2128,6 +2134,16 @@ bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool al
 bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
 {
     return sendWrCommand(SfuConnection::CSFU_WR_KICK, users);
+}
+
+bool SfuConnection::avoidReconnect() const
+{
+    return mAvoidReconnect;
+}
+
+void SfuConnection::setAvoidReconnect(const bool avoidReconnect)
+{
+    mAvoidReconnect = avoidReconnect;
 }
 
 bool SfuConnection::addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json)

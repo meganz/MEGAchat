@@ -200,7 +200,7 @@ public:
 
     virtual bool participate() = 0;
     virtual bool isJoining() const = 0;
-    virtual void enableAudioLevelMonitor(bool enable) = 0;
+    virtual std::set<Cid_t> enableAudioLevelMonitor(const bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
     virtual void stopOutgoingRinging() = 0;
