@@ -360,14 +360,19 @@ bool Call::isJoining() const
     return mIsJoining;
 }
 
-void Call::enableAudioLevelMonitor(bool enable)
+std::set<Cid_t> Call::enableAudioLevelMonitor(const bool enable)
 {
+    std::set<Cid_t> cidsFailed;
     mAudioLevelMonitor = enable;
     for (auto& itSession : mSessions)
     {
         if (!itSession.second->getAudioSlot()) { continue; }
-        itSession.second->getAudioSlot()->enableAudioMonitor(enable);
+        if (!itSession.second->getAudioSlot()->enableAudioMonitor(enable))
+        {
+            cidsFailed.emplace(itSession.first);
+        }
     }
+    return cidsFailed;
 }
 
 void Call::ignoreCall()
@@ -1171,10 +1176,7 @@ void Call::clearResources(const TermCode& termCode)
     RTCM_LOG_DEBUG("clearResources, termcode (%u): %s", termCode, connectionTermCodeToString(termCode).c_str());
     disableStats();
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
-
     mModerators.clear();            // clear moderators list and ownModerator
-    mMyPeer->setModerator(false);
-
     mVThumb.reset();
     mHiRes.reset();
     mAudio.reset();
@@ -1445,8 +1447,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
 
 bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, std::string>& keystrmap,
-                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers
-                               , std::set<karere::Id>& moderators, bool ownMod)
+                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
     if (mState != kStateJoining)
     {
@@ -1468,10 +1469,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     // update max peers seen in call
     mMaxPeers = static_cast<uint8_t> (peers.size() > mMaxPeers ? peers.size() : mMaxPeers);
-
-    // set moderator list and ownModerator value
-    setOwnModerator(ownMod);
-    mModerators = moderators;
 
     // set join offset
     setJoinOffset(static_cast<int64_t>(callJoinOffset));
@@ -1531,6 +1528,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         const auto& it = keystrmap.find(peer.getCid());
         const auto& keyStr = it != keystrmap.end() ? it->second : std::string();
 
+        // check if peerid is included in mods list received upon HELLO
+        peer.setModerator(mModerators.find(peer.getPeerid()) != mModerators.end());
         if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion())) // there's no ephemeral key, just add peer
         {
             addPeerWithEphemKey(peer, true, std::string());
@@ -2163,6 +2162,12 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
         return false;
     }
 
+    if (isDestroying())
+    {
+        RTCM_LOG_WARNING("handleBye: call is already being destroyed");
+        return true;
+    }
+
     if (wr) // we have been moved into a waiting room
     {
         assert (auxTermCode == kPushedToWaitingRoom);
@@ -2201,11 +2206,13 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
                 assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
             }
 
+            RTCM_LOG_DEBUG("Immediate removing call due to BYE [%u] command received from SFU", auxTermCode);
+            mByeTermCode = auxTermCode;
+            setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
             auto wptr = weakHandle();
             karere::marshallCall([wptr, auxTermCode, reason, this]()
             {
-                RTCM_LOG_DEBUG("Immediate removing call due to BYE [%u] command received from SFU", auxTermCode);
-                setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
+                if (wptr.deleted()) { return; }
                 mRtc.immediateRemoveCall(this, reason, auxTermCode);
             }, mRtc.getAppCtx());
         }
@@ -2271,7 +2278,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
 
-    // set moderator list and ownModerator value
+    // copy moderator list, and check if our own user is moderator
     setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
     mModerators = mods;
 
@@ -2420,7 +2427,9 @@ void Call::onSfuDisconnected()
 {
     if (isDestroying()) // we was trying to destroy call but we have received a sfu socket close (before processing BYE command)
     {
-        if (!mSfuConnection->isSendingByeCommand())
+        // if mByeTermCode is kUnKnownTermCode, but we are not sending BYE command, we are not destroying call properly
+        if (mByeTermCode == kUnKnownTermCode
+            && !mSfuConnection->isSendingByeCommand())
         {
             // if we called orderedDisconnectAndCallRemove (call state not between kStateConnecting and kStateInProgress) immediateRemoveCall would have been called, and call wouldn't exists at this point
             RTCM_LOG_ERROR("onSfuDisconnected: call is being destroyed but we are not sending BYE command, current call shouldn't exist at this point");
@@ -2566,8 +2575,26 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
 
 bool Call::error(unsigned int code, const std::string &errMsg)
 {
+    TermCode connectionTermCode = static_cast<TermCode>(code);
+    if (!isValidConnectionTermcode(connectionTermCode))
+    {
+        RTCM_LOG_ERROR("Invalid termCode [%u] received at error command", connectionTermCode);
+        return false;
+    }
+
+    if (isDestroying())
+    {
+        RTCM_LOG_WARNING("SFU error command received [%u], but call is already being destroyed", connectionTermCode);
+        return true;
+    }
+
+    if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
+    {
+        setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
+    }
+
     auto wptr = weakHandle();
-    karere::marshallCall([wptr, this, code, errMsg]()
+    karere::marshallCall([wptr, this, connectionTermCode, errMsg]()
     {
         // error() is called from LibwebsocketsClient::wsCallback() for LWS_CALLBACK_CLIENT_RECEIVE.
         // If disconnect() is called here immediately, it will destroy the LWS client synchronously,
@@ -2578,8 +2605,6 @@ bool Call::error(unsigned int code, const std::string &errMsg)
             return;
         }
 
-        TermCode connectionTermCode = static_cast<TermCode>(code);
-
         // send call stats
         if (mSfuConnection && mSfuConnection->isOnline())
         {
@@ -2587,15 +2612,13 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         }
 
         // notify SFU error to the apps
-        std::string errMsgStr = errMsg.empty() || !errMsg.compare("Unknown reason") ? connectionTermCodeToString(static_cast<TermCode>(code)): errMsg;
-        mCallHandler.onCallError(*this, static_cast<int>(code), errMsgStr);
+        std::string errMsgStr = errMsg.empty() || !errMsg.compare("Unknown reason") ? connectionTermCodeToString(connectionTermCode): errMsg;
+        mCallHandler.onCallError(*this, static_cast<int>(connectionTermCode), errMsgStr);
 
         // remove call just if there are no participants or termcode is not recoverable (we don't need to send BYE command upon SFU error reception)
-        assert(!isTermCodeRetriable(connectionTermCode));
-        if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
+        if (isDestroying())
         {
             //immediateCallDisconnect will be called inside immediateRemoveCall
-            setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
             mRtc.immediateRemoveCall(this, EndCallReason::kFailed, connectionTermCode);
         }
     }, mRtc.getAppCtx());
@@ -3261,12 +3284,16 @@ void Call::disableStats()
 
 void Call::setDestroying(bool isDestroying)
 {
-    mIsDestroying = isDestroying;
+    mIsDestroyingCall = isDestroying;
+    if (mSfuConnection)
+    {
+        mSfuConnection->setAvoidReconnect(isDestroying);
+    }
 }
 
 bool Call::isDestroying()
 {
-    return mIsDestroying;
+    return mIsDestroyingCall;
 }
 
 void Call::generateEphemeralKeyPair()
@@ -4265,29 +4292,43 @@ void RemoteAudioSlot::assignAudioSlot(Cid_t cid, IvStatic_t iv)
     }
 }
 
-void RemoteAudioSlot::enableAudioMonitor(bool enable)
+bool RemoteAudioSlot::enableAudioMonitor(const bool enable)
 {
+    if (enable == mAudioLevelMonitorEnabled)
+    {
+        RTCM_LOG_DEBUG("enableAudioMonitor: audio level monitor already %s", enable ? " enabled " : "disabled");
+        return true;
+    }
+
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> mediaTrack = mTransceiver->receiver()->track();
     webrtc::AudioTrackInterface* audioTrack = static_cast<webrtc::AudioTrackInterface*>(mediaTrack.get());
     if (!audioTrack)
     {
         RTCM_LOG_WARNING("enableAudioMonitor: non valid audiotrack");
         assert(false);
-        return;
+        return false;
     }
 
-    if (enable && !mAudioLevelMonitorEnabled)
+    if (!mAudioLevelMonitor)
+    {
+        RTCM_LOG_WARNING("enableAudioMonitor: AudioMonitor is null");
+        assert(false);
+        return false;
+    }
+
+    if (enable)
     {
         mAudioLevelMonitorEnabled = true;
         mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->AddSink(mAudioLevelMonitor.get());     // enable AudioLevelMonitor for remote audio detection
     }
-    else if (!enable && mAudioLevelMonitorEnabled)
+    else
     {
         mAudioLevelMonitorEnabled = false;
         mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
     }
+    return true;
 }
 
 void RemoteAudioSlot::createDecryptor(Cid_t cid, IvStatic_t iv)

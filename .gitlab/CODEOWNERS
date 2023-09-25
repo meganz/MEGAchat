@@ -10,3 +10,6 @@
 /bindings/java/ @mobile/Android
 # right now, desktop app doesn't integrate chat. Only QtApp does, so SDK devs can approve changes in path below
 #/bindings/qt/ @desktop
+
+# Changes to Jenkinsfiles need approval by sdk_devops
+/jenkinsfile/ @SDK/sdk_devops

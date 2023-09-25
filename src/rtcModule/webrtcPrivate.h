@@ -128,7 +128,7 @@ class RemoteAudioSlot : public RemoteSlot
 public:
     RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assignAudioSlot(Cid_t cid, IvStatic_t iv);
-    void enableAudioMonitor(bool enable);
+    bool enableAudioMonitor(const bool enable);
     void createDecryptor(Cid_t cid, IvStatic_t iv) override;
     void release() override;
 
@@ -306,7 +306,7 @@ public:
     promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
-    void enableAudioLevelMonitor(bool enable) override;
+    std::set<Cid_t> enableAudioLevelMonitor(const bool enable) override;
     bool isAudioLevelMonitorEnabled() const override;
 
     // called when the user wants to "mute" an incoming call (the call is kept in ringing state)
@@ -467,7 +467,7 @@ public:
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
-    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
@@ -525,7 +525,19 @@ protected:
     bool mIsOutgoingRinging = false;
     bool mIgnored = false;
     bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
-    bool mIsDestroying = false;
+
+    /* This var is set true, when are going to destroy the call due to any of the following reasons:
+      * - BYE command received with non retriable termcode
+      * - SFU error received
+      * - DELCALLREASON
+      * - Our own user doesn't participate in chatroom
+      * - We have completed reconnection into an empty chatroom
+      * - Reconnection attempt has not succeeded after max timeout
+      */
+    bool mIsDestroyingCall = false;
+
+    // this var detects if we are destroying call due to BYE command received, with non retriable termcode
+    TermCode mByeTermCode = kUnKnownTermCode;
 
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
     bool mIsReconnectingToChatd = false;

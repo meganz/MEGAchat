@@ -1354,6 +1354,20 @@ private:
     static int convertDbError(int errCode);
     bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
+    int performRequest_updatePeerPermissions(MegaChatRequestPrivate* request);
+    int performRequest_removeFromChatroom(MegaChatRequestPrivate* request);
+    int performRequest_truncateHistory(MegaChatRequestPrivate* request);
+    int performRequest_editChatroomName(MegaChatRequestPrivate* request);
+    int performRequest_loadPreview(MegaChatRequestPrivate* request);
+    int performRequest_setPrivateMode(MegaChatRequestPrivate* request);
+    int performRequest_chatLinkHandle(MegaChatRequestPrivate* request);
+    int performRequest_getFirstname(MegaChatRequestPrivate* request);
+    int performRequest_getLastname(MegaChatRequestPrivate* request);
+    int performRequest_getEmail(MegaChatRequestPrivate* request);
+    int performRequest_attachNodeMessage(MegaChatRequestPrivate* request);
+    int performRequest_revokeNodeMessage(MegaChatRequestPrivate* request);
+    int performRequest_setBackgroundStatus(MegaChatRequestPrivate* request);
+    int performRequest_pushReceived(MegaChatRequestPrivate* request);
     int performRequest_archiveChat(MegaChatRequestPrivate* request);
     int performRequest_loadUserAttributes(MegaChatRequestPrivate* request);
     int performRequest_setChatRetentionTime(MegaChatRequestPrivate* request);

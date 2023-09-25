@@ -2,6 +2,7 @@
 #import <Foundation/Foundation.h>
 #import "MEGAHandleList.h"
 #import "MEGAChatSession.h"
+#import "MEGAChatWaitingRoom.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -38,7 +39,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
-    MEGAChatCallChangeTypeNoChages = 0x00,
+    MEGAChatCallChangeTypeNoChanges = 0x00,
     MEGAChatCallChangeTypeStatus = 0x01,
     MEGAChatCallChangeTypeLocalAVFlags = 0x02,
     MEGAChatCallChangeTypeRingingStatus = 0x04,
@@ -50,6 +51,14 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeOutgoingRingingStop = 0x100,
     MEGAChatCallChangeTypeOwnPermissions = 0x200,
     MEGAChatCallChangeTypeGenericNotification = 0x400,
+    MEGAChatCallChangeTypeWaitingRoomAllow = 0x800,
+    MEGAChatCallChangeTypeWaitingRoomDeny = 0x1000,
+    MEGAChatCallChangeTypeWaitingRoomComposition = 0x2000,
+    MEGAChatCallChangeTypeWaitingRoomUsersEntered = 0x4000,
+    MEGAChatCallChangeTypeWaitingRoomUsersLeave = 0x8000,
+    MEGAChatCallChangeTypeWaitingRoomUsersAllow = 0x10000,
+    MEGAChatCallChangeTypeWaitingRoomUsersDeny = 0x20000,
+    MEGAChatCallChangeTypeWaitingRoomPushedFromCall = 0x40000,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
@@ -72,6 +81,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNetworkQuality) {
 typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
     MEGAChatCallNotificationTypeInvalid = 0,
     MEGAChatCallNotificationTypeSfuError = 1,
+    MEGAChatCallNotificationTypeSfuDeny = 2,
 };
 
 @interface MEGAChatCall : NSObject
@@ -98,6 +108,10 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 @property (nonatomic, readonly) MEGAHandleList *participants;
 
 @property (nonatomic, readonly) NSUUID *uuid;
+
+@property (nonatomic, readonly) MEGAChatWaitingRoomStatus waitingRoomJoiningStatus;
+@property (nonatomic, readonly) MEGAChatWaitingRoom *waitingRoom;
+@property (nonatomic, readonly) MEGAHandleList *waitingRoomHandleList;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 
