@@ -2528,6 +2528,10 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
     {
         muteMyClientFromSfu();
     }
+    else if (cmd == "MUTE")
+    {
+        RTCM_LOG_WARNING("Deny 'MUTE' received. %s", msg.c_str());
+    }
     else if (cmd == "JOIN")
     {
         if (mState != kStateJoining)
