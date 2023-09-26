@@ -1740,15 +1740,6 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
         }
         else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
         {
-            auto pms = peer.getEphemeralPubKeyPms();
-            if (!pms.done())
-            {
-                RTCM_LOG_WARNING("handleKeyCommand: Can't get ephemeral public key for peer: %s cid: %u"
-                                 , karere::Id(peer.getPeerid()).toString().c_str(),peer.getCid());
-                assert(false);
-                return;
-            }
-
             Session* session = getSession(cid);
             if (!session)
             {
@@ -2934,15 +2925,6 @@ void Call::generateAndSendNewMediakey(bool reset)
             }
             else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
             {
-                auto pms = peer.getEphemeralPubKeyPms();
-                if (!pms.done())
-                {
-                    RTCM_LOG_WARNING("generateAndSendNewMediakey: Can't get ephemeral public key for peer: %s cid: %u"
-                                     , karere::Id(peer.getPeerid()).toString().c_str(),peer.getCid());
-                    assert(false);
-                    continue;
-                }
-
                 auto&& ephemeralPubKey = peer.getEphemeralPubKeyDerived();
                 if (ephemeralPubKey.empty())
                 {
@@ -3399,6 +3381,8 @@ void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
      */
     mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
 
+    // Peer Verification pms must exists at this point. If ephemeral key could be verified and it's valid,
+    // we'll resolve pms, otherwise we'll reject it.
     assert(fullfilPeerPms(peer.getCid(), ephemKeyVerified));
     RTCM_LOG_WARNING("addPeer: peer verification finished %s. Cid: %d", ephemKeyVerified ? "ok" : "with error", peer.getCid());
 }

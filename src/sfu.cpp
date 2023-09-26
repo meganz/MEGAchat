@@ -95,7 +95,6 @@ Peer::Peer(const karere::Id& peerid, const sfu::SfuProtocol sfuProtoVersion, con
       mAvFlags(static_cast<uint8_t>(avFlags)),
       mIvs(ivs ? *ivs : std::vector<std::string>()),
       mIsModerator(isModerator),
-      mEphemeralKeyPms(promise::Promise<void>()),
       mSfuPeerProtoVersion(sfuProtoVersion)
 {
 }
@@ -107,7 +106,6 @@ Peer::Peer(const Peer& peer)
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
     , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived())
-    , mEphemeralKeyPms(peer.getEphemeralPubKeyPms())
     , mSfuPeerProtoVersion(peer.getPeerSfuVersion())
 {
 }
@@ -177,53 +175,27 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
 
 std::string Peer::getEphemeralPubKeyDerived() const
 {
-    if (mEphemeralKeyPms.done())
-    {
-        return mEphemeralPubKeyDerived;
-    }
-    else
-    {
-        return std::string();
-    }
-}
-
-const promise::Promise<void>& Peer::getEphemeralPubKeyPms() const
-{
-    return mEphemeralKeyPms;
+    return mEphemeralPubKeyDerived;
 }
 
 bool Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
-    auto rejectPms = [this](const std::string msg)
-    {
-        SFU_LOG_WARNING("setEphemeralPubKeyDerived: %s for PeerId: %s Cid: %u",
-                        msg.c_str(), getPeerid().toString().c_str() ,getCid());
-        assert(false);
-        mEphemeralKeyPms.reject("Empty ephemeral key");
-    };
-
     if (!sfu::isValidSfuVersion(getPeerSfuVersion()))
     {
-        rejectPms("Invalid SFU version");
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: Invalid SFU version for PeerId: %s Cid: %u",
+                        getPeerid().toString().c_str() ,getCid());
         return false;
     }
 
     if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
     {
-        rejectPms("Empty ephemeral key");
-        return false;
-    }
-
-    if (mEphemeralKeyPms.done())
-    {
-        SFU_LOG_WARNING("setEphemeralPubKeyDerived: promise already done for PeerId: %s Cid: %u",
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: Empty ephemeral key for PeerId: %s Cid: %u",
                         getPeerid().toString().c_str() ,getCid());
         return false;
     }
 
     // peers that uses sfu protocol V0, doesn't provide an ephemeral key
     mEphemeralPubKeyDerived = key;
-    mEphemeralKeyPms.resolve();
     return true;
 }
 
