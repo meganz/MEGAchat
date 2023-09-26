@@ -91,7 +91,7 @@ public:
     void resetKeys();
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
-    void setEphemeralPubKeyDerived(const std::string& key);
+    bool setEphemeralPubKeyDerived(const std::string& key);
 
     // returns derived peer's ephemeral key if available
     std::string getEphemeralPubKeyDerived() const;

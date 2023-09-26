@@ -192,7 +192,7 @@ const promise::Promise<void>& Peer::getEphemeralPubKeyPms() const
     return mEphemeralKeyPms;
 }
 
-void Peer::setEphemeralPubKeyDerived(const std::string& key)
+bool Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
     auto rejectPms = [this](const std::string msg)
     {
@@ -205,18 +205,26 @@ void Peer::setEphemeralPubKeyDerived(const std::string& key)
     if (!sfu::isValidSfuVersion(getPeerSfuVersion()))
     {
         rejectPms("Invalid SFU version");
-        return;
+        return false;
     }
 
     if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
     {
         rejectPms("Empty ephemeral key");
-        return;
+        return false;
+    }
+
+    if (mEphemeralKeyPms.done())
+    {
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: promise already done for PeerId: %s Cid: %u",
+                        getPeerid().toString().c_str() ,getCid());
+        return false;
     }
 
     // peers that uses sfu protocol V0, doesn't provide an ephemeral key
     mEphemeralPubKeyDerived = key;
     mEphemeralKeyPms.resolve();
+    return true;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)

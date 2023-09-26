@@ -641,12 +641,14 @@ protected:
     }
 
     // complete peer verification resolving the promise associated to it
-    bool verifyPeer(const Cid_t cid)
+    bool fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified)
     {
         auto it = mPeersVerification.find(cid);
         if (it != mPeersVerification.end() && !it->second.done())
         {
-            it->second.resolve();
+            ephemKeyVerified
+                ? it->second.resolve()
+                : it->second.reject("Rejecting peer pms upon fullfilPeerPms");
             return true;
         }
         return false;

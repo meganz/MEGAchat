@@ -3392,7 +3392,7 @@ void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
         RTCM_LOG_WARNING("addPeer: Unexpected peer state at mPeersVerification. Cid: %d", peer.getCid());
         return;
     }
-    peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
+    const bool ephemKeyVerified = peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
     mSessions[peer.getCid()] = std::make_unique<Session>(peer);
 
     /* We need to call onNewSession (as we set setSessionHandler there) before calling verifyPeer,
@@ -3401,8 +3401,8 @@ void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
      */
     mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
 
-    assert(verifyPeer(peer.getCid()));
-    RTCM_LOG_WARNING("addPeer: peer verification finished. Cid: %d", peer.getCid());
+    assert(fullfilPeerPms(peer.getCid(), ephemKeyVerified));
+    RTCM_LOG_WARNING("addPeer: peer verification finished %s. Cid: %d", ephemKeyVerified ? "ok" : "with error", peer.getCid());
 }
 
 std::pair<std::string, std::string> Call::splitPubKey(const std::string& keyStr) const
