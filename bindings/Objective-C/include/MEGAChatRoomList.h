@@ -9,7 +9,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)clone;
 
-- (MEGAChatRoom *)chatRoomAtIndex:(NSUInteger)index;
+- (nullable MEGAChatRoom *)chatRoomAtIndex:(NSUInteger)index;
 
 @end
 
