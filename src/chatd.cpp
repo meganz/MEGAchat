@@ -3769,15 +3769,12 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         CHATID_LOG_WARNING("msgModify: Denying edit of msgid %s because message is too long", ID_CSTR(msg.id()));
         return nullptr;
     }
-    if (userp)
+    if (msg.userid != mChatdClient.mMyHandle)
     {
-        auto requester = reinterpret_cast<karere::Id*>(userp);
-        if (*requester != msg.userid)
-        {
-            CHATID_LOG_WARNING("msgModify: Denying edit of msgid %s because message the sender %s is not the original sender %s",
-                               ID_CSTR(msg.id()), msg.userid.toString().c_str(), requester->toString().c_str());
-            return nullptr;
-        }
+        CHATID_LOG_WARNING("msgModify: Denying edit of msgid %s because message the sender %s is not the original sender %s",
+                           ID_CSTR(msg.id()), msg.userid.toString().c_str(),
+                           mChatdClient.mMyHandle.toString().c_str());
+        return nullptr;
     }
 
     SetOfIds recipients;    // empty for already confirmed messages, since they already have a keyid
