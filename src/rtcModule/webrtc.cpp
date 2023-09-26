@@ -1741,62 +1741,59 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
         else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
         {
             auto pms = peer.getEphemeralPubKeyPms();
-            pms.then([wptr, cid, key, keyid, this]() -> void
+            if (!pms.done())
             {
-                if (wptr.deleted())
-                {
-                    return;
-                }
+                RTCM_LOG_WARNING("handleKeyCommand: Can't get ephemeral public key for peer: %s cid: %u"
+                                 , karere::Id(peer.getPeerid()).toString().c_str(),peer.getCid());
+                assert(false);
+                return;
+            }
 
-                Session* session = getSession(cid);
-                if (!session)
-                {
-                    RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %u", cid);
-                    return;
-                }
-
-                const sfu::Peer& auxPeer = session->getPeer();
-                auto&& ephemeralPubKey = auxPeer.getEphemeralPubKeyDerived();
-                if (ephemeralPubKey.empty())
-                {
-                    RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %u", auxPeer.getPeerid().toString().c_str(), cid);
-                    assert(false);
-                    return;
-                }
-
-                std::string result;
-                std::string recvKeyBin = mega::Base64::atob(key);
-                if (!mSymCipher.cbc_decrypt_with_key(recvKeyBin, result, reinterpret_cast<const unsigned char*>(ephemeralPubKey.data())
-                                                     , ephemeralPubKey.size(), nullptr))
-                {
-                    std::string err = "Failed cbc_decrypt received key. Cid: "
-                            + std::to_string(auxPeer.getCid())
-                            + "PeerId: " + auxPeer.getPeerid().toString()
-                            + "KeyId: " + std::to_string(keyid);
-
-                    mRtc.onMediaKeyDecryptionFailed(err);
-                    RTCM_LOG_WARNING("%s", err.c_str());
-                    return;
-                }
-
-                // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
-                if (hasCallKey())
-                {
-                    mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(reinterpret_cast<::mega::byte*>(mCallKey.data()), reinterpret_cast<::mega::byte*>(result.data()));
-                }
-
-                if (result.size() != kMediaKeyLen)
-                {
-                    mRtc.onMediaKeyDecryptionFailed("Unexpected decrypted key size");
-                    RTCM_LOG_ERROR("Unexpected decrypted key size expected size: %u decrypted size: %d", kMediaKeyLen, static_cast<int>(result.size()));
-                    return;
-                }
-                session->addKey(keyid, result);
-            });
-            pms.fail([peerId = peer.getPeerid(), peerCid = peer.getCid()](const ::promise::Error&)
+            Session* session = getSession(cid);
+            if (!session)
             {
-                RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %u", karere::Id(peerId).toString().c_str(),peerCid);
-            });
+                RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %u", cid);
+                return;
+            }
+
+            const sfu::Peer& auxPeer = session->getPeer();
+            auto&& ephemeralPubKey = auxPeer.getEphemeralPubKeyDerived();
+            if (ephemeralPubKey.empty())
+            {
+                RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %u", auxPeer.getPeerid().toString().c_str(), cid);
+                assert(false);
+                return;
+            }
+
+            std::string result;
+            std::string recvKeyBin = mega::Base64::atob(key);
+            if (!mSymCipher.cbc_decrypt_with_key(recvKeyBin, result, reinterpret_cast<const unsigned char*>(ephemeralPubKey.data())
+                                                 , ephemeralPubKey.size(), nullptr))
+            {
+                std::string err = "Failed cbc_decrypt received key. Cid: "
+                        + std::to_string(auxPeer.getCid())
+                        + "PeerId: " + auxPeer.getPeerid().toString()
+                        + "KeyId: " + std::to_string(keyid);
+
+                mRtc.onMediaKeyDecryptionFailed(err);
+                RTCM_LOG_WARNING("%s", err.c_str());
+                return;
+            }
+
+            // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
+            if (hasCallKey())
+            {
+                mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(reinterpret_cast<::mega::byte*>(mCallKey.data()), reinterpret_cast<::mega::byte*>(result.data()));
+            }
+
+            if (result.size() != kMediaKeyLen)
+            {
+                mRtc.onMediaKeyDecryptionFailed("Unexpected decrypted key size");
+                RTCM_LOG_ERROR("Unexpected decrypted key size expected size: %u decrypted size: %d", kMediaKeyLen, static_cast<int>(result.size()));
+                return;
+            }
+            session->addKey(keyid, result);
+
         }
         else
         {
@@ -2938,32 +2935,33 @@ void Call::generateAndSendNewMediakey(bool reset)
             else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
             {
                 auto pms = peer.getEphemeralPubKeyPms();
-                pms.then([this, newPlainKey, keys, sessionCid, &peer]()
+                if (!pms.done())
                 {
-                    auto&& ephemeralPubKey = peer.getEphemeralPubKeyDerived();
-                    if (ephemeralPubKey.empty())
-                    {
-                        RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %u", peer.getPeerid().toString().c_str(), sessionCid);
-                        assert(false);
-                        return;
-                    }
+                    RTCM_LOG_WARNING("generateAndSendNewMediakey: Can't get ephemeral public key for peer: %s cid: %u"
+                                     , karere::Id(peer.getPeerid()).toString().c_str(),peer.getCid());
+                    assert(false);
+                    continue;
+                }
 
-                    // Encrypt key for participant with its public ephemeral key
-                    std::string encryptedKey;
-                    std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                    if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey.data()), ephemeralPubKey.size(), nullptr))
-                    {
-                        RTCM_LOG_ERROR("Failed Media key cbc_encrypt for peerId %s Cid %u",
-                                         peer.getPeerid().toString().c_str(), peer.getCid());
-                        return;
-                    }
+                auto&& ephemeralPubKey = peer.getEphemeralPubKeyDerived();
+                if (ephemeralPubKey.empty())
+                {
+                    RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %u", peer.getPeerid().toString().c_str(), sessionCid);
+                    assert(false);
+                    continue;
+                }
 
-                    (*keys)[sessionCid] = mega::Base64::btoa(encryptedKey);
-                 });
-                 pms.fail([peerId = peer.getPeerid(), peerCid = peer.getCid()](const ::promise::Error&)
-                 {
-                    RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %u", karere::Id(peerId).toString().c_str(), peerCid);
-                 });
+                // Encrypt key for participant with its public ephemeral key
+                std::string encryptedKey;
+                std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
+                if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey.data()), ephemeralPubKey.size(), nullptr))
+                {
+                    RTCM_LOG_ERROR("Failed Media key cbc_encrypt for peerId %s Cid %u",
+                                     peer.getPeerid().toString().c_str(), peer.getCid());
+                    continue;
+                }
+
+                (*keys)[sessionCid] = mega::Base64::btoa(encryptedKey);
             }
             else
             {
