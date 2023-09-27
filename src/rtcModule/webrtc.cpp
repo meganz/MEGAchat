@@ -703,7 +703,7 @@ std::vector<Cid_t> Call::getSpeakerRequested()
 
 void Call::requestHighResolutionVideo(Cid_t cid, int quality)
 {
-    Session *sess= getSession(cid);
+    Session* sess= getSession(cid);
     if (!sess)
     {
         RTCM_LOG_DEBUG("requestHighResolutionVideo: session not found for %u", cid);
@@ -723,7 +723,14 @@ void Call::requestHighResolutionVideo(Cid_t cid, int quality)
     }
     else
     {
-        mSfuConnection->sendGetHiRes(cid, hasVideoSlot(cid, false) ? 1 : 0, quality);
+       /* Conditions to reuse track:
+        *   1) Peer cannot be sending video from camera and screen share simultaneosly
+        *   2) We must already be receiving low resolution track
+        */
+        const karere::AvFlags peerFlags = sess->getAvFlags();
+        const bool isSendingScreenAndCamera = peerFlags.screenShare() && peerFlags.video();
+        const bool reuseTrack = !isSendingScreenAndCamera && hasVideoSlot(cid, false);
+        mSfuConnection->sendGetHiRes(cid, reuseTrack, quality);
     }
 }
 
