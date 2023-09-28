@@ -1647,7 +1647,7 @@ public:
     char *getVideoDeviceSelected();
 
     // Calls
-    void startChatCall(MegaChatHandle chatid, bool waitingRoom, bool enableVideo = true,  bool enableAudio = true, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, bool notRinging = false, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
     void ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener = nullptr);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);

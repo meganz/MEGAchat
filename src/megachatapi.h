@@ -5912,6 +5912,64 @@ public:
 
     // Call management
     /**
+     * @brief Starts a call in a chat room
+     *
+     * @note Call started will have waiting room enabled or not, depending on the value of waiting room flag for the chat room.
+     * Check MegaChatRoom::isWaitingRoom().
+     *
+     * As we have commented above, if waiting room flag is enabled for chat room, call will have waiting room feature enabled.
+     * - If call is ringing, all participants that answers the call, will bypass the waiting room.
+     * - If call has stopped ringing, or call was started with notRinging param true, all participants will be redirected to waiting room,
+     *   as soon as they answer the call
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_START_CHAT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns value of param \c enableVideo
+     * - MegaChatRequest::getParamType - Returns value of param \c enableAudio
+     * - MegaChatRequest::getNumber() - Returns 1 indicating that call rings for the rest of participants, otherwise returns 0
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::getFlag - Returns effective video flag (see note)
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If maximum value for simultaneous input video tracks is invalid. Check MegaChatApi::getCurrentInputVideoTracksLimit()
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     *  - if our own privilege is different than MegaChatPeerList::PRIV_STANDARD or MegaChatPeerList::PRIV_MODERATOR.
+     *  - if peer of a 1on1 chatroom it's a non visible contact
+     *  - if this function is called without being already connected to chatd.
+     *  - if the chatroom is in preview mode.
+     *  - if our own privilege is not MegaChatPeerList::PRIV_MODERATOR and the chatroom has waiting room option enabled.
+     *
+     * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
+     * in the call and we can't join to it, or when the chat is public and there are too many participants
+     * to start the call.
+     *
+     * The request will fail with MegaChatError::ERROR_EXISTS
+     * - if there is a previous attempt still in progress (the call doesn't exist yet)
+     * - if there is already another attempt to start a call for this chat, and call already exists but we don't participate
+     * - if the call already exists and we already participate
+     * In case that call already exists MegaChatRequest::getUserHandle will return its callid.
+     *
+     * The request will fail with MegaChatError::ERROR_NOENT
+     * - if the chatroom doesn't exists.
+     *
+     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * @see MegaChatApi::getMaxSupportedVideoCallParticipants
+     *
+     * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo True for audio-video call, false for audio call
+     * @param enableAudio True for starting a call with audio (mute disabled)
+     * @param notRinging if true call won't ring for participants when it's started
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void startCallInChat(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, const bool notRinging, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Start a call in a chat room
      *
      * @note This method is not valid for chatrooms with waiting room option enabled, use MegaChatApi::startMeetingInWaitingRoomChat instead.
@@ -5951,13 +6009,13 @@ public:
      * The request will fail with MegaChatError::ERROR_NOENT
      * - if the chatroom doesn't exists.
      *
-     * The request will fail with MegaChatError::ERROR_ARGS
-     * - if chatroom has waiting room option enabled
-     *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     * Use the other MegaChatApi::startCallInChat instead.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo True for audio-video call, false for audio call
@@ -6011,13 +6069,13 @@ public:
      * - if the chatroom doesn't exists.
      * - if the scheduled meeting doesn't exists
      *
-     * The request will fail with MegaChatError::ERROR_ARGS
-     * - if chatroom has waiting room option enabled
-     *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     * Use the other MegaChatApi::startCallInChat instead.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param schedId MegaChatHandle scheduled meeting id that identifies the scheduled meeting context in which we will start the call
@@ -6144,13 +6202,13 @@ public:
      * - if the chatroom doesn't exists.
      * - if the scheduled meeting doesn't exists
      *
-     * The request will fail with MegaChatError::ERROR_ARGS
-     * - if chatroom has waiting room option disabled
-     *
      * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
+     *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     * Use the other MegaChatApi::startCallInChat instead.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param schedId MegaChatHandle scheduled meeting id, that identifies the scheduled meeting context in which we will start the call.
