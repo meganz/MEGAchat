@@ -1086,22 +1086,22 @@ char *MegaChatApi::getVideoDeviceSelected()
 
 void MegaChatApi::startCallInChat(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, const bool notRinging, MegaChatRequestListener* listener)
 {
-    pImpl->startChatCall(chatid, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE /*schedIdWr*/, notRinging, listener);
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, notRinging, MEGACHAT_INVALID_HANDLE /*schedIdWr*/, listener);
 }
 
 void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-    pImpl->startChatCall(chatid, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE /*schedId*/, false/*notRinging*/, listener);
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, false/*notRinging*/, MEGACHAT_INVALID_HANDLE /*schedId*/, listener);
 }
 
 void MegaChatApi::startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-   pImpl->startChatCall(chatid, enableVideo, enableAudio, schedId, false/*notRinging*/, listener);
+   pImpl->startChatCall(chatid, enableVideo, enableAudio, false/*notRinging*/, schedId, listener);
 }
 
 void MegaChatApi::startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener *listener)
 {
-    pImpl->startChatCall(chatid, enableVideo, enableAudio, schedIdWr, false/*notRinging*/, listener);
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, false/*notRinging*/, schedIdWr, listener);
 }
 
 void MegaChatApi::ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener)
