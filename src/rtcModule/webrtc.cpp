@@ -2757,6 +2757,19 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
 }
 
+bool Call::fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified)
+{
+    auto it = mPeersVerification.find(cid);
+    if (it != mPeersVerification.end() && !it->second.done())
+    {
+        ephemKeyVerified
+            ? it->second.resolve()
+            : it->second.reject("Rejecting peer pms upon fullfilPeerPms");
+        return true;
+    }
+    return false;
+}
+
 bool Call::addWrUsers(const std::map<karere::Id, bool>& users, const bool clearCurrent)
 {
     if (!isOwnPrivModerator() && !users.empty())
