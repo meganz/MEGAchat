@@ -1955,9 +1955,17 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
             return true;
         }
 
+        rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
+        if (track && track->enabled())
+        {
+            RTCM_LOG_WARNING("handleSpeakReqDelCommand: audio track was enabled for Cid: %u", cid);
+            assert(false);
+            track->set_enabled(false);
+            mAudio->getTransceiver()->sender()->SetTrack(nullptr);
+        }
+
         mSpeakerState = SpeakerState::kNoSpeaker;
         mCallHandler.onSpeakStatusUpdate(*this);
-        updateAudioTracks();
     }
     return true;
 }
