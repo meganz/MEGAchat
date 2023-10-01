@@ -5,7 +5,7 @@
 class DelegateMEGAChatCallListener : public megachat::MegaChatCallListener {
     
 public:
-    DelegateMEGAChatCallListener(MEGAChatSdk *megaChatSdk, id<MEGAChatCallDelegate>listener, bool singleListener = true);
+    DelegateMEGAChatCallListener(MEGAChatSdk *megaChatSdk, id<MEGAChatCallDelegate>listener, bool singleListener = true, ListenerQueueType queueType = ListenerQueueTypeMain);
     id<MEGAChatCallDelegate>getUserListener();
     
     void onChatCallUpdate(megachat::MegaChatApi* api, megachat::MegaChatCall *call);
@@ -15,4 +15,5 @@ private:
     __weak MEGAChatSdk *megaChatSdk;
     __weak id<MEGAChatCallDelegate>listener;
     bool singleListener;
+    ListenerQueueType queueType;
 };

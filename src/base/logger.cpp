@@ -109,6 +109,18 @@ Logger::Logger(unsigned aFlags, const char* timeFmt)
         log("LOGGER", 0, 0, "========== Application startup ===========\n");
 }
 
+// This function should be in a shared utils namespace
+int64_t static getCurrentTimeMilliseconds()
+{
+    namespace ch = std::chrono;
+
+    const auto nowSinceEpoch = ch::system_clock::now().time_since_epoch();
+    const int64_t msSinceEpoch = ch::duration_cast<ch::milliseconds>(nowSinceEpoch).count();
+    const int64_t milliseconds = msSinceEpoch % 1000;
+
+    return milliseconds;
+}
+
 // disable false positive warning in GCC 11+
 #if defined(__GNUC__) && !defined(__APPLE__) && !defined(__ANDROID__)
 #pragma GCC diagnostic push
@@ -125,7 +137,10 @@ inline size_t Logger::prependInfo(char* buf, size_t bufSize, const char* prefix,
         time_t now = time(NULL);
         struct tm tmbuf;
         struct tm* tmval = gmtime_r(&now, &tmbuf);
+        std::string currentTimeMilliseconds = "." + std::to_string(getCurrentTimeMilliseconds());
         bytesLogged += strftime(buf+bytesLogged, bufSize-bytesLogged, mTimeFmt.c_str(), tmval);
+        std::copy(std::begin(currentTimeMilliseconds), std::end(currentTimeMilliseconds), buf+bytesLogged);
+        bytesLogged += currentTimeMilliseconds.size();
         buf[bytesLogged++] = ']';
     }
     if (severity)

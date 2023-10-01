@@ -189,6 +189,7 @@ NS_ASSUME_NONNULL_BEGIN
 #ifndef KARERE_DISABLE_WEBRTC
 
 - (void)addChatCallDelegate:(id<MEGAChatCallDelegate>)delegate;
+- (void)addChatCallDelegate:(id<MEGAChatCallDelegate>)delegate queueType:(ListenerQueueType)queueType;
 - (void)removeChatCallDelegate:(id<MEGAChatCallDelegate>)delegate;
 
 - (void)addChatLocalVideo:(uint64_t)chatId delegate:(id<MEGAChatVideoDelegate>)delegate;
