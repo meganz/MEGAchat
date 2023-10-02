@@ -590,70 +590,28 @@ protected:
     Cid_t mPrevCid = K_INVALID_CID;
     uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
 
+    /* Peer verification promises related methods */
+
     // add peer to pending verification map upon ANSWER|PEERJOIN commands
-    bool addPendingPeer(const Cid_t cid)
-    {
-        if (mPeersVerification.find(cid) != mPeersVerification.end())
-        {
-            return false;
-        }
-        mPeersVerification[cid] = promise::Promise<void>();
-        return true;
-    }
+    bool addPendingPeer(const Cid_t cid);
 
     // clear peers pending verification map
-    void clearPendingPeers()
-    {
-        std::for_each(mPeersVerification.begin(), mPeersVerification.end(), [](auto &it)
-        {
-            promise::Promise<void>& pms = it.second;
-            if (!pms.done()) { pms.reject("Rejecting peer pms upon pms clear"); }
-        });
-        mPeersVerification.clear();
-    }
+    void clearPendingPeers();
 
     // remove peer from pending verification map
-    bool removePendingPeer(const Cid_t cid)
-    {
-        auto it = mPeersVerification.find(cid);
-        if (it == mPeersVerification.end())
-        {
-            RTCM_LOG_WARNING("handlePeerLeft: peer with cid: %u, is still pending to verify it's ephemeral key");
-            return false;
-        }
-
-        if (!it->second.done()) { it->second.reject("Rejecting peer pms upon removePendingPeer"); }
-        mPeersVerification.erase(it);
-        return true;
-    }
+    bool removePendingPeer(const Cid_t cid);
 
     // check if peer is pending to be verified
-    bool isPeerPendingToAdd(const Cid_t cid) const
-    {
-        auto it = mPeersVerification.find(cid);
-        return it != mPeersVerification.end() && !it->second.done();
-    }
+    bool isPeerPendingToAdd(const Cid_t cid) const;
 
     // check if peer has been received upon ANSWER | PEERJOIN command
-    bool peerExists(const Cid_t cid) const
-    {
-        return mPeersVerification.find(cid) != mPeersVerification.end();
-    }
+    bool peerExists(const Cid_t cid) const;
 
     // complete peer verification resolving the promise associated to it
     bool fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified);
 
     // return peer verification promise
-    promise::Promise<void>* getPeerVerificationPms(const Cid_t cid)
-    {
-        auto it = mPeersVerification.find(cid);
-        if (it != mPeersVerification.end())
-        {
-            return &it->second;
-        }
-
-        return nullptr;
-    }
+    promise::Promise<void>* getPeerVerificationPms(const Cid_t cid);
 
     // call key for public chats (128-bit key)
     std::string mCallKey;

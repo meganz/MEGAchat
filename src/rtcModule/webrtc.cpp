@@ -2764,6 +2764,51 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
 }
 
+bool Call::addPendingPeer(const Cid_t cid)
+{
+    if (mPeersVerification.find(cid) != mPeersVerification.end())
+    {
+        return false;
+    }
+    mPeersVerification[cid] = promise::Promise<void>();
+    return true;
+}
+
+void Call::clearPendingPeers()
+{
+    std::for_each(mPeersVerification.begin(), mPeersVerification.end(), [](auto &it)
+    {
+        promise::Promise<void>& pms = it.second;
+        if (!pms.done()) { pms.reject("Rejecting peer pms upon pms clear"); }
+    });
+    mPeersVerification.clear();
+}
+
+bool Call::removePendingPeer(const Cid_t cid)
+{
+    auto it = mPeersVerification.find(cid);
+    if (it == mPeersVerification.end())
+    {
+        RTCM_LOG_WARNING("handlePeerLeft: peer with cid: %u, is still pending to verify it's ephemeral key");
+        return false;
+    }
+
+    if (!it->second.done()) { it->second.reject("Rejecting peer pms upon removePendingPeer"); }
+    mPeersVerification.erase(it);
+    return true;
+}
+
+bool Call::isPeerPendingToAdd(const Cid_t cid) const
+{
+    auto it = mPeersVerification.find(cid);
+    return it != mPeersVerification.end() && !it->second.done();
+}
+
+bool Call::peerExists(const Cid_t cid) const
+{
+    return mPeersVerification.find(cid) != mPeersVerification.end();
+}
+
 bool Call::fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified)
 {
     auto it = mPeersVerification.find(cid);
@@ -2775,6 +2820,17 @@ bool Call::fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified)
         return true;
     }
     return false;
+}
+
+promise::Promise<void>* Call::getPeerVerificationPms(const Cid_t cid)
+{
+    auto it = mPeersVerification.find(cid);
+    if (it != mPeersVerification.end())
+    {
+        return &it->second;
+    }
+
+    return nullptr;
 }
 
 bool Call::addWrUsers(const std::map<karere::Id, bool>& users, const bool clearCurrent)
