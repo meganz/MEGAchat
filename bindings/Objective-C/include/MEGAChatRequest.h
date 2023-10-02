@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeInitialize, // (Obsolete)
     MEGAChatRequestTypeConnect,
@@ -76,25 +78,26 @@ enum {
 
 @interface MEGAChatRequest : NSObject
 
-@property (readonly, nonatomic) MEGAChatRequestType type;
-@property (readonly, nonatomic) NSString *requestString;
-@property (readonly, nonatomic) NSInteger tag;
-@property (readonly, nonatomic) long long number;
+@property (readonly, nonatomic, nullable) NSArray<MEGAChatScheduledMeeting *> *scheduledMeetingList;
+@property (readonly, nonatomic, nullable) MEGAChatPeerList *megaChatPeerList;
+@property (readonly, nonatomic, nullable) MEGAHandleList *megaHandleList;
+@property (readonly, nonatomic, nullable) MEGAChatMessage *chatMessage;
+@property (readonly, nonatomic, nullable) NSString *requestString;
+@property (readonly, nonatomic, nullable) MEGANodeList *nodeList;
+@property (readonly, nonatomic, nullable) NSString *text;
+@property (readonly, nonatomic, nullable) NSURL *link;
 @property (readonly, nonatomic, getter=isFlag) BOOL flag;
-@property (readonly, nonatomic) MEGAChatPeerList *megaChatPeerList;
+@property (readonly, nonatomic) long long number;
+@property (readonly, nonatomic) MEGAChatRequestType type;
+@property (readonly, nonatomic) NSInteger tag;
 @property (readonly, nonatomic) uint64_t chatHandle;
 @property (readonly, nonatomic) uint64_t userHandle;
 @property (readonly, nonatomic) NSInteger privilege;
-@property (readonly, nonatomic) NSString *text;
-@property (readonly, nonatomic) NSURL *link;
-@property (readonly, nonatomic) MEGAChatMessage *chatMessage;
-@property (readonly, nonatomic) MEGANodeList *nodeList;
 @property (readonly, nonatomic) NSInteger paramType;
-@property (readonly, nonatomic) MEGAHandleList *megaHandleList;
-@property (readonly, nonatomic) NSArray<MEGAChatScheduledMeeting *> *scheduledMeetingList;
 @property (readonly, nonatomic) NSArray<MEGAChatScheduledMeetingOccurrence *> *chatScheduledMeetingOccurrences;
 
 - (instancetype)clone;
-- (MEGAHandleList *)megaHandleListForChat:(uint64_t)chatId;
 
 @end
+
+NS_ASSUME_NONNULL_END
