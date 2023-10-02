@@ -277,16 +277,16 @@ public:
 };
 
 
-enum class WrState: int
+enum class KWrState: int
 {
     WR_UNKNOWN      = -1,   // client unknown joining status
     WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
     WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
 };
 
-static bool isValidWrStatus(const WrState& value)
+static bool isValidWrStatus(const KWrState& value)
 {
-    return (value > WrState::WR_UNKNOWN && value <= WrState::WR_ALLOWED);
+    return (value > KWrState::WR_UNKNOWN && value <= KWrState::WR_ALLOWED);
 }
 
 /**
@@ -308,13 +308,13 @@ public:
 
     bool addOrUpdateUserStatus(const uint64_t& userid, const int& status)
     {
-        if (!isValidWrStatus(static_cast<WrState>(status)))
+        if (!isValidWrStatus(static_cast<KWrState>(status)))
         {
             assert(false);
             return false;
         }
 
-        mWaitingRoomUsers[userid] = static_cast<WrState>(status);
+        mWaitingRoomUsers[userid] = static_cast<KWrState>(status);
         return true;
     }
 
@@ -323,13 +323,13 @@ public:
         return mWaitingRoomUsers.erase(userid);
     }
 
-    bool updateUsers(const std::set<karere::Id>& users, const WrState& status);
+    bool updateUsers(const std::set<karere::Id>& users, const KWrState& status);
     std::vector<uint64_t> getPeers() const;
     int getPeerStatus(const uint64_t& peerid) const;
     size_t size() const { return mWaitingRoomUsers.size(); }
 
 private:
-    std::map<uint64_t, WrState> mWaitingRoomUsers;
+    std::map<uint64_t, KWrState> mWaitingRoomUsers;
 };
 
 static unsigned int getMaxSupportedVideoCallParticipants() { return kMaxCallVideoSenders; };

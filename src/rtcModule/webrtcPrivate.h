@@ -412,7 +412,7 @@ public:
     bool hasCallKey();
     bool isValidWrJoiningState() const;
     void clearWrJoiningState();
-    void setWrJoiningState(WrState status);
+    void setWrJoiningState(KWrState status);
     void setPrevCid(Cid_t prevcid);
     Cid_t getPrevCid() const;
     bool checkWrFlag() const;
@@ -542,7 +542,7 @@ protected:
     SpeakerState mSpeakerState = SpeakerState::kPending;
 
     // state of joining status for our own client, when waiting room is enabled
-    WrState mWrJoiningState = WrState::WR_UNKNOWN;
+    KWrState mWrJoiningState = KWrState::WR_UNKNOWN;
 
     int64_t mJoinOffset = 0;    // offset ts when we join within the call respect the call start (millis)
     int64_t mFinalTs = 0;       // end of the call (seconds)

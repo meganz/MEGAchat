@@ -480,7 +480,7 @@ int Call::getWrJoiningState() const
 
 bool Call::isValidWrJoiningState() const
 {
-    return mWrJoiningState == WrState::WR_NOT_ALLOWED || mWrJoiningState == WrState::WR_ALLOWED;
+    return mWrJoiningState == KWrState::WR_NOT_ALLOWED || mWrJoiningState == KWrState::WR_ALLOWED;
 }
 
 TermCode Call::getTermCode() const
@@ -498,7 +498,7 @@ void Call::setCallerId(const karere::Id& callerid)
     mCallerId  = callerid;
 }
 
-void Call::setWrJoiningState(WrState status)
+void Call::setWrJoiningState(KWrState status)
 {
     if (!isValidWrStatus(status))
     {
@@ -523,7 +523,7 @@ bool Call::checkWrFlag() const
 
 void Call::clearWrJoiningState()
 {
-    mWrJoiningState = WrState::WR_NOT_ALLOWED;
+    mWrJoiningState = KWrState::WR_NOT_ALLOWED;
 }
 
 void Call::setPrevCid(Cid_t prevcid)
@@ -2259,7 +2259,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
         // we must wait in waiting room until a moderator allow to access, otherwise we can continue with JOIN
         assert(allowed || !isOwnPrivModerator());
         setState(CallState::kInWaitingRoom);
-        setWrJoiningState(allowed ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED);
+        setWrJoiningState(allowed ? KWrState::WR_ALLOWED : KWrState::WR_NOT_ALLOWED);
         if (allowed)
         {
             joinSfu();
@@ -2348,7 +2348,7 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
     if (mState != CallState::kInWaitingRoom) { return false; }
     mMyPeer->setCid(cid); // update Cid for own client from SFU
     mModerators = mods;
-    setWrJoiningState(WrState::WR_ALLOWED);
+    setWrJoiningState(KWrState::WR_ALLOWED);
     RTCM_LOG_DEBUG("handleWrAllow: we have been allowed to join call, so we need to send JOIN command to SFU");
     joinSfu(); // send JOIN command to SFU
     mCallHandler.onWrAllow(*this);
@@ -2368,7 +2368,7 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
     }
 
     mModerators = mods;
-    setWrJoiningState(WrState::WR_NOT_ALLOWED);
+    setWrJoiningState(KWrState::WR_NOT_ALLOWED);
     mCallHandler.onWrDeny(*this);
     return true;
 }
@@ -2777,7 +2777,7 @@ bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool al
         mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
     }
 
-    if (!mWaitingRoom->updateUsers(users, allow ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED))
+    if (!mWaitingRoom->updateUsers(users, allow ? KWrState::WR_ALLOWED : KWrState::WR_NOT_ALLOWED))
     {
         RTCM_LOG_WARNING("%s : could not update users status in waiting room", commandStr.c_str());
         return false;
@@ -3785,7 +3785,7 @@ void RtcModuleSfu::handleNewCall(const karere::Id &chatid, const karere::Id &cal
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
-bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const WrState& status)
+bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const KWrState& status)
 {
     if (!isValidWrStatus(status) || users.empty())
     {
@@ -3805,7 +3805,7 @@ int KarereWaitingRoom::getPeerStatus(const uint64_t& peerid) const
     const auto& it = mWaitingRoomUsers.find(peerid);
     if (it == mWaitingRoomUsers.end())
     {
-        return static_cast<int>(WrState::WR_UNKNOWN);
+        return static_cast<int>(KWrState::WR_UNKNOWN);
     }
 
     return static_cast<int>(it->second);
