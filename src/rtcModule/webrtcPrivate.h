@@ -618,7 +618,7 @@ protected:
         auto it = mPeersVerification.find(cid);
         if (it == mPeersVerification.end())
         {
-            RTCM_LOG_WARNING("handlePeerLeft: peer with cid: %d, is still pending to verify it's ephemeral key");
+            RTCM_LOG_WARNING("handlePeerLeft: peer with cid: %u, is still pending to verify it's ephemeral key");
             return false;
         }
 

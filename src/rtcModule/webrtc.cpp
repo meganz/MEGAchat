@@ -1372,7 +1372,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
     promise::Promise<void>* pms = getPeerVerificationPms(cid);
     if (!pms)
     {
-        RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise not found for cid: %d", cid);
+        RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise not found for cid: %u", cid);
         return false;
     }
 
@@ -1417,7 +1417,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
     })
     .fail([cid](const ::promise::Error&)
     {
-        RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise was rejected for cid: %d", cid);
+        RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise was rejected for cid: %u", cid);
         return;
     });
 
@@ -1508,7 +1508,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         const auto& keyStr = it != keystrmap.end() ? it->second : std::string();
         if (!addPendingPeer(peer.getCid()))
         {
-            RTCM_LOG_WARNING("handleAnswerCommand: duplicated peer at mPeersVerification, with cid: %d ", cid);
+            RTCM_LOG_WARNING("handleAnswerCommand: duplicated peer at mPeersVerification, with cid: %u ", cid);
             assert(false);
             continue;
         }
@@ -1690,7 +1690,7 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
     promise::Promise<void>* pms = getPeerVerificationPms(cid);
     if (!pms)
     {
-        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise not found for cid: %d", cid);
+        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise not found for cid: %u", cid);
         return false;
     }
 
@@ -1804,7 +1804,7 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
     })
     .fail([cid](const ::promise::Error&)
     {
-        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %d", cid);
+        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %u", cid);
         return;
     });
 
@@ -1909,7 +1909,7 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
         promise::Promise<void>* pms = getPeerVerificationPms(cid);
         if (!pms)
         {
-            RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise not found for cid: %d", cid);
+            RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise not found for cid: %u", cid);
             continue;
         }
 
@@ -1928,7 +1928,7 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
         })
         .fail([cid](const ::promise::Error&)
         {
-            RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise was rejected for cid: %d", cid);
+            RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise was rejected for cid: %u", cid);
             return;
         });
     }
@@ -1950,7 +1950,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
         promise::Promise<void>* pms = getPeerVerificationPms(cid);
         if (!pms)
         {
-            RTCM_LOG_WARNING("handleSpeakReqDelCommand: PeerVerification promise not found for cid: %d", cid);
+            RTCM_LOG_WARNING("handleSpeakReqDelCommand: PeerVerification promise not found for cid: %u", cid);
             return false;
         }
 
@@ -1969,7 +1969,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
         })
         .fail([cid](const ::promise::Error&)
         {
-            RTCM_LOG_WARNING("handleSpeakReqDelCommand: PeerVerification promise was rejected for cid: %d", cid);
+            RTCM_LOG_WARNING("handleSpeakReqDelCommand: PeerVerification promise was rejected for cid: %u", cid);
             return;
         });
     }
@@ -2078,7 +2078,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
 
     if (!addPendingPeer(cid))
     {
-        RTCM_LOG_WARNING("handlePeerJoin: duplicated peer at mPeersVerification, with cid: %d ", cid);
+        RTCM_LOG_WARNING("handlePeerJoin: duplicated peer at mPeersVerification, with cid: %u ", cid);
         assert(false);
         return false;
     }
@@ -2157,7 +2157,7 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
     auto it = mSessions.find(cid);
     if (it == mSessions.end())
     {
-        RTCM_LOG_WARNING("handlePeerLeft: cid: %d not found in sessions map", cid);
+        RTCM_LOG_WARNING("handlePeerLeft: cid: %u not found in sessions map", cid);
         return false;
     }
 
@@ -3037,7 +3037,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         promise::Promise<void>* pms = getPeerVerificationPms(cid);
         if (!pms)
         {
-            RTCM_LOG_WARNING("handleIncomingVideo: PeerVerification promise not found for cid: %d", cid);
+            RTCM_LOG_WARNING("handleIncomingVideo: PeerVerification promise not found for cid: %u", cid);
             return;
         }
 
@@ -3072,7 +3072,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
         {
             if (wptr.deleted())  { return; }
             if (slot->getAuxCid() == cid) { slot->setAuxCid(K_INVALID_CID); }
-            RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise was rejected for cid: %d", cid);
+            RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise was rejected for cid: %u", cid);
             return;
         });
     }
@@ -3122,7 +3122,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     promise::Promise<void>* auxpms = getPeerVerificationPms(slot->getCid());
     if (!auxpms)
     {
-        RTCM_LOG_WARNING("AddSpeaker: PeerVerification promise not found for cid: %d", cid);
+        RTCM_LOG_WARNING("AddSpeaker: PeerVerification promise not found for cid: %u", cid);
         return;
     }
 
@@ -3157,7 +3157,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     {
         if (wptr.deleted())  { return; }
         if (slot->getAuxCid() == cid) { slot->setAuxCid(K_INVALID_CID); }
-        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %d", cid);
+        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %u", cid);
         return;
     });
 }
@@ -3390,7 +3390,7 @@ void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
     if (!isPeerPendingToAdd(peer.getCid()))
     {
         // we could have received a PEERLEFT before peer's ephemeral key is verified
-        RTCM_LOG_WARNING("addPeer: Unexpected peer state at mPeersVerification. Cid: %d", peer.getCid());
+        RTCM_LOG_WARNING("addPeer: Unexpected peer state at mPeersVerification. Cid: %u", peer.getCid());
         return;
     }
     const bool ephemKeyVerified = peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
@@ -3405,7 +3405,7 @@ void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
     // Peer Verification pms must exists at this point. If ephemeral key could be verified and it's valid,
     // we'll resolve pms, otherwise we'll reject it.
     assert(fullfilPeerPms(peer.getCid(), ephemKeyVerified));
-    RTCM_LOG_WARNING("addPeer: peer verification finished %s. Cid: %d", ephemKeyVerified ? "ok" : "with error", peer.getCid());
+    RTCM_LOG_WARNING("addPeer: peer verification finished %s. Cid: %u", ephemKeyVerified ? "ok" : "with error", peer.getCid());
 }
 
 std::pair<std::string, std::string> Call::splitPubKey(const std::string& keyStr) const
@@ -4736,7 +4736,7 @@ void AudioLevelMonitor::onAudioDetected(bool audioDetected)
     }
     else
     {
-        RTCM_LOG_WARNING("AudioLevelMonitor::onAudioDetected: session with Cid: %d not found", mCid);
+        RTCM_LOG_WARNING("AudioLevelMonitor::onAudioDetected: session with Cid: %u not found", mCid);
     }
 }
 }
