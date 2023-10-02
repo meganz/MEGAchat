@@ -382,12 +382,13 @@ protected:
 
     int convertIntoValidStatus(const int status) const
     {
-        switch (static_cast<rtcModule::KWrState>(status))
+
+        switch (static_cast<sfu::WrState>(status))
         {
-        case rtcModule::KWrState::WR_NOT_ALLOWED: return MWR_NOT_ALLOWED;
-        case rtcModule::KWrState::WR_ALLOWED:     return MWR_ALLOWED;
-        case rtcModule::KWrState::WR_UNKNOWN:
-            default:                                 return MWR_UNKNOWN;
+            case sfu::WrState::WR_NOT_ALLOWED: return MWR_NOT_ALLOWED;
+            case sfu::WrState::WR_ALLOWED:     return MWR_ALLOWED;
+            case sfu::WrState::WR_UNKNOWN:
+            default:                           return MWR_UNKNOWN;
         }
     }
 

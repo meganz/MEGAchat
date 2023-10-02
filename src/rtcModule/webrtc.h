@@ -276,17 +276,9 @@ public:
     virtual void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
-
-enum class KWrState: int
+static bool isValidWrStatus(const sfu::WrState value)
 {
-    WR_UNKNOWN      = -1,   // client unknown joining status
-    WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
-    WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
-};
-
-static bool isValidWrStatus(const KWrState& value)
-{
-    return (value > KWrState::WR_UNKNOWN && value <= KWrState::WR_ALLOWED);
+    return (value > sfu::WrState::WR_UNKNOWN && value <= sfu::WrState::WR_ALLOWED);
 }
 
 /**
@@ -306,30 +298,52 @@ public:
 
     void clear() { mWaitingRoomUsers.clear(); }
 
-    bool addOrUpdateUserStatus(const uint64_t& userid, const int& status)
+    void addWrUserStatus(const uint64_t& userid, sfu::WrState status)
     {
-        if (!isValidWrStatus(static_cast<KWrState>(status)))
+        mWaitingRoomUsers.emplace_back(sfu::WrRoomUser { userid, status });
+    }
+
+    bool addOrUpdateUserStatus(const uint64_t& userid, const sfu::WrState status)
+    {
+        if (!isValidWrStatus(status))
         {
             assert(false);
             return false;
         }
 
-        mWaitingRoomUsers[userid] = static_cast<KWrState>(status);
+        for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
+        {
+            if (it->mPeerid == userid)
+            {
+                it->mWrState = status;
+                return true;
+            }
+        }
+        addWrUserStatus(userid, status);
         return true;
     }
 
     bool removeUser(const uint64_t& userid)
     {
-        return mWaitingRoomUsers.erase(userid);
+        for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
+        {
+            if (it->mPeerid == userid)
+            {
+                mWaitingRoomUsers.erase(it);
+                return true;
+            }
+        }
+        return false;
     }
 
-    bool updateUsers(const std::set<karere::Id>& users, const KWrState& status);
+    // updates status for user in wr, if user is not present (it should), log an error and add user
+    bool updateUsers(const std::set<karere::Id>& users, const sfu::WrState status);
     std::vector<uint64_t> getPeers() const;
     int getPeerStatus(const uint64_t& peerid) const;
     size_t size() const { return mWaitingRoomUsers.size(); }
 
 private:
-    std::map<uint64_t, KWrState> mWaitingRoomUsers;
+    sfu::WrUserList mWaitingRoomUsers;
 };
 
 static unsigned int getMaxSupportedVideoCallParticipants() { return kMaxCallVideoSenders; };

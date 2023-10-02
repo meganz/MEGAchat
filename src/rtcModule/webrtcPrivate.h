@@ -412,7 +412,7 @@ public:
     bool hasCallKey();
     bool isValidWrJoiningState() const;
     void clearWrJoiningState();
-    void setWrJoiningState(KWrState status);
+    void setWrJoiningState(const sfu::WrState status);
     void setPrevCid(Cid_t prevcid);
     Cid_t getPrevCid() const;
     bool checkWrFlag() const;
@@ -452,9 +452,9 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
-    bool addWrUsers(const std::map<karere::Id, bool>& users, const bool clearCurrent);
+    bool addWrUsers(const sfu::WrUserList& users, const bool clearCurrent);
     void pushIntoWr(const TermCode& termCode);
-    bool dumpWrUsers(const std::map<karere::Id, bool>& wrUsers, bool clearCurrent);
+    bool dumpWrUsers(const sfu::WrUserList& wrUsers, const bool clearCurrent);
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
 
@@ -481,11 +481,11 @@ public:
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nVideoTracks,
                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                      const std::map<karere::Id, bool>& wrUsers) override;
+                      const sfu::WrUserList& wrUsers) override;
 
     // --- SfuInterface methods (waiting room related methods) ---
-    bool handleWrDump(const std::map<karere::Id, bool>& users) override;
-    bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
+    bool handleWrDump(const sfu::WrUserList& users) override;
+    bool handleWrEnter(const sfu::WrUserList& users) override;
     bool handleWrLeave(const karere::Id& user) override;
     bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
     bool handleWrDeny(const std::set<karere::Id>& mods) override;
@@ -542,7 +542,7 @@ protected:
     SpeakerState mSpeakerState = SpeakerState::kPending;
 
     // state of joining status for our own client, when waiting room is enabled
-    KWrState mWrJoiningState = KWrState::WR_UNKNOWN;
+    sfu::WrState mWrJoiningState = sfu::WrState::WR_UNKNOWN;
 
     int64_t mJoinOffset = 0;    // offset ts when we join within the call respect the call start (millis)
     int64_t mFinalTs = 0;       // end of the call (seconds)

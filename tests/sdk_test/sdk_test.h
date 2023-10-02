@@ -661,10 +661,10 @@ public:
     void logError(const char* error) override;
     bool handleHello(const Cid_t userid, const unsigned int nAudioTracks,
                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                     const std::map<karere::Id, bool>& wrUsers) override;
+                     const sfu::WrUserList& wrUsers) override;
 
-    bool handleWrDump(const std::map<karere::Id, bool>& users) override;
-    bool handleWrEnter(const std::map<karere::Id, bool>& users) override;
+    bool handleWrDump(const sfu::WrUserList& wrUsers) override;
+    bool handleWrEnter(const sfu::WrUserList& wrUsers) override;
     bool handleWrLeave(const karere::Id& user) override;
     bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
     bool handleWrDeny(const std::set<karere::Id>& mods) override;

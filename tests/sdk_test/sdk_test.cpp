@@ -8399,17 +8399,17 @@ void MockupCall::logError(const char *)
 
 bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/,
                              const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
-                             const std::map<karere::Id, bool>& /*wrUsers*/)
+                             const sfu::WrUserList& /*wrUsers*/)
 {
     return true;
 }
 
-bool MockupCall::handleWrDump(const std::map<karere::Id, bool>& /*users*/)
+bool MockupCall::handleWrDump(const sfu::WrUserList& /*users*/)
 {
     return true;
 }
 
-bool MockupCall::handleWrEnter(const std::map<karere::Id, bool>& /*users*/)
+bool MockupCall::handleWrEnter(const sfu::WrUserList& /*users*/)
 {
     return true;
 }
