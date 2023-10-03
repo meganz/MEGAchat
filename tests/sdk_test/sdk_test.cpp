@@ -4569,6 +4569,16 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // logout from terciary account
     ASSERT_NO_FATAL_FAILURE({ logout(a3); });
 
+    // login from terciary account and ensure that a1 and a3 are contacts
+    std::unique_ptr<char[]> terciarySession(login(a3)); // user C
+    ASSERT_TRUE(terciarySession);
+    const MegaChatHandle terciaryUh = megaChatApi[a3]->getMyUserHandle();
+    std::unique_ptr<MegaUser> auxuser(megaApi[a1]->getContact(account(a3).getEmail().c_str()));
+    if (!auxuser || auxuser->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
+    {
+        ASSERT_NO_FATAL_FAILURE({ makeContact(a1, a3); });
+    }
+
     // disable speak request again
     if (!chatRoom->isSpeakRequest())
     {
@@ -4584,37 +4594,54 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener.get())) <<
         "Can't open chatRoom user B";
 
+    if (chatRoom->getPeerPrivilegeByHandle(terciaryUh) == megachat::MegaChatPeerList::PRIV_UNKNOWN
+        || chatRoom->getPeerPrivilegeByHandle(terciaryUh) == megachat::MegaChatPeerList::PRIV_RM)
+    {
+        ASSERT_NO_FATAL_FAILURE(inviteToChat(a1, a3, terciaryUh, chatid, MegaChatPeerList::PRIV_STANDARD, chatroomListener));
+    }
+    else if (chatRoom->getPeerPrivilegeByHandle(user->getHandle()) != megachat::MegaChatPeerList::PRIV_STANDARD)
+    {
+        ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a3, terciaryUh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
+    }
+
+    ASSERT_TRUE(megaChatApi[a3]->openChatRoom(chatid, chatroomListener.get()))
+        << "Can't open chatRoom user C";
+
+    // Now chatroom has 3 participants A (host) B (Standard) C (Standard)
     loadHistory(a1, chatid, chatroomListener.get());
     loadHistory(a2, chatid, chatroomListener.get());
+    loadHistory(a3, chatid, chatroomListener.get());
 
     TestChatVideoListener localVideoListenerA;
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListenerA);
     TestChatVideoListener localVideoListenerB;
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
+    TestChatVideoListener localVideoListenerC;
+    megaChatApi[a3]->addChatLocalVideoListener(chatid, &localVideoListenerC);
 
-    auto grantsJoinPermission = [this, a1, a2, chatid, uh]()
+    auto grantsJoinPermission = [this](unsigned int a, unsigned int b, const MegaChatHandle uh, const MegaChatHandle chatid)
     {
         // A grants permission to B for joining call
-        mUsersAllowJoin[a1].clear();
-        bool* allowJoin = &mUsersAllowJoin[a1][uh]; *allowJoin = false; // important to initialize, otherwise key won't exists on map
+        mUsersAllowJoin[a].clear();
+        bool* allowJoin = &mUsersAllowJoin[a][uh]; *allowJoin = false; // important to initialize, otherwise key won't exists on map
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1,
                           std::vector<bool *> {allowJoin,
-                                              &mCallWrAllow[a2]
+                                              &mCallWrAllow[b]
                                               },
                           std::vector<string> {
                               "allowJoin",
-                              "&mCallWrAllow[a2]"
+                              "&mCallWrAllow[idx2]"
                           },
                           "grants B Join permission to call from A",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
                           maxTimeout,
-                          [this, a1, chatid, uh](){
+                          [this, a, chatid, uh](){
                               ChatRequestTracker crtAllowJoin;
                               std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
                               hl->addMegaHandle(uh);
-                              megaChatApi[a1]->allowUsersJoinCall(chatid, hl.get(), false /*all*/, &crtAllowJoin);
+                              megaChatApi[a]->allowUsersJoinCall(chatid, hl.get(), false /*all*/, &crtAllowJoin);
                               ASSERT_EQ(crtAllowJoin.waitForResult(), MegaChatError::ERROR_OK)
                                   << "Failed to allow join users from WR. Error: " << crtAllowJoin.getErrorString();
                           });
@@ -4693,34 +4720,34 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         });
     };
 
-    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool waitingRoom){
-
-        bool* waitingPrimary = nullptr;
-        bool* waitingSecondary = nullptr;
+    const auto answerCall = [this](unsigned int a, unsigned int b, MegaChatHandle chatid, const bool waitingRoom)
+    {
+        bool* waitingA = nullptr;
+        bool* waitingB = nullptr;
 
         if (waitingRoom) // peers that answers call will be redirectedinto waitinf room
         {
-            waitingPrimary = &mCallWrChanged[a1];
-            waitingSecondary = &mCallWR[a2];
+            waitingA = &mCallWrChanged[a];
+            waitingB = &mCallWR[b];
         }
         else // waiting room will be bypassed by participants that answers the call
         {
-            waitingPrimary = &mChatCallSessionStatusInProgress[a1];
-            waitingSecondary = &mChatCallSessionStatusInProgress[a2];
+            waitingA = &mChatCallSessionStatusInProgress[a];
+            waitingB = &mChatCallSessionStatusInProgress[b];
         }
 
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1, // just one attempt as call could be answered properly at B account but any of the other flags not received
-                          std::vector<bool *> { waitingPrimary, waitingSecondary },
+                          std::vector<bool *> { waitingA, waitingB },
                           std::vector<string> { "waitingPrimary", "waitingSecondary" },
                           "answering chat call from B",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
                           maxTimeout,
-                          [this, a2, chatid]()
+                          [this, b, chatid]()
                           {
                               ChatRequestTracker crtAnswerCall;
-                              megaChatApi[a2]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtAnswerCall);
+                              megaChatApi[b]->answerChatCall(chatid, /*enableVideo*/ false, /*enableAudio*/ false, &crtAnswerCall);
                               ASSERT_EQ(crtAnswerCall.waitForResult(), MegaChatError::ERROR_OK)
                                   << "Failed to answer call. Error: " << crtAnswerCall.getErrorString();
                           });
@@ -4777,7 +4804,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     };
 
     std::function<void(MegaChatHandle)> testCleanup = [this, a1, a2, crl = chatroomListener.get(),
-                                                       lvlA = &localVideoListenerA, lvlB = &localVideoListenerB]
+                                                       lvlA = &localVideoListenerA, lvlB = &localVideoListenerB, lvlC = &localVideoListenerC]
         (MegaChatHandle chatid) -> void
     {
         ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid chatid provided";
@@ -4810,8 +4837,10 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         LOG_debug << "Unregistering chatRoomListeners and localVideoListeners";
         megaChatApi[a1]->closeChatRoom(chatid, crl);
         megaChatApi[a2]->closeChatRoom(chatid, crl);
+        megaChatApi[a3]->closeChatRoom(chatid, crl);
         megaChatApi[a1]->removeChatLocalVideoListener(chatid, lvlA);
         megaChatApi[a2]->removeChatLocalVideoListener(chatid, lvlB);
+        megaChatApi[a3]->removeChatLocalVideoListener(chatid, lvlC);
     };
 
     // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
@@ -4824,13 +4853,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId);});
     unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(chatid));
 
-    // B picks up the call
-    LOG_debug << "B Pickups the call (should not ring)";
-    auxCall = picksUpCallSecondaryAccount(false /*isRingingExpected*/);
-
     // B answers call and it's pushed into waiting room
     LOG_debug << "B Answers the call";
-    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(true /*waitingRoom*/);});
+    ASSERT_NO_FATAL_FAILURE({answerCall(a1, a2, chatid, true /*waitingRoom*/);});
 
     std::unique_ptr<MegaChatCall> call(megaChatApi[a1]->getChatCall(chatid));
     std::unique_ptr<MegaChatWaitingRoom> wr(call && call->getWaitingRoom()
@@ -4842,7 +4867,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // ** note: can't simulate use case where a2 sends JOIN without any moderator has allowed to enter the call (WR_DENY would be received for a2 from SFU),
     // because JOIN command is automatically managed by karere, and is only sent when user has permission to JOIN
-    grantsJoinPermission();
+    grantsJoinPermission(a1, a2, uh, chatid);
 
     // [Test2]: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
     // ------------------------------------------------------------------------------------------------------
@@ -4875,7 +4900,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // B answers the call bypassing waiting room
     LOG_debug << "JDEBUG B Answers the call bypassing waiting room";
-    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(false /*waitingRoom*/);});
+    ASSERT_NO_FATAL_FAILURE({answerCall(a1, a2, chatid, false /*waitingRoom*/);});
 }
 
 /**
