@@ -6416,7 +6416,8 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
      * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, if there's not a call in the specified chatroom, or waiting room is disabled
-     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR,
+     *   or is MegaChatPeerList::PRIV_STANDARD but MegaChatRoom::isOpenInvite returns false.
      *
      * @param users MegaHandleList with the users that must be allowed into waiting room.
      * If param all is true, users param will be ignored.
