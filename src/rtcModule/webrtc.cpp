@@ -2812,11 +2812,16 @@ bool Call::peerExists(const Cid_t cid) const
 bool Call::fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified)
 {
     auto it = mPeersVerification.find(cid);
-    if (it != mPeersVerification.end() && !it->second.done())
+    if (it != mPeersVerification.end() && !(it->second.done()))
     {
-        ephemKeyVerified
-            ? it->second.resolve()
-            : it->second.reject("Rejecting peer pms upon fullfilPeerPms");
+        if (ephemKeyVerified)
+        {
+            it->second.resolve();
+        }
+        else
+        {
+            it->second.reject("Rejecting peer pms upon fullfilPeerPms");
+        }
         return true;
     }
     return false;
