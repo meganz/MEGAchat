@@ -3465,8 +3465,9 @@ void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
 
     // Peer Verification pms must exists at this point. If ephemeral key could be verified and it's valid,
     // we'll resolve pms, otherwise we'll reject it.
-    assert(fullfilPeerPms(peer.getCid(), ephemKeyVerified));
-    RTCM_LOG_WARNING("addPeer: peer verification finished %s. Cid: %u", ephemKeyVerified ? "ok" : "with error", peer.getCid());
+    const bool res = fullfilPeerPms(peer.getCid(), ephemKeyVerified);
+    RTCM_LOG_WARNING("addPeer: peer verification finished %s. Cid: %u", ephemKeyVerified && res ? "ok" : "with error", peer.getCid());
+    assert(res);
 }
 
 std::pair<std::string, std::string> Call::splitPubKey(const std::string& keyStr) const
