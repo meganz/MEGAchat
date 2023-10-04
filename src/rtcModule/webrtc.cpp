@@ -2384,16 +2384,18 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 
 bool Call::handleMutedCommand(const unsigned av)
 {
-    if (av != karere::AvFlags::kAudio)
+    // MUTED command doesn't send multiple avFlags to mute
+    const bool muteAudio = (av == karere::AvFlags::kMuteAudio);
+    const bool muteVideo = (av == karere::AvFlags::kMuteVideo);
+    if (!muteAudio && !muteVideo)
     {
-        // remove this checkup when video mute is implemented by SFU
-        SFU_LOG_WARNING("handleMuteCommand: Av flags not expected from SFU for MUTE command");
+        SFU_LOG_WARNING("handleMuteCommand: Av flags not expected from SFU for MUTE command: %u", av);
         assert(false);
         return false;
     }
 
-    SFU_LOG_WARNING("handleMuteCommand: Muting our own client from SFU");
-    muteMyClientFromSfu();
+    SFU_LOG_DEBUG("handleMuteCommand: Muting(%s) our own client from SFU", muteAudio ? "audio" : "video");
+    muteMyClientFromSfu(muteAudio);
     return true;
 }
 
@@ -3265,18 +3267,23 @@ const mega::ECDH* Call::getMyEphemeralKeyPair() const
     return mEphemeralKeyPair.get();
 }
 
-void Call::muteMyClientFromSfu()
+void Call::muteMyClientFromSfu(const bool audio)
 {
-    if (!getLocalAvFlags().audio())
+    karere::AvFlags currentFlags = getLocalAvFlags();
+    if (audio)
     {
-        return;
+        currentFlags.remove(karere::AvFlags::kAudio);
+        mMyPeer->setAvFlags(currentFlags);
+        updateAudioTracks();
+    }
+    else
+    {
+        currentFlags.remove(karere::AvFlags::kVideo);
+        mMyPeer->setAvFlags(currentFlags);
+        updateVideoTracks();
     }
 
-    karere::AvFlags currentFlags = getLocalAvFlags();
-    currentFlags.remove(karere::AvFlags::kAudio);
-    mMyPeer->setAvFlags(currentFlags);
     mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
-    updateAudioTracks();
 }
 
 void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)

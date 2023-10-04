@@ -665,7 +665,7 @@ protected:
     void setOwnModerator(bool isModerator);
 
     // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-    void muteMyClientFromSfu();
+    void muteMyClientFromSfu(const bool audio = true);
 
     // initializes a new pair of keys x25519 (for session key)
     void generateEphemeralKeyPair();
