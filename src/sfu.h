@@ -81,6 +81,9 @@ public:
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
 
+    void setSpeakPermission(const bool hasSpeakPermission) { mHasSpeakPermission = hasSpeakPermission; }
+    bool hasSpeakPermission() const                        { return mHasSpeakPermission; }
+
     bool isModerator() const;
     void setModerator(bool isModerator);
 
@@ -108,9 +111,16 @@ protected:
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
-
     // initialization vector
     std::vector<std::string> mIvs;
+
+    /* The speak permission (mHasSpeakPermission stores this permission up to date with SFU)
+     *      1.1) If peer is moderator. SFU sends a SPEAK_ON command to inform that peer is a speaker
+     *
+     *      1.2) If peer is not moderator, needs to manually send SPEAK_RQ to SFU that will be broadcasted it to all moderators.
+     *           When speak request is approved by a moderator, a SPEAK_ON command will be received
+     */
+    bool mHasSpeakPermission = false;
 
     /*
      * Moderator role for this call
@@ -229,8 +239,8 @@ public:
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
     virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks,
-                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                              const std::map<karere::Id, bool>& wrUsers) = 0;
+                              const std::set<karere::Id>& mods, const bool wr, bool speakRequest,
+                              const bool allowed, const std::map<karere::Id, bool>& wrUsers) = 0;
 
     virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
     virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
@@ -471,6 +481,7 @@ public:
                                const unsigned int nAudioTracks,
                                const std::set<karere::Id>& mods,
                                const bool wr,
+                               const bool speakRequest,
                                const bool allowed,
                                const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
 
@@ -643,7 +654,10 @@ public:
     void checkThreadId();
     const karere::Url& getSfuUrl();
 
-    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int speaker = -1, int vthumbs = -1);
+    // Important: SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
+    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey,
+                 int avFlags, Cid_t prevCid, int vthumbs = -1);
+
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);
     bool sendGetVtumbs(const std::vector<Cid_t>& cids);

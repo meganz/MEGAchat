@@ -163,6 +163,7 @@ public:
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
+    void setSpeakPermission(const bool hasSpeakPermission);
     void disableAudioSlot();
     void setSpeakRequested(bool requested);
     void setAudioDetected(bool audioDetected);    
@@ -186,6 +187,7 @@ public:
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
     bool isModerator() const override;
+    bool hasSpeakPermission() const override;
 
 private:
     // Data about the partipant in the call relative to this session
@@ -321,11 +323,13 @@ public:
 
     void setCallerId(const karere::Id& callerid) override;
     karere::Id getCallid() const override;
+    bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
 
     // request to speak, or cancels a previous request (add = false)
-    void requestSpeaker(bool add = true) override;
-    bool hasRequestSpeak() const override;
+    void requestSpeak(const bool add = true) override;
+    bool hasPendingSpeakRequest() const override;
     int getWrJoiningState() const override;
+    unsigned int getOwnSpeakerState() const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
@@ -360,7 +364,7 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     const KarereWaitingRoom* getWaitingRoom() const override;
-    bool isAllowSpeak() const override;
+    bool hasOwnUserSpeakPermission() const override;
 
     //
     // ------ end ICall methods -----
@@ -398,6 +402,9 @@ public:
 
     // set temporal endCallReason (when call is not destroyed immediately)
     void setTempEndCallReason(uint8_t reason);
+
+    // set speakRequest flag
+    void setSpeakRequest(const bool enabled)    { mSpeakRequest = enabled; }
 
     // set definitive endCallReason
     void setEndCallReason(uint8_t reason);
@@ -480,8 +487,8 @@ public:
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nVideoTracks,
-                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                      const std::map<karere::Id, bool>& wrUsers) override;
+                      const std::set<karere::Id>& mods, const bool wr, const bool speakRequest,
+                      const bool allowed, const std::map<karere::Id, bool>& wrUsers) override;
 
     // --- SfuInterface methods (waiting room related methods) ---
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;
@@ -539,7 +546,7 @@ protected:
     bool mAudioLevelMonitor = false;
 
     // state of request to speak for own user in this call
-    SpeakerState mSpeakerState = SpeakerState::kPending;
+    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
 
     // state of joining status for our own client, when waiting room is enabled
     WrState mWrJoiningState = WrState::WR_UNKNOWN;
@@ -561,6 +568,9 @@ protected:
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
+
+    // speak request flag
+    bool mSpeakRequest = false;
 
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
@@ -662,7 +672,7 @@ protected:
     void setOwnModerator(bool isModerator);
 
     // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-    void muteMyClientFromSfu();
+    void muteMyClient();
 
     // initializes a new pair of keys x25519 (for session key)
     void generateEphemeralKeyPair();
