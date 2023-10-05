@@ -180,6 +180,10 @@ public:
     // on hold flags getters
     bool isOnHold() const                   { return mFlags & kOnHold; }
 
+    // mute flags getters
+    bool audioMuted() const                 { return mFlags & kMuteAudio; }
+    bool videoMuted() const                 { return mFlags & kMuteVideo; }
+
     // check methods
     operator bool() const           { return mFlags != 0; }
     bool operator==(AvFlags other)  { return (mFlags == other.mFlags); }

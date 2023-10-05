@@ -1968,7 +1968,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
     {
         // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
         mSpeakerState = SpeakerState::kNoSpeaker;
-        muteMyClientFromSfu();
+        muteMyClientFromSfu(true/*audio*/, false/*video*/);
     }
     else // SPEAK_OFF received own cid, but SpeakerState is not kActive
     {
@@ -2384,18 +2384,14 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 
 bool Call::handleMutedCommand(const unsigned av)
 {
-    // MUTED command doesn't send multiple avFlags to mute
-    const bool muteAudio = (av == karere::AvFlags::kMuteAudio);
-    const bool muteVideo = (av == karere::AvFlags::kMuteVideo);
-    if (!muteAudio && !muteVideo)
+    karere::AvFlags flags(static_cast<uint8_t>(av));
+    if (!flags.audioMuted() && !flags.videoMuted())
     {
         SFU_LOG_WARNING("handleMuteCommand: Av flags not expected from SFU for MUTE command: %u", av);
         assert(false);
         return false;
     }
-
-    SFU_LOG_DEBUG("handleMuteCommand: Muting(%s) our own client from SFU", muteAudio ? "audio" : "video");
-    muteMyClientFromSfu(muteAudio);
+    muteMyClientFromSfu(flags.audioMuted(), flags.videoMuted());
     return true;
 }
 
@@ -2528,7 +2524,7 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
 
     if (cmd == "audio") // audio ummute has been denied by SFU
     {
-        muteMyClientFromSfu();
+        muteMyClientFromSfu(true/*audio*/, false/*video*/);
     }
     else if (cmd == "MUTE")
     {
@@ -3267,7 +3263,7 @@ const mega::ECDH* Call::getMyEphemeralKeyPair() const
     return mEphemeralKeyPair.get();
 }
 
-void Call::muteMyClientFromSfu(const bool audio)
+void Call::muteMyClientFromSfu(const bool audio, const bool video)
 {
     karere::AvFlags currentFlags = getLocalAvFlags();
     if (audio)
@@ -3276,7 +3272,8 @@ void Call::muteMyClientFromSfu(const bool audio)
         mMyPeer->setAvFlags(currentFlags);
         updateAudioTracks();
     }
-    else
+
+    if (video)
     {
         currentFlags.remove(karere::AvFlags::kVideo);
         mMyPeer->setAvFlags(currentFlags);
