@@ -1951,33 +1951,39 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
     for (Cid_t cid : speakRequests)
     {
-        if (cid == getOwnCid()) { continue; }
-
-        promise::Promise<void>* pms = getPeerVerificationPms(cid);
-        if (!pms)
+        if (cid == getOwnCid())
         {
-            RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise not found for cid: %u", cid);
-            continue;
+            mSpeakerState = SpeakerState::kPending;
+            mCallHandler.onSpeakStatusUpdate(*this);
         }
-
-        auto wptr = weakHandle();
-        pms->then([this, cid, wptr]()
+        else
         {
-            if (wptr.deleted())  { return; }
-            Session *session = getSession(cid);
-            assert(session);
-            if (!session)
+            promise::Promise<void>* pms = getPeerVerificationPms(cid);
+            if (!pms)
             {
-                RTCM_LOG_ERROR("handleSpeakReqsCommand: Received speakRequest for unknown peer cid %u", cid);
-                return;
+                RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise not found for cid: %u", cid);
+                continue;
             }
-            session->setSpeakRequested(true);
-        })
-        .fail([cid](const ::promise::Error&)
-        {
-            RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise was rejected for cid: %u", cid);
-            return;
-        });
+
+            auto wptr = weakHandle();
+            pms->then([this, cid, wptr]()
+            {
+                if (wptr.deleted())  { return; }
+                Session *session = getSession(cid);
+                assert(session);
+                if (!session)
+                {
+                    RTCM_LOG_ERROR("handleSpeakReqsCommand: Received speakRequest for unknown peer cid %u", cid);
+                    return;
+                }
+                session->setSpeakRequested(true);
+            })
+            .fail([cid](const ::promise::Error&)
+            {
+                RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise was rejected for cid: %u", cid);
+                return;
+            });
+        }
     }
     return true;
 }
