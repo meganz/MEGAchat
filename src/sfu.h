@@ -94,13 +94,10 @@ public:
     void resetKeys();
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
-    void setEphemeralPubKeyDerived(const std::string& key);
+    bool setEphemeralPubKeyDerived(const std::string& key);
 
     // returns derived peer's ephemeral key if available
     std::string getEphemeralPubKeyDerived() const;
-
-    // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
-    const promise::Promise<void>& getEphemeralPubKeyPms() const;
 
     // returns the SFU protocol version used by the peer
     sfu::SfuProtocol getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
@@ -139,9 +136,6 @@ protected:
 
     // peer ephemeral key derived
     std::string mEphemeralPubKeyDerived;
-
-    // this promise is resolved/rejected when peer's ephemeral key is verified and derived
-    mutable promise::Promise<void> mEphemeralKeyPms;
 
     // SFU protocol version used by the peer
     sfu::SfuProtocol mSfuPeerProtoVersion = sfu::SfuProtocol::SFU_PROTO_INVAL;
