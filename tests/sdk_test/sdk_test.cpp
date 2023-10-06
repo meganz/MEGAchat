@@ -754,6 +754,80 @@ void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlag
     }
 }
 
+TEST_F(MegaChatApiTest, BasicTest)
+{
+    std::function<void()> testCleanup = [this] () -> void
+    {
+        // close chatroom for all accounts that opened it
+        std::for_each(mData.mChatroomListeners.begin(), mData.mChatroomListeners.end(), [this](const auto& it)
+        {
+            megaChatApi[it.first]->closeChatRoom(mData.mChatid, it.second.get());
+        });
+
+        // logout for all logged in accounts
+        std::for_each(mData.mSessions.begin(), mData.mSessions.end(), [this](const auto& it)
+        {
+            ASSERT_NO_FATAL_FAILURE({ logout(it.first, true /*destroy session*/); });
+        });
+
+        // clean registered videolisteners
+        cleanChatVideoListeners();
+    };
+    MegaMrProper p (testCleanup);
+
+    //========================================================================//
+    // Test preparation: login, get chatroom ...
+    //========================================================================//
+
+    // login into all involved accounts for this test, and establish required contact relationships
+    // Note: all involved accounts in this test, must be added to mSessions and mAccounts
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+    mData.mSessions.emplace(a1, login(a1));
+    mData.mSessions.emplace(a2, login(a2));
+    const MegaChatHandle a1Uh = megaChatApi[a1]->getMyUserHandle();
+    const MegaChatHandle a2Uh = megaChatApi[a2]->getMyUserHandle();
+    mData.mAccounts.emplace(a1, a1Uh);
+    mData.mAccounts.emplace(a2, a2Uh);
+    ASSERT_NO_FATAL_FAILURE({ mData.areSessionsValid(); });
+    ASSERT_NO_FATAL_FAILURE({ checkAndMakeContacts(a1, a2); });
+    ASSERT_NO_FATAL_FAILURE({ mData.checkSessionsAndAccounts(); });
+
+    // set chat selection criteria
+    mData.mChatOptions.mCreate          = true;
+    mData.mChatOptions.mPublicChat      = true;
+    mData.mChatOptions.mMeetingRoom     = false;
+    mData.mChatOptions.mWaitingRoom     = false;
+    mData.mChatOptions.mSpeakRequest    = false;
+    mData.mChatOptions.mOpenInvite      = false;
+
+    // set test operator id and privileges, and create chat participants list
+    mData.mChatOptions.mChatOpIdx = a1;
+    mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
+    mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
+    mData.mChatOptions.mChatPeerList->addPeer(a2Uh, MegaChatPeerList::PRIV_STANDARD);
+
+    // get a group chatroom
+    LOG_verbose << "Get a chatroom for test";
+    mData.mChatid = getGroupChatRoom();
+    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Can't get a chatroom with selected criteria";
+
+    // open chatroom
+    std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, mData.mChatid));
+    mData.mChatroomListeners.emplace(a1, crl);
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
+    mData.mChatroomListeners.emplace(a2, crl);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a2 account";
+
+    // load history
+    loadHistory(a1, mData.mChatid, crl.get());
+    loadHistory(a2, mData.mChatid, crl.get());
+
+    // add video listeners
+    ASSERT_TRUE(addChatVideoListener(a1, mData.mChatid)) << "Cannot register a video listener for a1 account";
+    ASSERT_TRUE(addChatVideoListener(a2, mData.mChatid)) << "Cannot register a video listener for a2 account";
+}
+
 /**
  * @brief MegaChatApiTest.ResumeSession
  *
@@ -4170,16 +4244,6 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     megaChatApi[a2]->removeChatLocalVideoListener(chatid, &localVideoListenerB);
 }
 
-struct MrProper
-{
-    MrProper(std::function<void(MegaChatHandle)> f, const MegaChatHandle chatid)
-        : mCleanup(f), mChatid(chatid){}
-
-    std::function<void(MegaChatHandle)> mCleanup;
-    MegaChatHandle mChatid;
-    ~MrProper() { mCleanup(mChatid); }
-};
-
 /**
  * @brief MegaChatApiTest.RaiseHandToSpeakCall
  * - Test1: A starts call in a meeting room with speak request option enabled, B answers
@@ -6637,6 +6701,14 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
     return chatroomListener->msgCount[accountIndex];
 }
 
+void MegaChatApiTest::checkAndMakeContacts(const unsigned int a1, const unsigned int a2)
+{
+    if (!areContact(a1, a2))
+    {
+        makeContact(a1, a2);
+    }
+}
+
 void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 {
     bool *flagRequestInviteContact = &requestFlags[a1][MegaRequest::TYPE_INVITE_CONTACT];
@@ -6689,6 +6761,54 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
        }
     }
     return false;
+}
+
+bool MegaChatApiTest::addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid)
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    auto res = mData.mapLocalVideoListeners.emplace(idx, TestChatVideoListener());
+    if (res.second)
+    {
+       TestChatVideoListener& vl = res.first->second;
+       megaChatApi[idx]->addChatLocalVideoListener(chatid, &vl);
+       return true;
+    }
+    return false;
+#else
+    LOG_debug << "KARERE_DISABLE_WEBRTC is defined so you cannot use TestChatVideoListener";
+    return false;
+#endif
+}
+
+void MegaChatApiTest::cleanChatVideoListeners()
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    std::for_each(mData.mapLocalVideoListeners.begin(), mData.mapLocalVideoListeners.end(), [this](auto& it)
+    {
+        removeChatVideoListener(it.first, mData.mChatid, it.second);
+    });
+#else
+    LOG_verbose << "cleanChatVideoListeners: KARERE_DISABLE_WEBRTC is defined so there's no TestChatVideoListeners registered";
+#endif
+}
+
+bool MegaChatApiTest::removeChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid, TestChatVideoListener& vl)
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    megaChatApi[idx]->removeChatLocalVideoListener(chatid, &vl);
+    return true;
+#else
+    LOG_debug << "removeChatVideoListener: KARERE_DISABLE_WEBRTC is defined so you cannot use TestChatVideoListener";
+    return false;
+#endif
+}
+
+MegaChatHandle MegaChatApiTest::getGroupChatRoom()
+{
+    ChatroomCreationOptions& opt = mData.mChatOptions;
+    return getGroupChatRoom(mData.getIdxVector(), opt.mChatPeerList.get(),
+                            opt.mOpPriv, opt.mCreate, opt.mPublicChat,
+                            opt.mMeetingRoom, opt.mWaitingRoom, opt.mSpeakRequest, opt.mSchedMeetingData.get());
 }
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>& a, MegaChatPeerList* peers,
