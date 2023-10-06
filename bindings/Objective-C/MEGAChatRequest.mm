@@ -114,10 +114,6 @@ using namespace megachat;
     return self.megaChatRequest->getMegaHandleList() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleList()->copy() cMemoryOwn:YES] : nil;
 }
 
-- (MEGAHandleList *)megaHandleListForChat:(uint64_t)chatId {
-    return self.megaChatRequest->getMegaHandleListByChat(chatId) ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleListByChat(chatId)->copy() cMemoryOwn:YES] : nil;
-}
-
 - (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingList {
     if (!self.megaChatRequest) return nil;
     MegaChatScheduledMeetingList *chatScheduledMeetingList = self.megaChatRequest->getMegaChatScheduledMeetingList();

@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 @interface MEGAChatPeerList : NSObject
 
 @property (readonly, nonatomic) NSInteger size;
@@ -11,3 +13,5 @@
 - (NSInteger)peerPrivilegeAtIndex:(NSInteger)index;
 
 @end
+
+NS_ASSUME_NONNULL_END

@@ -79,9 +79,12 @@ public:
     virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     virtual void release();
     Cid_t getCid() const { return mCid; }
+    Cid_t getAuxCid()const { return mAuxCid; }
+    void setAuxCid(const Cid_t cid) { mAuxCid = cid; }
 
 protected:
-    Cid_t mCid = 0;
+    Cid_t mCid = K_INVALID_CID;
+    Cid_t mAuxCid = K_INVALID_CID;
     void* mAppCtx;
     RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assign(Cid_t cid, IvStatic_t iv);
@@ -163,6 +166,7 @@ public:
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
+    void setSpeakPermission(const bool hasSpeakPermission);
     void disableAudioSlot();
     void setSpeakRequested(bool requested);
     void setAudioDetected(bool audioDetected);    
@@ -186,6 +190,7 @@ public:
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
     bool isModerator() const override;
+    bool hasSpeakPermission() const override;
 
 private:
     // Data about the partipant in the call relative to this session
@@ -321,11 +326,13 @@ public:
 
     void setCallerId(const karere::Id& callerid) override;
     karere::Id getCallid() const override;
+    bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
 
     // request to speak, or cancels a previous request (add = false)
-    void requestSpeaker(bool add = true) override;
-    bool hasRequestSpeak() const override;
+    void requestSpeak(const bool add = true) override;
+    bool hasPendingSpeakRequest() const override;
     int getWrJoiningState() const override;
+    unsigned int getOwnSpeakerState() const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
@@ -361,7 +368,7 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     const KarereWaitingRoom* getWaitingRoom() const override;
-    bool isAllowSpeak() const override;
+    bool hasOwnUserSpeakPermission() const override;
 
     //
     // ------ end ICall methods -----
@@ -400,6 +407,9 @@ public:
     // set temporal endCallReason (when call is not destroyed immediately)
     void setTempEndCallReason(uint8_t reason);
 
+    // set speakRequest flag
+    void setSpeakRequest(const bool enabled)    { mSpeakRequest = enabled; }
+
     // set definitive endCallReason
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
@@ -409,7 +419,6 @@ public:
     static EndCallReason getEndCallReasonFromTermcode(const TermCode& termCode);
 
     void clearParticipants();
-    std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
     bool isValidWrJoiningState() const;
     void clearWrJoiningState();
@@ -481,8 +490,8 @@ public:
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nVideoTracks,
-                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                      const std::map<karere::Id, bool>& wrUsers) override;
+                      const std::set<karere::Id>& mods, const bool wr, const bool speakRequest,
+                      const bool allowed, const std::map<karere::Id, bool>& wrUsers) override;
 
     // --- SfuInterface methods (waiting room related methods) ---
     bool handleWrDump(const std::map<karere::Id, bool>& users) override;
@@ -542,7 +551,7 @@ protected:
     bool mAudioLevelMonitor = false;
 
     // state of request to speak for own user in this call
-    SpeakerState mSpeakerState = SpeakerState::kPending;
+    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
 
     // state of joining status for our own client, when waiting room is enabled
     WrState mWrJoiningState = WrState::WR_UNKNOWN;
@@ -564,6 +573,9 @@ protected:
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
+
+    // speak request flag
+    bool mSpeakRequest = false;
 
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
@@ -591,6 +603,29 @@ protected:
     Cid_t mPrevCid = K_INVALID_CID;
     uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
 
+    /* Peer verification promises related methods */
+
+    // add peer to pending verification map upon ANSWER|PEERJOIN commands
+    bool addPendingPeer(const Cid_t cid);
+
+    // clear peers pending verification map
+    void clearPendingPeers();
+
+    // remove peer from pending verification map
+    bool removePendingPeer(const Cid_t cid);
+
+    // check if peer is pending to be verified
+    bool isPeerPendingToAdd(const Cid_t cid) const;
+
+    // check if peer has been received upon ANSWER | PEERJOIN command
+    bool peerExists(const Cid_t cid) const;
+
+    // complete peer verification resolving the promise associated to it
+    bool fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified);
+
+    // return peer verification promise
+    promise::Promise<void>* getPeerVerificationPms(const Cid_t cid);
+
     // call key for public chats (128-bit key)
     std::string mCallKey;
 
@@ -604,6 +639,17 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
+
+    /* maps peer cid to ephemeral key verification promise.
+     * when a new peer is received (ANSWER | PEERJOIN), we need to verify and derive it's ephemeral key
+     * this proccess could not be immediate as we may need to fetch it's public keys from API (ED25519 | CU25519)
+     *
+     * if during that verification proccess, we receive another command related to that peer Cid, we won't find session for that peer,
+     * as we add the new session once the peer ephemeral key has been verified (even if verification failed)
+     *
+     * with this workarround, we must wait for peer promise completion, before trying to retrieve peer session
+     */
+    std::map<Cid_t, promise::Promise<void>> mPeersVerification;
 
     /*
      * List of participants with moderator role
@@ -648,7 +694,7 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
+    void attachSlotToSession (Session& session, RemoteSlot* slot, const bool audio, const VideoResolution hiRes);
     void initStatsValues();
     void enableStats();
     void disableStats();
@@ -665,7 +711,7 @@ protected:
     void setOwnModerator(bool isModerator);
 
     // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-    void muteMyClientFromSfu(const bool audio, const bool video);
+    void muteMyClient(const bool audio, const bool video);
 
     // initializes a new pair of keys x25519 (for session key)
     void generateEphemeralKeyPair();

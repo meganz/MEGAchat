@@ -30,10 +30,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mEndCall = new QPushButton("End call", this);
     connect(mEndCall, SIGNAL(released()), this, SLOT(onEndCall()));
     mEndCall->setVisible(false);
-    mRequestSpeaker = new QPushButton("ReqSpeaker", this);
+    mRequestSpeaker = new QPushButton("Send speak request", this);
     connect(mRequestSpeaker, &QAbstractButton::clicked, this, [=](){onRequestSpeak(true);});
     mRequestSpeaker->setVisible(false);
-    mRequestSpeakerCancel = new QPushButton("Cancel ReqSpeaker", this);
+    mRequestSpeakerCancel = new QPushButton("Cancel speak request", this);
     connect(mRequestSpeakerCancel, &QAbstractButton::clicked, this, [=](){onRequestSpeak(false);});
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio = new QPushButton("Audio-disable", this);
@@ -48,7 +48,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
     mAudioMonitor->setVisible(false);
 
-    mRemOwnSpeaker = new QPushButton("Remove own speaker", this);
+    mRemOwnSpeaker = new QPushButton("Remove own user speaker", this);
     connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
     mRemOwnSpeaker->setVisible(false);
 
@@ -155,11 +155,27 @@ void MeetingView::updateAudioMonitor(bool enabled)
 
 void MeetingView::updateLabel(megachat::MegaChatCall *call)
 {
+    std::string on  = "<span style='font-weight:normal; color:#00AA00'>1</span>";
+    std::string off = "<span style='font-weight:normal; color:#AA0000'>0</span>";
     std::string txt = call->isOwnModerator() ? QString::fromUtf8("<span style='font-size:25px'>\xE2\x99\x9A</span>").toStdString() : std::string();
     txt.append (" Participants: ")
             .append(std::to_string(call->getNumParticipants()))
             .append("  State: ")
-            .append(callStateToString(*call));
+            .append(callStateToString(*call))
+            .append("<span style='font-weight:normal'>")
+            .append("<br /> Speak request is enabled: ")
+            .append(call->isSpeakRequestEnabled() ? on : off)
+            .append("<br /> Audio flag: ")
+            .append(call->hasLocalAudio() ? on : off)
+            .append("<br /> Video flag: ")
+            .append(call->hasLocalAudio() ? on : off)
+            .append("<br /> Has speak permission: ")
+            .append(call->hasSpeakPermission() ? on : off)
+            .append("<br /> Has speak request pending to be approved: ")
+            .append(call->hasPendingSpeakRequest() ? on : off)
+            .append("<br /> Moderator: ")
+            .append(call->isOwnModerator() ? on : off)
+            .append("</span>");
 
     call->hasLocalAudio()
         ? txt.append("<span style='color:#00AA00'> [A]</span>")
@@ -331,7 +347,10 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
         int ringingWindowOption = mRingingWindow->exec();
         if (ringingWindowOption == QMessageBox::Yes)
         {
-            mMegaChatApi.answerChatCall(mChatid, true);
+            QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
+            if (audiostr != "0" && audiostr != "1") { return; }
+            int audio = atoi(audiostr.toStdString().c_str());
+            mMegaChatApi.answerChatCall(mChatid, true, audio);
         }
         else if (ringingWindowOption == QMessageBox::Cancel)
         {
@@ -572,8 +591,8 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string requestHiRes("Request hiRes");
     std::string stopThumb("Stop vThumb");
     std::string stopHiRes("Stop hiRes");
-    std::string approveSpeak("Approve Speak");
-    std::string rejectSpeak("Reject Speak");
+    std::string approveSpeak("Approve Speak request");
+    std::string rejectSpeak("Reject Speak request");
     std::string pushWr("Push waiting room");
     std::string kickWr("Kick waiting room");
     std::string mute("Mute");
@@ -622,12 +641,8 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     if (call && moderator)
     {
        submenu.addAction(requestDelSpeaker.c_str());
-       megachat::MegaChatSession* session = call->getMegaChatSession(cid);
-       if (session->hasRequestSpeak())
-       {
-           submenu.addAction(approveSpeak.c_str());
-           submenu.addAction(rejectSpeak.c_str());
-       }
+       submenu.addAction(approveSpeak.c_str());
+       submenu.addAction(rejectSpeak.c_str());
 
        QMenu* wrMenu = submenu.addMenu("Waiting Room management");
        wrMenu->addAction(pushWr.c_str());
@@ -750,9 +765,9 @@ void MeetingView::onEnableVideo()
     }
 }
 
-void MeetingView::onRemoveSpeaker(uint32_t)
+void MeetingView::onRemoveSpeaker(const megachat::MegaChatHandle cid)
 {
-    mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+    mMegaChatApi.removeSpeaker(mChatid, cid);
 }
 
 void MeetingView::onRemoveSpeaker()
@@ -769,7 +784,10 @@ void MeetingView::onEnableAudioMonitor(bool)
 
 void MeetingView::onJoinCallWithVideo()
 {
-    mMegaChatApi.startChatCall(mChatid);
+    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
+    if (audiostr != "0" && audiostr != "1") { return; }
+    int audio = atoi(audiostr.toStdString().c_str());
+    mMegaChatApi.startChatCall(mChatid, true /*video*/, audio);
 }
 
 void MeetingView::onWrShow()
@@ -836,6 +854,9 @@ void MeetingView::onMuteAll()
 
 void MeetingView::onJoinCallWithoutVideo()
 {
-    mMegaChatApi.startChatCall(mChatid, false);
+    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
+    if (audiostr != "0" && audiostr != "1") { return; }
+    int audio = atoi(audiostr.toStdString().c_str());
+    mMegaChatApi.startChatCall(mChatid, false /*video*/, audio);
 }
 #endif
