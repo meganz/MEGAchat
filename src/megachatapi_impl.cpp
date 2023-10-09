@@ -2831,6 +2831,51 @@ int MegaChatApiImpl::performRequest_kickUsersFromCall(MegaChatRequestPrivate* re
     fireOnChatRequestFinish(request, megaChatError);
     return MegaChatError::ERROR_OK;
 }
+
+int MegaChatApiImpl::performRequest_mutePeersInCall(MegaChatRequestPrivate* request)
+{
+    const MegaChatHandle chatid = request->getChatHandle();
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - Invalid chatid");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    rtcModule::ICall* call = findCall(chatid);
+    if (!call)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - There is not any call in that chatroom");
+        assert(call);
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    if (call->getState() != rtcModule::kStateInProgress)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - Call isn't in progress state");
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    if (!call->isOwnPrivModerator())
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - moderator role required to perform this action");
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    const Cid_t cid = request->getUserHandle() != MEGACHAT_INVALID_HANDLE
+                          ? static_cast<Cid_t>(request->getUserHandle())
+                          : K_INVALID_CID; // mute all users
+
+    if (cid != K_INVALID_CID && !call->getIsession(cid))
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - Session with Cid not exists %d. Callid: %s"
+                      , cid, karere::Id(call->getCallid()).toString().c_str());
+
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    call->mutePeers(cid, karere::AvFlags::kAudio);
+    return MegaChatError::ERROR_OK;
+}
 #endif // ifndef KARERE_DISABLE_WEBRTC
 
 int MegaChatApiImpl::performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request)
@@ -6009,6 +6054,16 @@ void MegaChatApiImpl::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* u
     waiter->notify();
 }
 
+void MegaChatApiImpl::mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_MUTE, listener);
+    request->setChatHandle(chatid);
+    request->setUserHandle(clientId);
+    request->setPerformRequest([this, request]() { return performRequest_mutePeersInCall(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_CALL_ON_HOLD, listener);
@@ -7409,6 +7464,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_WR_PUSH: return "WR_PUSH";
         case TYPE_WR_ALLOW: return "WR_ALLOW";
         case TYPE_WR_KICK: return "WR_KICK";
+        case TYPE_MUTE: return "MUTE";
     }
     return "UNKNOWN";
 }
@@ -8221,7 +8277,7 @@ const MegaChatWaitingRoom* MegaChatCallPrivate::getWaitingRoom() const
     {
         if (mMegaChatWaitingRoom && mMegaChatWaitingRoom->size())
         {
-            API_LOG_ERROR("Waiting room should be empty for a non moderator user. callId: %d", karere::Id(getCallId()).toString().c_str());
+            API_LOG_ERROR("Waiting room should be empty for a non moderator user. callId: %s", karere::Id(getCallId()).toString().c_str());
             assert(false);
         }
         return nullptr;

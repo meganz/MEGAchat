@@ -690,6 +690,12 @@ void Call::kickUsersFromCall(const std::set<karere::Id>& users) const
     mSfuConnection->sendWrKick(users);
 }
 
+void Call::mutePeers(const Cid_t& cid, const unsigned av) const
+{
+    assert(av == karere::AvFlags::kAudio);
+    mSfuConnection->sendMute(cid, av);
+}
+
 std::vector<Cid_t> Call::getSpeakerRequested()
 {
     std::vector<Cid_t> speakerRequested;
@@ -1054,7 +1060,7 @@ void Call::joinSfu()
                 // audio flags are enabled. We can't send audio flag enabled in JOIN command as we say below.
                 mSpeakerState = SpeakerState::kNoSpeaker;
                 mCallHandler.onSpeakStatusUpdate(*this);
-                muteMyClient();
+                muteMyClient(true/*audio*/, false /*video*/);
                 RTCM_LOG_DEBUG("joinSfu: re-joining to SFU with audio disabled, as speak request "
                                "is enabled and our peer is non-host");
             }
@@ -2091,7 +2097,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         }
 
         // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-        muteMyClient();
+        muteMyClient(true/*audio*/, false/*video*/);
         mSpeakerState = SpeakerState::kNoSpeaker;
         mCallHandler.onSpeakStatusUpdate(*this);
     }
@@ -2512,6 +2518,19 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
 }
 
+bool Call::handleMutedCommand(const unsigned av)
+{
+    karere::AvFlags flags(static_cast<uint8_t>(av));
+    if (!flags.audioMuted() && !flags.videoMuted())
+    {
+        SFU_LOG_WARNING("handleMuteCommand: Av flags not expected from SFU for MUTE command: %u", av);
+        assert(false);
+        return false;
+    }
+    muteMyClient(flags.audioMuted(), flags.videoMuted());
+    return true;
+}
+
 void Call::onSfuDisconnected()
 {
     if (isDestroying()) // we was trying to destroy call but we have received a sfu socket close (before processing BYE command)
@@ -2641,7 +2660,11 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
 
     if (cmd == "audio") // audio ummute has been denied by SFU, disable audio flag local
     {
-        muteMyClient();
+        muteMyClient(true/*audio*/, false/*video*/);
+    }
+    else if (cmd == "MUTE")
+    {
+        RTCM_LOG_WARNING("Deny 'MUTE' received. %s", msg.c_str());
     }
     else if (cmd == "JOIN")
     {
@@ -3500,18 +3523,24 @@ const mega::ECDH* Call::getMyEphemeralKeyPair() const
     return mEphemeralKeyPair.get();
 }
 
-void Call::muteMyClient()
+void Call::muteMyClient(const bool audio, const bool video)
 {
-    if (!getLocalAvFlags().audio())
+    karere::AvFlags currentFlags = getLocalAvFlags();
+    if (audio)
     {
-        return;
+        currentFlags.remove(karere::AvFlags::kAudio);
+        mMyPeer->setAvFlags(currentFlags);
+        updateAudioTracks();
     }
 
-    karere::AvFlags currentFlags = getLocalAvFlags();
-    currentFlags.remove(karere::AvFlags::kAudio);
-    mMyPeer->setAvFlags(currentFlags);
+    if (video)
+    {
+        currentFlags.remove(karere::AvFlags::kVideo);
+        mMyPeer->setAvFlags(currentFlags);
+        updateVideoTracks();
+    }
+
     mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
-    updateAudioTracks();
 }
 
 void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)

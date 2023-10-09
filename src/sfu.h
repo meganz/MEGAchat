@@ -243,6 +243,7 @@ public:
     virtual bool handleWrDeny(const std::set<karere::Id>& mods) = 0;
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
+    virtual bool handleMutedCommand(const unsigned av) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -448,6 +449,16 @@ public:
     ByeCommandFunction mComplete;
 };
 
+class MutedCommand : public Command
+{
+public:
+    typedef std::function<bool(const unsigned av)> MutedCommandFunction;
+    MutedCommand(const MutedCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    MutedCommandFunction mComplete;
+};
+
 class ModAddCommand : public Command
 {
 public:
@@ -590,6 +601,7 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_WR_PUSH;
     static const std::string CSFU_WR_ALLOW;
     static const std::string CSFU_WR_KICK;
+    static const std::string CSFU_MUTE;
 
 public:
     struct SfuData
@@ -673,6 +685,7 @@ public:
     bool sendWrPush(const std::set<karere::Id>& users, const bool all);
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
+    bool sendMute(const Cid_t& cid, const unsigned av);
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
     bool avoidReconnect() const;
     void setAvoidReconnect(const bool avoidReconnect);

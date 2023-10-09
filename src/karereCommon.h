@@ -124,11 +124,13 @@ public:
 
                     // audio flags
                     kAudio          = 0x01,
+                    kMuteAudio      = kAudio,
 
                     // camera flags
                     kCameraLowRes   = 0x02,
                     kCameraHiRes    = 0x04,
                     kCamera         = kCameraLowRes | kCameraHiRes,
+                    kMuteVideo      = kCameraLowRes,
 
                     // screen share flags
                     kScreenLowRes   = 0x08,
@@ -177,6 +179,10 @@ public:
 
     // on hold flags getters
     bool isOnHold() const                   { return mFlags & kOnHold; }
+
+    // mute flags getters
+    bool audioMuted() const                 { return mFlags & kMuteAudio; }
+    bool videoMuted() const                 { return mFlags & kMuteVideo; }
 
     // check methods
     operator bool() const           { return mFlags != 0; }
