@@ -85,6 +85,7 @@ public slots:
     void onSetSpeakRequest(bool enable);
     void onSetWaitingRoom(bool enable);
     void onWaitingRoomCall();
+    void onAudioCallNoRingBtn();
 
 private:
     void onPushReceived(unsigned int type);

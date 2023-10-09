@@ -25,6 +25,7 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
         if (mVideoLabel)     {layout()->removeWidget(mVideoLabel.get());      mVideoLabel->clear();}
         if (mReqSpealLabel)  {layout()->removeWidget(mReqSpealLabel.get());   mReqSpealLabel->clear();}
         if (mModeratorLabel) {layout()->removeWidget(mModeratorLabel.get());  mModeratorLabel->clear();}
+        if (mRecordingLabel) {layout()->removeWidget(mRecordingLabel.get());  mRecordingLabel->clear();}
     }
 
     mLayout.reset(new QHBoxLayout());
@@ -48,6 +49,13 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     mStatusLabel.reset(new QLabel());
     mStatusLabel->setPixmap(statusImg);
     layout()->addWidget(mStatusLabel.get());
+
+    // recording lbl
+    if (session.isRecording())
+    {
+        mRecordingLabel.reset(new QLabel("<span style='font-weight:bold; color:#A30000'>[REC]</span>"));
+        layout()->addWidget(mRecordingLabel.get());
+    }
 
     // title lbl
     std::string title = mMeetingView->sessionToString(session);
@@ -85,7 +93,7 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     layout()->addWidget(mVideoLabel.get());
 
     // reqSpeak lbl
-    mRequestSpeak = session.hasRequestSpeak();
+    mRequestSpeak = session.hasPendingSpeakRequest();
     if (mRequestSpeak)
     {
        mReqSpealLabel.reset(new QLabel());
