@@ -93,7 +93,7 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     layout()->addWidget(mVideoLabel.get());
 
     // reqSpeak lbl
-    mRequestSpeak = session.hasRequestSpeak();
+    mRequestSpeak = session.hasPendingSpeakRequest();
     if (mRequestSpeak)
     {
        mReqSpealLabel.reset(new QLabel());

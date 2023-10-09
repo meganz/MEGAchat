@@ -457,6 +457,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actAdhocCall = callsMenu->addAction(tr("Waiting Room Call"));
     connect(actAdhocCall, SIGNAL(triggered()), mController, SLOT(onWaitingRoomCall()));
 
+    auto actschedCall = callsMenu->addAction(tr("Sched meeting Call"));
+    connect(actschedCall, SIGNAL(triggered()), mController, SLOT(onAudioCallNoRingBtn()));
+
     QMenu *roomMenu = menu.addMenu("Room's management");
 
     auto actLeave = roomMenu->addAction(tr("Leave chat"));
