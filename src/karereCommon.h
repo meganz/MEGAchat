@@ -124,11 +124,13 @@ public:
 
                     // audio flags
                     kAudio          = 0x01,
+                    kMuteAudio      = kAudio,
 
                     // camera flags
                     kCameraLowRes   = 0x02,
                     kCameraHiRes    = 0x04,
                     kCamera         = kCameraLowRes | kCameraHiRes,
+                    kMuteVideo      = kCameraLowRes,
 
                     // screen share flags
                     kScreenLowRes   = 0x08,
@@ -139,6 +141,9 @@ public:
                     kLowResVideo    = kCameraLowRes | kScreenLowRes,
                     kHiResVideo     = kCameraHiRes  | kScreenHiRes,
                     kVideo          = kLowResVideo  | kHiResVideo,
+
+                    // Call recording flags
+                    kRecording      = 0x40,
 
                     // on hold flags
                     kOnHold         = 0x80,
@@ -153,6 +158,7 @@ public:
     void add(uint8_t val)       { mFlags = mFlags | val; }
     void remove(uint8_t val)    { mFlags = static_cast<uint8_t>(mFlags & ~val); }
     void setOnHold(bool enable) { enable ? add(kOnHold) : remove(kOnHold); }
+    void setRecording(bool enable)  { enable ? add(kRecording) : remove(kRecording); }
 
     // getters
     uint8_t value() const                   { return mFlags; }
@@ -175,8 +181,15 @@ public:
     bool videoHiRes() const                 { return mFlags & kHiResVideo; }
     bool videoLowRes() const                { return mFlags & kLowResVideo; }
 
+    // is recording call flags getters
+    bool isRecording() const                { return mFlags & kRecording; }
+
     // on hold flags getters
     bool isOnHold() const                   { return mFlags & kOnHold; }
+
+    // mute flags getters
+    bool audioMuted() const                 { return mFlags & kMuteAudio; }
+    bool videoMuted() const                 { return mFlags & kMuteVideo; }
 
     // check methods
     operator bool() const           { return mFlags != 0; }
@@ -198,6 +211,8 @@ public:
             result+= "sL";
         if (mFlags & kScreenHiRes)
             result+= "sH";
+        if (mFlags & kRecording)
+            result+= "r";
         if (mFlags & kOnHold)
             result+='h';
         if (result.empty())
