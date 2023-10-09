@@ -764,13 +764,13 @@ TEST_F(MegaChatApiTest, BasicTest)
             megaChatApi[it.first]->closeChatRoom(mData.mChatid, it.second.get());
         });
 
-        // logout for all logged in accounts
+        // logout from all logged in accounts
         std::for_each(mData.mSessions.begin(), mData.mSessions.end(), [this](const auto& it)
         {
             ASSERT_NO_FATAL_FAILURE({ logout(it.first, true /*destroy session*/); });
         });
 
-        // clean registered videolisteners
+        // clean registered videolisteners (if any)
         cleanChatVideoListeners();
     };
     MegaMrProper p (testCleanup);
@@ -801,18 +801,20 @@ TEST_F(MegaChatApiTest, BasicTest)
     mData.mChatOptions.mSpeakRequest    = false;
     mData.mChatOptions.mOpenInvite      = false;
 
-    // set test operator id and privileges, and create chat participants list
+    // set chat operator idx and privileges, and create chat participants list
+    // chat operator idx corresponds with idx of account from which we retrieve chatroom
     mData.mChatOptions.mChatOpIdx = a1;
     mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
     mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
     mData.mChatOptions.mChatPeerList->addPeer(a2Uh, MegaChatPeerList::PRIV_STANDARD);
+    mData.mChatOptions.mChatPeerIdx.emplace_back(a2);
 
     // get a group chatroom
     LOG_verbose << "Get a chatroom for test";
     mData.mChatid = getGroupChatRoom();
     ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Can't get a chatroom with selected criteria";
 
-    // open chatroom
+    // open chatroom (just add chatroom listeners for chatroom participants)
     std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, mData.mChatid));
     mData.mChatroomListeners.emplace(a1, crl);
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
@@ -826,6 +828,17 @@ TEST_F(MegaChatApiTest, BasicTest)
     // add video listeners
     ASSERT_TRUE(addChatVideoListener(a1, mData.mChatid)) << "Cannot register a video listener for a1 account";
     ASSERT_TRUE(addChatVideoListener(a2, mData.mChatid)) << "Cannot register a video listener for a2 account";
+
+    // set test operator role index (will be the account in charge of performing all operations)
+    // This index can be changed at any point of the test. Every auxiliar method will check for
+    // mData.mOpIdx to get the index of account with operator role
+    mData.mOpIdx = a1;
+
+    //========================================================================//
+    // Test1: Change chatroom title from a1
+    //========================================================================//
+    LOG_verbose << "Change chatroom title from a1";
+    setChatTitle(std::string("Title ") + std::to_string(time(NULL)), 120 /*waitSecs*/);
 }
 
 /**
@@ -6811,6 +6824,42 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom()
                             opt.mMeetingRoom, opt.mWaitingRoom, opt.mSpeakRequest, opt.mSchedMeetingData.get());
 }
 
+void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int waitSecs)
+{
+    auto& crlisteners = mData.mChatroomListeners;
+    std::for_each(crlisteners.begin(), crlisteners.end(), [this](const auto& it)
+    {
+        auto idx = it.first;
+        // add flag to wait for onChatListItemUpdate(CHANGE_TYPE_TITLE)
+        mBools.add(idx, "titleItemChanged", false /*val*/, true/*override*/);
+
+        // add flag to wait for onChatRoomUpdate(CHANGE_TYPE_TITLE)
+        mBools.add(idx, "titleChanged", false /*val*/, true/*override*/);
+    });
+
+    ChatRequestTracker crtSetTitle;
+    auto opIdx = getOpIdx();
+    megaChatApi[opIdx]->setChatTitle(mData.mChatid, title.c_str(), &crtSetTitle);
+    ASSERT_EQ(crtSetTitle.waitForResult(static_cast<int>(waitSecs)), MegaChatError::ERROR_OK)
+                                                                    << "Failed to set chat title from account "
+                                                                    << mData.mOpIdx <<". Error: "
+                                                                    << crtSetTitle.getErrorString();
+
+    std::for_each(crlisteners.begin(), crlisteners.end(), [this](const auto& it)
+    {
+        auto idx = it.first;
+        auto f1 = mBools.get(idx, "titleItemChanged");
+        ASSERT_TRUE(f1) << "titleItemChanged wait flag not found for account: " << idx;
+        ASSERT_TRUE(waitForResponse(f1)) << "Timeout expired for receiving chat list item update";
+        mBools.remove(idx, "titleItemChanged");
+
+        auto f2 = mBools.get(idx, "titleChanged");
+        ASSERT_TRUE(f2) << "titleChanged wait flag not found for account: " << idx;
+        ASSERT_TRUE(waitForResponse(f2)) << "Timeout expired for receiving chatroom update";
+        mBools.remove(idx, "titleChanged");
+    });
+};
+
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>& a, MegaChatPeerList* peers,
                                                  const int a1Priv, const bool create, const bool publicChat,
                                                  const bool meetingRoom, const bool waitingRoom, const bool speakRequest, SchedMeetingData* schedMeetingData)
@@ -7930,6 +7979,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
         {
+            mBools.update(apiIndex, "titleItemChanged", true);
             titleUpdated[apiIndex] = true;
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_ARCHIVE))
@@ -8296,6 +8346,7 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         }
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_TITLE))
         {
+            t->getBoolVars().update(apiIndex, "titleChanged", true);
             titleUpdated[apiIndex] = true;
         }
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_ARCHIVE))

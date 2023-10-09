@@ -150,6 +150,7 @@ class MegaChatApiTest :
 public:
     // invalid account index
     static constexpr unsigned int testInvalidIdx = UINT16_MAX;
+    static constexpr unsigned int maxAccounts = 3;
 
     // this structure cleans the associated resources for an automated test, when it finish or fails
     // in case test fails before completing, this structs cleans associated resources, avoiding
@@ -219,6 +220,9 @@ public:
 
         // peer list with the participants of the chatroom used for the test
         std::unique_ptr<megachat::MegaChatPeerList> mChatPeerList;
+
+        // vector with peer accounts idx that participates in the chatroom
+        std::vector<unsigned int> mChatPeerIdx;
 
         ChatroomCreationOptions() = default;
         ChatroomCreationOptions* copy() const { return new ChatroomCreationOptions(*this); }
@@ -302,6 +306,12 @@ public:
             return v;
         }
 
+        // returns a vector with all chat participants account indexes
+        const std::vector<unsigned int> getChatParticipantsIdxs()
+        {
+            return mChatOptions.mChatPeerIdx;
+        }
+
         // check if sessions returned by MegaChatApiTest::login are valid
         void areSessionsValid()
         {
@@ -319,6 +329,78 @@ public:
                 ASSERT_TRUE(mAccounts.find(it.first) != mAccounts.end());
             });
         }
+
+        std::shared_ptr<TestChatRoomListener> getChatroomListener(const unsigned int i)
+        {
+            auto it = mChatroomListeners.find(i);
+            if (it == mChatroomListeners.end()) { return nullptr; }
+
+            return it->second;
+        }
+    };
+
+    struct BoolVars
+    {
+    public:
+        // adds a new entry in map <variable name, bool*>
+        bool add(const unsigned int i, const std::string& n, bool val, const bool override)
+        {
+            if (i >= maxAccounts) { return false; }
+
+            if (mBools[i].find(n) != mBools[i].end()
+                && !override)
+            {
+                return false;
+            }
+
+            mBools[i][n] = val;
+            return true;
+        }
+
+        // returns value pointed by bool* stored in map
+        bool* get(const unsigned int i, const std::string& n)
+        {
+            auto it = mBools[i].find(n);
+            if (it == mBools[i].end())
+            {
+                return nullptr;
+            }
+
+            return &it->second;
+        }
+
+        // updates value pointed by bool* stored in map
+        bool update(const unsigned int i, const std::string& n, const bool v)
+        {
+            if (i >= maxAccounts) { return false; }
+
+            auto it = mBools[i].find(n);
+            if (it == mBools[i].end())
+            {
+                return false;
+            }
+
+            it->second = v;
+            return true;
+        }
+
+        // remove entry from map given a variable name
+        bool remove(const unsigned int i, const std::string& n)
+        {
+            if (i >= maxAccounts) { return false; }
+
+            auto it = mBools[i].find(n);
+            if (it == mBools[i].end())
+            {
+                return false;
+            }
+
+            mBools[i].erase(it);
+            return true;
+        }
+
+    private:
+        std::map<std::string, bool> mBools[maxAccounts];
     };
 
     static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
@@ -346,6 +428,8 @@ public:
     static void init();
     // Global test environment clear up
     static void terminate();
+
+    BoolVars& getBoolVars () { return mBools; };
 
 protected:
     static Account& account(unsigned i) { return getEnv().account(i); }
@@ -414,6 +498,24 @@ protected:
 
     void createChatroomAndSchedMeeting(megachat::MegaChatHandle& chatid, const unsigned int a1,
                                        const unsigned int a2, const SchedMeetingData& smData);
+
+    unsigned int getOpIdx() { return mData.mOpIdx; }
+
+    /**
+     * @brief Allows to set the title of a group chat
+     *
+     * The account idx that will perform this operation will be the idx
+     * returned by getOpIdx()
+     *
+     * All accounts idxs registered in TestData::mChatroomListeners (even action performer idx: getOpIdx()) will wait for
+     * receiving onChatListItemUpdate(CHANGE_TYPE_TITLE) and onChatRoomUpdate(CHANGE_TYPE_TITLE) events.
+     *
+     * @param title Null-terminated character string with the title that wants to be set. If the
+     * title is longer than 30 characters, it will be truncated to that maximum length.
+     *
+     * @param waitSecs max timeout (in seconds) that this method will wait for any event (like onRequestFinish, flags updates...)
+     */
+    void setChatTitle(const std::string& title, const unsigned int waitSecs = maxTimeout);
 
     megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
 
@@ -505,7 +607,14 @@ protected:
     bool mPresenceConfigUpdated[NUM_ACCOUNTS];
     bool mOnlineStatusUpdated[NUM_ACCOUNTS];
     int mOnlineStatus[NUM_ACCOUNTS];
-    TestData mData = TestData();
+
+    // structure with all data common to most of automated tests
+    TestData mData;
+
+    // maps a var name to boolean. this map can be used to add temporal
+    // boolean variables that needs to be updated by any callback or code path
+    // this avoids defining amounts of vars in MegaChatApiTest class
+    BoolVars mBools;
 
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
