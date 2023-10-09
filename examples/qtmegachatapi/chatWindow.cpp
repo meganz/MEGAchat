@@ -1117,13 +1117,6 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::onAudioCallNoRingBtn()
-{
-    std::string schedIdStr = mMainWin->mApp->getText("Get scheduled meeting id");
-    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
-    mMegaChatApi->startChatCallNoRinging(mChatRoom->getChatId(), schedId, false, false);
-}
-
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
     delete this;
@@ -1132,7 +1125,10 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
+    std::string audiostr = mMainWin->mApp->getText("Enable audio [0|1] \n\n Do you want to enable audio?");
+    if (audiostr != "0" && audiostr != "1") { return; }
+    int audio = atoi(audiostr.c_str());
+    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video, audio);
 }
 
 #endif

@@ -1752,9 +1752,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo {
+- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
     if (self.megaChatApi) {
-        self.megaChatApi->answerChatCall(chatId, enableVideo);
+        self.megaChatApi->answerChatCall(chatId, enableVideo, enableAudio);
     }
 }
 

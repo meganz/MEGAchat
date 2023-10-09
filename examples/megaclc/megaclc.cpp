@@ -2569,7 +2569,7 @@ void exec_answerchatcall(ac::ACState& s)
     c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
     c::MegaChatHandle room = s_ch(s.words[1].s);
     bool enableVideo = s.words.size() < 2 || s.words[2].s == "true";
-    g_chatApi->answerChatCall(room, enableVideo, listener);
+    g_chatApi->answerChatCall(room, enableVideo, false, listener);
 }
 
 
