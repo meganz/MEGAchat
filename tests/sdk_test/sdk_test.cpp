@@ -6831,10 +6831,10 @@ void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int 
     {
         auto idx = it.first;
         // add flag to wait for onChatListItemUpdate(CHANGE_TYPE_TITLE)
-        mBools.add(idx, "titleItemChanged", false /*val*/, true/*override*/);
+        mAuxBool.add(idx, "titleItemChanged", false /*val*/, true/*override*/);
 
         // add flag to wait for onChatRoomUpdate(CHANGE_TYPE_TITLE)
-        mBools.add(idx, "titleChanged", false /*val*/, true/*override*/);
+        mAuxBool.add(idx, "titleChanged", false /*val*/, true/*override*/);
     });
 
     ChatRequestTracker crtSetTitle;
@@ -6848,15 +6848,15 @@ void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int 
     std::for_each(crlisteners.begin(), crlisteners.end(), [this](const auto& it)
     {
         auto idx = it.first;
-        auto f1 = mBools.get(idx, "titleItemChanged");
+        auto f1 = mAuxBool.get(idx, "titleItemChanged");
         ASSERT_TRUE(f1) << "titleItemChanged wait flag not found for account: " << idx;
         ASSERT_TRUE(waitForResponse(f1)) << "Timeout expired for receiving chat list item update";
-        mBools.remove(idx, "titleItemChanged");
+        mAuxBool.remove(idx, "titleItemChanged");
 
-        auto f2 = mBools.get(idx, "titleChanged");
+        auto f2 = mAuxBool.get(idx, "titleChanged");
         ASSERT_TRUE(f2) << "titleChanged wait flag not found for account: " << idx;
         ASSERT_TRUE(waitForResponse(f2)) << "Timeout expired for receiving chatroom update";
-        mBools.remove(idx, "titleChanged");
+        mAuxBool.remove(idx, "titleChanged");
     });
 };
 
@@ -7979,7 +7979,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
         {
-            mBools.update(apiIndex, "titleItemChanged", true);
+            mAuxBool.update(apiIndex, "titleItemChanged", true);
             titleUpdated[apiIndex] = true;
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_ARCHIVE))

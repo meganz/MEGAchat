@@ -339,29 +339,29 @@ public:
         }
     };
 
-    struct BoolVars
+    template <typename T>
+    struct AuxVars
     {
     public:
-        // adds a new entry in map <variable name, bool*>
-        bool add(const unsigned int i, const std::string& n, bool val, const bool override)
+        // adds a new entry in map <variable name, val<T>>
+        bool add(const unsigned int i, const std::string& n, T val, const bool override)
         {
             if (i >= maxAccounts) { return false; }
 
-            if (mBools[i].find(n) != mBools[i].end()
-                && !override)
+            if (mVarsMap[i].find(n) != mVarsMap[i].end() && !override)
             {
                 return false;
             }
 
-            mBools[i][n] = val;
+            mVarsMap[i][n] = val;
             return true;
         }
 
-        // returns value pointed by bool* stored in map
-        bool* get(const unsigned int i, const std::string& n)
+        // returns value<T> mapped by key n
+        T* get(const unsigned int i, const std::string& n)
         {
-            auto it = mBools[i].find(n);
-            if (it == mBools[i].end())
+            auto it = mVarsMap[i].find(n);
+            if (it == mVarsMap[i].end())
             {
                 return nullptr;
             }
@@ -369,13 +369,13 @@ public:
             return &it->second;
         }
 
-        // updates value pointed by bool* stored in map
-        bool update(const unsigned int i, const std::string& n, const bool v)
+        // updates value<T> mapped by key n
+        bool update(const unsigned int i, const std::string& n, const T v)
         {
             if (i >= maxAccounts) { return false; }
 
-            auto it = mBools[i].find(n);
-            if (it == mBools[i].end())
+            auto it = mVarsMap[i].find(n);
+            if (it == mVarsMap[i].end())
             {
                 return false;
             }
@@ -389,18 +389,19 @@ public:
         {
             if (i >= maxAccounts) { return false; }
 
-            auto it = mBools[i].find(n);
-            if (it == mBools[i].end())
+            auto it = mVarsMap[i].find(n);
+            if (it == mVarsMap[i].end())
             {
                 return false;
             }
 
-            mBools[i].erase(it);
+            mVarsMap[i].erase(it);
             return true;
         }
 
     private:
-        std::map<std::string, bool> mBools[maxAccounts];
+        static const unsigned int maxAccounts = 10; // Adjust the maximum number of accounts as needed
+        std::map<std::string, T> mVarsMap[maxAccounts];
     };
 
     static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
@@ -429,7 +430,7 @@ public:
     // Global test environment clear up
     static void terminate();
 
-    BoolVars& getBoolVars () { return mBools; };
+    AuxVars<bool>& getBoolVars () { return mAuxBool; };
 
 protected:
     static Account& account(unsigned i) { return getEnv().account(i); }
@@ -612,9 +613,9 @@ protected:
     TestData mData;
 
     // maps a var name to boolean. this map can be used to add temporal
-    // boolean variables that needs to be updated by any callback or code path
+    // boolean variables that needs to be updated by any callback or code path,
     // this avoids defining amounts of vars in MegaChatApiTest class
-    BoolVars mBools;
+    AuxVars<bool> mAuxBool;
 
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
