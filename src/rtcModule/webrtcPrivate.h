@@ -160,7 +160,7 @@ public:
     void setHiResSlot(RemoteVideoSlot* slot);
     void setAudioSlot(RemoteAudioSlot *slot);
     void addKey(Keyid_t keyid, const std::string& key);
-    void setAvFlags(karere::AvFlags flags);
+    void setRemoteAvFlags(karere::AvFlags flags);
 
     RemoteAudioSlot* getAudioSlot();
     RemoteVideoSlot* getVthumSlot();

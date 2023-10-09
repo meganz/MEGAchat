@@ -1443,7 +1443,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
         bool oldAudioFlag = session->getAvFlags().audio();
 
         // update session flags
-        session->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
+        session->setRemoteAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
 
         if (aMid == sfu::TrackDescriptor::invalidMid)
         {
@@ -4718,7 +4718,7 @@ void Session::addKey(Keyid_t keyid, const std::string &key)
     mPeer.addKey(keyid, key);
 }
 
-void Session::setAvFlags(karere::AvFlags flags)
+void Session::setRemoteAvFlags(karere::AvFlags flags)
 {
     assert(mSessionHandler);
     if (flags == mPeer.getAvFlags())
@@ -4727,11 +4727,21 @@ void Session::setAvFlags(karere::AvFlags flags)
         return;
     }
 
-    bool onHoldChanged = mPeer.getAvFlags().isOnHold() != flags.isOnHold();
-    mPeer.setAvFlags(flags);
-    onHoldChanged
-        ? mSessionHandler->onOnHold(*this)              // notify session onHold Change
-        : mSessionHandler->onRemoteFlagsChanged(*this); // notify remote AvFlags Change
+    const karere::AvFlags oldFlags = mPeer.getAvFlags();
+    karere::AvFlags auxFlags = flags;
+    mPeer.setAvFlags(flags); // store received flags
+
+    const bool recordingChanged = oldFlags.isRecording() != flags.isRecording();
+    const bool onHoldChanged = oldFlags.isOnHold() != flags.isOnHold();
+
+    // Remove onHold and isRecording flags to check if Av flags have changed
+    auxFlags.setOnHold(oldFlags.isOnHold());
+    auxFlags.setRecording(oldFlags.isRecording());
+    const bool onAvChanged = auxFlags != oldFlags;
+
+    if (recordingChanged)   { mSessionHandler->onRecordingChanged(*this); }
+    if (onHoldChanged)      { mSessionHandler->onOnHold(*this); }
+    if (onAvChanged)        { mSessionHandler->onRemoteFlagsChanged(*this); }
 }
 
 void Session::setSpeakPermission(const bool hasSpeakPermission)

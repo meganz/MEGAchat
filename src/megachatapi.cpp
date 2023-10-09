@@ -170,6 +170,11 @@ bool MegaChatSession::isModerator() const
     return false;
 }
 
+bool MegaChatSession::isRecording() const
+{
+    return false;
+}
+
 bool MegaChatSession::hasSpeakPermission() const
 {
     return false;

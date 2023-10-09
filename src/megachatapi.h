@@ -105,6 +105,7 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
         CHANGE_TYPE_PERMISSIONS = 0x80,             /// Indicates that peer moderator role status has changed
         CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Speak permission has changed for peer
+        CHANGE_TYPE_SESSION_ON_RECORDING = 0x200,   /// Call has been started/stopped recording by the peer associated to this Session
     };
 
     enum {
@@ -335,6 +336,10 @@ public:
      *
      * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
      * Check MegaChatSession::isModerator
+     *
+     * - MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING = 0x200
+     * Check MegaChatSession::isRecording
+     *
      */
     virtual int getChanges() const;
 
@@ -393,6 +398,9 @@ public:
      * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
      * Check MegaChatSession::isModerator
      *
+     * - MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING = 0x200
+     * Check MegaChatSession::isRecording
+     *
      * @return true if this session has an specific change
      */
     virtual bool hasChanged(int changeType) const;
@@ -441,6 +449,13 @@ public:
      * @return True if peer associated to the session, has moderator role in the call
      */
     virtual bool isModerator() const;
+
+    /**
+     * @brief Returns if peer associated to the session, is recording or not the call
+     *
+     * @return True if peer associated to the session is recording the call, otherwise returns false
+     */
+    virtual bool isRecording() const;
 
     /**
      * @brief Returns if peer associated to the session, has speak permission
