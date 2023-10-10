@@ -4129,13 +4129,13 @@ int KarereWaitingRoom::getPeerStatus(const uint64_t& peerid) const
 
 std::vector<uint64_t> KarereWaitingRoom::getPeers() const
 {
-    std::vector<uint64_t> keys;
-    keys.reserve(size());
-    std::for_each(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(), [&keys](const auto &u)
+    std::vector<uint64_t> peers;
+    peers.reserve(size());
+    std::for_each(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(), [&peers](const auto &u)
     {
-        keys.emplace_back(u.mPeerid);
+        peers.emplace_back(u.mPeerid);
     });
-    return keys;
+    return peers;
 }
 
 void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
