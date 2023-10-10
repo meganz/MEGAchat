@@ -502,6 +502,15 @@ protected:
 
     unsigned int getOpIdx() { return mData.mOpIdx; }
 
+    // this method allows to initialize SchedMeetingData structure
+    void initLocalSchedMeeting(const megachat::MegaChatHandle chatId, const megachat::MegaChatHandle schedId, const std::string& timeZone,
+                               const std::string& title, const std::string& description, const megachat::MegaChatTimeStamp startDate,
+                               const megachat::MegaChatTimeStamp endDate, const megachat::MegaChatTimeStamp overrides, const megachat::MegaChatTimeStamp newStartDate,
+                               const megachat::MegaChatTimeStamp newEndDate, const bool cancelled, const bool newCancelled, const bool publicChat,
+                               const bool speakRequest, const bool waitingRoom, const bool openInvite, const bool isMeeting,
+                               const bool sendEmails, const int rulesFreq, const int rulesInterval, const megachat::MegaChatTimeStamp rulesUntil,
+                               const ::megachat::MegaChatPeerList* peerlist, const ::mega::MegaIntegerList* rulesByWeekDay,
+                               const ::mega::MegaIntegerList* rulesByMonthDay, const ::mega::MegaIntegerMap* rulesByMonthWeekDay);
     /**
      * @brief Allows to set the title of a group chat
      *

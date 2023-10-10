@@ -6824,6 +6824,47 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom()
                             opt.mMeetingRoom, opt.mWaitingRoom, opt.mSpeakRequest, opt.mSchedMeetingData.get());
 }
 
+void MegaChatApiTest::initLocalSchedMeeting(const MegaChatHandle chatId, const MegaChatHandle schedId, const std::string& timeZone,
+                                            const std::string& title, const std::string& description, const MegaChatTimeStamp startDate,
+                                            const MegaChatTimeStamp endDate, const MegaChatTimeStamp overrides, const MegaChatTimeStamp newStartDate,
+                                            const MegaChatTimeStamp newEndDate, const bool cancelled, const bool newCancelled, const bool publicChat,
+                                            const bool speakRequest, const bool waitingRoom, const bool openInvite, const bool isMeeting,
+                                            const bool sendEmails, const int rulesFreq, const int rulesInterval, const MegaChatTimeStamp rulesUntil,
+                                            const ::megachat::MegaChatPeerList* peerlist,
+                                            const ::mega::MegaIntegerList* rulesByWeekDay,
+                                            const ::mega::MegaIntegerList* rulesByMonthDay,
+                                            const ::mega::MegaIntegerMap* rulesByMonthWeekDay)
+{
+    mData.mChatOptions.mSchedMeetingData.reset(new SchedMeetingData());
+    SchedMeetingData* sm = mData.mChatOptions.mSchedMeetingData.get();
+    sm->chatId          = chatId;
+    sm->schedId         = schedId;
+    sm->timeZone        = timeZone;
+    sm->title           = title;
+    sm->description     = description;
+    sm->startDate       = startDate;
+    sm->endDate         = endDate;
+    sm->overrides       = overrides;
+    sm->newStartDate    = newStartDate;
+    sm->newEndDate      = newEndDate;
+    sm->cancelled       = cancelled;
+    sm->newCancelled    = newCancelled;
+    sm->publicChat      = publicChat;
+    sm->speakRequest    = speakRequest;
+    sm->waitingRoom     = waitingRoom;
+    sm->openInvite      = openInvite;
+    sm->isMeeting       = isMeeting;
+    sm->peerList.reset(peerlist ? peerlist->copy() : nullptr);
+
+    // add sched meeting flags
+    sm->flags.reset(megachat::MegaChatScheduledFlags::createInstance());
+    sm->flags->setSendEmails(sendEmails);
+
+    // add sched meeting rules
+    sm->rules.reset(megachat::MegaChatScheduledRules::createInstance(rulesFreq, rulesInterval, rulesUntil,
+                                                                     rulesByWeekDay,rulesByMonthDay,
+                                                                     rulesByMonthWeekDay));
+}
 void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int waitSecs)
 {
     auto& crlisteners = mData.mChatroomListeners;
