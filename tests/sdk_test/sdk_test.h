@@ -344,17 +344,19 @@ public:
     {
     public:
         // adds a new entry in map <variable name, val<T>>
-        bool add(const unsigned int i, const std::string& n, T val, const bool override)
+        bool* add(const unsigned int i, const std::string& n, T val, const bool override)
         {
-            if (i >= maxAccounts) { return false; }
+            if (i >= NUM_ACCOUNTS) { return nullptr; }
 
             if (mVarsMap[i].find(n) != mVarsMap[i].end() && !override)
             {
-                return false;
+                return nullptr;
             }
 
-            mVarsMap[i][n] = val;
-            return true;
+            auto res = mVarsMap[i].emplace(n, val);
+            return res.second
+                       ? &res.first->second
+                       : nullptr;
         }
 
         // returns value<T> mapped by key n
@@ -372,7 +374,7 @@ public:
         // updates value<T> mapped by key n
         bool update(const unsigned int i, const std::string& n, const T v)
         {
-            if (i >= maxAccounts) { return false; }
+            if (i >= NUM_ACCOUNTS) { return false; }
 
             auto it = mVarsMap[i].find(n);
             if (it == mVarsMap[i].end())
@@ -387,7 +389,7 @@ public:
         // remove entry from map given a variable name
         bool remove(const unsigned int i, const std::string& n)
         {
-            if (i >= maxAccounts) { return false; }
+            if (i >= NUM_ACCOUNTS) { return false; }
 
             auto it = mVarsMap[i].find(n);
             if (it == mVarsMap[i].end())
@@ -399,9 +401,22 @@ public:
             return true;
         }
 
+        // clean all vars for a given account index
+        void clean(const unsigned int i)
+        {
+            mVarsMap[i].clear();
+        }
+
+        // clean all vars for all account indexes
+        void cleanAll()
+        {
+            for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
+            {
+                mVarsMap[i].clear();
+            }
+        }
     private:
-        static const unsigned int maxAccounts = 10; // Adjust the maximum number of accounts as needed
-        std::map<std::string, T> mVarsMap[maxAccounts];
+        std::map<std::string, T> mVarsMap[NUM_ACCOUNTS];
     };
 
     static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
@@ -512,6 +527,18 @@ protected:
                                const bool sendEmails, const int rulesFreq, const int rulesInterval, const megachat::MegaChatTimeStamp rulesUntil,
                                const ::megachat::MegaChatPeerList* peerlist, const ::mega::MegaIntegerList* rulesByWeekDay,
                                const ::mega::MegaIntegerList* rulesByMonthDay, const ::mega::MegaIntegerMap* rulesByMonthWeekDay);
+
+
+    // starts a call in a chatroom with waiting room option enabled
+    void startWaitingRoomCall(const unsigned int callerIdx, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
+                              const bool enableVideo, const bool enableAudio,
+                              const std::vector<bool *>& exitFlags, const std::vector<std::string>& strFlags);
+
+    // answers a call in a chatroom
+    void answerChatCall(unsigned int calleeIdx, const ::megachat::MegaChatHandle chatid,
+                        const bool enableVideo, const bool enableAudio,
+                        const std::vector<bool *>& exitFlags, const std::vector<std::string>& strFlags);
+
     /**
      * @brief Allows to set the title of a group chat
      *
