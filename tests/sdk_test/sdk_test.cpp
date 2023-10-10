@@ -841,6 +841,101 @@ TEST_F(MegaChatApiTest, BasicTest)
     setChatTitle(std::string("Title ") + std::to_string(time(NULL)), 120 /*waitSecs*/);
 }
 
+TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
+{
+    std::function<void()> testCleanup = [this] () -> void
+    {
+        // close chatroom for all accounts that opened it
+        std::for_each(mData.mChatroomListeners.begin(), mData.mChatroomListeners.end(), [this](const auto& it)
+        {
+            megaChatApi[it.first]->closeChatRoom(mData.mChatid, it.second.get());
+        });
+
+        // logout from all logged in accounts
+        std::for_each(mData.mSessions.begin(), mData.mSessions.end(), [this](const auto& it)
+        {
+            ASSERT_NO_FATAL_FAILURE({ logout(it.first, true /*destroy session*/); });
+        });
+
+        // clean registered videolisteners (if any)
+        cleanChatVideoListeners();
+    };
+    MegaMrProper p (testCleanup);
+
+    //========================================================================//
+    // Test preparation: login, get chatroom ...
+    //========================================================================//
+
+    // login into all involved accounts for this test, and establish required contact relationships
+    // Note: all involved accounts in this test, must be added to mSessions and mAccounts
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+    const unsigned a3 = 2;
+    mData.mSessions.emplace(a1, login(a1));
+    mData.mSessions.emplace(a2, login(a2));
+    mData.mSessions.emplace(a3, login(a3));
+    const MegaChatHandle a1Uh = megaChatApi[a1]->getMyUserHandle();
+    const MegaChatHandle a2Uh = megaChatApi[a2]->getMyUserHandle();
+    const MegaChatHandle a3Uh = megaChatApi[a3]->getMyUserHandle();
+    mData.mAccounts.emplace(a1, a1Uh);
+    mData.mAccounts.emplace(a2, a2Uh);
+    mData.mAccounts.emplace(a3, a3Uh);
+    ASSERT_NO_FATAL_FAILURE({ mData.areSessionsValid(); });
+    ASSERT_NO_FATAL_FAILURE({ checkAndMakeContacts(a1, a2); });
+    ASSERT_NO_FATAL_FAILURE({ checkAndMakeContacts(a1, a3); });
+    ASSERT_NO_FATAL_FAILURE({ mData.checkSessionsAndAccounts(); });
+
+    // set chat selection criteria
+    mData.mChatOptions.mCreate          = true;
+    mData.mChatOptions.mPublicChat      = true;
+    mData.mChatOptions.mMeetingRoom     = true;
+    mData.mChatOptions.mWaitingRoom     = true;
+    mData.mChatOptions.mSpeakRequest    = false;
+    mData.mChatOptions.mOpenInvite      = false;
+
+    // set chat operator idx and privileges, and create chat participants list
+    // chat operator idx corresponds with idx of account from which we retrieve chatroom
+    mData.mChatOptions.mChatOpIdx = a1;
+    mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
+    mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
+    mData.mChatOptions.mChatPeerList->addPeer(a2Uh, MegaChatPeerList::PRIV_STANDARD);
+    mData.mChatOptions.mChatPeerIdx.emplace_back(a2);
+    mData.mChatOptions.mChatPeerList->addPeer(a3Uh, MegaChatPeerList::PRIV_STANDARD);
+    mData.mChatOptions.mChatPeerIdx.emplace_back(a3);
+
+    // init scheduled meeting local data
+    const time_t now = time(nullptr);
+    initLocalSchedMeeting(megachat::MEGACHAT_INVALID_HANDLE /*chatId*/, megachat::MEGACHAT_INVALID_HANDLE /*schedId*/, "Europe/Madrid",
+                          "SMChat_" + std::to_string(now), "SMChat_Desc", now + 300 /*startDate*/, now + 600 /*endDate*/,
+                          megachat::MEGACHAT_INVALID_TIMESTAMP /*overrides*/, megachat::MEGACHAT_INVALID_TIMESTAMP /*newStartDate*/,
+                          megachat::MEGACHAT_INVALID_TIMESTAMP /*newEndDate*/, false /*cancelled*/, false /*newCancelled*/,
+                          true /*publicChat*/, false /*speakRequest*/, true /*waitingRoom*/, false /* openInvite*/, true /*isMeeting*/,
+                          false /*sendEmails*/, MegaChatScheduledRules::FREQ_DAILY, MegaChatScheduledRules::INTERVAL_INVALID,
+                          MEGACHAT_INVALID_TIMESTAMP /*rulesUntil*/, mData.mChatOptions.mChatPeerList.get(),
+                          nullptr /*rulesByWeekDay*/, nullptr /*rulesByMonthDay*/, nullptr /*rulesByMonthWeekDay*/);
+
+    // get a group chatroom with waiting room enabled and a scheduled meeting
+    LOG_verbose << "Get a chatroom for test";
+    std::string err = "Cannot get a chatroom ";
+    mData.mChatid = getGroupChatRoom();
+    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Invalid chatid returned by getGroupChatRoom";
+
+    // retrieve chatroom by chatid, and check that waiting room is enabled and has a valid scheduled meeting
+    std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[a1]->getChatRoom(mData.mChatid));
+    ASSERT_TRUE(chatroom) << err << "with selected criteria";
+    ASSERT_TRUE(chatroom->isWaitingRoom()) << err << "with waiting room enabled" << "chatid: " << getChatIdStrB64(mData.mChatid);
+    std::unique_ptr<MegaChatScheduledMeetingList> smlist(megaChatApi[a1]->getScheduledMeetingsByChat(mData.mChatid));
+    ASSERT_TRUE(smlist && smlist->size() == 1) << err << "with a scheduled meeting" << "chatid: " << getChatIdStrB64(mData.mChatid);
+
+    // open chatroom (just add chatroom listeners for chatroom participants)
+    std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, mData.mChatid));
+    mData.mChatroomListeners.emplace(a1, crl);
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
+
+    // mData.mOpIdx to get the index of account with operator role
+    mData.mOpIdx = a1;
+}
+
 /**
  * @brief MegaChatApiTest.ResumeSession
  *

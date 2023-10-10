@@ -500,6 +500,7 @@ protected:
     void createChatroomAndSchedMeeting(megachat::MegaChatHandle& chatid, const unsigned int a1,
                                        const unsigned int a2, const SchedMeetingData& smData);
 
+    // returns the account idx that represents the operator account in the test
     unsigned int getOpIdx() { return mData.mOpIdx; }
 
     // this method allows to initialize SchedMeetingData structure
@@ -621,10 +622,14 @@ protected:
     // structure with all data common to most of automated tests
     TestData mData;
 
-    // maps a var name to boolean. this map can be used to add temporal
-    // boolean variables that needs to be updated by any callback or code path,
+    // Aux vars maps: these maps can be used to add temporal variables that needs to be updated by any callback or code path,
     // this avoids defining amounts of vars in MegaChatApiTest class
+
+    // maps a var name to boolean
     AuxVars<bool> mAuxBool;
+
+    // maps a var name to MegaChatHandle
+    AuxVars<megachat::MegaChatHandle> mAuxHandle;
 
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
