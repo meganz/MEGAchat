@@ -533,7 +533,7 @@ public:
     ~MegaChatApiTest();
 
     // Global test environment initialization
-    static void init();
+    static void init(const std::string& log);
     // Global test environment clear up
     static void terminate();
 

@@ -2,10 +2,14 @@
 
 #include <mega.h>
 #include <megaapi.h>
+#include <mega/process.h>
+#include <mega/testcommon/gtestcommon.h>
 
 #ifdef _WIN32
 #include <direct.h>
 #endif
+
+#include <regex>
 
 using namespace mega;
 using namespace megachat;
@@ -56,20 +60,39 @@ public:
 
 int main(int argc, char **argv)
 {
-    remove("test.log");
-
-    std::vector<char*> myargv1(argv, argv + argc);
-    for (auto it = myargv1.begin(); it != myargv1.end(); ++it)
+    RuntimeArgValues argVals(vector<string>(argv, argv + argc));
+    if (!argVals.isValid())
     {
-        if (std::string(*it).substr(0, 9) == "--APIURL:")
-        {
-            std::lock_guard<std::mutex> g(g_APIURL_default_mutex);
-            g_APIURL_default = std::string(*it).substr(9);
-            if (!g_APIURL_default.empty() && g_APIURL_default.back() != '/')
-                g_APIURL_default += '/';
-        }
+        std::cout << "No tests executed (invalid arguments)." << std::endl;
+        return -1;
     }
-    MegaChatApiTest::init(); // logger set here will also be enough for MegaChatApiUnitaryTest
+
+    if (argVals.isListOnly())
+    {
+        testing::InitGoogleTest(&argc, argv);
+        return RUN_ALL_TESTS(); // returns 0 (success) or 1 (failed tests)
+    }
+
+    remove(argVals.getLog().c_str());
+
+    if (argVals.isMainProcWithWorkers())
+    {
+        // Don't run tests, only manage subprocesses.
+        // To get here run with --INSTANCES:2 [--EMAIL-POOL:foo+bar-{1-28}@mega.nz]
+        // If --EMAIL-POOL runtime arg is missing, email template will be taken from MEGA_PWD0 env var.
+        // Password for all emails built from template will be taken from MEGA_PWD0 env var.
+        // If it did not get an email template, it'll use 1 single subprocess with the existing env vars.
+        GTestParallelRunner pr(std::move(argVals));
+        return pr.run();
+    }
+
+    // runt test(s)
+    if (!argVals.getCustomApiUrl().empty())
+    {
+        g_APIURL_default = argVals.getCustomApiUrl();
+    }
+
+    MegaChatApiTest::init(argVals.getLog()); // logger set here will also be enough for MegaChatApiUnitaryTest
     testing::InitGoogleTest(&argc, argv);
     testing::UnitTest::GetInstance()->listeners().Append(new GTestLogger());
 
@@ -240,11 +263,11 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
 }
 
-void MegaChatApiTest::init()
+void MegaChatApiTest::init(const std::string& log)
 {
     std::cout << "[========] Global test environment initialization" << endl;
 
-    getEnv().setLogFile("test.log");
+    getEnv().setLogFile(log);
     MegaApi::addLoggerObject(logger());
     MegaApi::setLogToConsole(false);    // already disabled by default
     MegaChatApi::setLoggerObject(logger());
