@@ -1,6 +1,8 @@
 
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef NS_ENUM (NSInteger, MEGAChatSessionStatus) {
     MEGAChatSessionStatusInvalid = 0xFF,
     MEGAChatSessionStatusInProgress = 0,
@@ -46,3 +48,5 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionTermCode) {
 - (BOOL)hasChanged:(MEGAChatSessionChange)change;
 
 @end
+
+NS_ASSUME_NONNULL_END
