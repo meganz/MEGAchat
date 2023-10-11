@@ -2320,6 +2320,13 @@ bool Call::handleModAdd(uint64_t userid)
     if (userid == mMyPeer->getPeerid())
     {
         setOwnModerator(true);
+        if (isWrFlagEnabled()
+            && static_cast<WrState>(getWrJoiningState()) != WrState::WR_ALLOWED
+            && getState() == kInWaitingRoom)
+        {
+            RTCM_LOG_DEBUG("MOD_ADD received for our own user, and we are in waiting room. JOIN call automatically");
+            joinSfu();
+        }
     }
 
     // update moderator privilege for all sessions that mached with received userid
