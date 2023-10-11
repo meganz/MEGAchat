@@ -395,6 +395,7 @@ void MegaChatApiTest::SetUp()
         mCallIdExpectedReceived[i] = MEGACHAT_INVALID_HANDLE;
         mLocalVideoListener[i] = NULL;
         mRemoteVideoListener[i] = NULL;
+        mOwnCallPermissionsChanged[i] = false;
 #endif
     }
 
@@ -5237,6 +5238,39 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // B answers the call bypassing waiting room
     LOG_debug << "JDEBUG B Answers the call bypassing waiting room";
     ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(false /*waitingRoom*/);});
+    endCallPrimaryAccount(mCallIdJoining[a1]);
+
+    // [Test5]: B JOINS automatically to call from Waiting Room, when he receives MOD_ADD command from SFU
+    // ----------------------------------------------------------------------------------------------------------------
+    LOG_debug << "Test5: B JOINS automatically to call from Waiting Room, when he receives MOD_ADD command from SFU";
+    // A starts call
+    bool* a2CallProgress = &mCallInProgress[a2]; *a2CallProgress = false;
+    bool* a2CallPermChanged = &mOwnCallPermissionsChanged[a2]; *a2CallPermChanged = false;
+    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId);});
+
+    // B picks up the call
+    LOG_debug << "B Pickups the call (should not ring)";
+    auxCall = picksUpCallSecondaryAccount(false /*isRingingExpected*/);
+
+    // B answers call and it's pushed into waiting room
+    LOG_debug << "B Answers the call";
+    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(true /*waitingRoom*/);});
+
+    // A grants chat room host permissions to B
+    int* priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
+    bool* peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
+    bool* peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
+    ChatRequestTracker crtUpdateToHost;
+    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_MODERATOR, &crtUpdateToHost);
+    ASSERT_EQ(crtUpdateToHost.waitForResult(), MegaChatError::ERROR_OK) << "Failed to update privilege of peer. Error: " << crtUpdateToHost.getErrorString();
+    ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
+    ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
+    ASSERT_EQ(*priv, MegaChatRoom::PRIV_MODERATOR) << "Privilege is incorrect";
+
+    // B waits to receive MOD_ADD and autojoins call automatically
+    ASSERT_TRUE(waitForResponse(a2CallPermChanged)) << "Timeout expired for receiving MOD_ADD command from SFU";
+    ASSERT_TRUE(waitForResponse(a2CallProgress)) << "Timeout expired for JOINING call from a2, after being promoted to host";
+    endCallPrimaryAccount(mCallIdJoining[a1]);
 }
 
 /**
@@ -8035,6 +8069,11 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     {
         mOwnSpeakStatusChanged[apiIndex] = true;
         mOwnSpeakStatus[apiIndex] = call->getSpeakerState();
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS))
+    {
+        mOwnCallPermissionsChanged[apiIndex] = true;
     }
 
     LOG_debug << "On chat call change state ";
