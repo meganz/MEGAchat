@@ -9019,14 +9019,14 @@ public:
     virtual size_t size() const                         { return 0; };
 
     /**
-     * @brief Returns the waiting room joining status for the specified peer id
+     * @brief Returns the waiting room joining status for the specified user id
      *
      * Valid values are:
      *  - MegaChatWaitingRoom::MWR_UNKNOWN      = -1,   // client unknown joining status
      *  - MegaChatWaitingRoom::MWR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
      *  - MegaChatWaitingRoom::MWR_ALLOWED      = 1,    // client is allowed to join call (no further action required from app to JOIN call)
      *
-     * @return The waiting room joining status for the specified peer
+     * @return The waiting room joining status for the specified user
      */
     virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
 

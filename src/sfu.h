@@ -63,7 +63,7 @@ enum class WrState: int
 struct WrRoomUser
 {
 public:
-    karere::Id mPeerid = karere::Id::inval();
+    karere::Id mWrUserid = karere::Id::inval();
     WrState mWrState   = WrState::WR_UNKNOWN;
 };
 

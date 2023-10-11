@@ -318,7 +318,7 @@ public:
 
         for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
         {
-            if (it->mPeerid == userid)
+            if (it->mWrUserid == userid)
             {
                 it->mWrState = status;
                 return true;
@@ -332,7 +332,7 @@ public:
     {
         for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
         {
-            if (it->mPeerid == userid)
+            if (it->mWrUserid == userid)
             {
                 mWaitingRoomUsers.erase(it);
                 return true;
@@ -343,8 +343,8 @@ public:
 
     // updates status for user in wr, if user is not present (it should), log an error and add user
     bool updateUsers(const std::set<karere::Id>& users, const sfu::WrState status);
-    std::vector<uint64_t> getPeers() const;
-    int getPeerStatus(const uint64_t& peerid) const;
+    std::vector<uint64_t> getUsers() const;
+    int getUserStatus(const uint64_t& userid) const;
     size_t size() const { return mWaitingRoomUsers.size(); }
 
 private:

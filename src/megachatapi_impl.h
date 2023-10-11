@@ -363,10 +363,10 @@ public:
 
     mega::MegaHandleList* getPeers() const override;
 
-    int getPeerStatus(const uint64_t& peerid) const override
+    int getPeerStatus(const uint64_t& userid) const override
     {
         if (!mWaitingRoomUsers) { return MWR_UNKNOWN; }
-        return convertIntoValidStatus(mWaitingRoomUsers->getPeerStatus(peerid));
+        return convertIntoValidStatus(mWaitingRoomUsers->getUserStatus(userid));
     }
 
 protected:

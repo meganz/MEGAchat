@@ -2427,7 +2427,7 @@ bool Call::handleWrEnter(const sfu::WrUserList& users)
     }
 
     std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.mPeerid.val); });
+    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.mWrUserid.val); });
     mCallHandler.onWrUsersEntered(*this, uhl.get());
     return true;
 }
@@ -2932,7 +2932,7 @@ bool Call::addWrUsers(const sfu::WrUserList& users, const bool clearCurrent)
 
     std::for_each(users.begin(), users.end(), [this](const auto &u)
     {
-        mWaitingRoom->addOrUpdateUserStatus(u.mPeerid, u.mWrState);
+        mWaitingRoom->addOrUpdateUserStatus(u.mWrUserid, u.mWrState);
     });
     return true;
 }
@@ -4095,7 +4095,7 @@ bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const sfu
         bool found = false;
         for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
         {
-            if (it->mPeerid == u.val)
+            if (it->mWrUserid == u.val)
             {
                 it->mWrState = status;
                 found = true;
@@ -4114,11 +4114,11 @@ bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const sfu
     return true;
 }
 
-int KarereWaitingRoom::getPeerStatus(const uint64_t& peerid) const
+int KarereWaitingRoom::getUserStatus(const uint64_t& userid) const
 {
     for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
     {
-        if (it->mPeerid == peerid)
+        if (it->mWrUserid == userid)
         {
             return static_cast<int>(it->mWrState);
         }
@@ -4127,15 +4127,15 @@ int KarereWaitingRoom::getPeerStatus(const uint64_t& peerid) const
     return static_cast<int>(sfu::WrState::WR_UNKNOWN);
 }
 
-std::vector<uint64_t> KarereWaitingRoom::getPeers() const
+std::vector<uint64_t> KarereWaitingRoom::getUsers() const
 {
-    std::vector<uint64_t> peers;
-    peers.reserve(size());
-    std::for_each(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(), [&peers](const auto &u)
+    std::vector<uint64_t> users;
+    users.reserve(size());
+    std::for_each(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(), [&users](const auto &u)
     {
-        peers.emplace_back(u.mPeerid);
+        users.emplace_back(u.mWrUserid);
     });
-    return peers;
+    return users;
 }
 
 void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
