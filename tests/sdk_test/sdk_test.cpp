@@ -4213,8 +4213,11 @@ struct MrProper
  * - Test4: B enables audio (unmute)
  * - Test5: Remove B as speaker
  */
-TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
+TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
 {
+    // Note: Speak request feature is temporarily disabled, enable this test once
+    // SFU code has been updated and MegaChat also has made required adjustments
+
     const unsigned int a1 = 0; // primary account
     const unsigned int a2 = 1; // secondary account
 
@@ -4880,12 +4883,15 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
     }
 
+    // Note: Speak request feature is temporarily disabled, enable this test once
+    // SFU code has been updated and MegaChat also has made required adjustments
+    /*
     if (!chatRoom->isSpeakRequest())
     {
         ChatRequestTracker crtChatOpt;
         megaChatApi[a1]->setSpeakRequest(chatid, true, &crtChatOpt);
         ASSERT_EQ(crtChatOpt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to enable speak request. Error: " << crtChatOpt.getErrorString();
-    }
+    }*/
 
     if (!chatRoom->isOpenInvite())
     {
@@ -4915,7 +4921,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     const int chatOptions = crtOpenLink.getPrivilege();
     ASSERT_TRUE(crtOpenLink.hasScheduledMeetings()) << "Chatroom doesn't have scheduled meeting enabled";
     ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions))  << "Waiting room is disabled";
-    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions)) << "Speak request is disabled";
+    // Note: Speak request feature is temporarily disabled, enable this test once
+    // SFU code has been updated and MegaChat also has made required adjustments
+    //ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions)) << "Speak request is disabled";
     ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions))   << "Open invite is disabled";
 
     // get scheduled meeting list from chatroom
@@ -4930,13 +4938,16 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // logout from terciary account
     ASSERT_NO_FATAL_FAILURE({ logout(a3); });
 
+    // Note: Speak request feature is temporarily disabled, enable this test once
+    // SFU code has been updated and MegaChat also has made required adjustments
+    /*
     // disable speak request again
     if (!chatRoom->isSpeakRequest())
     {
         ChatRequestTracker crtChatOpt;
         megaChatApi[a1]->setSpeakRequest(chatid, false, &crtChatOpt);
         ASSERT_EQ(crtChatOpt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to disable speak request. Error: " << crtChatOpt.getErrorString();
-    }
+    }*/
 
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom->getPeerPrivilegeByHandle(user->getHandle()) == megachat::MegaChatPeerList::PRIV_STANDARD)
