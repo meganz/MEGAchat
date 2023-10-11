@@ -2051,14 +2051,31 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
 {
     if (cid != K_INVALID_CID)
     {
-        Session* session = getSession(cid);
-        if (!session)
+        promise::Promise<void>* pms = getPeerVerificationPms(cid);
+        if (!pms)
         {
-            RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
-            assert(session);
+            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise not found for cid: %u", cid);
             return false;
         }
-        session->setSpeakPermission(true);
+
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session* session = getSession(cid);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
+                assert(session);
+                return;
+            }
+            session->setSpeakPermission(true);
+        })
+        .fail([cid](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
     }
     else // SPEAK_ON received for own peer
     {
@@ -2077,16 +2094,32 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
 
 bool Call::handleSpeakOffCommand(Cid_t cid)
 {
-    if (cid)
+    if (cid != K_INVALID_CID)
     {
-        Session* session = getSession(cid);
-        if (!session)
+        promise::Promise<void>* pms = getPeerVerificationPms(cid);
+        if (!pms)
         {
-            RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
-            assert(session);
+            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise not found for cid: %u", cid);
             return false;
         }
-        session->setSpeakPermission(false);
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session* session = getSession(cid);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
+                assert(session);
+                return;
+            }
+            session->setSpeakPermission(false);
+        })
+        .fail([cid](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
     }
     else // SPEAK_OFF received for own peer
     {
