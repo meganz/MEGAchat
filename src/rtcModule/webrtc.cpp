@@ -3280,7 +3280,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         }
     }
 
-    promise::Promise<void>* auxpms = getPeerVerificationPms(slot->getCid());
+    promise::Promise<void>* auxpms = getPeerVerificationPms(cid);
     if (!auxpms)
     {
         RTCM_LOG_WARNING("AddSpeaker: PeerVerification promise not found for cid: %u", cid);
