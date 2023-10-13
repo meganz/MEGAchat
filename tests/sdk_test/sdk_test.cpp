@@ -8849,19 +8849,19 @@ void MockupCall::logError(const char *)
 
 }
 
-bool MockupCall::handleHello(const Cid_t /*userid*/, const unsigned int /*nAudioTracks*/,
-                             const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*speakRequest*/, const bool /*allowed*/,
-                             const std::map<karere::Id, bool>& /*wrUsers*/)
+bool MockupCall::handleHello(const Cid_t /*cid*/, const unsigned int /*nAudioTracks*/,
+                             const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
+                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/)
 {
     return true;
 }
 
-bool MockupCall::handleWrDump(const std::map<karere::Id, bool>& /*users*/)
+bool MockupCall::handleWrDump(const sfu::WrUserList& /*users*/)
 {
     return true;
 }
 
-bool MockupCall::handleWrEnter(const std::map<karere::Id, bool>& /*users*/)
+bool MockupCall::handleWrEnter(const sfu::WrUserList& /*users*/)
 {
     return true;
 }

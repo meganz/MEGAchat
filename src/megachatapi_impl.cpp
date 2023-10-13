@@ -8473,7 +8473,7 @@ MegaHandleList* MegaChatWaitingRoomPrivate::getPeers() const
     MegaHandleList* peers = MegaHandleList::createInstance();
     if (!mWaitingRoomUsers) { return peers; }
 
-    std::vector<uint64_t> aux = mWaitingRoomUsers->getPeers();
+    std::vector<uint64_t> aux = mWaitingRoomUsers->getUsers();
     std::for_each(aux.begin(), aux.end(), [peers](const auto &h) { peers->addMegaHandle(h); });
     return peers;
 }
