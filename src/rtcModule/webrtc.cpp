@@ -485,7 +485,7 @@ int Call::getWrJoiningState() const
 
 bool Call::isValidWrJoiningState() const
 {
-    return mWrJoiningState == WrState::WR_NOT_ALLOWED || mWrJoiningState == WrState::WR_ALLOWED;
+    return mWrJoiningState == sfu::WrState::WR_NOT_ALLOWED || mWrJoiningState == sfu::WrState::WR_ALLOWED;
 }
 
 TermCode Call::getTermCode() const
@@ -503,7 +503,7 @@ void Call::setCallerId(const karere::Id& callerid)
     mCallerId  = callerid;
 }
 
-void Call::setWrJoiningState(WrState status)
+void Call::setWrJoiningState(const sfu::WrState status)
 {
     if (!isValidWrStatus(status))
     {
@@ -528,7 +528,7 @@ bool Call::checkWrFlag() const
 
 void Call::clearWrJoiningState()
 {
-    mWrJoiningState = WrState::WR_NOT_ALLOWED;
+    mWrJoiningState = sfu::WrState::WR_NOT_ALLOWED;
 }
 
 void Call::setPrevCid(Cid_t prevcid)
@@ -956,6 +956,13 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 
 void Call::joinSfu()
 {
+    if (isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("joinSfu: speak request option temporarily disabled");
+        assert(false); // theoretically, it should not happen
+        orderedCallDisconnect(TermCode::kUserHangup, "joinSfu: speak request option temporarily disabled");
+    }
+
     clearPendingPeers(); // clear pending peers (if any) before joining call
     initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
@@ -1481,6 +1488,13 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
+    if (isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("handleAnswerCommand: speak request option temporarily disabled");
+        assert(false); // theoretically, it should not happen
+        orderedCallDisconnect(TermCode::kUserHangup, "handleAnswerCommand: speak request option temporarily disabled");
+    }
+
     if (mState != kStateJoining)
     {
         RTCM_LOG_WARNING("handleAnswerCommand: get unexpected state change");
@@ -2395,10 +2409,16 @@ bool Call::handleModDel(uint64_t userid)
     return true;
 }
 
-bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
-                       const std::set<karere::Id>& mods, const bool wr, const bool speakRequest,
-                       const bool allowed, const std::map<karere::Id, bool>& wrUsers)
+bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
+                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
 {
+    if (speakRequest)
+    {
+        RTCM_LOG_WARNING("handleHello: speak request option temporarily disabled");
+        assert(false); // theoretically, it should not happen
+        orderedCallDisconnect(TermCode::kUserHangup, "handleHello: speak request option temporarily disabled");
+    }
+
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
     if (!isValidInputVideoTracksLimit(numInputVideoTracks))
@@ -2434,7 +2454,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
         // we must wait in waiting room until a moderator allow to access, otherwise we can continue with JOIN
         assert(allowed || !isOwnPrivModerator());
         setState(CallState::kInWaitingRoom);
-        setWrJoiningState(allowed ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED);
+        setWrJoiningState(allowed ? sfu::WrState::WR_ALLOWED : sfu::WrState::WR_NOT_ALLOWED);
         if (allowed)
         {
             joinSfu();
@@ -2445,7 +2465,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks,
     return true;
 }
 
-bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
+bool Call::handleWrDump(const sfu::WrUserList& users)
 {
     if (!checkWrCommandReqs("WR_DUMP", true /*mustBeModerator*/))
     {
@@ -2454,7 +2474,7 @@ bool Call::handleWrDump(const std::map<karere::Id, bool>& users)
     return dumpWrUsers(users, true/*clearCurrent*/);
 }
 
-bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
+bool Call::handleWrEnter(const sfu::WrUserList& users)
 {
     if (!checkWrCommandReqs("WR_ENTER", true /*mustBeModerator*/))
     {
@@ -2468,7 +2488,7 @@ bool Call::handleWrEnter(const std::map<karere::Id, bool>& users)
     }
 
     std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.first.val); });
+    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.mWrUserid.val); });
     mCallHandler.onWrUsersEntered(*this, uhl.get());
     return true;
 }
@@ -2523,7 +2543,7 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
     if (mState != CallState::kInWaitingRoom) { return false; }
     mMyPeer->setCid(cid); // update Cid for own client from SFU
     mModerators = mods;
-    setWrJoiningState(WrState::WR_ALLOWED);
+    setWrJoiningState(sfu::WrState::WR_ALLOWED);
     RTCM_LOG_DEBUG("handleWrAllow: we have been allowed to join call, so we need to send JOIN command to SFU");
     joinSfu(); // send JOIN command to SFU
     mCallHandler.onWrAllow(*this);
@@ -2543,7 +2563,7 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
     }
 
     mModerators = mods;
-    setWrJoiningState(WrState::WR_NOT_ALLOWED);
+    setWrJoiningState(sfu::WrState::WR_NOT_ALLOWED);
     mCallHandler.onWrDeny(*this);
     return true;
 }
@@ -2958,7 +2978,7 @@ promise::Promise<void>* Call::getPeerVerificationPms(const Cid_t cid)
     return nullptr;
 }
 
-bool Call::addWrUsers(const std::map<karere::Id, bool>& users, const bool clearCurrent)
+bool Call::addWrUsers(const sfu::WrUserList& users, const bool clearCurrent)
 {
     if (!isOwnPrivModerator() && !users.empty())
     {
@@ -2973,7 +2993,7 @@ bool Call::addWrUsers(const std::map<karere::Id, bool>& users, const bool clearC
 
     std::for_each(users.begin(), users.end(), [this](const auto &u)
     {
-        mWaitingRoom->addOrUpdateUserStatus(u.first, u.second);
+        mWaitingRoom->addOrUpdateUserStatus(u.mWrUserid, u.mWrState);
     });
     return true;
 }
@@ -2993,7 +3013,7 @@ void Call::pushIntoWr(const TermCode& termCode)
     mCallHandler.onWrPushedFromCall(*this);
 }
 
-bool Call::dumpWrUsers(const std::map<karere::Id, bool>& wrUsers, bool clearCurrent)
+bool Call::dumpWrUsers(const sfu::WrUserList& wrUsers, const bool clearCurrent)
 {
     if (!addWrUsers(wrUsers, clearCurrent))
     {
@@ -3043,7 +3063,7 @@ bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool al
         mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
     }
 
-    if (!mWaitingRoom->updateUsers(users, allow ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED))
+    if (!mWaitingRoom->updateUsers(users, allow ? sfu::WrState::WR_ALLOWED : sfu::WrState::WR_NOT_ALLOWED))
     {
         RTCM_LOG_WARNING("%s : could not update users status in waiting room", commandStr.c_str());
         return false;
@@ -4124,7 +4144,7 @@ void RtcModuleSfu::handleNewCall(const karere::Id &chatid, const karere::Id &cal
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
-bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const WrState& status)
+bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const sfu::WrState status)
 {
     if (!isValidWrStatus(status) || users.empty())
     {
@@ -4132,32 +4152,51 @@ bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const WrS
     }
 
     std::for_each(users.begin(), users.end(), [this, &status](const auto &u)
-                  {
-                      mWaitingRoomUsers[u.val] = status;
-                  });
+    {
+        bool found = false;
+        for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
+        {
+            if (it->mWrUserid == u.val)
+            {
+                it->mWrState = status;
+                found = true;
+                break;
+            }
+        }
+
+        if (!found)
+        {
+            RTCM_LOG_WARNING("KarereWaitingRoom::updateUsers user with userid: %s not found.",
+                             karere::Id(u.val).toString().c_str());
+            addWrUserStatus(u.val, status);
+        }
+    });
 
     return true;
 }
 
-int KarereWaitingRoom::getPeerStatus(const uint64_t& peerid) const
+int KarereWaitingRoom::getUserStatus(const uint64_t& userid) const
 {
-    const auto& it = mWaitingRoomUsers.find(peerid);
-    if (it == mWaitingRoomUsers.end())
+    for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
     {
-        return static_cast<int>(WrState::WR_UNKNOWN);
+        if (it->mWrUserid == userid)
+        {
+            return static_cast<int>(it->mWrState);
+        }
     }
 
-    return static_cast<int>(it->second);
+    return static_cast<int>(sfu::WrState::WR_UNKNOWN);
 }
 
-std::vector<uint64_t> KarereWaitingRoom::getPeers() const
+std::vector<uint64_t> KarereWaitingRoom::getUsers() const
 {
-    std::vector<uint64_t> keys;
-    keys.reserve(mWaitingRoomUsers.size());
-    std::transform(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(),
-                   std::back_inserter(keys), [](const auto& pair) { return pair.first; });
-
-    return keys;
+    std::vector<uint64_t> users;
+    users.reserve(size());
+    std::for_each(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(), [&users](const auto &u)
+    {
+        users.emplace_back(u.mWrUserid);
+    });
+    return users;
 }
 
 void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)

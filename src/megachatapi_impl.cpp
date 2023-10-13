@@ -635,6 +635,13 @@ void MegaChatApiImpl::sendPendingRequests()
             int option = request->getPrivilege();
             bool enabled = request->getFlag();
 
+            if (option == MegaChatApi::CHAT_OPTION_SPEAK_REQUEST)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS: speak request option temporarily disabled");
+                errorCode = MegaChatError::ERROR_ARGS;
+                break;
+            }
+
             switch (option)
             {
                 case MegaChatApi::CHAT_OPTION_OPEN_INVITE:
@@ -1715,6 +1722,12 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_NOENT;
             }
 
+            if (chatroom->isSpeakRequest())
+            {
+                API_LOG_ERROR("Start call - speak request option temporarily disabled");
+                return MegaChatError::ERROR_ARGS;
+            }
+
             if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
             {
                 API_LOG_ERROR("Start call - Invalid value for simultaneous input video tracks");
@@ -1867,6 +1880,12 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             {
                 API_LOG_ERROR("Answer call - Chatroom has not been found");
                 return MegaChatError::ERROR_NOENT;
+            }
+
+            if (chatroom->isSpeakRequest())
+            {
+                API_LOG_ERROR("Answer call - speak request option temporarily disabled");
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (!chatroom->chat().connection().clientId())
@@ -2427,6 +2446,19 @@ int MegaChatApiImpl::performRequest_speakRequest(MegaChatRequestPrivate* request
                 return MegaChatError::ERROR_ARGS;
             }
 
+            ChatRoom* chatroom = findChatRoom(chatid);
+            if (!chatroom)
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK - Chatroom has not been found");
+                return MegaChatError::ERROR_NOENT;
+            }
+
+            if (chatroom->isSpeakRequest())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK: speak request option temporarily disabled");
+                return MegaChatError::ERROR_ARGS;
+            }
+
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
@@ -2474,6 +2506,12 @@ int MegaChatApiImpl::performRequest_speakApproval(MegaChatRequestPrivate* reques
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK- Chatroom has not been found");
                 return MegaChatError::ERROR_NOENT;
+            }
+
+            if (chatroom->isSpeakRequest())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK - speak request option temporarily disabled");
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (!call->isOwnPrivModerator()
@@ -2727,6 +2765,12 @@ int MegaChatApiImpl::performRequest_removeSpeaker(MegaChatRequestPrivate* reques
             if (!chatroom)
             {
                 return MegaChatError::ERROR_NOENT;
+            }
+
+            if (chatroom->isSpeakRequest())
+            {
+                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - speak request option temporarily disabled");
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (!call->isOwnPrivModerator() && cid)
@@ -8429,7 +8473,7 @@ MegaHandleList* MegaChatWaitingRoomPrivate::getPeers() const
     MegaHandleList* peers = MegaHandleList::createInstance();
     if (!mWaitingRoomUsers) { return peers; }
 
-    std::vector<uint64_t> aux = mWaitingRoomUsers->getPeers();
+    std::vector<uint64_t> aux = mWaitingRoomUsers->getUsers();
     std::for_each(aux.begin(), aux.end(), [peers](const auto &h) { peers->addMegaHandle(h); });
     return peers;
 }
