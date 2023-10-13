@@ -3255,6 +3255,12 @@ void Call::attachSlotToSession (Session& session, RemoteSlot* slot, const bool a
 
 void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
 {
+    if (cid == K_INVALID_CID)
+    {
+        RTCM_LOG_WARNING("AddSpeaker: invalid Cid received as param");
+        assert(false);
+    }
+
     if (speaker.mMid == sfu::TrackDescriptor::invalidMid)
     {
         // peer notified as speaker from SFU, but track not provided yet (this happens if peer is muted)
