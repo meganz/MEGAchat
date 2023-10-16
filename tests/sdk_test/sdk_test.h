@@ -357,25 +357,32 @@ public:
     struct BoolVars
     {
     public:
-        // adds a new entry in map <variable name, bool*>
-        bool add(const unsigned int i, const std::string& n, bool val, const bool override)
+        bool validInput(const unsigned int i, const std::string_view n) const
         {
-            if (i >= maxAccounts) { return false; }
+            return !n.empty() && i < maxAccounts;
+        }
 
-            if (mBools[i].find(n) != mBools[i].end()
+        // adds a new entry in map <variable name, bool*>
+        bool add(const unsigned int i, const std::string_view n, bool val, const bool override)
+        {
+            if (!validInput(i, n)) { return false; }
+
+            if (mBools[i].find(std::string{n}) != mBools[i].end()
                 && !override)
             {
                 return false;
             }
 
-            mBools[i][n] = val;
+            mBools[i][std::string{n}] = val;
             return true;
         }
 
         // returns value pointed by bool* stored in map
-        bool* get(const unsigned int i, const std::string& n)
+        bool* get(const unsigned int i, const std::string_view n)
         {
-            auto it = mBools[i].find(n);
+            if (!validInput(i, n)) { return nullptr; }
+
+            auto it = mBools[i].find(std::string{n});
             if (it == mBools[i].end())
             {
                 return nullptr;
@@ -385,11 +392,11 @@ public:
         }
 
         // updates value pointed by bool* stored in map
-        bool update(const unsigned int i, const std::string& n, const bool v)
+        bool update(const unsigned int i, const std::string_view n, const bool v)
         {
-            if (i >= maxAccounts) { return false; }
+            if (!validInput(i, n)) { return false; }
 
-            auto it = mBools[i].find(n);
+            auto it = mBools[i].find(std::string{n});
             if (it == mBools[i].end())
             {
                 return false;
@@ -400,11 +407,11 @@ public:
         }
 
         // remove entry from map given a variable name
-        bool remove(const unsigned int i, const std::string& n)
+        bool remove(const unsigned int i, const std::string_view n)
         {
-            if (i >= maxAccounts) { return false; }
+            if (!validInput(i, n)) { return false; }
 
-            auto it = mBools[i].find(n);
+            auto it = mBools[i].find(std::string{n});
             if (it == mBools[i].end())
             {
                 return false;
