@@ -6563,17 +6563,30 @@ public:
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
 
     /**
-     * @brief Enable or disable audio level monitor
+     * @brief Enable or disable audio level monitor.
+     *
+     * Audio level monitor detects when a peer starts or stops speaking, and triggers a callback
+     * (onChatSessionUpdate with change type CHANGE_TYPE_AUDIO_LEVEL) to inform apps about that event.
      *
      * It's false by default and it's app responsibility to enable it
      *
      * The associated request type with this request is MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR
+     *
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
      *
-     * @note If there isn't a call in that chatroom in which user is participating,
-     * audio Level monitor won't be able established
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_TOOMANY:
+     * - MegaChatRequest::getMegaHandleList - Returns a MegaHandleList with Client Ids of peers sessions where
+     *   audio level monitor could not be enabled.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS    - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT   - if there's not a call in the specified chatid
+     * - MegaChatError::ERROR_ACCESS  - if we don't participate in the call
+     * - MegaChatError::ERROR_TOOMANY - if audio level monitor couldn't be enabled for any session
+     *   call MegaChatRequest::getMegaHandleList to get the list of Client Ids
      *
      * @param enable True for enable audio level monitor, False to disable
      * @param chatid MegaChatHandle that identifies the chat room where we can enable audio level monitor

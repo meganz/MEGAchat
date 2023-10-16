@@ -898,6 +898,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                   speakRequest:(BOOL)speakRequest
                    waitingRoom:(BOOL)waitingRoom
                     openInvite:(BOOL)openInvite
+                     queueType:(ListenerQueueType)queueType
                       delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->createMeeting(title.UTF8String,
@@ -906,7 +907,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                                         openInvite,
                                         [self createDelegateMEGAChatRequestListener:delegate
                                                                      singleListener:YES
-                                                                          queueType:ListenerQueueTypeGlobalBackground]);
+                                                                          queueType:queueType]);
     }
 }
 
@@ -1721,13 +1722,25 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->startMeetingInWaitingRoomChat(chatId, MEGACHAT_INVALID_HANDLE, enableVideo, enableAudio, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
+    if (self.megaChatApi) {
+        self.megaChatApi->startMeetingInWaitingRoomChat(chatId, MEGACHAT_INVALID_HANDLE, enableVideo, enableAudio);
+    }
+}
+
+- (void)startMeetingInWaitingRoomChatNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->startMeetingInWaitingRoomChat(chatId, scheduledId, enableVideo, enableAudio, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
-- (void)startMeetingInWaitingRoomChat:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
+- (void)startMeetingInWaitingRoomChatNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
     if (self.megaChatApi) {
         self.megaChatApi->startMeetingInWaitingRoomChat(chatId, scheduledId, enableVideo, enableAudio);
     }

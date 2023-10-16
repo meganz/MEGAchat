@@ -4879,6 +4879,84 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 }
 
 /**
+ * @brief MegaChatApiTest.EditMessageFromDifferentSender
+ *
+ * Requirements:
+ *      - Both accounts should be conctacts
+ *      - The 1on1 chatroom between them should exist
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ *
+ * - Send a message to chatroom
+ * + Receive message
+ * + Try to edit a message by a different user than composer
+ *
+ */
+TEST_F(MegaChatApiTest, EditMessageFromDifferentSender)
+{
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+
+    LOG_debug << "# Prepare users and chat room";
+    std::unique_ptr<char[]> sessionPrimary {login(a1)};
+    ASSERT_TRUE(sessionPrimary.get()) << "User A login failed";
+    std::unique_ptr<char[]> sessionSecondary {login(a2)};
+    ASSERT_TRUE(sessionSecondary.get()) << "User B login failed";
+
+    if (!areContact(a1, a2)) makeContact(a1, a2);
+
+    LOG_debug << "\tGet or create a peer to peer chatroom with both users";
+    MegaChatHandle chatId = getPeerToPeerChatRoom(a1, a2);
+    ASSERT_NE(chatId, MEGACHAT_INVALID_HANDLE) << "Failed to get peer to peer chat room";
+
+    auto chatroomListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatId);
+    const auto openChatRoom = [this, &chatId, l = chatroomListener.get()](const auto idx, const std::string& u)
+    { ASSERT_TRUE(megaChatApi[idx]->openChatRoom(chatId, l)) << "Can't open chatRoom user " + u; };
+    ASSERT_NO_FATAL_FAILURE(openChatRoom(a1, "A"));
+    ASSERT_NO_FATAL_FAILURE(openChatRoom(a2, "B"));
+
+
+    MrProper p {[this, &a1, &a2, crl = chatroomListener.get()](MegaChatHandle pChatId)
+                {
+                    LOG_debug << "# Clearing history and closing chat room for each user";
+                    ASSERT_NO_FATAL_FAILURE(clearHistory(a1, a2, pChatId, crl););
+                    megaChatApi[a1]->closeChatRoom(pChatId, crl);
+                    megaChatApi[a2]->closeChatRoom(pChatId, crl);
+                }, chatId};
+
+    LOG_debug << "\tLoad some messages to feed history";
+    const auto lHistory = [this, &chatId, l = chatroomListener.get()](const auto idx) { loadHistory(idx, chatId, l); };
+    lHistory(a1);
+    lHistory(a2);
+
+    LOG_debug << "# User A sends message to chatroom";
+    const std::string formatDate = dateToString();
+    std::unique_ptr<MegaChatMessage> msgSent {sendTextMessageOrUpdate(a1, a2, chatId, formatDate, chatroomListener.get())};
+    ASSERT_TRUE(msgSent.get()) << "Initial message sent failed";
+    const MegaChatHandle msgId = msgSent->getMsgId();
+    const bool hasArrived = chatroomListener->hasArrivedMessage(a1, msgId);
+    ASSERT_TRUE(hasArrived) << "Id of sent message has not been received yet";
+
+    LOG_debug << "# Trying to edit a message by a different user than composer";
+    const std::string str {"diff"};
+    std::unique_ptr<MegaChatMessage>msg2 {megaChatApi[a2]->editMessage(chatId, msgId, str.c_str())};
+    ASSERT_FALSE(msg2.get()) << "Message update should have failed";
+
+    LOG_debug << "# Comparing message content";
+    std::unique_ptr<MegaChatListItem> itemAccount1 {megaChatApi[a1]->getChatListItem(chatId)};
+    std::unique_ptr<MegaChatListItem> itemAccount2 {megaChatApi[a2]->getChatListItem(chatId)};
+    ASSERT_STREQ(formatDate.c_str(), itemAccount1->getLastMessage()) <<
+                     "Content of last-message doesn't match.\n Sent vs Received.";
+    ASSERT_EQ(itemAccount1->getLastMessageId(), msgId) << "Last message id is different from message sent id";
+    ASSERT_EQ(itemAccount2->getLastMessageId(), msgId) << "Last message id is different from message received id";
+    std::unique_ptr<MegaChatMessage> messageConfirm {megaChatApi[a1]->getMessage(chatId, msgId)};
+    ASSERT_STREQ(messageConfirm->getContent(), itemAccount1->getLastMessage()) <<
+                     "Content of last-message reported id is different than last-message reported content";
+
+}
+
+/**
  * @brief MegaChatApiTest.WaitingRoomsTimeout
  * + Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
  *          Call won't ring for the rest of participants
