@@ -152,17 +152,24 @@ public:
     static constexpr unsigned int testInvalidIdx = UINT16_MAX;
     static constexpr unsigned int maxAccounts = 3;
 
-    // this structure cleans the associated resources for an automated test, when it finish or fails
-    // in case test fails before completing, this structs cleans associated resources, avoiding
-    // memory leaks, unregistered listeners (that generates crashes), and other issues
+    // to be used as a resources releaser when the test exits. Some example of cleanups are:
+    // unregistering listeners, logging out sessions, and any memory used from the free store.
+    // Be wary of objects lifetimes and order used in the capture
     struct MegaMrProper
     {
-        MegaMrProper(std::function<void()> f): mCleanup(f){}
-        std::function<void()> mCleanup;
-        ~MegaMrProper() { mCleanup(); }
+        using CleanupFunction = std::function<void()>;
+        CleanupFunction mOnRelease;
+        ~MegaMrProper() { if (mOnRelease) mOnRelease(); }
+
+        MegaMrProper(std::function<void()> f): mOnRelease(f){}
+        MegaMrProper()                               = delete;
+        MegaMrProper(const MegaMrProper&)            = delete;
+        MegaMrProper(MegaMrProper&&)                 = delete;
+        MegaMrProper& operator=(const MegaMrProper&) = delete;
+        MegaMrProper& operator=(MegaMrProper&&)      = delete;
     };
 
-    // old one, we need to replace all it's usages by MegaMrProper
+    // DEPRECATED: we need to replace all it's usages by MegaMrProper
     struct MrProper
     {
         MrProper(std::function<void(megachat::MegaChatHandle)> f, const megachat::MegaChatHandle chatid)
@@ -203,7 +210,7 @@ public:
         }
     };
 
-    // this structure contains all required data to create or select a chatroom
+    // required data to create or select a chatroom
     struct ChatroomCreationOptions
     {
         unsigned int mChatOpIdx = testInvalidIdx; // index of operator account from which we retrieve chatroom for test (it not necessarily needs to has moderator role for that chat)
@@ -224,7 +231,13 @@ public:
         // vector with peer accounts idx that participates in the chatroom
         std::vector<unsigned int> mChatPeerIdx;
 
-        ChatroomCreationOptions() = default;
+        ~ChatroomCreationOptions()                                          = default;
+        ChatroomCreationOptions()                                           = default;
+        ChatroomCreationOptions(ChatroomCreationOptions&& )                 = delete;
+        ChatroomCreationOptions& operator=(const ChatroomCreationOptions&)  = delete;
+        ChatroomCreationOptions& operator=(ChatroomCreationOptions&&)       = delete;
+
+
         ChatroomCreationOptions* copy() const { return new ChatroomCreationOptions(*this); }
         ChatroomCreationOptions(const int opPriv,
                                 const bool cr,
@@ -286,7 +299,7 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
         // maps account index to TestChatVideoListener
-        std::map<unsigned int, TestChatVideoListener> mapLocalVideoListeners;
+        std::map<unsigned int, TestChatVideoListener> mMapLocalVideoListeners;
 #endif
 
         // returns MegaChatPeerList that includes peers that participates in the selected chatroom
@@ -298,11 +311,9 @@ public:
         // returns a vector with all accounts indexes
         std::vector<unsigned int> getIdxVector()
         {
-            std::vector<unsigned int> v;
-            std::for_each(mAccounts.begin(), mAccounts.end(), [&v](const auto& it)
-            {
-                v.emplace_back(it.first);
-            });
+            std::vector<unsigned int> v(mAccounts.size());
+            std::transform(mAccounts.begin(), mAccounts.end(), std::back_inserter(v),
+                           [](const auto& pair) { return pair.first; });
             return v;
         }
 
@@ -471,7 +482,6 @@ protected:
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
     int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
-    void checkAndMakeContacts(const unsigned int a1, unsigned int a2);
     void makeContact(unsigned int a1, unsigned int a2);
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);

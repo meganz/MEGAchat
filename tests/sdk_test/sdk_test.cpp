@@ -767,7 +767,7 @@ TEST_F(MegaChatApiTest, BasicTest)
         // logout from all logged in accounts
         std::for_each(mData.mSessions.begin(), mData.mSessions.end(), [this](const auto& it)
         {
-            ASSERT_NO_FATAL_FAILURE({ logout(it.first, true /*destroy session*/); });
+            ASSERT_NO_FATAL_FAILURE( logout(it.first, true /*destroy session*/); );
         });
 
         // clean registered videolisteners (if any)
@@ -789,9 +789,9 @@ TEST_F(MegaChatApiTest, BasicTest)
     const MegaChatHandle a2Uh = megaChatApi[a2]->getMyUserHandle();
     mData.mAccounts.emplace(a1, a1Uh);
     mData.mAccounts.emplace(a2, a2Uh);
-    ASSERT_NO_FATAL_FAILURE({ mData.areSessionsValid(); });
-    ASSERT_NO_FATAL_FAILURE({ checkAndMakeContacts(a1, a2); });
-    ASSERT_NO_FATAL_FAILURE({ mData.checkSessionsAndAccounts(); });
+    ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid(););
+    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2););
+    ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts(););
 
     // set chat selection criteria
     mData.mChatOptions.mCreate          = true;
@@ -815,7 +815,8 @@ TEST_F(MegaChatApiTest, BasicTest)
     ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Can't get a chatroom with selected criteria";
 
     // open chatroom (just add chatroom listeners for chatroom participants)
-    std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, mData.mChatid));
+    //std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, mData.mChatid));
+    auto crl = std::make_shared<TestChatRoomListener>(this, megaChatApi, mData.mChatid);
     mData.mChatroomListeners.emplace(a1, crl);
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
     mData.mChatroomListeners.emplace(a2, crl);
@@ -6714,16 +6715,10 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
     return chatroomListener->msgCount[accountIndex];
 }
 
-void MegaChatApiTest::checkAndMakeContacts(const unsigned int a1, const unsigned int a2)
-{
-    if (!areContact(a1, a2))
-    {
-        makeContact(a1, a2);
-    }
-}
-
 void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 {
+    if (areContact(a1, a2)) { return; }
+
     bool *flagRequestInviteContact = &requestFlags[a1][MegaRequest::TYPE_INVITE_CONTACT];
     *flagRequestInviteContact = false;
     bool *flagContactRequestUpdatedSecondary = &mContactRequestUpdated[a2];
@@ -6779,24 +6774,23 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
 bool MegaChatApiTest::addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid)
 {
 #ifndef KARERE_DISABLE_WEBRTC
-    auto res = mData.mapLocalVideoListeners.emplace(idx, TestChatVideoListener());
+    auto res = mData.mMapLocalVideoListeners.emplace(idx, TestChatVideoListener());
     if (res.second)
     {
        TestChatVideoListener& vl = res.first->second;
        megaChatApi[idx]->addChatLocalVideoListener(chatid, &vl);
        return true;
     }
-    return false;
 #else
     LOG_debug << "KARERE_DISABLE_WEBRTC is defined so you cannot use TestChatVideoListener";
-    return false;
 #endif
+    return false;
 }
 
 void MegaChatApiTest::cleanChatVideoListeners()
 {
 #ifndef KARERE_DISABLE_WEBRTC
-    std::for_each(mData.mapLocalVideoListeners.begin(), mData.mapLocalVideoListeners.end(), [this](auto& it)
+    std::for_each(mData.mMapLocalVideoListeners.begin(), mData.mMapLocalVideoListeners.end(), [this](auto& it)
     {
         removeChatVideoListener(it.first, mData.mChatid, it.second);
     });
