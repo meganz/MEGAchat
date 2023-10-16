@@ -193,9 +193,11 @@ public:
         std::shared_ptr<megachat::MegaChatScheduledRules> rules;
         std::shared_ptr<megachat::MegaChatPeerList> peerList;
 
-        SchedMeetingData& operator=(const SchedMeetingData&) = default;
-        SchedMeetingData* copy() const { return new SchedMeetingData(*this); }
-        SchedMeetingData() = default;
+        ~SchedMeetingData()                                     = default;
+        explicit SchedMeetingData()                             = default;
+        SchedMeetingData(SchedMeetingData&&)                    = delete;
+        SchedMeetingData& operator=(const SchedMeetingData&)    = delete;
+        SchedMeetingData& operator=(SchedMeetingData&&)         = default;
         SchedMeetingData(const SchedMeetingData& sm)
             : chatId(sm.chatId), schedId(sm.schedId), timeZone(sm.timeZone)
             , title(sm.title), description(sm.description), startDate(sm.startDate)
@@ -232,13 +234,10 @@ public:
         std::vector<unsigned int> mChatPeerIdx;
 
         ~ChatroomCreationOptions()                                          = default;
-        ChatroomCreationOptions()                                           = default;
+        explicit ChatroomCreationOptions()                                  = default;
         ChatroomCreationOptions(ChatroomCreationOptions&& )                 = delete;
         ChatroomCreationOptions& operator=(const ChatroomCreationOptions&)  = delete;
         ChatroomCreationOptions& operator=(ChatroomCreationOptions&&)       = delete;
-
-
-        ChatroomCreationOptions* copy() const { return new ChatroomCreationOptions(*this); }
         ChatroomCreationOptions(const int opPriv,
                                 const bool cr,
                                 const bool pub,
@@ -255,7 +254,7 @@ public:
             , mWaitingRoom(wr)
             , mSpeakRequest(sr)
             , mOpenInvite(oi)
-            , mSchedMeetingData(sm ? sm->copy() : nullptr)
+            , mSchedMeetingData(sm ? std::make_unique<SchedMeetingData>(*sm) : nullptr)
             , mChatPeerList(peers ? peers->copy() : nullptr)
         {
         }
@@ -268,7 +267,7 @@ public:
             , mWaitingRoom(opt.mWaitingRoom)
             , mSpeakRequest(opt.mSpeakRequest)
             , mOpenInvite(opt.mOpenInvite)
-            , mSchedMeetingData(opt.mSchedMeetingData ? opt.mSchedMeetingData->copy() : nullptr)
+            , mSchedMeetingData(opt.mSchedMeetingData ? std::make_unique<SchedMeetingData>(*opt.mSchedMeetingData) : nullptr)
             , mChatPeerList(opt.mChatPeerList ? opt.mChatPeerList->copy() : nullptr)
         {
         }
@@ -277,7 +276,12 @@ public:
     // this structure contains all data common to most of automated tests
     struct TestData
     {
-        TestData() = default;
+        ~TestData()                           = default;
+        explicit TestData()                   = default;
+        TestData(const TestData&)             = delete;
+        TestData(TestData&& )                 = delete;
+        TestData& operator=(const TestData&)  = delete;
+        TestData& operator=(TestData&&)       = delete;
 
         // idx account that represents the operator role (not related to MegaChatRoom privileges)
         unsigned int mOpIdx = testInvalidIdx;
@@ -312,7 +316,7 @@ public:
         std::vector<unsigned int> getIdxVector()
         {
             std::vector<unsigned int> v(mAccounts.size());
-            std::transform(mAccounts.begin(), mAccounts.end(), std::back_inserter(v),
+            std::transform(mAccounts.begin(), mAccounts.end(), v.begin(),
                            [](const auto& pair) { return pair.first; });
             return v;
         }
@@ -481,13 +485,30 @@ protected:
      */
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
-    int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
+
+    /**
+     * @brief Loads history for the specified chatroom.
+     *
+     * If there's no error this method will returns:
+     * - The number of loaded messages
+     *
+     * Otherwise:
+     * - MegaChatError::ERROR_TOOMANY if Timeout for connecting to chatd has expired
+     * - MegaChatError::ERROR_ACCESS if Timeout for loading history from chat has expired
+     *
+     * @param accountIndex index of account that loads history from chatroom
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param chatroomListener TestChatRoomListener that track MegaChatRoomListener events
+     */
+    int loadHistory(const unsigned int accountIndex, const megachat::MegaChatHandle chatid, TestChatRoomListener* chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
     megachat::MegaChatHandle getGroupChatRoom();
     bool addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid);
     void cleanChatVideoListeners();
+    void logoutTestAccounts();
+    void closeOpenedChatrooms();
     bool removeChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid, TestChatVideoListener &vl);
 
     /* select a group chat room, by default with PRIV_MODERATOR for primary account

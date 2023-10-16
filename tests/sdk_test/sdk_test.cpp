@@ -758,20 +758,9 @@ TEST_F(MegaChatApiTest, BasicTest)
 {
     std::function<void()> testCleanup = [this] () -> void
     {
-        // close chatroom for all accounts that opened it
-        std::for_each(mData.mChatroomListeners.begin(), mData.mChatroomListeners.end(), [this](const auto& it)
-        {
-            megaChatApi[it.first]->closeChatRoom(mData.mChatid, it.second.get());
-        });
-
-        // logout from all logged in accounts
-        std::for_each(mData.mSessions.begin(), mData.mSessions.end(), [this](const auto& it)
-        {
-            ASSERT_NO_FATAL_FAILURE( logout(it.first, true /*destroy session*/); );
-        });
-
-        // clean registered videolisteners (if any)
-        cleanChatVideoListeners();
+        closeOpenedChatrooms();     // close opened chatrooms
+        cleanChatVideoListeners();  // clean registered videolisteners (if any)
+        logoutTestAccounts();       // logout from all logged in accounts
     };
     MegaMrProper p (testCleanup);
 
@@ -823,8 +812,8 @@ TEST_F(MegaChatApiTest, BasicTest)
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a2 account";
 
     // load history
-    loadHistory(a1, mData.mChatid, crl.get());
-    loadHistory(a2, mData.mChatid, crl.get());
+    ASSERT_GE(loadHistory(a1, mData.mChatid, crl.get()), 0);
+    ASSERT_GE(loadHistory(a2, mData.mChatid, crl.get()), 0);
 
     // add video listeners
     ASSERT_TRUE(addChatVideoListener(a1, mData.mChatid)) << "Cannot register a video listener for a1 account";
@@ -6681,7 +6670,7 @@ void MegaChatApiTest::initChat(unsigned int a1, unsigned int a2, MegaUser*& user
     loadHistory(a2, chatid, chatroomListener);
 }
 
-int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
+int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChatHandle chatid, TestChatRoomListener* chatroomListener)
 {
     // first of all, ensure the chatd connection is ready
     bool *flagChatdOnline = &mChatConnectionOnline[accountIndex]; *flagChatdOnline = false;
@@ -6691,7 +6680,7 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
         bool responseOk = waitForResponse(flagChatdOnline);
         EXPECT_TRUE(responseOk) << "Timeout expired for connecting to chatd";
         *flagChatdOnline = false;
-        if (!responseOk) return 0;
+        if (!responseOk) return MegaChatError::ERROR_TOOMANY;
     }
 
     chatroomListener->msgCount[accountIndex] = 0;
@@ -6709,7 +6698,7 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
         bool responseOk = waitForResponse(flagHistoryLoaded);
         EXPECT_TRUE(responseOk) << "Timeout expired for loading history from chat: " << hstr;
         delete [] hstr;
-        if (!responseOk) return 0;
+        if (!responseOk) return MegaChatError::ERROR_ACCESS;
     }
 
     return chatroomListener->msgCount[accountIndex];
@@ -6797,6 +6786,22 @@ void MegaChatApiTest::cleanChatVideoListeners()
 #else
     LOG_verbose << "cleanChatVideoListeners: KARERE_DISABLE_WEBRTC is defined so there's no TestChatVideoListeners registered";
 #endif
+}
+
+void MegaChatApiTest::logoutTestAccounts()
+{
+    std::for_each(mData.mSessions.begin(), mData.mSessions.end(), [this](const auto& it)
+    {
+        ASSERT_NO_FATAL_FAILURE( logout(it.first, true /*destroy session*/); );
+    });
+}
+
+void MegaChatApiTest::closeOpenedChatrooms()
+{
+    std::for_each(mData.mChatroomListeners.begin(), mData.mChatroomListeners.end(), [this](const auto& it)
+    {
+        megaChatApi[it.first]->closeChatRoom(mData.mChatid, it.second.get());
+    });
 }
 
 bool MegaChatApiTest::removeChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid, TestChatVideoListener& vl)
