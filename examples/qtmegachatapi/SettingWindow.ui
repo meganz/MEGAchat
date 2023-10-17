@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>1</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="pushNotifications">
       <attribute name="title">
@@ -46,7 +46,7 @@
               </property>
              </widget>
             </item>
-			<item>
+            <item>
              <layout class="QHBoxLayout" name="horizontalLayoutc">
               <item>
                <widget class="QLabel" name="labelc">
@@ -76,7 +76,7 @@
                </spacer>
               </item>
               <item>
-               <widget class="QLabel" name="labelc">
+               <widget class="QLabel" name="labelc1">
                 <property name="text">
                  <string>Do not disturb period(s):</string>
                 </property>
@@ -86,7 +86,7 @@
                <widget class="QLineEdit" name="globalChatDnd"/>
               </item>
               <item>
-               <spacer name="horizontalSpacerc">
+               <spacer name="horizontalSpacerc1">
                 <property name="orientation">
                  <enum>Qt::Horizontal</enum>
                 </property>

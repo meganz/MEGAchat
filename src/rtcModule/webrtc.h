@@ -115,15 +115,16 @@ class SessionHandler
 {
 public:
     virtual ~SessionHandler(){}
-    virtual void onSpeakRequest(ISession& session, bool requested) = 0;
+    virtual void onSpeakRequest(ISession& session) = 0;
     virtual void onVThumbReceived(ISession& session) = 0;
     virtual void onHiResReceived(ISession& session) = 0;
     virtual void onDestroySession(ISession& session) = 0;
-    virtual void onAudioRequested(ISession& session) = 0;
     virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
     virtual void onPermissionsChanged(ISession& session) = 0;
+    virtual void onRecordingChanged(ISession& session) = 0;
+    virtual void onSpeakStatusUpdate(rtcModule::ISession& session) = 0;
 };
 
 class ISession
@@ -144,6 +145,7 @@ public:
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
     virtual bool isModerator() const = 0;
+    virtual bool hasSpeakPermission() const = 0;
 };
 
 class ICall;
@@ -155,7 +157,6 @@ public:
     virtual void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) = 0;
     virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
-    virtual void onAudioApproved(const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call) = 0;
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
@@ -172,6 +173,7 @@ public:
     virtual void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
     virtual void onWrPushedFromCall(const rtcModule::ICall& call) = 0;
     virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
+    virtual void onSpeakStatusUpdate(const rtcModule::ICall& call) = 0;
 };
 
 class KarereWaitingRoom;
@@ -179,6 +181,7 @@ class ICall
 {
 public:
     virtual karere::Id getCallid() const = 0;
+    virtual bool isSpeakRequestEnabled() const = 0;
     virtual karere::Id getChatid() const = 0;
     virtual karere::Id getCallerid() const = 0;
     virtual CallState getState() const = 0;
@@ -212,20 +215,22 @@ public:
     virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
-    virtual bool hasRequestSpeak() const = 0;
+    virtual bool hasPendingSpeakRequest() const = 0;
+    virtual unsigned int getOwnSpeakerState() const = 0;
     virtual int getWrJoiningState() const = 0;
     virtual TermCode getTermCode() const = 0;
     virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(const karere::Id &callerid) = 0;
     virtual bool alreadyParticipating() = 0;
-    virtual void requestSpeaker(bool add = true) = 0;
+    virtual void requestSpeak(const bool add = true) = 0;
     virtual bool isSpeakAllow() const = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
     virtual void stopSpeak(Cid_t cid = 0) = 0;
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
+    virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
@@ -243,7 +248,7 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
-    virtual bool isAllowSpeak() const = 0;
+    virtual bool hasOwnUserSpeakPermission() const = 0;
 };
 
 class RtcModule
@@ -276,17 +281,9 @@ public:
     virtual void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
-
-enum class WrState: int
+static bool isValidWrStatus(const sfu::WrState value)
 {
-    WR_UNKNOWN      = -1,   // client unknown joining status
-    WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
-    WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
-};
-
-static bool isValidWrStatus(const WrState& value)
-{
-    return (value > WrState::WR_UNKNOWN && value <= WrState::WR_ALLOWED);
+    return (value > sfu::WrState::WR_UNKNOWN && value <= sfu::WrState::WR_ALLOWED);
 }
 
 /**
@@ -306,30 +303,52 @@ public:
 
     void clear() { mWaitingRoomUsers.clear(); }
 
-    bool addOrUpdateUserStatus(const uint64_t& userid, const int& status)
+    void addWrUserStatus(const uint64_t& userid, sfu::WrState status)
     {
-        if (!isValidWrStatus(static_cast<WrState>(status)))
+        mWaitingRoomUsers.emplace_back(sfu::WrRoomUser { userid, status });
+    }
+
+    bool addOrUpdateUserStatus(const uint64_t& userid, const sfu::WrState status)
+    {
+        if (!isValidWrStatus(status))
         {
             assert(false);
             return false;
         }
 
-        mWaitingRoomUsers[userid] = static_cast<WrState>(status);
+        for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
+        {
+            if (it->mWrUserid == userid)
+            {
+                it->mWrState = status;
+                return true;
+            }
+        }
+        addWrUserStatus(userid, status);
         return true;
     }
 
     bool removeUser(const uint64_t& userid)
     {
-        return mWaitingRoomUsers.erase(userid);
+        for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
+        {
+            if (it->mWrUserid == userid)
+            {
+                mWaitingRoomUsers.erase(it);
+                return true;
+            }
+        }
+        return false;
     }
 
-    bool updateUsers(const std::set<karere::Id>& users, const WrState& status);
-    std::vector<uint64_t> getPeers() const;
-    int getPeerStatus(const uint64_t& peerid) const;
+    // updates status for user in wr, if user is not present (it should), log an error and add user
+    bool updateUsers(const std::set<karere::Id>& users, const sfu::WrState status);
+    std::vector<uint64_t> getUsers() const;
+    int getUserStatus(const uint64_t& userid) const;
     size_t size() const { return mWaitingRoomUsers.size(); }
 
 private:
-    std::map<uint64_t, WrState> mWaitingRoomUsers;
+    sfu::WrUserList mWaitingRoomUsers;
 };
 
 static unsigned int getMaxSupportedVideoCallParticipants() { return kMaxCallVideoSenders; };

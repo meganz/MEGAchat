@@ -29,10 +29,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatError ? [[MEGAChatError alloc] initWithMegaChatError:self.megaChatError->copy() cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatError *)getCPtr {
     return self.megaChatError;
 }

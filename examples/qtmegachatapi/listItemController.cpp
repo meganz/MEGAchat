@@ -272,6 +272,13 @@ void ChatListItemController::onWaitingRoomCall()
     mMegaChatApi->startMeetingInWaitingRoomChat(mItemId, schedId, false, false);
 }
 
+void ChatListItemController::onAudioCallNoRingBtn()
+{
+    std::string schedIdStr = mMainWindow->mApp->getText("Get scheduled meeting id");
+    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
+    mMegaChatApi->startChatCallNoRinging(mItemId, schedId, false, false);
+}
+
 void ChatListItemController::queryChatLink()
 {
     if (mItemId != MEGACHAT_INVALID_HANDLE)

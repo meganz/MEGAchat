@@ -51,6 +51,26 @@ static bool isInitialSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::S
 // returns true if provided version as param is a valid SFU version
 static bool isValidSfuVersion(sfu::SfuProtocol v) { return v != SfuProtocol::SFU_PROTO_INVAL; }
 
+// enum for user status in waiting room
+enum class WrState: int
+{
+    WR_UNKNOWN      = -1,   // client unknown joining status
+    WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+    WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
+};
+
+// struct that represents an user in waiting room
+struct WrRoomUser
+{
+public:
+    karere::Id mWrUserid = karere::Id::inval();
+    WrState mWrState   = WrState::WR_UNKNOWN;
+};
+
+// typedef for waiting room user list
+// SFU provides Waiting room participants list in order they joined to the call
+typedef std::vector<WrRoomUser> WrUserList;
+
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
@@ -81,6 +101,9 @@ public:
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
 
+    void setSpeakPermission(const bool hasSpeakPermission) { mHasSpeakPermission = hasSpeakPermission; }
+    bool hasSpeakPermission() const                        { return mHasSpeakPermission; }
+
     bool isModerator() const;
     void setModerator(bool isModerator);
 
@@ -91,13 +114,10 @@ public:
     void resetKeys();
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
-    void setEphemeralPubKeyDerived(const std::string& key);
+    bool setEphemeralPubKeyDerived(const std::string& key);
 
     // returns derived peer's ephemeral key if available
     std::string getEphemeralPubKeyDerived() const;
-
-    // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
-    const promise::Promise<void>& getEphemeralPubKeyPms() const;
 
     // returns the SFU protocol version used by the peer
     sfu::SfuProtocol getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
@@ -108,9 +128,16 @@ protected:
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
-
     // initialization vector
     std::vector<std::string> mIvs;
+
+    /* The speak permission (mHasSpeakPermission stores this permission up to date with SFU)
+     *      1.1) If peer is moderator. SFU sends a SPEAK_ON command to inform that peer is a speaker
+     *
+     *      1.2) If peer is not moderator, needs to manually send SPEAK_RQ to SFU that will be broadcasted it to all moderators.
+     *           When speak request is approved by a moderator, a SPEAK_ON command will be received
+     */
+    bool mHasSpeakPermission = false;
 
     /*
      * Moderator role for this call
@@ -129,9 +156,6 @@ protected:
 
     // peer ephemeral key derived
     std::string mEphemeralPubKeyDerived;
-
-    // this promise is resolved/rejected when peer's ephemeral key is verified and derived
-    mutable promise::Promise<void> mEphemeralKeyPms;
 
     // SFU protocol version used by the peer
     sfu::SfuProtocol mSfuPeerProtoVersion = sfu::SfuProtocol::SFU_PROTO_INVAL;
@@ -228,17 +252,18 @@ public:
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
-    virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks,
-                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                              const std::map<karere::Id, bool>& wrUsers) = 0;
+    virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
+                             const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                             bool speakRequest, const sfu::WrUserList& wrUsers) = 0;
 
-    virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
-    virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
+    virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;
     virtual bool handleWrLeave(const karere::Id& /*user*/) = 0;
     virtual bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) = 0;
     virtual bool handleWrDeny(const std::set<karere::Id>& mods) = 0;
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
+    virtual bool handleMutedCommand(const unsigned av) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -274,7 +299,7 @@ public:
 
 protected:
     Command(SfuInterface& call);
-    bool parseUsersMap(std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
+    bool parseWrUsersMap(sfu::WrUserList& wrUsers, const rapidjson::Value& obj) const;
     static uint8_t hexDigitVal(char value);
 
     SfuInterface& mCall;
@@ -444,6 +469,16 @@ public:
     ByeCommandFunction mComplete;
 };
 
+class MutedCommand : public Command
+{
+public:
+    typedef std::function<bool(const unsigned av)> MutedCommandFunction;
+    MutedCommand(const MutedCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    MutedCommandFunction mComplete;
+};
+
 class ModAddCommand : public Command
 {
 public:
@@ -471,8 +506,9 @@ public:
                                const unsigned int nAudioTracks,
                                const std::set<karere::Id>& mods,
                                const bool wr,
+                               const bool speakRequest,
                                const bool allowed,
-                               const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
+                               const sfu::WrUserList& wrUsers)>HelloCommandFunction;
 
     HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
@@ -483,7 +519,7 @@ public:
 class WrDumpCommand: public Command
 {
 public:
-    typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrDumpCommandFunction;
+    typedef std::function<bool(const sfu::WrUserList& users)>WrDumpCommandFunction;
     WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -493,7 +529,7 @@ public:
 class WrEnterCommand: public Command
 {
 public:
-    typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrEnterCommandFunction;
+    typedef std::function<bool(const sfu::WrUserList& users)>WrEnterCommandFunction;
     WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -585,6 +621,7 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_WR_PUSH;
     static const std::string CSFU_WR_ALLOW;
     static const std::string CSFU_WR_KICK;
+    static const std::string CSFU_MUTE;
 
 public:
     struct SfuData
@@ -643,7 +680,10 @@ public:
     void checkThreadId();
     const karere::Url& getSfuUrl();
 
-    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int speaker = -1, int vthumbs = -1);
+    // Important: SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
+    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey,
+                 int avFlags, Cid_t prevCid, int vthumbs = -1);
+
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);
     bool sendGetVtumbs(const std::vector<Cid_t>& cids);
@@ -665,6 +705,7 @@ public:
     bool sendWrPush(const std::set<karere::Id>& users, const bool all);
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
+    bool sendMute(const Cid_t& cid, const unsigned av);
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
     bool avoidReconnect() const;
     void setAvoidReconnect(const bool avoidReconnect);
