@@ -123,6 +123,7 @@ public:
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
     virtual void onPermissionsChanged(ISession& session) = 0;
+    virtual void onRecordingChanged(ISession& session) = 0;
     virtual void onSpeakStatusUpdate(rtcModule::ISession& session) = 0;
 };
 
@@ -229,6 +230,7 @@ public:
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
+    virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
@@ -316,7 +318,7 @@ public:
 
         for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
         {
-            if (it->mPeerid == userid)
+            if (it->mWrUserid == userid)
             {
                 it->mWrState = status;
                 return true;
@@ -330,7 +332,7 @@ public:
     {
         for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
         {
-            if (it->mPeerid == userid)
+            if (it->mWrUserid == userid)
             {
                 mWaitingRoomUsers.erase(it);
                 return true;
@@ -341,8 +343,8 @@ public:
 
     // updates status for user in wr, if user is not present (it should), log an error and add user
     bool updateUsers(const std::set<karere::Id>& users, const sfu::WrState status);
-    std::vector<uint64_t> getPeers() const;
-    int getPeerStatus(const uint64_t& peerid) const;
+    std::vector<uint64_t> getUsers() const;
+    int getUserStatus(const uint64_t& userid) const;
     size_t size() const { return mWaitingRoomUsers.size(); }
 
 private:

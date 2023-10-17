@@ -690,6 +690,12 @@ void Call::kickUsersFromCall(const std::set<karere::Id>& users) const
     mSfuConnection->sendWrKick(users);
 }
 
+void Call::mutePeers(const Cid_t& cid, const unsigned av) const
+{
+    assert(av == karere::AvFlags::kAudio);
+    mSfuConnection->sendMute(cid, av);
+}
+
 std::vector<Cid_t> Call::getSpeakerRequested()
 {
     std::vector<Cid_t> speakerRequested;
@@ -707,7 +713,9 @@ std::vector<Cid_t> Call::getSpeakerRequested()
 
 void Call::requestHighResolutionVideo(Cid_t cid, int quality)
 {
-    Session* sess= getSession(cid);
+    // If we are requesting high resolution video for a peer, session must exists
+    // so we don't need to wait for PeerVerification promise
+    Session *sess= getSession(cid);
     if (!sess)
     {
         RTCM_LOG_DEBUG("requestHighResolutionVideo: session not found for %u", cid);
@@ -757,6 +765,8 @@ void Call::requestHiResQuality(Cid_t cid, int quality)
 
 void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
 {
+    // If we want to stop receiving high resolution video for a peer, session must exists
+    // so we don't need to wait for PeerVerification promise
     for (auto it = cids.begin(); it != cids.end();)
     {
         auto auxit = it++;
@@ -787,6 +797,8 @@ void Call::stopHighResolutionVideo(std::vector<Cid_t> &cids)
 
 void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
 {
+    // If we are requesting low resolution video for a peer, session must exists
+    // so we don't need to wait for PeerVerification promise
     for (auto it = cids.begin(); it != cids.end();)
     {
         auto auxit = it++;
@@ -812,6 +824,8 @@ void Call::requestLowResolutionVideo(std::vector<Cid_t> &cids)
 
 void Call::stopLowResolutionVideo(std::vector<Cid_t> &cids)
 {
+    // If we want to stop receiving low resolution video for a peer, session must exists
+    // so we don't need to wait for PeerVerification promise
     for (auto it = cids.begin(); it != cids.end();)
     {
         auto auxit = it++;
@@ -942,6 +956,14 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 
 void Call::joinSfu()
 {
+    if (isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("joinSfu: speak request option temporarily disabled");
+        assert(false); // theoretically, it should not happen
+        orderedCallDisconnect(TermCode::kUserHangup, "joinSfu: speak request option temporarily disabled");
+    }
+
+    clearPendingPeers(); // clear pending peers (if any) before joining call
     initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
     size_t hiresTrackIndex = 0;
@@ -1045,7 +1067,7 @@ void Call::joinSfu()
                 // audio flags are enabled. We can't send audio flag enabled in JOIN command as we say below.
                 mSpeakerState = SpeakerState::kNoSpeaker;
                 mCallHandler.onSpeakStatusUpdate(*this);
-                muteMyClient();
+                muteMyClient(true/*audio*/, false /*video*/);
                 RTCM_LOG_DEBUG("joinSfu: re-joining to SFU with audio disabled, as speak request "
                                "is enabled and our peer is non-host");
             }
@@ -1183,6 +1205,7 @@ void Call::clearResources(const TermCode& termCode)
     RTCM_LOG_DEBUG("clearResources, termcode (%u): %s", termCode, connectionTermCodeToString(termCode).c_str());
     disableStats();
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
+    clearPendingPeers();
     mModerators.clear();            // clear moderators list and ownModerator
     mVThumb.reset();
     mHiRes.reset();
@@ -1377,14 +1400,6 @@ void Call::clearParticipants()
     mParticipants.clear();
 }
 
-std::string Call::getKeyFromPeer(Cid_t cid, Keyid_t keyid)
-{
-    Session *session = getSession(cid);
-    return session
-            ? session->getPeer().getKey(keyid)
-            : std::string();
-}
-
 std::vector<mega::byte> Call::generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const
 {
     std::string salt;
@@ -1414,40 +1429,57 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
         return false;
     }
 
-    Session *session = getSession(cid);
-    if (!session)
+    promise::Promise<void>* pms = getPeerVerificationPms(cid);
+    if (!pms)
     {
-        RTCM_LOG_WARNING("handleAvCommand: Received AV flags for unknown peer cid %u", cid);
+        RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise not found for cid: %u", cid);
         return false;
     }
 
-    bool oldAudioFlag = session->getAvFlags().audio();
-
-    // update session flags
-    session->setAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
-
-    if (aMid == sfu::TrackDescriptor::invalidMid)
+    auto wptr = weakHandle();
+    pms->then([this, cid, av, aMid, wptr]()
     {
-        if (oldAudioFlag != session->getAvFlags().audio() && session->getAvFlags().audio())
+        if (wptr.deleted())  { return; }
+        Session *session = getSession(cid);
+        if (!session)
         {
-            assert(false);
-            RTCM_LOG_WARNING("handleAvCommand: invalid amid received for peer cid: %u with audio flag enabled", cid);
-            return false;
+            RTCM_LOG_WARNING("handleAvCommand: Received AV flags for unknown peer cid %u", cid);
+            return;
         }
 
-        if (oldAudioFlag && !session->getAvFlags().audio())
+        bool oldAudioFlag = session->getAvFlags().audio();
+
+        // update session flags
+        session->setRemoteAvFlags(karere::AvFlags(static_cast<uint8_t>(av)));
+
+        if (aMid == sfu::TrackDescriptor::invalidMid)
         {
-            removeSpeaker(cid);
+            if (oldAudioFlag != session->getAvFlags().audio() && session->getAvFlags().audio())
+            {
+                assert(false);
+                RTCM_LOG_WARNING("handleAvCommand: invalid amid received for peer cid %u", cid);
+                return;
+            }
+
+            if (oldAudioFlag && !session->getAvFlags().audio())
+            {
+                removeSpeaker(cid);
+            }
         }
-    }
-    else
+        else
+        {
+            assert(session->getAvFlags().audio());
+            sfu::TrackDescriptor trackDescriptor;
+            trackDescriptor.mMid = aMid;
+            trackDescriptor.mReuse = true;
+            addSpeaker(cid, trackDescriptor);
+        }
+    })
+    .fail([cid](const ::promise::Error&)
     {
-        assert(session->getAvFlags().audio());
-        sfu::TrackDescriptor trackDescriptor;
-        trackDescriptor.mMid = aMid;
-        trackDescriptor.mReuse = true;
-        addSpeaker(cid, trackDescriptor);
-    }
+        RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise was rejected for cid: %u", cid);
+        return;
+    });
 
     return true;
 }
@@ -1456,6 +1488,13 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
+    if (isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("handleAnswerCommand: speak request option temporarily disabled");
+        assert(false); // theoretically, it should not happen
+        orderedCallDisconnect(TermCode::kUserHangup, "handleAnswerCommand: speak request option temporarily disabled");
+    }
+
     if (mState != kStateJoining)
     {
         RTCM_LOG_WARNING("handleAnswerCommand: get unexpected state change");
@@ -1534,6 +1573,12 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     {
         const auto& it = keystrmap.find(peer.getCid());
         const auto& keyStr = it != keystrmap.end() ? it->second : std::string();
+        if (!addPendingPeer(peer.getCid()))
+        {
+            RTCM_LOG_WARNING("handleAnswerCommand: duplicated peer at mPeersVerification, with cid: %u ", cid);
+            assert(false);
+            continue;
+        }
 
         // check if peerid is included in mods list received upon HELLO
         peer.setModerator(mModerators.find(peer.getPeerid()) != mModerators.end());
@@ -1716,64 +1761,67 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
         return false;
     }
 
-    Session* session = getSession(cid);
-    if (!session)
+    promise::Promise<void>* pms = getPeerVerificationPms(cid);
+    if (!pms)
     {
-        RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %u", cid);
+        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise not found for cid: %u", cid);
         return false;
     }
 
-    const sfu::Peer& peer = session->getPeer();
     auto wptr = weakHandle();
-
-    if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion()))
+    pms->then([this, keyid, cid, key, wptr]()
     {
-        mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peer.getPeerid())
-        .then([wptr, keyid, cid, key, this](Buffer*) -> void
+        if (wptr.deleted())  { return; }
+        Session* session = getSession(cid);
+        if (!session)
         {
-            if (wptr.deleted())
-            {
-                return;
-            }
+            RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %u", cid);
+            return;
+        }
 
-            Session* session = getSession(cid);
-            if (!session)
-            {
-                RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %u", cid);
-                return;
-            }
+        const sfu::Peer& peer = session->getPeer();
+        auto wptr = weakHandle();
 
-            // decrypt received key
-            std::string binaryKey = mega::Base64::atob(key);
-            strongvelope::SendKey encryptedKey;
-            mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey, encryptedKey);
-
-            strongvelope::SendKey plainKey;
-            mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(session->getPeer().getPeerid(), encryptedKey, plainKey);
-
-            // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
-            if (hasCallKey())
-            {
-                strongvelope::SendKey callKey;
-                mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey, callKey);
-                mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
-            }
-
-            // add new key to peer key map
-            std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
-            session->addKey(keyid, newKey);
-        });
-    }
-    else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
-    {
-        auto pms = peer.getEphemeralPubKeyPms();
-        pms.then([wptr, cid, key, keyid, this]() -> void
+        if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion()))
         {
-            if (wptr.deleted())
+            mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peer.getPeerid())
+            .then([wptr, keyid, cid, key, this](Buffer*) -> void
             {
-                return;
-            }
+                if (wptr.deleted())
+                {
+                    return;
+                }
 
+                Session* session = getSession(cid);
+                if (!session)
+                {
+                    RTCM_LOG_WARNING("handleKeyCommand: session not found for Cid: %u", cid);
+                    return;
+                }
+
+                // decrypt received key
+                std::string binaryKey = mega::Base64::atob(key);
+                strongvelope::SendKey encryptedKey;
+                mSfuClient.getRtcCryptoMeetings()->strToKey(binaryKey, encryptedKey);
+
+                strongvelope::SendKey plainKey;
+                mSfuClient.getRtcCryptoMeetings()->decryptKeyFrom(session->getPeer().getPeerid(), encryptedKey, plainKey);
+
+                // in case of a call in a public chatroom, XORs received key with the call key for additional authentication
+                if (hasCallKey())
+                {
+                    strongvelope::SendKey callKey;
+                    mSfuClient.getRtcCryptoMeetings()->strToKey(mCallKey, callKey);
+                    mSfuClient.getRtcCryptoMeetings()->xorWithCallKey(callKey, plainKey);
+                }
+
+                // add new key to peer key map
+                std::string newKey = mSfuClient.getRtcCryptoMeetings()->keyToStr(plainKey);
+                session->addKey(keyid, newKey);
+            });
+        }
+        else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
+        {
             Session* session = getSession(cid);
             if (!session)
             {
@@ -1818,19 +1866,21 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
                 return;
             }
             session->addKey(keyid, result);
-        });
-        pms.fail([peerId = peer.getPeerid(), peerCid = peer.getCid()](const ::promise::Error&)
+
+        }
+        else
         {
-            RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %u", karere::Id(peerId).toString().c_str(),peerCid);
-        });
-    }
-    else
+            RTCM_LOG_ERROR("handleKeyCommand: unknown SFU protocol version [%u] for user: %s, cid: %u",
+                           static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
+                           peer.getPeerid().toString().c_str(), peer.getCid());
+            return;
+        }
+    })
+    .fail([cid](const ::promise::Error&)
     {
-        RTCM_LOG_ERROR("handleKeyCommand: unknown SFU protocol version [%u] for user: %s, cid: %u",
-                       static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
-                       peer.getPeerid().toString().c_str(), peer.getCid());
-        return false;
-    }
+        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %u", cid);
+        return;
+    });
 
     return true;
 }
@@ -1921,21 +1971,38 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
 {
     for (Cid_t cid : speakRequests)
     {
-        if (cid != getOwnCid())
-        {
-            Session* session = getSession(cid);
-            if (!session)
-            {
-                RTCM_LOG_ERROR("handleSpeakReqsCommand: Received speakRequest for unknown peer cid %u", cid);
-                assert(session);
-                continue;
-            }
-            session->setSpeakRequested(true);
-        }
-        else // own cid
+        if (cid == getOwnCid())
         {
             mSpeakerState = SpeakerState::kPending;
             mCallHandler.onSpeakStatusUpdate(*this);
+        }
+        else
+        {
+            promise::Promise<void>* pms = getPeerVerificationPms(cid);
+            if (!pms)
+            {
+                RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise not found for cid: %u", cid);
+                continue;
+            }
+
+            auto wptr = weakHandle();
+            pms->then([this, cid, wptr]()
+            {
+                if (wptr.deleted())  { return; }
+                Session *session = getSession(cid);
+                assert(session);
+                if (!session)
+                {
+                    RTCM_LOG_ERROR("handleSpeakReqsCommand: Received speakRequest for unknown peer cid %u", cid);
+                    return;
+                }
+                session->setSpeakRequested(true);
+            })
+            .fail([cid](const ::promise::Error&)
+            {
+                RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise was rejected for cid: %u", cid);
+                return;
+            });
         }
     }
     return true;
@@ -1945,14 +2012,31 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
 {
     if (getOwnCid() != cid) // remote peer
     {
-        Session* session = getSession(cid);
-        if (!session)
+        promise::Promise<void>* pms = getPeerVerificationPms(cid);
+        if (!pms)
         {
-            RTCM_LOG_ERROR("handleSpeakReqDelCommand: Received delSpeakRequest for unknown peer cid %u", cid);
-            assert(session);
+            RTCM_LOG_WARNING("handleSpeakReqDelCommand: PeerVerification promise not found for cid: %u", cid);
             return false;
         }
-        session->setSpeakRequested(false);
+
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session *session = getSession(cid);
+            assert(session);
+            if (!session)
+            {
+                RTCM_LOG_ERROR("handleSpeakReqDelCommand: Received delSpeakRequest for unknown peer cid %u", cid);
+                return;
+            }
+            session->setSpeakRequested(false);
+        })
+        .fail([cid](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("handleSpeakReqDelCommand: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
     }
     else // own peer
     {
@@ -1981,14 +2065,31 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
 {
     if (cid != K_INVALID_CID)
     {
-        Session* session = getSession(cid);
-        if (!session)
+        promise::Promise<void>* pms = getPeerVerificationPms(cid);
+        if (!pms)
         {
-            RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
-            assert(session);
+            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise not found for cid: %u", cid);
             return false;
         }
-        session->setSpeakPermission(true);
+
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session* session = getSession(cid);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
+                assert(session);
+                return;
+            }
+            session->setSpeakPermission(true);
+        })
+        .fail([cid](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
     }
     else // SPEAK_ON received for own peer
     {
@@ -2007,16 +2108,32 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
 
 bool Call::handleSpeakOffCommand(Cid_t cid)
 {
-    if (cid)
+    if (cid != K_INVALID_CID)
     {
-        Session* session = getSession(cid);
-        if (!session)
+        promise::Promise<void>* pms = getPeerVerificationPms(cid);
+        if (!pms)
         {
-            RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
-            assert(session);
+            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise not found for cid: %u", cid);
             return false;
         }
-        session->setSpeakPermission(false);
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session* session = getSession(cid);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
+                assert(session);
+                return;
+            }
+            session->setSpeakPermission(false);
+        })
+        .fail([cid](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
     }
     else // SPEAK_OFF received for own peer
     {
@@ -2027,7 +2144,7 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         }
 
         // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-        muteMyClient();
+        muteMyClient(true/*audio*/, false/*video*/);
         mSpeakerState = SpeakerState::kNoSpeaker;
         mCallHandler.onSpeakStatusUpdate(*this);
     }
@@ -2064,6 +2181,13 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
     {
         RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
         orderedCallDisconnect(TermCode::kErrorCrypto, "Can't retrieve Ephemeral key for our own user");
+        return false;
+    }
+
+    if (!addPendingPeer(cid))
+    {
+        RTCM_LOG_WARNING("handlePeerJoin: duplicated peer at mPeersVerification, with cid: %u ", cid);
+        assert(false);
         return false;
     }
 
@@ -2135,10 +2259,13 @@ bool Call::handlePeerLeft(Cid_t cid, unsigned termcode)
         return false;
     }
 
+    // reject peer promise (if still undone) and remove from map; finally check
+    // if was added to sessions map, and perform required operations with that session
+    removePendingPeer(cid);
     auto it = mSessions.find(cid);
     if (it == mSessions.end())
     {
-        RTCM_LOG_ERROR("handlePeerLeft: unknown cid");
+        RTCM_LOG_WARNING("handlePeerLeft: cid: %u not found in sessions map", cid);
         return false;
     }
 
@@ -2240,6 +2367,15 @@ bool Call::handleModAdd(uint64_t userid)
     if (userid == mMyPeer->getPeerid())
     {
         setOwnModerator(true);
+        if (isWrFlagEnabled()
+            && static_cast<sfu::WrState>(getWrJoiningState()) != sfu::WrState::WR_ALLOWED
+            && getState() == kInWaitingRoom)
+        {
+            RTCM_LOG_DEBUG("MOD_ADD received for our own user, and we are in waiting room. JOIN call automatically");
+            setWrJoiningState(sfu::WrState::WR_ALLOWED);
+            mCallHandler.onWrAllow(*this);
+            joinSfu();
+        }
     }
 
     // update moderator privilege for all sessions that mached with received userid
@@ -2278,6 +2414,13 @@ bool Call::handleModDel(uint64_t userid)
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
                        const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
 {
+    if (speakRequest)
+    {
+        RTCM_LOG_WARNING("handleHello: speak request option temporarily disabled");
+        assert(false); // theoretically, it should not happen
+        orderedCallDisconnect(TermCode::kUserHangup, "handleHello: speak request option temporarily disabled");
+    }
+
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
     if (!isValidInputVideoTracksLimit(numInputVideoTracks))
@@ -2313,10 +2456,16 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
         // we must wait in waiting room until a moderator allow to access, otherwise we can continue with JOIN
         assert(allowed || !isOwnPrivModerator());
         setState(CallState::kInWaitingRoom);
-        setWrJoiningState(allowed ? sfu::WrState::WR_ALLOWED : sfu::WrState::WR_NOT_ALLOWED);
         if (allowed)
         {
+            setWrJoiningState(sfu::WrState::WR_ALLOWED);
+            mCallHandler.onWrAllow(*this);
             joinSfu();
+        }
+        else
+        {
+            setWrJoiningState(sfu::WrState::WR_NOT_ALLOWED);
+            mCallHandler.onWrDeny(*this);
         }
 
         return dumpWrUsers(wrUsers, true/*clearCurrent*/);
@@ -2347,7 +2496,7 @@ bool Call::handleWrEnter(const sfu::WrUserList& users)
     }
 
     std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
-    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.mPeerid.val); });
+    std::for_each(users.begin(), users.end(), [&uhl](const auto &u) { uhl->addMegaHandle(u.mWrUserid.val); });
     mCallHandler.onWrUsersEntered(*this, uhl.get());
     return true;
 }
@@ -2402,10 +2551,10 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
     if (mState != CallState::kInWaitingRoom) { return false; }
     mMyPeer->setCid(cid); // update Cid for own client from SFU
     mModerators = mods;
-    setWrJoiningState(sfu::WrState::WR_ALLOWED);
     RTCM_LOG_DEBUG("handleWrAllow: we have been allowed to join call, so we need to send JOIN command to SFU");
-    joinSfu(); // send JOIN command to SFU
+    setWrJoiningState(sfu::WrState::WR_ALLOWED);
     mCallHandler.onWrAllow(*this);
+    joinSfu(); // send JOIN command to SFU
     return true;
 }
 
@@ -2435,6 +2584,19 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
+}
+
+bool Call::handleMutedCommand(const unsigned av)
+{
+    karere::AvFlags flags(static_cast<uint8_t>(av));
+    if (!flags.audioMuted() && !flags.videoMuted())
+    {
+        SFU_LOG_WARNING("handleMuteCommand: Av flags not expected from SFU for MUTE command: %u", av);
+        assert(false);
+        return false;
+    }
+    muteMyClient(flags.audioMuted(), flags.videoMuted());
+    return true;
 }
 
 void Call::onSfuDisconnected()
@@ -2566,7 +2728,11 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
 
     if (cmd == "audio") // audio ummute has been denied by SFU, disable audio flag local
     {
-        muteMyClient();
+        muteMyClient(true/*audio*/, false/*video*/);
+    }
+    else if (cmd == "MUTE")
+    {
+        RTCM_LOG_WARNING("Deny 'MUTE' received. %s", msg.c_str());
     }
     else if (cmd == "JOIN")
     {
@@ -2746,6 +2912,80 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
 }
 
+bool Call::addPendingPeer(const Cid_t cid)
+{
+    if (mPeersVerification.find(cid) != mPeersVerification.end())
+    {
+        return false;
+    }
+    mPeersVerification[cid] = promise::Promise<void>();
+    return true;
+}
+
+void Call::clearPendingPeers()
+{
+    std::for_each(mPeersVerification.begin(), mPeersVerification.end(), [](auto &it)
+    {
+        promise::Promise<void>& pms = it.second;
+        if (!pms.done()) { pms.reject("Rejecting peer pms upon pms clear"); }
+    });
+    mPeersVerification.clear();
+}
+
+bool Call::removePendingPeer(const Cid_t cid)
+{
+    auto it = mPeersVerification.find(cid);
+    if (it == mPeersVerification.end())
+    {
+        RTCM_LOG_WARNING("handlePeerLeft: peer with cid: %u, is still pending to verify it's ephemeral key");
+        return false;
+    }
+
+    if (!it->second.done()) { it->second.reject("Rejecting peer pms upon removePendingPeer"); }
+    mPeersVerification.erase(it);
+    return true;
+}
+
+bool Call::isPeerPendingToAdd(const Cid_t cid) const
+{
+    auto it = mPeersVerification.find(cid);
+    return it != mPeersVerification.end() && !it->second.done();
+}
+
+bool Call::peerExists(const Cid_t cid) const
+{
+    return mPeersVerification.find(cid) != mPeersVerification.end();
+}
+
+bool Call::fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified)
+{
+    auto it = mPeersVerification.find(cid);
+    if (it != mPeersVerification.end() && !(it->second.done()))
+    {
+        if (ephemKeyVerified)
+        {
+            it->second.resolve();
+        }
+        else
+        {
+            it->second.reject("Rejecting peer pms upon fullfilPeerPms");
+        }
+        return true;
+    }
+    return false;
+}
+
+promise::Promise<void>* Call::getPeerVerificationPms(const Cid_t cid)
+{
+    auto it = mPeersVerification.find(cid);
+    if (it != mPeersVerification.end())
+    {
+        return &it->second;
+    }
+
+    return nullptr;
+}
+
 bool Call::addWrUsers(const sfu::WrUserList& users, const bool clearCurrent)
 {
     if (!isOwnPrivModerator() && !users.empty())
@@ -2761,7 +3001,7 @@ bool Call::addWrUsers(const sfu::WrUserList& users, const bool clearCurrent)
 
     std::for_each(users.begin(), users.end(), [this](const auto &u)
     {
-        mWaitingRoom->addOrUpdateUserStatus(u.mPeerid, u.mWrState);
+        mWaitingRoom->addOrUpdateUserStatus(u.mWrUserid, u.mWrState);
     });
     return true;
 }
@@ -2915,33 +3155,25 @@ void Call::generateAndSendNewMediakey(bool reset)
             }
             else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
             {
-                auto pms = peer.getEphemeralPubKeyPms();
-                pms.then([this, newPlainKey, keys, sessionCid, &peer]()
+                auto&& ephemeralPubKey = peer.getEphemeralPubKeyDerived();
+                if (ephemeralPubKey.empty())
                 {
-                    auto&& ephemeralPubKey = peer.getEphemeralPubKeyDerived();
-                    if (ephemeralPubKey.empty())
-                    {
-                        RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %u", peer.getPeerid().toString().c_str(), sessionCid);
-                        assert(false);
-                        return;
-                    }
+                    RTCM_LOG_WARNING("Invalid ephemeral key for peer: %s cid %u", peer.getPeerid().toString().c_str(), sessionCid);
+                    assert(false);
+                    continue;
+                }
 
-                    // Encrypt key for participant with its public ephemeral key
-                    std::string encryptedKey;
-                    std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
-                    if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey.data()), ephemeralPubKey.size(), nullptr))
-                    {
-                        RTCM_LOG_ERROR("Failed Media key cbc_encrypt for peerId %s Cid %u",
-                                         peer.getPeerid().toString().c_str(), peer.getCid());
-                        return;
-                    }
+                // Encrypt key for participant with its public ephemeral key
+                std::string encryptedKey;
+                std::string plainKey (newPlainKey->buf(), newPlainKey->bufSize());
+                if (!mSymCipher.cbc_encrypt_with_key(plainKey, encryptedKey, reinterpret_cast<const unsigned char *>(ephemeralPubKey.data()), ephemeralPubKey.size(), nullptr))
+                {
+                    RTCM_LOG_ERROR("Failed Media key cbc_encrypt for peerId %s Cid %u",
+                                     peer.getPeerid().toString().c_str(), peer.getCid());
+                    continue;
+                }
 
-                    (*keys)[sessionCid] = mega::Base64::btoa(encryptedKey);
-                 });
-                 pms.fail([peerId = peer.getPeerid(), peerCid = peer.getCid()](const ::promise::Error&)
-                 {
-                    RTCM_LOG_DEBUG("Can't get ephemeral public key for peer: %s cid: %u", karere::Id(peerId).toString().c_str(), peerCid);
-                 });
+                (*keys)[sessionCid] = mega::Base64::btoa(encryptedKey);
             }
             else
             {
@@ -3003,7 +3235,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
 
             RTCM_LOG_DEBUG("reassign slot with mid: %u from cid: %u to newcid: %u, reuse: %d ", mid, slot->getCid(), cid, trackDescriptor.second.mReuse);
 
-            Session *oldSess = getSession(slot->getCid());
+            Session* oldSess = getSession(slot->getCid());
             if (oldSess)
             {
                 // In case of Slot reassign for another peer (CID) or same peer (CID) slot reusing, we need to notify app about that
@@ -3011,49 +3243,72 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
             }
         }
 
-        Session* sess = getSession(cid);
-        if (!sess)
+        promise::Promise<void>* pms = getPeerVerificationPms(cid);
+        if (!pms)
         {
-            RTCM_LOG_ERROR("handleIncomingVideo: session with CID %u not found", cid);
-            assert(false && "Possible error at SFU: session with CID not found");
-            continue;
+            RTCM_LOG_WARNING("handleIncomingVideo: PeerVerification promise not found for cid: %u", cid);
+            return;
         }
 
-        const std::vector<std::string> ivs = sess->getPeer().getIvs();
-        slot->assignVideoSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]), videoResolution);
-        attachSlotToSession(cid, slot, false, videoResolution);
+        auto wptr = weakHandle();
+        slot->setAuxCid(cid);
+        pms->then([this, slot, cid, videoResolution, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session* sess = getSession(cid);
+            if (!sess)
+            {
+                RTCM_LOG_ERROR("handleIncomingVideo: session with CID %u not found", cid);
+                assert(false && "Possible error at SFU: session with CID not found");
+                return;
+            }
+
+            if (slot->getAuxCid() != K_INVALID_CID
+                && slot->getAuxCid() != cid)
+            {
+                // Race condition, more than one session (still pending to be verified) tried to attach slot
+                // When Pms for this session has been resolved, another session (still pending to be verified)
+                // was trying to attach same slot so getAuxCid doesn't match with this cid
+                RTCM_LOG_WARNING("Temp CID %u doesn't match with this CID: %u", slot->getAuxCid(), cid);
+                return;
+            }
+
+            const std::vector<std::string> ivs = sess->getPeer().getIvs();
+            slot->assignVideoSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]), videoResolution);
+            attachSlotToSession(*sess, slot, false, videoResolution);
+        })
+        .fail([cid, slot, wptr](const ::promise::Error&)
+        {
+            if (wptr.deleted())  { return; }
+            if (slot->getAuxCid() == cid) { slot->setAuxCid(K_INVALID_CID); }
+            RTCM_LOG_WARNING("handleAvCommand: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
     }
 }
 
-void Call::attachSlotToSession (Cid_t cid, RemoteSlot* slot, bool audio, VideoResolution hiRes)
+void Call::attachSlotToSession (Session& session, RemoteSlot* slot, const bool audio, const VideoResolution hiRes)
 {
-    Session *session = getSession(cid);
-    assert(session);
-    if (!session)
-    {
-        RTCM_LOG_WARNING("attachSlotToSession: unknown peer cid %u", cid);
-        return;
-    }
-
     if (audio)
     {
-        session->setAudioSlot(static_cast<RemoteAudioSlot *>(slot));
+        session.setAudioSlot(static_cast<RemoteAudioSlot *>(slot));
     }
     else
     {
-        if (hiRes)
-        {
-            session->setHiResSlot(static_cast<RemoteVideoSlot *>(slot));
-        }
-        else
-        {
-            session->setVThumSlot(static_cast<RemoteVideoSlot *>(slot));
-        }
+        hiRes
+            ? session.setHiResSlot(static_cast<RemoteVideoSlot *>(slot))
+            : session.setVThumSlot(static_cast<RemoteVideoSlot *>(slot));
     }
 }
 
 void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
 {
+    if (cid == K_INVALID_CID)
+    {
+        RTCM_LOG_WARNING("AddSpeaker: invalid Cid received as param");
+        assert(false);
+    }
+
     if (speaker.mMid == sfu::TrackDescriptor::invalidMid)
     {
         // peer notified as speaker from SFU, but track not provided yet (this happens if peer is muted)
@@ -3071,7 +3326,7 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
     RemoteAudioSlot* slot = static_cast<RemoteAudioSlot*>(it->second.get());
     if (slot->getCid() != cid)
     {
-        Session *oldSess = getSession(slot->getCid());
+        Session* oldSess = getSession(slot->getCid());
         if (oldSess)
         {
             // In case of Slot reassign for another peer (CID) we need to notify app about that
@@ -3079,25 +3334,47 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         }
     }
 
-    Session *sess = getSession(cid);
-    if (!sess)
+    promise::Promise<void>* auxpms = getPeerVerificationPms(cid);
+    if (!auxpms)
     {
-        RTCM_LOG_WARNING("AddSpeaker: unknown cid");
+        RTCM_LOG_WARNING("AddSpeaker: PeerVerification promise not found for cid: %u", cid);
         return;
     }
 
-    if (!sess->hasSpeakPermission())
+    auto wptr = weakHandle();
+    slot->setAuxCid(cid);
+    auxpms->then([this, slot, cid, wptr]()
     {
-        RTCM_LOG_ERROR("AddSpeaker: should not receive amid for peer without speak permission,"
-                       " callid: %s, cid: %u", getCallid().toString().c_str(), cid);
-        assert(false);
-        return;
-    }
+        if (wptr.deleted())  { return; }
+        Session* sess = getSession(cid);
+        if (!sess)
+        {
+            RTCM_LOG_WARNING("AddSpeaker: unknown cid");
+            return;
+        }
 
-    const std::vector<std::string> ivs = sess->getPeer().getIvs();
-    assert(ivs.size() >= kAudioTrack);
-    slot->assignAudioSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
-    attachSlotToSession(cid, slot, true, kUndefined);
+        if (slot->getAuxCid() != K_INVALID_CID
+            && slot->getAuxCid() != cid)
+        {
+            // Race condition, more than one session (still pending to be verified) tried to attach slot
+            // When Pms for this session has been resolved, another session (still pending to be verified)
+            // was trying to attach same slot so getAuxCid doesn't match with this cid
+            RTCM_LOG_WARNING("Temp CID %u doesn't match with this CID: %u", slot->getAuxCid(), cid);
+            return;
+        }
+
+        const std::vector<std::string> ivs = sess->getPeer().getIvs();
+        assert(ivs.size() >= kAudioTrack);
+        slot->assignAudioSlot(cid, sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
+        attachSlotToSession(*sess, slot, true, kUndefined);
+    })
+    .fail([cid, slot, wptr](const ::promise::Error&)
+    {
+        if (wptr.deleted())  { return; }
+        if (slot->getAuxCid() == cid) { slot->setAuxCid(K_INVALID_CID); }
+        RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %u", cid);
+        return;
+    });
 }
 
 void Call::removeSpeaker(Cid_t cid)
@@ -3320,25 +3597,48 @@ const mega::ECDH* Call::getMyEphemeralKeyPair() const
     return mEphemeralKeyPair.get();
 }
 
-void Call::muteMyClient()
+void Call::muteMyClient(const bool audio, const bool video)
 {
-    if (!getLocalAvFlags().audio())
+    karere::AvFlags currentFlags = getLocalAvFlags();
+    if (audio)
     {
-        return;
+        currentFlags.remove(karere::AvFlags::kAudio);
+        mMyPeer->setAvFlags(currentFlags);
+        updateAudioTracks();
     }
 
-    karere::AvFlags currentFlags = getLocalAvFlags();
-    currentFlags.remove(karere::AvFlags::kAudio);
-    mMyPeer->setAvFlags(currentFlags);
+    if (video)
+    {
+        currentFlags.remove(karere::AvFlags::kVideo);
+        mMyPeer->setAvFlags(currentFlags);
+        updateVideoTracks();
+    }
+
     mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
-    updateAudioTracks();
 }
 
 void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)
 {
-    peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
+    if (!isPeerPendingToAdd(peer.getCid()))
+    {
+        // we could have received a PEERLEFT before peer's ephemeral key is verified
+        RTCM_LOG_WARNING("addPeer: Unexpected peer state at mPeersVerification. Cid: %u", peer.getCid());
+        return;
+    }
+    const bool ephemKeyVerified = peer.setEphemeralPubKeyDerived(ephemeralPubKeyDerived);
     mSessions[peer.getCid()] = std::make_unique<Session>(peer);
+
+    /* We need to call onNewSession (as we set setSessionHandler there) before calling verifyPeer,
+     * otherwise after calling verifyPeer, threads waiting in then blocks, will execute code in lambdas
+     * and any call to mSessionHandler will fail as it's still unregistered
+     */
     mCallHandler.onNewSession(*mSessions[peer.getCid()], *this);
+
+    // Peer Verification pms must exists at this point. If ephemeral key could be verified and it's valid,
+    // we'll resolve pms, otherwise we'll reject it.
+    const bool res = fullfilPeerPms(peer.getCid(), ephemKeyVerified);
+    RTCM_LOG_WARNING("addPeer: peer verification finished %s. Cid: %u", ephemKeyVerified && res ? "ok" : "with error", peer.getCid());
+    assert(res);
 }
 
 std::pair<std::string, std::string> Call::splitPubKey(const std::string& keyStr) const
@@ -3870,7 +4170,7 @@ bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const sfu
         bool found = false;
         for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
         {
-            if (it->mPeerid == u.val)
+            if (it->mWrUserid == u.val)
             {
                 it->mWrState = status;
                 found = true;
@@ -3889,11 +4189,11 @@ bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const sfu
     return true;
 }
 
-int KarereWaitingRoom::getPeerStatus(const uint64_t& peerid) const
+int KarereWaitingRoom::getUserStatus(const uint64_t& userid) const
 {
     for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
     {
-        if (it->mPeerid == peerid)
+        if (it->mWrUserid == userid)
         {
             return static_cast<int>(it->mWrState);
         }
@@ -3902,15 +4202,15 @@ int KarereWaitingRoom::getPeerStatus(const uint64_t& peerid) const
     return static_cast<int>(sfu::WrState::WR_UNKNOWN);
 }
 
-std::vector<uint64_t> KarereWaitingRoom::getPeers() const
+std::vector<uint64_t> KarereWaitingRoom::getUsers() const
 {
-    std::vector<uint64_t> keys;
-    keys.reserve(size());
-    std::for_each(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(), [&keys](const auto &u)
+    std::vector<uint64_t> users;
+    users.reserve(size());
+    std::for_each(mWaitingRoomUsers.begin(), mWaitingRoomUsers.end(), [&users](const auto &u)
     {
-        keys.emplace_back(u.mPeerid);
+        users.emplace_back(u.mWrUserid);
     });
-    return keys;
+    return users;
 }
 
 void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
@@ -4156,6 +4456,7 @@ void RemoteSlot::assign(Cid_t cid, IvStatic_t iv)
     assert(!mCid);
     createDecryptor(cid, iv);
     enableTrack(true, kRecv);
+    setAuxCid(K_INVALID_CID);
 }
 
 void RemoteSlot::createDecryptor(Cid_t cid, IvStatic_t iv)
@@ -4510,7 +4811,7 @@ void Session::addKey(Keyid_t keyid, const std::string &key)
     mPeer.addKey(keyid, key);
 }
 
-void Session::setAvFlags(karere::AvFlags flags)
+void Session::setRemoteAvFlags(karere::AvFlags flags)
 {
     assert(mSessionHandler);
     if (flags == mPeer.getAvFlags())
@@ -4519,11 +4820,21 @@ void Session::setAvFlags(karere::AvFlags flags)
         return;
     }
 
-    bool onHoldChanged = mPeer.getAvFlags().isOnHold() != flags.isOnHold();
-    mPeer.setAvFlags(flags);
-    onHoldChanged
-        ? mSessionHandler->onOnHold(*this)              // notify session onHold Change
-        : mSessionHandler->onRemoteFlagsChanged(*this); // notify remote AvFlags Change
+    const karere::AvFlags oldFlags = mPeer.getAvFlags();
+    karere::AvFlags auxFlags = flags;
+    mPeer.setAvFlags(flags); // store received flags
+
+    const bool recordingChanged = oldFlags.isRecording() != flags.isRecording();
+    const bool onHoldChanged = oldFlags.isOnHold() != flags.isOnHold();
+
+    // Remove onHold and isRecording flags to check if Av flags have changed
+    auxFlags.setOnHold(oldFlags.isOnHold());
+    auxFlags.setRecording(oldFlags.isRecording());
+    const bool onAvChanged = auxFlags != oldFlags;
+
+    if (recordingChanged)   { mSessionHandler->onRecordingChanged(*this); }
+    if (onHoldChanged)      { mSessionHandler->onOnHold(*this); }
+    if (onAvChanged)        { mSessionHandler->onRemoteFlagsChanged(*this); }
 }
 
 void Session::setSpeakPermission(const bool hasSpeakPermission)
@@ -4691,6 +5002,8 @@ void AudioLevelMonitor::OnData(const void *audio_data, int bits_per_sample, int 
 
 bool AudioLevelMonitor::hasAudio()
 {
+    // Not required to wait for PeerVerification promise.
+    // To enable audio level monitor for a remote audio slot, the session must exist.
     Session *sess = mCall.getSession(static_cast<Cid_t>(mCid));
     if (sess)
     {
@@ -4702,6 +5015,9 @@ bool AudioLevelMonitor::hasAudio()
 void AudioLevelMonitor::onAudioDetected(bool audioDetected)
 {
     mAudioDetected = audioDetected;
+
+    // Not required to wait for PeerVerification promise.
+    // To enable audio level monitor for a remote audio slot, the session must exist.
     Session* sess = mCall.getSession(static_cast<Cid_t>(mCid));
     if (sess)
     {

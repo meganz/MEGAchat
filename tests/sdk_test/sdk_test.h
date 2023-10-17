@@ -150,19 +150,25 @@ class MegaChatApiTest :
 public:
     // invalid account index
     static constexpr unsigned int testInvalidIdx = UINT16_MAX;
-    static constexpr unsigned int maxAccounts = 3;
 
-    // this structure cleans the associated resources for an automated test, when it finish or fails
-    // in case test fails before completing, this structs cleans associated resources, avoiding
-    // memory leaks, unregistered listeners (that generates crashes), and other issues
+    // to be used as a resources releaser when the test exits. Some example of cleanups are:
+    // unregistering listeners, logging out sessions, and any memory used from the free store.
+    // Be wary of objects lifetimes and order used in the capture
     struct MegaMrProper
     {
-        MegaMrProper(std::function<void()> f): mCleanup(f){}
-        std::function<void()> mCleanup;
-        ~MegaMrProper() { mCleanup(); }
+        using CleanupFunction = std::function<void()>;
+        CleanupFunction mOnRelease;
+        ~MegaMrProper() { if (mOnRelease) mOnRelease(); }
+
+        MegaMrProper(std::function<void()> f): mOnRelease(f){}
+        MegaMrProper()                               = delete;
+        MegaMrProper(const MegaMrProper&)            = delete;
+        MegaMrProper(MegaMrProper&&)                 = delete;
+        MegaMrProper& operator=(const MegaMrProper&) = delete;
+        MegaMrProper& operator=(MegaMrProper&&)      = delete;
     };
 
-    // old one, we need to replace all it's usages by MegaMrProper
+    // DEPRECATED: we need to replace all it's usages by MegaMrProper
     struct MrProper
     {
         MrProper(std::function<void(megachat::MegaChatHandle)> f, const megachat::MegaChatHandle chatid)
@@ -186,9 +192,11 @@ public:
         std::shared_ptr<megachat::MegaChatScheduledRules> rules;
         std::shared_ptr<megachat::MegaChatPeerList> peerList;
 
-        SchedMeetingData& operator=(const SchedMeetingData&) = default;
-        SchedMeetingData* copy() const { return new SchedMeetingData(*this); }
-        SchedMeetingData() = default;
+        ~SchedMeetingData()                                     = default;
+        explicit SchedMeetingData()                             = default;
+        SchedMeetingData(SchedMeetingData&&)                    = delete;
+        SchedMeetingData& operator=(const SchedMeetingData&)    = delete;
+        SchedMeetingData& operator=(SchedMeetingData&&)         = default;
         SchedMeetingData(const SchedMeetingData& sm)
             : chatId(sm.chatId), schedId(sm.schedId), timeZone(sm.timeZone)
             , title(sm.title), description(sm.description), startDate(sm.startDate)
@@ -203,7 +211,7 @@ public:
         }
     };
 
-    // this structure contains all required data to create or select a chatroom
+    // required data to create or select a chatroom
     struct ChatroomCreationOptions
     {
         unsigned int mChatOpIdx = testInvalidIdx; // index of operator account from which we retrieve chatroom for test (it not necessarily needs to has moderator role for that chat)
@@ -224,8 +232,11 @@ public:
         // vector with peer accounts idx that participates in the chatroom
         std::vector<unsigned int> mChatPeerIdx;
 
-        ChatroomCreationOptions() = default;
-        ChatroomCreationOptions* copy() const { return new ChatroomCreationOptions(*this); }
+        ~ChatroomCreationOptions()                                          = default;
+        explicit ChatroomCreationOptions()                                  = default;
+        ChatroomCreationOptions(ChatroomCreationOptions&& )                 = delete;
+        ChatroomCreationOptions& operator=(const ChatroomCreationOptions&)  = delete;
+        ChatroomCreationOptions& operator=(ChatroomCreationOptions&&)       = delete;
         ChatroomCreationOptions(const int opPriv,
                                 const bool cr,
                                 const bool pub,
@@ -242,7 +253,7 @@ public:
             , mWaitingRoom(wr)
             , mSpeakRequest(sr)
             , mOpenInvite(oi)
-            , mSchedMeetingData(sm ? sm->copy() : nullptr)
+            , mSchedMeetingData(sm ? std::make_unique<SchedMeetingData>(*sm) : nullptr)
             , mChatPeerList(peers ? peers->copy() : nullptr)
         {
         }
@@ -255,7 +266,7 @@ public:
             , mWaitingRoom(opt.mWaitingRoom)
             , mSpeakRequest(opt.mSpeakRequest)
             , mOpenInvite(opt.mOpenInvite)
-            , mSchedMeetingData(opt.mSchedMeetingData ? opt.mSchedMeetingData->copy() : nullptr)
+            , mSchedMeetingData(opt.mSchedMeetingData ? std::make_unique<SchedMeetingData>(*opt.mSchedMeetingData) : nullptr)
             , mChatPeerList(opt.mChatPeerList ? opt.mChatPeerList->copy() : nullptr)
         {
         }
@@ -264,7 +275,12 @@ public:
     // this structure contains all data common to most of automated tests
     struct TestData
     {
-        TestData() = default;
+        ~TestData()                           = default;
+        explicit TestData()                   = default;
+        TestData(const TestData&)             = delete;
+        TestData(TestData&& )                 = delete;
+        TestData& operator=(const TestData&)  = delete;
+        TestData& operator=(TestData&&)       = delete;
 
         // idx account that represents the operator role (not related to MegaChatRoom privileges)
         unsigned int mOpIdx = testInvalidIdx;
@@ -286,7 +302,7 @@ public:
 
 #ifndef KARERE_DISABLE_WEBRTC
         // maps account index to TestChatVideoListener
-        std::map<unsigned int, TestChatVideoListener> mapLocalVideoListeners;
+        std::map<unsigned int, TestChatVideoListener> mMapLocalVideoListeners;
 #endif
 
         // returns MegaChatPeerList that includes peers that participates in the selected chatroom
@@ -298,11 +314,9 @@ public:
         // returns a vector with all accounts indexes
         std::vector<unsigned int> getIdxVector()
         {
-            std::vector<unsigned int> v;
-            std::for_each(mAccounts.begin(), mAccounts.end(), [&v](const auto& it)
-            {
-                v.emplace_back(it.first);
-            });
+            std::vector<unsigned int> v(mAccounts.size());
+            std::transform(mAccounts.begin(), mAccounts.end(), v.begin(),
+                           [](const auto& pair) { return pair.first; });
             return v;
         }
 
@@ -343,26 +357,33 @@ public:
     struct AuxVars
     {
     public:
-        // adds a new entry in map <variable name, val<T>>
-        bool* add(const unsigned int i, const std::string& n, T val, const bool override)
+        bool validInput(const unsigned int i, const std::string_view n) const
         {
-            if (i >= NUM_ACCOUNTS) { return nullptr; }
+            return !n.empty() && i < NUM_ACCOUNTS;
+        }
 
-            if (mVarsMap[i].find(n) != mVarsMap[i].end() && !override)
+        // adds a new entry in map <variable name, val<T>>
+        bool* add(const unsigned int i, const std::string_view n, T val, const bool override)
+        {
+            if (!validInput(i, n)) { return nullptr; }
+
+            if (mVarsMap[i].find(std::string{n}) != mVarsMap[i].end() && !override)
             {
                 return nullptr;
             }
 
-            auto res = mVarsMap[i].emplace(n, val);
+            auto res = mVarsMap[i].emplace(std::string{n}, val);
             return res.second
                        ? &res.first->second
                        : nullptr;
         }
 
         // returns value<T> mapped by key n
-        T* get(const unsigned int i, const std::string& n)
+        T* get(const unsigned int i, const std::string_view n)
         {
-            auto it = mVarsMap[i].find(n);
+            if (!validInput(i, n)) { return nullptr; }
+
+            auto it = mVarsMap[i].find(std::string{n});
             if (it == mVarsMap[i].end())
             {
                 return nullptr;
@@ -372,11 +393,11 @@ public:
         }
 
         // updates value<T> mapped by key n
-        bool update(const unsigned int i, const std::string& n, const T v)
+        bool update(const unsigned int i, const std::string_view n, const T v)
         {
-            if (i >= NUM_ACCOUNTS) { return false; }
+            if (!validInput(i, n)) { return false; }
 
-            auto it = mVarsMap[i].find(n);
+            auto it = mVarsMap[i].find(std::string{n});
             if (it == mVarsMap[i].end())
             {
                 return false;
@@ -387,11 +408,11 @@ public:
         }
 
         // remove entry from map given a variable name
-        bool remove(const unsigned int i, const std::string& n)
+        bool remove(const unsigned int i, const std::string_view n)
         {
-            if (i >= NUM_ACCOUNTS) { return false; }
+            if (!validInput(i, n)) { return false; }
 
-            auto it = mVarsMap[i].find(n);
+            auto it = mVarsMap[i].find(std::string{n});
             if (it == mVarsMap[i].end())
             {
                 return false;
@@ -402,8 +423,9 @@ public:
         }
 
         // clean all vars for a given account index
-        void clean(const unsigned int i)
+        bool clean(const unsigned int i)
         {
+            if (i >= NUM_ACCOUNTS) { return false; }
             mVarsMap[i].clear();
         }
 
@@ -486,14 +508,30 @@ protected:
      */
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
-    int loadHistory(unsigned int accountIndex, megachat::MegaChatHandle chatid, TestChatRoomListener *chatroomListener);
-    void checkAndMakeContacts(const unsigned int a1, unsigned int a2);
+
+    /**
+     * @brief Loads history for the specified chatroom.
+     *
+     * If there's no error this method will returns:
+     * - The number of loaded messages
+     *
+     * Otherwise:
+     * - MegaChatError::ERROR_TOOMANY if Timeout for connecting to chatd has expired
+     * - MegaChatError::ERROR_ACCESS if Timeout for loading history from chat has expired
+     *
+     * @param accountIndex index of account that loads history from chatroom
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param chatroomListener TestChatRoomListener that track MegaChatRoomListener events
+     */
+    int loadHistory(const unsigned int accountIndex, const megachat::MegaChatHandle chatid, TestChatRoomListener* chatroomListener);
     void makeContact(unsigned int a1, unsigned int a2);
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
     megachat::MegaChatHandle getGroupChatRoom();
     bool addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid);
     void cleanChatVideoListeners();
+    void logoutTestAccounts();
+    void closeOpenedChatrooms();
     bool removeChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid, TestChatVideoListener &vl);
 
     /* select a group chat room, by default with PRIV_MODERATOR for primary account
@@ -701,6 +739,7 @@ protected:
     bool mSessSpeakPermChanged[NUM_ACCOUNTS];
     bool mOwnFlagsChanged[NUM_ACCOUNTS];
     bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
+    bool mOwnCallPermissionsChanged[NUM_ACCOUNTS];
     bool mSessSpeakReqRecv[NUM_ACCOUNTS];
     unsigned mOwnSpeakStatus[NUM_ACCOUNTS];
     std::map<::megachat::MegaChatHandle, bool> mSessSpeakPerm[NUM_ACCOUNTS];
@@ -1004,6 +1043,7 @@ public:
     bool handleWrDeny(const std::set<karere::Id>& mods) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
+    bool handleMutedCommand(const unsigned av) override;
 };
 #endif
 #endif // CHATTEST_H

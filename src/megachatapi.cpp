@@ -170,6 +170,11 @@ bool MegaChatSession::isModerator() const
     return false;
 }
 
+bool MegaChatSession::isRecording() const
+{
+    return false;
+}
+
 bool MegaChatSession::hasSpeakPermission() const
 {
     return false;
@@ -1182,6 +1187,11 @@ void MegaChatApi::pushUsersIntoWaitingRoom(MegaChatHandle chatid, MegaHandleList
 void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users, MegaChatRequestListener* listener)
 {
     pImpl->kickUsersFromCall(chatid, users, listener);
+}
+
+void MegaChatApi::mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener)
+{
+    pImpl->mutePeers(chatid, clientId, listener);
 }
 
 void MegaChatApi::allowUsersJoinCall(MegaChatHandle chatid, const MegaHandleList* users, const bool all, MegaChatRequestListener* listener)

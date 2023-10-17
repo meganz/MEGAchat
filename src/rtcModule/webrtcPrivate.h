@@ -79,9 +79,12 @@ public:
     virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     virtual void release();
     Cid_t getCid() const { return mCid; }
+    Cid_t getAuxCid()const { return mAuxCid; }
+    void setAuxCid(const Cid_t cid) { mAuxCid = cid; }
 
 protected:
-    Cid_t mCid = 0;
+    Cid_t mCid = K_INVALID_CID;
+    Cid_t mAuxCid = K_INVALID_CID;
     void* mAppCtx;
     RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assign(Cid_t cid, IvStatic_t iv);
@@ -157,7 +160,7 @@ public:
     void setHiResSlot(RemoteVideoSlot* slot);
     void setAudioSlot(RemoteAudioSlot *slot);
     void addKey(Keyid_t keyid, const std::string& key);
-    void setAvFlags(karere::AvFlags flags);
+    void setRemoteAvFlags(karere::AvFlags flags);
 
     RemoteAudioSlot* getAudioSlot();
     RemoteVideoSlot* getVthumSlot();
@@ -341,6 +344,7 @@ public:
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
     void kickUsersFromCall(const std::set<karere::Id>& users) const override;
+    void mutePeers(const Cid_t& cid, const unsigned av) const override;
 
     void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
@@ -415,7 +419,6 @@ public:
     static EndCallReason getEndCallReasonFromTermcode(const TermCode& termCode);
 
     void clearParticipants();
-    std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
     bool isValidWrJoiningState() const;
     void clearWrJoiningState();
@@ -498,6 +501,8 @@ public:
     bool handleWrDeny(const std::set<karere::Id>& mods) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
+
+    bool handleMutedCommand(const unsigned av) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     bool processDeny(const std::string& cmd, const std::string& msg) override;
@@ -598,6 +603,29 @@ protected:
     Cid_t mPrevCid = K_INVALID_CID;
     uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
 
+    /* Peer verification promises related methods */
+
+    // add peer to pending verification map upon ANSWER|PEERJOIN commands
+    bool addPendingPeer(const Cid_t cid);
+
+    // clear peers pending verification map
+    void clearPendingPeers();
+
+    // remove peer from pending verification map
+    bool removePendingPeer(const Cid_t cid);
+
+    // check if peer is pending to be verified
+    bool isPeerPendingToAdd(const Cid_t cid) const;
+
+    // check if peer has been received upon ANSWER | PEERJOIN command
+    bool peerExists(const Cid_t cid) const;
+
+    // complete peer verification resolving the promise associated to it
+    bool fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified);
+
+    // return peer verification promise
+    promise::Promise<void>* getPeerVerificationPms(const Cid_t cid);
+
     // call key for public chats (128-bit key)
     std::string mCallKey;
 
@@ -611,6 +639,17 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
+
+    /* maps peer cid to ephemeral key verification promise.
+     * when a new peer is received (ANSWER | PEERJOIN), we need to verify and derive it's ephemeral key
+     * this proccess could not be immediate as we may need to fetch it's public keys from API (ED25519 | CU25519)
+     *
+     * if during that verification proccess, we receive another command related to that peer Cid, we won't find session for that peer,
+     * as we add the new session once the peer ephemeral key has been verified (even if verification failed)
+     *
+     * with this workarround, we must wait for peer promise completion, before trying to retrieve peer session
+     */
+    std::map<Cid_t, promise::Promise<void>> mPeersVerification;
 
     /*
      * List of participants with moderator role
@@ -655,7 +694,7 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
+    void attachSlotToSession (Session& session, RemoteSlot* slot, const bool audio, const VideoResolution hiRes);
     void initStatsValues();
     void enableStats();
     void disableStats();
@@ -672,7 +711,7 @@ protected:
     void setOwnModerator(bool isModerator);
 
     // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-    void muteMyClient();
+    void muteMyClient(const bool audio, const bool video);
 
     // initializes a new pair of keys x25519 (for session key)
     void generateEphemeralKeyPair();

@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef NS_ENUM(NSInteger, MEGAChatErrorType) {
     MEGAChatErrorTypeOk      = 0,
     MEGAChatErrorTypeUnknown = -1,
@@ -14,8 +16,8 @@ typedef NS_ENUM(NSInteger, MEGAChatErrorType) {
 
 @property (readonly, nonatomic) MEGAChatErrorType type;
 
-@property (readonly, nonatomic) NSString *name;
-
-- (instancetype)clone;
+@property (readonly, nonatomic, nullable) NSString *name;
 
 @end
+
+NS_ASSUME_NONNULL_END

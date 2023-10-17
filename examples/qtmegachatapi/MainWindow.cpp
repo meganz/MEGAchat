@@ -257,6 +257,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateAudioButtonText(*call);
         itemController->getMeetingView()->updateVideoButtonText(*call);
+        itemController->getMeetingView()->updateLabel(call);
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD))
@@ -350,6 +351,11 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *, MegaChatHandle chatid, MegaC
                 mMegaChatApi->requestHiResVideoWithQuality(chatid, session->getClientid(), megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);
             }
         }
+    }
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING))
+    {
+        meetingView->updateSession(*session);
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS) || session->hasChanged(MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL))

@@ -105,6 +105,7 @@ public:
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
         CHANGE_TYPE_PERMISSIONS = 0x80,             /// Indicates that peer moderator role status has changed
         CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Speak permission has changed for peer
+        CHANGE_TYPE_SESSION_ON_RECORDING = 0x200,   /// Call has been started/stopped recording by the peer associated to this Session
     };
 
     enum {
@@ -335,6 +336,10 @@ public:
      *
      * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
      * Check MegaChatSession::isModerator
+     *
+     * - MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING = 0x200
+     * Check MegaChatSession::isRecording
+     *
      */
     virtual int getChanges() const;
 
@@ -393,6 +398,9 @@ public:
      * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
      * Check MegaChatSession::isModerator
      *
+     * - MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING = 0x200
+     * Check MegaChatSession::isRecording
+     *
      * @return true if this session has an specific change
      */
     virtual bool hasChanged(int changeType) const;
@@ -441,6 +449,13 @@ public:
      * @return True if peer associated to the session, has moderator role in the call
      */
     virtual bool isModerator() const;
+
+    /**
+     * @brief Returns if peer associated to the session, is recording or not the call
+     *
+     * @return True if peer associated to the session is recording the call, otherwise returns false
+     */
+    virtual bool isRecording() const;
 
     /**
      * @brief Returns if peer associated to the session, has speak permission
@@ -2460,7 +2475,7 @@ public:
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
         TYPE_UPDATE_SCHEDULED_MEETING, TYPE_WR_PUSH, TYPE_WR_ALLOW, TYPE_WR_KICK,
-        TYPE_RING_INDIVIDUAL_IN_CALL,
+        TYPE_RING_INDIVIDUAL_IN_CALL, TYPE_MUTE,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -4232,6 +4247,9 @@ public:
     /**
      * @brief Allows to enable/disable the speak request option for a chat room
      * 
+     * @note: This method is temporarily disabled so, on the onRequestFinish the error code associated
+     * to the MegaChatError can be MegaChatError::ERROR_ARGS
+     *
      * If speak request option is enabled, during calls non moderator users, must request permission to speak
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
@@ -5989,6 +6007,9 @@ public:
     /**
      * @brief Start a call in a chat room
      *
+     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true
+     *
      * @note This method is not valid for chatrooms with waiting room option enabled, use MegaChatApi::startMeetingInWaitingRoomChat instead.
      * Use MegaChatRoom::isWaitingRoom() to check if that option is enabled or not.
      *
@@ -6046,6 +6067,9 @@ public:
 
     /**
      * @brief Start a call in a chatroom without ringing the participants (just for scheduled meeting context)
+     *
+     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true
      *
      * When a scheduled meeting exists for a chatroom, and a call is started in that scheduled meeting context, it won't
      * ring the participants.
@@ -6142,6 +6166,9 @@ public:
     /**
      * @brief Answer a call received in a chat room
      *
+     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
@@ -6184,6 +6211,9 @@ public:
 
     /**
      * @brief Starts a call in a chatroom with waiting room option enabled
+     *
+     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true
      *
      * When waiting room option is enabled for a chatroom, you can start a call in two different ways.
      *   - start a waiting room call, where all participants will be redirected to waiting room, when they start/answer a call,
@@ -6467,6 +6497,26 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = NULL);
+
+    /** @brief Mute a specific client or all of them in a call
+     * This method can be called only by users with moderator role
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_MUTE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the user handle for the user we want to mute, or MEGACHAT_INVALID_HANDLE
+     * in case we want to mute all peers
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom, or there's no session with provided clientId
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies the client we want to mute, or MEGACHAT_INVALID_HANDLE to mute all participants
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Allow a list of users in the waiting room to join the call.
@@ -8984,14 +9034,14 @@ public:
     virtual size_t size() const                         { return 0; };
 
     /**
-     * @brief Returns the waiting room joining status for the specified peer id
+     * @brief Returns the waiting room joining status for the specified user id
      *
      * Valid values are:
      *  - MegaChatWaitingRoom::MWR_UNKNOWN      = -1,   // client unknown joining status
      *  - MegaChatWaitingRoom::MWR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
      *  - MegaChatWaitingRoom::MWR_ALLOWED      = 1,    // client is allowed to join call (no further action required from app to JOIN call)
      *
-     * @return The waiting room joining status for the specified peer
+     * @return The waiting room joining status for the specified user
      */
     virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
 

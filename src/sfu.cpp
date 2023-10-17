@@ -43,6 +43,7 @@ const std::string WrAllowCommand::COMMAND_NAME          = "WR_ALLOW";       // N
 const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";        // Notifies that our user permission to enter the call has been denied (from waiting room)
 const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted to enter the call.
 const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied to enter the call
+const std::string MutedCommand::COMMAND_NAME            = "MUTED";          // Notifies that our audio has been muted remotely by a host user
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
@@ -61,6 +62,7 @@ const std::string SfuConnection::CSFU_BYE               = "BYE";            // C
 const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // Command sent to push all clients of sent peerId's (that are in the call) to the waiting room
 const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // Command sent to grant the specified users the permission to enter the call from the waiting room
 const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";        // Command sent to disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room
+const std::string SfuConnection::CSFU_MUTE              = "MUTE";           // Command sent to mute specific or all clients in a call
 
 CommandsQueue::CommandsQueue():
     isSending(false)
@@ -95,7 +97,6 @@ Peer::Peer(const karere::Id& peerid, const sfu::SfuProtocol sfuProtoVersion, con
       mAvFlags(static_cast<uint8_t>(avFlags)),
       mIvs(ivs ? *ivs : std::vector<std::string>()),
       mIsModerator(isModerator),
-      mEphemeralKeyPms(promise::Promise<void>()),
       mSfuPeerProtoVersion(sfuProtoVersion)
 {
 }
@@ -107,7 +108,6 @@ Peer::Peer(const Peer& peer)
     , mIvs(peer.mIvs)
     , mIsModerator(peer.mIsModerator)
     , mEphemeralPubKeyDerived(peer.getEphemeralPubKeyDerived())
-    , mEphemeralKeyPms(peer.getEphemeralPubKeyPms())
     , mSfuPeerProtoVersion(peer.getPeerSfuVersion())
 {
 }
@@ -177,40 +177,28 @@ void Peer::setIvs(const std::vector<std::string>& ivs)
 
 std::string Peer::getEphemeralPubKeyDerived() const
 {
-    if (mEphemeralKeyPms.done())
-    {
-        return mEphemeralPubKeyDerived;
-    }
-    else
-    {
-        return std::string();
-    }
+    return mEphemeralPubKeyDerived;
 }
 
-const promise::Promise<void>& Peer::getEphemeralPubKeyPms() const
-{
-    return mEphemeralKeyPms;
-}
-
-void Peer::setEphemeralPubKeyDerived(const std::string& key)
+bool Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
     if (!sfu::isValidSfuVersion(getPeerSfuVersion()))
     {
-        SFU_LOG_WARNING("setEphemeralPubKeyDerived: invalid SFU version for PeerId: %s Cid: %u",
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: Invalid SFU version for PeerId: %s Cid: %u",
                         getPeerid().toString().c_str() ,getCid());
-        assert(false);
-        return;
+        return false;
     }
 
     if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
     {
-        mEphemeralKeyPms.reject("Empty ephemeral key");
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: Empty ephemeral key for PeerId: %s Cid: %u",
+                        getPeerid().toString().c_str() ,getCid());
+        return false;
     }
-    else // peers that uses sfu protocol V0, doesn't provide an ephemeral key
-    {
-        mEphemeralPubKeyDerived = key;
-        mEphemeralKeyPms.resolve();
-    }
+
+    // peers that uses sfu protocol V0, doesn't provide an ephemeral key
+    mEphemeralPubKeyDerived = key;
+    return true;
 }
 
 void Peer::setAvFlags(karere::AvFlags flags)
@@ -684,6 +672,10 @@ SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete, Sf
 
 bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
 {
+    // remove this when SFU is ready
+    SFU_LOG_ERROR("SpeakReqsCommand::processCommand - command temporarily disabled");
+    return true;
+
     rapidjson::Value::ConstMemberIterator cidsIterator = command.FindMember("cids");
     if (cidsIterator == command.MemberEnd() || !cidsIterator->value.IsArray())
     {
@@ -717,6 +709,10 @@ SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &comple
 
 bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 {
+    // remove this when SFU is ready
+    SFU_LOG_ERROR("SpeakReqDelCommand::processCommand - command temporarily disabled");
+    return true;
+
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
@@ -755,7 +751,11 @@ SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete, SfuIn
 }
 
 bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
-{    
+{
+    // remove this when SFU is ready
+    SFU_LOG_ERROR("SpeakOffCommand::processCommand - command temporarily disabled");
+    return true;
+
     Cid_t cid = 0;
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
@@ -1606,6 +1606,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[WrDenyCommand::COMMAND_NAME] = mega::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call, std::placeholders::_1), call);
     commands[WrUsersAllowCommand::COMMAND_NAME] = mega::make_unique<WrUsersAllowCommand>(std::bind(&sfu::SfuInterface::handleWrUsersAllow, &call, std::placeholders::_1), call);
     commands[WrUsersDenyCommand::COMMAND_NAME] = mega::make_unique<WrUsersDenyCommand>(std::bind(&sfu::SfuInterface::handleWrUsersDeny, &call, std::placeholders::_1), call);
+    commands[MutedCommand::COMMAND_NAME] = mega::make_unique<MutedCommand>(std::bind(&sfu::SfuInterface::handleMutedCommand, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
@@ -2129,6 +2130,37 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
     return sendWrCommand(SfuConnection::CSFU_WR_KICK, users);
 }
 
+bool SfuConnection::sendMute(const Cid_t& cid, const unsigned av)
+{
+    if (av != karere::AvFlags::kAudio)
+    {
+        // remove this checkup when video mute is implemented by SFU
+        SFU_LOG_WARNING("sendMute: Av flags not supported by SFU for MUTE command");
+        assert(false);
+        return false;
+    }
+
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    cmdValue.SetString(SfuConnection::CSFU_MUTE.c_str(), json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
+
+    rapidjson::Value avValue(rapidjson::kNumberType);
+    avValue.SetUint(av);
+    json.AddMember(rapidjson::Value("av"), avValue, json.GetAllocator());
+
+    if (cid != K_INVALID_CID)
+    {
+        json.AddMember("cid", cid, json.GetAllocator());
+    }
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
+}
+
 bool SfuConnection::avoidReconnect() const
 {
     return mAvoidReconnect;
@@ -2640,6 +2672,26 @@ bool ByeCommand::processCommand(const rapidjson::Document& command)
     }
 
     return mComplete(reasonIterator->value.GetUint() /*termcode */, wr, errMsg);
+}
+
+MutedCommand::MutedCommand(const MutedCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool MutedCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator avIterator = command.FindMember("av");
+    if (avIterator == command.MemberEnd() || !avIterator->value.IsInt())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'av' field");
+        return false;
+    }
+
+    unsigned av = avIterator->value.GetUint();
+
+    return mComplete(av);
 }
 
 ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)
