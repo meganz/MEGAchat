@@ -755,6 +755,83 @@ void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlag
     }
 }
 
+TEST_F(MegaChatApiTest, BasicTest)
+{
+    std::function<void()> testCleanup = [this] () -> void
+    {
+        closeOpenedChatrooms();     // close opened chatrooms
+        cleanChatVideoListeners();  // clean registered videolisteners (if any)
+        logoutTestAccounts();       // logout from all logged in accounts
+    };
+    MegaMrProper p (testCleanup);
+
+    //========================================================================//
+    // Test preparation: login, get chatroom ...
+    //========================================================================//
+
+    // login into all involved accounts for this test, and establish required contact relationships
+    // Note: all involved accounts in this test, must be added to mSessions and mAccounts
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+    mData.mSessions.emplace(a1, login(a1));
+    mData.mSessions.emplace(a2, login(a2));
+    const MegaChatHandle a1Uh = megaChatApi[a1]->getMyUserHandle();
+    const MegaChatHandle a2Uh = megaChatApi[a2]->getMyUserHandle();
+    mData.mAccounts.emplace(a1, a1Uh);
+    mData.mAccounts.emplace(a2, a2Uh);
+    ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid(););
+    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2););
+    ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts(););
+
+    // set chat selection criteria
+    mData.mChatOptions.mCreate          = true;
+    mData.mChatOptions.mPublicChat      = true;
+    mData.mChatOptions.mMeetingRoom     = false;
+    mData.mChatOptions.mWaitingRoom     = false;
+    mData.mChatOptions.mSpeakRequest    = false;
+    mData.mChatOptions.mOpenInvite      = false;
+
+    // set chat operator idx and privileges, and create chat participants list
+    // chat operator idx corresponds with idx of account from which we retrieve chatroom
+    mData.mChatOptions.mChatOpIdx = a1;
+    mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
+    mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
+    mData.mChatOptions.mChatPeerList->addPeer(a2Uh, MegaChatPeerList::PRIV_STANDARD);
+    mData.mChatOptions.mChatPeerIdx.emplace_back(a2);
+
+    // get a group chatroom
+    LOG_verbose << "Get a chatroom for test";
+    mData.mChatid = getGroupChatRoom();
+    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Can't get a chatroom with selected criteria";
+
+    // open chatroom (just add chatroom listeners for chatroom participants)
+    //std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, mData.mChatid));
+    auto crl = std::make_shared<TestChatRoomListener>(this, megaChatApi, mData.mChatid);
+    mData.mChatroomListeners.emplace(a1, crl);
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
+    mData.mChatroomListeners.emplace(a2, crl);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a2 account";
+
+    // load history
+    ASSERT_GE(loadHistory(a1, mData.mChatid, crl.get()), 0);
+    ASSERT_GE(loadHistory(a2, mData.mChatid, crl.get()), 0);
+
+    // add video listeners
+    ASSERT_TRUE(addChatVideoListener(a1, mData.mChatid)) << "Cannot register a video listener for a1 account";
+    ASSERT_TRUE(addChatVideoListener(a2, mData.mChatid)) << "Cannot register a video listener for a2 account";
+
+    // set test operator role index (will be the account in charge of performing all operations)
+    // This index can be changed at any point of the test. Every auxiliar method will check for
+    // mData.mOpIdx to get the index of account with operator role
+    mData.mOpIdx = a1;
+
+    //========================================================================//
+    // Test1: Change chatroom title from a1
+    //========================================================================//
+    LOG_verbose << "Change chatroom title from a1";
+    setChatTitle(std::string("Title ") + std::to_string(time(NULL)), 120 /*waitSecs*/);
+}
+
 /**
  * @brief MegaChatApiTest.ResumeSession
  *
@@ -4196,16 +4273,6 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     megaChatApi[a2]->removeChatLocalVideoListener(chatid, &localVideoListenerB);
 }
 
-struct MrProper
-{
-    MrProper(std::function<void(MegaChatHandle)> f, const MegaChatHandle chatid)
-        : mCleanup(f), mChatid(chatid){}
-
-    std::function<void(MegaChatHandle)> mCleanup;
-    MegaChatHandle mChatid;
-    ~MrProper() { mCleanup(mChatid); }
-};
-
 /**
  * @brief MegaChatApiTest.RaiseHandToSpeakCall
  * - Test1: A starts call in a meeting room with speak request option enabled, B answers
@@ -6673,7 +6740,7 @@ void MegaChatApiTest::initChat(unsigned int a1, unsigned int a2, MegaUser*& user
     loadHistory(a2, chatid, chatroomListener);
 }
 
-int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chatid, TestChatRoomListener *chatroomListener)
+int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChatHandle chatid, TestChatRoomListener* chatroomListener)
 {
     // first of all, ensure the chatd connection is ready
     bool *flagChatdOnline = &mChatConnectionOnline[accountIndex]; *flagChatdOnline = false;
@@ -6683,7 +6750,7 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
         bool responseOk = waitForResponse(flagChatdOnline);
         EXPECT_TRUE(responseOk) << "Timeout expired for connecting to chatd";
         *flagChatdOnline = false;
-        if (!responseOk) return 0;
+        if (!responseOk) return MegaChatError::ERROR_TOOMANY;
     }
 
     chatroomListener->msgCount[accountIndex] = 0;
@@ -6701,7 +6768,7 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
         bool responseOk = waitForResponse(flagHistoryLoaded);
         EXPECT_TRUE(responseOk) << "Timeout expired for loading history from chat: " << hstr;
         delete [] hstr;
-        if (!responseOk) return 0;
+        if (!responseOk) return MegaChatError::ERROR_ACCESS;
     }
 
     return chatroomListener->msgCount[accountIndex];
@@ -6709,6 +6776,8 @@ int MegaChatApiTest::loadHistory(unsigned int accountIndex, MegaChatHandle chati
 
 void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
 {
+    if (areContact(a1, a2)) { return; }
+
     bool *flagRequestInviteContact = &requestFlags[a1][MegaRequest::TYPE_INVITE_CONTACT];
     *flagRequestInviteContact = false;
     bool *flagContactRequestUpdatedSecondary = &mContactRequestUpdated[a2];
@@ -6760,6 +6829,105 @@ bool MegaChatApiTest::isChatroomUpdated(unsigned int index, MegaChatHandle chati
     }
     return false;
 }
+
+bool MegaChatApiTest::addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid)
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    auto res = mData.mMapLocalVideoListeners.emplace(idx, TestChatVideoListener());
+    if (res.second)
+    {
+       TestChatVideoListener& vl = res.first->second;
+       megaChatApi[idx]->addChatLocalVideoListener(chatid, &vl);
+       return true;
+    }
+#else
+    LOG_debug << "KARERE_DISABLE_WEBRTC is defined so you cannot use TestChatVideoListener";
+#endif
+    return false;
+}
+
+void MegaChatApiTest::cleanChatVideoListeners()
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    std::for_each(mData.mMapLocalVideoListeners.begin(), mData.mMapLocalVideoListeners.end(), [this](auto& it)
+    {
+        removeChatVideoListener(it.first, mData.mChatid, it.second);
+    });
+#else
+    LOG_verbose << "cleanChatVideoListeners: KARERE_DISABLE_WEBRTC is defined so there's no TestChatVideoListeners registered";
+#endif
+}
+
+void MegaChatApiTest::logoutTestAccounts()
+{
+    std::for_each(mData.mSessions.begin(), mData.mSessions.end(), [this](const auto& it)
+    {
+        ASSERT_NO_FATAL_FAILURE( logout(it.first, true /*destroy session*/); );
+    });
+}
+
+void MegaChatApiTest::closeOpenedChatrooms()
+{
+    std::for_each(mData.mChatroomListeners.begin(), mData.mChatroomListeners.end(), [this](const auto& it)
+    {
+        megaChatApi[it.first]->closeChatRoom(mData.mChatid, it.second.get());
+    });
+}
+
+bool MegaChatApiTest::removeChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid, TestChatVideoListener& vl)
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    megaChatApi[idx]->removeChatLocalVideoListener(chatid, &vl);
+    return true;
+#else
+    LOG_debug << "removeChatVideoListener: KARERE_DISABLE_WEBRTC is defined so you cannot use TestChatVideoListener";
+    return false;
+#endif
+}
+
+MegaChatHandle MegaChatApiTest::getGroupChatRoom()
+{
+    ChatroomCreationOptions& opt = mData.mChatOptions;
+    return getGroupChatRoom(mData.getIdxVector(), opt.mChatPeerList.get(),
+                            opt.mOpPriv, opt.mCreate, opt.mPublicChat,
+                            opt.mMeetingRoom, opt.mWaitingRoom, opt.mSpeakRequest, opt.mSchedMeetingData.get());
+}
+
+void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int waitSecs)
+{
+    auto& crlisteners = mData.mChatroomListeners;
+    std::for_each(crlisteners.begin(), crlisteners.end(), [this](const auto& it)
+    {
+        auto idx = it.first;
+        // add flag to wait for onChatListItemUpdate(CHANGE_TYPE_TITLE)
+        mBools.add(idx, "titleItemChanged", false /*val*/, true/*override*/);
+
+        // add flag to wait for onChatRoomUpdate(CHANGE_TYPE_TITLE)
+        mBools.add(idx, "titleChanged", false /*val*/, true/*override*/);
+    });
+
+    ChatRequestTracker crtSetTitle;
+    auto opIdx = getOpIdx();
+    megaChatApi[opIdx]->setChatTitle(mData.mChatid, title.c_str(), &crtSetTitle);
+    ASSERT_EQ(crtSetTitle.waitForResult(static_cast<int>(waitSecs)), MegaChatError::ERROR_OK)
+                                                                    << "Failed to set chat title from account "
+                                                                    << mData.mOpIdx <<". Error: "
+                                                                    << crtSetTitle.getErrorString();
+
+    std::for_each(crlisteners.begin(), crlisteners.end(), [this](const auto& it)
+    {
+        auto idx = it.first;
+        auto f1 = mBools.get(idx, "titleItemChanged");
+        ASSERT_TRUE(f1) << "titleItemChanged wait flag not found for account: " << idx;
+        ASSERT_TRUE(waitForResponse(f1)) << "Timeout expired for receiving chat list item update";
+        mBools.remove(idx, "titleItemChanged");
+
+        auto f2 = mBools.get(idx, "titleChanged");
+        ASSERT_TRUE(f2) << "titleChanged wait flag not found for account: " << idx;
+        ASSERT_TRUE(waitForResponse(f2)) << "Timeout expired for receiving chatroom update";
+        mBools.remove(idx, "titleChanged");
+    });
+};
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>& a, MegaChatPeerList* peers,
                                                  const int a1Priv, const bool create, const bool publicChat,
@@ -7880,6 +8048,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
         {
+            mBools.update(apiIndex, "titleItemChanged", true);
             titleUpdated[apiIndex] = true;
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_ARCHIVE))
@@ -8253,6 +8422,7 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         }
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_TITLE))
         {
+            t->getBoolVars().update(apiIndex, "titleChanged", true);
             titleUpdated[apiIndex] = true;
         }
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_ARCHIVE))
