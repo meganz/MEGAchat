@@ -857,20 +857,9 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 
     std::function<void()> testCleanup = [this] () -> void
     {
-        // close chatroom for all accounts that opened it
-        std::for_each(mData.mChatroomListeners.begin(), mData.mChatroomListeners.end(), [this](const auto& it)
-        {
-            megaChatApi[it.first]->closeChatRoom(mData.mChatid, it.second.get());
-        });
-
-        // logout from all logged in accounts
-        std::for_each(mData.mSessions.begin(), mData.mSessions.end(), [this](const auto& it)
-        {
-            ASSERT_NO_FATAL_FAILURE({ logout(it.first, true /*destroy session*/); });
-        });
-
-        // clean registered videolisteners (if any)
-        cleanChatVideoListeners();
+        closeOpenedChatrooms();     // close opened chatrooms
+        cleanChatVideoListeners();  // clean registered videolisteners (if any)
+        logoutTestAccounts();       // logout from all logged in accounts
     };
     MegaMrProper p (testCleanup);
 
@@ -892,10 +881,10 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     mData.mAccounts.emplace(a1, a1Uh);
     mData.mAccounts.emplace(a2, a2Uh);
     mData.mAccounts.emplace(a3, a3Uh);
-    ASSERT_NO_FATAL_FAILURE({ mData.areSessionsValid(); });
-    ASSERT_NO_FATAL_FAILURE({ makeContact(a1, a2); });
-    ASSERT_NO_FATAL_FAILURE({ makeContact(a1, a3); });
-    ASSERT_NO_FATAL_FAILURE({ mData.checkSessionsAndAccounts(); });
+    ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid(););
+    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2););
+    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3););
+    ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts(););
 
     // set chat selection criteria
     mData.mChatOptions.mCreate          = true;
@@ -960,7 +949,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     ASSERT_TRUE(addBoolExitFlag(a3, "CallReceived"  , false, true /*override*/));   // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
     ASSERT_TRUE(addBoolExitFlag(a1, "CallWR"        , false, true /*override*/));   // a1 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
     ASSERT_TRUE(addBoolExitFlag(a1, "CallInProgress", false, true /*override*/));   // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-    startWaitingRoomCall(a1, mData.mChatid, schedId, false /*enableVideo*/,
+    startWaitingRoomCall(a1, mData.mChatid, schedId , false /*enableVideo*/,
                          false /*enableAudio*/, exitFlags, strFlags);
 
     // a2 answers call
