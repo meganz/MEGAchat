@@ -3052,7 +3052,9 @@ bool Call::checkWrCommandReqs(std::string && commandStr, bool mustBeModerator)
 
 bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr)
 {
-    if (!checkWrCommandReqs(commandStr.c_str(), true /*mustBeModerator*/))
+    // Non-host Users (with standard permissions) can send WR_ALLOW if open invite is enabled, so they can process WR_USERS_ALLOW
+    const bool mustBeModerator = !allow;
+    if (!checkWrCommandReqs(commandStr.c_str(), mustBeModerator))
     {
         return false;
     }
@@ -3064,17 +3066,20 @@ bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool al
         return false;
     }
 
-    if (!mWaitingRoom)
+    if (isOwnPrivModerator())
     {
-        RTCM_LOG_WARNING("%s : mWaitingRoom is null", commandStr.c_str());
-        assert(false);
-        mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
-    }
+        if (!mWaitingRoom)
+        {
+            RTCM_LOG_WARNING("%s : mWaitingRoom is null", commandStr.c_str());
+            assert(false);
+            mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
+        }
 
-    if (!mWaitingRoom->updateUsers(users, allow ? sfu::WrState::WR_ALLOWED : sfu::WrState::WR_NOT_ALLOWED))
-    {
-        RTCM_LOG_WARNING("%s : could not update users status in waiting room", commandStr.c_str());
-        return false;
+        if (!mWaitingRoom->updateUsers(users, allow ? sfu::WrState::WR_ALLOWED : sfu::WrState::WR_NOT_ALLOWED))
+        {
+            RTCM_LOG_WARNING("%s : could not update users status in waiting room", commandStr.c_str());
+            return false;
+        }
     }
 
     std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());
