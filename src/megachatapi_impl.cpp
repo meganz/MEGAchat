@@ -1514,6 +1514,7 @@ int MegaChatApiImpl::performRequest_attachNodeMessage(MegaChatRequestPrivate* re
                 {
                     request->setMegaChatMessage(msg);
                     errorCode = MegaChatError::ERROR_OK;
+                    delete msg;
                 }
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
@@ -1532,6 +1533,7 @@ int MegaChatApiImpl::performRequest_attachNodeMessage(MegaChatRequestPrivate* re
                     {
                         request->setMegaChatMessage(msg);
                         errorCode = MegaChatError::ERROR_OK;
+                        delete msg;
                     }
 
                     megaChatError = new MegaChatErrorPrivate(errorCode);
@@ -1583,6 +1585,7 @@ int MegaChatApiImpl::performRequest_revokeNodeMessage(MegaChatRequestPrivate* re
                 {
                     errorCode = MegaChatError::ERROR_ARGS;
                 }
+                delete megaMsg;
 
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
                 fireOnChatRequestFinish(request, megaChatError);
@@ -9384,6 +9387,14 @@ MegaChatError *MegaChatErrorPrivate::copy()
 MegaChatRoomListPrivate::MegaChatRoomListPrivate()
 {
 
+}
+
+MegaChatRoomListPrivate::~MegaChatRoomListPrivate()
+{
+    for (auto* c : mList)
+    {
+        delete c;
+    }
 }
 
 MegaChatRoomListPrivate::MegaChatRoomListPrivate(const MegaChatRoomListPrivate *list)

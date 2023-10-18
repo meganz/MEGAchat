@@ -1213,7 +1213,7 @@ bool Client::initWithNewSession(const char* sid, const std::string& scsn,
 {
     assert(sid);
 
-    mSid = sid;
+    mSid = sid ? sid : "";
     try
     {
         createDb();
@@ -1576,7 +1576,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
-        auto sid = std::make_shared<std::string>(api.sdk.dumpSession());
+        std::unique_ptr<char[]> sid(api.sdk.dumpSession());
         assert(sid);
 
 #ifndef NDEBUG
@@ -1584,7 +1584,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 #endif
 
         auto wptr = weakHandle();
-        marshallCall([wptr, this, state, scsn, contactList, chatList, sid]()
+        marshallCall([wptr, this, state, scsn, contactList, chatList, sess = std::move(sid)]()
         {
             if (wptr.deleted())
                 return;
@@ -1608,7 +1608,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
-                if (initWithNewSession(sid->c_str(), scsn, *contactList, *chatList))
+                if (initWithNewSession(sess.get(), scsn, *contactList, *chatList))
                 {
                     setInitState(kInitHasOnlineSession);
                     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
