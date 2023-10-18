@@ -3054,7 +3054,7 @@ bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool al
 {
     // Non-host Users (with standard permissions) can send WR_ALLOW if open invite is enabled, so they can process WR_USERS_ALLOW
     const bool mustBeModerator = !allow;
-    if (!checkWrCommandReqs(commandStr.c_str(), mustBeModerator)) // check is speak request enabled??
+    if (!checkWrCommandReqs(commandStr.c_str(), mustBeModerator))
     {
         return false;
     }
