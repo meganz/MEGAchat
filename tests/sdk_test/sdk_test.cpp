@@ -7210,7 +7210,7 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned 
         bool *flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
         bool *flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
         ChatRequestTracker crtCreateChat;
-        megaChatApi[a1]->createChat(true, peers, &crtCreateChat);
+        megaChatApi[a1]->createChat(false, peers, &crtCreateChat);
         auto result = crtCreateChat.waitForResult();
         EXPECT_EQ(result, MegaChatError::ERROR_OK) << "Failed to create new chatroom. Error: " << crtCreateChat.getErrorString();
         if (result != MegaChatError::ERROR_OK) return MEGACHAT_INVALID_HANDLE;
