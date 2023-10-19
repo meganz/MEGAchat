@@ -831,6 +831,10 @@ void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlag
     }
 }
 
+/**
+ * @brief MegaChatApiTest.BasicTest
+ * + This test can be taken as reference for creating new ones.
+ */
 TEST_F(MegaChatApiTest, BasicTest)
 {
     //========================================================================//
@@ -913,6 +917,10 @@ TEST_F(MegaChatApiTest, BasicTest)
     setChatTitle(std::string("Title ") + std::to_string(time(NULL)), 120 /*waitSecs*/);
 }
 
+/**
+ * @brief MegaChatApiTest.WaitingRoomsJoiningOrder
+ * + Test1: Check Waiting room order from A, when B and C answer call.
+ */
 TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 {
     //========================================================================//
@@ -1017,7 +1025,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     mData.mOpIdx = a1;
 
     //============================================================================//
-    // Test1: Check Waiting room order.
+    // Test1: Check Waiting room order from A, when B and C answer call.
     //        A Starts call with waiting room enabled. B and C answers call,
     //        ensure that users in WR are ordered by joining time.
     //============================================================================//
