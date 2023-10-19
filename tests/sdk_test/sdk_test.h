@@ -555,7 +555,7 @@ protected:
      */
     void setChatTitle(const std::string& title, const unsigned int waitSecs = maxTimeout);
 
-    megachat::MegaChatHandle getPeerToPeerChatRoom(unsigned int a1, unsigned int a2);
+    megachat::MegaChatHandle getPeerToPeerChatRoom(const unsigned int a1, const unsigned int a2);
 
     // send msg, wait for confirmation, reception by other side, delivery status. Returns ownership of confirmed msg
     megachat::MegaChatMessage *sendTextMessageOrUpdate(unsigned int senderAccountIndex, unsigned int receiverAccountIndex,
