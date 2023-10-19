@@ -644,6 +644,51 @@ bool MegaChatApiTest::exitWait(const std::vector<bool *>&responsesReceived, bool
     return waitForAll; // true (all received) false (none received)
 };
 
+bool MegaChatApiTest::exitWait(ExitBoolFlags& eF, const bool waitForAll) const
+{
+    return waitForAll
+        ? eF.allEqualTo(true)
+        : eF.anyEqualTo(true);
+};
+
+bool MegaChatApiTest::waitForMultiResponse(ExitBoolFlags& eF, bool waitForAll, unsigned int timeout) const
+{
+    timeout *= 1000000; // convert to micro-seconds
+    unsigned int tWaited = 0;    // microseconds
+    bool connRetried = false;
+    while (!exitWait(eF, waitForAll))
+    {
+        std::this_thread::sleep_for(std::chrono::microseconds(pollingT));
+
+        if (timeout)
+        {
+            tWaited += pollingT;
+            if (tWaited >= timeout)
+            {
+                return false;   // timeout is expired
+            }
+            else if (!connRetried && tWaited > (pollingT * 10))
+            {
+                for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
+                {
+                    if (megaApi[i] && megaApi[i]->isLoggedIn())
+                    {
+                        megaApi[i]->retryPendingConnections();
+                    }
+
+                    if (megaChatApi[i] && megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION)
+                    {
+                        megaChatApi[i]->retryPendingConnections();
+                    }
+                }
+                connRetried = true;
+            }
+        }
+    }
+
+    return true;    // responses have been received
+}
+
 bool MegaChatApiTest::waitForMultiResponse(std::vector<bool *>responsesReceived, bool waitForAll, unsigned int timeout) const
 {
     timeout *= 1000000; // convert to micro-seconds
@@ -719,6 +764,36 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
     }
 
     return true;    // response is received
+}
+
+void MegaChatApiTest::waitForAction(int maxAttempts, ExitBoolFlags& eF, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action)
+{
+    ASSERT_TRUE(action) << "waitForAction: no valid action provided";
+
+    if (resetFlags)
+    {
+        ASSERT_TRUE(eF.updateAll(false)) << "waitForAction: Cannot reset all ExitBoolFlags";
+    }
+
+    int retries = 0;
+    while (!exitWait(eF, waitForAll))
+    {
+        action();
+        if (!waitForMultiResponse(eF, waitForAll, timeout))
+        {
+            std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(":\n ");
+            for (size_t i = 0; i < eF.size(); i++)
+            {
+                auto res = eF.at(i);
+                if (!res.first) { continue; }
+
+                msg += "Flag_" + std::to_string(i) + ": " + res.second.first
+                    + (*res.second.second ? " (true)" : " (false)") + "\n";
+            }
+            LOG_debug << msg;
+            ASSERT_LE(++retries, maxAttempts) << "Max attempts exceeded for " << actionMsg;
+        }
+    }
 }
 
 void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action)
@@ -834,27 +909,6 @@ TEST_F(MegaChatApiTest, BasicTest)
 
 TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 {
-    std::vector<bool *> exitFlags;
-    std::vector<string> strFlags;
-    auto addBoolExitFlag = [this, &exitFlags, &strFlags](const unsigned int i, const std::string& n, const bool val, const bool override) -> bool
-    {
-        bool* f = mAuxBool.add(i, n, val, override);
-        if (f)
-        {
-            exitFlags.emplace_back(f);
-            strFlags.emplace_back(n + std::to_string(i));
-            return true;
-        }
-        return false;
-    };
-
-    auto cleanBoolExitFlag = [this, &exitFlags, &strFlags]() ->void
-    {
-        mAuxBool.cleanAll();
-        exitFlags.clear();
-        strFlags.clear();
-    };
-
     std::function<void()> testCleanup = [this] () -> void
     {
         closeOpenedChatrooms();     // close opened chatrooms
@@ -944,27 +998,25 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     //============================================================================//
     LOG_verbose << "Test1: Check Waiting room order";
     // a1 starts call with waiting room enabled
-    ASSERT_TRUE(addBoolExitFlag(a1, "CallReceived"  , false, true /*override*/));   // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    ASSERT_TRUE(addBoolExitFlag(a2, "CallReceived"  , false, true /*override*/));   // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    ASSERT_TRUE(addBoolExitFlag(a3, "CallReceived"  , false, true /*override*/));   // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    ASSERT_TRUE(addBoolExitFlag(a1, "CallWR"        , false, true /*override*/));   // a1 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    ASSERT_TRUE(addBoolExitFlag(a1, "CallInProgress", false, true /*override*/));   // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-    startWaitingRoomCall(a1, mData.mChatid, schedId , false /*enableVideo*/,
-                         false /*enableAudio*/, exitFlags, strFlags);
+    ExitBoolFlags eF;
+    ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallReceived"  , false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    ASSERT_TRUE(addBoolExitFlag(a2, eF, "CallReceived"  , false, true /*override*/));           // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    ASSERT_TRUE(addBoolExitFlag(a3, eF, "CallReceived"  , false, true /*override*/));           // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallWR"        , false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallInProgress", false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    startWaitingRoomCall(a1, eF, mData.mChatid, schedId , false /*audio*/, false /*video*/);
 
     // a2 answers call
-    cleanBoolExitFlag(); // clean flags
-    ASSERT_TRUE(addBoolExitFlag(a2, "CallWR"        , false, true /*override*/));   // a2 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    ASSERT_TRUE(addBoolExitFlag(a1, "CallWrChanged" , false, true /*override*/));   // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
-    answerChatCall(a2, mData.mChatid, false /*enableVideo*/, false /*enableAudio*/,
-                   exitFlags, strFlags);
+    ExitBoolFlags eF1;
+    ASSERT_TRUE(addBoolExitFlag(a2, eF1, "CallWR"        , false, true /*override*/));          // a2 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    ASSERT_TRUE(addBoolExitFlag(a1, eF1, "CallWrChanged" , false, true /*override*/));          // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
+    answerChatCall(a2, eF1, mData.mChatid, false /*video*/, false /*audio*/);
 
     // a3 answers call
-    cleanBoolExitFlag(); // clean flags
-    ASSERT_TRUE(addBoolExitFlag(a3, "CallWR"        , false, true /*override*/));   // a3 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    ASSERT_TRUE(addBoolExitFlag(a1, "CallWrChanged" , false, true /*override*/));   // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
-    answerChatCall(a3, mData.mChatid, false /*enableVideo*/, false /*enableAudio*/,
-                   exitFlags, strFlags);
+    ExitBoolFlags eF2;
+    ASSERT_TRUE(addBoolExitFlag(a3, eF2, "CallWR"        , false, true /*override*/));          // a3 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    ASSERT_TRUE(addBoolExitFlag(a1, eF2, "CallWrChanged" , false, true /*override*/));          // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
+    answerChatCall(a3, eF2, mData.mChatid, false /*video*/, false /*audio*/);
 
     // a1 checks waiting room participants order
     std::unique_ptr<MegaChatCall>call(megaChatApi[a1]->getChatCall(mData.mChatid));
@@ -7081,14 +7133,19 @@ void MegaChatApiTest::initLocalSchedMeeting(const MegaChatHandle chatId, const M
                                                                      rulesByMonthWeekDay));
 }
 
-void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,
-                                           const bool enableVideo, const bool enableAudio,
-                                           const std::vector<bool *>& exitFlags, const std::vector<string>& strFlags)
+bool MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool override)
+{
+    bool* f = mAuxBool.add(i, n, val, override);
+    if (!f) { return false; };
+    return eF.addOrUpdate(n, f, override);
+};
+
+void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,
+                                           const bool enableVideo, const bool enableAudio)
 {
     ASSERT_NO_FATAL_FAILURE({
         waitForAction (1,  /* just one attempt */
-                      exitFlags,
-                      strFlags,
+                      eF,
                       "starting call in a chatroom with waiting room option enabled",
                       true /* wait for all exit flags */,
                       true /* reset flags */,
@@ -7103,14 +7160,12 @@ void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, const M
     });
 }
 
-void MegaChatApiTest::answerChatCall(unsigned int calleeIdx, const MegaChatHandle chatid,
-                                           const bool enableVideo, const bool enableAudio,
-                                           const std::vector<bool *>& exitFlags, const std::vector<string>& strFlags)
+void MegaChatApiTest::answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const MegaChatHandle chatid,
+                                           const bool enableVideo, const bool enableAudio)
 {
     ASSERT_NO_FATAL_FAILURE({
         waitForAction (1, /* just one attempt */
-                      exitFlags,
-                      strFlags,
+                      eF,
                       "answering chat call",
                       true /* wait for all exit flags*/,
                       true /*reset flags*/,

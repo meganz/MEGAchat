@@ -363,13 +363,16 @@ public:
         }
 
         // adds a new entry in map <variable name, val<T>>
-        bool* add(const unsigned int i, const std::string_view n, T val, const bool override)
+        T* add(const unsigned int i, const std::string_view n, const T val, const bool override)
         {
             if (!validInput(i, n)) { return nullptr; }
 
-            if (mVarsMap[i].find(std::string{n}) != mVarsMap[i].end() && !override)
+            auto it = mVarsMap[i].find(std::string{n});
+            if (it != mVarsMap[i].end())
             {
-                return nullptr;
+                if (!override) { return nullptr; }
+                it->second = val;
+                return &it->second;
             }
 
             auto res = mVarsMap[i].emplace(std::string{n}, val);
@@ -441,6 +444,107 @@ public:
         std::map<std::string, T> mVarsMap[NUM_ACCOUNTS];
     };
 
+    /**
+     * @brief Stores pairs of <string, bool*>
+     * It can be used to store a subset of variables of mAuxBool, and provide to methods like waitForAction,
+     * that will execute an action and wait until (any or all) provided flags has been set true
+     */
+    struct ExitBoolFlags
+    {
+        std::vector<std::pair<std::string, bool*>>::iterator find(const std::string_view n)
+        {
+            auto it = std::find_if (mVars.begin(), mVars.end(), [n](const std::pair<std::string, bool*>& v)
+            {
+                return v.first == std::string{n};
+            });
+            return it;
+        }
+
+        bool exists(const std::string_view n)
+        {
+            return find(n) != mVars.end();
+        }
+
+        size_t size() const
+        {
+            return mVars.size();
+        }
+
+        bool updateAll(const bool v)
+        {
+            for (auto& entry : mVars)
+            {
+                if (entry.second == nullptr) { return v; }
+                *(entry.second) = v;
+            }
+            return true;
+        }
+
+        bool allEqualTo(const bool v)
+        {
+            for (auto& entry : mVars)
+            {
+                if (entry.second == nullptr || *entry.second != v)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        bool anyEqualTo(const bool v)
+        {
+            for (auto& entry : mVars)
+            {
+                if (entry.second == nullptr) { return false; }
+                if (*entry.second == v)      { return true;  }
+            }
+            return false;
+        }
+
+        bool addOrUpdate(const std::string_view n, bool* v, const bool override)
+        {
+            auto it = find(n);
+            if (it != mVars.end())
+            {
+                if (!override) {  return false; }
+                it->second = v;
+            }
+
+            mVars.emplace_back(std::make_pair(std::string{n}, v));
+            return true;
+        }
+
+        bool updateFlagValue(const std::string_view n, const bool v)
+        {
+            auto it = find(n);
+            if (it == mVars.end()) {  return false; }
+            *it->second = v;
+            return true;
+        }
+
+        bool remove(const std::string_view n)
+        {
+            auto it = find(n);
+            if (it == mVars.end()) { return false; }
+            mVars.erase(it);
+            return true;
+        }
+
+        void clean()
+        {
+            mVars.clear();
+        }
+
+        std::pair<bool, std::pair<std::string, bool *>> at(const size_t i)
+        {
+           if (mVars.size() <= i) { return std::make_pair(false, std::make_pair("", nullptr)); }
+           return std::make_pair(true, mVars.at(i));
+        }
+
+        std::vector<std::pair<std::string, bool *>> mVars;
+    };
+
     static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
     {
         const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
@@ -491,9 +595,27 @@ public:
     void postLog(const std::string &msg);
 
 protected:
+    // check if any/all flags in eF has been set true
+    bool exitWait(ExitBoolFlags& eF, const bool waitForAll) const;
+    // deprecated: replace current usages of this method by prototype above
     bool exitWait(const std::vector<bool *>&responsesReceived, bool any) const;
+    // waits until any/all flags in eF has been set true
+    bool waitForMultiResponse(ExitBoolFlags& eF, bool waitForAll, unsigned int timeout) const;
+    // deprecated: replace current usages of this method by prototype above
     bool waitForMultiResponse(std::vector<bool *>responsesReceived, bool any, unsigned int timeout = maxTimeout) const;
     bool waitForResponse(bool *responseReceived, unsigned int timeout = maxTimeout) const;
+
+    /**
+     * @brief executes an asynchronous action and wait for results
+     * @param maxAttempts max number of attempts the action must be retried
+     * @param eF conditions that must be accomplished consider action finished
+     * @param actionMsg string that defines the action
+     * @param waitForAll wait for all exit conditions
+     * @param resetFlags flag that indicates if exitFlags must be reset before executing action
+     * @param timeout max timeout (in seconds) to execute the action
+     * @param action function to be executed
+     */
+    void waitForAction(int maxAttempts, ExitBoolFlags& eF, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
 
     /**
      * @brief executes an asynchronous action and wait for results
@@ -505,6 +627,7 @@ protected:
      * @param resetFlags flag that indicates if exitFlags must be reset before executing action
      * @param timeout max timeout (in seconds) to execute the action
      * @param action function to be executed
+     * @deprecated replace current usages of this method by prototype above
      */
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
     void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
@@ -566,16 +689,16 @@ protected:
                                const ::megachat::MegaChatPeerList* peerlist, const ::mega::MegaIntegerList* rulesByWeekDay,
                                const ::mega::MegaIntegerList* rulesByMonthDay, const ::mega::MegaIntegerMap* rulesByMonthWeekDay);
 
+    // Adds a temporal boolean variable, to ExitBoolFlags param, and also to MegaChatApiTest::mAuxBool
+    bool addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool override);
 
     // starts a call in a chatroom with waiting room option enabled
-    void startWaitingRoomCall(const unsigned int callerIdx, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
-                              const bool enableVideo, const bool enableAudio,
-                              const std::vector<bool *>& exitFlags, const std::vector<std::string>& strFlags);
+    void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
+                              const bool enableVideo, const bool enableAudio);
 
     // answers a call in a chatroom
-    void answerChatCall(unsigned int calleeIdx, const ::megachat::MegaChatHandle chatid,
-                        const bool enableVideo, const bool enableAudio,
-                        const std::vector<bool *>& exitFlags, const std::vector<std::string>& strFlags);
+    void answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
+                        const bool enableVideo, const bool enableAudio);
 
     /**
      * @brief Allows to set the title of a group chat
@@ -690,7 +813,8 @@ protected:
     // Aux vars maps: these maps can be used to add temporal variables that needs to be updated by any callback or code path,
     // this avoids defining amounts of vars in MegaChatApiTest class
 
-    // maps a var name to boolean
+    // maps a var name to boolean.
+    // It can be used to "register" temporal boolean variables that will be used to wait for async events.
     AuxVars<bool> mAuxBool;
 
     // maps a var name to MegaChatHandle
