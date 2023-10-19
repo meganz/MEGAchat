@@ -9044,9 +9044,9 @@ public:
      *
      * @return The waiting room joining status for the specified user
      */
-    virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
+    virtual int getUserStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
 
-    static const char* peerStatusToString(int status)
+    static const char* userStatusToString(int status)
     {
         switch (status)
         {

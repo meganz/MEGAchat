@@ -5277,7 +5277,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                                                 ? call->getWaitingRoom()->copy()
                                                 : nullptr);
 
-    ASSERT_TRUE(wr && wr->getPeerStatus(uh) == MegaChatWaitingRoom::MWR_NOT_ALLOWED)
+    ASSERT_TRUE(wr && wr->getUserStatus(uh) == MegaChatWaitingRoom::MWR_NOT_ALLOWED)
         << (!wr ? "Waiting room can't be retrieved for user A" : "B it's not in the waiting room");
 
     // ** note: can't simulate use case where a2 sends JOIN without any moderator has allowed to enter the call (WR_DENY would be received for a2 from SFU),
@@ -5723,7 +5723,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
                                                 ? call->getWaitingRoom()->copy()
                                                 : nullptr);
 
-    ASSERT_TRUE(wr && wr->getPeerStatus(uh) == MegaChatWaitingRoom::MWR_NOT_ALLOWED)
+    ASSERT_TRUE(wr && wr->getUserStatus(uh) == MegaChatWaitingRoom::MWR_NOT_ALLOWED)
         << (!wr ? "Waiting room can't be retrieved for user A" : "B it's not in the waiting room");
 
     grantsJoinPermission();
