@@ -3306,7 +3306,6 @@ int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivat
             }
             else
             {
-                 std::string chatTitle = newTitle.substr(0, 30);
                  pms = chatroom->encryptChatTitle(newTitle); // encrypt chat title for all participants
             }
 

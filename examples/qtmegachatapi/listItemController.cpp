@@ -138,9 +138,8 @@ void ChatListItemController::updateScheduledMeetingOccurrence()
 
 void ChatListItemController::updateScheduledMeeting()
 {
-    std::string updateChatTitle = mMainWindow->mApp->getText("Update chatroom title [y/n]: ", true);
-
     // this action won't generate a child scheduled meeting
+    const std::string updateChatTitle = mMainWindow->mApp->getText("Update chatroom title [y/n]: ", true);
     std::string schedB64 = mMainWindow->mApp->getText("Sched meeting Id we want to modify: ", true);
     MegaChatHandle schedId = mMegaApi->base64ToUserHandle(schedB64.c_str());
     std::unique_ptr<MegaChatScheduledMeeting> sm (mMegaChatApi->getScheduledMeeting(mItemId, schedId));
@@ -152,7 +151,6 @@ void ChatListItemController::updateScheduledMeeting()
     MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New EndDate: ", true).c_str());
     std::string newTz = mMainWindow->mApp->getText("New TimeZone: ", true);
     int cancelled = atoi(mMainWindow->mApp->getText("Set scheduled meeting as cancelled? Y=1 | N =0", true).c_str());
-
 
     mMegaChatApi->updateScheduledMeeting(mItemId, schedId,
                                          newTz.empty() ? nullptr : newTz.c_str(),

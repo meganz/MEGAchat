@@ -4627,7 +4627,7 @@ public:
     /**
      * @brief Modify an existing scheduled meeting. This action won't create a child scheduled meeting
      *
-     * @note: if updateChatTitle is true, this method will also update chatroom title (if scheduled meeting title is going to be updated)
+     * @note: if updateChatTitle is true, this method will also update chatroom title (just in case that scheduled meeting title is going to be updated)
      * No management message will be received for chatroom title update.
      *
      * @note: You need to provide the current values of scheduled meeting for those params that you don't want to modify
