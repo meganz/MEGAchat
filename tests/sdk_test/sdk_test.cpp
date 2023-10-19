@@ -10,6 +10,7 @@
 using namespace mega;
 using namespace megachat;
 using namespace std;
+using CleanupFunction = MegaChatApiTest::MegaMrProper::CleanupFunction;
 
 const std::string MegaChatApiTest::DEFAULT_PATH = "../../tests/sdk_test/";
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
@@ -832,17 +833,22 @@ void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlag
 
 TEST_F(MegaChatApiTest, BasicTest)
 {
-    std::function<void()> testCleanup = [this] () -> void
+    //========================================================================//
+    // Auxiliar test functions
+    //========================================================================//
+    /** add here all auxiliar lambdas that this test can require **/
+
+    //========================================================================//
+    // Test preparation: login, get chatroom ...
+    //========================================================================//
+
+    CleanupFunction testCleanup = [this] () -> void
     {
         closeOpenedChatrooms();     // close opened chatrooms
         cleanChatVideoListeners();  // clean registered videolisteners (if any)
         logoutTestAccounts();       // logout from all logged in accounts
     };
     MegaMrProper p (testCleanup);
-
-    //========================================================================//
-    // Test preparation: login, get chatroom ...
-    //========================================================================//
 
     // login into all involved accounts for this test, and establish required contact relationships
     // Note: all involved accounts in this test, must be added to mSessions and mAccounts
@@ -909,17 +915,36 @@ TEST_F(MegaChatApiTest, BasicTest)
 
 TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 {
-    std::function<void()> testCleanup = [this] () -> void
+    //========================================================================//
+    // Auxiliar test functions
+    //========================================================================//
+
+    /** Checks that callid for account i has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS) **/
+    auto checkCallIdInProgress = [this](unsigned i) -> void
+    {
+        std::unique_ptr<MegaChatCall> call(megaChatApi[i]->getChatCall(mData.mChatid));
+        ASSERT_TRUE(call) << "Can't get call for a1. Callid: " << getChatIdStrB64(mData.mChatid);
+
+        MegaChatHandle* callId = getHandleVars().get(i, "CallIdInProgress");
+        ASSERT_TRUE(callId) << "Can't get CallInProgress var for a1";
+        ASSERT_NE(*callId, MEGACHAT_INVALID_HANDLE) << "Invalid callid received at onChatCallUpdate for a1";
+        ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "Invalid callid in MegaChatCall for a1";
+        ASSERT_TRUE(*callId == call->getCallId()) << "Callids doesn't match "
+                                                  << getChatIdStrB64(mData.mChatid)
+                                                  << " " << getChatIdStrB64(*callId);
+    };
+
+    //========================================================================//
+    // Test preparation: login, get chatroom ...
+    //========================================================================//
+
+    CleanupFunction testCleanup = [this] () -> void
     {
         closeOpenedChatrooms();     // close opened chatrooms
         cleanChatVideoListeners();  // clean registered videolisteners (if any)
         logoutTestAccounts();       // logout from all logged in accounts
     };
     MegaMrProper p (testCleanup);
-
-    //========================================================================//
-    // Test preparation: login, get chatroom ...
-    //========================================================================//
 
     // login into all involved accounts for this test, and establish required contact relationships
     // Note: all involved accounts in this test, must be added to mSessions and mAccounts
@@ -999,12 +1024,15 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     LOG_verbose << "Test1: Check Waiting room order";
     // a1 starts call with waiting room enabled
     ExitBoolFlags eF;
+    MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
+    ASSERT_TRUE(getHandleVars().add(a1, "CallIdInProgress", invalHandle, true /*override*/));   // a1 - callid received at
     ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallReceived"  , false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
     ASSERT_TRUE(addBoolExitFlag(a2, eF, "CallReceived"  , false, true /*override*/));           // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
     ASSERT_TRUE(addBoolExitFlag(a3, eF, "CallReceived"  , false, true /*override*/));           // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
     ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallWR"        , false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
     ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallInProgress", false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     startWaitingRoomCall(a1, eF, mData.mChatid, schedId , false /*audio*/, false /*video*/);
+    checkCallIdInProgress(a1); // check received callid for caller(a1)
 
     // a2 answers call
     ExitBoolFlags eF1;
@@ -8493,6 +8521,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             break;
 
         case MegaChatCall::CALL_STATUS_IN_PROGRESS:
+            getHandleVars().update(apiIndex, "CallIdInProgress", call->getCallId());
             getBoolVars().update(apiIndex, "CallInProgress", true);
             mCallInProgress[apiIndex] = true;
             mChatIdInProgressCall[apiIndex] = call->getChatid();

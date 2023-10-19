@@ -571,7 +571,8 @@ public:
     // Global test environment clear up
     static void terminate();
 
-    AuxVars<bool>& getBoolVars () { return mAuxBool; };
+    AuxVars<bool>& getBoolVars ()                       { return mAuxBool; };
+    AuxVars<megachat::MegaChatHandle>& getHandleVars () { return mAuxHandles; };
 
 protected:
     static Account& account(unsigned i) { return getEnv().account(i); }
@@ -818,7 +819,8 @@ protected:
     AuxVars<bool> mAuxBool;
 
     // maps a var name to MegaChatHandle
-    AuxVars<megachat::MegaChatHandle> mAuxHandle;
+    // It can be used to "register" temporal variables that will be used to store received handles on MegaChat callbacks
+    AuxVars<megachat::MegaChatHandle> mAuxHandles;
 
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
