@@ -47,13 +47,13 @@ using namespace megachat;
 }
 
 - (MEGAChatWaitingRoomStatus)peerStatus:(uint64_t)peerId {
-    return self.megaChatWaitingRoom ? MEGAChatWaitingRoomStatus(self.megaChatWaitingRoom->getPeerStatus(peerId)) : MEGAChatWaitingRoomStatusUnknown;
+    return self.megaChatWaitingRoom ? MEGAChatWaitingRoomStatus(self.megaChatWaitingRoom->getUserStatus(peerId)) : MEGAChatWaitingRoomStatusUnknown;
 }
 
 - (NSString *)stringForStatus:(MEGAChatWaitingRoomStatus)status {
     if (!self.megaChatWaitingRoom) return @"";
 
-    const char *val = self.megaChatWaitingRoom->peerStatusToString(int(status));
+    const char *val = self.megaChatWaitingRoom->userStatusToString(int(status));
     if (!val) return @"";
     return @(val);
 }
