@@ -338,7 +338,15 @@ void MegaChatApiTest::SetUp()
         RequestTracker loginTracker;
         megaApi[i]->login(account(i).getEmail().c_str(), account(i).getPassword().c_str(),
                           &loginTracker);
-        ASSERT_EQ(loginTracker.waitForResult(), API_OK) << "Login failed in SetUp(). Error: " << loginTracker.getErrorString();
+
+        const int loginResult = loginTracker.waitForResult();
+        if (loginResult != API_OK)
+        {
+            megaChatApi[i]->removeChatCallListener(this);
+            delete megaChatApi[i];
+            megaChatApi[i] = nullptr;
+            ASSERT_EQ(loginResult, API_OK) << "Login failed in SetUp(). Error: " << loginTracker.getErrorString();
+        }
 
         RequestTracker killSessionTracker;
         megaApi[i]->killSession(INVALID_HANDLE, &killSessionTracker);
