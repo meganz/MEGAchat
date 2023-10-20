@@ -7226,7 +7226,7 @@ MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(const unsigned int a1, con
             return MEGACHAT_INVALID_HANDLE;
         }
 
-        responseOk = waitForResponse(chatReceived);        
+        responseOk = waitForResponse(chatReceived);
         if (!responseOk)
         {
             EXPECT_TRUE(responseOk) << "getPeerToPeerChatRoom: expired timeout for create new chatroom";
