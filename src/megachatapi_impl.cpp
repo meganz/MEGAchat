@@ -2788,34 +2788,73 @@ int MegaChatApiImpl::performRequest_removeSpeaker(MegaChatRequestPrivate* reques
 
 int MegaChatApiImpl::performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request)
 {
+    const MegaChatHandle chatid = request->getChatHandle();
+    const std::string reqStr = request->getType() == MegaChatRequest::TYPE_WR_ALLOW ? "MegaChatRequest::TYPE_WR_ALLOW" : "MegaChatRequest::TYPE_WR_PUSH";
     const auto handleList = request->getMegaHandleList();
-    bool allowAll = request->getFlag();
-    if (!allowAll && (!handleList || !handleList->size()))
-    {
-        request->getType() == MegaChatRequest::TYPE_WR_PUSH
-            ? API_LOG_ERROR("MegaChatRequest::TYPE_WR_PUSH - Invalid list of users to be pushed in the waiting room",
-                            request->getRequestString())
-            : API_LOG_ERROR("MegaChatRequest::TYPE_WR_ALLOW - Invalid list of users to be allowed to JOIN");
+    const std::string chatidB64 = karere::Id(request->getChatHandle()).toString().c_str();
+    const bool allowAll = request->getFlag();
 
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("%s - Invalid chatid: %s", reqStr.c_str());
         return MegaChatError::ERROR_ARGS;
     }
 
-    auto res = getCallWithModPermissions(request->getChatHandle(), true /*waitingRoom*/, std::string("MegaChatRequest::TYPE_") + request->getRequestString());
-    if (res.first != MegaChatError::ERROR_OK)
+    if (!allowAll && (!handleList || !handleList->size()))
     {
-        return res.first;
+        API_LOG_ERROR("%s - Invalid list of users provided. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        return MegaChatError::ERROR_ARGS;
     }
-    rtcModule::ICall* call= res.second;
+
+    rtcModule::ICall* call = findCall(chatid);
+    if (!call)
+    {
+        API_LOG_ERROR("%s - There is not any call in that chatroom. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        assert(call);
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    if (call->getState() != rtcModule::kStateInProgress)
+    {
+        API_LOG_ERROR("%s - Call isn't in progress state. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    ChatRoom *chatroom = findChatRoom(chatid);
+    if (!chatroom)
+    {
+        API_LOG_ERROR("%s - Chatroom has not been found. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    if (!chatroom->isWaitingRoom())
+    {
+        API_LOG_ERROR("%s - Chatroom doesn't have waiting room enabled. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    // Push into wr is just allowed for hosts
+    if (request->getType() == MegaChatRequest::TYPE_WR_PUSH && chatroom->ownPriv() < (Priv) MegaChatPeerList::PRIV_MODERATOR)
+    {
+        API_LOG_ERROR("%s - Insufficient permissions to execute this action. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    // Allow to access call from wr, is allowed for hosts users and users with standard priv if openInvite is enabled for chatroom
+    if (chatroom->ownPriv() < (Priv) MegaChatPeerList::PRIV_STANDARD
+        || (chatroom->ownPriv() == (Priv) MegaChatPeerList::PRIV_STANDARD && !chatroom->isOpenInvite()))
+    {
+        API_LOG_ERROR("%s - Insufficient permissions to execute this action. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        return MegaChatError::ERROR_ACCESS;
+    }
+
     const rtcModule::KarereWaitingRoom* waitingRoom = call->getWaitingRoom();
     if (!waitingRoom)
     {
         // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
         // however we also need to ensure, that we also have received proper information from SFU to
         // initialize waiting room with users on it, and their joining permission
-        API_LOG_ERROR("MegaChatRequest::%s. Can't retrieve waiting room from karere chatroom. chatid: %s",
-                      (request->getType() == MegaChatRequest::TYPE_WR_PUSH) ? "TYPE_WR_PUSH" : "TYPE_WR_ALLOW",
-                      karere::Id(request->getChatHandle()).toString().c_str());
-
+        API_LOG_ERROR("%s. Can't retrieve waiting room from karere chatroom. chatid: %s", reqStr.c_str(), chatidB64.c_str());
         assert(false);
         return MegaChatError::ERROR_UNKNOWN;
     }
@@ -8514,7 +8553,7 @@ MegaHandleList* MegaChatWaitingRoomPrivate::getPeers() const
     MegaHandleList* peers = MegaHandleList::createInstance();
     if (!mWaitingRoomUsers) { return peers; }
 
-    std::vector<uint64_t> aux = mWaitingRoomUsers->getPeers();
+    std::vector<uint64_t> aux = mWaitingRoomUsers->getUsers();
     std::for_each(aux.begin(), aux.end(), [peers](const auto &h) { peers->addMegaHandle(h); });
     return peers;
 }

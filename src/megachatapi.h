@@ -6597,7 +6597,8 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
      * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, if there's not a call in the specified chatroom, or waiting room is disabled
-     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR,
+     *   or is MegaChatPeerList::PRIV_STANDARD but MegaChatRoom::isOpenInvite returns false.
      *
      * @param users MegaHandleList with the users that must be allowed into waiting room.
      * If param all is true, users param will be ignored.
@@ -9080,14 +9081,14 @@ public:
     virtual size_t size() const                         { return 0; };
 
     /**
-     * @brief Returns the waiting room joining status for the specified peer id
+     * @brief Returns the waiting room joining status for the specified user id
      *
      * Valid values are:
      *  - MegaChatWaitingRoom::MWR_UNKNOWN      = -1,   // client unknown joining status
      *  - MegaChatWaitingRoom::MWR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
      *  - MegaChatWaitingRoom::MWR_ALLOWED      = 1,    // client is allowed to join call (no further action required from app to JOIN call)
      *
-     * @return The waiting room joining status for the specified peer
+     * @return The waiting room joining status for the specified user
      */
     virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
 

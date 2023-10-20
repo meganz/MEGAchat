@@ -51,6 +51,26 @@ static bool isInitialSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::S
 // returns true if provided version as param is a valid SFU version
 static bool isValidSfuVersion(sfu::SfuProtocol v) { return v != SfuProtocol::SFU_PROTO_INVAL; }
 
+// enum for user status in waiting room
+enum class WrState: int
+{
+    WR_UNKNOWN      = -1,   // client unknown joining status
+    WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+    WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
+};
+
+// struct that represents an user in waiting room
+struct WrRoomUser
+{
+public:
+    karere::Id mWrUserid = karere::Id::inval();
+    WrState mWrState   = WrState::WR_UNKNOWN;
+};
+
+// typedef for waiting room user list
+// SFU provides Waiting room participants list in order they joined to the call
+typedef std::vector<WrRoomUser> WrUserList;
+
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
@@ -232,12 +252,12 @@ public:
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
-    virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks,
-                              const std::set<karere::Id>& mods, const bool wr, bool speakRequest,
-                              const bool allowed, const std::map<karere::Id, bool>& wrUsers) = 0;
+    virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
+                             const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                             bool speakRequest, const sfu::WrUserList& wrUsers) = 0;
 
-    virtual bool handleWrDump(const std::map<karere::Id, bool>& users) = 0;
-    virtual bool handleWrEnter(const std::map<karere::Id, bool>& users) = 0;
+    virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
+    virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;
     virtual bool handleWrLeave(const karere::Id& /*user*/) = 0;
     virtual bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) = 0;
     virtual bool handleWrDeny(const std::set<karere::Id>& mods) = 0;
@@ -279,7 +299,7 @@ public:
 
 protected:
     Command(SfuInterface& call);
-    bool parseUsersMap(std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
+    bool parseWrUsersMap(sfu::WrUserList& wrUsers, const rapidjson::Value& obj) const;
     static uint8_t hexDigitVal(char value);
 
     SfuInterface& mCall;
@@ -488,7 +508,7 @@ public:
                                const bool wr,
                                const bool speakRequest,
                                const bool allowed,
-                               const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
+                               const sfu::WrUserList& wrUsers)>HelloCommandFunction;
 
     HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
@@ -499,7 +519,7 @@ public:
 class WrDumpCommand: public Command
 {
 public:
-    typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrDumpCommandFunction;
+    typedef std::function<bool(const sfu::WrUserList& users)>WrDumpCommandFunction;
     WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -509,7 +529,7 @@ public:
 class WrEnterCommand: public Command
 {
 public:
-    typedef std::function<bool(const std::map<karere::Id, bool>& users)>WrEnterCommandFunction;
+    typedef std::function<bool(const sfu::WrUserList& users)>WrEnterCommandFunction;
     WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
