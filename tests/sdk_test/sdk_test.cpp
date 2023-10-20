@@ -7191,87 +7191,129 @@ void MegaChatApiTest::createChatroomAndSchedMeeting(MegaChatHandle& chatid, cons
     ASSERT_NE(mSchedIdUpdated[a2], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for secondary account could not be created. chatId: " << getChatIdStrB64(chatid);
 };
 
-MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(unsigned int a1, unsigned int a2)
+MegaChatHandle MegaChatApiTest::getPeerToPeerChatRoom(const unsigned int a1, const unsigned int a2)
 {
-    MegaUser *peerPrimary = megaApi[a1]->getContact(account(a2).getEmail().c_str());
-    MegaUser *peerSecondary = megaApi[a2]->getContact(account(a1).getEmail().c_str());
-    EXPECT_TRUE(peerPrimary && peerSecondary) << "Fail to get Peers";
-    if (!peerPrimary || !peerSecondary) return MEGACHAT_INVALID_HANDLE;
-
     MegaChatHandle chatid0 = MEGACHAT_INVALID_HANDLE;
-    MegaChatRoom *chatroom0 = megaChatApi[a1]->getChatRoomByUser(peerPrimary->getHandle());
-    if (!chatroom0) // chat 1on1 doesn't exist yet --> create it
-    {
-        MegaChatPeerList *peers = MegaChatPeerList::createInstance();
-        peers->addPeer(peerPrimary->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+    std::unique_ptr<MegaUser> a1User(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
+    std::unique_ptr<MegaUser> a2User(megaApi[a2]->getContact(account(a1).getEmail().c_str()));
+    EXPECT_TRUE(a1User && a2User) << "getPeerToPeerChatRoom: failed to get a1 and a2 users";
+    if (!a1User || !a2User) { return MEGACHAT_INVALID_HANDLE; }
 
-        bool *chatCreated = &chatItemUpdated[a1]; *chatCreated = false;
-        bool *chatReceived = &chatItemUpdated[a2]; *chatReceived = false;
-        bool *flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
-        bool *flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
-        ChatRequestTracker crtCreateChat;
-        megaChatApi[a1]->createChat(true, peers, &crtCreateChat);
-        auto result = crtCreateChat.waitForResult();
-        EXPECT_EQ(result, MegaChatError::ERROR_OK) << "Failed to create new chatroom. Error: " << crtCreateChat.getErrorString();
-        if (result != MegaChatError::ERROR_OK) return MEGACHAT_INVALID_HANDLE;
+    std::unique_ptr<MegaChatRoom> a1Room(megaChatApi[a1]->getChatRoomByUser(a1User->getHandle()));
+    if (!a1Room) // chat 1on1 doesn't exist yet --> create it
+    {
+        bool* chatCreated = &chatItemUpdated[a1]; *chatCreated = false;
+        bool* chatReceived = &chatItemUpdated[a2]; *chatReceived = false;
+        bool* flagChatdOnline1 = &mChatConnectionOnline[a1]; *flagChatdOnline1 = false;
+        bool* flagChatdOnline2 = &mChatConnectionOnline[a2]; *flagChatdOnline2 = false;
+        std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
+        peers->addPeer(a1User->getHandle(), MegaChatPeerList::PRIV_STANDARD);
+
+        ChatRequestTracker crt;
+        megaChatApi[a1]->createChat(false /*group*/, peers.get(), &crt);
+        auto result = crt.waitForResult();
+        if (result != MegaChatError::ERROR_OK)
+        {
+            EXPECT_EQ(result, MegaChatError::ERROR_OK) << "getPeerToPeerChatRoom: failed to create new chatroom. Error: "
+                                                       << crt.getErrorString();
+            return MEGACHAT_INVALID_HANDLE;
+        }
+
         bool responseOk = waitForResponse(chatCreated);
-        EXPECT_TRUE(responseOk) << "Expired timeout for  create new chatroom";
-        if (!responseOk) return MEGACHAT_INVALID_HANDLE;
+        if (!responseOk)
+        {
+            EXPECT_TRUE(responseOk) << "getPeerToPeerChatRoom: expired timeout for create new chatroom";
+            return MEGACHAT_INVALID_HANDLE;
+        }
+
         responseOk = waitForResponse(chatReceived);
-        EXPECT_TRUE(responseOk) << "Expired timeout for create new chatroom";
-        if (!responseOk) return MEGACHAT_INVALID_HANDLE;
-        chatroom0 = megaChatApi[a1]->getChatRoomByUser(peerPrimary->getHandle());
-        chatid0 = chatroom0->getChatId();
-        EXPECT_NE(chatid0, MEGACHAT_INVALID_HANDLE) << "Invalid chatid";
-        if (chatid0 == MEGACHAT_INVALID_HANDLE) return MEGACHAT_INVALID_HANDLE;
+        if (!responseOk)
+        {
+            EXPECT_TRUE(responseOk) << "getPeerToPeerChatRoom: expired timeout for create new chatroom";
+            return MEGACHAT_INVALID_HANDLE;
+        }
+
+        a1Room.reset(megaChatApi[a1]->getChatRoomByUser(a1User->getHandle()));
+        if (!a1Room)
+        {
+            EXPECT_TRUE(a1Room) << "getPeerToPeerChatRoom failed to get newly created chatroom with user "
+                                << megaApi[a1]->userHandleToBase64(a1User->getHandle());
+            return MEGACHAT_INVALID_HANDLE;
+        }
+
+        chatid0 = a1Room->getChatId();
+        if (chatid0 == MEGACHAT_INVALID_HANDLE)
+        {
+            EXPECT_NE(chatid0, MEGACHAT_INVALID_HANDLE) << "getPeerToPeerChatRoom: invalid chatid";
+            return MEGACHAT_INVALID_HANDLE;
+        }
 
         // Wait until both accounts are connected to chatd
         while (megaChatApi[a1]->getChatConnectionState(chatid0) != MegaChatApi::CHAT_CONNECTION_ONLINE)
         {
-            postLog("Waiting for connection to chatd...");
+            postLog("getPeerToPeerChatRoom: waiting for connection to chatd...");
             responseOk = waitForResponse(flagChatdOnline1);
-            EXPECT_TRUE(responseOk) << "Timeout expired for connecting to chatd, account " << (a1+1);
-            if (!responseOk) return MEGACHAT_INVALID_HANDLE;
+            if (!responseOk)
+            {
+                EXPECT_TRUE(responseOk) << "getPeerToPeerChatRoom: timeout expired for connecting to chatd, "
+                                           "account " << (a1+1);
+                return MEGACHAT_INVALID_HANDLE;
+            }
             *flagChatdOnline1 = false;
         }
         while (megaChatApi[a2]->getChatConnectionState(chatid0) != MegaChatApi::CHAT_CONNECTION_ONLINE)
         {
-            postLog("Waiting for connection to chatd...");
+            postLog("getPeerToPeerChatRoom: waiting for connection to chatd...");
             responseOk = waitForResponse(flagChatdOnline2);
-            EXPECT_TRUE(waitForResponse(flagChatdOnline2)) << "Timeout expired for connecting to chatd, account " << (a2+1);
-            if (!responseOk) return MEGACHAT_INVALID_HANDLE;
+            if (!responseOk)
+            {
+                EXPECT_TRUE(waitForResponse(flagChatdOnline2)) << "getPeerToPeerChatRoom: timeout expired for "
+                                                                  "connecting to chatd, account " << (a2+1);
+                return MEGACHAT_INVALID_HANDLE;
+            }
             *flagChatdOnline2 = false;
         }
     }
     else
     {
         // --> Ensure we are connected to chatd for the chatroom
-        chatid0 = chatroom0->getChatId();
-        EXPECT_NE(chatid0, MEGACHAT_INVALID_HANDLE) << "Invalid chatid";
-        if (chatid0 == MEGACHAT_INVALID_HANDLE) return MEGACHAT_INVALID_HANDLE;
-        EXPECT_EQ(megaChatApi[a1]->getChatConnectionState(chatid0), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
-                         "Not connected to chatd for account " << (a1+1) << ": " << account(a1).getEmail();
-        if (megaChatApi[a1]->getChatConnectionState(chatid0) != MegaChatApi::CHAT_CONNECTION_ONLINE) return MEGACHAT_INVALID_HANDLE;
-        EXPECT_EQ(megaChatApi[a2]->getChatConnectionState(chatid0), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
-                         "Not connected to chatd for account " << (a2+1) << ": " << account(a2).getEmail();
-        if (megaChatApi[a2]->getChatConnectionState(chatid0) != MegaChatApi::CHAT_CONNECTION_ONLINE) return MEGACHAT_INVALID_HANDLE;
+        chatid0 = a1Room->getChatId();
+        if (chatid0 == MEGACHAT_INVALID_HANDLE)
+        {
+            EXPECT_NE(chatid0, MEGACHAT_INVALID_HANDLE) << "getPeerToPeerChatRoom: invalid chatid";
+            return MEGACHAT_INVALID_HANDLE;
+        }
+
+        if (megaChatApi[a1]->getChatConnectionState(chatid0) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+        {
+            EXPECT_EQ(megaChatApi[a1]->getChatConnectionState(chatid0), MegaChatApi::CHAT_CONNECTION_ONLINE)
+                << "getPeerToPeerChatRoom: not connected to chatd for account " << (a1+1) << ": " << account(a1).getEmail();
+            return MEGACHAT_INVALID_HANDLE;
+        }
+
+        if (megaChatApi[a2]->getChatConnectionState(chatid0) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+        {
+            EXPECT_EQ(megaChatApi[a2]->getChatConnectionState(chatid0), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
+                "getPeerToPeerChatRoom: not connected to chatd for account " << (a2+1) << ": " << account(a2).getEmail();
+            return MEGACHAT_INVALID_HANDLE;
+        }
     }
 
-    delete chatroom0;
-    chatroom0 = NULL;
+    std::unique_ptr<MegaChatRoom> a2Room(megaChatApi[a2]->getChatRoomByUser(a2User->getHandle()));
+    if (!a2Room)
+    {
+        EXPECT_TRUE(a2Room) << "getPeerToPeerChatRoom failed to get newly created chatroom with user for a2 "
+                            << megaApi[a1]->userHandleToBase64(a1User->getHandle());
 
-    MegaChatRoom *chatroom1 = megaChatApi[a2]->getChatRoomByUser(peerSecondary->getHandle());
-    MegaChatHandle chatid1 = chatroom1->getChatId();
-    delete chatroom1;
-    chatroom1 = NULL;
-    EXPECT_EQ(chatid0, chatid1) << "Chat identificator is different for account0 and account1.";
-    if (chatid0 != chatid1) return MEGACHAT_INVALID_HANDLE;
+        return MEGACHAT_INVALID_HANDLE;
+    }
 
-    delete peerPrimary;
-    peerPrimary = NULL;
-    delete peerSecondary;
-    peerSecondary = NULL;
-
+    MegaChatHandle chatid1 = a2Room->getChatId();
+    if (chatid0 != chatid1)
+    {
+        EXPECT_EQ(chatid0, chatid1) << "getPeerToPeerChatRoom: chat identificator is different for account0 and account1.";
+        return MEGACHAT_INVALID_HANDLE;
+    }
     return chatid0;
 }
 
