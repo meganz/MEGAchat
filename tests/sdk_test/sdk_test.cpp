@@ -345,7 +345,7 @@ void MegaChatApiTest::SetUp()
             megaChatApi[i]->removeChatCallListener(this);
             delete megaChatApi[i];
             megaChatApi[i] = nullptr;
-            ASSERT_EQ(loginResult, API_OK) << "Login failed in SetUp(). Error: " << loginTracker.getErrorString();
+            ASSERT_EQ(loginResult, API_OK) << "Login failed in SetUp(). Error: " << loginTracker.getErrorString(); // this will always fail
         }
 
         RequestTracker killSessionTracker;
