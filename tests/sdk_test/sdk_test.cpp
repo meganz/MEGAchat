@@ -338,7 +338,25 @@ void MegaChatApiTest::SetUp()
         RequestTracker loginTracker;
         megaApi[i]->login(account(i).getEmail().c_str(), account(i).getPassword().c_str(),
                           &loginTracker);
-        ASSERT_EQ(loginTracker.waitForResult(), API_OK) << "Login failed in SetUp(). Error: " << loginTracker.getErrorString();
+
+        const int loginResult = loginTracker.waitForResult();
+        if (loginResult != API_OK)
+        {
+            megaChatApi[i]->removeChatCallListener(this);
+            delete megaChatApi[i];
+            megaChatApi[i] = nullptr;
+
+            RequestTracker logoutTracker;
+            megaApi[i]->localLogout(&logoutTracker);
+            const int logoutResult = logoutTracker.waitForResult();
+            megaApi[i]->removeListener(this);
+            delete megaApi[i];
+            megaApi[i] = NULL;
+            ASSERT_TRUE(logoutResult == API_OK || logoutResult == API_ESID)
+                    << "Error sdk logout. Error: " << logoutResult << ' ' << logoutTracker.getErrorString();
+
+            ASSERT_EQ(loginResult, API_OK) << "Login failed in SetUp(). Error: " << loginTracker.getErrorString(); // this will always fail
+        }
 
         RequestTracker killSessionTracker;
         megaApi[i]->killSession(INVALID_HANDLE, &killSessionTracker);
@@ -495,9 +513,12 @@ void MegaChatApiTest::TearDown()
             megaChatApi[i] = NULL;
         }
 
-        // 4. delete megaApi.
-        delete megaApi[i];
-        megaApi[i] = NULL;
+        if (megaApi[i])
+        {
+            // 4. delete megaApi.
+            delete megaApi[i];
+            megaApi[i] = NULL;
+        }
     }
 
     purgeLocalTree(LOCAL_PATH);
