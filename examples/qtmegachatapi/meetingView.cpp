@@ -798,7 +798,7 @@ void MeetingView::onWrShow()
     {
         wrText.assign("<br /><span style='color:#A30010'>EMPTY WAITING ROOM</span>");
         const megachat::MegaChatWaitingRoom* wr = call->getWaitingRoom();
-        std::unique_ptr<mega::MegaHandleList>wrPeers(wr->getPeers());
+        std::unique_ptr<mega::MegaHandleList>wrPeers(wr->getUsers());
         if (wrPeers && wrPeers->size())
         {
             wrText.clear();

@@ -8507,7 +8507,7 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
     return TERM_CODE_INVALID;
 }
 
-MegaHandleList* MegaChatWaitingRoomPrivate::getPeers() const
+MegaHandleList* MegaChatWaitingRoomPrivate::getUsers() const
 {
     MegaHandleList* peers = MegaHandleList::createInstance();
     if (!mWaitingRoomUsers) { return peers; }

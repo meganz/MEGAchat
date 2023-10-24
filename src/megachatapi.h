@@ -9026,7 +9026,7 @@ public:
      *
      * @return mega::MegaHandleList of handles of users that are in the waiting room
      */
-    virtual mega::MegaHandleList* getPeers() const      { return NULL; };
+    virtual mega::MegaHandleList* getUsers() const      { return NULL; };
 
     /**
      * @brief Returns the number of elements in the list
