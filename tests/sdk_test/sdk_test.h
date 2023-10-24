@@ -363,14 +363,14 @@ public:
         }
 
         // adds a new entry in map <variable name, val<T>>
-        T* add(const unsigned int i, const std::string_view n, const T val, const bool override)
+        T* add(const unsigned int i, const std::string_view n, const T val, const bool overr)
         {
             if (!validInput(i, n)) { return nullptr; }
 
             auto it = mVarsMap[i].find(std::string{n});
             if (it != mVarsMap[i].end())
             {
-                if (!override) { return nullptr; }
+                if (!overr) { return nullptr; }
                 it->second = val;
                 return &it->second;
             }
@@ -497,13 +497,14 @@ public:
             });
         }
 
-        bool addOrUpdate(const std::string_view n, bool* v, const bool override)
+        bool addOrUpdate(const std::string_view n, bool* v, const bool overr)
         {
             auto it = find(n);
             if (it != mVars.end())
             {
-                if (!override) {  return false; }
+                if (!overr) { return false; }
                 it->second = v;
+                return true;
             }
 
             mVars.emplace_back(ExitBoolFlag {std::string{n}, v});
