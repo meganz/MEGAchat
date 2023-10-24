@@ -1029,26 +1029,29 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     // a1 starts call with waiting room enabled
     ExitBoolFlags eF;
     MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    ASSERT_TRUE(getHandleVars().addOrUpdate(a1, "CallIdInProgress", invalHandle, true /*override*/));   // a1 - callid received at
-    ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallReceived"  , false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    ASSERT_TRUE(addBoolExitFlag(a2, eF, "CallReceived"  , false, true /*override*/));           // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    ASSERT_TRUE(addBoolExitFlag(a3, eF, "CallReceived"  , false, true /*override*/));           // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallWR"        , false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallInProgress", false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-    startWaitingRoomCall(a1, eF, mData.mChatid, schedId , false /*audio*/, false /*video*/);
+    addHandleFlag(a1, "CallIdInProgress", invalHandle),                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolExitFlag(a1, eF, "CallWR"        , false);                      // a1 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    startWaitingRoomCall(a1, eF, mData.mChatid, schedId,
+                         false /*audio*/, false /*video*/);
     checkCallIdInProgress(a1); // check received callid for caller(a1)
 
     // a2 answers call
     ExitBoolFlags eF1;
-    ASSERT_TRUE(addBoolExitFlag(a2, eF1, "CallWR"        , false, true /*override*/));          // a2 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    ASSERT_TRUE(addBoolExitFlag(a1, eF1, "CallWrChanged" , false, true /*override*/));          // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
-    answerChatCall(a2, eF1, mData.mChatid, false /*video*/, false /*audio*/);
+    addBoolExitFlag(a2, eF1, "CallWR"        , false);                     // a2 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    addBoolExitFlag(a1, eF1, "CallWrChanged" , false);                     // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
+    answerChatCall(a2, eF1, mData.mChatid, false /*video*/,
+                   false /*audio*/);
 
     // a3 answers call
     ExitBoolFlags eF2;
-    ASSERT_TRUE(addBoolExitFlag(a3, eF2, "CallWR"        , false, true /*override*/));          // a3 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    ASSERT_TRUE(addBoolExitFlag(a1, eF2, "CallWrChanged" , false, true /*override*/));          // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
-    answerChatCall(a3, eF2, mData.mChatid, false /*video*/, false /*audio*/);
+    addBoolExitFlag(a3, eF2, "CallWR"        , false);                      // a3 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    addBoolExitFlag(a1, eF2, "CallWrChanged" , false);                      // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
+    answerChatCall(a3, eF2, mData.mChatid, false /*video*/,
+                   false /*audio*/);
 
     // a1 checks waiting room participants order
     std::unique_ptr<MegaChatCall>call(megaChatApi[a1]->getChatCall(mData.mChatid));
@@ -7165,12 +7168,18 @@ void MegaChatApiTest::initLocalSchedMeeting(const MegaChatHandle chatId, const M
                                                                      rulesByMonthWeekDay));
 }
 
-bool MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool overr)
+void MegaChatApiTest::addHandleFlag(const unsigned int i, const std::string& n, const MegaChatHandle val)
 {
-    bool* f = mAuxBool.addOrUpdate(i, n, val, overr);
-    if (!f) { return false; };
-    return eF.addOrUpdate(n, f, overr);
-};
+    ASSERT_TRUE(getHandleVars().add(i, n, val)) << n << " couldn't be added to mAuxHandles for account " << std::to_string(i);
+}
+
+
+void MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val)
+{
+    bool* f = getBoolVars().add(i, n, val);
+    ASSERT_TRUE(f) << n << " couldn't be added to mAuxBool for account " << std::to_string(i);
+    ASSERT_TRUE(eF.add(n, f)) << n << " couldn't be added to eF for account " << std::to_string(i);
+}
 
 void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,
                                            const bool enableVideo, const bool enableAudio)
@@ -7219,10 +7228,12 @@ void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int 
     {
         auto idx = it.first;
         // add flag to wait for onChatListItemUpdate(CHANGE_TYPE_TITLE)
-        mAuxBool.addOrUpdate(idx, "titleItemChanged", false /*val*/, true/*override*/);
+        ASSERT_TRUE(getBoolVars().add(idx, "titleItemChanged", false /*val*/)) << "titleItemChanged couldn't be added for account "
+                                                                          << std::to_string(idx);
 
         // add flag to wait for onChatRoomUpdate(CHANGE_TYPE_TITLE)
-        mAuxBool.addOrUpdate(idx, "titleChanged", false /*val*/, true/*override*/);
+        ASSERT_TRUE(getBoolVars().add(idx, "titleChanged", false /*val*/)) << "titleChanged couldn't be added for account "
+                                                                      << std::to_string(idx);
     });
 
     ChatRequestTracker crtSetTitle;
@@ -7236,15 +7247,15 @@ void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int 
     std::for_each(crlisteners.begin(), crlisteners.end(), [this](const auto& it)
     {
         auto idx = it.first;
-        auto f1 = mAuxBool.get(idx, "titleItemChanged");
+        auto f1 = getBoolVars().get(idx, "titleItemChanged");
         ASSERT_TRUE(f1) << "titleItemChanged wait flag not found for account: " << idx;
         ASSERT_TRUE(waitForResponse(f1)) << "Timeout expired for receiving chat list item update";
-        mAuxBool.remove(idx, "titleItemChanged");
+        getBoolVars().remove(idx, "titleItemChanged");
 
-        auto f2 = mAuxBool.get(idx, "titleChanged");
+        auto f2 = getBoolVars().get(idx, "titleChanged");
         ASSERT_TRUE(f2) << "titleChanged wait flag not found for account: " << idx;
         ASSERT_TRUE(waitForResponse(f2)) << "Timeout expired for receiving chatroom update";
-        mAuxBool.remove(idx, "titleChanged");
+        getBoolVars().remove(idx, "titleChanged");
     });
 };
 
@@ -8367,7 +8378,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
         {
-            mAuxBool.updateIfExists(apiIndex, "titleItemChanged", true);
+            getBoolVars().updateIfExists(apiIndex, "titleItemChanged", true);
             titleUpdated[apiIndex] = true;
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_ARCHIVE))

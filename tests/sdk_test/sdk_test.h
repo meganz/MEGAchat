@@ -362,51 +362,37 @@ public:
             return !n.empty() && i < NUM_ACCOUNTS;
         }
 
+        bool exists(const unsigned int i, const std::string_view n) const
+        {
+            return mVarsMap[i].find(std::string{n}) != mVarsMap[i].end();
+        }
+
         // adds a new entry in map <variable name, val<T>>
-        T* addOrUpdate(const unsigned int i, const std::string_view n, const T val, const bool overr)
+        T* add(const unsigned int i, const std::string_view n, const T val)
         {
             if (!validInput(i, n)) { return nullptr; }
-
-            auto it = mVarsMap[i].find(std::string{n});
-            if (it != mVarsMap[i].end())
-            {
-                if (!overr) { return nullptr; }
-                it->second = val;
-                return &it->second;
-            }
+            if (exists(i, n))      { return nullptr; }
 
             auto res = mVarsMap[i].emplace(std::string{n}, val);
-            return res.second
-                       ? &res.first->second
-                       : nullptr;
+            return res.second ? &res.first->second : nullptr;
         }
 
         // returns value<T> mapped by key n
         T* get(const unsigned int i, const std::string_view n)
         {
             if (!validInput(i, n)) { return nullptr; }
+            if (!exists(i, n))     { return nullptr; }
 
-            auto it = mVarsMap[i].find(std::string{n});
-            if (it == mVarsMap[i].end())
-            {
-                return nullptr;
-            }
-
-            return &it->second;
+            return &mVarsMap[i][std::string{n}];
         }
 
         // updates value<T> mapped by key n
         bool updateIfExists(const unsigned int i, const std::string_view n, const T v)
         {
             if (!validInput(i, n)) { return false; }
+            if (!exists(i, n))     { return false; }
 
-            auto it = mVarsMap[i].find(std::string{n});
-            if (it == mVarsMap[i].end())
-            {
-                return false;
-            }
-
-            it->second = v;
+            mVarsMap[i][std::string{n}] = v;
             return true;
         }
 
@@ -414,15 +400,9 @@ public:
         bool remove(const unsigned int i, const std::string_view n)
         {
             if (!validInput(i, n)) { return false; }
+            if (!exists(i, n))     { return false; }
 
-            auto it = mVarsMap[i].find(std::string{n});
-            if (it == mVarsMap[i].end())
-            {
-                return false;
-            }
-
-            mVarsMap[i].erase(it);
-            return true;
+            return mVarsMap[i].erase(std::string{n});
         }
 
         // clean all vars for a given account index
@@ -491,9 +471,9 @@ public:
             });
         }
 
-        bool addOrUpdate(const std::string_view n, bool* v, const bool overr)
+        bool add(const std::string_view n, bool* v)
         {
-            if (exists(n) && !overr) { return false; }
+            if (exists(n)) { return false; }
             mVars[std::string{n}] = v;
             return true;
         }
@@ -678,8 +658,11 @@ protected:
                                const ::megachat::MegaChatPeerList* peerlist, const ::mega::MegaIntegerList* rulesByWeekDay,
                                const ::mega::MegaIntegerList* rulesByMonthDay, const ::mega::MegaIntegerMap* rulesByMonthWeekDay);
 
+    // Adds a temporal MegaChatHandle variable, to MegaChatApiTest::mAuxHandles
+    void addHandleFlag(const unsigned int i, const std::string& n, const ::megachat::MegaChatHandle val);
+
     // Adds a temporal boolean variable, to ExitBoolFlags param, and also to MegaChatApiTest::mAuxBool
-    bool addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool overr);
+    void addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val);
 
     // starts a call in a chatroom with waiting room option enabled
     void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
@@ -799,17 +782,6 @@ protected:
     // structure with all data common to most of automated tests
     TestData mData;
 
-    // Aux vars maps: these maps can be used to add temporal variables that needs to be updated by any callback or code path,
-    // this avoids defining amounts of vars in MegaChatApiTest class
-
-    // maps a var name to boolean.
-    // It can be used to "register" temporal boolean variables that will be used to wait for async events.
-    AuxVarsBool mAuxBool;
-
-    // maps a var name to MegaChatHandle
-    // It can be used to "register" temporal variables that will be used to store received handles on MegaChat callbacks
-    AuxVarsMCHandle mAuxHandles;
-
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
@@ -904,6 +876,18 @@ protected:
 #endif
 
 private:
+
+    // Aux vars maps: these maps can be used to add temporal variables that needs to be updated by any callback or code path,
+    // this avoids defining amounts of vars in MegaChatApiTest class
+
+    // maps a var name to boolean.
+    // It can be used to "register" temporal boolean variables that will be used to wait for async events.
+    AuxVarsBool mAuxBool;
+
+    // maps a var name to MegaChatHandle
+    // It can be used to "register" temporal variables that will be used to store received handles on MegaChat callbacks
+    AuxVarsMCHandle mAuxHandles;
+
     class TestEnv
     {
     public:
