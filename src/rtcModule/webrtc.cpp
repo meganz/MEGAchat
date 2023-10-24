@@ -956,13 +956,6 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 
 void Call::joinSfu()
 {
-    if (isSpeakRequestEnabled())
-    {
-        RTCM_LOG_WARNING("joinSfu: speak request option temporarily disabled");
-        assert(false); // theoretically, it should not happen
-        orderedCallDisconnect(TermCode::kUserHangup, "joinSfu: speak request option temporarily disabled");
-    }
-
     clearPendingPeers(); // clear pending peers (if any) before joining call
     initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
@@ -1488,13 +1481,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
-    if (isSpeakRequestEnabled())
-    {
-        RTCM_LOG_WARNING("handleAnswerCommand: speak request option temporarily disabled");
-        assert(false); // theoretically, it should not happen
-        orderedCallDisconnect(TermCode::kUserHangup, "handleAnswerCommand: speak request option temporarily disabled");
-    }
-
     if (mState != kStateJoining)
     {
         RTCM_LOG_WARNING("handleAnswerCommand: get unexpected state change");
@@ -2414,13 +2400,6 @@ bool Call::handleModDel(uint64_t userid)
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
                        const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
 {
-    if (speakRequest)
-    {
-        RTCM_LOG_WARNING("handleHello: speak request option temporarily disabled");
-        assert(false); // theoretically, it should not happen
-        orderedCallDisconnect(TermCode::kUserHangup, "handleHello: speak request option temporarily disabled");
-    }
-
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
     if (!isValidInputVideoTracksLimit(numInputVideoTracks))

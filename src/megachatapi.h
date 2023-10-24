@@ -4247,9 +4247,6 @@ public:
     /**
      * @brief Allows to enable/disable the speak request option for a chat room
      * 
-     * @note: This method is temporarily disabled so, on the onRequestFinish the error code associated
-     * to the MegaChatError can be MegaChatError::ERROR_ARGS
-     *
      * If speak request option is enabled, during calls non moderator users, must request permission to speak
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
@@ -6007,9 +6004,6 @@ public:
     /**
      * @brief Start a call in a chat room
      *
-     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
-     * - If MegaChatRoom::isSpeakRequest() returns true
-     *
      * @note This method is not valid for chatrooms with waiting room option enabled, use MegaChatApi::startMeetingInWaitingRoomChat instead.
      * Use MegaChatRoom::isWaitingRoom() to check if that option is enabled or not.
      *
@@ -6067,9 +6061,6 @@ public:
 
     /**
      * @brief Start a call in a chatroom without ringing the participants (just for scheduled meeting context)
-     *
-     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
-     * - If MegaChatRoom::isSpeakRequest() returns true
      *
      * When a scheduled meeting exists for a chatroom, and a call is started in that scheduled meeting context, it won't
      * ring the participants.
@@ -6166,9 +6157,6 @@ public:
     /**
      * @brief Answer a call received in a chat room
      *
-     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
-     * - If MegaChatRoom::isSpeakRequest() returns true
-     *
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
@@ -6211,9 +6199,6 @@ public:
 
     /**
      * @brief Starts a call in a chatroom with waiting room option enabled
-     *
-     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
-     * - If MegaChatRoom::isSpeakRequest() returns true
      *
      * When waiting room option is enabled for a chatroom, you can start a call in two different ways.
      *   - start a waiting room call, where all participants will be redirected to waiting room, when they start/answer a call,
