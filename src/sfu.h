@@ -250,11 +250,11 @@ public:
     virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
     virtual bool handleSpeakOnCommand(Cid_t cid) = 0;
     virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
-    virtual bool handleModAdd (uint64_t userid) = 0;
-    virtual bool handleModDel (uint64_t userid) = 0;
-    virtual bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
-                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                              bool speakRequest, const sfu::WrUserList& wrUsers) = 0;
+    virtual bool handleModAdd(uint64_t userid) = 0;
+    virtual bool handleModDel(uint64_t userid) = 0;
+    virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
+                             const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                             bool speakRequest, const sfu::WrUserList& wrUsers) = 0;
 
     virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
     virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;

@@ -455,7 +455,7 @@ public:
         {
             auto it = std::find_if (mVars.begin(), mVars.end(), [n](const std::pair<std::string, bool*>& v)
             {
-                return v.first == std::string{n};
+                return v.first == n;
             });
             return it;
         }
