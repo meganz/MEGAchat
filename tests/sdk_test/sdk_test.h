@@ -445,25 +445,19 @@ public:
     };
 
     /**
-     * @brief Stores pairs of <string, bool*>
      * It can be used to store a subset of variables of mAuxBool, and provide to methods like waitForAction,
      * that will execute an action and wait until (any or all) provided flags has been set true
      */
     struct ExitBoolFlags
     {
-        using ExitBoolFlag = std::pair<std::string, bool*>;
         auto find(const std::string_view n)
         {
-            auto it = std::find_if(mVars.begin(), mVars.end(), [n](const ExitBoolFlag& v)
-            {
-                return v.first == n;
-            });
-            return it;
+            return mVars.find(std::string{n}) != mVars.end();
         }
 
         bool exists(const std::string_view n)
         {
-            return find(n) != mVars.end();
+            return mVars.find(std::string{n}) != mVars.end();
         }
 
         size_t size() const
@@ -499,32 +493,21 @@ public:
 
         bool addOrUpdate(const std::string_view n, bool* v, const bool overr)
         {
-            auto it = find(n);
-            if (it != mVars.end())
-            {
-                if (!overr) { return false; }
-                it->second = v;
-                return true;
-            }
-
-            mVars.emplace_back(ExitBoolFlag {std::string{n}, v});
+            if (exists(n) && !overr) { return false; }
+            mVars[std::string{n}] = v;
             return true;
         }
 
         bool updateFlagValue(const std::string_view n, const bool v)
         {
-            auto it = find(n);
-            if (it == mVars.end()) {  return false; }
-            *it->second = v;
+            if (!exists(n)) { return false; }
+            *mVars[std::string{n}] = v;
             return true;
         }
 
         bool remove(const std::string_view n)
         {
-            auto it = find(n);
-            if (it == mVars.end()) { return false; }
-            mVars.erase(it);
-            return true;
+            return mVars.erase(std::string{n});
         }
 
         void clean()
@@ -532,13 +515,19 @@ public:
             mVars.clear();
         }
 
-        std::pair<bool, ExitBoolFlag> at(const size_t i)
+        std::string printAll()
         {
-           if (mVars.size() <= i) { return std::make_pair(false, ExitBoolFlag {"", nullptr}); }
-           return std::make_pair(true, mVars.at(i));
+            int i = 0;
+            std::string msg;
+            for (auto& v : mVars)
+            {
+                msg += "Flag_" + std::to_string(i++) + ": " + v.first
+                    + (*v.second ? " (true)" : " (false)") + "\n";
+            }
+            return msg;
         }
 
-        std::vector<ExitBoolFlag> mVars;
+        std::map<std::string, bool*> mVars;
     };
 
     static std::string getCallIdStrB64(const megachat::MegaChatHandle h)

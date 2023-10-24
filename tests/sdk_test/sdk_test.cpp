@@ -785,11 +785,7 @@ void MegaChatApiTest::waitForAction(int maxAttempts, ExitBoolFlags& eF, const st
             std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(":\n ");
             for (size_t i = 0; i < eF.size(); i++)
             {
-                auto res = eF.at(i);
-                if (!res.first) { continue; }
-
-                msg += "Flag_" + std::to_string(i) + ": " + res.second.first
-                    + (*res.second.second ? " (true)" : " (false)") + "\n";
+                msg += eF.printAll();
             }
             LOG_debug << msg;
             ASSERT_LE(++retries, maxAttempts) << "Max attempts exceeded for " << actionMsg;
