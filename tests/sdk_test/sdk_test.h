@@ -363,7 +363,7 @@ public:
         }
 
         // adds a new entry in map <variable name, val<T>>
-        T* add(const unsigned int i, const std::string_view n, const T val, const bool overr)
+        T* addOrUpdate(const unsigned int i, const std::string_view n, const T val, const bool overr)
         {
             if (!validInput(i, n)) { return nullptr; }
 
@@ -396,7 +396,7 @@ public:
         }
 
         // updates value<T> mapped by key n
-        bool update(const unsigned int i, const std::string_view n, const T v)
+        bool updateIfExists(const unsigned int i, const std::string_view n, const T v)
         {
             if (!validInput(i, n)) { return false; }
 

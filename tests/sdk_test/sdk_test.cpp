@@ -1033,7 +1033,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     // a1 starts call with waiting room enabled
     ExitBoolFlags eF;
     MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    ASSERT_TRUE(getHandleVars().add(a1, "CallIdInProgress", invalHandle, true /*override*/));   // a1 - callid received at
+    ASSERT_TRUE(getHandleVars().addOrUpdate(a1, "CallIdInProgress", invalHandle, true /*override*/));   // a1 - callid received at
     ASSERT_TRUE(addBoolExitFlag(a1, eF, "CallReceived"  , false, true /*override*/));           // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
     ASSERT_TRUE(addBoolExitFlag(a2, eF, "CallReceived"  , false, true /*override*/));           // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
     ASSERT_TRUE(addBoolExitFlag(a3, eF, "CallReceived"  , false, true /*override*/));           // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
@@ -7171,7 +7171,7 @@ void MegaChatApiTest::initLocalSchedMeeting(const MegaChatHandle chatId, const M
 
 bool MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool overr)
 {
-    bool* f = mAuxBool.add(i, n, val, overr);
+    bool* f = mAuxBool.addOrUpdate(i, n, val, overr);
     if (!f) { return false; };
     return eF.addOrUpdate(n, f, overr);
 };
@@ -7223,10 +7223,10 @@ void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int 
     {
         auto idx = it.first;
         // add flag to wait for onChatListItemUpdate(CHANGE_TYPE_TITLE)
-        mAuxBool.add(idx, "titleItemChanged", false /*val*/, true/*override*/);
+        mAuxBool.addOrUpdate(idx, "titleItemChanged", false /*val*/, true/*override*/);
 
         // add flag to wait for onChatRoomUpdate(CHANGE_TYPE_TITLE)
-        mAuxBool.add(idx, "titleChanged", false /*val*/, true/*override*/);
+        mAuxBool.addOrUpdate(idx, "titleChanged", false /*val*/, true/*override*/);
     });
 
     ChatRequestTracker crtSetTitle;
@@ -8371,7 +8371,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
         {
-            mAuxBool.update(apiIndex, "titleItemChanged", true);
+            mAuxBool.updateIfExists(apiIndex, "titleItemChanged", true);
             titleUpdated[apiIndex] = true;
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_ARCHIVE))
@@ -8475,7 +8475,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_COMPOSITION))
     {
-         getBoolVars().update(apiIndex, "CallWrChanged", true);
+        getBoolVars().updateIfExists(apiIndex, "CallWrChanged", true);
          mCallWrChanged[apiIndex] = true;
     }
 
@@ -8524,13 +8524,13 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
                  * we receive multiple onChatCallUpdate like a login */
                 mCallWithIdReceived[apiIndex] = true;
             }
-            getBoolVars().update(apiIndex, "CallReceived", true);
+            getBoolVars().updateIfExists(apiIndex, "CallReceived", true);
             mCallReceived[apiIndex] = true;
             break;
 
         case MegaChatCall::CALL_STATUS_IN_PROGRESS:
-            getHandleVars().update(apiIndex, "CallIdInProgress", call->getCallId());
-            getBoolVars().update(apiIndex, "CallInProgress", true);
+            getHandleVars().updateIfExists(apiIndex, "CallIdInProgress", call->getCallId());
+            getBoolVars().updateIfExists(apiIndex, "CallInProgress", true);
             mCallInProgress[apiIndex] = true;
             mChatIdInProgressCall[apiIndex] = call->getChatid();
             break;
@@ -8556,7 +8556,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
         case MegaChatCall::CALL_STATUS_WAITING_ROOM:
         {
-            getBoolVars().update(apiIndex, "CallWR", true);
+            getBoolVars().updateIfExists(apiIndex, "CallWR", true);
             mCallWR[apiIndex] = true;
             break;
         }
@@ -8750,7 +8750,7 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         }
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_TITLE))
         {
-            t->getBoolVars().update(apiIndex, "titleChanged", true);
+            t->getBoolVars().updateIfExists(apiIndex, "titleChanged", true);
             titleUpdated[apiIndex] = true;
         }
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_ARCHIVE))
