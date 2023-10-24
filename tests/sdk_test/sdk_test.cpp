@@ -846,11 +846,11 @@ TEST_F(MegaChatApiTest, BasicTest)
     // Test preparation: login, get chatroom ...
     //========================================================================//
 
-    CleanupFunction testCleanup = [this] () -> void
+    CleanupFunction testCleanup = [this]
     {
-        closeOpenedChatrooms();     // close opened chatrooms
-        cleanChatVideoListeners();  // clean registered videolisteners (if any)
-        logoutTestAccounts();       // logout from all logged in accounts
+        closeOpenedChatrooms();
+        cleanChatVideoListeners();
+        logoutTestAccounts();
     };
     MegaMrProper p (testCleanup);
 
@@ -948,9 +948,9 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 
     CleanupFunction testCleanup = [this] () -> void
     {
-        closeOpenedChatrooms();     // close opened chatrooms
-        cleanChatVideoListeners();  // clean registered videolisteners (if any)
-        logoutTestAccounts();       // logout from all logged in accounts
+        closeOpenedChatrooms();
+        cleanChatVideoListeners();
+        logoutTestAccounts();
     };
     MegaMrProper p (testCleanup);
 
@@ -7169,11 +7169,11 @@ void MegaChatApiTest::initLocalSchedMeeting(const MegaChatHandle chatId, const M
                                                                      rulesByMonthWeekDay));
 }
 
-bool MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool override)
+bool MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool overr)
 {
-    bool* f = mAuxBool.add(i, n, val, override);
+    bool* f = mAuxBool.add(i, n, val, overr);
     if (!f) { return false; };
-    return eF.addOrUpdate(n, f, override);
+    return eF.addOrUpdate(n, f, overr);
 };
 
 void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,

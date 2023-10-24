@@ -571,8 +571,11 @@ public:
     // Global test environment clear up
     static void terminate();
 
-    AuxVars<bool>& getBoolVars ()                       { return mAuxBool; };
-    AuxVars<megachat::MegaChatHandle>& getHandleVars () { return mAuxHandles; };
+    using AuxVarsBool     = AuxVars<bool>;
+    using AuxVarsMCHandle = AuxVars<megachat::MegaChatHandle>;
+
+    AuxVarsBool& getBoolVars()       { return mAuxBool; };
+    AuxVarsMCHandle& getHandleVars() { return mAuxHandles; };
 
 protected:
     static Account& account(unsigned i) { return getEnv().account(i); }
@@ -691,7 +694,7 @@ protected:
                                const ::mega::MegaIntegerList* rulesByMonthDay, const ::mega::MegaIntegerMap* rulesByMonthWeekDay);
 
     // Adds a temporal boolean variable, to ExitBoolFlags param, and also to MegaChatApiTest::mAuxBool
-    bool addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool override);
+    bool addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val, const bool overr);
 
     // starts a call in a chatroom with waiting room option enabled
     void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
@@ -816,11 +819,11 @@ protected:
 
     // maps a var name to boolean.
     // It can be used to "register" temporal boolean variables that will be used to wait for async events.
-    AuxVars<bool> mAuxBool;
+    AuxVarsBool mAuxBool;
 
     // maps a var name to MegaChatHandle
     // It can be used to "register" temporal variables that will be used to store received handles on MegaChat callbacks
-    AuxVars<megachat::MegaChatHandle> mAuxHandles;
+    AuxVarsMCHandle mAuxHandles;
 
     ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
