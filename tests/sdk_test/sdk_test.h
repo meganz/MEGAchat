@@ -441,7 +441,7 @@ public:
             }
         }
     private:
-        std::map<std::string, T> mVarsMap[NUM_ACCOUNTS];
+        std::array<std::map<std::string, T>, NUM_ACCOUNTS> mVarsMap{};
     };
 
     /**
@@ -451,9 +451,10 @@ public:
      */
     struct ExitBoolFlags
     {
-        std::vector<std::pair<std::string, bool*>>::iterator find(const std::string_view n)
+        using ExitBoolFlag = std::pair<std::string, bool*>;
+        auto find(const std::string_view n)
         {
-            auto it = std::find_if (mVars.begin(), mVars.end(), [n](const std::pair<std::string, bool*>& v)
+            auto it = std::find_if(mVars.begin(), mVars.end(), [n](const ExitBoolFlag& v)
             {
                 return v.first == n;
             });
@@ -474,7 +475,7 @@ public:
         {
             for (auto& entry : mVars)
             {
-                if (entry.second == nullptr) { return v; }
+                if (entry.second == nullptr) { return false; }
                 *(entry.second) = v;
             }
             return true;
@@ -482,24 +483,18 @@ public:
 
         bool allEqualTo(const bool v)
         {
-            for (auto& entry : mVars)
+            return std::all_of(mVars.begin(), mVars.end(), [v](const auto& entry)
             {
-                if (entry.second == nullptr || *entry.second != v)
-                {
-                    return false;
-                }
-            }
-            return true;
+                return (entry.second != nullptr) && (*entry.second == v);
+            });
         }
 
         bool anyEqualTo(const bool v)
         {
-            for (auto& entry : mVars)
+            return std::any_of(mVars.begin(), mVars.end(), [v](const auto& entry)
             {
-                if (entry.second == nullptr) { return false; }
-                if (*entry.second == v)      { return true;  }
-            }
-            return false;
+                return (entry.second != nullptr) && (*entry.second == v);
+            });
         }
 
         bool addOrUpdate(const std::string_view n, bool* v, const bool override)
@@ -511,7 +506,7 @@ public:
                 it->second = v;
             }
 
-            mVars.emplace_back(std::make_pair(std::string{n}, v));
+            mVars.emplace_back(ExitBoolFlag {std::string{n}, v});
             return true;
         }
 
@@ -536,13 +531,13 @@ public:
             mVars.clear();
         }
 
-        std::pair<bool, std::pair<std::string, bool *>> at(const size_t i)
+        std::pair<bool, ExitBoolFlag> at(const size_t i)
         {
-           if (mVars.size() <= i) { return std::make_pair(false, std::make_pair("", nullptr)); }
+           if (mVars.size() <= i) { return std::make_pair(false, ExitBoolFlag {"", nullptr}); }
            return std::make_pair(true, mVars.at(i));
         }
 
-        std::vector<std::pair<std::string, bool *>> mVars;
+        std::vector<ExitBoolFlag> mVars;
     };
 
     static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
