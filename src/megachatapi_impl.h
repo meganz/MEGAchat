@@ -361,9 +361,9 @@ public:
         return mWaitingRoomUsers ? mWaitingRoomUsers->size() : 0;
     }
 
-    mega::MegaHandleList* getPeers() const override;
+    mega::MegaHandleList* getUsers() const override;
 
-    int getPeerStatus(const uint64_t& userid) const override
+    int getUserStatus(const uint64_t& userid) const override
     {
         if (!mWaitingRoomUsers) { return MWR_UNKNOWN; }
         return convertIntoValidStatus(mWaitingRoomUsers->getUserStatus(userid));

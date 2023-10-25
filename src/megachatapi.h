@@ -9026,7 +9026,7 @@ public:
      *
      * @return mega::MegaHandleList of handles of users that are in the waiting room
      */
-    virtual mega::MegaHandleList* getPeers() const      { return NULL; };
+    virtual mega::MegaHandleList* getUsers() const      { return NULL; };
 
     /**
      * @brief Returns the number of elements in the list
@@ -9044,9 +9044,9 @@ public:
      *
      * @return The waiting room joining status for the specified user
      */
-    virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
+    virtual int getUserStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
 
-    static const char* peerStatusToString(int status)
+    static const char* userStatusToString(int status)
     {
         switch (status)
         {
