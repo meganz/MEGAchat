@@ -26,31 +26,32 @@ namespace sfu
  * - Version 1 (never released for native clients):
  *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
  *      + Dynamic audio routing
- *      + Waiting rooms
  *
  * - Version 2 (contains all features from V1):
  *      + Change AES-GCM by AES-CBC with Zero iv
+ *      + Waiting rooms
+ *
+ * - Version 3 (contains all features from V2):
+ *      + Speak requests (raise hand to speak)
  */
 enum class SfuProtocol: uint32_t
 {
-    SFU_PROTO_INVAL    = UINT32_MAX,
     SFU_PROTO_V0       = 0,
     SFU_PROTO_V1       = 1,
     SFU_PROTO_V2       = 2,
+    SFU_PROTO_V3       = 3,
+    SFU_PROTO_FIRST    = SFU_PROTO_V0,
+    SFU_PROTO_LAST     = SFU_PROTO_V3,
+    SFU_PROTO_INVAL    = UINT32_MAX,
 };
 
-// own client SFU protocol version
-constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION = SfuProtocol::SFU_PROTO_V2;
-
-// returns true if provided version as param is equal to SFU current version
-static bool isCurrentSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::SFU_PROTO_V2; }
-
-// returns true if provided version as param is SFU version V0 (forward secrecy is not supported)
-static bool isInitialSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::SFU_PROTO_V0; }
-
-// returns true if provided version as param is a valid SFU version
-static bool isValidSfuVersion(sfu::SfuProtocol v) { return v != SfuProtocol::SFU_PROTO_INVAL; }
-
+constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION          { SfuProtocol::SFU_PROTO_LAST };                // current own client SFU protocol version
+static bool isInitialSfuVersion(sfu::SfuProtocol v)         { return v == SfuProtocol::SFU_PROTO_V0; }      // initial version (forward secrecy not supported)
+static bool isForwardSecrecySfuVersion(sfu::SfuProtocol v)  { return v >= SfuProtocol::SFU_PROTO_V2; }      // supports forward secrecy
+static bool isWaitingRoomsSfuVersion(sfu::SfuProtocol v)    { return v >= SfuProtocol::SFU_PROTO_V2; }      // supports waiting rooms
+static bool isSpeakRequestSfuVersion(sfu::SfuProtocol v)    { return v >= SfuProtocol::SFU_PROTO_V3; }      // supports speak request
+static bool isSupportedSfuVersion(sfu::SfuProtocol v)       { return v >= SfuProtocol::SFU_PROTO_FIRST      // SFU version supported by MegaChat
+                                                              && v <= SfuProtocol::SFU_PROTO_LAST;   }
 // enum for user status in waiting room
 enum class WrState: int
 {
@@ -121,6 +122,19 @@ public:
 
     // returns the SFU protocol version used by the peer
     sfu::SfuProtocol getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
+
+    // returns true if provided version as param, is a SFU version supported by MegaChat
+    bool checkPeerSfuVersion() const
+    {
+        if (!isSupportedSfuVersion(mSfuPeerProtoVersion))
+        {
+            SFU_LOG_WARNING("unsupported SFU version: %u for peer: %s ",
+                             mSfuPeerProtoVersion,
+                             mPeerid.toString().c_str());
+            return false;
+        }
+        return true;
+    }
 
 protected:
     Cid_t mCid = K_INVALID_CID;
@@ -803,19 +817,6 @@ private:
     std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
-
-   /** SFU Protocol Versions:
-     * - Version 0: initial version
-     *
-     * - Version 1 (never released for native clients):
-     *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
-     *      + Dynamic audio routing
-     *      + Waiting rooms
-     *
-     * - Version 2 (contains all features from V1):
-     *      + Change AES-GCM by AES-CBC with Zero iv
-     */
-     static const unsigned int mSfuVersion = 1;
 };
 
 static inline const char* connStateToStr(SfuConnection::ConnState state)

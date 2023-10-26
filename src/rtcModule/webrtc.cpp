@@ -1565,6 +1565,20 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             assert(false);
             continue;
         }
+        assert(peer.checkPeerSfuVersion()); // ensures that peer SFU version is valid
+        if (isWrFlagEnabled() && !isWaitingRoomsSfuVersion(peer.getPeerSfuVersion()))
+        {
+            SFU_LOG_WARNING("SFU version: %u from peer: %s, doesn't support waiting rooms",
+                            peer.getPeerSfuVersion(), peer.getPeerid().toString().c_str());
+            assert(false);
+        }
+
+        if (isSpeakRequestEnabled() && !isSpeakRequestSfuVersion(peer.getPeerSfuVersion()))
+        {
+            SFU_LOG_WARNING("SFU version: %u from peer: %s, doesn't support speak requests",
+                            peer.getPeerSfuVersion(), peer.getPeerid().toString().c_str());
+            assert(false);
+        }
 
         // check if peerid is included in mods list received upon HELLO
         peer.setModerator(mModerators.find(peer.getPeerid()) != mModerators.end());
@@ -1572,7 +1586,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         {
             addPeerWithEphemKey(peer, true, std::string());
         }
-        else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion())) // verify ephemeral key signature, derive it, and then add the peer
+        else if (sfu::isForwardSecrecySfuVersion(peer.getPeerSfuVersion())) // verify ephemeral key signature, derive it, and then add the peer
         {
             if (keyStr.empty())
             {
@@ -1768,6 +1782,7 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
         const sfu::Peer& peer = session->getPeer();
         auto wptr = weakHandle();
 
+        assert(peer.checkPeerSfuVersion()); // ensures that peer SFU version is valid
         if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion()))
         {
             mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peer.getPeerid())
@@ -1806,7 +1821,7 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
                 session->addKey(keyid, newKey);
             });
         }
-        else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
+        else if (sfu::isForwardSecrecySfuVersion(peer.getPeerSfuVersion()))
         {
             Session* session = getSession(cid);
             if (!session)
@@ -2178,11 +2193,26 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
     }
 
     std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (mModerators.find(userid) != mModerators.end())));
+    assert(peer->checkPeerSfuVersion());
+    if (isWrFlagEnabled() && !isWaitingRoomsSfuVersion(peer->getPeerSfuVersion()))
+    {
+        SFU_LOG_WARNING("SFU version: %u from peer: %s, doesn't support waiting rooms",
+                        peer->getPeerSfuVersion(), peer->getPeerid().toString().c_str());
+        assert(false);
+    }
+
+    if (isSpeakRequestEnabled() && !isSpeakRequestSfuVersion(peer->getPeerSfuVersion()))
+    {
+        SFU_LOG_WARNING("SFU version: %u from peer: %s, doesn't support speak requests",
+                        peer->getPeerSfuVersion(), peer->getPeerid().toString().c_str());
+        assert(false);
+    }
+
     if (sfu::isInitialSfuVersion(sfuProtoVersion))
     {
         addPeerWithEphemKey(*peer, std::string());
     }
-    else if (sfu::isCurrentSfuVersion(sfuProtoVersion))
+    else if (sfu::isForwardSecrecySfuVersion(sfuProtoVersion))
     {
         if (keyStr.empty())
         {
@@ -2400,6 +2430,9 @@ bool Call::handleModDel(uint64_t userid)
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
                        const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
 {
+    // ensures that our sfu protocol version is the latest one defined in karere
+    assert(sfu::MY_SFU_PROTOCOL_VERSION == sfu::SfuProtocol::SFU_PROTO_LAST);
+
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
     if (!isValidInputVideoTracksLimit(numInputVideoTracks))
@@ -3130,6 +3163,7 @@ void Call::generateAndSendNewMediakey(bool reset)
             // get peer Cid
             Cid_t sessionCid = session.first;
             const sfu::Peer& peer = session.second->getPeer();
+            assert(peer.checkPeerSfuVersion()); // ensures that peer SFU version is valid
             if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion()))
             {
                 // encrypt key to participant
@@ -3137,7 +3171,7 @@ void Call::generateAndSendNewMediakey(bool reset)
                 mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peer.getPeerid(), *newPlainKey.get(), encryptedKey);
                 (*keys)[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
             }
-            else if (sfu::isCurrentSfuVersion(peer.getPeerSfuVersion()))
+            else if (sfu::isForwardSecrecySfuVersion(peer.getPeerSfuVersion()))
             {
                 auto&& ephemeralPubKey = peer.getEphemeralPubKeyDerived();
                 if (ephemeralPubKey.empty())

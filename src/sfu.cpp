@@ -182,14 +182,8 @@ std::string Peer::getEphemeralPubKeyDerived() const
 
 bool Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
-    if (!sfu::isValidSfuVersion(getPeerSfuVersion()))
-    {
-        SFU_LOG_WARNING("setEphemeralPubKeyDerived: Invalid SFU version for PeerId: %s Cid: %u",
-                        getPeerid().toString().c_str() ,getCid());
-        return false;
-    }
-
-    if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
+    assert(checkPeerSfuVersion()); // ensures that peer SFU version is valid
+    if (key.empty() && sfu::isForwardSecrecySfuVersion(getPeerSfuVersion()))
     {
         SFU_LOG_WARNING("setEphemeralPubKeyDerived: Empty ephemeral key for PeerId: %s Cid: %u",
                         getPeerid().toString().c_str() ,getCid());
