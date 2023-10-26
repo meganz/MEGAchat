@@ -862,10 +862,10 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
     room->connect();
 }
 
-promise::Promise<KarereScheduledMeeting*> Client::createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting)
+promise::Promise<KarereScheduledMeeting*> Client::createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting, const char* chatTitle)
 {
     auto wptr = getDelTracker();
-    return api.call(&::mega::MegaApi::createOrUpdateScheduledMeeting, scheduledMeeting)
+    return api.call(&::mega::MegaApi::createOrUpdateScheduledMeeting, scheduledMeeting, chatTitle)
     .then([wptr](ReqResult result) -> promise::Promise<KarereScheduledMeeting*>
     {
         wptr.throwIfDeleted();
@@ -3464,6 +3464,11 @@ void GroupChatRoom::makeTitleFromMemberNames()
 
     mTitleString = newTitle;
     notifyTitleChanged();
+}
+
+promise::Promise<std::shared_ptr<Buffer>> GroupChatRoom::encryptChatTitle(const std::string& title)
+{
+    return chat().crypto()->encryptChatTitle(title);
 }
 
 promise::Promise<void> GroupChatRoom::setTitle(const std::string& title)
