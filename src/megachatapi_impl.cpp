@@ -56,10 +56,6 @@
 #include <signal.h>
 #endif
 
-#ifndef KARERE_DISABLE_WEBRTC
-namespace rtcModule {void globalCleanup(); }
-#endif
-
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
 
 using namespace std;
@@ -225,9 +221,7 @@ void MegaChatApiImpl::loop()
         }
     }
 
-#ifndef KARERE_DISABLE_WEBRTC
-    rtcModule::globalCleanup();
-#endif
+    globalCleanup();
 }
 
 void MegaChatApiImpl::megaApiPostMessage(megaMessage* msg, void* ctx)
