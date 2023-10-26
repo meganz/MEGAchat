@@ -1465,7 +1465,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
             sfu::TrackDescriptor trackDescriptor;
             trackDescriptor.mMid = aMid;
             trackDescriptor.mReuse = true;
-            addSpeaker(cid, trackDescriptor);
+            addSpeaker(cid, aMid);
         }
     })
     .fail([cid](const ::promise::Error&)
@@ -1479,8 +1479,18 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
 
 bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, std::string>& keystrmap,
-                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
+                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
+                               const std::set<karere::Id>& speakers,
+                               const std::set<karere::Id>& speakReqs,
+                               const std::map<Cid_t, uint32_t>& amidmap)
 {
+    if (!speakReqs.empty() && !isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("handleAnswerCommand: we shouldn't receive speak requests if this chat option is is disabled");
+        assert(false);
+        orderedCallDisconnect(TermCode::kUserHangup, "handleAnswerCommand: we shouldn't receive speak requests if this chat option is is disabled");
+    }
+
     if (mState != kStateJoining)
     {
         RTCM_LOG_WARNING("handleAnswerCommand: get unexpected state change");
@@ -1661,7 +1671,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     // wait until all peers ephemeral keys have been verified and derived
     auto auxwptr = weakHandle();
     keyDerivationPms
-    ->then([auxwptr, vthumbs, speakers, sdp, keysVerified, this]
+    ->then([auxwptr, vthumbs, speakers, amidmap, sdp, keysVerified, speakReqs, this]
     {
         if (auxwptr.deleted())
         {
@@ -1695,7 +1705,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         assert(mRtcConn);
         auto wptr = weakHandle();
         mRtcConn.setRemoteDescription(std::move(sdpInterface))
-        .then([wptr, this, vthumbs, speakers]()
+        .then([wptr, this, vthumbs, speakers, amidmap, speakReqs]()
         {
             if (wptr.deleted())
             {
@@ -1705,6 +1715,20 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             if (mState != kStateJoining)
             {
                 RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change at setRemoteDescription");
+                return;
+            }
+
+            if (speakers.size() - 1 > mSessions.size()) // own peer not included in sessions, but could be speaker
+            {
+                RTCM_LOG_WARNING("handleAnswerCommand: received speakers list is greater than current list of sessions");
+                assert(false);
+                return;
+            }
+
+            if (amidmap.size() > mSessions.size())
+            {
+                RTCM_LOG_WARNING("handleAnswerCommand: received mid list is greater than current list of sessions");
+                assert(false);
                 return;
             }
 
@@ -1723,18 +1747,54 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
             handleIncomingVideo(vthumbs, kLowRes);
 
-            for (const auto& speak : speakers)  // current speakers in the call
+            for (auto& s: mSessions)
             {
-                Cid_t cid = speak.first;
-                const sfu::TrackDescriptor& speakerDecriptor = speak.second;
-                Session* sess = getSession(cid);
-                if (!sess)
+                // for each session check:
+                // 1) if peer is included in speakers list
+                const auto& uh = s.second->getPeerid();
+                const auto cid = s.second->getClientid();
+                const bool isSpeaker = speakers.find(uh) != speakers.end();
+                if (isSpeaker)
                 {
-                    RTCM_LOG_WARNING("handleAnswerCommand: unknown cid: %u in speakers field", cid);
-                    continue;
+                    s.second->setSpeakPermission(true);
                 }
-                sess->setSpeakPermission(true); // set speak permission true
-                addSpeaker(cid, speakerDecriptor);
+
+                // 2) if is currently sending audio (valid amid received)
+                const auto it = amidmap.find(cid);
+                if (it != amidmap.end())
+                {
+                    if (!isSpeaker)
+                    {
+                        RTCM_LOG_WARNING("handleAnswerCommand: amid received for user: %s, cid: %u, but not included in speakers list",
+                                         uh.toString().c_str(), cid);
+                        assert(false);
+                        return;
+                    }
+                    addSpeaker(cid, it->second/*amid*/);
+                }
+
+                // 3) if it has pending speak request
+                if (speakReqs.find(uh) != speakReqs.end())
+                {
+                    if (isSpeaker)
+                    {
+                        RTCM_LOG_WARNING("handleAnswerCommand: speak request received for user: %s, cid: %u, and it's already included in speakers list",
+                                         uh.toString().c_str(), cid);
+                        assert(false);
+                        return;
+                    }
+                    s.second->setSpeakRequested(true);
+                }
+            }
+
+            if (isOwnPrivModerator()
+                || !isSpeakRequestEnabled()
+                || speakers.find(getOwnCid()) != speakers.end())
+            {
+                // own user is speaker
+                mSpeakerState = SpeakerState::kActive;
+                mCallHandler.onSpeakStatusUpdate(*this);
+                updateAudioTracks();
             }
 
             setState(CallState::kStateInProgress);
@@ -3319,7 +3379,7 @@ void Call::attachSlotToSession (Session& session, RemoteSlot* slot, const bool a
     }
 }
 
-void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
+void Call::addSpeaker(const Cid_t cid, const uint32_t amid)
 {
     if (cid == K_INVALID_CID)
     {
@@ -3327,17 +3387,17 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         assert(false);
     }
 
-    if (speaker.mMid == sfu::TrackDescriptor::invalidMid)
+    if (amid == sfu::TrackDescriptor::invalidMid)
     {
         // peer notified as speaker from SFU, but track not provided yet (this happens if peer is muted)
         // TODO: check when we fully support raise-to-speak requests (to avoid sending an unnecessary speak request)
         return;
     }
 
-    auto it = mReceiverTracks.find(speaker.mMid);
+    auto it = mReceiverTracks.find(amid);
     if (it == mReceiverTracks.end())
     {
-        RTCM_LOG_WARNING("AddSpeaker: unknown track mid %u", speaker.mMid);
+        RTCM_LOG_WARNING("AddSpeaker: unknown track mid %u", amid);
         return;
     }
 

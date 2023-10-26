@@ -8979,7 +8979,9 @@ bool MockupCall::handleAvCommand(Cid_t, unsigned, uint32_t)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::map<Cid_t, sfu::TrackDescriptor>&)
+bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::set<karere::Id>&,
+                                     const std::set<karere::Id>& speakReqs,
+                                     const std::map<Cid_t, uint32_t>&)
 {
     return true;
 }

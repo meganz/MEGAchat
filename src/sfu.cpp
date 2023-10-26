@@ -250,7 +250,7 @@ bool Command::parseWrUsersMap(sfu::WrUserList& wrUsers, const rapidjson::Value& 
     return true;
 }
 
-void Command::parseUsersArray(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const
+void Command::parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
@@ -261,7 +261,7 @@ void Command::parseUsersArray(std::set<karere::Id> &moderators, rapidjson::Value
             return;
         }
         std::string userIdString = it->value[j].GetString();
-        moderators.emplace(::mega::MegaApi::base64ToUserHandle(userIdString.c_str()));
+        users.emplace(::mega::MegaApi::base64ToUserHandle(userIdString.c_str()));
     }
 }
 
@@ -401,7 +401,7 @@ bool AVCommand::processCommand(const rapidjson::Document &command)
     unsigned av = avIterator->value.GetUint();
 
     rapidjson::Value::ConstMemberIterator amidIterator = command.FindMember("amid");
-    int audioMid = TrackDescriptor::invalidMid;
+    uint32_t audioMid = TrackDescriptor::invalidMid;
     if (amidIterator != command.MemberEnd() && amidIterator->value.IsInt()) // It's optional
     {
         audioMid = amidIterator->value.GetUint();
@@ -444,25 +444,38 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
 
     // offset ts when we join within the call respect the call start (ms)
     uint64_t callJoinOffset = tsIterator->value.GetUint64();
-
     std::vector<Peer> peers;
     std::map<Cid_t, std::string> keystrmap;
+    std::map<Cid_t, uint32_t> amidmap;
     rapidjson::Value::ConstMemberIterator peersIterator = command.FindMember("peers");
     if (peersIterator != command.MemberEnd() && peersIterator->value.IsArray())
     {
-        parsePeerObject(peers, keystrmap, peersIterator);
+        parsePeerObject(peers, keystrmap, amidmap, peersIterator);
     }
 
-    std::map<Cid_t, TrackDescriptor> speakers;
-    parseTracks(command, "speakers", speakers);
+    // lists with the user handles of all non-moderator users that have been given speak permission
+    std::set<karere::Id> speakers;
+    rapidjson::Value::ConstMemberIterator spkIterator = command.FindMember("speakers");
+    if (spkIterator != command.MemberEnd() && spkIterator->value.IsArray())
+    {
+        parseUsersArray(speakers, spkIterator);
+    }
+
+    // lists with the user handles of users that have pending speak requests
+    std::set<karere::Id> speakReqs;
+    rapidjson::Value::ConstMemberIterator spkReqIterator = command.FindMember("spkrqs");
+    if (spkReqIterator != command.MemberEnd() && spkReqIterator->value.IsArray())
+    {
+        parseUsersArray(speakReqs, spkReqIterator);
+    }
 
     std::map<Cid_t, TrackDescriptor> vthumbs;
     parseTracks(command, "vthumbs", vthumbs);
 
-    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers);
+    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, speakReqs, amidmap);
 }
 
-void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, rapidjson::Value::ConstMemberIterator &it) const
+void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
     for (unsigned int j = 0; j < it->value.Capacity(); ++j)
@@ -524,6 +537,12 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
             {
                  SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid 'av' value");
                  return;
+            }
+
+            rapidjson::Value::ConstMemberIterator amidIterator = it->value[j].FindMember("amid");
+            if (amidIterator != it->value[j].MemberEnd() && amidIterator->value.IsUint()) // It's optional
+            {
+                amidmap[cid] = amidIterator->value.GetUint();
             }
 
             unsigned av = avIterator->value.GetUint();
@@ -1563,7 +1582,7 @@ const karere::Url& SfuConnection::getSfuUrl()
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
     commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
+    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9), call);
     commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
     commands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);

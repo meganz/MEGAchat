@@ -45,13 +45,13 @@ enum class SfuProtocol: uint32_t
     SFU_PROTO_INVAL    = UINT32_MAX,
 };
 
-constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION          { SfuProtocol::SFU_PROTO_LAST };                // current own client SFU protocol version
-static bool isInitialSfuVersion(sfu::SfuProtocol v)         { return v == SfuProtocol::SFU_PROTO_V0; }      // initial version (forward secrecy not supported)
-static bool isForwardSecrecySfuVersion(sfu::SfuProtocol v)  { return v >= SfuProtocol::SFU_PROTO_V2; }      // supports forward secrecy
-static bool isWaitingRoomsSfuVersion(sfu::SfuProtocol v)    { return v >= SfuProtocol::SFU_PROTO_V2; }      // supports waiting rooms
-static bool isSpeakRequestSfuVersion(sfu::SfuProtocol v)    { return v >= SfuProtocol::SFU_PROTO_V3; }      // supports speak request
-static bool isSupportedSfuVersion(sfu::SfuProtocol v)       { return v >= SfuProtocol::SFU_PROTO_FIRST      // SFU version supported by MegaChat
-                                                              && v <= SfuProtocol::SFU_PROTO_LAST;   }
+constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION                  { SfuProtocol::SFU_PROTO_LAST };                // current own client SFU protocol version
+static bool isInitialSfuVersion(const sfu::SfuProtocol v)           { return v == SfuProtocol::SFU_PROTO_V0; }      // initial version (forward secrecy not supported)
+static bool isForwardSecrecySfuVersion(const sfu::SfuProtocol v)    { return v >= SfuProtocol::SFU_PROTO_V2; }      // supports forward secrecy
+static bool isWaitingRoomsSfuVersion(const sfu::SfuProtocol v)      { return v >= SfuProtocol::SFU_PROTO_V2; }      // supports waiting rooms
+static bool isSpeakRequestSfuVersion(const sfu::SfuProtocol v)      { return v >= SfuProtocol::SFU_PROTO_V3; }      // supports speak request
+static bool isSupportedSfuVersion(const sfu::SfuProtocol v)         { return v >= SfuProtocol::SFU_PROTO_FIRST      // SFU version supported by MegaChat
+                                                                        && v <= SfuProtocol::SFU_PROTO_LAST; }
 // enum for user status in waiting room
 enum class WrState: int
 {
@@ -252,7 +252,10 @@ class SfuInterface
 public:
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) = 0;   // audio/video/on-hold flags
-    virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap,
+                                     const std::map<Cid_t, TrackDescriptor>& vthumbs,
+                                     const std::set<karere::Id>& speakers, const std::set<karere::Id>& speakReqs,
+                                     const std::map<Cid_t, uint32_t>& amidmap) = 0;
     virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
@@ -308,7 +311,7 @@ public:
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
     static std::vector<mega::byte> hexToByteArray(const std::string &hex);
-    void parseUsersArray(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
+    void parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it) const;
     void parseTracks(const rapidjson::Document &command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const;
 
 protected:
@@ -332,14 +335,16 @@ public:
 class AnswerCommand : public Command
 {
 public:
-    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>&,
+                               std::map<Cid_t, TrackDescriptor>&, const std::set<karere::Id>&,
+                               const std::set<karere::Id>&, std::map<Cid_t, uint32_t>&)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     AnswerCompleteFunction mComplete;
 
 private:
-    void parsePeerObject(std::vector<Peer>& peers, std::map<Cid_t, std::string>& keystrmap, rapidjson::Value::ConstMemberIterator& it) const;
+    void parsePeerObject(std::vector<Peer>& peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator& it) const;
 };
 
 class KeyCommand : public Command
