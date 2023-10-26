@@ -225,7 +225,7 @@ Command::Command(SfuInterface& call)
 {
 }
 
-bool Command::parseUsersMap(std::map<karere::Id, bool>& wrUsers, const rapidjson::Value& obj) const
+bool Command::parseWrUsersMap(sfu::WrUserList& wrUsers, const rapidjson::Value& obj) const
 {
     assert(obj.IsObject());
     rapidjson::Value::ConstMemberIterator usersIterator = obj.FindMember("users");
@@ -248,8 +248,9 @@ bool Command::parseUsersMap(std::map<karere::Id, bool>& wrUsers, const rapidjson
 
             std::string userIdString = m->name.GetString();
             uint64_t userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
-            bool allow = m->value.GetUint();
-            wrUsers[userId] = allow;
+            WrState state =  m->value.GetUint() ? WrState::WR_ALLOWED : WrState::WR_NOT_ALLOWED;
+            WrRoomUser user { userId, state };
+            wrUsers.emplace_back(user);
         }
     }
     return true;
@@ -671,6 +672,10 @@ SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete, Sf
 
 bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
 {
+    // remove this when SFU is ready
+    SFU_LOG_ERROR("SpeakReqsCommand::processCommand - command temporarily disabled");
+    return true;
+
     rapidjson::Value::ConstMemberIterator cidsIterator = command.FindMember("cids");
     if (cidsIterator == command.MemberEnd() || !cidsIterator->value.IsArray())
     {
@@ -704,6 +709,10 @@ SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &comple
 
 bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 {
+    // remove this when SFU is ready
+    SFU_LOG_ERROR("SpeakReqDelCommand::processCommand - command temporarily disabled");
+    return true;
+
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
@@ -742,7 +751,11 @@ SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete, SfuIn
 }
 
 bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
-{    
+{
+    // remove this when SFU is ready
+    SFU_LOG_ERROR("SpeakOffCommand::processCommand - command temporarily disabled");
+    return true;
+
     Cid_t cid = 0;
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
@@ -2764,7 +2777,7 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
 
     bool wr = false;
     bool allowed = false;
-    std::map<karere::Id, bool> wrUsers;
+    sfu::WrUserList wrUserList;
     rapidjson::Value::ConstMemberIterator wrIterator = command.FindMember("wr");
     if (wrIterator != command.MemberEnd())
     {
@@ -2787,14 +2800,14 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         }
         allowed = allowIterator->value.GetUint();
 
-        if (!parseUsersMap(wrUsers, obj))
+        if (!parseWrUsersMap(wrUserList, obj))
         {
             assert(false);
             SFU_LOG_ERROR("HelloCommand: users array in wr is ill-formed");
             return false;
         }
     }
-    return mComplete(cid, nAudioTracks, moderators, wr, speakRequest, allowed, wrUsers);
+    return mComplete(cid, nAudioTracks, moderators, wr, allowed, speakRequest, wrUserList);
 }
 
 WrDumpCommand::WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call)
@@ -2805,14 +2818,14 @@ WrDumpCommand::WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface
 
 bool WrDumpCommand::processCommand(const rapidjson::Document& command)
 {
-    std::map<karere::Id, bool> users;
-    if (!parseUsersMap(users, command.GetObject()))
+    sfu::WrUserList wrUsers;
+    if (!parseWrUsersMap(wrUsers, command.GetObject()))
     {
         SFU_LOG_ERROR("WrDumpCommand: users array is ill-formed");
         assert(false);
         return false;
     }
-    return mComplete(users);
+    return mComplete(wrUsers);
 }
 
 WrEnterCommand::WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call)
@@ -2823,14 +2836,14 @@ WrEnterCommand::WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterf
 
 bool WrEnterCommand::processCommand(const rapidjson::Document& command)
 {
-    std::map<karere::Id, bool> users;
-    if (!parseUsersMap(users, command.GetObject()))
+    sfu::WrUserList wrUsers;
+    if (!parseWrUsersMap(wrUsers, command.GetObject()))
     {
         SFU_LOG_ERROR("WrEnterCommand: users array is ill-formed");
         assert(false);
         return false;
     }
-    return mComplete(users);
+    return mComplete(wrUsers);
 }
 
 WrLeaveCommand::WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterface& call)

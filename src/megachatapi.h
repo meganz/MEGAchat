@@ -4247,6 +4247,9 @@ public:
     /**
      * @brief Allows to enable/disable the speak request option for a chat room
      * 
+     * @note: This method is temporarily disabled so, on the onRequestFinish the error code associated
+     * to the MegaChatError can be MegaChatError::ERROR_ARGS
+     *
      * If speak request option is enabled, during calls non moderator users, must request permission to speak
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
@@ -4620,6 +4623,52 @@ public:
     void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
                                                                          const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
                                                                          MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Modify an existing scheduled meeting. This action won't create a child scheduled meeting
+     *
+     * @note: if updateChatTitle is true, this method will also update chatroom title (just in case that scheduled meeting title is going to be updated)
+     * No management message will be received for chatroom title update.
+     *
+     * @note: You need to provide the current values of scheduled meeting for those params that you don't want to modify
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting
+     * (containing the params provided by user), or NULL in case request finished with an error.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting
+     * (with definitive ScheduledMeeting updated from API)
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if chatid or schedId are invalid
+     * - MegaChatError::ERROR_ARGS  - if title, timezone, startDateTime or endDateTime are invalid
+     * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
+     * - MegaChatError::ERROR_NOENT - if chatroom or scheduled meeting don't exist
+     * - MegaChatError::ERROR_TOOMANY - if updateChatTitle is true, but chatTitle could not be encrypted for all participants
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param schedId MegaChatHandle that identifies the scheduled meeting
+     * @param timezone Timezone where we want to schedule the meeting
+     * @param startDate start date time of the meeting with the format (unix timestamp UTC)
+     * @param endDate end date time of the meeting with the format (unix timestamp UTC)
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters.
+     * Provide nullptr to remove description
+     * @param cancelled True if scheduled meeting is going to be cancelled
+     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class), or nullptr to remove current flags
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class), or nullptr to remove current repetition rules
+     * @param updateChatTitle if true chatroom title will be updated along with scheduled meeting title
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
+                                const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                const bool updateChatTitle, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Modify an existing scheduled meeting occurrence
@@ -6062,6 +6111,9 @@ public:
     /**
      * @brief Start a call in a chat room
      *
+     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true
+     *
      * @note This method is not valid for chatrooms with waiting room option enabled, use MegaChatApi::startMeetingInWaitingRoomChat instead.
      * Use MegaChatRoom::isWaitingRoom() to check if that option is enabled or not.
      *
@@ -6119,6 +6171,9 @@ public:
 
     /**
      * @brief Start a call in a chatroom without ringing the participants (just for scheduled meeting context)
+     *
+     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true
      *
      * When a scheduled meeting exists for a chatroom, and a call is started in that scheduled meeting context, it won't
      * ring the participants.
@@ -6218,6 +6273,9 @@ public:
     /**
      * @brief Answer a call received in a chat room
      *
+     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_ANSWER_CHAT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
@@ -6260,6 +6318,9 @@ public:
 
     /**
      * @brief Starts a call in a chatroom with waiting room option enabled
+     *
+     * @note: Speak request feature is temporarily disabled so, the request will fail with MegaChatError::ERROR_ARGS
+     * - If MegaChatRoom::isSpeakRequest() returns true
      *
      * When waiting room option is enabled for a chatroom, you can start a call in two different ways.
      *   - start a waiting room call, where all participants will be redirected to waiting room, when they start/answer a call,
@@ -6600,7 +6661,8 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
      * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, if there's not a call in the specified chatroom, or waiting room is disabled
-     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR,
+     *   or is MegaChatPeerList::PRIV_STANDARD but MegaChatRoom::isOpenInvite returns false.
      *
      * @param users MegaHandleList with the users that must be allowed into waiting room.
      * If param all is true, users param will be ignored.
@@ -9074,7 +9136,7 @@ public:
      *
      * @return mega::MegaHandleList of handles of users that are in the waiting room
      */
-    virtual mega::MegaHandleList* getPeers() const      { return NULL; };
+    virtual mega::MegaHandleList* getUsers() const      { return NULL; };
 
     /**
      * @brief Returns the number of elements in the list
@@ -9083,18 +9145,18 @@ public:
     virtual size_t size() const                         { return 0; };
 
     /**
-     * @brief Returns the waiting room joining status for the specified peer id
+     * @brief Returns the waiting room joining status for the specified user id
      *
      * Valid values are:
      *  - MegaChatWaitingRoom::MWR_UNKNOWN      = -1,   // client unknown joining status
      *  - MegaChatWaitingRoom::MWR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
      *  - MegaChatWaitingRoom::MWR_ALLOWED      = 1,    // client is allowed to join call (no further action required from app to JOIN call)
      *
-     * @return The waiting room joining status for the specified peer
+     * @return The waiting room joining status for the specified user
      */
-    virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
+    virtual int getUserStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
 
-    static const char* peerStatusToString(int status)
+    static const char* userStatusToString(int status)
     {
         switch (status)
         {
