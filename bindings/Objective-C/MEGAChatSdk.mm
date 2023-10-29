@@ -1534,7 +1534,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                    description:(NSString *)description
                      cancelled:(BOOL)cancelled
                          flags:(MEGAChatScheduledFlags *)flags
-                     rules:(MEGAChatScheduledRules *)rules {
+                         rules:(MEGAChatScheduledRules *)rules
+               updateChatTitle:(BOOL)updateChatTitle {
     if (!self.megaChatApi) { return; }
     self.megaChatApi->updateScheduledMeeting(chatId,
                                              scheduledId,
@@ -1545,7 +1546,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                                              description.UTF8String,
                                              cancelled,
                                              flags.getCPtr,
-                                             rules.getCPtr);
+                                             rules.getCPtr,
+                                             updateChatTitle);
 }
 
 - (void)updateScheduledMeeting:(uint64_t)chatId
@@ -1557,7 +1559,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                    description:(NSString *)description
                      cancelled:(BOOL)cancelled
                          flags:(MEGAChatScheduledFlags *)flags
-                     rules:(MEGAChatScheduledRules *)rules
+                         rules:(MEGAChatScheduledRules *)rules
+               updateChatTitle:(BOOL)updateChatTitle
                       delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
     self.megaChatApi->updateScheduledMeeting(chatId,
@@ -1570,6 +1573,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                                              cancelled,
                                              flags.getCPtr,
                                              rules.getCPtr,
+                                             updateChatTitle,
                                              [self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeGlobalUserInitiated]);
 }
 
