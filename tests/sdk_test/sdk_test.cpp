@@ -988,6 +988,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid(););
     ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2););
     ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3););
+    ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3););
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts(););
 
     // set chat selection criteria
