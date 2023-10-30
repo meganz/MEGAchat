@@ -1,5 +1,7 @@
 #import <Foundation/Foundation.h>
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef NS_ENUM (NSInteger, MEGAChatListItemChangeType) {
     MEGAChatListItemChangeTypeStatus           = 0x01,  // Obsolete
     MEGAChatListItemChangeTypeOwnPrivilege     = 0x02,
@@ -23,7 +25,9 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @interface MEGAChatListItem : NSObject
 
 @property (readonly, nonatomic) uint64_t chatId;
-@property (readonly, nonatomic) NSString *title;
+@property (readonly, nonatomic, nullable) NSString *title;
+@property (readonly, nonatomic, nullable) NSString *lastMessage;
+@property (readonly, nonatomic, nullable) NSDate *lastMessageDate;
 @property (readonly, nonatomic) MEGAChatListItemChangeType changes;
 @property (readonly, nonatomic) MEGAChatRoomPrivilege ownPrivilege;
 @property (readonly, nonatomic) NSInteger unreadCount;
@@ -35,16 +39,11 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @property (readonly, nonatomic, getter=isDeleted) BOOL deleted;
 @property (readonly, nonatomic, getter=isMeeting) BOOL meeting;
 @property (readonly, nonatomic) NSUInteger previewersCount;
-
-@property (readonly, nonatomic) NSString *lastMessage;
 @property (readonly, nonatomic) uint64_t lastMessageId;
 @property (readonly, nonatomic) MEGAChatMessageType lastMessageType;
 @property (readonly, nonatomic) uint64_t lastMessageSender;
-@property (readonly, nonatomic) NSDate *lastMessageDate;
 @property (readonly, nonatomic) MEGAChatMessageType lastMessagePriv;
 @property (readonly, nonatomic) uint64_t lastMessageHandle;
-
-- (instancetype)clone;
 
 - (BOOL)hasChangedForType:(MEGAChatListItemChangeType)changeType;
 
@@ -53,3 +52,5 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 + (NSString *)stringForMessageType:(MEGAChatMessageType)type;
 
 @end
+
+NS_ASSUME_NONNULL_END

@@ -205,14 +205,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 break;
             }
             case megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM:
-            {
-                MeetingView* meetingView = itemController->getMeetingView();
-                if (meetingView)
-                {
-                    meetingView->updateLabel(call);
-                }
-                [[fallthrough]];
-            }
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
                 assert(itemController->getMeetingView());
@@ -244,12 +236,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 break;
             }
         }
-
-        MeetingView* meetingView = itemController->getMeetingView();
-        if (meetingView) // At destroy state meetingView doesn't exit
-        {
-            meetingView->updateLabel(call);
-        }
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
@@ -271,12 +257,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateAudioButtonText(*call);
         itemController->getMeetingView()->updateVideoButtonText(*call);
-    }
-
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
-            || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS))
-    {
-        assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateLabel(call);
     }
 
@@ -291,14 +271,26 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         std::cerr << "onChatCallUpdate: " << MegaChatCall::termcodeToString(call->getTermCode()) << ", " << call->getGenericMessage() << std::endl;
     }
 
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP) && !call->isOwnClientCaller())
     {
-        itemController->getMeetingView()->updateLabel(call);
+        std::cerr << "onChatCallUpdate: outgoing ringing stop received but our client is not the caller";
+        return;
     }
 
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS)
+        || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY))
     {
-        assert(call->isOwnClientCaller());
+        if (itemController->getMeetingView()) { itemController->getMeetingView()->updateLabel(call); }
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_DENY))
@@ -359,6 +351,11 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *, MegaChatHandle chatid, MegaC
                 mMegaChatApi->requestHiResVideoWithQuality(chatid, session->getClientid(), megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);
             }
         }
+    }
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING))
+    {
+        meetingView->updateSession(*session);
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS) || session->hasChanged(MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL))
