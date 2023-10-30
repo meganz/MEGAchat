@@ -1050,7 +1050,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     // a1 starts call with waiting room enabled
     ExitBoolFlags eF;
     MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    addHandleFlag(a1, "CallIdInProgress", invalHandle),                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addHandleFlag(a1, "CallIdInProgress", invalHandle);                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
