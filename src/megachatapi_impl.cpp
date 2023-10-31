@@ -3337,10 +3337,10 @@ int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivat
                                                                                                                 currentMeeting->attributes().empty() ? nullptr : currentMeeting->attributes().c_str(),
                                                                                                                 MEGACHAT_INVALID_TIMESTAMP /*overrides*/, newFlags.get(), newRules.get()));
 
-            promise::Promise<std::shared_ptr<Buffer>> pms;
+            ::promise::Promise<std::shared_ptr<Buffer>> pms;
             if (!updateChatTitle)
             {
-                 pms = promise::Promise<std::shared_ptr<Buffer>>();
+                 pms = ::promise::Promise<std::shared_ptr<Buffer>>();
                  pms.resolve(std::make_shared<Buffer>());
             }
             else
