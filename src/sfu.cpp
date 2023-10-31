@@ -28,6 +28,8 @@ const std::string HiResStartCommand::COMMAND_NAME       = "HIRES_START";    // I
 const std::string HiResStopCommand::COMMAND_NAME        = "HIRES_STOP";     // Instruct client to stop sending the video hires tracks
 const std::string SpeakReqsCommand::COMMAND_NAME        = "SPEAK_REQS";     // Notifies that one or more speak requests have been added to the pending list, waiting for approval
 const std::string SpeakReqDelCommand::COMMAND_NAME      = "SPEAK_RQ_DEL";   // Cancels a pending speak request.
+const std::string SpeakerAddCommand::COMMAND_NAME       = "SPEAKER_ADD";    // Notifies that an user has been added to active speakers list
+const std::string SpeakerDelCommand::COMMAND_NAME       = "SPEAKER_DEL";    // Notifies that an user has been removed from active speakers list
 const std::string SpeakOnCommand::COMMAND_NAME          = "SPEAK_ON";       // Notifies that a speak request has been approved
 const std::string SpeakOffCommand::COMMAND_NAME         = "SPEAK_OFF";      // Notifies that a client stopped being an active speaker
 const std::string PeerJoinCommand::COMMAND_NAME         = "PEERJOIN";       // Notifies that a peer has joined to the call
@@ -676,6 +678,41 @@ HiResStopCommand::HiResStopCommand(const HiResStopCompleteFunction &complete, Sf
 bool HiResStopCommand::processCommand(const rapidjson::Document &)
 {
     return mComplete();
+}
+
+SpeakerAddCommand::SpeakerAddCommand(const SpeakerAddCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool SpeakerAddCommand::processCommand(const rapidjson::Document &command)
+{
+    rapidjson::Value::ConstMemberIterator userIterator = command.FindMember("user");
+    if (userIterator == command.MemberEnd() || !userIterator->value.IsString())
+    {
+        SFU_LOG_ERROR("SpeakerAddCommand::processCommand - Received data doesn't have 'user' field");
+        return false;
+    }
+    const uint64_t uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
+    return mComplete(uh);
+}
+
+SpeakerDelCommand::SpeakerDelCommand(const SpeakerDelCompleteFunction &complete, SfuInterface &call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool SpeakerDelCommand::processCommand(const rapidjson::Document &command)
+{
+    uint64_t uh = karere::Id::inval();
+    rapidjson::Value::ConstMemberIterator userIterator = command.FindMember("user");
+    if (userIterator != command.MemberEnd() && userIterator->value.IsString())
+    {
+        uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
+    }
+    return mComplete(uh);
 }
 
 SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete, SfuInterface &call)
@@ -1591,6 +1628,8 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
     commands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
     commands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
+    commands[SpeakerAddCommand::COMMAND_NAME] = mega::make_unique<SpeakerAddCommand>(std::bind(&sfu::SfuInterface::handleSpeakerAddCommand, &call, std::placeholders::_1), call);
+    commands[SpeakerDelCommand::COMMAND_NAME] = mega::make_unique<SpeakerDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakerDelCommand, &call, std::placeholders::_1), call);
     commands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
     commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
     commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1), call);

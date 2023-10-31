@@ -467,6 +467,7 @@ public:
     bool dumpWrUsers(const sfu::WrUserList& wrUsers, const bool clearCurrent);
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
+    bool updateUserSpeakPermission(const karere::Id& userid, const bool enable);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
@@ -482,6 +483,8 @@ public:
     bool handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleHiResStartCommand() override;
     bool handleHiResStopCommand() override;
+    bool handleSpeakerAddCommand(const uint64_t userid) override;
+    bool handleSpeakerDelCommand(const uint64_t userid) override;
     bool handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests) override;
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid) override;

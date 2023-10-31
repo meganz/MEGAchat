@@ -2008,6 +2008,16 @@ bool Call::handleHiResStartCommand()
     return true;
 }
 
+bool Call::handleSpeakerAddCommand(const uint64_t userid)
+{
+    return updateUserSpeakPermission(userid, true /*enable*/);
+}
+
+bool Call::handleSpeakerDelCommand(const uint64_t userid)
+{
+    return updateUserSpeakPermission(userid, false /*enable*/);
+}
+
 bool Call::handleHiResStopCommand()
 {
     if (mState != kStateInProgress && mState != kStateJoining)
@@ -3154,6 +3164,48 @@ bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool al
         ? mCallHandler.onWrUsersAllow(*this, uhl.get())
         : mCallHandler.onWrUsersDeny(*this, uhl.get());
 
+    return true;
+}
+
+bool Call::updateUserSpeakPermission(const karere::Id& userid, const bool enable)
+{
+    if (!userid.isValid()) // update own user
+    {
+        if (enable)
+        {
+            if (mSpeakerState == SpeakerState::kActive)     { return true; }
+            mSpeakerState = SpeakerState::kActive;
+            updateAudioTracks();
+        }
+        else
+        {
+            if (mSpeakerState == SpeakerState::kNoSpeaker)  { return true; }
+            mSpeakerState = SpeakerState::kNoSpeaker;
+            muteMyClient(true/*audio*/, false/*video*/);
+        }
+        mCallHandler.onSpeakStatusUpdate(*this);
+    }
+
+    // for all sessions whose userid matches with received one, set speak permission true
+    // if received userid is invalid, update all sessions with our own userid
+    const karere::Id& uh = userid.inval() ? mMyPeer->getPeerid() : userid;
+    for (auto& it : mPeersVerification)
+    {
+        promise::Promise<void>* pms = &it.second;
+        auto wptr = weakHandle();
+        pms->then([this, &cid = it.first, uh, enable, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session* session = getSession(cid);
+            if (!session || session->getPeerid() != uh) { return; }
+            session->setSpeakPermission(enable);
+        })
+        .fail([&cid = it.first](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("updateUserSpeakPermission: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
+    }
     return true;
 }
 

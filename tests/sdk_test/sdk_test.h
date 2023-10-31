@@ -978,6 +978,8 @@ public:
     bool handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleHiResStartCommand() override;
     bool handleHiResStopCommand() override;
+    bool handleSpeakerAddCommand(const uint64_t userid) override;
+    bool handleSpeakerDelCommand(const uint64_t userid) override;
     bool handleSpeakReqsCommand(const std::vector<Cid_t>&) override;
     bool handleSpeakReqDelCommand(Cid_t cid) override;
     bool handleSpeakOnCommand(Cid_t cid) override;

@@ -9021,6 +9021,16 @@ bool MockupCall::handleHiResStopCommand()
     return true;
 }
 
+bool MockupCall::handleSpeakerAddCommand(const uint64_t)
+{
+    return true;
+}
+
+bool MockupCall::handleSpeakerDelCommand(const uint64_t)
+{
+    return true;
+}
+
 bool MockupCall::handleSpeakReqsCommand(const std::vector<Cid_t> &)
 {
     return true;

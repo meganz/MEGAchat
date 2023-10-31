@@ -263,6 +263,8 @@ public:
     virtual bool handleHiResCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleHiResStartCommand() = 0;
     virtual bool handleHiResStopCommand() = 0;
+    virtual bool handleSpeakerAddCommand(const uint64_t userid) = 0;
+    virtual bool handleSpeakerDelCommand(const uint64_t userid) = 0;
     virtual bool handleSpeakReqsCommand(const std::vector<Cid_t>&) = 0;
     virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
     virtual bool handleSpeakOnCommand(Cid_t cid) = 0;
@@ -416,6 +418,26 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiResStopCompleteFunction mComplete;
+};
+
+class SpeakerAddCommand : public Command
+{
+public:
+    typedef std::function<bool(const uint64_t)> SpeakerAddCompleteFunction;
+    SpeakerAddCommand(const SpeakerAddCompleteFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    SpeakerAddCompleteFunction mComplete;
+};
+
+class SpeakerDelCommand : public Command
+{
+public:
+    typedef std::function<bool(const uint64_t)> SpeakerDelCompleteFunction;
+    SpeakerDelCommand(const SpeakerDelCompleteFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    SpeakerDelCompleteFunction mComplete;
 };
 
 class SpeakReqsCommand : public Command
