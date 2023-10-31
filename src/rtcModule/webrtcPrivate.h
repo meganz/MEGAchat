@@ -714,6 +714,7 @@ protected:
     bool isTermCodeRetriable(const TermCode& termCode) const;
     bool isDisconnectionTermcode(const TermCode& termCode) const;
     Cid_t getOwnCid() const;
+    const karere::Id& getOwnPeerId() const;
     void setSessionModByUserId(uint64_t userid, bool isMod);
     void setOwnModerator(bool isModerator);
 

@@ -185,7 +185,7 @@ void Call::addParticipant(const karere::Id &peer)
 {
     mParticipants.insert(peer);
     mCallHandler.onAddPeer(*this, peer);
-    if (peer != mMyPeer->getPeerid()    // check that added peer is not own peerid
+    if (peer != getOwnPeerId()    // check that added peer is not own peerid
             && !mIsGroup
             && mIsOwnClientCaller
             && mIsOutgoingRinging)
@@ -197,7 +197,7 @@ void Call::addParticipant(const karere::Id &peer)
 
 void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
 {
-    if (usersJoined.find(mMyPeer->getPeerid()) != usersJoined.end())
+    if (usersJoined.find(getOwnPeerId()) != usersJoined.end())
     {
         setRinging(false);
     }
@@ -273,7 +273,7 @@ bool Call::alreadyParticipating()
 {
     for (auto& peerid : mParticipants)
     {
-        if (peerid == mMyPeer->getPeerid())
+        if (peerid == getOwnPeerId())
         {
             return true;
         }
@@ -553,7 +553,7 @@ bool Call::isOutgoingRinging() const
 
 bool Call::isOutgoing() const
 {
-    return mCallerId == mMyPeer->getPeerid();
+    return mCallerId == getOwnPeerId();
 }
 
 int64_t Call::getCallInitialTimeStamp() const
@@ -1319,6 +1319,10 @@ Cid_t Call::getOwnCid() const
     return mMyPeer->getCid();
 }
 
+const karere::Id& Call::getOwnPeerId() const
+{
+    return mMyPeer->getPeerid();
+}
 
 void Call::setSessionModByUserId(uint64_t userid, bool isMod)
 {
@@ -1783,7 +1787,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
             if (isOwnPrivModerator()
                 || !isSpeakRequestEnabled()
-                || speakers.find(getOwnCid()) != speakers.end())
+                || speakers.find(getOwnPeerId()) != speakers.end())
             {
                 // own user is speaker
                 mSpeakerState = SpeakerState::kActive;
@@ -2444,7 +2448,7 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
 
 bool Call::handleModAdd(uint64_t userid)
 {
-    if (userid == mMyPeer->getPeerid())
+    if (userid == getOwnPeerId())
     {
         setOwnModerator(true);
         if (isWrFlagEnabled()
@@ -2473,7 +2477,7 @@ bool Call::handleModAdd(uint64_t userid)
 
 bool Call::handleModDel(uint64_t userid)
 {
-    if (userid == mMyPeer->getPeerid())
+    if (userid == getOwnPeerId())
     {
         setOwnModerator(false);
     }
@@ -2512,7 +2516,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
 
     // copy moderator list, and check if our own user is moderator
-    setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
+    setOwnModerator(mods.find(getOwnPeerId()) != mods.end());
     mModerators = mods;
 
     // set my own client-id (cid)
@@ -3188,7 +3192,7 @@ bool Call::updateUserSpeakPermission(const karere::Id& userid, const bool enable
 
     // for all sessions whose userid matches with received one, set speak permission true
     // if received userid is invalid, update all sessions with our own userid
-    const karere::Id& uh = userid.inval() ? mMyPeer->getPeerid() : userid;
+    const karere::Id& uh = userid.inval() ? getOwnPeerId() : userid;
     for (auto& it : mPeersVerification)
     {
         promise::Promise<void>* pms = &it.second;
@@ -3629,7 +3633,7 @@ void Call::collectNonRTCStats()
 
 void Call::initStatsValues()
 {
-    mStats.mPeerId = mMyPeer->getPeerid();
+    mStats.mPeerId = getOwnPeerId();
     mStats.mCallid = mCallid;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
