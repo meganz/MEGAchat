@@ -1052,8 +1052,7 @@ void Call::joinSfu()
             {
                 // we are non-host and we are trying to reconnect. we had permission to speak before reconnect as
                 // audio flags are enabled. We can't send audio flag enabled in JOIN command as we say below.
-                mSpeakerState = SpeakerState::kNoSpeaker;
-                mCallHandler.onSpeakStatusUpdate(*this);
+                setSpeakerState(SpeakerState::kNoSpeaker);
                 muteMyClient(true/*audio*/, false /*video*/);
                 RTCM_LOG_DEBUG("joinSfu: re-joining to SFU with audio disabled, as speak request "
                                "is enabled and our peer is non-host");
@@ -1790,8 +1789,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 || speakers.find(getOwnPeerId()) != speakers.end())
             {
                 // own user is speaker
-                mSpeakerState = SpeakerState::kActive;
-                mCallHandler.onSpeakStatusUpdate(*this);
+                setSpeakerState(SpeakerState::kActive);
                 updateAudioTracks();
             }
 
@@ -2042,8 +2040,7 @@ bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
     {
         if (cid == getOwnCid())
         {
-            mSpeakerState = SpeakerState::kPending;
-            mCallHandler.onSpeakStatusUpdate(*this);
+            setSpeakerState(SpeakerState::kPending);
         }
         else
         {
@@ -2123,9 +2120,7 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
             track->set_enabled(false);
             mAudio->getTransceiver()->sender()->SetTrack(nullptr);
         }
-
-        mSpeakerState = SpeakerState::kNoSpeaker;
-        mCallHandler.onSpeakStatusUpdate(*this);
+        setSpeakerState(SpeakerState::kNoSpeaker);
     }
     return true;
 }
@@ -2167,9 +2162,7 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
             // ignore SPEAK_ON, we already have permission to speak
             return true;
         }
-
-        mSpeakerState = SpeakerState::kActive;
-        mCallHandler.onSpeakStatusUpdate(*this);
+        setSpeakerState(SpeakerState::kActive);
         updateAudioTracks();
     }
     return true;
@@ -2213,9 +2206,8 @@ bool Call::handleSpeakOffCommand(Cid_t cid)
         }
 
         // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
+        setSpeakerState(SpeakerState::kNoSpeaker);
         muteMyClient(true/*audio*/, false/*video*/);
-        mSpeakerState = SpeakerState::kNoSpeaker;
-        mCallHandler.onSpeakStatusUpdate(*this);
     }
     return true;
 }
@@ -2480,6 +2472,12 @@ bool Call::handleModDel(uint64_t userid)
     if (userid == getOwnPeerId())
     {
         setOwnModerator(false);
+        if (mSpeakerState != SpeakerState::kNoSpeaker)
+        {
+            // mute own client, as our moderator privilege has been revoked
+            setSpeakerState(SpeakerState::kNoSpeaker);
+            muteMyClient(true/*audio*/, false/*video*/);
+        }
     }
 
     // update moderator privilege for all sessions that mached with received userid
@@ -3178,16 +3176,15 @@ bool Call::updateUserSpeakPermission(const karere::Id& userid, const bool enable
         if (enable)
         {
             if (mSpeakerState == SpeakerState::kActive)     { return true; }
-            mSpeakerState = SpeakerState::kActive;
+            setSpeakerState(SpeakerState::kActive);
             updateAudioTracks();
         }
         else
         {
             if (mSpeakerState == SpeakerState::kNoSpeaker)  { return true; }
-            mSpeakerState = SpeakerState::kNoSpeaker;
+            setSpeakerState(SpeakerState::kNoSpeaker);
             muteMyClient(true/*audio*/, false/*video*/);
         }
-        mCallHandler.onSpeakStatusUpdate(*this);
     }
 
     // for all sessions whose userid matches with received one, set speak permission true
@@ -3211,6 +3208,12 @@ bool Call::updateUserSpeakPermission(const karere::Id& userid, const bool enable
         });
     }
     return true;
+}
+
+void Call::setSpeakerState(const SpeakerState state)
+{
+    mSpeakerState = state;
+    mCallHandler.onSpeakStatusUpdate(*this);
 }
 
 Keyid_t Call::generateNextKeyId()

@@ -468,6 +468,7 @@ public:
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
     bool updateUserSpeakPermission(const karere::Id& userid, const bool enable);
+    void setSpeakerState(const SpeakerState state);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
