@@ -303,7 +303,7 @@ public class MegaChatApiJava {
      *
      * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
      *
-     * @note if we want to receive video before start a call (openVideoDevice), we have to
+     * if we want to receive video before start a call (openVideoDevice), we have to
      * register a MegaChatVideoListener with chatid = MEGACHAT_INVALID_HANDLE
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -333,7 +333,7 @@ public class MegaChatApiJava {
      * Unregister a MegaChatVideoListener
      *
      * This listener won't receive more events.
-     * @note if we want to remove the listener added to receive video frames before start a call
+     * if we want to remove the listener added to receive video frames before start a call
      * we have to use chatid = MEGACHAT_INVALID_HANDLE
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -607,10 +607,10 @@ public class MegaChatApiJava {
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
      *
-     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+     * If you are trying to create a chat with more than 1 other person, then it will be forced
      * to be a group chat.
      *
-     * @note If peers list contains only one person, group chat is not set and a permament chat already
+     * If peers list contains only one person, group chat is not set and a permament chat already
      * exists with that person, then this call will return the information for the existing chat, rather
      * than a new chat.
      *
@@ -643,10 +643,10 @@ public class MegaChatApiJava {
      * is MegaError::ERROR_OK:
      * - MegaChatRequest::getChatHandle - Returns the handle of the new chatroom
      *
-     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+     * If you are trying to create a chat with more than 1 other person, then it will be forced
      * to be a group chat.
      *
-     * @note If peers list contains only one person, group chat is not set and a permament chat already
+     * If peers list contains only one person, group chat is not set and a permament chat already
      * exists with that person, then this call will return the information for the existing chat, rather
      * than a new chat.
      *
@@ -685,10 +685,10 @@ public class MegaChatApiJava {
      * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
      * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
      *
-     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
+     * If you are trying to create a chat with more than 1 other person, then it will be forced
      * to be a group chat.
      *
-     * @note If peers list contains only one person, group chat is not set and a permament chat already
+     * If peers list contains only one person, group chat is not set and a permament chat already
      * exists with that person, then this call will return the information for the existing chat, rather
      * than a new chat.
      *
@@ -973,7 +973,7 @@ public class MegaChatApiJava {
     /**
      * Modify an existing scheduled meeting. This action won't create a child scheduled meeting
      *
-     * @note: You need to provide the current values of scheduled meeting for those params that you don't want to modify
+     * You need to provide the current values of scheduled meeting for those params that you don't want to modify
      *
      * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1014,7 +1014,7 @@ public class MegaChatApiJava {
     /**
      * Modify an existing scheduled meeting. This action won't create a child scheduled meeting
      *
-     * @note: You need to provide the current values of scheduled meeting for those params that you don't want to modify
+     * You need to provide the current values of scheduled meeting for those params that you don't want to modify
      *
      * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1751,7 +1751,7 @@ public class MegaChatApiJava {
     /**
      * Returns whether the autoaway option is enabled.
      *
-     * @note This function returns true even when the Presence Config
+     * This function returns true even when the Presence Config
      * is pending to be confirmed by the server.
      *
      * @return True if autoaway is enabled.
@@ -2580,7 +2580,7 @@ public class MegaChatApiJava {
      *
      * Instead, if the previewer is not interested in the chat anymore, it can remove it from
      * the list of chats by calling MegaChatApi::closeChatPreview.
-     * @note If the previewer doesn't explicitely close the preview, it will be lost if the
+     * If the previewer doesn't explicitely close the preview, it will be lost if the
      * app is closed. A preview of a chat is not persisted in cache.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
@@ -2837,7 +2837,7 @@ public class MegaChatApiJava {
      *
      * The corresponding callback is MegaChatRoomListener::onMessageLoaded.
      *
-     * @note The actual number of messages loaded can be less than \c count. One reason is
+     * The actual number of messages loaded can be less than \c count. One reason is
      * the history being shorter than requested, the other is due to internal protocol
      * messages that are not intended to be displayed to the user. Additionally, if the fetch
      * is local and there's no more history locally available, the number of messages could be
@@ -3073,7 +3073,7 @@ public class MegaChatApiJava {
      * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
      * to know when an edit has been delivered to the target user, but only when the edit has been
      * received by the server, so for convenience the status of the original message is kept.
-     * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
+     * if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
      * reach the status delivered, since the target user will not send the required acknowledge to the
      * server upon reception.
      *
@@ -3214,7 +3214,7 @@ public class MegaChatApiJava {
     /**
      * Deletes an existing message
      *
-     * @note Message's deletions are equivalent to message's edits, but with empty content.
+     * Message's deletions are equivalent to message's edits, but with empty content.
      * @see \c MegaChatapi::editMessage for more information.
      *
      * You take the ownership of the returned value.
@@ -3490,7 +3490,7 @@ public class MegaChatApiJava {
      * The request will fail with MegaChatError::ERROR_NOENT
      * - if the chatroom doesn't exists.
      *
-     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -3545,7 +3545,7 @@ public class MegaChatApiJava {
      * - if the chatroom doesn't exists.
      * - if the scheduled meeting doesn't exists
      *
-     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -3588,7 +3588,7 @@ public class MegaChatApiJava {
      * The request will fail with MegaChatError::ERROR_EXISTS if there is already another attempt to answer a call
      * for this chat in progress.
      *
-     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxSupportedVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -3652,7 +3652,7 @@ public class MegaChatApiJava {
      * The request will fail with MegaChatError::ERROR_ARGS
      * - if chatroom has waiting room option disabled
      *
-     * @note If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
+     * If the call has reached the maximum number of videos supported, the video-flag automatically be disabled.
      * @see MegaChatApi::getMaxVideoCallParticipants
      *
      * To receive call notifications, the app needs to register MegaChatCallListener.
@@ -3809,7 +3809,7 @@ public class MegaChatApiJava {
      * - MegaChatError::ERROR_ACCESS - if clientId is not MEGACHAT_INVALID_HANDLE (own user),
      * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
      *
-     * @note This functionality is ready but it shouldn't be used at this moment
+     * This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientId MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
@@ -3825,7 +3825,7 @@ public class MegaChatApiJava {
      * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
      * This method can be called just by users with moderator role
      *
-     * @note: This method won't have any effect for moderator users already joined into the call,
+     *  This method won't have any effect for moderator users already joined into the call,
      * as well as non-moderator users that are already in the waiting room.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_WR_PUSH
@@ -3845,7 +3845,7 @@ public class MegaChatApiJava {
      *   just if any of the users provided in users list, is not in the call, but has permission to enter it (use case non valid for moderators users in the list)
      *   (check MegaChatCall::getHandleList to get moderator users that were tried to push into the waiting room, but didn't joined call yet.
      *
-     * @note: Afected user clients by this action, will receive an MegaChatCallListener::onChatCallUpdate callback with change type
+     * Afected user clients by this action, will receive an MegaChatCallListener::onChatCallUpdate callback with change type
      * MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL, indicating that it's client has been pushed into a waiting room.
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
@@ -3871,7 +3871,7 @@ public class MegaChatApiJava {
      * If this action has succeed, for those users that are effectively kicked from call, every conected user will receive a callback MegaChatSession with change MegaChatSession::CHANGE_TYPE_STATUS
      * and MegaChatSession::getStatus == MegaChatSession::SESSION_STATUS_DESTROYED.
      *
-     * @note: This method won't have any effect for users with moderator role.
+     * This method won't have any effect for users with moderator role.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_WR_KICK
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -3896,7 +3896,7 @@ public class MegaChatApiJava {
      * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
      * This method can be called just by users with moderator role
      *
-     * @note: This method won't have any effect for non-moderator users already joined into the call, as well as users with moderator role.
+     * This method won't have any effect for non-moderator users already joined into the call, as well as users with moderator role.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_WR_ALLOW
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -3917,7 +3917,7 @@ public class MegaChatApiJava {
      *   (check MegaChatCall::getWaitingRoom to get the users in the waiting room and their current joining status)
      *   (check MegaChatCall::getModerators to get the updated moderators list)
      *
-     * @note: Afected user clients by this action, will receive an MegaChatCallListener::onChatCallUpdate callback with change type
+     * Afected user clients by this action, will receive an MegaChatCallListener::onChatCallUpdate callback with change type
      * MegaChatCall::CHANGE_TYPE_WR_ALLOW, indicating that it's client has been allowed to join call (no further action required by apps to complete call join)
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
@@ -3957,7 +3957,7 @@ public class MegaChatApiJava {
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns true open device
      *
-     * @note App is responsible to release device and remove MegaChatVideoListener
+     * App is responsible to release device and remove MegaChatVideoListener
      *
      * @param listener MegaChatRequestListener to track this request
      */
@@ -4020,7 +4020,7 @@ public class MegaChatApiJava {
 
     /**
      * Returns number of calls that are currently active
-     * @note You may not participate in all those calls.
+     * You may not participate in all those calls.
      * @return number of calls in the system
      */
     public int getNumCalls(){
@@ -4071,7 +4071,7 @@ public class MegaChatApiJava {
     /**
      * Returns true if there is a call at chatroom with id \c chatid
      *
-     * @note It's not necessary that we participate in the call, but other participants do.
+     * It's not necessary that we participate in the call, but other participants do.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @return True if there is a call in a chatroom. False in other case
@@ -4103,7 +4103,7 @@ public class MegaChatApiJava {
      *
      * It's false by default
      *
-     * @note If there isn't a call in that chatroom in which user is participating,
+     * If there isn't a call in that chatroom in which user is participating,
      * audio Level monitor will be always false
      *
      * @param chatid MegaChatHandle that identifies the chat room from we want know if audio level monitor is disabled
@@ -4123,7 +4123,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns if enable or disable the audio level monitor
      *
-     * @note If there isn't a call in that chatroom in which user is participating,
+     * If there isn't a call in that chatroom in which user is participating,
      * audio Level monitor won't be able established
      *
      * @param enable True for enable audio level monitor, False to disable
@@ -4142,7 +4142,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - true -> indicate that it is a enable request operation
      *
-     * @note This functionality is ready but it shouldn't be used at this moment
+     * This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -4159,7 +4159,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - false -> indicate that it is a remove request operation
      *
-     * @note This functionality is ready but it shouldn't be used at this moment
+     * This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -4179,7 +4179,7 @@ public class MegaChatApiJava {
      * - MegaChatRequest::getFlag - true -> indicate that approve the request
      * - MegaChatRequest::getUserHandle - Returns the clientId of the user
      *
-     * @note This functionality is ready but it shouldn't be used at this moment
+     * This functionality is ready but it shouldn't be used at this moment
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientId MegaChatHandle that identifies client
@@ -4362,7 +4362,7 @@ public class MegaChatApiJava {
      *
      * Messages are always loaded and notified in strict order, from newest to oldest.
      *
-     * @note The actual number of messages loaded can be less than \c count. Because
+     * The actual number of messages loaded can be less than \c count. Because
      * the history being shorter than requested. Additionally, if the fetch is local
      * and there's no more history locally available, the number of messages could be
      * lower too (and the next call to MegaChatApi::loadMessages will fetch messages from server).
