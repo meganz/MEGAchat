@@ -1264,6 +1264,16 @@ bool MegaChatApi::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
     return pImpl->isAudioLevelMonitorEnabled(chatid);
 }
 
+void MegaChatApi::addActiveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener)
+{
+     pImpl->addRemoveSpeaker(chatid, userid, true/*add*/, listener);
+}
+
+void MegaChatApi::removeActiveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener)
+{
+     pImpl->addRemoveSpeaker(chatid, userid, false/*add*/, listener);
+}
+
 void MegaChatApi::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->enableAudioLevelMonitor(enable, chatid, listener);

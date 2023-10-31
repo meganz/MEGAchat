@@ -1387,6 +1387,7 @@ private:
     int performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request);
     int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
     int performRequest_speakRequest(MegaChatRequestPrivate* request);
+    int performRequest_addRemoveSpeaker(MegaChatRequestPrivate* request);
     int performRequest_speakApproval(MegaChatRequestPrivate* request);
     int performRequest_hiResVideo(MegaChatRequestPrivate* request);
     int performRequest_lowResVideo(MegaChatRequestPrivate* request);
@@ -1685,6 +1686,7 @@ public:
     bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const;
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+    void addRemoveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
     void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
@@ -1693,7 +1695,7 @@ public:
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
-    std::pair<int, rtcModule::ICall*> getCallWithModPermissions(const MegaChatHandle chatid, bool waitingRoom, const std::string& msg);
+    std::pair<int, rtcModule::ICall*> getCall(const MegaChatHandle chatid, const std::string& msg, const bool ownPrivMod, karere::MTristate waitingRoom = karere::MTristate());
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);

@@ -648,6 +648,12 @@ bool Call::isSpeakAllow() const
     return hasOwnUserSpeakPermission() && getLocalAvFlags().audio();
 }
 
+void Call::addOrRemoveSpeaker(const karere::Id& user, const bool add)
+{
+    assert(user.isValid() || !add);
+    mSfuConnection->sendSpeakerAddDel(user, add);
+}
+
 void Call::approveSpeakRequest(Cid_t cid, bool allow)
 {
     if (allow)
@@ -658,18 +664,6 @@ void Call::approveSpeakRequest(Cid_t cid, bool allow)
     {
         mSfuConnection->sendSpeakReqDel(cid);
     }
-}
-
-void Call::stopSpeak(Cid_t cid)
-{
-    if (cid)
-    {
-        assert(mSessions.find(cid) != mSessions.end());
-        mSfuConnection->sendSpeakDel(cid);
-        return;
-    }
-
-    mSfuConnection->sendSpeakDel();
 }
 
 void Call::pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const

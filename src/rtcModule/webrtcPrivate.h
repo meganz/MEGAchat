@@ -340,7 +340,7 @@ public:
     // allows to approve/deny requests to speak from other users (only allowed for moderators)
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     bool isSpeakAllow() const override; // true if request has been approved
-    void stopSpeak(Cid_t cid = 0) override; // after been approved
+    void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
     void kickUsersFromCall(const std::set<karere::Id>& users) const override;

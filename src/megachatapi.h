@@ -2492,7 +2492,7 @@ public:
         TYPE_REQUEST_LOW_RES_VIDEO                  = 48,
         TYPE_OPEN_VIDEO_DEVICE                      = 49,
         TYPE_REQUEST_HIRES_QUALITY                  = 50,
-        TYPE_DEL_SPEAKER                            = 51,
+        TYPE_DEL_SPEAKER                            = 51, // Deprecated
         TYPE_REQUEST_SVC_LAYERS                     = 52,
         TYPE_SET_CHATROOM_OPTIONS                   = 53,
         TYPE_CREATE_SCHEDULED_MEETING               = 54, // Deprecated
@@ -2505,7 +2505,8 @@ public:
         TYPE_WR_KICK                                = 61,
         TYPE_RING_INDIVIDUAL_IN_CALL                = 62,
         TYPE_MUTE                                   = 63,
-        TOTAL_OF_REQUEST_TYPES                      = 64,
+        TYPE_SPEAKER_ADD_DEL                        = 64,
+        TOTAL_OF_REQUEST_TYPES                      = 65,
     };
 
     enum {
@@ -6426,6 +6427,9 @@ public:
     /**
      * @brief Remove an active speaker from the call
      *
+     * This method is deprecated, so on the onRequestFinish error, the error code associated to the MegaChatError will always be:
+     * MegaChatError::ERROR_ARGS.
+     *
      * This method can be called by the speaker itself (voluntary action) or by any moderator of the groupchat.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DEL_SPEAKER
@@ -6439,6 +6443,7 @@ public:
      * - MegaChatError::ERROR_ACCESS - if clientId is not MEGACHAT_INVALID_HANDLE (own user),
      * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
      *
+     * @deprecated This method is deprecated, use MegaChatApi::removeActiveSpeaker instead
      * @param chatid MegaChatHandle that identifies the chat room
      * @param clientId MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
      * @param listener MegaChatRequestListener to track this request
@@ -6711,6 +6716,53 @@ public:
      * @return true if audio level monitor is enabled
      */
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
+
+    /**
+     * @brief Adds an active speaker to the call
+     *
+     * This method has to be called only by an user with moderator role
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SPEAKER_ADD_DEL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getFlag - Returns true to indicate that we want to add a speaker
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_ARGS   - if specified userid is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
+     * - MegaChatError::ERROR_ACCESS - if call is not in progress state, or our own privilege is different
+     *   than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param userid MegaChatHandle that identifies userid
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void addActiveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener =  NULL);
+
+    /**
+     * @brief Removes an active speaker from the call
+     *
+     * This method can be called by the speaker itself (voluntary action) or by any moderator of the groupchat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SPEAKER_ADD_DEL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getFlag - Returns false to indicate that we want to remove a speaker
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
+     * - MegaChatError::ERROR_ACCESS - if call is not in progress state, or our own privilege is different
+     *   than MegaChatPeerList::PRIV_MODERATOR, and userid is not MEGACHAT_INVALID_HANDLE
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param userid MegaChatHandle that identifies userid, or MEGACHAT_INVALID_HANDLE for own user
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void removeActiveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Enable or disable audio level monitor.

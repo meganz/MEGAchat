@@ -634,8 +634,9 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_HIRES_SET_LO;
     static const std::string CSFU_LAYER;
     static const std::string CSFU_SPEAK_RQ;
+    static const std::string CSFU_SPEAKER_ADD;
+    static const std::string CSFU_SPEAKER_DEL;
     static const std::string CSFU_SPEAK_RQ_DEL;
-    static const std::string CSFU_SPEAK_DEL;
     static const std::string CSFU_BYE;
     static const std::string CSFU_WR_PUSH;
     static const std::string CSFU_WR_ALLOW;
@@ -712,8 +713,8 @@ public:
     bool sendHiResSetLo(Cid_t cid, int lo = -1);
     bool sendLayer(int spt, int tmp, int stmp);
     bool sendSpeakReq(Cid_t cid = 0);
+    bool sendSpeakerAddDel(const karere::Id& user, const bool add);
     bool sendSpeakReqDel(Cid_t cid = 0);
-    bool sendSpeakDel(Cid_t cid = 0);
     bool sendBye(int termCode);
     void clearInitialBackoff();
     void incrementInitialBackoff();

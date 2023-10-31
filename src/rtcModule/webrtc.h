@@ -225,8 +225,8 @@ public:
     virtual bool alreadyParticipating() = 0;
     virtual void requestSpeak(const bool add = true) = 0;
     virtual bool isSpeakAllow() const = 0;
+    virtual void addOrRemoveSpeaker(const karere::Id& user, const bool add) = 0;
     virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
-    virtual void stopSpeak(Cid_t cid = 0) = 0;
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;

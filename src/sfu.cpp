@@ -56,8 +56,9 @@ const std::string SfuConnection::CSFU_DEL_HIRES         = "DEL_HIRES";      // C
 const std::string SfuConnection::CSFU_HIRES_SET_LO      = "HIRES_SET_LO";   // Command sent to instruct the SFU to send a lower spatial SVC layer of the hi-res stream of the specified peer
 const std::string SfuConnection::CSFU_LAYER             = "LAYER";          // Command sent to select the SVC spatial and layers for all hi-res video tracks that the client receives
 const std::string SfuConnection::CSFU_SPEAK_RQ          = "SPEAK_RQ";       // Command sent to request a client to become an active speaker
+const std::string SfuConnection::CSFU_SPEAKER_ADD       = "SPEAKER_ADD";    // Command sent to add an user to speakers list
+const std::string SfuConnection::CSFU_SPEAKER_DEL       = "SPEAKER_DEL";    // Command sent to remove an user from speakers list
 const std::string SfuConnection::CSFU_SPEAK_RQ_DEL      = "SPEAK_RQ_DEL";   // Command sent to cancel a pending speak request
-const std::string SfuConnection::CSFU_SPEAK_DEL         = "SPEAKER_DEL";    // Command sent to request that an active speaker stops being one.
 const std::string SfuConnection::CSFU_BYE               = "BYE";            // Command sent to disconnect orderly from the call
 const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // Command sent to push all clients of sent peerId's (that are in the call) to the waiting room
 const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // Command sent to grant the specified users the permission to enter the call from the waiting room
@@ -2012,6 +2013,29 @@ bool SfuConnection::sendLayer(int spt, int tmp, int stmp)
     return sendCommand(command);
 }
 
+bool SfuConnection::sendSpeakerAddDel(const karere::Id& user, const bool add)
+{
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    const std::string& cmd = add ? SfuConnection::CSFU_SPEAKER_ADD.c_str() : SfuConnection::CSFU_SPEAKER_DEL.c_str();
+    cmdValue.SetString(cmd.c_str(), json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
+
+    if (user.isValid())
+    {
+        rapidjson::Value auxValue(rapidjson::kStringType);
+        auxValue.SetString(user.toString().c_str(), static_cast<rapidjson::SizeType>(user.toString().length()), json.GetAllocator());
+        json.AddMember(rapidjson::Value("user"), auxValue, json.GetAllocator());
+    }
+    // else => own user
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
+}
+
 bool SfuConnection::sendSpeakReq(Cid_t cid)
 {
     rapidjson::Document json(rapidjson::kObjectType);
@@ -2036,25 +2060,6 @@ bool SfuConnection::sendSpeakReqDel(Cid_t cid)
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ_DEL.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
-
-    if (cid)
-    {
-        json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
-    }
-
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    json.Accept(writer);
-    std::string command(buffer.GetString(), buffer.GetSize());
-    return sendCommand(command);
-}
-
-bool SfuConnection::sendSpeakDel(Cid_t cid)
-{
-    rapidjson::Document json(rapidjson::kObjectType);
-    rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(SfuConnection::CSFU_SPEAK_DEL.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
     if (cid)
