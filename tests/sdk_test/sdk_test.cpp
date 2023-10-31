@@ -9041,17 +9041,6 @@ bool MockupCall::handleSpeakReqDelCommand(Cid_t)
     return true;
 }
 
-bool MockupCall::handleSpeakOnCommand(Cid_t)
-{
-    return true;
-}
-
-bool MockupCall::handleSpeakOffCommand(Cid_t)
-{
-    return true;
-}
-
-
 bool MockupCall::handlePeerJoin(Cid_t, uint64_t, sfu::SfuProtocol, int, std::string&, std::vector<std::string>&)
 {
     return true;

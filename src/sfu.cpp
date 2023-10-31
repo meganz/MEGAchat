@@ -30,8 +30,6 @@ const std::string SpeakReqsCommand::COMMAND_NAME        = "SPEAK_REQS";     // N
 const std::string SpeakReqDelCommand::COMMAND_NAME      = "SPEAK_RQ_DEL";   // Cancels a pending speak request.
 const std::string SpeakerAddCommand::COMMAND_NAME       = "SPEAKER_ADD";    // Notifies that an user has been added to active speakers list
 const std::string SpeakerDelCommand::COMMAND_NAME       = "SPEAKER_DEL";    // Notifies that an user has been removed from active speakers list
-const std::string SpeakOnCommand::COMMAND_NAME          = "SPEAK_ON";       // Notifies that a speak request has been approved
-const std::string SpeakOffCommand::COMMAND_NAME         = "SPEAK_OFF";      // Notifies that a client stopped being an active speaker
 const std::string PeerJoinCommand::COMMAND_NAME         = "PEERJOIN";       // Notifies that a peer has joined to the call
 const std::string PeerLeftCommand::COMMAND_NAME         = "PEERLEFT";       // Notifies that a peer has left the call
 const std::string ByeCommand::COMMAND_NAME              = "BYE";            // Notifies that SFU disconnects a client from the call
@@ -767,44 +765,6 @@ bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 
     return mComplete(cid);
 }
-
-SpeakOnCommand::SpeakOnCommand(const SpeakOnCompleteFunction &complete, SfuInterface &call)
-    : Command(call)
-    , mComplete(complete)
-{
-
-}
-
-bool SpeakOnCommand::processCommand(const rapidjson::Document &command)
-{    
-    Cid_t cid = 0;
-    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
-    {
-        cid = cidIterator->value.GetUint();
-    }
-    return mComplete(cid);
-}
-
-SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete, SfuInterface &call)
-    : Command(call)
-    , mComplete(complete)
-{
-
-}
-
-bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
-{    
-    Cid_t cid = 0;
-    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
-    {
-        cid = cidIterator->value.GetUint();
-    }
-
-    return mComplete(cid);
-}
-
 
 PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete, SfuInterface &call)
     : Command(call)
@@ -1632,8 +1592,6 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[SpeakerDelCommand::COMMAND_NAME] = mega::make_unique<SpeakerDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakerDelCommand, &call, std::placeholders::_1), call);
     commands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
     commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
-    commands[SpeakOnCommand::COMMAND_NAME] = mega::make_unique<SpeakOnCommand>(std::bind(&sfu::SfuInterface::handleSpeakOnCommand, &call, std::placeholders::_1), call);
-    commands[SpeakOffCommand::COMMAND_NAME] = mega::make_unique<SpeakOffCommand>(std::bind(&sfu::SfuInterface::handleSpeakOffCommand, &call, std::placeholders::_1), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);

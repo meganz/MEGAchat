@@ -2125,94 +2125,6 @@ bool Call::handleSpeakReqDelCommand(Cid_t cid)
     return true;
 }
 
-bool Call::handleSpeakOnCommand(Cid_t cid)
-{
-    if (cid != K_INVALID_CID)
-    {
-        promise::Promise<void>* pms = getPeerVerificationPms(cid);
-        if (!pms)
-        {
-            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise not found for cid: %u", cid);
-            return false;
-        }
-
-        auto wptr = weakHandle();
-        pms->then([this, cid, wptr]()
-        {
-            if (wptr.deleted())  { return; }
-            Session* session = getSession(cid);
-            if (!session)
-            {
-                RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
-                assert(session);
-                return;
-            }
-            session->setSpeakPermission(true);
-        })
-        .fail([cid](const ::promise::Error&)
-        {
-            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise was rejected for cid: %u", cid);
-            return;
-        });
-    }
-    else // SPEAK_ON received for own peer
-    {
-        if (mSpeakerState == SpeakerState::kActive)
-        {
-            // ignore SPEAK_ON, we already have permission to speak
-            return true;
-        }
-        setSpeakerState(SpeakerState::kActive);
-        updateAudioTracks();
-    }
-    return true;
-}
-
-bool Call::handleSpeakOffCommand(Cid_t cid)
-{
-    if (cid != K_INVALID_CID)
-    {
-        promise::Promise<void>* pms = getPeerVerificationPms(cid);
-        if (!pms)
-        {
-            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise not found for cid: %u", cid);
-            return false;
-        }
-        auto wptr = weakHandle();
-        pms->then([this, cid, wptr]()
-        {
-            if (wptr.deleted())  { return; }
-            Session* session = getSession(cid);
-            if (!session)
-            {
-                RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
-                assert(session);
-                return;
-            }
-            session->setSpeakPermission(false);
-        })
-        .fail([cid](const ::promise::Error&)
-        {
-            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise was rejected for cid: %u", cid);
-            return;
-        });
-    }
-    else // SPEAK_OFF received for own peer
-    {
-        if (mSpeakerState == SpeakerState::kNoSpeaker)
-        {
-            // ignore SPEAK_OFF, we already don't have permission to speak
-            return true;
-        }
-
-        // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-        setSpeakerState(SpeakerState::kNoSpeaker);
-        muteMyClient(true/*audio*/, false/*video*/);
-    }
-    return true;
-}
-
-
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs)
 {
     auto addPeerWithEphemKey = [this](sfu::Peer& peer, const std::string& ephemeralPubKeyDerived) -> void
@@ -2476,7 +2388,7 @@ bool Call::handleModDel(uint64_t userid)
         {
             // mute own client, as our moderator privilege has been revoked
             setSpeakerState(SpeakerState::kNoSpeaker);
-            muteMyClient(true/*audio*/, false/*video*/);
+            muteMyClient(true/*audio*/, false/*video*/); // mute own client
         }
     }
 

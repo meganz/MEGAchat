@@ -267,8 +267,6 @@ public:
     virtual bool handleSpeakerDelCommand(const uint64_t userid) = 0;
     virtual bool handleSpeakReqsCommand(const std::vector<Cid_t>&) = 0;
     virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
-    virtual bool handleSpeakOnCommand(Cid_t cid) = 0;
-    virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
     virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
@@ -458,26 +456,6 @@ public:
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakReqDelCompleteFunction mComplete;
-};
-
-class SpeakOnCommand : public Command
-{
-public:
-    typedef std::function<bool(Cid_t cid)> SpeakOnCompleteFunction;
-    SpeakOnCommand(const SpeakOnCompleteFunction& complete, SfuInterface& call);
-    bool processCommand(const rapidjson::Document& command) override;
-    static const std::string COMMAND_NAME;
-    SpeakOnCompleteFunction mComplete;
-};
-
-class SpeakOffCommand : public Command
-{
-public:
-    typedef std::function<bool(Cid_t cid)> SpeakOffCompleteFunction;
-    SpeakOffCommand(const SpeakOffCompleteFunction& complete, SfuInterface& call);
-    bool processCommand(const rapidjson::Document& command) override;
-    static const std::string COMMAND_NAME;
-    SpeakOffCompleteFunction mComplete;
 };
 
 class PeerJoinCommand : public Command
