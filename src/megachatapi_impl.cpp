@@ -1735,13 +1735,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             }
 
             const bool notRinging = request->getNumber();
-            MegaChatHandle schedId = request->getUserHandle();
-            if (schedId != MEGACHAT_INVALID_HANDLE && notRinging)
-            {
-                API_LOG_ERROR("Start call - notRinging and schedId cannot be specified together");
-                return MegaChatError::ERROR_ARGS;
-            }
-
             if (!chatroom->isGroup())
             {
                 uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
@@ -1768,13 +1761,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             {
                 API_LOG_ERROR("Start call - chatroom isn't in online state");
                 return MegaChatError::ERROR_ACCESS;
-            }
-
-            if (schedId != MEGACHAT_INVALID_HANDLE &&
-                    !dynamic_cast<GroupChatRoom *>(chatroom)->getScheduledMeetingsBySchedId(schedId))
-            {
-                API_LOG_ERROR("Start call - scheduled meeting id doesn't exists");
-                return MegaChatError::ERROR_NOENT;
             }
 
             bool enableAudio = request->getParamType();
@@ -1809,9 +1795,9 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                }
 
                bool isGroup = chatroom->isGroup();
-               pms.then([request, this, chatid, avFlags, isGroup, schedId, notRinging] (shared_ptr<string> unifiedKey)
+               pms.then([request, this, chatid, avFlags, isGroup, notRinging] (shared_ptr<string> unifiedKey)
                {
-                   mClient->rtc->startCall(chatid, avFlags, isGroup, schedId, notRinging, unifiedKey)
+                   mClient->rtc->startCall(chatid, avFlags, isGroup, notRinging, unifiedKey)
                    .then([request, this]()
                    {
                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -5983,13 +5969,12 @@ char *MegaChatApiImpl::getVideoDeviceSelected()
     return deviceName;
 }
 
-void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, bool notRinging, MegaChatHandle schedId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, bool notRinging, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_START_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
     request->setParamType(enableAudio);
-    request->setUserHandle(schedId);
     request->setNumber(notRinging);
     request->setPerformRequest([this, request]() { return performRequest_startChatCall(request); });
     requestQueue.push(request);
