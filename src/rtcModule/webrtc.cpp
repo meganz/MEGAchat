@@ -2386,9 +2386,8 @@ bool Call::handleModDel(uint64_t userid)
         setOwnModerator(false);
         if (mSpeakerState != SpeakerState::kNoSpeaker)
         {
-            // mute own client, as our moderator privilege has been revoked
             setSpeakerState(SpeakerState::kNoSpeaker);
-            muteMyClient(true/*audio*/, false/*video*/); // mute own client
+            // MUTED command will be received from SFU
         }
     }
 
