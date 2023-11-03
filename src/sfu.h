@@ -321,7 +321,7 @@ protected:
 };
 
 class AVCommand : public Command
-{
+{   // "AV"
 public:
     typedef std::function<bool(karere::Id, unsigned, uint32_t)> AvCompleteFunction;
     AVCommand(const AvCompleteFunction& complete, SfuInterface& call);
@@ -331,7 +331,7 @@ public:
 };
 
 class AnswerCommand : public Command
-{
+{   // "ANSWER"
 public:
     typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>&,
                                std::map<Cid_t, TrackDescriptor>&, const std::set<karere::Id>&,
@@ -346,7 +346,7 @@ private:
 };
 
 class KeyCommand : public Command
-{
+{   // "KEY"
 public:
     typedef std::function<bool(const Keyid_t&, const Cid_t&, const std::string&)> KeyCompleteFunction;
     KeyCommand(const KeyCompleteFunction& complete, SfuInterface& call);
@@ -357,7 +357,7 @@ public:
 };
 
 class VthumbsCommand : public Command
-{
+{   // "VTHUMBS"
 public:
     typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompleteFunction;
     VthumbsCommand(const VtumbsCompleteFunction& complete, SfuInterface& call);
@@ -367,7 +367,7 @@ public:
 };
 
 class VthumbsStartCommand : public Command
-{
+{   // "VTHUMB_START"
 public:
     typedef std::function<bool(void)> VtumbsStartCompleteFunction;
     VthumbsStartCommand(const VtumbsStartCompleteFunction& complete, SfuInterface& call);
@@ -377,7 +377,7 @@ public:
 };
 
 class VthumbsStopCommand : public Command
-{
+{   // "VTHUMB_STOP"
 public:
     typedef std::function<bool(void)> VtumbsStopCompleteFunction;
     VthumbsStopCommand(const VtumbsStopCompleteFunction& complete, SfuInterface& call);
@@ -387,7 +387,7 @@ public:
 };
 
 class HiResCommand : public Command
-{
+{   // "HIRES"
 public:
     typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> HiresCompleteFunction;
     HiResCommand(const HiresCompleteFunction& complete, SfuInterface& call);
@@ -397,7 +397,7 @@ public:
 };
 
 class HiResStartCommand : public Command
-{
+{   // "HIRES_START"
 public:
     typedef std::function<bool(void)> HiResStartCompleteFunction;
     HiResStartCommand(const HiResStartCompleteFunction& complete, SfuInterface& call);
@@ -407,7 +407,7 @@ public:
 };
 
 class HiResStopCommand : public Command
-{
+{   // "HIRES_STOP"
 public:
     typedef std::function<bool(void)> HiResStopCompleteFunction;
     HiResStopCommand(const HiResStopCompleteFunction& complete, SfuInterface& call);
@@ -417,7 +417,7 @@ public:
 };
 
 class SpeakerAddCommand : public Command
-{
+{   // "SPEAKER_ADD"
 public:
     typedef std::function<bool(const uint64_t, const bool)> SpeakerAddCompleteFunction;
     SpeakerAddCommand(const SpeakerAddCompleteFunction& complete, SfuInterface& call);
@@ -427,7 +427,7 @@ public:
 };
 
 class SpeakerDelCommand : public Command
-{
+{   // "SPEAKER_DEL"
 public:
     typedef std::function<bool(const uint64_t, const bool)> SpeakerDelCompleteFunction;
     SpeakerDelCommand(const SpeakerDelCompleteFunction& complete, SfuInterface& call);
@@ -437,6 +437,7 @@ public:
 };
 
 class SpeakReqCommand : public Command
+{   // "SPEAKRQ"
 public:
     typedef std::function<bool(const uint64_t, const bool)> SpeakReqsCompleteFunction;
     SpeakReqCommand(const SpeakReqsCompleteFunction& complete, SfuInterface& call);
@@ -446,7 +447,7 @@ public:
 };
 
 class SpeakReqDelCommand : public Command
-{
+{   // "SPEAKRQ_DEL"
 public:
     typedef std::function<bool(const uint64_t, const bool)> SpeakReqDelCompleteFunction;
     SpeakReqDelCommand(const SpeakReqDelCompleteFunction& complete, SfuInterface& call);
@@ -456,7 +457,7 @@ public:
 };
 
 class PeerJoinCommand : public Command
-{
+{   // "PEERJOIN"
 public:
     typedef std::function<bool(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
     PeerJoinCommand(const PeerJoinCommandFunction& complete, SfuInterface& call);
@@ -466,7 +467,7 @@ public:
 };
 
 class PeerLeftCommand : public Command
-{
+{   // "PEERLEFT"
 public:
     typedef std::function<bool(Cid_t cid, unsigned termcode)> PeerLeftCommandFunction;
     PeerLeftCommand(const PeerLeftCommandFunction& complete, SfuInterface& call);
@@ -476,7 +477,7 @@ public:
 };
 
 class ByeCommand : public Command
-{
+{   // "BYE"
 public:
     typedef std::function<bool(const unsigned termCode, const bool wr, const std::string& errMsg)> ByeCommandFunction;
     ByeCommand(const ByeCommandFunction& complete, SfuInterface& call);
@@ -486,7 +487,7 @@ public:
 };
 
 class MutedCommand : public Command
-{
+{   //"MUTED"
 public:
     typedef std::function<bool(const unsigned av)> MutedCommandFunction;
     MutedCommand(const MutedCommandFunction& complete, SfuInterface& call);
@@ -496,7 +497,7 @@ public:
 };
 
 class ModAddCommand : public Command
-{
+{   // "MOD_ADD"
 public:
     typedef std::function<bool(uint64_t userid)> ModAddCommandFunction;
     ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call);
@@ -506,7 +507,7 @@ public:
 };
 
 class ModDelCommand : public Command
-{
+{   // "MOD_DEL"
 public:
     typedef std::function<bool(uint64_t userid)> ModDelCommandFunction;
     ModDelCommand(const ModDelCommandFunction& complete, SfuInterface& call);
@@ -516,7 +517,7 @@ public:
 };
 
 class HelloCommand : public Command
-{
+{   // "HELLO"
 public:
     typedef std::function<bool(const Cid_t userid,
                                const unsigned int nAudioTracks,
@@ -533,7 +534,7 @@ public:
 };
 
 class WrDumpCommand: public Command
-{
+{   // "WR_DUMP"
 public:
     typedef std::function<bool(const sfu::WrUserList& users)>WrDumpCommandFunction;
     WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call);
@@ -543,7 +544,7 @@ public:
 };
 
 class WrEnterCommand: public Command
-{
+{   // "WR_ENTER"
 public:
     typedef std::function<bool(const sfu::WrUserList& users)>WrEnterCommandFunction;
     WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call);
@@ -553,7 +554,7 @@ public:
 };
 
 class WrLeaveCommand: public Command
-{
+{   // "WR_LEAVE"
 public:
     typedef std::function<bool(const karere::Id& user)>WrLeaveCommandFunction;
     WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterface& call);
@@ -563,7 +564,7 @@ public:
 };
 
 class WrAllowCommand: public Command
-{
+{   // "WR_ALLOW"
 public:
     typedef std::function<bool(const Cid_t& cid, const std::set<karere::Id>& mods)>WrAllowCommandFunction;
     WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call);
@@ -573,7 +574,7 @@ public:
 };
 
 class WrDenyCommand: public Command
-{
+{   // "WR_DENY"
 public:
     typedef std::function<bool(const std::set<karere::Id>& mods)>WrDenyCommandFunction;
     WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface& call);
@@ -583,7 +584,7 @@ public:
 };
 
 class WrUsersAllowCommand: public Command
-{
+{   // "WR_USERS_ALLOW"
 public:
     typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersAllowCommandFunction;
     WrUsersAllowCommand(const WrUsersAllowCommandFunction& complete, SfuInterface& call);
@@ -593,7 +594,7 @@ public:
 };
 
 class WrUsersDenyCommand: public Command
-{
+{   // "WR_USERS_DENY"
 public:
     typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersDenyCommandFunction;
     WrUsersDenyCommand(const WrUsersDenyCommandFunction& complete, SfuInterface& call);
