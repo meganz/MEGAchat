@@ -2423,7 +2423,7 @@ bool Call::handleWrLeave(const karere::Id& user)
     return true;
 }
 
-bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
+bool Call::handleWrAllow(const Cid_t& cid)
 {
     if (!checkWrCommandReqs("WR_ALLOW", false /*mustBeModerator*/))
     {
@@ -2438,7 +2438,6 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 
     if (mState != CallState::kInWaitingRoom) { return false; }
     mMyPeer->setCid(cid); // update Cid for own client from SFU
-    mModerators = mods;
     RTCM_LOG_DEBUG("handleWrAllow: we have been allowed to join call, so we need to send JOIN command to SFU");
     setWrJoiningState(sfu::WrState::WR_ALLOWED);
     mCallHandler.onWrAllow(*this);
@@ -2446,7 +2445,7 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
     return true;
 }
 
-bool Call::handleWrDeny(const std::set<karere::Id>& mods)
+bool Call::handleWrDeny()
 {
     if (!checkWrCommandReqs("WR_DENY", false /*mustBeModerator*/))
     {
@@ -2458,7 +2457,6 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
         return false;
     }
 
-    mModerators = mods;
     setWrJoiningState(sfu::WrState::WR_NOT_ALLOWED);
     mCallHandler.onWrDeny(*this);
     return true;

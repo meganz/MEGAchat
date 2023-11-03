@@ -9481,12 +9481,12 @@ bool MockupCall::handleWrLeave(const karere::Id& /*user*/)
     return true;
 }
 
-bool MockupCall::handleWrAllow(const Cid_t& /*cid*/, const std::set<karere::Id>& /*mods*/)
+bool MockupCall::handleWrAllow(const Cid_t& /*cid*/)
 {
     return true;
 }
 
-bool MockupCall::handleWrDeny(const std::set<karere::Id>& /*mods*/)
+bool MockupCall::handleWrDeny()
 {
     return true;
 }

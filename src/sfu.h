@@ -274,8 +274,8 @@ public:
     virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
     virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;
     virtual bool handleWrLeave(const karere::Id& /*user*/) = 0;
-    virtual bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) = 0;
-    virtual bool handleWrDeny(const std::set<karere::Id>& mods) = 0;
+    virtual bool handleWrAllow(const Cid_t& cid) = 0;
+    virtual bool handleWrDeny() = 0;
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
     virtual bool handleMutedCommand(const unsigned av) = 0;
@@ -566,7 +566,7 @@ public:
 class WrAllowCommand: public Command
 {   // "WR_ALLOW"
 public:
-    typedef std::function<bool(const Cid_t& cid, const std::set<karere::Id>& mods)>WrAllowCommandFunction;
+    typedef std::function<bool(const Cid_t& cid)>WrAllowCommandFunction;
     WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -576,7 +576,7 @@ public:
 class WrDenyCommand: public Command
 {   // "WR_DENY"
 public:
-    typedef std::function<bool(const std::set<karere::Id>& mods)>WrDenyCommandFunction;
+    typedef std::function<bool()>WrDenyCommandFunction;
     WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
