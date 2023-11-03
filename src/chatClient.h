@@ -445,6 +445,13 @@ public:
      */
     promise::Promise<void> leave();
 
+    /**
+     * @brief Encrypts a string with the title for all chatroom participants
+     * @param String with the title we want to encrypt
+     * @returns A void promise to std::shared_ptr<Buffer>.
+     */
+    promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& title);
+
     /** TODO
      * @brief setTitle
      * @param title
@@ -1075,7 +1082,7 @@ public:
      * @brief This function allows to create a scheduled meeting.
      * TODO: complete documentation
      */
-    promise::Promise<KarereScheduledMeeting*> createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting);
+    promise::Promise<KarereScheduledMeeting*> createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting, const char* chatTitle = nullptr);
 
 
     promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>> fetchScheduledMeetingOccurrences(uint64_t chatid, mega::m_time_t since, mega::m_time_t until, unsigned int count);

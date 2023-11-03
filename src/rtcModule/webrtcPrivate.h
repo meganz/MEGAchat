@@ -491,8 +491,8 @@ public:
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
-                     const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                     const bool speakRequest, const sfu::WrUserList& wrUsers) override;
+                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                      const bool speakRequest, const sfu::WrUserList& wrUsers) override;
 
     // --- SfuInterface methods (waiting room related methods) ---
     bool handleWrDump(const sfu::WrUserList& users) override;

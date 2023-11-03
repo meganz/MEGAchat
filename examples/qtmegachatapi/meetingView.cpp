@@ -795,7 +795,7 @@ void MeetingView::onWrShow()
     {
         wrText.assign("<br /><span style='color:#A30010'>EMPTY WAITING ROOM</span>");
         const megachat::MegaChatWaitingRoom* wr = call->getWaitingRoom();
-        std::unique_ptr<mega::MegaHandleList>wrPeers(wr->getPeers());
+        std::unique_ptr<mega::MegaHandleList>wrPeers(wr->getUsers());
         if (wrPeers && wrPeers->size())
         {
             wrText.clear();
@@ -805,10 +805,10 @@ void MeetingView::onWrShow()
                 mega::unique_ptr<const char[]>b64handle(::mega::MegaApi::userHandleToBase64(h));
                 wrText.append(b64handle.get());
                 wrText.append(" : ");
-                wrText.append(wr->getPeerStatus(h) == megachat::MegaChatWaitingRoom::MWR_ALLOWED
+                wrText.append(wr->getUserStatus(h) == megachat::MegaChatWaitingRoom::MWR_ALLOWED
                                   ? "<span style='color:#00A310'>"
                                   : "<span style='color:#A30010'>");
-                wrText.append(megachat::MegaChatWaitingRoom::peerStatusToString(wr->getPeerStatus(h)));
+                wrText.append(megachat::MegaChatWaitingRoom::userStatusToString(wr->getUserStatus(h)));
                 wrText.append("</span><br />");
             }
         }
