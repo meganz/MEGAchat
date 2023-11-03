@@ -1386,9 +1386,8 @@ private:
     int performRequest_setCallOnHold(MegaChatRequestPrivate* request);
     int performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request);
     int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
-    int performRequest_speakRequest(MegaChatRequestPrivate* request);
+    int performRequest_addDelspeakRequest(MegaChatRequestPrivate* request);
     int performRequest_addRemoveSpeaker(MegaChatRequestPrivate* request);
-    int performRequest_speakApproval(MegaChatRequestPrivate* request);
     int performRequest_hiResVideo(MegaChatRequestPrivate* request);
     int performRequest_lowResVideo(MegaChatRequestPrivate* request);
     int performRequest_videoDevice(MegaChatRequestPrivate* request);
@@ -1669,7 +1668,6 @@ public:
     void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
-    void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
@@ -1687,10 +1685,7 @@ public:
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void addRemoveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
-    void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
-    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void addDelSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);

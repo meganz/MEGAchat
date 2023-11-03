@@ -328,8 +328,6 @@ public:
     karere::Id getCallid() const override;
     bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
 
-    // request to speak, or cancels a previous request (add = false)
-    void requestSpeak(const bool add = true) override;
     bool hasPendingSpeakRequest() const override;
     int getWrJoiningState() const override;
     unsigned int getOwnSpeakerState() const override;
@@ -337,8 +335,6 @@ public:
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
 
-    // allows to approve/deny requests to speak from other users (only allowed for moderators)
-    void approveSpeakRequest(Cid_t cid, bool allow) override;
     bool isSpeakAllow() const override; // true if request has been approved
     void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
@@ -369,6 +365,7 @@ public:
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     const KarereWaitingRoom* getWaitingRoom() const override;
     bool hasOwnUserSpeakPermission() const override;
+    bool addDelSpeakRequest(const karere::Id& user, const bool add) override;
 
     //
     // ------ end ICall methods -----
@@ -484,10 +481,8 @@ public:
     bool handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleHiResStartCommand() override;
     bool handleHiResStopCommand() override;
-    bool handleSpeakerAddCommand(const uint64_t userid) override;
-    bool handleSpeakerDelCommand(const uint64_t userid) override;
-    bool handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests) override;
-    bool handleSpeakReqDelCommand(Cid_t cid) override;
+    bool handleSpeakerAddDelCommand(const uint64_t userid, const bool add) override;
+    bool handleSpeakReqAddDelCommand(const uint64_t userid, const bool add) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;

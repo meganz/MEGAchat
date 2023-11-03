@@ -148,7 +148,7 @@ protected:
     /* The speak permission (mHasSpeakPermission stores this permission up to date with SFU)
      *      1.1) If peer is moderator. SFU sends a SPEAK_ON command to inform that peer is a speaker
      *
-     *      1.2) If peer is not moderator, needs to manually send SPEAK_RQ to SFU that will be broadcasted it to all moderators.
+     *      1.2) If peer is not moderator, needs to manually send SPEAKRQ to SFU that will be broadcasted it to all moderators.
      *           When speak request is approved by a moderator, a SPEAK_ON command will be received
      */
     bool mHasSpeakPermission = false;
@@ -263,10 +263,8 @@ public:
     virtual bool handleHiResCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleHiResStartCommand() = 0;
     virtual bool handleHiResStopCommand() = 0;
-    virtual bool handleSpeakerAddCommand(const uint64_t userid) = 0;
-    virtual bool handleSpeakerDelCommand(const uint64_t userid) = 0;
-    virtual bool handleSpeakReqsCommand(const std::vector<Cid_t>&) = 0;
-    virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
+    virtual bool handleSpeakerAddDelCommand(const uint64_t userid, const bool add) = 0;
+    virtual bool handleSpeakReqAddDelCommand(const uint64_t userid, const bool add) = 0;
     virtual bool handleModAdd (uint64_t userid) = 0;
     virtual bool handleModDel (uint64_t userid) = 0;
     virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
@@ -421,7 +419,7 @@ public:
 class SpeakerAddCommand : public Command
 {
 public:
-    typedef std::function<bool(const uint64_t)> SpeakerAddCompleteFunction;
+    typedef std::function<bool(const uint64_t, const bool)> SpeakerAddCompleteFunction;
     SpeakerAddCommand(const SpeakerAddCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -431,18 +429,17 @@ public:
 class SpeakerDelCommand : public Command
 {
 public:
-    typedef std::function<bool(const uint64_t)> SpeakerDelCompleteFunction;
+    typedef std::function<bool(const uint64_t, const bool)> SpeakerDelCompleteFunction;
     SpeakerDelCommand(const SpeakerDelCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakerDelCompleteFunction mComplete;
 };
 
-class SpeakReqsCommand : public Command
-{
+class SpeakReqCommand : public Command
 public:
-    typedef std::function<bool(const std::vector<Cid_t>&)> SpeakReqsCompleteFunction;
-    SpeakReqsCommand(const SpeakReqsCompleteFunction& complete, SfuInterface& call);
+    typedef std::function<bool(const uint64_t, const bool)> SpeakReqsCompleteFunction;
+    SpeakReqCommand(const SpeakReqsCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakReqsCompleteFunction mComplete;
@@ -451,7 +448,7 @@ public:
 class SpeakReqDelCommand : public Command
 {
 public:
-    typedef std::function<bool(karere::Id)> SpeakReqDelCompleteFunction;
+    typedef std::function<bool(const uint64_t, const bool)> SpeakReqDelCompleteFunction;
     SpeakReqDelCommand(const SpeakReqDelCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -633,10 +630,10 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_DEL_HIRES;
     static const std::string CSFU_HIRES_SET_LO;
     static const std::string CSFU_LAYER;
-    static const std::string CSFU_SPEAK_RQ;
+    static const std::string CSFU_SPEAKRQ;
     static const std::string CSFU_SPEAKER_ADD;
     static const std::string CSFU_SPEAKER_DEL;
-    static const std::string CSFU_SPEAK_RQ_DEL;
+    static const std::string CSFU_SPEAKRQ_DEL;
     static const std::string CSFU_BYE;
     static const std::string CSFU_WR_PUSH;
     static const std::string CSFU_WR_ALLOW;
@@ -712,9 +709,8 @@ public:
     bool sendDelHiRes(const std::vector<Cid_t>& cids);
     bool sendHiResSetLo(Cid_t cid, int lo = -1);
     bool sendLayer(int spt, int tmp, int stmp);
-    bool sendSpeakReq(Cid_t cid = 0);
     bool sendSpeakerAddDel(const karere::Id& user, const bool add);
-    bool sendSpeakReqDel(Cid_t cid = 0);
+    bool sendSpeakReqAddDel(const karere::Id& user, const bool add);
     bool sendBye(int termCode);
     void clearInitialBackoff();
     void incrementInitialBackoff();

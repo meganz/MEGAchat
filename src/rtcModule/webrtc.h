@@ -223,10 +223,8 @@ public:
 
     virtual void setCallerId(const karere::Id &callerid) = 0;
     virtual bool alreadyParticipating() = 0;
-    virtual void requestSpeak(const bool add = true) = 0;
     virtual bool isSpeakAllow() const = 0;
     virtual void addOrRemoveSpeaker(const karere::Id& user, const bool add) = 0;
-    virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
@@ -249,6 +247,7 @@ public:
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
     virtual bool hasOwnUserSpeakPermission() const = 0;
+    virtual bool addDelSpeakRequest(const karere::Id& user, const bool add) = 0;
 };
 
 class RtcModule

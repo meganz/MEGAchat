@@ -32,6 +32,7 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     mLayout->setAlignment(Qt::AlignLeft);
     setLayout(mLayout.get());
     mCid = static_cast<uint32_t>(session.getClientid());
+    mUserid = session.getPeerid();
 
     if (session.isModerator())
     {

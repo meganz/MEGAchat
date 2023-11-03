@@ -580,10 +580,12 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     }
 
     uint32_t cid = static_cast<uint32_t>(atoi(item->data(Qt::UserRole).toString().toStdString().c_str()));
-    if (mSessionWidgets.find(cid) == mSessionWidgets.end())
+    const auto& it = mSessionWidgets.find(cid);
+    if (it == mSessionWidgets.end())
     {
         return;
     }
+    const megachat::MegaChatHandle userid = it->second->getUserId();
 
     QMenu submenu;
     std::string requestDelSpeaker("Remove speaker");
@@ -664,15 +666,15 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         }
         else if (rightClickItem->text().contains(approveSpeak.c_str()))
         {
-            mMegaChatApi.approveSpeakRequest(mChatid, cid);
+            mMegaChatApi.addActiveSpeaker(mChatid, userid);
         }
         else if (rightClickItem->text().contains(rejectSpeak.c_str()))
         {
-            mMegaChatApi.rejectSpeakRequest(mChatid, cid);
+            mMegaChatApi.removeSpeakRequest(mChatid, userid);
         }
         else if (rightClickItem->text().contains(requestDelSpeaker.c_str()))
         {
-            onRemoveSpeaker(cid);
+            mMegaChatApi.removeActiveSpeaker(mChatid, userid);
         }
         else if (rightClickItem->text().contains(stopThumb.c_str()))
         {
@@ -723,8 +725,8 @@ void MeetingView::onRequestSpeak(bool request)
     }
 
     request
-            ? mMegaChatApi.requestSpeak(mChatid)
-            : mMegaChatApi.removeRequestSpeak(mChatid);
+        ? mMegaChatApi.sendSpeakRequest(mChatid)
+        : mMegaChatApi.removeSpeakRequest(mChatid);
 }
 
 void MeetingView::onEnableAudio()
@@ -765,14 +767,9 @@ void MeetingView::onEnableVideo()
     }
 }
 
-void MeetingView::onRemoveSpeaker(const megachat::MegaChatHandle cid)
+void MeetingView::onRemoveOwnSpeaker()
 {
-    mMegaChatApi.removeSpeaker(mChatid, cid);
-}
-
-void MeetingView::onRemoveSpeaker()
-{
-    mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+    mMegaChatApi.removeActiveSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
 
 void MeetingView::onEnableAudioMonitor(bool)

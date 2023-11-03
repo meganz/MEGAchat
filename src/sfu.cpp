@@ -26,13 +26,14 @@ const std::string VthumbsStopCommand::COMMAND_NAME      = "VTHUMB_STOP";    // I
 const std::string HiResCommand::COMMAND_NAME            = "HIRES";          // Notifies that SFU started sending some peer video hires tracks over the specified slots.
 const std::string HiResStartCommand::COMMAND_NAME       = "HIRES_START";    // Instruct client to start sending the video hires tracks
 const std::string HiResStopCommand::COMMAND_NAME        = "HIRES_STOP";     // Instruct client to stop sending the video hires tracks
-const std::string SpeakReqsCommand::COMMAND_NAME        = "SPEAK_REQS";     // Notifies that one or more speak requests have been added to the pending list, waiting for approval
-const std::string SpeakReqDelCommand::COMMAND_NAME      = "SPEAK_RQ_DEL";   // Cancels a pending speak request.
+const std::string SpeakReqDelCommand::COMMAND_NAME      = "SPEAKRQ_DEL";    // Notifies that a speak request has been removed from speak request list
 const std::string SpeakerAddCommand::COMMAND_NAME       = "SPEAKER_ADD";    // Notifies that an user has been added to active speakers list
+const std::string SpeakReqCommand::COMMAND_NAME         = "SPEAKRQ";        // Notifies that one or more speak requests have been added to the pending list, waiting for approval
 const std::string SpeakerDelCommand::COMMAND_NAME       = "SPEAKER_DEL";    // Notifies that an user has been removed from active speakers list
 const std::string PeerJoinCommand::COMMAND_NAME         = "PEERJOIN";       // Notifies that a peer has joined to the call
 const std::string PeerLeftCommand::COMMAND_NAME         = "PEERLEFT";       // Notifies that a peer has left the call
 const std::string ByeCommand::COMMAND_NAME              = "BYE";            // Notifies that SFU disconnects a client from the call
+const std::string MutedCommand::COMMAND_NAME            = "MUTED";          // Notifies that our audio has been muted remotely by a host user
 const std::string ModAddCommand::COMMAND_NAME           = "MOD_ADD";        // Notifies that a moderator has been added to the moderator list
 const std::string ModDelCommand::COMMAND_NAME           = "MOD_DEL";        // Notifies that a moderator has been removed from the moderator list
 const std::string HelloCommand::COMMAND_NAME            = "HELLO";          // First command received after connecting to the SFU
@@ -43,7 +44,6 @@ const std::string WrAllowCommand::COMMAND_NAME          = "WR_ALLOW";       // N
 const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";        // Notifies that our user permission to enter the call has been denied (from waiting room)
 const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted to enter the call.
 const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied to enter the call
-const std::string MutedCommand::COMMAND_NAME            = "MUTED";          // Notifies that our audio has been muted remotely by a host user
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
@@ -55,10 +55,10 @@ const std::string SfuConnection::CSFU_GET_HIRES         = "GET_HIRES";      // C
 const std::string SfuConnection::CSFU_DEL_HIRES         = "DEL_HIRES";      // Command sent to instruct the SFU to stop sending the hi-res track of the specified peer
 const std::string SfuConnection::CSFU_HIRES_SET_LO      = "HIRES_SET_LO";   // Command sent to instruct the SFU to send a lower spatial SVC layer of the hi-res stream of the specified peer
 const std::string SfuConnection::CSFU_LAYER             = "LAYER";          // Command sent to select the SVC spatial and layers for all hi-res video tracks that the client receives
-const std::string SfuConnection::CSFU_SPEAK_RQ          = "SPEAK_RQ";       // Command sent to request a client to become an active speaker
+const std::string SfuConnection::CSFU_SPEAKRQ           = "SPEAKRQ";       // Command sent to request a client to become an active speaker
+const std::string SfuConnection::CSFU_SPEAKRQ_DEL       = "SPEAKRQ_DEL";    // Command sent to cancel a pending speak request
 const std::string SfuConnection::CSFU_SPEAKER_ADD       = "SPEAKER_ADD";    // Command sent to add an user to speakers list
 const std::string SfuConnection::CSFU_SPEAKER_DEL       = "SPEAKER_DEL";    // Command sent to remove an user from speakers list
-const std::string SfuConnection::CSFU_SPEAK_RQ_DEL      = "SPEAK_RQ_DEL";   // Command sent to cancel a pending speak request
 const std::string SfuConnection::CSFU_BYE               = "BYE";            // Command sent to disconnect orderly from the call
 const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // Command sent to push all clients of sent peerId's (that are in the call) to the waiting room
 const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // Command sent to grant the specified users the permission to enter the call from the waiting room
@@ -686,14 +686,13 @@ SpeakerAddCommand::SpeakerAddCommand(const SpeakerAddCompleteFunction &complete,
 
 bool SpeakerAddCommand::processCommand(const rapidjson::Document &command)
 {
+    uint64_t uh = karere::Id::inval();
     rapidjson::Value::ConstMemberIterator userIterator = command.FindMember("user");
-    if (userIterator == command.MemberEnd() || !userIterator->value.IsString())
+    if (userIterator != command.MemberEnd() && userIterator->value.IsString())
     {
-        SFU_LOG_ERROR("SpeakerAddCommand::processCommand - Received data doesn't have 'user' field");
-        return false;
+        uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
     }
-    const uint64_t uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
-    return mComplete(uh);
+    return mComplete(uh, true);
 }
 
 SpeakerDelCommand::SpeakerDelCommand(const SpeakerDelCompleteFunction &complete, SfuInterface &call)
@@ -710,40 +709,24 @@ bool SpeakerDelCommand::processCommand(const rapidjson::Document &command)
     {
         uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
     }
-    return mComplete(uh);
+    return mComplete(uh, false);
 }
 
-SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete, SfuInterface &call)
+SpeakReqCommand::SpeakReqCommand(const SpeakReqsCompleteFunction &complete, SfuInterface &call)
     : Command(call)
     , mComplete(complete)
 {
 }
 
-bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
+bool SpeakReqCommand::processCommand(const rapidjson::Document &command)
 {
-    rapidjson::Value::ConstMemberIterator cidsIterator = command.FindMember("cids");
-    if (cidsIterator == command.MemberEnd() || !cidsIterator->value.IsArray())
+    uint64_t uh = karere::Id::inval();
+    rapidjson::Value::ConstMemberIterator userIterator = command.FindMember("user");
+    if (userIterator != command.MemberEnd() && userIterator->value.IsString())
     {
-        SFU_LOG_ERROR("SpeakReqsCommand::processCommand - Received data doesn't have 'cids' field");
-        return false;
+        uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
     }
-
-    std::vector<Cid_t> speakRequest;
-    for (unsigned int j = 0; j < cidsIterator->value.Capacity(); ++j)
-    {
-        if (cidsIterator->value[j].IsUint())
-        {
-            Cid_t cid = cidsIterator->value[j].GetUint();
-            speakRequest.push_back(cid);
-        }
-        else
-        {
-            SFU_LOG_ERROR("SpeakReqsCommand::processCommand - it isn't uint");
-            return false;
-        }
-    }
-
-    return mComplete(speakRequest);
+    return mComplete(uh, true);
 }
 
 SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &complete, SfuInterface &call)
@@ -754,16 +737,13 @@ SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &comple
 
 bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 {
-    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
-    if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
+    uint64_t uh = karere::Id::inval();
+    rapidjson::Value::ConstMemberIterator userIterator = command.FindMember("user");
+    if (userIterator != command.MemberEnd() && userIterator->value.IsString())
     {
-        SFU_LOG_ERROR("SpeakReqDelCommand: Received data doesn't have 'cid' field");
-        return false;
+        uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
     }
-
-    Cid_t cid = cidIterator->value.GetUint();
-
-    return mComplete(cid);
+    return mComplete(uh, false);
 }
 
 PeerJoinCommand::PeerJoinCommand(const PeerJoinCommandFunction &complete, SfuInterface &call)
@@ -1588,10 +1568,10 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
     commands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
     commands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
-    commands[SpeakerAddCommand::COMMAND_NAME] = mega::make_unique<SpeakerAddCommand>(std::bind(&sfu::SfuInterface::handleSpeakerAddCommand, &call, std::placeholders::_1), call);
-    commands[SpeakerDelCommand::COMMAND_NAME] = mega::make_unique<SpeakerDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakerDelCommand, &call, std::placeholders::_1), call);
-    commands[SpeakReqsCommand::COMMAND_NAME] = mega::make_unique<SpeakReqsCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqsCommand, &call, std::placeholders::_1), call);
-    commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqDelCommand, &call, std::placeholders::_1), call);
+    commands[SpeakerAddCommand::COMMAND_NAME] = mega::make_unique<SpeakerAddCommand>(std::bind(&sfu::SfuInterface::handleSpeakerAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakerDelCommand::COMMAND_NAME] = mega::make_unique<SpeakerDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakerAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakReqCommand::COMMAND_NAME] = mega::make_unique<SpeakReqCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
     commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
@@ -2033,35 +2013,19 @@ bool SfuConnection::sendSpeakerAddDel(const karere::Id& user, const bool add)
     return sendCommand(command);
 }
 
-bool SfuConnection::sendSpeakReq(Cid_t cid)
+bool SfuConnection::sendSpeakReqAddDel(const karere::Id& user, const bool add)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ.c_str(), json.GetAllocator());
+    const std::string& cmd = add ? SfuConnection::CSFU_SPEAKRQ.c_str() : SfuConnection::CSFU_SPEAKRQ_DEL.c_str();
+    cmdValue.SetString(cmd.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
-    if (cid)
+    if (user.isValid())
     {
-        json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
-    }
-
-    rapidjson::StringBuffer buffer;
-    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
-    json.Accept(writer);
-    std::string command(buffer.GetString(), buffer.GetSize());
-    return sendCommand(command);
-}
-
-bool SfuConnection::sendSpeakReqDel(Cid_t cid)
-{
-    rapidjson::Document json(rapidjson::kObjectType);
-    rapidjson::Value cmdValue(rapidjson::kStringType);
-    cmdValue.SetString(SfuConnection::CSFU_SPEAK_RQ_DEL.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
-
-    if (cid)
-    {
-        json.AddMember("cid", rapidjson::Value(cid), json.GetAllocator());
+        rapidjson::Value auxValue(rapidjson::kStringType);
+        auxValue.SetString(user.toString().c_str(), static_cast<rapidjson::SizeType>(user.toString().length()), json.GetAllocator());
+        json.AddMember(rapidjson::Value("user"), auxValue, json.GetAllocator());
     }
 
     rapidjson::StringBuffer buffer;

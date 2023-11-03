@@ -1174,11 +1174,6 @@ void MegaChatApi::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clie
     pImpl->requestHiResQuality(chatid, clientId, quality, listener);
 }
 
-void MegaChatApi::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
-{
-    pImpl->removeSpeaker(chatid, clientId, listener);
-}
-
 void MegaChatApi::pushUsersIntoWaitingRoom(MegaChatHandle chatid, MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
 {
     pImpl->pushUsersIntoWaitingRoom(chatid, users, all, listener);
@@ -1274,29 +1269,19 @@ void MegaChatApi::removeActiveSpeaker(MegaChatHandle chatid, MegaChatHandle user
      pImpl->addRemoveSpeaker(chatid, userid, false/*add*/, listener);
 }
 
+void MegaChatApi::sendSpeakRequest(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+     pImpl->addDelSpeakRequest(chatid, MEGACHAT_INVALID_HANDLE, true/*add*/, listener);
+}
+
+void MegaChatApi::removeSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener)
+{
+     pImpl->addDelSpeakRequest(chatid, userid, false/*add*/, listener);
+}
+
 void MegaChatApi::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->enableAudioLevelMonitor(enable, chatid, listener);
-}
-
-void MegaChatApi::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
-{
-    pImpl->requestSpeak(chatid, listener);
-}
-
-void MegaChatApi::removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
-{
-    pImpl->removeRequestSpeak(chatid, listener);
-}
-
-void MegaChatApi::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
-{
-    pImpl->approveSpeakRequest(chatid, clientId, listener);
-}
-
-void MegaChatApi::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
-{
-    pImpl->rejectSpeakRequest(chatid, clientId, listener);
 }
 
 void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)

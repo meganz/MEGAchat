@@ -4347,27 +4347,13 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
     TestChatVideoListener localVideoListenerB;
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
 
-    auto removeSpeaker = [this](const unsigned int moderatorIdx, const unsigned int peerIdx, const MegaChatHandle peerId, const MegaChatHandle chatid) -> void
+    auto removeSpeaker = [this](const unsigned int moderatorIdx, const unsigned int peerIdx, const MegaChatHandle userid, const MegaChatHandle chatid) -> void
     {
         std::unique_ptr<MegaChatCall> call(megaChatApi[moderatorIdx]->getChatCall(chatid));
         ASSERT_TRUE(call) << "Call could not be retrieved for account: " << moderatorIdx << ". Chatid: " << getChatIdStrB64(chatid);
         ASSERT_TRUE(call->isSpeakRequestEnabled()) << "Speak request is disabled for call: " << getCallIdStrB64(call->getCallId());
         ASSERT_TRUE(call->isOwnModerator()) << "Unexpected call permission for account: " << moderatorIdx << ". Callid: " << getCallIdStrB64(call->getCallId());
-
-        MegaChatHandle peerCid = MEGACHAT_INVALID_HANDLE;
-        std::unique_ptr<MegaHandleList> sessionsList(call->getSessionsClientid());
-        for (unsigned int i = 0; i < sessionsList->size(); ++i)
-        {
-            auto cid = sessionsList->get(i);
-            const MegaChatSession* sess = call->getMegaChatSession(cid);
-            if (sess && !sess->isModerator() && sess->getPeerid() == peerId)
-            {
-                peerCid = cid;
-                break;
-            }
-        }
-
-        ASSERT_NE(peerCid, MEGACHAT_INVALID_HANDLE) << "Could not get any peer (non host) for Callid: " << getCallIdStrB64(call->getCallId());
+        ASSERT_NE(userid, MEGACHAT_INVALID_HANDLE) << "Could not get any peer (non host) for Callid: " << getCallIdStrB64(call->getCallId());
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1,
                           { &mOwnFlagsChanged[peerIdx], &mOwnSpeakStatusChanged[peerIdx]
@@ -4378,17 +4364,17 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
                           true /* wait for all exit flags*/,
                           true /* reset flags */,
                           maxTimeout,
-                          [this, &moderatorIdx, &peerCid, &chatid]()
+                          [this, &moderatorIdx, &userid, &chatid]()
                           {
                               ChatRequestTracker crtSpeakerRemove;
-                              megaChatApi[moderatorIdx]->removeSpeaker(chatid, peerCid, &crtSpeakerRemove);
+                              megaChatApi[moderatorIdx]->removeActiveSpeaker(chatid, userid, &crtSpeakerRemove);
                               auto res = crtSpeakerRemove.waitForResult();
                               ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to remove speaker: " << crtSpeakerRemove.getErrorString();
                           });
         });
 
-        ASSERT_TRUE(!mSessSpeakPerm[moderatorIdx][peerCid]) << "onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION) not received for peercid: "
-                                                            << peerCid << ". Callid: " << getCallIdStrB64(call->getCallId());
+        ASSERT_TRUE(!mSessSpeakPerm[moderatorIdx][userid]) << "onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION) not received for userid: "
+                                                           << userid << ". Callid: " << getCallIdStrB64(call->getCallId());
 
         ASSERT_EQ(mOwnSpeakStatus[peerIdx], MegaChatCall::SPEAKER_STATUS_DISABLED) << "Peer speak status: " << mOwnSpeakStatus[peerIdx]
                                                                                    << " it should be SPEAKER_STATUS_DISABLED"
@@ -4421,7 +4407,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 
     auto requestSpeak = [this](const unsigned int requesterIdx, const unsigned int moderatorIdx, const bool approve, const MegaChatHandle chatid)
     {
-        MegaChatHandle clientId = MEGACHAT_INVALID_HANDLE;
+        MegaChatHandle userid = MEGACHAT_INVALID_HANDLE;
         mSessSpeakRequests[moderatorIdx].clear();
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1,
@@ -4434,7 +4420,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
                           [this, &requesterIdx, &chatid]()
                           {
                               ChatRequestTracker crtSpeakReq;
-                              megaChatApi[requesterIdx]->requestSpeak(chatid, &crtSpeakReq);
+                              megaChatApi[requesterIdx]->sendSpeakRequest(chatid, &crtSpeakReq);
                               auto res = crtSpeakReq.waitForResult();
                               ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to request speak: " << crtSpeakReq.getErrorString();
                           });
@@ -4442,7 +4428,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
 
         ASSERT_EQ(mSessSpeakRequests[moderatorIdx].size(), 1u) << "Unexpected speak request list size for account index: " << moderatorIdx;
         ASSERT_EQ(mSessSpeakRequests[moderatorIdx].begin()->second, true) << "Speak request not received for account index: " << moderatorIdx;
-        clientId = mSessSpeakRequests[moderatorIdx].begin()->first;
+        userid = mSessSpeakRequests[moderatorIdx].begin()->first;
 
         std::vector<bool*> exitFlags = {&mOwnSpeakStatusChanged[requesterIdx]};
         std::vector<std::string> exitFlagsStr = {"mOwnSpeakStatusChanged[requesterIdx]"};
@@ -4463,12 +4449,12 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
                           true /* wait for all exit flags*/,
                           true /* reset flags */,
                           maxTimeout,
-                          [this, &moderatorIdx, &clientId, &approve, &chatid]()
+                          [this, &moderatorIdx, &userid, &approve, &chatid]()
                           {
                               ChatRequestTracker crtSpeakReq;
                               approve
-                                  ? megaChatApi[moderatorIdx]->approveSpeakRequest(chatid, clientId, &crtSpeakReq)
-                                  : megaChatApi[moderatorIdx]->rejectSpeakRequest(chatid, clientId, &crtSpeakReq);
+                                  ? megaChatApi[moderatorIdx]->addActiveSpeaker(chatid, userid, &crtSpeakReq)
+                                  : megaChatApi[moderatorIdx]->removeActiveSpeaker(chatid, userid, &crtSpeakReq);
 
                               auto res = crtSpeakReq.waitForResult();
                               ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to request speak: " << crtSpeakReq.getErrorString();
@@ -4482,7 +4468,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
         if (approve)
         {
             ASSERT_EQ(mSessSpeakPerm[moderatorIdx].size(), 1u);
-            ASSERT_EQ(mSessSpeakPerm[moderatorIdx].begin()->second, approve)  << "onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION) not received for peercid: " << clientId;
+            ASSERT_EQ(mSessSpeakPerm[moderatorIdx].begin()->second, approve)  << "onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION) not received for userid: " << userid;
         }
     };
 
@@ -8308,7 +8294,7 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
                 || !mChatCallSessionStatusInProgress[apiIndex];
             break;
         case MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED:
-            mSessSpeakRequests[apiIndex][session->getClientid()] = session->hasPendingSpeakRequest();
+            mSessSpeakRequests[apiIndex][session->getPeerid()] = session->hasPendingSpeakRequest();
             mSessSpeakReqRecv[apiIndex] = true;
             break;
         case MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD:
@@ -9021,22 +9007,12 @@ bool MockupCall::handleHiResStopCommand()
     return true;
 }
 
-bool MockupCall::handleSpeakerAddCommand(const uint64_t)
+bool MockupCall::handleSpeakerAddDelCommand(const uint64_t, const bool)
 {
     return true;
 }
 
-bool MockupCall::handleSpeakerDelCommand(const uint64_t)
-{
-    return true;
-}
-
-bool MockupCall::handleSpeakReqsCommand(const std::vector<Cid_t> &)
-{
-    return true;
-}
-
-bool MockupCall::handleSpeakReqDelCommand(Cid_t)
+bool MockupCall::handleSpeakReqAddDelCommand(const uint64_t, const bool)
 {
     return true;
 }
