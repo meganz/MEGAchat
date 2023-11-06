@@ -35,10 +35,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatContainsMeta ? [[MEGAChatContainsMeta alloc] initWithMegaChatContainsMeta:self.megaChatContainsMeta cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatContainsMeta *)getCPtr {
     return self.megaChatContainsMeta;
 }
