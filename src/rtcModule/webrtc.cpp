@@ -930,6 +930,8 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 void Call::joinSfu()
 {
     clearPendingPeers(); // clear pending peers (if any) before joining call
+    clearModeratorsList();
+    clearSpeakersList();
     initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
     size_t hiresTrackIndex = 0;
@@ -1171,7 +1173,8 @@ void Call::clearResources(const TermCode& termCode)
     disableStats();
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
     clearPendingPeers();
-    mModerators.clear();            // clear moderators list and ownModerator
+    clearModeratorsList();
+    clearSpeakersList();
     mVThumb.reset();
     mHiRes.reset();
     mAudio.reset();
@@ -1302,15 +1305,11 @@ const karere::Id& Call::getOwnPeerId() const
     return mMyPeer->getPeerid();
 }
 
-void Call::setSessionModByUserId(uint64_t userid, bool isMod)
+bool Call::hasSpeakPermission(const uint64_t userid) const
 {
-    for (const auto& session : mSessions)
-    {
-        if (session.second->getPeerid() == userid)
-        {
-            session.second->setModerator(isMod);
-        }
-    }
+    return !isSpeakRequestEnabled()
+           || isOnSpeakersList(userid)
+           || isOnModeratorsList(userid);
 }
 
 void Call::setOwnModerator(bool isModerator)

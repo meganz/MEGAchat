@@ -467,6 +467,19 @@ public:
     bool updateUserSpeakPermission(const karere::Id& userid, const bool enable);
     void setSpeakerState(const SpeakerState state);
 
+    // --- speakers list methods ---
+    bool addToSpeakersList (const uint64_t userid)       { return mSpeakers.emplace(userid).second; }
+    bool removeFromSpeakersList (const uint64_t userid)  { return mSpeakers.erase(userid); }
+    bool isOnSpeakersList (const uint64_t userid) const  { return mSpeakers.find(userid) != mSpeakers.end(); }
+    void clearSpeakersList()                             { mSpeakers.clear(); }
+
+    // --- moderators list methods ---
+    bool addToModeratorsList (const uint64_t userid)       { return mModerators.emplace(userid).second; }
+    bool removeFromModeratorsList (const uint64_t userid)  { return mModerators.erase(userid); }
+    bool isOnModeratorsList (const uint64_t userid) const  { return mModerators.find(userid) != mModerators.end(); }
+    void clearModeratorsList()                             { mModerators.clear(); }
+
+
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
     bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
@@ -525,6 +538,9 @@ protected:
     karere::Id mCallerId;
     CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
+
+    // list of active speakers that is updated with ANSWER, SPEAKER_ADD, SPEAKER_DEL and MOD_ADD commands
+    std::set<karere::Id> mSpeakers;
 
     // (just for 1on1 calls) flag to indicate that outgoing ringing sound is reproducing
     // no need to reset this flag as 1on1 calls, are destroyed when any of the participants hangs up
@@ -710,6 +726,7 @@ protected:
     Cid_t getOwnCid() const;
     const karere::Id& getOwnPeerId() const;
     void setSessionModByUserId(uint64_t userid, bool isMod);
+    bool hasSpeakPermission(const uint64_t userid) const;
     void setOwnModerator(bool isModerator);
 
     // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
