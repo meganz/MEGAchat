@@ -2976,37 +2976,66 @@ bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool al
     return true;
 }
 
-bool Call::updateUserSpeakPermission(const karere::Id& userid, const bool enable)
+bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable)
 {
-    if (!userid.isValid()) // update own user
+    enable // update call's moderators list
+        ? addToModeratorsList(userid)
+        : removeFromModeratorsList(userid);
+
+    if (userid == getOwnPeerId())
     {
-        if (enable)
-        {
-            if (mSpeakerState == SpeakerState::kActive)     { return true; }
-            setSpeakerState(SpeakerState::kActive);
-            updateAudioTracks();
-        }
-        else
-        {
-            if (mSpeakerState == SpeakerState::kNoSpeaker)  { return true; }
-            setSpeakerState(SpeakerState::kNoSpeaker);
-            muteMyClient(true/*audio*/, false/*video*/);
-        }
+        setOwnModerator(enable);
     }
 
     // for all sessions whose userid matches with received one, set speak permission true
-    // if received userid is invalid, update all sessions with our own userid
-    const karere::Id uh = !userid.isValid() ? getOwnPeerId() : userid;
     for (auto& it : mPeersVerification)
     {
         promise::Promise<void>* pms = &it.second;
         auto wptr = weakHandle();
-        pms->then([this, &cid = it.first, uh, enable, wptr]()
+        pms->then([this, &cid = it.first, userid, enable, wptr]()
+        {
+          if (wptr.deleted())  { return; }
+          Session* session = getSession(cid);
+          if (!session || session->getPeerid() != userid)
+          {
+              return;
+          }
+          session->setModerator(enable);
+        })
+        .fail([&cid = it.first](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("updateUserModeratorStatus: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
+    }
+    return true;
+}
+
+bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList)
+{
+    add && updateSpeakersList      // update call speakers list
+        ? addToSpeakersList(userid)
+        : removeFromSpeakersList(userid);
+
+    if (userid == getOwnPeerId())
+    {
+        setSpeakerState(add ? SpeakerState::kActive : SpeakerState::kNoSpeaker);
+    }
+
+    // for all sessions whose userid matches with received one, set speak permission true
+    for (auto& it : mPeersVerification)
+    {
+        promise::Promise<void>* pms = &it.second;
+        auto wptr = weakHandle();
+        pms->then([this, &cid = it.first, userid, add, wptr]()
         {
             if (wptr.deleted())  { return; }
             Session* session = getSession(cid);
-            if (!session || session->getPeerid() != uh) { return; }
-            session->setSpeakPermission(enable);
+            if (!session || session->getPeerid() != userid)
+            {
+                return;
+            }
+            session->setSpeakPermission(add);
         })
         .fail([&cid = it.first](const ::promise::Error&)
         {
@@ -3313,28 +3342,6 @@ void Call::addSpeaker(const Cid_t cid, const uint32_t amid)
         RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %u", cid);
         return;
     });
-}
-
-void Call::removeSpeaker(Cid_t cid)
-{
-    Session* sess = getSession(cid);
-    if (!sess)
-    {
-        RTCM_LOG_WARNING("removeSpeaker: unknown cid: %u", cid);
-        return;
-    }
-
-    if (sess->getAudioSlot())
-    {
-        if (!sess->hasSpeakPermission())
-        {
-            RTCM_LOG_ERROR("removeSpeaker: trying to remove a speaker whose permission to speak was disabled"
-                           " callid: %s, cid: %u", getCallid().toString().c_str(), cid);
-            assert(false);
-            // even if we didn't have speak permission, we need to disable audio slot (if any)
-        }
-        sess->disableAudioSlot();
-    }
 }
 
 sfu::Peer& Call::getMyPeer()

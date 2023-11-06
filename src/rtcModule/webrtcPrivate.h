@@ -707,7 +707,6 @@ protected:
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)
     void addSpeaker(const Cid_t cid, const uint32_t amid);
-    void removeSpeaker(Cid_t cid);
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
@@ -725,7 +724,6 @@ protected:
     bool isDisconnectionTermcode(const TermCode& termCode) const;
     Cid_t getOwnCid() const;
     const karere::Id& getOwnPeerId() const;
-    void setSessionModByUserId(uint64_t userid, bool isMod);
     bool hasSpeakPermission(const uint64_t userid) const;
     void setOwnModerator(bool isModerator);
 
