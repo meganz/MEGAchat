@@ -1429,9 +1429,10 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
                 return;
             }
 
-            if (oldAudioFlag && !session->getAvFlags().audio())
+            if (!session->getAvFlags().audio() && session->getAudioSlot())
             {
-                removeSpeaker(cid);
+                // disable slot if audio flag has been received as disabled
+                session->disableAudioSlot();
             }
         }
         else
@@ -1966,7 +1967,19 @@ bool Call::handleHiResStartCommand()
 
 bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
 {
-    return updateUserSpeakPermission(userid, add);
+    // if userid is invalid, command is for own user
+    const bool isOwnUser = !karere::Id(userid).isValid();
+    if (isOwnUser && isOnModeratorsList(userid))
+    {
+        RTCM_LOG_WARNING("SPEAKER_ADD/DEL command should not be received for own user with moderator role");
+        assert(false);
+        return true;
+    }
+
+    const karere::Id uh = isOwnUser ? getOwnPeerId() : karere::Id(userid);
+    updateUserSpeakPermision(uh, add, true /*updateSpeakersList*/);
+    if (add && isOwnUser) { updateAudioTracks(); }
+    return true;
 }
 
 bool Call::handleHiResStopCommand()
@@ -2045,7 +2058,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
         return false;
     }
 
-    std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (mModerators.find(userid) != mModerators.end())));
+    std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (isOnModeratorsList(userid))));
     assert(peer->checkPeerSfuVersion());
     if (isWrFlagEnabled() && !isWaitingRoomsSfuVersion(peer->getPeerSfuVersion()))
     {
@@ -2100,6 +2113,14 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                 out.clear();
             }
             addPeerWithEphemKey(*peer, out);
+
+            const bool isSpeaker = isOnSpeakersList(peer->getPeerid());
+            Session* session = getSession(peer->getCid());
+            if (session)
+            {
+                // set speak permission for verified peer session
+                session->setSpeakPermission(isSpeaker);
+            }
         })
         .fail([this, userid, peer, addPeerWithEphemKey](const ::promise::Error&)
         {
@@ -2263,15 +2284,6 @@ bool Call::handleModAdd(uint64_t userid)
             mCallHandler.onWrAllow(*this);
             joinSfu();
         }
-    }
-
-    // update moderator privilege for all sessions that mached with received userid
-    setSessionModByUserId(userid, true);
-
-    if (!mModerators.emplace(userid).second)
-    {
-        RTCM_LOG_WARNING("MOD_ADD: user[%s] already added in moderators list", karere::Id(userid).toString().c_str());
-        return false;
     }
 
     RTCM_LOG_DEBUG("MOD_ADD: user[%s] added in moderators list", karere::Id(userid).toString().c_str());
@@ -3045,6 +3057,7 @@ bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, co
 
 void Call::setSpeakerState(const SpeakerState state)
 {
+    if (state == mSpeakerState) { return; }
     mSpeakerState = state;
     mCallHandler.onSpeakStatusUpdate(*this);
 }
@@ -4836,10 +4849,7 @@ void Session::disableVideoSlot(VideoResolution videoResolution)
 
 void Session::setModerator(bool isModerator)
 {
-    if (mPeer.isModerator() == isModerator)
-    {
-        return;
-    }
+    if (mPeer.isModerator() == isModerator) { return; }
     mPeer.setModerator(isModerator);
     mSessionHandler->onPermissionsChanged(*this);
 }

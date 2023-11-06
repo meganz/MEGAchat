@@ -464,7 +464,8 @@ public:
     bool dumpWrUsers(const sfu::WrUserList& wrUsers, const bool clearCurrent);
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
-    bool updateUserSpeakPermission(const karere::Id& userid, const bool enable);
+    bool updateUserModeratorStatus(const karere::Id& userid, const bool enable);
+    bool updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList);
     void setSpeakerState(const SpeakerState state);
 
     // --- speakers list methods ---
