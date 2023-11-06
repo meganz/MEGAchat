@@ -1459,6 +1459,9 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::set<karere::Id>& speakReqs,
                                const std::map<Cid_t, uint32_t>& amidmap)
 {
+
+    // store speakers list received from SFU (moderators not included)
+    mSpeakers = speakers;
     if (!speakReqs.empty() && !isSpeakRequestEnabled())
     {
         RTCM_LOG_WARNING("handleAnswerCommand: we shouldn't receive speak requests if this chat option is is disabled");
@@ -1566,7 +1569,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         }
 
         // check if peerid is included in mods list received upon HELLO
-        peer.setModerator(mModerators.find(peer.getPeerid()) != mModerators.end());
+        peer.setModerator(isOnModeratorsList(peer.getPeerid()));
         if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion())) // there's no ephemeral key, just add peer
         {
             addPeerWithEphemKey(peer, true, std::string());
@@ -1646,7 +1649,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     // wait until all peers ephemeral keys have been verified and derived
     auto auxwptr = weakHandle();
     keyDerivationPms
-    ->then([auxwptr, vthumbs, speakers, amidmap, sdp, keysVerified, speakReqs, this]
+    ->then([auxwptr, vthumbs, amidmap, sdp, keysVerified, speakReqs, this]
     {
         if (auxwptr.deleted())
         {
@@ -1680,7 +1683,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         assert(mRtcConn);
         auto wptr = weakHandle();
         mRtcConn.setRemoteDescription(std::move(sdpInterface))
-        .then([wptr, this, vthumbs, speakers, amidmap, speakReqs]()
+        .then([wptr, this, vthumbs, amidmap, speakReqs]()
         {
             if (wptr.deleted())
             {
@@ -1690,13 +1693,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             if (mState != kStateJoining)
             {
                 RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change at setRemoteDescription");
-                return;
-            }
-
-            if (speakers.size() > mSessions.size() + 1) // own peer not included in sessions, but could be speaker
-            {
-                RTCM_LOG_WARNING("handleAnswerCommand: received speakers list is greater than current list of sessions");
-                assert(false);
                 return;
             }
 
@@ -1725,14 +1721,10 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             for (auto& s: mSessions)
             {
                 // for each session check:
-                // 1) if peer is included in speakers list
+                // 1) if speak request is disabled, peer is included in speakers list, or it's moderator
                 const auto& uh = s.second->getPeerid();
                 const auto cid = s.second->getClientid();
-                const bool isSpeaker = speakers.find(uh) != speakers.end();
-                if (isSpeaker)
-                {
-                    s.second->setSpeakPermission(true);
-                }
+                s.second->setSpeakPermission(hasSpeakPermission(uh.val));
 
                 // 2) if is currently sending audio (valid amid received)
                 const auto it = amidmap.find(cid);
@@ -1744,20 +1736,11 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 // 3) if it has pending speak request
                 if (speakReqs.find(uh) != speakReqs.end())
                 {
-                    if (isSpeaker)
-                    {
-                        RTCM_LOG_WARNING("handleAnswerCommand: speak request received for user: %s, cid: %u, and it's already included in speakers list",
-                                         uh.toString().c_str(), cid);
-                        assert(false);
-                        return;
-                    }
                     s.second->setSpeakRequested(true);
                 }
             }
 
-            if (isOwnPrivModerator()
-                || !isSpeakRequestEnabled()
-                || speakers.find(getOwnPeerId()) != speakers.end())
+            if (hasSpeakPermission(getOwnPeerId()))
             {
                 // own user is speaker
                 setSpeakerState(SpeakerState::kActive);
