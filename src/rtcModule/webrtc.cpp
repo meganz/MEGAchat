@@ -2452,18 +2452,15 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
     }
     else
     {
-        // set kInWaitingRoom state, even if we are allowed to JOIN. Just if we are not allowed,
-        // we must wait in waiting room until a moderator allow to access, otherwise we can continue with JOIN
         assert(allowed || !isOwnPrivModerator());
-        setState(CallState::kInWaitingRoom);
         if (allowed)
         {
             setWrJoiningState(sfu::WrState::WR_ALLOWED);
-            mCallHandler.onWrAllow(*this);
             joinSfu();
         }
         else
         {
+            // we must wait in waiting room until a moderator allow to access
             setWrJoiningState(sfu::WrState::WR_NOT_ALLOWED);
             mCallHandler.onWrDeny(*this);
         }

@@ -1055,7 +1055,6 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a1, eF, "CallWR"        , false);                      // a1 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
     addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     startWaitingRoomCall(a1, eF, mData.mChatid, schedId,
                          false /*audio*/, false /*video*/);
@@ -5633,8 +5632,16 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // [Test6]: A starts call relying on waiting room flag from chatroom.
     //          Call won't ring for the rest of participants as notRinging is true,
     //          B will be redirected to waiting room when he answers the call
-    // --------------------------------------------------------------------------------------------------------------
+    //
+    // Test preconditions: Callee user must be non-host, otherwise it won't be redirected to waiting room by SFU
+    // ---------------------------------------------------------------------------------------------------------
     LOG_debug << "Test6: A starts call with waiting room, B is redirected to waiting room";
+    chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
+    if (chatRoom->getPeerPrivilegeByHandle(uh) != megachat::MegaChatPeerList::PRIV_STANDARD)
+    {
+        ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
+    }
     mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
     ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(MEGACHAT_INVALID_HANDLE /*schedId*/, true /*notRinging*/);});
 
@@ -8411,7 +8418,7 @@ void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsign
     ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
     ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
     ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
-    ASSERT_EQ(*priv, MegaChatRoom::PRIV_MODERATOR) << "Privilege is incorrect";
+    ASSERT_EQ(*priv, privilege) << "Privilege is incorrect";
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
