@@ -45,6 +45,14 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionTermCode) {
 @property (nonatomic, readonly) BOOL canReceiveVideoHiRes;
 @property (nonatomic, readonly) BOOL canReceiveVideoLowRes;
 
+@property (nonatomic, readonly, getter=hasCamera) BOOL camera;
+@property (nonatomic, readonly, getter=isLowResCamera) BOOL lowResCamera;
+@property (nonatomic, readonly, getter=isHiResCamera) BOOL hiResCamera;
+
+@property (nonatomic, readonly, getter=hasScreenShare) BOOL screenShare;
+@property (nonatomic, readonly, getter=isLowResScreenShare) BOOL lowResScreenShare;
+@property (nonatomic, readonly, getter=isHiResScreenShare) BOOL hiResScreenShare;
+
 - (BOOL)hasChanged:(MEGAChatSessionChange)change;
 
 @end
