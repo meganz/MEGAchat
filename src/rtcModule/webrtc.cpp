@@ -2250,13 +2250,31 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
 
 bool Call::handleModAdd(uint64_t userid)
 {
+    updateUserModeratorStatus(userid, true /*enable*/);
+    if (removeFromSpeakersList(userid))
+    {
+        // note: moderators should never be included on speakers list,
+        //       remove user from that list, in case it's included
+        RTCM_LOG_DEBUG("MOD_ADD received, remove user: %s from speakers list, as moderators are not included there",
+                       karere::Id(userid).toString().c_str());
+    }
+    updateUserSpeakPermision(userid, true, false /*updateSpeakersList*/); // moderators have speak permission implicitly,
+    if (!hasSpeakPermission(userid))
+    {
+        RTCM_LOG_DEBUG("MOD_ADD received, but speak permission could not be updated for user: %s ",
+                       karere::Id(userid).toString().c_str());
+        assert(false);
+        return false;
+    }
+
     if (userid == getOwnPeerId())
     {
-        setOwnModerator(true);
+        updateAudioTracks();
         if (isWrFlagEnabled()
             && static_cast<sfu::WrState>(getWrJoiningState()) != sfu::WrState::WR_ALLOWED
             && getState() == kInWaitingRoom)
         {
+            // automatically JOIN call from WR
             RTCM_LOG_DEBUG("MOD_ADD received for our own user, and we are in waiting room. JOIN call automatically");
             setWrJoiningState(sfu::WrState::WR_ALLOWED);
             mCallHandler.onWrAllow(*this);
@@ -2279,25 +2297,21 @@ bool Call::handleModAdd(uint64_t userid)
 
 bool Call::handleModDel(uint64_t userid)
 {
-    if (userid == getOwnPeerId())
+    updateUserModeratorStatus(userid, false /*enable*/);
+    // if command is received for own user, we don't need to call updateAudioTracks(), SFU will send us 'MUTED' command
+    if (removeFromSpeakersList(userid))
     {
-        setOwnModerator(false);
-        if (mSpeakerState != SpeakerState::kNoSpeaker)
-        {
-            setSpeakerState(SpeakerState::kNoSpeaker);
-            // MUTED command will be received from SFU
-        }
+        // note: moderators should never be included on the speakers list
+        RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speakers list",
+                         karere::Id(userid).toString().c_str());
+        assert(false);
+    }
+    if (!hasSpeakPermission(userid))
+    {
+        updateUserSpeakPermision(userid, false, false /*updateSpeakersList*/);
     }
 
-    // update moderator privilege for all sessions that mached with received userid
-    setSessionModByUserId(userid, false);
-
-    if (!mModerators.erase(userid))
-    {
-        RTCM_LOG_WARNING("MOD_DEL: user[%s] not found in moderators list", karere::Id(userid).toString().c_str());
-        return false;
-    }
-
+    // Note: ex-moderators need be granted speak permission again by a moderator
     RTCM_LOG_DEBUG("MOD_DEL: user[%s] removed from moderators list", karere::Id(userid).toString().c_str());
     return true;
 }
