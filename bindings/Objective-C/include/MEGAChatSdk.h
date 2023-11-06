@@ -425,7 +425,8 @@ NS_ASSUME_NONNULL_BEGIN
                    description:(NSString *)description
                      cancelled:(BOOL)cancelled
                          flags:(MEGAChatScheduledFlags *)flags
-                         rules:(nullable MEGAChatScheduledRules *)rules;
+                         rules:(nullable MEGAChatScheduledRules *)rules
+               updateChatTitle:(BOOL)updateChatTitle;
 
 - (void)updateScheduledMeeting:(uint64_t)chatId
                    scheduledId:(uint64_t)scheduledId
@@ -437,6 +438,7 @@ NS_ASSUME_NONNULL_BEGIN
                      cancelled:(BOOL)cancelled
                          flags:(MEGAChatScheduledFlags *)flags
                          rules:(nullable MEGAChatScheduledRules *)rules
+               updateChatTitle:(BOOL)updateChatTitle
                       delegate:(id<MEGAChatRequestDelegate>)delegate;
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled;

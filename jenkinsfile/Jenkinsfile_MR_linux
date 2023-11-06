@@ -181,7 +181,7 @@ pipeline {
             steps{
                 dir(megachat_sources_workspace){
                     sh """
-                        sed -i "s#MEGAChatTest#JenkinsCanSpam#g" tests/sdk_test/sdk_test.h
+                        sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS}#g" tests/sdk_test/sdk_test.h
                         mkdir -p build
                     """
                 }

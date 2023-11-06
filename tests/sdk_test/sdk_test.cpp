@@ -988,6 +988,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid(););
     ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2););
     ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3););
+    ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3););
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts(););
 
     // set chat selection criteria
@@ -1050,7 +1051,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     // a1 starts call with waiting room enabled
     ExitBoolFlags eF;
     MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    addHandleFlag(a1, "CallIdInProgress", invalHandle),                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addHandleFlag(a1, "CallIdInProgress", invalHandle);                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
@@ -1059,6 +1060,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     startWaitingRoomCall(a1, eF, mData.mChatid, schedId,
                          false /*audio*/, false /*video*/);
     checkCallIdInProgress(a1); // check received callid for caller(a1)
+    getBoolVars().cleanAll();  // clean all bool vars (this prevents conflicts in following tests)
 
     // a2 answers call
     ExitBoolFlags eF1;
@@ -1066,6 +1068,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     addBoolExitFlag(a1, eF1, "CallWrChanged" , false);                     // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
     answerChatCall(a2, eF1, mData.mChatid, false /*video*/,
                    false /*audio*/);
+    getBoolVars().cleanAll(); // clean all bool vars (this prevents conflicts in following tests)
 
     // a3 answers call
     ExitBoolFlags eF2;
@@ -1073,6 +1076,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     addBoolExitFlag(a1, eF2, "CallWrChanged" , false);                      // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
     answerChatCall(a3, eF2, mData.mChatid, false /*video*/,
                    false /*audio*/);
+    getBoolVars().cleanAll();  // clean all bool vars (this prevents conflicts in following tests)
 
     // a1 checks waiting room participants order
     std::unique_ptr<MegaChatCall>call(megaChatApi[a1]->getChatCall(mData.mChatid));
@@ -7270,7 +7274,8 @@ void MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, c
 {
     bool* f = getBoolVars().add(i, n, val);
     ASSERT_TRUE(f) << n << " couldn't be added to mAuxBool for account " << std::to_string(i);
-    ASSERT_TRUE(eF.add(n, f)) << n << " couldn't be added to eF for account " << std::to_string(i);
+    // add idx to differentiate this var from the other accounts
+    ASSERT_TRUE(eF.add(n + std::to_string(i), f)) << n << " couldn't be added to eF for account " << std::to_string(i);
 }
 
 void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,

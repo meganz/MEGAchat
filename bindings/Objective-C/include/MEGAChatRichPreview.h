@@ -3,13 +3,13 @@
 
 @interface MEGAChatRichPreview : NSObject
 
-@property (readonly, nonatomic) NSString *text;
-@property (readonly, nonatomic) NSString *title;
-@property (readonly, nonatomic) NSString *previewDescription;
-@property (readonly, nonatomic) NSString *image;
-@property (readonly, nonatomic) NSString *imageFormat;
-@property (readonly, nonatomic) NSString *icon;
-@property (readonly, nonatomic) NSString *iconFormat;
-@property (readonly, nonatomic) NSString *url;
+@property (nullable, readonly, nonatomic) NSString *text;
+@property (nullable, readonly, nonatomic) NSString *title;
+@property (nullable, readonly, nonatomic) NSString *previewDescription;
+@property (nullable, readonly, nonatomic) NSString *image;
+@property (nullable, readonly, nonatomic) NSString *imageFormat;
+@property (nullable, readonly, nonatomic) NSString *icon;
+@property (nullable, readonly, nonatomic) NSString *iconFormat;
+@property (nullable, readonly, nonatomic) NSString *url;
 
 @end
