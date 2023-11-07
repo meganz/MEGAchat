@@ -5637,7 +5637,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // ---------------------------------------------------------------------------------------------------------
     LOG_debug << "Test6: A starts call with waiting room, B is redirected to waiting room";
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
-    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
+    ASSERT_TRUE(chatRoom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
     if (chatRoom->getPeerPrivilegeByHandle(uh) != megachat::MegaChatPeerList::PRIV_STANDARD)
     {
         ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
