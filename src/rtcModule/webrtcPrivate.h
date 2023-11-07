@@ -466,19 +466,26 @@ public:
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
     bool updateUserModeratorStatus(const karere::Id& userid, const bool enable);
     bool updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList);
+    bool updateUserSpeakRequest(const karere::Id& userid, const bool add);
     void setSpeakerState(const SpeakerState state);
 
     // --- speakers list methods ---
-    bool addToSpeakersList (const uint64_t userid)       { return mSpeakers.emplace(userid).second; }
-    bool removeFromSpeakersList (const uint64_t userid)  { return mSpeakers.erase(userid); }
-    bool isOnSpeakersList (const uint64_t userid) const  { return mSpeakers.find(userid) != mSpeakers.end(); }
-    void clearSpeakersList()                             { mSpeakers.clear(); }
+    bool addToSpeakersList (const uint64_t userid)              { return mSpeakers.emplace(userid).second; }
+    bool removeFromSpeakersList (const uint64_t userid)         { return mSpeakers.erase(userid); }
+    bool isOnSpeakersList (const uint64_t userid) const         { return mSpeakers.find(userid) != mSpeakers.end(); }
+    void clearSpeakersList()                                    { mSpeakers.clear(); }
+
+    // --- speak requests list methods ---
+    bool addToSpeakRequestsList (const uint64_t userid)         { return mSpeakRequests.emplace(userid).second; }
+    bool removeFromSpeakRequestsList (const uint64_t userid)    { return mSpeakRequests.erase(userid); }
+    bool isOnSpeakRequestsList (const uint64_t userid) const    { return mSpeakRequests.find(userid) != mSpeakRequests.end(); }
+    void clearSpeakRequestsList()                               { mSpeakRequests.clear(); }
 
     // --- moderators list methods ---
-    bool addToModeratorsList (const uint64_t userid)       { return mModerators.emplace(userid).second; }
-    bool removeFromModeratorsList (const uint64_t userid)  { return mModerators.erase(userid); }
-    bool isOnModeratorsList (const uint64_t userid) const  { return mModerators.find(userid) != mModerators.end(); }
-    void clearModeratorsList()                             { mModerators.clear(); }
+    bool addToModeratorsList (const uint64_t userid)            { return mModerators.emplace(userid).second; }
+    bool removeFromModeratorsList (const uint64_t userid)       { return mModerators.erase(userid); }
+    bool isOnModeratorsList (const uint64_t userid) const       { return mModerators.find(userid) != mModerators.end(); }
+    void clearModeratorsList()                                  { mModerators.clear(); }
 
 
     // --- SfuInterface methods ---
@@ -542,6 +549,9 @@ protected:
 
     // list of active speakers that is updated with ANSWER, SPEAKER_ADD, SPEAKER_DEL and MOD_ADD commands
     std::set<karere::Id> mSpeakers;
+
+    // list of speak requests
+    std::set<karere::Id> mSpeakRequests;
 
     // (just for 1on1 calls) flag to indicate that outgoing ringing sound is reproducing
     // no need to reset this flag as 1on1 calls, are destroyed when any of the participants hangs up
