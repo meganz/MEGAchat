@@ -934,6 +934,7 @@ TEST_F(MegaChatApiTest, BasicTest)
     setChatTitle(std::string("Title ") + std::to_string(time(NULL)), 120 /*waitSecs*/);
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 /**
  * @brief MegaChatApiTest.WaitingRoomsJoiningOrder
  * + Test1: Check Waiting room order from A, when B and C answer call.
@@ -1089,6 +1090,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     ASSERT_EQ(wrUsers->get(0), a2Uh) << "First user in waiting room should be a2. chatid: " << getChatIdStrB64(mData.mChatid);
     ASSERT_EQ(wrUsers->get(1), a3Uh) << "Second user in waiting room should be a3. chatid: " << getChatIdStrB64(mData.mChatid);
 }
+#endif
 
 /**
  * @brief MegaChatApiTest.ResumeSession
@@ -7214,6 +7216,7 @@ void MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, c
     ASSERT_TRUE(eF.add(n + std::to_string(i), f)) << n << " couldn't be added to eF for account " << std::to_string(i);
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,
                                            const bool enableVideo, const bool enableAudio)
 {
@@ -7253,6 +7256,7 @@ void MegaChatApiTest::answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, 
                       });
     });
 }
+#endif
 
 void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int waitSecs)
 {

@@ -664,14 +664,6 @@ protected:
     // Adds a temporal boolean variable, to ExitBoolFlags param, and also to MegaChatApiTest::mAuxBool
     void addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val);
 
-    // starts a call in a chatroom with waiting room option enabled
-    void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
-                              const bool enableVideo, const bool enableAudio);
-
-    // answers a call in a chatroom
-    void answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
-                        const bool enableVideo, const bool enableAudio);
-
     /**
      * @brief Allows to set the title of a group chat
      *
@@ -735,6 +727,15 @@ protected:
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
 
+    // starts a call in a chatroom with waiting room option enabled
+    void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
+                              const bool enableVideo, const bool enableAudio);
+
+    // answers a call in a chatroom
+    void answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
+                        const bool enableVideo, const bool enableAudio);
+
+    // deprecated - replace all usages of this method by prototype above
     void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
     void answerChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
 
