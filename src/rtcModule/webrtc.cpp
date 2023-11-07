@@ -2461,6 +2461,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
         else
         {
             // we must wait in waiting room until a moderator allow to access
+            setState(CallState::kInWaitingRoom);
             setWrJoiningState(sfu::WrState::WR_NOT_ALLOWED);
             mCallHandler.onWrDeny(*this);
         }
