@@ -619,6 +619,7 @@ protected:
     void makeContact(unsigned int a1, unsigned int a2);
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
+    megachat::MegaChatHandle getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, megachat::MegaChatPeerList* peers);
     megachat::MegaChatHandle getGroupChatRoom();
     bool addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid);
     void cleanChatVideoListeners();
@@ -727,6 +728,9 @@ protected:
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
 
+    /** Checks that callid for account idx has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS) **/
+    void checkCallIdInProgress(const unsigned idx);
+
     // starts a call in a chatroom with waiting room option enabled
     void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
                               const bool enableVideo, const bool enableAudio);
@@ -735,9 +739,16 @@ protected:
     void answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
                         const bool enableVideo, const bool enableAudio);
 
-    // deprecated - replace all usages of this method by prototype above
-    void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
+    // deprecated - replace all usages of this method by answerChatCall prototype above
     void answerChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
+
+
+    // starts a call in a chatroom with waiting room option enabled
+    void startChatCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
+                       const bool enableVideo, const bool enableAudio, const unsigned int timeout);
+
+    // deprecated - replace all usages of this method by startChatCall prototype above
+    void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
 
     // gets a pointer to the local flag that indicates if we have reached an specific callstate
     bool* getChatCallStateFlag (unsigned int index, int state);
