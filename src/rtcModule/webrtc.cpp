@@ -930,9 +930,6 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 void Call::joinSfu()
 {
     clearPendingPeers(); // clear pending peers (if any) before joining call
-    clearModeratorsList();
-    clearSpeakersList();
-    clearSpeakRequestsList();
     initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
     size_t hiresTrackIndex = 0;
