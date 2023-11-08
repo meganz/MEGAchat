@@ -1071,7 +1071,7 @@ void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
         {
             mChatWindow->mMegaApi->startDownload(resultNode, target.c_str(), nullptr, nullptr, false, nullptr,
                                                  mega::MegaTransfer::COLLISION_CHECK_FINGERPRINT,
-                                                 mega::MegaTransfer::COLLISION_RESOLUTION_OVERWRITE);
+                                                 mega::MegaTransfer::COLLISION_RESOLUTION_OVERWRITE, false);
         }
     }
 }
