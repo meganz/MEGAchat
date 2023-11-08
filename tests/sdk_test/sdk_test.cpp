@@ -9595,7 +9595,12 @@ MegaLoggerTest::~MegaLoggerTest()
 void MegaLoggerTest::log(const char *time, int loglevel, const char *source, const char *message)
 {
     testlog << "[" << time << "] " << SimpleLogger::toStr((LogLevel)loglevel) << ": ";
-    testlog << message << " (" << source << ")" << endl;
+    testlog << message;
+    if (source && *source)
+    {
+        testlog << " (" << source << ")";
+    }
+    testlog << endl;
 }
 
 void MegaLoggerTest::postLog(const char *message)
