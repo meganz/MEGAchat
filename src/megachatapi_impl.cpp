@@ -1721,6 +1721,7 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_ARGS;
             }
 
+            const bool notRinging = request->getNumber();
             if (!chatroom->isGroup())
             {
                 uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
@@ -1749,14 +1750,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_ACCESS;
             }
 
-            MegaChatHandle schedId = request->getUserHandle();
-            if (schedId != MEGACHAT_INVALID_HANDLE &&
-                    !dynamic_cast<GroupChatRoom *>(chatroom)->getScheduledMeetingsBySchedId(schedId))
-            {
-                API_LOG_ERROR("Start call - scheduled meeting id doesn't exists");
-                return MegaChatError::ERROR_NOENT;
-            }
-
             bool enableAudio = request->getParamType();
             if (enableAudio
                 && chatroom->isSpeakRequest()
@@ -1772,16 +1765,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-               const bool waitingRoom = request->getPrivilege();
-               if (waitingRoom != chatroom->isWaitingRoom())
-               {
-                   API_LOG_ERROR("Start call - trying to start a %s, but waiting room option is currently %s. Chatid: %s"
-                                 , waitingRoom ? "waiting room call" : "standard call"
-                                 , chatroom->isWaitingRoom() ? "enabled" : "disabled"
-                                 , karere::Id(chatid).toString().c_str());
-                   return MegaChatError::ERROR_ARGS;
-               }
-
                if (mClient->rtc->isCallStartInProgress(chatid))
                {
                    API_LOG_ERROR("Start call - start call attempt already in progress");
@@ -1799,9 +1782,9 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                }
 
                bool isGroup = chatroom->isGroup();
-               pms.then([request, this, chatid, avFlags, isGroup, schedId] (shared_ptr<string> unifiedKey)
+               pms.then([request, this, chatid, avFlags, isGroup, notRinging] (shared_ptr<string> unifiedKey)
                {
-                   mClient->rtc->startCall(chatid, avFlags, isGroup, schedId, unifiedKey)
+                   mClient->rtc->startCall(chatid, avFlags, isGroup, notRinging, unifiedKey)
                    .then([request, this]()
                    {
                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -5876,14 +5859,13 @@ char *MegaChatApiImpl::getVideoDeviceSelected()
     return deviceName;
 }
 
-void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool waitingRoom, bool enableVideo, bool enableAudio, MegaChatHandle schedId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, bool notRinging, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_START_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
     request->setParamType(enableAudio);
-    request->setUserHandle(schedId);
-    request->setPrivilege(waitingRoom);
+    request->setNumber(notRinging);
     request->setPerformRequest([this, request]() { return performRequest_startChatCall(request); });
     requestQueue.push(request);
     waiter->notify();

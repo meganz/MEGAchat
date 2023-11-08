@@ -1041,7 +1041,6 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a1, eF, "CallWR"        , false);                      // a1 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
     addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     startWaitingRoomCall(a1, eF, mData.mChatid, schedId,
                          false /*audio*/, false /*video*/);
@@ -5224,6 +5223,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     ASSERT_TRUE(secondarySession);
 
+    LOG_debug << "\tSwitching to staging (Shard 2) for group creation (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
@@ -5368,6 +5370,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListenerA);
     TestChatVideoListener localVideoListenerB;
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
+    unique_ptr<MegaChatCall> auxCall;
 
     auto grantsJoinPermission = [this, a1, a2, chatid, uh]()
     {
@@ -5441,16 +5444,18 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         ASSERT_TRUE(mTerminationCode[a2] == MegaChatCall::TERM_CODE_KICKED) << "Unexpected termcode" << MegaChatCall::termcodeToString(mTerminationCode[a2]);
     };
 
-    auto startWaitingRoomCallPrimaryAccount = [this, &a1, &a2, &chatid](const MegaChatHandle schedIdWr = MEGACHAT_INVALID_HANDLE){
+    auto startWaitingRoomCallPrimaryAccount = [this, &a1, &a2, &chatid](const MegaChatHandle schedIdWr, const bool notRinging){
 
         mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
         mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
         mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
         mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
+        ASSERT_TRUE(schedIdWr == MEGACHAT_INVALID_HANDLE || !notRinging) << "Schedid and notRinging cannot be set in conjunction";
 
-        bool* receivedSecondary = schedIdWr != MEGACHAT_INVALID_HANDLE
-                                      ? &mCallReceived[a2]
-                                      : &mCallReceivedRinging[a2];
+        bool* receivedSecondary = nullptr;
+        receivedSecondary = schedIdWr != MEGACHAT_INVALID_HANDLE || notRinging
+                                ? &mCallReceived[a2]
+                                : &mCallReceivedRinging[a2];
 
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
@@ -5460,22 +5465,25 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
                           maxTimeout,
-                          [this, &a1, &chatid, &schedIdWr]()
+                          [this, &a1, &chatid, &schedIdWr, &notRinging]()
                           {
                               ChatRequestTracker crtStartCall;
-                              megaChatApi[a1]->startMeetingInWaitingRoomChat(chatid, schedIdWr, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall);
+                              schedIdWr != MEGACHAT_INVALID_HANDLE
+                                  ? megaChatApi[a1]->startMeetingInWaitingRoomChat(chatid, schedIdWr, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall) // legacy
+                                  : megaChatApi[a1]->startCallInChat(chatid, /*enableVideo*/ false, /*enableAudio*/ false, notRinging, &crtStartCall);
+
                               ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
                                   << "Failed to start call. Error: " << crtStartCall.getErrorString();
                           });
         });
     };
 
-    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool waitingRoom){
+    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool redirectToWaitingRoom){
 
         bool* waitingPrimary = nullptr;
         bool* waitingSecondary = nullptr;
 
-        if (waitingRoom) // peers that answers call will be redirectedinto waitinf room
+        if (redirectToWaitingRoom) // peers that answers call will be redirected into waiting room
         {
             waitingPrimary = &mCallWrChanged[a1];
             waitingSecondary = &mCallWR[a2];
@@ -5591,6 +5599,22 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         megaChatApi[a2]->removeChatLocalVideoListener(chatid, lvlB);
     };
 
+    auto kickAndEndCall = [kickFromCall, endCallPrimaryAccount](const MegaChatHandle callId)
+    {
+        kickFromCall();
+        endCallPrimaryAccount(callId);
+    };
+
+    auto pickupAndAnswerSecondary = [&auxCall, picksUpCallSecondaryAccount, answerCallSecondaryAccount](const bool isRingingExpected, const bool redirectToWaitingRoom)
+    {
+        auxCall = picksUpCallSecondaryAccount(isRingingExpected);
+        LOG_debug << "B received the call";
+
+        // B answers the call
+        LOG_debug << "JDEBUG B Answers the call";
+        ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(redirectToWaitingRoom);});
+    };
+
     // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
     MrProper p (testCleanup, chatid);
 
@@ -5598,8 +5622,8 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     //          Call won't ring for the rest of participants as schedId is provided
     // ----------------------------------------------------------------------------------------------------------------
     LOG_debug << "Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
-    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId);});
-    unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(chatid));
+    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId, false /*notRinging*/);});
+    auxCall.reset(megaChatApi[a1]->getChatCall(chatid));
 
     // B picks up the call
     LOG_debug << "B Pickups the call (should not ring)";
@@ -5632,27 +5656,24 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // [Test3]: A kicks (completely disconnect) B from call
     // ------------------------------------------------------------------------------------------------------
-    LOG_debug << "Test3: A kicks (completely disconnect) B from call";
-    kickFromCall();
+    LOG_debug << "Test3: A kicks (completely disconnect) B from call and then ends call for all participants";
+    kickAndEndCall(auxCall->getCallId());
 
-    LOG_debug << "T_WaitingRooms: A ends call for all participants";
-    endCallPrimaryAccount(auxCall->getCallId());
-
-    // [Test4]: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)
-    //          call will ring for the rest of participants as schedId is not provided
+    // [Test4]: A starts call relying on waiting room flag from chatroom.
+    //          Call will ring for the rest of participants as notRinging is false
+    //          B will bypass waiting room when he answers the call
     // --------------------------------------------------------------------------------------------------------------
     LOG_debug << "Test4: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)";
     mCallIdExpectedReceived[a1] = mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
-    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(MEGACHAT_INVALID_HANDLE /*schedId*/);});
-
-    // B picks up the call and wait for ringing
-    LOG_debug << "B Pickups the call and wait for ringing";
-    auxCall = picksUpCallSecondaryAccount(true /*isRingingExpected*/);
-    LOG_debug << "B received the call";
+    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(MEGACHAT_INVALID_HANDLE /*schedId*/, false /*notRinging*/);});
 
     // B answers the call bypassing waiting room
-    LOG_debug << "JDEBUG B Answers the call bypassing waiting room";
-    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(false /*waitingRoom*/);});
+    LOG_debug << "B Pickups the call and wait for ringing";
+    pickupAndAnswerSecondary(true /*isRingingExpected*/, false /*redirectToWaitingRoom*/);
+
+
+//    LOG_debug << "JDEBUG B Answers the call bypassing waiting room";
+//    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(false /*waitingRoom*/);});
     endCallPrimaryAccount(mCallIdJoining[a1]);
 
     // [Test5]: B JOINS automatically to call from Waiting Room, when he receives MOD_ADD command from SFU
@@ -5661,7 +5682,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // A starts call
     bool* a2CallProgress = &mCallInProgress[a2]; *a2CallProgress = false;
     bool* a2CallPermChanged = &mOwnCallPermissionsChanged[a2]; *a2CallPermChanged = false;
-    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId);});
+    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId, false/*notRinging*/);});
 
     // B picks up the call
     LOG_debug << "B Pickups the call (should not ring)";
@@ -5686,6 +5707,31 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_TRUE(waitForResponse(a2CallPermChanged)) << "Timeout expired for receiving MOD_ADD command from SFU";
     ASSERT_TRUE(waitForResponse(a2CallProgress)) << "Timeout expired for JOINING call from a2, after being promoted to host";
     endCallPrimaryAccount(mCallIdJoining[a1]);
+
+    // [Test6]: A starts call relying on waiting room flag from chatroom.
+    //          Call won't ring for the rest of participants as notRinging is true,
+    //          B will be redirected to waiting room when he answers the call
+    //
+    // Test preconditions: Callee user must be non-host, otherwise it won't be redirected to waiting room by SFU
+    // ---------------------------------------------------------------------------------------------------------
+    LOG_debug << "Test6: A starts call with waiting room, B is redirected to waiting room";
+    chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
+    ASSERT_TRUE(chatRoom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
+    if (chatRoom->getPeerPrivilegeByHandle(uh) != megachat::MegaChatPeerList::PRIV_STANDARD)
+    {
+        ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
+    }
+    mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
+    ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(MEGACHAT_INVALID_HANDLE /*schedId*/, true /*notRinging*/);});
+
+    LOG_debug << "B Pickups the call";
+    pickupAndAnswerSecondary(false /*isRingingExpected*/, true /*redirectToWaitingRoom*/);
+    auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
+    ASSERT_TRUE(auxCall) << "Cannot get call for chatid: " << getChatIdStrB64(mChatIdInProgressCall[a1]);
+    endCallPrimaryAccount(auxCall->getCallId());
+
+    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 }
 
 /**
@@ -8494,7 +8540,7 @@ void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsign
     ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
     ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
     ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
-    ASSERT_EQ(*priv, MegaChatRoom::PRIV_MODERATOR) << "Privilege is incorrect";
+    ASSERT_EQ(*priv, privilege) << "Privilege is incorrect";
 }
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
