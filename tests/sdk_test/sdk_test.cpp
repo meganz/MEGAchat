@@ -23,6 +23,7 @@ const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 const std::string MegaChatApiTest::LOCAL_PATH = "./tmp"; // no ending slash
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
+std::string USER_AGENT_DESCRIPTION = "MEGAChatTest";
 
 class GTestLogger : public ::testing::EmptyTestEventListener
 {
@@ -90,6 +91,10 @@ int main(int argc, char **argv)
     if (!argVals.getCustomApiUrl().empty())
     {
         g_APIURL_default = argVals.getCustomApiUrl();
+    }
+    if (!argVals.getCustomUserAget().empty())
+    {
+        USER_AGENT_DESCRIPTION = argVals.getCustomUserAget();
     }
 
     MegaChatApiTest::init(argVals.getLog()); // logger set here will also be enough for MegaChatApiUnitaryTest
