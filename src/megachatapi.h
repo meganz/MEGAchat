@@ -4625,6 +4625,52 @@ public:
                                                                          MegaChatRequestListener* listener = NULL);
 
     /**
+     * @brief Modify an existing scheduled meeting. This action won't create a child scheduled meeting
+     *
+     * @note: if updateChatTitle is true, this method will also update chatroom title (just in case that scheduled meeting title is going to be updated)
+     * No management message will be received for chatroom title update.
+     *
+     * @note: You need to provide the current values of scheduled meeting for those params that you don't want to modify
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::request->getFlag - Returns always false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getNumber - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getPrivilege - Returns false as we are going to use an existing chatroom
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList instance with a MegaChatScheduledMeeting
+     * (containing the params provided by user), or NULL in case request finished with an error.
+     *
+     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+     * is MegaError::ERROR_OK:
+     * - MegaChatRequest::request->getMegaChatScheduledMeetingList - returns a MegaChatScheduledMeetingList with a MegaChatScheduledMeeting
+     * (with definitive ScheduledMeeting updated from API)
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS  - if chatid or schedId are invalid
+     * - MegaChatError::ERROR_ARGS  - if title, timezone, startDateTime or endDateTime are invalid
+     * - MegaChatError::ERROR_ARGS  - if title (Max: 30 characters) or description (Max: 4000 characters) length exceed limits
+     * - MegaChatError::ERROR_NOENT - if chatroom or scheduled meeting don't exist
+     * - MegaChatError::ERROR_TOOMANY - if updateChatTitle is true, but chatTitle could not be encrypted for all participants
+     *
+     * @param chatid MegaChatHandle that identifies a chat room
+     * @param schedId MegaChatHandle that identifies the scheduled meeting
+     * @param timezone Timezone where we want to schedule the meeting
+     * @param startDate start date time of the meeting with the format (unix timestamp UTC)
+     * @param endDate end date time of the meeting with the format (unix timestamp UTC)
+     * @param title Null-terminated character string with the scheduled meeting title. Maximum allowed length is MegaChatScheduledMeeting::MAX_TITLE_LENGTH characters
+     * @param description Null-terminated character string with the scheduled meeting description. Maximum allowed length is MegaChatScheduledMeeting::MAX_DESC_LENGTH characters.
+     * Provide nullptr to remove description
+     * @param cancelled True if scheduled meeting is going to be cancelled
+     * @param flags Scheduled meeting flags to establish scheduled meetings flags like avoid email sending (Check MegaChatScheduledFlags class), or nullptr to remove current flags
+     * @param rules Repetition rules for creating a recurrent meeting (Check MegaChatScheduledRules class), or nullptr to remove current repetition rules
+     * @param updateChatTitle if true chatroom title will be updated along with scheduled meeting title
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
+                                const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                const bool updateChatTitle, MegaChatRequestListener* listener = NULL);
+
+    /**
      * @brief Modify an existing scheduled meeting occurrence
      *
      * Note: A scheduled meetings occurrence, is a MegaChatCall that will happen in the future
@@ -6551,7 +6597,8 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid, or provided user list is invalid or empty
      * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, if there's not a call in the specified chatroom, or waiting room is disabled
-     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR,
+     *   or is MegaChatPeerList::PRIV_STANDARD but MegaChatRoom::isOpenInvite returns false.
      *
      * @param users MegaHandleList with the users that must be allowed into waiting room.
      * If param all is true, users param will be ignored.
@@ -9025,7 +9072,7 @@ public:
      *
      * @return mega::MegaHandleList of handles of users that are in the waiting room
      */
-    virtual mega::MegaHandleList* getPeers() const      { return NULL; };
+    virtual mega::MegaHandleList* getUsers() const      { return NULL; };
 
     /**
      * @brief Returns the number of elements in the list
@@ -9043,9 +9090,9 @@ public:
      *
      * @return The waiting room joining status for the specified user
      */
-    virtual int getPeerStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
+    virtual int getUserStatus(const uint64_t&) const    { return MWR_UNKNOWN; };
 
-    static const char* peerStatusToString(int status)
+    static const char* userStatusToString(int status)
     {
         switch (status)
         {

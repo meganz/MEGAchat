@@ -2065,14 +2065,31 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
 {
     if (cid != K_INVALID_CID)
     {
-        Session* session = getSession(cid);
-        if (!session)
+        promise::Promise<void>* pms = getPeerVerificationPms(cid);
+        if (!pms)
         {
-            RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
-            assert(session);
+            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise not found for cid: %u", cid);
             return false;
         }
-        session->setSpeakPermission(true);
+
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session* session = getSession(cid);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
+                assert(session);
+                return;
+            }
+            session->setSpeakPermission(true);
+        })
+        .fail([cid](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
     }
     else // SPEAK_ON received for own peer
     {
@@ -2091,16 +2108,32 @@ bool Call::handleSpeakOnCommand(Cid_t cid)
 
 bool Call::handleSpeakOffCommand(Cid_t cid)
 {
-    if (cid)
+    if (cid != K_INVALID_CID)
     {
-        Session* session = getSession(cid);
-        if (!session)
+        promise::Promise<void>* pms = getPeerVerificationPms(cid);
+        if (!pms)
         {
-            RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
-            assert(session);
+            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise not found for cid: %u", cid);
             return false;
         }
-        session->setSpeakPermission(false);
+        auto wptr = weakHandle();
+        pms->then([this, cid, wptr]()
+        {
+            if (wptr.deleted())  { return; }
+            Session* session = getSession(cid);
+            if (!session)
+            {
+                RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
+                assert(session);
+                return;
+            }
+            session->setSpeakPermission(false);
+        })
+        .fail([cid](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
     }
     else // SPEAK_OFF received for own peer
     {
@@ -2334,6 +2367,15 @@ bool Call::handleModAdd(uint64_t userid)
     if (userid == mMyPeer->getPeerid())
     {
         setOwnModerator(true);
+        if (isWrFlagEnabled()
+            && static_cast<sfu::WrState>(getWrJoiningState()) != sfu::WrState::WR_ALLOWED
+            && getState() == kInWaitingRoom)
+        {
+            RTCM_LOG_DEBUG("MOD_ADD received for our own user, and we are in waiting room. JOIN call automatically");
+            setWrJoiningState(sfu::WrState::WR_ALLOWED);
+            mCallHandler.onWrAllow(*this);
+            joinSfu();
+        }
     }
 
     // update moderator privilege for all sessions that mached with received userid
@@ -2414,10 +2456,16 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
         // we must wait in waiting room until a moderator allow to access, otherwise we can continue with JOIN
         assert(allowed || !isOwnPrivModerator());
         setState(CallState::kInWaitingRoom);
-        setWrJoiningState(allowed ? sfu::WrState::WR_ALLOWED : sfu::WrState::WR_NOT_ALLOWED);
         if (allowed)
         {
+            setWrJoiningState(sfu::WrState::WR_ALLOWED);
+            mCallHandler.onWrAllow(*this);
             joinSfu();
+        }
+        else
+        {
+            setWrJoiningState(sfu::WrState::WR_NOT_ALLOWED);
+            mCallHandler.onWrDeny(*this);
         }
 
         return dumpWrUsers(wrUsers, true/*clearCurrent*/);
@@ -2503,10 +2551,10 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
     if (mState != CallState::kInWaitingRoom) { return false; }
     mMyPeer->setCid(cid); // update Cid for own client from SFU
     mModerators = mods;
-    setWrJoiningState(sfu::WrState::WR_ALLOWED);
     RTCM_LOG_DEBUG("handleWrAllow: we have been allowed to join call, so we need to send JOIN command to SFU");
-    joinSfu(); // send JOIN command to SFU
+    setWrJoiningState(sfu::WrState::WR_ALLOWED);
     mCallHandler.onWrAllow(*this);
+    joinSfu(); // send JOIN command to SFU
     return true;
 }
 
@@ -3004,7 +3052,9 @@ bool Call::checkWrCommandReqs(std::string && commandStr, bool mustBeModerator)
 
 bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr)
 {
-    if (!checkWrCommandReqs(commandStr.c_str(), true /*mustBeModerator*/))
+    // Non-host Users (with standard permissions) can send WR_ALLOW if open invite is enabled, so they can process WR_USERS_ALLOW
+    const bool mustBeModerator = !allow;
+    if (!checkWrCommandReqs(commandStr.c_str(), mustBeModerator))
     {
         return false;
     }
@@ -3016,17 +3066,20 @@ bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool al
         return false;
     }
 
-    if (!mWaitingRoom)
+    if (isOwnPrivModerator())
     {
-        RTCM_LOG_WARNING("%s : mWaitingRoom is null", commandStr.c_str());
-        assert(false);
-        mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
-    }
+        if (!mWaitingRoom)
+        {
+            RTCM_LOG_WARNING("%s : mWaitingRoom is null", commandStr.c_str());
+            assert(false);
+            mWaitingRoom.reset(new KarereWaitingRoom()); // instanciate in case it doesn't exists
+        }
 
-    if (!mWaitingRoom->updateUsers(users, allow ? sfu::WrState::WR_ALLOWED : sfu::WrState::WR_NOT_ALLOWED))
-    {
-        RTCM_LOG_WARNING("%s : could not update users status in waiting room", commandStr.c_str());
-        return false;
+        if (!mWaitingRoom->updateUsers(users, allow ? sfu::WrState::WR_ALLOWED : sfu::WrState::WR_NOT_ALLOWED))
+        {
+            RTCM_LOG_WARNING("%s : could not update users status in waiting room", commandStr.c_str());
+            return false;
+        }
     }
 
     std::unique_ptr<mega::MegaHandleList> uhl(mega::MegaHandleList::createInstance());

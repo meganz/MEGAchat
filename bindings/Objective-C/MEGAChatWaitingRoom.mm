@@ -42,18 +42,18 @@ using namespace megachat;
     return self.megaChatWaitingRoom ? self.megaChatWaitingRoom->size() : 0;
 }
 
--(MEGAHandleList *)peers {
-    return self.megaChatWaitingRoom->getPeers() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatWaitingRoom->getPeers() cMemoryOwn: YES] : nil;
+-(MEGAHandleList *)users {
+    return self.megaChatWaitingRoom->getUsers() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatWaitingRoom->getUsers() cMemoryOwn: YES] : nil;
 }
 
-- (MEGAChatWaitingRoomStatus)peerStatus:(uint64_t)peerId {
-    return self.megaChatWaitingRoom ? MEGAChatWaitingRoomStatus(self.megaChatWaitingRoom->getPeerStatus(peerId)) : MEGAChatWaitingRoomStatusUnknown;
+- (MEGAChatWaitingRoomStatus)userStatus:(uint64_t)peerId {
+    return self.megaChatWaitingRoom ? MEGAChatWaitingRoomStatus(self.megaChatWaitingRoom->getUserStatus(peerId)) : MEGAChatWaitingRoomStatusUnknown;
 }
 
 - (NSString *)stringForStatus:(MEGAChatWaitingRoomStatus)status {
     if (!self.megaChatWaitingRoom) return @"";
 
-    const char *val = self.megaChatWaitingRoom->peerStatusToString(int(status));
+    const char *val = self.megaChatWaitingRoom->userStatusToString(int(status));
     if (!val) return @"";
     return @(val);
 }

@@ -361,9 +361,9 @@ public:
         return mWaitingRoomUsers ? mWaitingRoomUsers->size() : 0;
     }
 
-    mega::MegaHandleList* getPeers() const override;
+    mega::MegaHandleList* getUsers() const override;
 
-    int getPeerStatus(const uint64_t& userid) const override
+    int getUserStatus(const uint64_t& userid) const override
     {
         if (!mWaitingRoomUsers) { return MWR_UNKNOWN; }
         return convertIntoValidStatus(mWaitingRoomUsers->getUserStatus(userid));
@@ -1572,8 +1572,7 @@ public:
     // updates a scheduled meeting
     void updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
                                              const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
-                                             MegaChatRequestListener* listener = nullptr);
-
+                                             const bool updateChatTitle, MegaChatRequestListener* listener = nullptr);
 
     // updates a scheduled meeting ocurrence
     void updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
