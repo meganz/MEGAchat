@@ -4522,6 +4522,24 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     // Auxiliar test functions
     //========================================================================//
+    auto checkOwnSpeakPermissions = [this](const unsigned int idx, const bool isMod, const bool expSpeakPermission, const MegaChatHandle chatid) -> void
+    {
+        std::unique_ptr<MegaChatCall> call(megaChatApi[idx]->getChatCall(chatid));
+        ASSERT_TRUE(call) << "Call could not be retrieved for account: " << idx << " in chatroom: " << getChatIdStrB64(chatid);
+
+        ASSERT_TRUE(call->isSpeakRequestEnabled()) << "Speak request is disabled for call: "
+                                                   << getCallIdStrB64(call->getCallId());
+
+        ASSERT_TRUE(!call->hasLocalAudio()) << "Audio flag is enabled for account: " << idx << " call: "
+                                            << getCallIdStrB64(call->getCallId());
+
+        ASSERT_EQ(call->isOwnModerator(), isMod) << "Unexpected call permission for account: " << idx
+                                                 << " call: " << getCallIdStrB64(call->getCallId());
+
+        ASSERT_EQ(call->hasSpeakPermission(), expSpeakPermission) << "Unexpected speak permission for account: "
+                                                                  << idx << " call: " << getCallIdStrB64(call->getCallId());
+    };
+
     auto inviteToChatroom = [this](const unsigned int& idx1, const unsigned int& idx2, const megachat::MegaChatHandle& uh, const int privilege) -> void
     {
         std::shared_ptr<TestChatRoomListener> crl(mData.getChatroomListener(idx1));
@@ -4535,6 +4553,202 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         }
         return;
     };
+
+    auto sendAndProcessSpeakRequest = [this](const unsigned int requesterIdx, const unsigned int moderatorIdx, const bool approve, const MegaChatHandle chatid)
+    {
+        const MegaChatHandle requesterId = megaChatApi[requesterIdx]->getMyUserHandle();
+        ExitBoolFlags eF;
+        // moderatorIdx - user handle received at onChatSessionUpdate(CHANGE_TYPE_SESSION_SPEAK_REQUESTED)
+        getHandleVars().add(moderatorIdx, "SpeakRequestPeerId", MEGACHAT_INVALID_HANDLE);
+
+        // moderatorIdx - onChatSessionUpdate(CHANGE_TYPE_SESSION_SPEAK_REQUESTED)
+        ASSERT_NO_FATAL_FAILURE(addBoolExitFlag(moderatorIdx, eF, "SessSpeakReqRecv", false));
+
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1, /* just one attempt */
+                          eF,
+                          "sending a speak request",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, &chatid, &requesterIdx]()
+                          {
+                              ChatRequestTracker crtSpeakReq;
+                              megaChatApi[requesterIdx]->sendSpeakRequest(chatid, &crtSpeakReq);
+                              auto res = crtSpeakReq.waitForResult();
+                              ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to send speak request: " << crtSpeakReq.getErrorString();
+                          });
+        });
+
+        MegaChatHandle* h = getHandleVars().get(moderatorIdx, "SpeakRequestPeerId");
+        ASSERT_TRUE(h && *h == requesterId) << "userid received in speak request doesn't match with expected one";
+        getBoolVars().cleanAll();
+
+        ExitBoolFlags eF2;
+        if (approve)
+        {
+            // requesterIdx - onChatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
+            addBoolExitFlag(requesterIdx, eF2, "OwnSpeakStatusChanged", false);
+
+            // moderatorIdx - user handle received at onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
+            getHandleVars().add(moderatorIdx, "SpeakStatusPeerId", MEGACHAT_INVALID_HANDLE);
+        }
+        else
+        {
+            // moderatorIdx - onChatSessionUpdate(CHANGE_TYPE_SESSION_SPEAK_REQUESTED)
+            addBoolExitFlag(moderatorIdx, eF2, "SessSpeakReqRecv", false);
+
+            // moderatorIdx - [reuse] user handle received at onChatSessionUpdate(CHANGE_TYPE_SESSION_SPEAK_REQUESTED)
+            getHandleVars().updateIfExists(moderatorIdx, "SpeakRequestPeerId", MEGACHAT_INVALID_HANDLE);
+        }
+
+        std::string msgSpeakReq = approve ? "approve speak request" : "reject speak request";
+        mSessSpeakPerm[moderatorIdx].clear();
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1, /* just one attempt */
+                          eF2,
+                          "sending a speak request",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, &moderatorIdx, &requesterId, &approve, &chatid, &msgSpeakReq]()
+                          {
+                              ChatRequestTracker crtSpeakReq;
+                              approve
+                                  ? megaChatApi[moderatorIdx]->addActiveSpeaker(chatid, requesterId, &crtSpeakReq)
+                                  : megaChatApi[moderatorIdx]->removeSpeakRequest(chatid, requesterId, &crtSpeakReq);
+
+                              auto res = crtSpeakReq.waitForResult();
+                              ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to " << msgSpeakReq << crtSpeakReq.getErrorString();
+                          });
+        });
+
+        if (approve)
+        {
+            ASSERT_EQ(*getHandleVars().get(moderatorIdx, "SpeakStatusPeerId"), requesterId)
+                << "User handle received upon MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION doesn't match with expected one";
+        }
+        else
+        {
+            ASSERT_EQ(*getHandleVars().get(moderatorIdx, "SpeakRequestPeerId"), requesterId)
+                << "User handle received upon MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED doesn't match with expected one";
+        }
+    };
+
+    auto updateFlags = [this](const unsigned int requesterIdx, const unsigned int moderatorIdx, const bool audio, const bool enable, const MegaChatHandle chatid)
+    {
+        ExitBoolFlags eF;
+
+        // requesterIdx - onChatCallUpdate(CHANGE_TYPE_LOCAL_AVFLAGS)
+        ASSERT_NO_FATAL_FAILURE(addBoolExitFlag(requesterIdx, eF, "OwnFlagsChanged", false));
+
+        // moderatorIdx - onChatCallUpdate(CHANGE_TYPE_LOCAL_AVFLAGS)
+        ASSERT_NO_FATAL_FAILURE(addBoolExitFlag(moderatorIdx, eF, "ChatCallAudioEnabled", false));
+
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          eF,
+                          "Update Av flags",
+                          true /* wait for all exit flags*/,
+                          true /* reset flags */,
+                          maxTimeout,
+                          [this, &requesterIdx, &audio, &chatid, &enable]()
+                          {
+                              ChatRequestTracker crtFlags;
+                              if (audio)
+                              {
+                                  enable
+                                      ? megaChatApi[requesterIdx]->enableAudio(chatid, &crtFlags)
+                                      : megaChatApi[requesterIdx]->disableAudio(chatid, &crtFlags);
+                              }
+                              else
+                              {
+                                  enable
+                                      ? megaChatApi[requesterIdx]->enableVideo(chatid, &crtFlags)
+                                      : megaChatApi[requesterIdx]->disableVideo(chatid, &crtFlags);
+                              }
+                              ASSERT_EQ(crtFlags.waitForResult(), MegaChatError::ERROR_OK) << "Failed to update Av flags: " << crtFlags.getErrorString();
+                          });
+        });
+
+        std::unique_ptr<MegaChatCall> call(megaChatApi[requesterIdx]->getChatCall(chatid));
+        ASSERT_TRUE(call) << "Call could not be retrieved for account: " << requesterIdx << ". Chatid: " << getChatIdStrB64(chatid);
+        ASSERT_TRUE(!audio || enable == call->hasLocalAudio()) << "Unexpected value for local audio that is: "
+                                                               << (call->hasLocalAudio() ? "enabled" : "disabled")
+                                                               << " for account index : " << requesterIdx
+                                                               << ". Callid: " << getCallIdStrB64(call->getCallId());
+
+        ASSERT_TRUE(audio || enable == call->hasLocalVideo()) << "Unexpected value for local video that is: "
+                                                              << (call->hasLocalVideo() ? "enabled" : "disabled")
+                                                              << " for account index : " << requesterIdx
+                                                              << ". Callid: " << getCallIdStrB64(call->getCallId());
+    };
+
+    auto removeSpeaker = [this](const unsigned int moderatorIdx, const unsigned int peerIdx, const MegaChatHandle userid, const MegaChatHandle chatid) -> void
+    {
+        std::unique_ptr<MegaChatCall> call(megaChatApi[moderatorIdx]->getChatCall(chatid));
+        ASSERT_TRUE(call) << "Call could not be retrieved for account: " << moderatorIdx << ". Chatid: " << getChatIdStrB64(chatid);
+        ASSERT_TRUE(call->isSpeakRequestEnabled()) << "Speak request is disabled for call: " << getCallIdStrB64(call->getCallId());
+        ASSERT_TRUE(call->isOwnModerator()) << "Unexpected call permission for account: " << moderatorIdx << ". Callid: " << getCallIdStrB64(call->getCallId());
+        ASSERT_NE(userid, MEGACHAT_INVALID_HANDLE) << "Invalid userid provided: " << getCallIdStrB64(call->getCallId());
+        ExitBoolFlags eF;
+
+        // peerIdx - onChatCallUpdate(CHANGE_TYPE_LOCAL_AVFLAGS)
+        ASSERT_NO_FATAL_FAILURE(addBoolExitFlag(peerIdx, eF, "OwnFlagsChanged", false));
+
+        // peerIdx - onChatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
+        ASSERT_NO_FATAL_FAILURE(addBoolExitFlag(peerIdx, eF, "OwnSpeakStatusChanged", false));
+
+        // moderatorIdx - onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
+        ASSERT_NO_FATAL_FAILURE(addBoolExitFlag(moderatorIdx, eF, "SessSpeakPermChanged", false));
+
+        // moderatorIdx - onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
+        ASSERT_NO_FATAL_FAILURE(addBoolExitFlag(moderatorIdx, eF, "ChatCallAudioDisabled", false));
+
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          eF,
+                          "Remove speaker from call",
+                          true /* wait for all exit flags*/,
+                          true /* reset flags */,
+                          maxTimeout,
+                          [this, &moderatorIdx, &userid, &chatid]()
+                          {
+                              ChatRequestTracker crtSpeakerRemove;
+                              megaChatApi[moderatorIdx]->removeActiveSpeaker(chatid, userid, &crtSpeakerRemove);
+                              auto res = crtSpeakerRemove.waitForResult();
+                              ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to remove speaker: " << crtSpeakerRemove.getErrorString();
+                          });
+        });
+
+        std::unique_ptr<MegaChatCall>moderatorCall(megaChatApi[moderatorIdx]->getChatCall(mData.mChatid));
+        ASSERT_TRUE(moderatorCall) << "Cannot get call in chat: " << getChatIdStrB64(mData.mChatid)
+                                   << " for account " << std::to_string(moderatorIdx);
+
+        std::unique_ptr<::mega::MegaHandleList> sessionList(moderatorCall->getSessionsClientid());
+        ASSERT_TRUE(sessionList) << "Cannot get sessions list for call: "
+                                   << getCallIdStrB64(moderatorCall->getCallId());
+
+        bool sessionFound = false;
+        for (unsigned int i = 0; i < sessionList->size(); ++i)
+        {
+            const MegaChatSession* sess = moderatorCall->getMegaChatSession(sessionList->get(i));
+            if (!sess || sess->getPeerid() != userid) { continue; }
+
+            sessionFound = true;
+            ASSERT_TRUE(!sess->hasSpeakPermission()) << "removeSpeaker: Unexpected session speak permission";
+
+        }
+        ASSERT_TRUE(sessionFound) << "Session not found for userid: " << getUserIdStrB64(userid);
+
+        std::unique_ptr<MegaChatCall>peerCall(megaChatApi[peerIdx]->getChatCall(mData.mChatid));
+        ASSERT_TRUE(peerCall) << "Cannot get call in chat: " << getChatIdStrB64(mData.mChatid)
+                              << " for account " << std::to_string(peerIdx);
+
+        ASSERT_TRUE(!peerCall->hasSpeakPermission()) << "own speak permission not expected for userid: "
+                                                     << getUserIdStrB64(userid);
+    };
+
     //========================================================================//
     // Test preparation: login, get chatroom ...
     //========================================================================//
@@ -4618,6 +4832,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
 
     //============================================================================//
     // Test1: A starts call in a meeting room with speak request option enabled
+    //        audio and video are disabled when call is started
     //============================================================================//
     LOG_verbose << "A starts call in a meeting room with speak request option enabled";
     ExitBoolFlags eF;
@@ -4627,11 +4842,89 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    ASSERT_NO_FATAL_FAILURE(startChatCall(a1, eF,
+                                          mData.mChatid,
+                                          false /*audio*/,
+                                          false /*video*/,
+                                          false /*notRinging*/,
+                                          100 /*timeout(secs)*/));
 
-    startChatCall(a1, eF, mData.mChatid, false /*audio*/,
-                  false /*video*/, 100 /*timeout(secs)*/);
-    checkCallIdInProgress(a1); // check received callid for caller(a1)
-    getBoolVars().cleanAll();  // clean all bool vars (this prevents conflicts in following tests)
+    // check received callid for caller(a1)
+    checkCallIdInProgress(a1);
+
+    // clean all bool and handle vars (this prevents conflicts in following tests)
+    getBoolVars().cleanAll();
+    getHandleVars().cleanAll();
+
+    // a2 answers call
+    ExitBoolFlags eF2;
+    addHandleFlag(a1, "SessionInProgress", invalHandle);                    // a1 - userid(a2) received at onChatSessionUpdate(CALL_STATUS_IN_PROGRESS)
+    addBoolExitFlag(a2, eF2, "CallInProgress", false);                      // a2 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    answerChatCall(a2, eF2, mData.mChatid,
+                   false /*video*/,
+                   false /*audio*/);
+
+    ASSERT_EQ(*getHandleVars().get(a1, "SessionInProgress"), a2Uh)
+        << "Session didn't reach in progress status for a2";
+
+    // a3 answers call
+    ExitBoolFlags eF3;
+    getHandleVars().updateIfExists(a1, "SessionInProgress", invalHandle);   // a1 - [reuse var] userid(a3) received at onChatSessionUpdate(CALL_STATUS_IN_PROGRESS)
+    addBoolExitFlag(a3, eF3, "CallInProgress", false);                      // a3 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    answerChatCall(a3, eF3, mData.mChatid,
+                   false /*video*/,
+                   false /*audio*/);
+
+    ASSERT_EQ(*getHandleVars().get(a1, "SessionInProgress"), a3Uh)
+        << "Session didn't reach in progress status for a3";
+
+    // check that speak permissions matches with expected ones: a1(true), a2(false) and a3(false)
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a1, true/*moderator*/ , true /*expected*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, false/*moderator*/, false/*expected*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a3, false/*moderator*/, false/*expected*/, mData.mChatid););
+
+    // clean all bool and handle vars (this prevents conflicts in following tests)
+    getBoolVars().cleanAll();
+    getHandleVars().cleanAll();
+
+    //========================================================================//
+    // Test2: B request to speak, A rejects it
+    //========================================================================//
+    LOG_debug << "Test2: B request to speak, A rejects it";
+    ASSERT_NO_FATAL_FAILURE(sendAndProcessSpeakRequest(a2, a1, false /*approve*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, false/*moderator*/, false/*expected*/, mData.mChatid););
+    // clean all bool and handle vars (this prevents conflicts in following tests)
+    getBoolVars().cleanAll();
+    getHandleVars().cleanAll();
+
+    //========================================================================//
+    // Test3: B request to speak, A Approves it
+    //========================================================================//
+    LOG_debug << "Test3: B request to speak, A /*expected*/ it";
+    ASSERT_NO_FATAL_FAILURE(sendAndProcessSpeakRequest(a2, a1, true /*approve*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, false/*moderator*/, true/*expected*/, mData.mChatid););
+    // clean all bool and handle vars (this prevents conflicts in following tests)
+    getBoolVars().cleanAll();
+    getHandleVars().cleanAll();
+
+    //========================================================================//
+    // Test4: B enables audio (unmute)
+    //========================================================================//
+    LOG_debug << "Test4: B enables audio (unmute)";
+    updateFlags(a2, a1, true /*audio*/, true /*enable*/, mData.mChatid);
+    std::unique_ptr<MegaChatCall> call(megaChatApi[a2]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(call) << "Cannot get call for account index " << a2 << " with chatid " << getChatIdStrB64(mData.mChatid);
+    ASSERT_TRUE(call->isSpeakAllowed()) << "Speak permission or audio flag is disabled at account index " << a2
+                                        << " for callid " << getCallIdStrB64(call->getCallId());
+    // clean all bool and handle vars (this prevents conflicts in following tests)
+    getBoolVars().cleanAll();
+    getHandleVars().cleanAll();
+
+    //========================================================================//
+    // Test5: A Removes B as speaker
+    //========================================================================//
+    LOG_debug << "Test5: Remove B as speaker";
+    ASSERT_NO_FATAL_FAILURE({ removeSpeaker(a1, a2, a2Uh, mData.mChatid); });
 }
 
 /**
@@ -6753,7 +7046,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
     // check negative offset values at ByMonthWeekDay (-1, 1) Last Monday of each month
     std::unique_ptr<MegaIntegerList> days(recvByMonthWeekDay->get(offset));
-    ASSERT_TRUE(days) << "No key : " << offset << " exists at auxByMonthWeekDay for chat " << getChatIdStrB64(chatid);;
+    ASSERT_TRUE(days) << "No key : " << offset << " exists at auxByMonthWeekDay for chat " << getChatIdStrB64(chatid);
     ASSERT_EQ(days->size(), smDataTests1.rules->byMonthWeekDay()->size()) << "Unexpected byMonthWeekDay size "
                                                                             << days->size() << " for chat " << getChatIdStrB64(chatid);
     ASSERT_EQ(days->get(0), day) << "Unexpected value: " << days->get(0)
@@ -8385,7 +8678,7 @@ void MegaChatApiTest::checkCallIdInProgress(const unsigned idx)
 };
 
 void MegaChatApiTest::startChatCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid,
-                                    const bool enableVideo, const bool enableAudio, const unsigned int timeout)
+                                    const bool enableVideo, const bool enableAudio, const bool notRinging, const unsigned int timeout)
 {
     ASSERT_NO_FATAL_FAILURE({
         waitForAction (1,  /* just one attempt */
@@ -8394,10 +8687,10 @@ void MegaChatApiTest::startChatCall(const unsigned int callerIdx, ExitBoolFlags&
                       true /* wait for all exit flags */,
                       true /* reset flags */,
                       timeout,
-                      [this, &chatid, &enableVideo, &enableAudio, &callerIdx]()
+                      [this, &chatid, &enableVideo, &enableAudio, &callerIdx, &notRinging]()
                       {
                           ChatRequestTracker crtStartCall;
-                          megaChatApi[callerIdx]->startChatCall(chatid, enableVideo, enableAudio, &crtStartCall);
+                          megaChatApi[callerIdx]->startCallInChat(chatid, enableVideo, enableAudio, notRinging, &crtStartCall);
                           ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
                               << "Failed to start call. Error: " << crtStartCall.getErrorString();
                       });
@@ -8843,6 +9136,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
     {
+        getBoolVars().updateIfExists(apiIndex, "OwnFlagsChanged", true);
         mChatCallAudioEnabled[apiIndex] = call->hasLocalAudio();
         mChatCallAudioDisabled[apiIndex] = !call->hasLocalAudio();
         mOwnFlagsChanged[apiIndex] = true;
@@ -8850,6 +9144,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK))
     {
+        getBoolVars().updateIfExists(apiIndex, "OwnSpeakStatusChanged", true);
         mOwnSpeakStatusChanged[apiIndex] = true;
         mOwnSpeakStatus[apiIndex] = call->getSpeakerState();
     }
@@ -8874,12 +9169,20 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
         switch (session->getChanges())
         {
         case MegaChatSession::CHANGE_TYPE_STATUS:
+
+            if (session->getStatus() == MegaChatSession::SESSION_STATUS_IN_PROGRESS)
+            {
+                getHandleVars().updateIfExists(apiIndex, "SessionInProgress", session->getPeerid());
+            }
+
             mChatCallSessionStatusInProgress[apiIndex] =
                 session->getStatus() == MegaChatSession::SESSION_STATUS_IN_PROGRESS;
             mChatSessionWasDestroyed[apiIndex] = mChatSessionWasDestroyed[apiIndex]
                 || !mChatCallSessionStatusInProgress[apiIndex];
             break;
         case MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED:
+            getHandleVars().updateIfExists(apiIndex, "SpeakRequestPeerId", session->getPeerid());
+            getBoolVars().updateIfExists(apiIndex, "SessSpeakReqRecv", true);
             mSessSpeakRequests[apiIndex][session->getPeerid()] = session->hasPendingSpeakRequest();
             mSessSpeakReqRecv[apiIndex] = true;
             break;
@@ -8888,10 +9191,14 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
             mChatCallOnHoldResumed[apiIndex] = !session->isOnHold();
             break;
         case MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS:
+            getBoolVars().updateIfExists(apiIndex, "ChatCallAudioEnabled", session->hasAudio());
+            getBoolVars().updateIfExists(apiIndex, "ChatCallAudioDisabled", !session->hasAudio());
             mChatCallAudioEnabled[apiIndex] = session->hasAudio();
             mChatCallAudioDisabled[apiIndex] = !session->hasAudio();
             break;
         case MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION:
+            getHandleVars().updateIfExists(apiIndex, "SpeakStatusPeerId", session->getPeerid());
+            getBoolVars().updateIfExists(apiIndex, "SessSpeakPermChanged", true);
             mSessSpeakPerm[apiIndex][session->getClientid()] = session->hasSpeakPermission();
             mSessSpeakPermChanged[apiIndex] = true;
             break;

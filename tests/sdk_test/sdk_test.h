@@ -510,6 +510,12 @@ public:
         std::map<std::string, bool*> mVars;
     };
 
+    static std::string getUserIdStrB64(const megachat::MegaChatHandle h)
+    {
+        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
+        return idB64 ? idB64.get() : "INVALID userid";
+    };
+
     static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
     {
         const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
@@ -745,7 +751,7 @@ protected:
 
     // starts a call in a chatroom with waiting room option enabled
     void startChatCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
-                       const bool enableVideo, const bool enableAudio, const unsigned int timeout);
+                       const bool enableVideo, const bool enableAudio, const bool notRinging, const unsigned int timeout);
 
     // deprecated - replace all usages of this method by startChatCall prototype above
     void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
