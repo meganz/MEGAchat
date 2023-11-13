@@ -616,7 +616,7 @@ protected:
      * @param chatroomListener TestChatRoomListener that track MegaChatRoomListener events
      */
     int loadHistory(const unsigned int accountIndex, const megachat::MegaChatHandle chatid, TestChatRoomListener* chatroomListener);
-    void makeContact(unsigned int a1, unsigned int a2);
+    void makeContact(const unsigned int a1, const unsigned int a2);
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
     megachat::MegaChatHandle getGroupChatRoom();
@@ -782,7 +782,7 @@ protected:
     // structure with all data common to most of automated tests
     TestData mData;
 
-    ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
+    std::unique_ptr<::mega::MegaContactRequest> mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];

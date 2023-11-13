@@ -7110,40 +7110,40 @@ int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChat
     return chatroomListener->msgCount[accountIndex];
 }
 
-void MegaChatApiTest::makeContact(unsigned int a1, unsigned int a2)
+void MegaChatApiTest::makeContact(const unsigned int a1, const unsigned int a2)
 {
-    if (areContact(a1, a2)) { return; }
-
-    bool *flagRequestInviteContact = &requestFlags[a1][MegaRequest::TYPE_INVITE_CONTACT];
+    const std::string contactRequestMessage = "Contact Request Message";
+    bool* flagRequestInviteContact = &requestFlags[a1][MegaRequest::TYPE_INVITE_CONTACT];
     *flagRequestInviteContact = false;
-    bool *flagContactRequestUpdatedSecondary = &mContactRequestUpdated[a2];
+
+    bool* flagContactRequestUpdatedSecondary = &mContactRequestUpdated[a2];
     *flagContactRequestUpdatedSecondary = false;
-    std::string contactRequestMessage = "Contact Request Message";
-    RequestTracker inviteContactTracker;
+
+    // a1 sends contact request to a2
+    RequestTracker rtInvite;
     megaApi[a1]->inviteContact(account(a2).getEmail().c_str(),
                                contactRequestMessage.c_str(),
                                MegaContactRequest::INVITE_ACTION_ADD,
-                               &inviteContactTracker);
+                               &rtInvite);
 
-    ASSERT_TRUE(waitForResponse(flagRequestInviteContact)) << "Expired timeout for invite contact request";
-    ASSERT_EQ(inviteContactTracker.waitForResult(), API_OK) << "Error invite contact. Error: " << inviteContactTracker.getErrorString();
-    ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedSecondary)) << "Expired timeout for receive contact request";
-
+    ASSERT_TRUE(waitForResponse(flagRequestInviteContact)) << "Expired timeout for invite contact request from a1";
+    ASSERT_EQ(rtInvite.waitForResult(), API_OK) << "Error invite contact. Error: " << rtInvite.getErrorString();
+    ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedSecondary)) << "Expired timeout for receive contact request at a2";
     ASSERT_NO_FATAL_FAILURE({ getContactRequest(a2, false); });
+    ASSERT_TRUE(mContactRequest[a2]) << "Contact request not received for a2";
 
-    bool *flagReplyContactRequest = &requestFlags[a2][MegaRequest::TYPE_REPLY_CONTACT_REQUEST];
+    // a2 replies contact request
+    bool* flagReplyContactRequest = &requestFlags[a2][MegaRequest::TYPE_REPLY_CONTACT_REQUEST];
     *flagReplyContactRequest = false;
-    bool *flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
-    *flagContactRequestUpdatedPrimary = false;
-    RequestTracker replyContactRequestTracker;
-    megaApi[a2]->replyContactRequest(mContactRequest[a2], MegaContactRequest::REPLY_ACTION_ACCEPT,
-                                     &replyContactRequestTracker);
-    ASSERT_TRUE(waitForResponse(flagReplyContactRequest)) << "Expired timeout for reply contact request";
-    ASSERT_EQ(replyContactRequestTracker.waitForResult(), API_OK) << "Error reply contact request. Error: " << replyContactRequestTracker.getErrorString();
-    ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedPrimary)) << "Expired timeout for receive contact request reply";
 
-    delete mContactRequest[a2];
-    mContactRequest[a2] = NULL;
+    bool* flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
+    *flagContactRequestUpdatedPrimary = false;
+
+    RequestTracker rtReplyCR;
+    megaApi[a2]->replyContactRequest(mContactRequest[a2].get(), MegaContactRequest::REPLY_ACTION_ACCEPT, &rtReplyCR);
+    ASSERT_TRUE(waitForResponse(flagReplyContactRequest)) << "Expired timeout for reply contact request from a2";
+    ASSERT_EQ(rtReplyCR.waitForResult(), API_OK) << "Error reply contact request. Error: " << rtReplyCR.getErrorString();
+    ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedPrimary)) << "Expired timeout for receive contact request reply at a1";
 }
 
 bool MegaChatApiTest::areContact(unsigned int a1, unsigned int a2)
@@ -8083,7 +8083,7 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
 
         if (expectedSize)
         {
-            mContactRequest[accountIndex] = crl->get(0)->copy();
+            mContactRequest[accountIndex].reset(crl->get(0)->copy());
         }
     }
     else
@@ -8093,7 +8093,7 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
 
         if (expectedSize)
         {
-            mContactRequest[accountIndex] = crl->get(0)->copy();
+            mContactRequest[accountIndex].reset(crl->get(0)->copy());
         }
     }
 
