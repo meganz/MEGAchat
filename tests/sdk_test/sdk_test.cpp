@@ -7112,10 +7112,8 @@ int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChat
 
 void MegaChatApiTest::makeContact(const unsigned int a1, const unsigned int a2)
 {
+    if (areContact(a1, a2)) { return; }
     const std::string contactRequestMessage = "Contact Request Message";
-    bool* flagRequestInviteContact = &requestFlags[a1][MegaRequest::TYPE_INVITE_CONTACT];
-    *flagRequestInviteContact = false;
-
     bool* flagContactRequestUpdatedSecondary = &mContactRequestUpdated[a2];
     *flagContactRequestUpdatedSecondary = false;
 
@@ -7126,22 +7124,17 @@ void MegaChatApiTest::makeContact(const unsigned int a1, const unsigned int a2)
                                MegaContactRequest::INVITE_ACTION_ADD,
                                &rtInvite);
 
-    ASSERT_TRUE(waitForResponse(flagRequestInviteContact)) << "Expired timeout for invite contact request from a1";
     ASSERT_EQ(rtInvite.waitForResult(), API_OK) << "Error invite contact. Error: " << rtInvite.getErrorString();
     ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedSecondary)) << "Expired timeout for receive contact request at a2";
     ASSERT_NO_FATAL_FAILURE({ getContactRequest(a2, false); });
     ASSERT_TRUE(mContactRequest[a2]) << "Contact request not received for a2";
 
     // a2 replies contact request
-    bool* flagReplyContactRequest = &requestFlags[a2][MegaRequest::TYPE_REPLY_CONTACT_REQUEST];
-    *flagReplyContactRequest = false;
-
     bool* flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
     *flagContactRequestUpdatedPrimary = false;
 
     RequestTracker rtReplyCR;
     megaApi[a2]->replyContactRequest(mContactRequest[a2].get(), MegaContactRequest::REPLY_ACTION_ACCEPT, &rtReplyCR);
-    ASSERT_TRUE(waitForResponse(flagReplyContactRequest)) << "Expired timeout for reply contact request from a2";
     ASSERT_EQ(rtReplyCR.waitForResult(), API_OK) << "Error reply contact request. Error: " << rtReplyCR.getErrorString();
     ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedPrimary)) << "Expired timeout for receive contact request reply at a1";
 }
