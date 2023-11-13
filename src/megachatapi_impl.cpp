@@ -660,8 +660,7 @@ int MegaChatApiImpl::performRequest_setChatroomOptions(MegaChatRequestPrivate *r
             if (option == MegaChatApi::CHAT_OPTION_SPEAK_REQUEST)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS: speak request option temporarily disabled");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             switch (option)
