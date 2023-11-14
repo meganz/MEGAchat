@@ -934,6 +934,12 @@ promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t 
     });
 }
 
+promise::Promise<ReqResult> Client::ringIndividualInACall(const uint64_t chatid, const uint64_t userid)
+{
+    auto wptr = weakHandle();
+    return api.call(&::mega::MegaApi::ringIndividualInACall, chatid, userid);
+}
+
 promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const std::string &key, const std::string &encTitle, const karere::Id& ph)
 {
     std::shared_ptr<std::string> unifiedKey = std::make_shared<std::string>(key);

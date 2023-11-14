@@ -6017,8 +6017,8 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         API_LOG_ERROR("Ring individual in call: invalid chat id");
         return MegaChatError::ERROR_ARGS;
     }
-    const auto userToCallId = request->getUserHandle();
-    if (userToCallId == MEGACHAT_INVALID_HANDLE)
+    const auto userIdToCall = request->getUserHandle();
+    if (userIdToCall == MEGACHAT_INVALID_HANDLE)
     {
         API_LOG_ERROR("Ring individual in call: invalid user id");
         return MegaChatError::ERROR_ARGS;
@@ -6044,12 +6044,34 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         return MegaChatError::ERROR_NOENT;
     }
 
-    auto callId = call->getCallid();
-    Chat &chat = chatroom->chat();
-    const int16_t ringTimeout = static_cast<int16_t>(request->getParamType());
-    chat.ringIndividualInACall(userToCallId, callId, ringTimeout);
-    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+    // Important: remove this call to Client::ringIndividualInACall (send 'mcru' to API) when chatd makes the required adjustments
+    // to manage this logic without client intervention. When this happens we'll only need to send OP_RINGUSER as
+    // we previously did.
+    auto wptr = mClient->weakHandle();
+    mClient->ringIndividualInACall(chatId, userIdToCall)
+        .then([this, request, chatId, userIdToCall, callId = call->getCallid(), wptr](ReqResult)
+    {
+        wptr.throwIfDeleted();
+        ChatRoom* chatroom = findChatRoom(chatId);
+        if (!chatroom)
+        {
+            API_LOG_ERROR("Error: chat room with id %s not found, after send 'mcru' with success", ID_CSTR(chatId));
+            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT));
+            return;
+        }
 
+        // just in case 'mcru' is sent successfully, then we can send OP_RINGUSER
+        Chat& chat = chatroom->chat();
+        const int16_t ringTimeout = static_cast<int16_t>(request->getParamType());
+        chat.ringIndividualInACall(userIdToCall, callId, ringTimeout);
+        fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+    })
+    .fail([request, this](const ::promise::Error& err)
+    {
+        API_LOG_ERROR("Error sending 'mcru' command to API: %s", err.what());
+        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+        fireOnChatRequestFinish(request, megaChatError);
+    });
     return MegaChatError::ERROR_OK;
 }
 

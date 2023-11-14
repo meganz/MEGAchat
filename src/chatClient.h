@@ -1093,6 +1093,15 @@ public:
      */
     promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
 
+    /**
+     * @brief This function allows a user in an existing call to send an incoming call push notification to another user in the chat
+     * to notify that call is ringing.
+     * @param chatid handle that identify the chatroom
+     * @param userid handle that identify the user
+     * @return a promise to ReqResult
+     */
+    promise::Promise<ReqResult> ringIndividualInACall(const uint64_t chatid, const uint64_t userid);
+
     /** sort the occurrences list by StartDateTime */
     void sortOccurrences(std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>& occurrList) const;
 
