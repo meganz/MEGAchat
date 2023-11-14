@@ -2013,7 +2013,22 @@ bool Call::handleHiResStopCommand()
 
 bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
 {
-    return updateUserSpeakRequest(userid, add);
+    if (userid == getOwnPeerId()) // own user
+    {
+        if (add && getOwnSpeakerState() == SpeakerState::kNoSpeaker)
+        {
+            setSpeakerState(SpeakerState::kPending);
+        }
+        else if (!add && getOwnSpeakerState() == SpeakerState::kPending)
+        {
+            setSpeakerState(SpeakerState::kNoSpeaker);
+        }
+    }
+    else
+    {
+        updateUserSpeakRequest(userid, add);
+    }
+    return true;
 }
 
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs)
