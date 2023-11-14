@@ -731,6 +731,9 @@ protected:
     void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                                std::shared_ptr<TestChatRoomListener>chatroomListener);
 
+    // updates an existing scheduled meeting
+    void updateSchedMeeting(const unsigned int a1, const unsigned int a2, const int expectedError, const SchedMeetingData& smData, const bool updateChatTitle);
+
 #ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
