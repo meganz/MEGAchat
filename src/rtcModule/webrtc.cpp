@@ -1989,7 +1989,10 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     if (add)
     {
         if (isOwnUser) { updateAudioTracks(); }
-        updateUserSpeakRequest(uh, false/*add*/);
+        else
+        {
+            updateUserSpeakRequest(uh, false/*add*/);
+        }
     }
     return true;
 }
@@ -2257,7 +2260,12 @@ bool Call::handleModAdd(uint64_t userid)
                        karere::Id(userid).toString().c_str());
     }
     updateUserSpeakPermision(userid, true, false /*updateSpeakersList*/); // moderators have speak permission implicitly
-    updateUserSpeakRequest(userid, false/*add*/); // remove speak request (if any) for this user
+
+    if (userid != getOwnPeerId())
+    {
+        updateUserSpeakRequest(userid, false/*add*/); // remove speak request (if any) for this user
+    }
+
     if (!hasSpeakPermission(userid))
     {
         RTCM_LOG_DEBUG("MOD_ADD received, but speak permission could not be updated for user: %s ",
