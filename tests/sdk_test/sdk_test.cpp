@@ -392,6 +392,7 @@ void MegaChatApiTest::SetUp()
         peersUpdated[i] = false;
         titleUpdated[i] = false;
         chatArchived[i] = false;
+        chatPreviewClosed[i] = false;
 
         mNotTransferRunning[i] = true;
         mPresenceConfigUpdated[i] = false;
@@ -5118,12 +5119,15 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
 
 /**
  * @brief MegaChatApiTest.WaitingRooms
- * + Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
+ * + Test1: Create chatlink and check data received from API (mcphurl)
+ * + Test2: Modify chat, rejoin chatlink and check for changes
+ * + Test3: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
  *          Call won't ring for the rest of participants
- * + Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
- * + Test3: A kicks (completely disconnect) B from call
- * + Test4: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)
- *          call will ring for the rest of participants as schedId is not provided
+ * + Test4: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
+ * + Test5: A kicks (completely disconnect) B from call
+ * + Test6: A starts call relying on waiting room flag from chatroom.
+ * + Test7: B JOINS automatically to call from Waiting Room, when he receives MOD_ADD command from SFU
+ * + Test8: A starts call relying on waiting room flag from chatroom.
  */
 TEST_F(MegaChatApiTest, WaitingRooms)
 {
@@ -5228,55 +5232,6 @@ TEST_F(MegaChatApiTest, WaitingRooms)
         megaChatApi[a1]->setOpenInvite(chatid, true, &crtChatOpt1);
         ASSERT_EQ(crtChatOpt1.waitForResult(), MegaChatError::ERROR_OK) << "Failed to enable open invite. Error: " << crtChatOpt1.getErrorString();
     }
-
-    // Create chat link
-    ChatRequestTracker crtCreateLink;
-    megaChatApi[a1]->createChatLink(chatid, &crtCreateLink);
-    ASSERT_EQ(crtCreateLink.waitForResult(), MegaChatError::ERROR_OK) << "Creating chat link failed. Should have succeeded!";
-
-    // Init anonymous in terciary account and connect
-    initState[a3] = megaChatApi[a3]->initAnonymous();
-    ASSERT_EQ(initState[a3], MegaChatApi::INIT_ANONYMOUS) << "Init sesion in anonymous mode for terciary account failed";
-    std::unique_ptr<char[]>tertiarySession(megaApi[a3]->dumpSession());
-
-    // Open chat link and check that wr flag and scheduled meetings are received upon onRequestFinish(TYPE_LOAD_PREVIEW)
-    ChatRequestTracker crtOpenLink;
-    bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
-    megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink);
-    ASSERT_EQ(crtOpenLink.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
-    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for close preview";
-
-    // check chatroom options upon onRequestFinish (TYPE_LOAD_PREVIEW)
-    const int chatOptions = crtOpenLink.getPrivilege();
-    ASSERT_TRUE(crtOpenLink.hasScheduledMeetings()) << "Chatroom doesn't have scheduled meeting enabled";
-    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions))  << "Waiting room is disabled";
-    // Note: Speak request feature is temporarily disabled, enable this test once
-    // SFU code has been updated and MegaChat also has made required adjustments
-    //ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions)) << "Speak request is disabled";
-    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions))   << "Open invite is disabled";
-
-    // get scheduled meeting list from chatroom
-    std::unique_ptr<MegaChatScheduledMeetingList> smlist(megaChatApi[a3]->getScheduledMeetingsByChat(chatid));
-    ASSERT_TRUE(smlist && smlist->size()) << "Chatroom doesn't have scheduled meetings";
-
-    // Close preview
-    *previewsUpdated = false;
-    megaChatApi[a3]->closeChatPreview(chatid);
-    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for close preview";
-
-    // logout from terciary account
-    ASSERT_NO_FATAL_FAILURE({ logout(a3); });
-
-    // Note: Speak request feature is temporarily disabled, enable this test once
-    // SFU code has been updated and MegaChat also has made required adjustments
-    /*
-    // disable speak request again
-    if (!chatRoom->isSpeakRequest())
-    {
-        ChatRequestTracker crtChatOpt;
-        megaChatApi[a1]->setSpeakRequest(chatid, false, &crtChatOpt);
-        ASSERT_EQ(crtChatOpt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to disable speak request. Error: " << crtChatOpt.getErrorString();
-    }*/
 
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom->getPeerPrivilegeByHandle(user->getHandle()) == megachat::MegaChatPeerList::PRIV_STANDARD)
@@ -5540,10 +5495,111 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // when this object goes out of scope testCleanup will be executed ending any call in this chat and freeing any resource associated to it
     MrProper p (testCleanup, chatid);
 
-    // [Test1]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
+    // [Test1]: Create chatlink and check data received from API (mcphurl)
+    LOG_debug << "Test 1: Create chatlink and check data received from API (mcphurl)";
+
+    // Create chat link
+    ChatRequestTracker crtCreateLink;
+    megaChatApi[a1]->createChatLink(chatid, &crtCreateLink);
+    ASSERT_EQ(crtCreateLink.waitForResult(), MegaChatError::ERROR_OK) << "Creating chat link failed. Should have succeeded!";
+
+    // Init anonymous in terciary account and connect
+    initState[a3] = megaChatApi[a3]->initAnonymous();
+    ASSERT_EQ(initState[a3], MegaChatApi::INIT_ANONYMOUS) << "Init sesion in anonymous mode for terciary account failed";
+    std::unique_ptr<char[]>tertiarySession(megaApi[a3]->dumpSession());
+
+    // Open chat link and check that wr flag and scheduled meetings have been received upon onRequestFinish(TYPE_LOAD_PREVIEW)
+    ChatRequestTracker crtOpenLink;
+    bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
+    megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink);
+    ASSERT_EQ(crtOpenLink.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
+    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for open preview";
+    // check chatroom options upon onRequestFinish (TYPE_LOAD_PREVIEW)
+    const int chatOptions = crtOpenLink.getPrivilege();
+    ASSERT_TRUE(crtOpenLink.hasScheduledMeetings()) << "Chatroom doesn't have scheduled meeting";
+    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions))  << "Waiting room is disabled";
+    //
+    //ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions)) << "Speak request is disabled";
+    ASSERT_TRUE(MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions))   << "Open invite is disabled";
+
+    // get scheduled meeting list from chatroom
+    std::unique_ptr<MegaChatScheduledMeetingList> smlist(megaChatApi[a3]->getScheduledMeetingsByChat(chatid));
+    ASSERT_TRUE(smlist && smlist->size()) << "Chatroom doesn't have scheduled meetings";
+
+    // [Test 2]: Modify chat, rejoin chatlink and check if changes have been applied
+    LOG_debug << "Test2: Modify chat, rejoin chatlink and check for changes";
+
+    // Modify chatroom disabling chatoptions
+    ChatRequestTracker crtChatOpt2;
+    megaChatApi[a1]->setOpenInvite(chatid, false, &crtChatOpt2);
+    ASSERT_EQ(crtChatOpt2.waitForResult(), MegaChatError::ERROR_OK) << "Failed to disable open invite. Error: " << crtChatOpt2.getErrorString();
+
+    // Modify chatroom changing title
+    title.append("_MOD");
+    changeTitle(a1, chatroomListener.get(), chatid, title);
+
+    // Modify chatroom sched meeting
+    const MegaChatScheduledMeeting *smaux = smlist->at(0)->copy();
+    ASSERT_TRUE(smaux) << "Invalid scheduled meeting";
+    SchedMeetingData d;
+    d.chatId = smaux->chatId();
+    d.schedId = smaux->schedId();
+    d.timeZone = smaux->timezone();
+    d.startDate = smaux->startDateTime() + 60;
+    d.endDate = smaux->endDateTime() + 60;
+    d.title = smaux->title();
+    d.description = smaux->title();
+    d.cancelled = smaux->cancelled();
+    d.flags.reset(smaux->flags()->copy());
+    d.rules.reset(smaux->rules()->copy());
+    ASSERT_NO_FATAL_FAILURE({ updateSchedMeeting(a1, a2, MegaChatError::ERROR_OK, d, false /*updateChatTitle*/); });
+
+    // Open chat link again and check that onchatlistIemUpdate with change CHANGE_TYPE_PREVIEW_CLOSED is received
+    bool *chatPreviewClosedChanged = &chatPreviewClosed[a3]; *chatPreviewClosedChanged = false;
+    ChatRequestTracker crtOpenLink2;
+    *previewsUpdated = false;
+    megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink2);
+    ASSERT_EQ(crtOpenLink2.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
+    ASSERT_TRUE(waitForResponse(chatPreviewClosedChanged)) << "Timeout expired for automatically preview close";
+
+    // check that modified options above have been properly updated on chatroom
+    std::unique_ptr<MegaChatRoom> room(megaChatApi[a3]->getChatRoom(d.chatId));
+    ASSERT_TRUE(room) << "Cannot get chatroom for id " << getChatIdStrB64(d.chatId);
+    ASSERT_TRUE(!room->isOpenInvite()) << "Open invite option is not disabled, chatid: "<< getChatIdStrB64(d.chatId);
+    ASSERT_TRUE(!title.compare(room->getTitle())) << "Title doesn't matych with expected one, chatid: "<< getChatIdStrB64(d.chatId);
+
+    std::unique_ptr<MegaChatScheduledMeetingList> auxsmlist(megaChatApi[a3]->getScheduledMeetingsByChat(d.chatId));
+    ASSERT_TRUE(auxsmlist && auxsmlist->size()) << "";
+    for (unsigned long i = 0; i < auxsmlist->size(); ++i)
+    {
+        const MegaChatScheduledMeeting* sm = auxsmlist->at(i);
+        if (sm->schedId() != d.schedId) { continue; }
+        ASSERT_TRUE(sm->startDateTime() == d.startDate && sm->endDateTime() == d.endDate);
+    }
+
+    // Close preview
+    *previewsUpdated = false;
+    megaChatApi[a3]->closeChatPreview(chatid);
+    ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for close preview";
+
+    // logout from terciary account
+    ASSERT_NO_FATAL_FAILURE({ logout(a3); });
+
+    chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
+    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
+
+    if (chatRoom->isSpeakRequest())
+    {
+        // disable speak request again
+        ChatRequestTracker crtChatOpt;
+        megaChatApi[a1]->setSpeakRequest(chatid, false, &crtChatOpt);
+        ASSERT_EQ(crtChatOpt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to disable speak request. Error: " << crtChatOpt.getErrorString();
+    }
+
+    // [Test3]: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call.
     //          Call won't ring for the rest of participants as schedId is provided
     // ----------------------------------------------------------------------------------------------------------------
-    LOG_debug << "Test1: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
+    LOG_debug << "Test3: A starts a groupal meeting, B it's (automatically) pushed into waiting room and A grants access to call";
     ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(schedId, false /*notRinging*/);});
     auxCall.reset(megaChatApi[a1]->getChatCall(chatid));
 
@@ -5567,25 +5623,25 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // because JOIN command is automatically managed by karere, and is only sent when user has permission to JOIN
     grantsJoinPermission();
 
-    // [Test2]: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
+    // [Test4]: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)
     // ------------------------------------------------------------------------------------------------------
-    LOG_debug << "Test2: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)";
+    LOG_debug << "Test4: A Pushes B into waiting room, (A ignores it, there's no way to reject a Join req)";
     pushIntoWr();
 
     // ** note: can't simulate use case where a1 sends WR_PUSH for a2, and a2 is still in waiting room, but has already received WR_ALLOW.
     // In that case SFU would send WR_USERS_DENY to all moderators, however this is a race condition, as upon WR_ALLOW, karere automatically
     // sends JOIN command
 
-    // [Test3]: A kicks (completely disconnect) B from call
+    // [Test5]: A kicks (completely disconnect) B from call
     // ------------------------------------------------------------------------------------------------------
-    LOG_debug << "Test3: A kicks (completely disconnect) B from call and then ends call for all participants";
+    LOG_debug << "Test5: A kicks (completely disconnect) B from call and then ends call for all participants";
     kickAndEndCall(auxCall->getCallId());
 
-    // [Test4]: A starts call relying on waiting room flag from chatroom.
+    // [Test6]: A starts call relying on waiting room flag from chatroom.
     //          Call will ring for the rest of participants as notRinging is false
     //          B will bypass waiting room when he answers the call
     // --------------------------------------------------------------------------------------------------------------
-    LOG_debug << "Test4: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)";
+    LOG_debug << "Test6: A starts call Bypassing waiting room, B Joins directly to the call (Addhoc call)";
     mCallIdExpectedReceived[a1] = mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
     ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(MEGACHAT_INVALID_HANDLE /*schedId*/, false /*notRinging*/);});
 
@@ -5598,9 +5654,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 //    ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(false /*waitingRoom*/);});
     endCallPrimaryAccount(mCallIdJoining[a1]);
 
-    // [Test5]: B JOINS automatically to call from Waiting Room, when he receives MOD_ADD command from SFU
+    // [Test7]: B JOINS automatically to call from Waiting Room, when he receives MOD_ADD command from SFU
     // ----------------------------------------------------------------------------------------------------------------
-    LOG_debug << "Test5: B JOINS automatically to call from Waiting Room, when he receives MOD_ADD command from SFU";
+    LOG_debug << "Test7: B JOINS automatically to call from Waiting Room, when he receives MOD_ADD command from SFU";
     // A starts call
     bool* a2CallProgress = &mCallInProgress[a2]; *a2CallProgress = false;
     bool* a2CallPermChanged = &mOwnCallPermissionsChanged[a2]; *a2CallPermChanged = false;
@@ -5630,13 +5686,13 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_TRUE(waitForResponse(a2CallProgress)) << "Timeout expired for JOINING call from a2, after being promoted to host";
     endCallPrimaryAccount(mCallIdJoining[a1]);
 
-    // [Test6]: A starts call relying on waiting room flag from chatroom.
+    // [Test8]: A starts call relying on waiting room flag from chatroom.
     //          Call won't ring for the rest of participants as notRinging is true,
     //          B will be redirected to waiting room when he answers the call
     //
     // Test preconditions: Callee user must be non-host, otherwise it won't be redirected to waiting room by SFU
     // ---------------------------------------------------------------------------------------------------------
-    LOG_debug << "Test6: A starts call with waiting room, B is redirected to waiting room";
+    LOG_debug << "Test8: A starts call with waiting room, B is redirected to waiting room";
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
     ASSERT_TRUE(chatRoom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
     if (chatRoom->getPeerPrivilegeByHandle(uh) != megachat::MegaChatPeerList::PRIV_STANDARD)
@@ -8421,6 +8477,20 @@ void MegaChatApiTest::updateSchedMeeting(const unsigned int a1, const unsigned i
                                                             << getSchedIdStrB64(smData.schedId);
 }
 
+void MegaChatApiTest::changeTitle(const unsigned int a1, TestChatRoomListener* chatroomListener, const megachat::MegaChatHandle chatid, const std::string& title)
+{
+    bool *titleItemChanged0 = &titleUpdated[a1]; *titleItemChanged0 = false;
+    bool *titleChanged0 = &chatroomListener->titleUpdated[a1]; *titleChanged0 = false;
+    bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
+    string *msgContent = &chatroomListener->content[a1]; *msgContent = "";
+    ChatRequestTracker crtSetTitle;
+    megaChatApi[a1]->setChatTitle(chatid, title.c_str(), &crtSetTitle);
+    ASSERT_EQ(crtSetTitle.waitForResult(), MegaChatError::ERROR_OK) << "Failed to set chat title. Error: " << crtSetTitle.getErrorString();
+    ASSERT_TRUE(waitForResponse(titleItemChanged0)) << "Timeout expired for receiving chat list item update";
+    ASSERT_TRUE(waitForResponse(titleChanged0)) << "Timeout expired for receiving chatroom update";
+    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
+    ASSERT_EQ(title, *msgContent) << "Title received doesn't match the title set";
+}
 
 void MegaChatApiTest::onRequestFinish(MegaApi *api, MegaRequest *request, MegaError *e)
 {
@@ -8532,6 +8602,10 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_ARCHIVE))
         {
             chatArchived[apiIndex] = true;
+        }
+        if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_PREVIEW_CLOSED))
+        {
+            chatPreviewClosed[apiIndex] = true;
         }
 
         chatItemUpdated[apiIndex] = true;

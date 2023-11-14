@@ -734,6 +734,9 @@ protected:
     // updates an existing scheduled meeting
     void updateSchedMeeting(const unsigned int a1, const unsigned int a2, const int expectedError, const SchedMeetingData& smData, const bool updateChatTitle);
 
+    // update chatroom title
+    void changeTitle(const unsigned int a1, TestChatRoomListener* chatroomListener, const megachat::MegaChatHandle chatid, const std::string& title);
+
 #ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
@@ -773,6 +776,7 @@ protected:
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
     bool chatArchived[NUM_ACCOUNTS];
+    bool chatPreviewClosed[NUM_ACCOUNTS];
 
     ::mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
     ::mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
