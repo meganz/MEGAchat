@@ -173,7 +173,8 @@ public:
     virtual void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
     virtual void onWrPushedFromCall(const rtcModule::ICall& call) = 0;
     virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
-    virtual void onSpeakStatusUpdate(const rtcModule::ICall& call) = 0;
+    virtual void onOwnUserSpeakStatusUpdate(const rtcModule::ICall& call) = 0;
+    virtual void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
 };
 
 class KarereWaitingRoom;

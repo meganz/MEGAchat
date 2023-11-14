@@ -8018,6 +8018,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mParticipants = call.mParticipants;
     mHandleList.reset(call.getHandleList() ? call.getHandleList()->copy() : nullptr);
     mSpeakRequest = call.isSpeakRequestEnabled();
+    mHandle = call.getHandle();
+    mFlag = call.getFlag();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
@@ -8154,6 +8156,26 @@ MegaChatHandle MegaChatCallPrivate::getPeeridCallCompositionChange() const
 int MegaChatCallPrivate::getCallCompositionChange() const
 {
     return mCallCompositionChange;
+}
+
+MegaChatHandle MegaChatCallPrivate::getHandle() const
+{
+    return mHandle;
+}
+
+void MegaChatCallPrivate::setHandle(const MegaChatHandle h)
+{
+    mHandle = h;
+}
+
+bool MegaChatCallPrivate::getFlag() const
+{
+    return mFlag;
+}
+
+void MegaChatCallPrivate::setFlag(const bool f)
+{
+    mFlag = f;
 }
 
 MegaChatSession *MegaChatCallPrivate::getMegaChatSession(MegaChatHandle clientId)
@@ -11372,7 +11394,16 @@ void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::st
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
-void MegaChatCallHandler::onSpeakStatusUpdate(const rtcModule::ICall& call)
+void MegaChatCallHandler::onUserSpeakStatusUpdate(const rtcModule::ICall& call, const Id& userid, const bool add)
+{
+    auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setHandle(userid);
+    chatCall->setFlag(add);
+    chatCall->setChange(MegaChatCall::CHANGE_USERS_SPEAK_PERMISSION);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onOwnUserSpeakStatusUpdate(const rtcModule::ICall& call)
 {
     auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_SPEAK);

@@ -322,6 +322,16 @@ int MegaChatCall::getCallCompositionChange() const
     return NO_COMPOSITION_CHANGE;
 }
 
+MegaChatHandle MegaChatCall::getHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::getFlag() const
+{
+    return false;
+}
+
 MegaHandleList *MegaChatCall::getPeeridParticipants() const
 {
     return NULL;

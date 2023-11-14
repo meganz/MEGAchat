@@ -293,7 +293,10 @@ public:
     bool hasPendingSpeakRequest() const override;
     int getWrJoiningState() const override;
     const MegaChatWaitingRoom* getWaitingRoom() const override;
-
+    MegaChatHandle getHandle() const override;
+    void setHandle(const MegaChatHandle h);
+    bool getFlag() const override;
+    void setFlag(const bool f);
     void setStatus(int status);
     void removeChanges();
     void setChange(int changed);
@@ -326,6 +329,7 @@ protected:
     std::map<MegaChatHandle, std::unique_ptr<MegaChatSession>> mSessions;
     std::vector<MegaChatHandle> mParticipants;
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
+    MegaChatHandle mHandle = MEGACHAT_INVALID_HANDLE;
     int mCallCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle mCallerId;
     std::string mMessage;
@@ -343,6 +347,7 @@ protected:
     bool mIsOwnClientCaller = false;
     bool mOwnModerator = false;
     bool mSpeakRequest = false;
+    bool mFlag = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
 };
@@ -724,7 +729,8 @@ public:
     void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrPushedFromCall(const rtcModule::ICall& call) override;
     void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) override;
-    void onSpeakStatusUpdate(const rtcModule::ICall& call) override;
+    void onOwnUserSpeakStatusUpdate(const rtcModule::ICall& call) override;
+    void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;

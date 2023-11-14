@@ -3025,6 +3025,11 @@ bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, co
     {
         setSpeakerState(add ? SpeakerState::kActive : SpeakerState::kNoSpeaker);
     }
+    else
+    {
+        // notify change, and in case session is not still verified app will be informed anyway
+        mCallHandler.onUserSpeakStatusUpdate(*this, userid, add);
+    }
 
     // for all sessions whose userid matches with received one, update speak permission value
     for (auto& it : mPeersVerification)
@@ -3092,7 +3097,7 @@ void Call::setSpeakerState(const SpeakerState state)
 {
     if (state == mSpeakerState) { return; }
     mSpeakerState = state;
-    mCallHandler.onSpeakStatusUpdate(*this);
+    mCallHandler.onOwnUserSpeakStatusUpdate(*this);
 }
 
 Keyid_t Call::generateNextKeyId()

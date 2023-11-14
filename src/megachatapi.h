@@ -532,7 +532,8 @@ public:
         CHANGE_TYPE_WR_USERS_LEAVE = 0x8000,        /// Notify about users that have been left the waiting room (either entered the call or disconnected). (just for moderators)
         CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted to enter the call. (just for moderators)
         CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied to enter the call. (just for moderators)
-        CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X40000   /// We have been pushed into a waiting room
+        CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X40000,  /// We have been pushed into a waiting room
+        CHANGE_USERS_SPEAK_PERMISSION = 0X80000,    /// Notify about a user whose speak permission has changed
     };
 
     enum
@@ -1057,6 +1058,29 @@ public:
      * @return A list of handles with the ids of peers
      */
     virtual mega::MegaHandleList *getPeeridParticipants() const;
+
+    /**
+     * @brief Get a MegaChatHandle used to notify multiple events
+     *
+     * This function only returns a valid MegaChatHandle in the following scenarios:
+     * - MegaChatCall::CHANGE_USERS_SPEAK_PERMISSION is notified via MegaChatCallListener::onChatCallUpdate
+     *   to indicate that speak permission for a call participant has changed
+     *
+     * @return a MegaChatHandle used to notify multiple events
+     */
+    virtual MegaChatHandle getHandle() const;
+
+    /**
+     * @brief Get a boolean used to notify multiple events
+     *
+     * This function only returns a valid value in the following scenarios:
+     * - MegaChatCall::CHANGE_USERS_SPEAK_PERMISSION is notified via MegaChatCallListener::onChatCallUpdate
+     *   + this method returns true to indicate that speak permission for a call participant has been granted
+     *   + this method returns false to indicate that speak permission for a call participant has been revoked
+     *
+     * @return a boolean used to notify multiple events
+     */
+    virtual bool getFlag() const;
 
     /**
      * @brief Get a MegaHandleList with the ids of peers that have moderator role in the call
