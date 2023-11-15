@@ -1051,6 +1051,11 @@ public:
         return (finished() && request && request->getText()) ? request->getText() : std::string();
     }
 
+    long long getNumber() const
+    {
+        return (finished() && request) ? request->getNumber() : 0;
+    }
+
     bool getFlag() const
     {
         return (finished() && request) ? request->getFlag() : false;

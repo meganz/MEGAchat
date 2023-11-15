@@ -3207,6 +3207,155 @@ TEST_F(MegaChatApiTest, GroupLastMessage)
 }
 
 /**
+ * @brief MegaChatApiTest.RetentionHistoryImport
+ *
+**/
+class MegaChatApiTest_RetentionHistory : public MegaChatApiTest
+{
+protected:
+    const unsigned b = 0;
+    std::unique_ptr<char[]> sessionB;
+
+    const unsigned a1 = 1;
+    std::unique_ptr<char[]> sessionA1;
+
+    const unsigned a2 = 2; // NSE
+    std::unique_ptr<char[]> sessionNSE;
+    std::string dbPathNSE;
+
+    MegaChatHandle chatid = 0;
+
+    TestChatRoomListener* chatroomListener(unsigned id)
+    {
+        auto& lsnr = listeners[id];
+        if (!lsnr)
+        {
+            lsnr = ::mega::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
+        }
+        return lsnr.get();
+    }
+
+    // copy of karere::Client::dbPath()
+    string karereClientDbPath(const string& appPath, const string& sid)
+    {
+        string path = appPath;
+        if (sid.empty())    // anonoymous-mode
+        {
+            path.reserve(20);
+            path.append("/karere-").append("anonymous.db");
+        }
+        else
+        {
+            if (sid.size() < 50)
+            {
+                std::cout << "TEST - dbPath: sid is too small" << std::endl;
+                return string();
+            }
+
+            path.reserve(56);
+            path.append("/karere-").append(sid.c_str()+44).append(".db");
+        }
+
+        return path;
+    }
+
+    void testImport(long long expectedCount)
+    {
+        // special login for a1
+        ASSERT_TRUE(chatApiInit(a1, sessionA1.get())) << "Failed to init a1";
+        ASSERT_EQ(megaChatApi[a1]->getInitState(), MegaChatApi::INIT_OFFLINE_SESSION) << "Wrong init state for a1";
+        ASSERT_TRUE(chatApiLogin(a1, sessionA1.get())) << "Failed to login a1";
+
+        // import messages from NSE-simulation db path => Db from account a1 still has all messages but Db from NSE account doesn't have those messages as they have been truncated.
+        ChatRequestTracker crtImportHist1;
+        megaChatApi[a1]->importMessages(dbPathNSE.c_str(), &crtImportHist1);
+        ASSERT_EQ(crtImportHist1.waitForResult(), MegaChatError::ERROR_OK) <<
+                  "Failed to import history to a1 from NSE (a2). Error: " << crtImportHist1.getErrorString();
+        ASSERT_EQ(crtImportHist1.getNumber(), expectedCount) << "Imported wrong number of messages";
+        ASSERT_NO_FATAL_FAILURE(logout(a1));
+    }
+
+    ~MegaChatApiTest_RetentionHistory() override
+    {
+        EXPECT_NO_FATAL_FAILURE(disconnect(a1, true));
+        EXPECT_NO_FATAL_FAILURE(disconnect(a2, true));
+        EXPECT_NO_FATAL_FAILURE(disconnect(b, true));
+    }
+
+    void setRetentionTime(unsigned id, unsigned period)
+    {
+        std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[id]->getChatRoom(chatid));
+        if (chatroom->getRetentionTime() == period)
+        {
+            // nothing to do, already set
+            return;
+        }
+
+        bool *retentionTimeChanged = &chatroomListener(id)->retentionTimeUpdated[id]; *retentionTimeChanged = false;
+        bool *mngMsgRecv = &chatroomListener(id)->msgReceived[id]; *mngMsgRecv = false;
+        ChatRequestTracker crtSetRetention;
+        megaChatApi[id]->setChatRetentionTime(chatid, period, &crtSetRetention);
+        ASSERT_EQ(crtSetRetention.waitForResult(), MegaChatError::ERROR_OK)
+                << "Setting retention time: Unexpected error: " << crtSetRetention.getErrorString();
+        ASSERT_TRUE(waitForMultiResponse({retentionTimeChanged, mngMsgRecv}, true, 20)) << "Timeout while waiting for Retention time to change, for " << id;
+    }
+
+    void disconnect(unsigned id, bool resetRetentionTime = false)
+    {
+        if (!megaChatApi[id]) return;
+
+        auto& listener = listeners[id];
+
+        std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[id]->getChatRoom(chatid));
+        if (chatroom)
+        {
+            if (resetRetentionTime)
+            {
+                setRetentionTime(id, 0);
+            }
+
+            megaChatApi[id]->closeChatRoom(chatid, listener.get()); // doesn't matter if listener was null
+        }
+
+        listener.reset();
+
+        ASSERT_NO_FATAL_FAILURE(logout(id));
+    }
+
+private:
+    std::map<unsigned, std::unique_ptr<TestChatRoomListener>> listeners;
+};
+
+
+
+TEST_F(MegaChatApiTest_RetentionHistory, Import)
+{
+    // Login chatting accounts
+    sessionB.reset(login(b));
+    ASSERT_TRUE(sessionB);
+    sessionA1.reset(login(a1));
+    ASSERT_TRUE(sessionA1);
+
+    // Ensure contacts
+    if (!areContact(a1, b))
+    {
+        ASSERT_NO_FATAL_FAILURE(makeContact(a1, b));
+    }
+
+    // Get a group chatroom with {a1, b}
+    std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
+    peers->addPeer(megaChatApi[b]->getMyUserHandle(), MegaChatPeerList::PRIV_MODERATOR);
+    chatid = getGroupChatRoom({a1, b}, peers.get());
+    ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE);
+
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
+    ASSERT_TRUE(megaChatApi[b]->openChatRoom(chatid, chatroomListener(b))) << "Can't open chatRoom for account b";
+    ASSERT_NO_FATAL_FAILURE(setRetentionTime(a1, 0)); // reset retention time, if it was left by a previous session
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+ }
+
+/**
  * @brief MegaChatApiTest.RetentionHistory
  *
  * Requirements:
