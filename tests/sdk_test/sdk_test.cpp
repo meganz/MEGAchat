@@ -3353,6 +3353,34 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(setRetentionTime(a1, 0)); // reset retention time, if it was left by a previous session
     ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+
+    ///
+    ///  Import messages after history truncation
+    ///
+    cout << "///  Import messages after history truncation" << endl;
+
+    // set up NSE-simulation
+    const string a2Email(account(a1).getEmail());
+    sessionNSE.reset(login(a2, nullptr, a2Email.c_str(), account(a1).getPassword().c_str()));
+    ASSERT_TRUE(sessionNSE);
+
+    // get NSE db
+    ASSERT_TRUE(megaApi[a2]->getBasePath());
+    dbPathNSE = karereClientDbPath(megaApi[a2]->getBasePath(), sessionNSE.get());
+    ASSERT_FALSE(dbPathNSE.empty());
+
+    // truncate NSE db
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
+    ChatRequestTracker crtClearHist;
+    megaChatApi[a2]->clearChatHistory(chatid, &crtClearHist);
+    ASSERT_EQ(crtClearHist.waitForResult(), MegaChatError::ERROR_OK)
+            << "Failed to truncate history for account NSE (a2). Error: " << crtClearHist.getErrorString();
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Should (only) have the special 'truncate' message"; // SOMETIMES it has 0 messages after import !
  }
 
 /**
