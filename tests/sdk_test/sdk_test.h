@@ -529,7 +529,7 @@ public:
     };
 
     MegaChatApiTest();
-    ~MegaChatApiTest();
+    ~MegaChatApiTest() override;
 
     // Global test environment initialization
     static void init();

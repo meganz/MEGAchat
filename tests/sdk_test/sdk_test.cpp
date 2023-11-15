@@ -7771,27 +7771,34 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
                                                 TestChatRoomListener *chatroomListener, MegaChatHandle messageId)
 {
     bool *flagConfirmed = NULL;
-    bool *flagReceived = NULL;
     bool *flagDelivered = &chatroomListener->msgDelivered[senderAccountIndex]; *flagDelivered = false;
     chatroomListener->clearMessages(senderAccountIndex);
-    chatroomListener->clearMessages(receiverAccountIndex);
+
+    bool *flagReceived = NULL;
+    bool checkReceiver = receiverAccountIndex < NUM_ACCOUNTS;
+    if (checkReceiver)
+    {
+        chatroomListener->clearMessages(receiverAccountIndex);
+        flagReceived = messageId == MEGACHAT_INVALID_HANDLE ?
+                       &chatroomListener->msgReceived[receiverAccountIndex] :
+                       &chatroomListener->msgEdited[receiverAccountIndex];
+        *flagReceived = false;
+    }
 
     MegaChatMessage *messageSendEdit = NULL;
     MegaChatHandle *msgidSendEdit = NULL;
-    if (messageId == MEGACHAT_INVALID_HANDLE)
+    bool editing = messageId != MEGACHAT_INVALID_HANDLE;
+    if (!editing)
     {
         flagConfirmed = &chatroomListener->msgConfirmed[senderAccountIndex]; *flagConfirmed = false;
-        flagReceived = &chatroomListener->msgReceived[receiverAccountIndex]; *flagReceived = false;
-
+        msgidSendEdit = &chatroomListener->mConfirmedMessageHandle[senderAccountIndex]; *msgidSendEdit = MEGACHAT_INVALID_HANDLE;
         messageSendEdit = megaChatApi[senderAccountIndex]->sendMessage(chatid, textToSend.c_str());
-        msgidSendEdit = &chatroomListener->mConfirmedMessageHandle[senderAccountIndex];
     }
     else  // Update Message
     {
         flagConfirmed = &chatroomListener->msgEdited[senderAccountIndex]; *flagConfirmed = false;
-        flagReceived = &chatroomListener->msgEdited[receiverAccountIndex]; *flagReceived = false;
+        msgidSendEdit = &chatroomListener->mEditedMessageHandle[senderAccountIndex]; *msgidSendEdit = MEGACHAT_INVALID_HANDLE;
         messageSendEdit = megaChatApi[senderAccountIndex]->editMessage(chatid, messageId, textToSend.c_str());
-        msgidSendEdit = &chatroomListener->mEditedMessageHandle[senderAccountIndex];
     }
 
     EXPECT_TRUE(messageSendEdit) << "Failed to edit message";
@@ -7808,38 +7815,43 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     if (!messageSent) return nullptr;
     EXPECT_EQ(messageSent->getMsgId(), msgPrimaryId) << "Failed to retrieve the message id";
     if (messageSent->getMsgId() != msgPrimaryId) return nullptr;
+    if (editing)
+    {
+        EXPECT_TRUE(messageSent->isEdited()) << "Edited messages was not reported as such to sender";
+        if (!messageSent->isEdited()) return nullptr;
+    }
 
-    responseOk = waitForResponse(flagReceived);
-    EXPECT_TRUE(responseOk) << "Timeout expired for receiving message by target user";    // for reception
-    if (!responseOk) return nullptr;
-    responseOk = chatroomListener->hasArrivedMessage(receiverAccountIndex, msgPrimaryId);
-    EXPECT_TRUE(responseOk) << "Message id of sent message and received message don't match";
-    if (!responseOk) return nullptr;
-    MegaChatHandle msgSecondaryId = msgPrimaryId;
-    MegaChatMessage *messageReceived = megaChatApi[receiverAccountIndex]->getMessage(chatid, msgSecondaryId);   // message should be already received, so in RAM
-    EXPECT_TRUE(messageReceived) << "Failed to retrieve the message at the receiver account";
-    if (!messageReceived) return nullptr;
-    EXPECT_STREQ(textToSend.c_str(), messageReceived->getContent()) << "Content of message received doesn't match the content of sent message";
-    if (strcmp(textToSend.c_str(), messageReceived->getContent())) return nullptr;
+    if (checkReceiver)
+    {
+        bool responseOk = waitForResponse(flagReceived);
+        EXPECT_TRUE(responseOk) << "Timeout expired for receiving message by target user";    // for reception
+        if (!responseOk) return nullptr;
+        responseOk = chatroomListener->hasArrivedMessage(receiverAccountIndex, msgPrimaryId);
+        EXPECT_TRUE(responseOk) << "Message id of sent message and received message don't match";
+        if (!responseOk) return nullptr;
+        MegaChatHandle msgSecondaryId = msgPrimaryId;
+        std::unique_ptr<MegaChatMessage> messageReceived(megaChatApi[receiverAccountIndex]->getMessage(chatid, msgSecondaryId));   // message should be already received, so in RAM
+        EXPECT_TRUE(messageReceived) << "Failed to retrieve the message at the receiver account";
+        if (!messageReceived) return nullptr;
+        EXPECT_STREQ(textToSend.c_str(), messageReceived->getContent()) << "Content of message received doesn't match the content of sent message";
+        if (strcmp(textToSend.c_str(), messageReceived->getContent())) return nullptr;
+
+        // Update Message
+        if (editing)
+        {
+            EXPECT_TRUE(messageReceived->isEdited()) << "Edited messages is not reported as edition";
+            if (!messageReceived->isEdited()) return nullptr;
+        }
+    }
 
     // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
     if (megaChatApi[senderAccountIndex]->isMessageReceptionConfirmationActive()
             && !megaChatApi[senderAccountIndex]->getChatRoom(chatid)->isGroup())
     {
-        responseOk = waitForResponse(flagDelivered);
+        bool responseOk = waitForResponse(flagDelivered);
         EXPECT_TRUE(responseOk) << "Timeout expired for receiving delivery notification";    // for delivery
         if (!responseOk) return nullptr;
     }
-
-    // Update Message
-    if (messageId != MEGACHAT_INVALID_HANDLE)
-    {
-        EXPECT_TRUE(messageReceived->isEdited()) << "Edited messages is not reported as edition";
-        if (!messageReceived->isEdited()) return nullptr;
-    }
-
-    delete messageReceived;
-    messageReceived = NULL;
 
     return messageSent;
 }
