@@ -5531,11 +5531,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
-        if (checkRetentionHist)
-        {
-            // Call after add message to history
-            handleRetentionTime();
-        }
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mChatdClient.mMyHandle) && // message is not ours
@@ -5619,6 +5614,16 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
           //onLastTextMessageUpdated() with it
             notifyLastTextMsg();
         }
+    }
+
+    if (checkRetentionHist && !isLocal)
+    {
+        // Deleting messages according to Retention time is done from mBackwardList and mForwardList.
+        // If done earlier in this function, it will lead to a CRASH in case the received msg
+        // originated from there, or is owned by them by now.
+        //
+        // I suspect this is not the perfect place for it though. But at least moving it here avoided crashes.
+        handleRetentionTime();
     }
 }
 
