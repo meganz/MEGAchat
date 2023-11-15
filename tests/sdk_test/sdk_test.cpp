@@ -3403,6 +3403,22 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
 
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported";
+
+
+    ///
+    ///  Import messages after a message has been updated
+    ///
+    cout << "///  Import messages after a message has been updated" << endl;
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(a2, UINT_MAX, chatid, "message updated by NSE (a2)", chatroomListener(a2), lastMessageId));
+    ASSERT_TRUE(msgSent);
+    ASSERT_EQ(lastMessageId, msgSent->getMsgId()) << "Message has different id after update";
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Updated message should have been imported";
  }
 
 /**
