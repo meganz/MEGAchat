@@ -3419,6 +3419,21 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Updated message should have been imported";
+
+
+    ///
+    ///  Import messages after a message has been deleted
+    ///
+    cout << "///  Import messages after a message has been deleted" << endl;
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    std::unique_ptr<MegaChatMessage> deletedMessage(megaChatApi[a2]->deleteMessage(chatid, lastMessageId));
+    ASSERT_TRUE(deletedMessage) << "Failed to delete a message by NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; deleted message doesn't count"; // really ?
  }
 
 /**
