@@ -3478,6 +3478,32 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; marked as read message doesn't count"; // really ?
+
+
+    ///
+    ///  Import messages when lastSeenId was zero, while having retention time set
+    ///
+    cout << "///  Import messages when lastSeenId was zero, while having retention time set" << endl;
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    ChatRequestTracker crtClearHistA2;
+    megaChatApi[a2]->clearChatHistory(chatid, &crtClearHistA2);
+    ASSERT_EQ(crtClearHistA2.waitForResult(), MegaChatError::ERROR_OK)
+            << "Failed to truncate history for account a2. Error: " << crtClearHistA2.getErrorString();
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    bool *flagRetentionHistTruncated = &chatroomListener(a2)->retentionHistoryTruncated[a2]; *flagRetentionHistTruncated = false;
+    ASSERT_NO_FATAL_FAILURE(setRetentionTime(a2, 5));
+    EXPECT_TRUE(waitForResponse(flagRetentionHistTruncated)) << "Timeout expired for retention history to be truncated";
+    MegaChatHandle lastMessageSeenAfterTruncation2 = megaChatApi[a2]->getLastMessageSeenId(chatid);
+    ASSERT_EQ(lastMessageSeenAfterTruncation2, 0) << "Invalid message seen id after truncation";
+    std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[a2]->getChatRoom(chatid));
+    ASSERT_TRUE(chatroom);
+    ASSERT_EQ(chatroom->getRetentionTime(), 5);
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should be there, including 'truncate', because they all got truncated";
  }
 
 /**
