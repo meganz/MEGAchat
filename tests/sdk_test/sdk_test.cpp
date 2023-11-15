@@ -8202,6 +8202,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned accountIndex, const vector<Meg
         }
 
         if (chatroom->isGroup() && chatroom->isActive() &&
+            chatroom->getPeerPrivilegeByHandle(megaChatApi[accountIndex]->getMyUserHandle()) != PRIV_UNKNOWN && // only if in that chatroom
             std::find(skipChats.begin(), skipChats.end(), chatroom->getChatId()) == skipChats.end())
         {
             leaveChat(accountIndex, chatroom->getChatId());
