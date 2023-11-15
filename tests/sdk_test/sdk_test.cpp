@@ -7577,8 +7577,8 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
     {
         targetChatid = createChat();
     }
-    // wait for all clients to be connected to chatd for the chatroom
-    if (targetChatid != MEGACHAT_INVALID_HANDLE)
+    // wait for all clients to be connected to chatd for the chatroom, except in TearDown()
+    if (targetChatid != MEGACHAT_INVALID_HANDLE && create)
     {
         const bool allConnected = std::all_of(std::begin(a), std::end(a), [this, &targetChatid](const auto& ai)
         {
