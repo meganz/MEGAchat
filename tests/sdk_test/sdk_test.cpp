@@ -3434,6 +3434,32 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; deleted message doesn't count"; // really ?
+
+
+    ///
+    ///  Import messages when chat history is empty in the app
+    ///
+    cout << "///  Import messages when chat history is empty in the app" << endl;
+
+    // clear history in app
+    sessionA1.reset(login(a1, sessionA1.get()));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
+    ChatRequestTracker crtClearHistA1;
+    megaChatApi[a1]->clearChatHistory(chatid, &crtClearHistA1);
+    ASSERT_EQ(crtClearHistA1.waitForResult(), MegaChatError::ERROR_OK)
+            << "Failed to truncate history for account a1. Error: " << crtClearHistA1.getErrorString();
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+    // login NSE and get a message from b (will wait for received confirmation)
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    std::unique_ptr<MegaChatMessage> msgSentByB(sendTextMessageOrUpdate(b, UINT_MAX, chatid, "Msg from B", chatroomListener(b)));
+    ASSERT_TRUE(msgSentByB) << "Message from B was not sent";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last message
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "1 new message from B should have been imported";
  }
 
 /**
