@@ -989,7 +989,7 @@ protected:
 
     bool finished() const { return resultReceived; }
 
-private:
+protected:
     std::promise<int> promiseResult;
     std::future<int> futureResult = promiseResult.get_future();
     std::atomic<bool> resultReceived = false;
@@ -999,6 +999,19 @@ private:
 class RequestTracker : public ::mega::MegaRequestListener, public ResultHandler
 {
 public:
+    RequestTracker(mega::MegaApi *megaApi)
+        : mApi(megaApi)
+    {
+    }
+
+    ~RequestTracker()
+    {
+        if (!resultReceived)
+        {
+            mApi->removeRequestListener(this);
+        }
+    }
+
     void onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest* req,
                          ::mega::MegaError* e) override
     {
@@ -1030,11 +1043,25 @@ public:
 
 private:
     std::unique_ptr<::mega::MegaRequest> request;
+    mega::MegaApi* mApi;
 };
 
 class ChatRequestTracker : public megachat::MegaChatRequestListener, public ResultHandler
 {
 public:
+    ChatRequestTracker(megachat::MegaChatApi* megaChatApi)
+        : mMegaChatApi(megaChatApi)
+    {
+    }
+
+    ~ChatRequestTracker()
+    {
+        if (!resultReceived)
+        {
+            mMegaChatApi->removeChatRequestListener(this);
+        }
+    }
+
     void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
                          ::megachat::MegaChatError* e) override
     {
@@ -1088,6 +1115,7 @@ public:
 
 private:
     std::unique_ptr<::megachat::MegaChatRequest> request;
+    megachat::MegaChatApi* mMegaChatApi;
 };
 
 class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public ResultHandler
