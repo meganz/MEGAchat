@@ -113,32 +113,19 @@ MegaChatApiTest::~MegaChatApiTest()
 {
 }
 
-char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, const char *email, const char *password)
+bool MegaChatApiTest::chatApiInit(unsigned accountIndex, const char *session)
 {
-    std::string mail;
-    std::string pwd;
-    if (email == NULL || password == NULL)
-    {
-        mail = account(accountIndex).getEmail();
-        pwd = account(accountIndex).getPassword();
-    }
-    else
-    {
-        mail = email;
-        pwd = password;
-    }
-
     // Every karere::Client will add another logger -- will instantiate a MyMegaApi member,
     // which will instantiate a new MyMegaLogger member, which (by default) will call
     // MegaApi::addLoggerObject() which will add it to g_externalLogger.
     // That has led to duplicated messages in the log file. Below is an attempt to work around that.
     g_externalLogger.useOnlyFirstLogger();
 
-    // 1. Initialize chat engine
+    // Initialize chat engine
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     int initializationState = megaChatApi[accountIndex]->init(session);
     EXPECT_GE(initializationState, 0) << "MegaChatApiImpl::init returned error";
-    if (initializationState < 0) return nullptr;
+    if (initializationState < 0) return false;
     MegaApi::removeLoggerObject(logger());
 
     // MegaChatApi::INIT_TERMINATED will not be notified. Do not wait for state-change in that case.
@@ -147,22 +134,31 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     {
         bool responseOk = waitForResponse(flagInit);
         EXPECT_TRUE(responseOk) << "Initialization failed";
-        if (!responseOk) return nullptr;
+        if (!responseOk) return false;
+
         int initStateValue = initState[accountIndex];
         if (!session)
         {
             EXPECT_EQ(initStateValue, MegaChatApi::INIT_WAITING_NEW_SESSION) << "Wrong chat initialization state (1).";
-            if (initStateValue != MegaChatApi::INIT_WAITING_NEW_SESSION) return nullptr;
+            if (initStateValue != MegaChatApi::INIT_WAITING_NEW_SESSION) return false;
         }
         else
         {
             EXPECT_EQ(initStateValue, MegaChatApi::INIT_OFFLINE_SESSION) << "Wrong chat initialization state (2).";
-            if (initStateValue != MegaChatApi::INIT_OFFLINE_SESSION) return nullptr;
+            if (initStateValue != MegaChatApi::INIT_OFFLINE_SESSION) return false;
         }
+
+        *flagInit = false; // might need to be waited for again after fetchNodes()
     }
 
-    // 2. login
-    flagInit = &initStateChanged[accountIndex]; *flagInit = false;
+    return true;
+}
+
+bool MegaChatApiTest::chatApiLogin(unsigned accountIndex, const char *session, const char *email, const char *password)
+{
+    const std::string& mail = email ? email : account(accountIndex).getEmail();
+    const std::string& pwd = password ? password : account(accountIndex).getPassword();
+
     RequestTracker loginTracker;
     session && std::strlen(session)
         ? megaApi[accountIndex]->fastLogin(session, &loginTracker)  // session must be not null and non empty
@@ -170,35 +166,55 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 
     int loginResult = loginTracker.waitForResult();
     EXPECT_EQ(loginResult, API_OK) << "Login failed. Error: " << loginResult << ' ' << loginTracker.getErrorString();
-    if (loginResult != API_OK) return nullptr;
 
-    // 3. fetchnodes
+    return loginResult == API_OK;
+}
+
+
+bool MegaChatApiTest::chatApiJoinAll(unsigned accountIndex, const char *email)
+{
     bool *loggedInFlag = &mLoggedInAllChats[accountIndex]; *loggedInFlag = false;
     RequestTracker fetchNodesTracker;
     megaApi[accountIndex]->fetchNodes(&fetchNodesTracker);
     int fetchNodesResult = fetchNodesTracker.waitForResult();
     EXPECT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes. Error: " << fetchNodesResult << ' ' << fetchNodesTracker.getErrorString();
-    if (fetchNodesResult != API_OK) return nullptr;
+    if (fetchNodesResult != API_OK) return false;
     // after fetchnodes, karere should be ready for offline, at least
     int initStateValue = initState[accountIndex];
     if (initStateValue == MegaChatApi::INIT_WAITING_NEW_SESSION || initStateValue == MegaChatApi::INIT_OFFLINE_SESSION)
     {
-        bool responseOk = waitForResponse(flagInit);
+        bool responseOk = waitForResponse(&initStateChanged[accountIndex]); // flag was reset during init
         EXPECT_TRUE(responseOk) << "Expired timeout for change init state";
-        if (!responseOk) return nullptr;
+        if (!responseOk) return false;
         initStateValue = initState[accountIndex];
     }
     EXPECT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) << "Wrong chat initialization state (3).";
-    if (initStateValue != MegaChatApi::INIT_ONLINE_SESSION) return nullptr;
+    if (initStateValue != MegaChatApi::INIT_ONLINE_SESSION) return false;
 
     // if there are chatrooms in this account, wait to be joined to all of them
     std::unique_ptr<MegaChatListItemList> items(megaChatApi[accountIndex]->getChatListItems());
     if (items->size())
     {
         bool responseOk = waitForResponse(loggedInFlag, 120);
-        EXPECT_TRUE(responseOk) << "Expired timeout for login to all chats in account '" << mail << "'. (DDOS protection triggered?)";
-        if (!responseOk) return nullptr;
+        EXPECT_TRUE(responseOk) << "Expired timeout for login to all chats in account '"
+                                << (email ? email : account(accountIndex).getEmail())
+                                << "'. (DDOS protection triggered?)";
+        if (!responseOk) return false;
     }
+
+    return true;
+}
+
+char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, const char *email, const char *password)
+{
+    // 1. Initialize chat engine
+    if (!chatApiInit(accountIndex, session)) return nullptr;
+
+    // 2. login
+    if (!chatApiLogin(accountIndex, session, email, password)) return nullptr;
+
+    // 3. fetchnodes & join all chats
+    if (!chatApiJoinAll(accountIndex, email)) return nullptr;
 
     return megaApi[accountIndex]->dumpSession();
 }

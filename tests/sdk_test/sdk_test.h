@@ -553,6 +553,9 @@ protected:
 
     // email and password parameter is used if you don't want to use default values for accountIndex
     char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
+    bool chatApiInit(unsigned accountIndex, const char *session = nullptr);
+    bool chatApiLogin(unsigned accountIndex, const char *session = nullptr, const char *email = nullptr, const char *password = nullptr);
+    bool chatApiJoinAll(unsigned accountIndex, const char *email = nullptr);
     void logout(unsigned int accountIndex, bool closeSession = false);
 
 public:
