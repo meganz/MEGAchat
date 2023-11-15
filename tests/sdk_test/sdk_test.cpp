@@ -3460,6 +3460,24 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "1 new message from B should have been imported";
+
+
+    ///
+    ///  Import messages after marking a message as seen
+    ///
+    cout << "///  Import messages after marking a message as seen" << endl;
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    ASSERT_NE(megaChatApi[a2]->getLastMessageSeenId(chatid), msgSentByB->getMsgId()) << "Message from B was already marked as seen";
+    bool* flagSeenA2 = &chatroomListener(a2)->msgSeen[a2]; *flagSeenA2 = false;
+    ASSERT_TRUE(megaChatApi[a2]->setMessageSeen(chatid, msgSentByB->getMsgId())) << "Couldn't mark message as seen";
+    EXPECT_TRUE(waitForResponse(flagSeenA2)) << "Timeout expired for message marked as seen";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; marked as read message doesn't count"; // really ?
  }
 
 /**
@@ -9348,6 +9366,10 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
         else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
         {
             msgDelivered[apiIndex] = true;
+        }
+        else if (msg->getStatus() == MegaChatMessage::STATUS_SEEN)
+        {
+            msgSeen[apiIndex] = true;
         }
     }
 
