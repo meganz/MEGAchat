@@ -3381,6 +3381,28 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Should (only) have the special 'truncate' message"; // SOMETIMES it has 0 messages after import !
+
+
+    ///
+    ///  Import messages when there are no messages to import from external db
+    ///
+    cout << "///  Import messages when there are no messages to import from external db" << endl;
+
+    sessionA1.reset(login(a1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
+    int msgCount = 4;
+    MegaChatHandle lastMessageId = MEGACHAT_INVALID_HANDLE;
+    for (int i = 0; i < msgCount; i++)
+    {
+        string textToSend = "Msg " + std::to_string(i + 1);
+        std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(a1, UINT_MAX, chatid, textToSend, chatroomListener(a1)));
+        ASSERT_TRUE(msgSent);
+        lastMessageId = msgSent->getMsgId();
+        ASSERT_NE(lastMessageId, MEGACHAT_INVALID_HANDLE);
+    }
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported";
  }
 
 /**
