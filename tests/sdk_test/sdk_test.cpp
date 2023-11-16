@@ -4607,7 +4607,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1, /* just one attempt */
                           eF2,
-                          "sending a speak request",
+                          msgSpeakReq,
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
                           maxTimeout,
@@ -4633,6 +4633,38 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
             ASSERT_EQ(*getHandleVars().get(moderatorIdx, "SpeakRequestPeerId"), requesterId)
                 << "User handle received upon MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED doesn't match with expected one";
         }
+    };
+
+    auto addSpeaker = [this](const unsigned int moderatorIdx, const unsigned int nonSpeakerIdx, const MegaChatHandle chatid)
+    {
+        const MegaChatHandle nonSpeakerId = megaChatApi[nonSpeakerIdx]->getMyUserHandle();
+        ExitBoolFlags eF2;
+        // requesterIdx - onchatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
+        addBoolExitFlag(moderatorIdx, eF2, "SessSpeakPermChanged", false);
+
+        // moderatorIdx - user handle received at onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
+        getHandleVars().add(moderatorIdx, "SpeakStatusPeerId", MEGACHAT_INVALID_HANDLE);
+
+        std::string msgSpeakReq = "add speaker";
+        mSessSpeakPerm[moderatorIdx].clear();
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1, /* just one attempt */
+                          eF2,
+                          "add speaker",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, &moderatorIdx, &nonSpeakerId, &chatid, &msgSpeakReq]()
+                          {
+                              ChatRequestTracker crtSpeakReq;
+                              megaChatApi[moderatorIdx]->addActiveSpeaker(chatid, nonSpeakerId, &crtSpeakReq);
+
+                              auto res = crtSpeakReq.waitForResult();
+                              ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to " << msgSpeakReq << crtSpeakReq.getErrorString();
+                          });
+        });
+        ASSERT_EQ(*getHandleVars().get(moderatorIdx, "SpeakStatusPeerId"), nonSpeakerId)
+                << "User handle received upon MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION doesn't match with expected one";
     };
 
     auto updateFlags = [this](const unsigned int requesterIdx, const unsigned int moderatorIdx, const bool audio, const bool enable, const MegaChatHandle chatid)
@@ -4749,6 +4781,36 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
                                                      << getUserIdStrB64(userid);
     };
 
+    auto endCallPrimaryAccount = [this](const MegaChatHandle callId, const unsigned int a1, const unsigned int a2){
+        bool* callDestroyedA = &mCallDestroyed[a1]; *callDestroyedA = false;
+        bool* callDestroyedB = &mCallDestroyed[a2]; *callDestroyedB = false;
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction (1,
+                          std::vector<bool *> { &mCallDestroyed[a1], &mCallDestroyed[a2] },
+                          std::vector<string> { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
+                          "A ends call for all participants",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, a1, callDestroyedA, callDestroyedB, callId]()
+                          {
+                              ChatRequestTracker crtEndCall;
+                              megaChatApi[a1]->endChatCall(callId, &crtEndCall);
+                              ASSERT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to end call. Error: " << crtEndCall.getErrorString();
+
+                              // Check the call was destroyed at both ends
+                              LOG_debug << "Now that A and B hung up, we can check if the call is destroyed";
+                              ASSERT_TRUE(waitForResponse(callDestroyedA)) <<
+                                  "The call for A should be already finished and it is not";
+                              LOG_debug << "Destroyed for A is OK, checking for B";
+                              ASSERT_TRUE(waitForResponse(callDestroyedB)) <<
+                                  "The call for B should be already finished and it is not";
+                              LOG_debug << "Destroyed for B is OK.";
+                          });
+        });
+    };
+
     //========================================================================//
     // Test preparation: login, get chatroom ...
     //========================================================================//
@@ -4835,22 +4897,27 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //        audio and video are disabled when call is started
     //============================================================================//
     LOG_verbose << "A starts call in a meeting room with speak request option enabled";
-    ExitBoolFlags eF;
-    MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    addHandleFlag(a1, "CallIdInProgress", invalHandle);                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-    addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-    ASSERT_NO_FATAL_FAILURE(startChatCall(a1, eF,
-                                          mData.mChatid,
-                                          false /*audio*/,
-                                          false /*video*/,
-                                          false /*notRinging*/,
-                                          100 /*timeout(secs)*/));
 
-    // check received callid for caller(a1)
-    checkCallIdInProgress(a1);
+    MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
+    auto startCallRinging = [this, &invalHandle]()
+    {
+        ExitBoolFlags eF;
+        addHandleFlag(a1, "CallIdInProgress", invalHandle);                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+        addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
+        addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
+        addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
+        addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+        ASSERT_NO_FATAL_FAILURE(startChatCall(a1, eF,
+                                              mData.mChatid,
+                                              false /*audio*/,
+                                              false /*video*/,
+                                              false /*notRinging*/,
+                                              100 /*timeout(secs)*/));
+
+        // check received callid for caller(a1)
+        checkCallIdInProgress(a1);
+    };
+    startCallRinging();
 
     // clean all bool and handle vars (this prevents conflicts in following tests)
     getBoolVars().cleanAll();
@@ -4925,6 +4992,9 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     LOG_debug << "Test5: Remove B as speaker";
     ASSERT_NO_FATAL_FAILURE({ removeSpeaker(a1, a2, a2Uh, mData.mChatid); });
+    // clean all bool and handle vars (this prevents conflicts in following tests)
+    getBoolVars().cleanAll();
+    getHandleVars().cleanAll();
 }
 
 /**
