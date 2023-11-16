@@ -182,14 +182,24 @@ std::string Peer::getEphemeralPubKeyDerived() const
 
 bool Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
-    if (!sfu::isValidSfuVersion(getPeerSfuVersion()))
+    if (!sfu::isKnownSfuVersion(getPeerSfuVersion()))
     {
         SFU_LOG_WARNING("setEphemeralPubKeyDerived: Invalid SFU version for PeerId: %s Cid: %u",
                         getPeerid().toString().c_str() ,getCid());
         return false;
     }
 
-    if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
+    if (getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V1)
+    {
+        // we shouldn't receive any peer with protocol v1
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: unexpected SFU protocol version [%u] for user: %s, cid: %u",
+                       static_cast<std::underlying_type<sfu::SfuProtocol>::type>(getPeerSfuVersion()),
+                       getPeerid().toString().c_str(), getCid());
+        assert(false);
+        return false;
+    }
+
+    if (key.empty() && getPeerSfuVersion() >= sfu::SfuProtocol::SFU_PROTO_V0)
     {
         SFU_LOG_WARNING("setEphemeralPubKeyDerived: Empty ephemeral key for PeerId: %s Cid: %u",
                         getPeerid().toString().c_str() ,getCid());
