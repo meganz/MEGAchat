@@ -859,6 +859,10 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             auto actRing = entry->addAction(tr("Ring user"));
             actRing->setProperty("userHandle", userhandle);
             connect(actRing, SIGNAL(triggered()), this, SLOT(onRingUser()));
+
+            auto actAddSpeaker = entry->addAction(tr("Add user as active speaker"));
+            actAddSpeaker->setProperty("userHandle", userhandle);
+            connect(actAddSpeaker, SIGNAL(triggered()), this, SLOT(onAddSpeaker()));
         }
 
         if (privilege != megachat::MegaChatRoom::PRIV_RM)
@@ -1075,6 +1079,15 @@ void ChatWindow::onRingUser() const
 
     const QVariant uHandle = action->property("userHandle");
     mMegaChatApi->ringIndividualInACall(mChatRoom->getChatId(), static_cast<MegaChatHandle>(uHandle.toLongLong()), atoi(auxTimeout.c_str()));
+}
+
+void ChatWindow::onAddSpeaker() const
+{
+    const QAction* action = qobject_cast<QAction *>(sender());
+    if (!action) { return; }
+
+    const QVariant uHandle = action->property("userHandle");
+    mMegaChatApi->addActiveSpeaker(mChatRoom->getChatId(), static_cast<MegaChatHandle>(uHandle.toLongLong()));
 }
 
 void ChatWindow::onMemberSetPriv()

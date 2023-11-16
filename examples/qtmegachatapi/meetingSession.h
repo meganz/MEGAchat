@@ -38,6 +38,7 @@ private:
     std::unique_ptr <QLabel> mStatusLabel;
     std::unique_ptr <QLabel> mTitleLabel;
     std::unique_ptr <QLabel> mAudioLabel;
+    std::unique_ptr <QLabel> mSpkPermLabel;
     std::unique_ptr <QLabel> mVideoLabel;
     std::unique_ptr <QLabel> mReqSpealLabel;
     std::unique_ptr <QLabel> mRecordingLabel;

@@ -593,7 +593,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string requestHiRes("Request hiRes");
     std::string stopThumb("Stop vThumb");
     std::string stopHiRes("Stop hiRes");
-    std::string approveSpeak("Approve Speak request");
+    std::string addActiveSpeaker("Add active request");
     std::string rejectSpeak("Reject Speak request");
     std::string pushWr("Push waiting room");
     std::string kickWr("Kick waiting room");
@@ -643,7 +643,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     if (call && moderator)
     {
        submenu.addAction(requestDelSpeaker.c_str());
-       submenu.addAction(approveSpeak.c_str());
+        submenu.addAction(addActiveSpeaker.c_str());
        submenu.addAction(rejectSpeak.c_str());
 
        QMenu* wrMenu = submenu.addMenu("Waiting Room management");
@@ -664,7 +664,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         {
             mMegaChatApi.requestHiResVideo(mChatid, cid);
         }
-        else if (rightClickItem->text().contains(approveSpeak.c_str()))
+        else if (rightClickItem->text().contains(addActiveSpeaker.c_str()))
         {
             mMegaChatApi.addActiveSpeaker(mChatid, userid);
         }

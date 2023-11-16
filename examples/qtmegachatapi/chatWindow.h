@@ -114,6 +114,7 @@ class ChatWindow : public QDialog,
         void onMemberSetPriv();
         void onMemberRemove();
         void onRingUser() const;
+        void onAddSpeaker() const;
         void onMsgSendBtn();
         void onMemberAdd();
         void onMembersBtn(bool);
