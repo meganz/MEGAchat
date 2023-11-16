@@ -4970,7 +4970,7 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
 
     action = [this, &a2, &chatId, &enableVideo, &enableAudio]()
     {
-        ChatRequestTracker crtAnswerCall(megaChatApi[a1]);
+        ChatRequestTracker crtAnswerCall(megaChatApi[a2]);
         megaChatApi[a2]->answerChatCall(chatId, enableVideo, enableAudio, &crtAnswerCall);
         ASSERT_EQ(crtAnswerCall.waitForResult(), MegaChatError::ERROR_OK)
             << "Failed to answer call. Error: " << crtAnswerCall.getErrorString();
@@ -5240,7 +5240,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     std::unique_ptr<char[]>tertiarySession(megaApi[a3]->dumpSession());
 
     // Open chat link and check that wr flag and scheduled meetings are received upon onRequestFinish(TYPE_LOAD_PREVIEW)
-    ChatRequestTracker crtOpenLink(megaChatApi[a1]);
+    ChatRequestTracker crtOpenLink(megaChatApi[a3]);
     bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink);
     ASSERT_EQ(crtOpenLink.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
