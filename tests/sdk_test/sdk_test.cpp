@@ -5586,7 +5586,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_NO_FATAL_FAILURE({ logout(a3); });
 
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
-    ASSERT_TRUE(chatroom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
+    ASSERT_TRUE(chatRoom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
 
     if (chatRoom->isSpeakRequest())
     {
