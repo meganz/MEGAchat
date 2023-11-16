@@ -200,7 +200,7 @@ bool Peer::setEphemeralPubKeyDerived(const std::string& key)
         return false;
     }
 
-    if (key.empty() && getPeerSfuVersion() >= sfu::SfuProtocol::SFU_PROTO_V0)
+    if (key.empty() && getPeerSfuVersion() > sfu::SfuProtocol::SFU_PROTO_V0)
     {
         SFU_LOG_WARNING("setEphemeralPubKeyDerived: Empty ephemeral key for PeerId: %s Cid: %u",
                         getPeerid().toString().c_str() ,getCid());
