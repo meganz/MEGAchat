@@ -4382,7 +4382,7 @@ void GroupChatRoom::updateSchedMeetingsWithList(const mega::MegaScheduledMeeting
 {
     if (!smList) { return; }
 
-    // update sched meetings in ram with received ones in smList
+    // update sched meetings in ram and db with received ones in smList
     for (unsigned int i = 0; i < smList->size(); ++i)
     {
         const mega::MegaScheduledMeeting* sm = smList->at(i);
@@ -4411,14 +4411,17 @@ void GroupChatRoom::updateSchedMeetingsWithList(const mega::MegaScheduledMeeting
         }
     }
 
-    // removed those sched meetings in ram not found in smList
-    for (auto it = mScheduledMeetings.begin(); it != mScheduledMeetings.end();)
+    // remove (from ram and db) those sched meetings in db not found in smList
+    const auto schedMeetingsInDb = getClientDbInterface().getSchedMeetingsByChatId(chatid());
+    for (const auto& i: schedMeetingsInDb)
     {
-        auto auxit = it++;
-        if (!smList->getBySchedId(auxit->first))
+        const auto sm = i.get();
+        assert(sm);
+        if (sm && !smList->getBySchedId(sm->schedId())) // if schedid not found in list received from API
         {
-            notifySchedMeetingUpdated(auxit->second.get(), KarereScheduledMeeting::deletedSchedMeetingFlagsValue());
-            mScheduledMeetings.erase(auxit);
+            notifySchedMeetingUpdated(sm, KarereScheduledMeeting::deletedSchedMeetingFlagsValue());
+            mScheduledMeetings.erase(sm->schedId());
+            getClientDbInterface().removeSchedMeetingBySchedId(sm->schedId());
         }
     }
 
