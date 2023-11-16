@@ -6044,26 +6044,19 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         return MegaChatError::ERROR_NOENT;
     }
 
+    // send OP_RINGUSER followed by 'mcru'
+    Chat& chat = chatroom->chat();
+    const int16_t ringTimeout = static_cast<int16_t>(request->getParamType());
+    chat.ringIndividualInACall(userIdToCall, call->getCallid(), ringTimeout);
+
     // Important: remove this call to Client::ringIndividualInACall (send 'mcru' to API) when chatd makes the required adjustments
     // to manage this logic without client intervention. When this happens we'll only need to send OP_RINGUSER as
     // we previously did.
     auto wptr = mClient->weakHandle();
     mClient->ringIndividualInACall(chatId, userIdToCall)
-        .then([this, request, chatId, userIdToCall, callId = call->getCallid(), wptr](ReqResult)
+    .then([this, request, wptr](ReqResult)
     {
         wptr.throwIfDeleted();
-        ChatRoom* chatroom = findChatRoom(chatId);
-        if (!chatroom)
-        {
-            API_LOG_ERROR("Error: chat room with id %s not found, after send 'mcru' with success", ID_CSTR(chatId));
-            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT));
-            return;
-        }
-
-        // just in case 'mcru' is sent successfully, then we can send OP_RINGUSER
-        Chat& chat = chatroom->chat();
-        const int16_t ringTimeout = static_cast<int16_t>(request->getParamType());
-        chat.ringIndividualInACall(userIdToCall, callId, ringTimeout);
         fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
     })
     .fail([request, this](const ::promise::Error& err)
