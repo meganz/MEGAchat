@@ -1593,7 +1593,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                            static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
                            peer.getPeerid().toString().c_str(), peer.getCid());
             assert(false);
-            addPeerWithEphemKey(peer, false, std::string());
         }
         else if (peer.getPeerSfuVersion() >= sfu::SfuProtocol::SFU_PROTO_V2) // verify ephemeral key signature, derive it, and then add the peer
         {
@@ -2221,7 +2220,6 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                        static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer->getPeerSfuVersion()),
                        peer->getPeerid().toString().c_str(), peer->getCid());
         assert(false);
-        addPeerWithEphemKey(*peer, std::string());
         return false;
     }
     else if (sfuProtoVersion >= sfu::SfuProtocol::SFU_PROTO_V2)
