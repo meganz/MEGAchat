@@ -5481,6 +5481,13 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     // [Test1]: Create chatlink and check data received from API (mcphurl)
     LOG_debug << "Test 1: Create chatlink and check data received from API (mcphurl)";
 
+    if (!chatRoom->isOpenInvite())
+    {
+        ChatRequestTracker crtChatOpt1(megaChatApi[a1]);
+        megaChatApi[a1]->setOpenInvite(chatid, true, &crtChatOpt1);
+        ASSERT_EQ(crtChatOpt1.waitForResult(), MegaChatError::ERROR_OK) << "Failed to enable open invite. Error: " << crtChatOpt1.getErrorString();
+    }
+
     // Create chat link
     ChatRequestTracker crtCreateLink(megaChatApi[a1]);
     megaChatApi[a1]->createChatLink(chatid, &crtCreateLink);
