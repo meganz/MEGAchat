@@ -60,16 +60,12 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->getClientid() : 0;
 }
 
-- (BOOL)audioDetected {
-    return self.megaChatSession ? self.megaChatSession->isAudioDetected() : NO;
-}
-
 - (BOOL)isOnHold {
     return self.megaChatSession ? self.megaChatSession->isOnHold() : NO;
 }
 
-- (NSInteger)changes {
-    return self.megaChatSession ? self.megaChatSession->getChanges() : 0;
+- (MEGAChatSessionChange)changes {
+    return (MEGAChatSessionChange) (self.megaChatSession ? self.megaChatSession->getChanges() : MEGAChatSessionChangeNoChanges);
 }
 
 - (BOOL)isHighResVideo {
@@ -116,18 +112,48 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->hasChanged((int)change) : NO;
 }
 
+- (BOOL)isModerator {
+    return self.megaChatSession ? self.megaChatSession->isModerator() : NO;
+}
+
+- (BOOL)isAudioDetected {
+    return self.megaChatSession ? self.megaChatSession->isAudioDetected() : NO;
+}
+
+- (BOOL)isRecording {
+    return self.megaChatSession ? self.megaChatSession->isRecording() : NO;
+}
+
+- (BOOL)isSpeakAllowed {
+    return self.megaChatSession ? self.megaChatSession->isSpeakAllowed() : NO;
+}
+
+- (BOOL)hasSpeakPermission {
+    return self.megaChatSession ? self.megaChatSession->hasSpeakPermission() : NO;
+}
+
+- (BOOL)hasPendingSpeakRequest {
+    return self.megaChatSession ? self.megaChatSession->hasPendingSpeakRequest() : NO;
+}
+
 - (NSString *)description {
     NSString *peerId = [MEGASdk base64HandleForUserHandle:self.peerId];
     NSString *clientId = [MEGASdk base64HandleForUserHandle:self.clientId];
+    NSString *isModerator = self.isModerator ? @"YES" : @"NO";
     NSString *hasAudio = self.hasAudio ? @"ON" : @"OFF";
     NSString *hasVideo = self.hasVideo ? @"ON" : @"OFF";
-    NSString *audioDetected = self.audioDetected ? @"YES" : @"NO";
     NSString *changes = [self stringForChanges];
     NSString *isHighResVideo = self.isHighResVideo ? @"YES" : @"NO";
     NSString *isLowResVideo = self.isLowResVideo ? @"YES" : @"NO";
     NSString *canReceiveVideoHiRes = self.canReceiveVideoHiRes ? @"YES" : @"NO";
     NSString *canReceiveVideoLowRes = self.canReceiveVideoLowRes ? @"YES" : @"NO";
-    return [NSString stringWithFormat:@"<%@: peerId=%@; clientId=%@; hasAudio=%@; hasVideo=%@; changes=%@; audioDetected=%@, isHighResVideo: %@, isLowResVideo: %@, canReceiveVideoHiRes: %@, canReceiveVideoLowRes: %@>", self.class, peerId, clientId, hasAudio, hasVideo, changes, audioDetected, isHighResVideo, isLowResVideo, canReceiveVideoHiRes, canReceiveVideoLowRes];
+    NSString *audioDetected = self.isAudioDetected ? @"YES" : @"NO";
+    NSString *isRecording = self.isRecording ? @"YES" : @"NO";
+    NSString *isSpeakAllowed = self.isSpeakAllowed ? @"YES" : @"NO";
+    NSString *hasSpeakPermission = self.hasSpeakPermission ? @"YES" : @"NO";
+    NSString *hasPendingSpeakRequest = self.hasPendingSpeakRequest ? @"YES" : @"NO";
+
+    return [NSString stringWithFormat:@"<%@: peerId=%@; clientId=%@; isModerator=%@; hasAudio=%@; hasVideo=%@; changes=%@; isHighResVideo: %@, isLowResVideo: %@, canReceiveVideoHiRes: %@, canReceiveVideoLowRes: %@, audioDetected=%@, isRecording=%@, isSpeakAllowed=%@, hasSpeakPermission=%@, hasPendingSpeakRequest=%@>", self.class, peerId, clientId, isModerator, hasAudio, hasVideo, changes, isHighResVideo, isLowResVideo, canReceiveVideoHiRes, canReceiveVideoLowRes, audioDetected, isRecording, isSpeakAllowed, hasSpeakPermission, hasPendingSpeakRequest];
 }
 
 - (NSString *)stringForChanges {
