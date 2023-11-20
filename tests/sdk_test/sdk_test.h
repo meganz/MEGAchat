@@ -622,7 +622,7 @@ protected:
      * @param chatroomListener TestChatRoomListener that track MegaChatRoomListener events
      */
     int loadHistory(const unsigned int accountIndex, const megachat::MegaChatHandle chatid, TestChatRoomListener* chatroomListener);
-    void makeContact(unsigned int a1, unsigned int a2);
+    void makeContact(const unsigned int a1, const unsigned int a2);
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
     megachat::MegaChatHandle getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, megachat::MegaChatPeerList* peers);
@@ -800,8 +800,9 @@ protected:
     // structure with all data common to most of automated tests
     TestData mData;
 
-    ::mega::MegaContactRequest* mContactRequest[NUM_ACCOUNTS];
+    std::unique_ptr<::mega::MegaContactRequest> mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
+    bool mUsersUpdate[NUM_ACCOUNTS];
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
@@ -1007,7 +1008,7 @@ protected:
 
     bool finished() const { return resultReceived; }
 
-private:
+protected:
     std::promise<int> promiseResult;
     std::future<int> futureResult = promiseResult.get_future();
     std::atomic<bool> resultReceived = false;
@@ -1017,6 +1018,19 @@ private:
 class RequestTracker : public ::mega::MegaRequestListener, public ResultHandler
 {
 public:
+    RequestTracker(mega::MegaApi *megaApi)
+        : mApi(megaApi)
+    {
+    }
+
+    ~RequestTracker()
+    {
+        if (!resultReceived)
+        {
+            mApi->removeRequestListener(this);
+        }
+    }
+
     void onRequestFinish(::mega::MegaApi*, ::mega::MegaRequest* req,
                          ::mega::MegaError* e) override
     {
@@ -1048,11 +1062,25 @@ public:
 
 private:
     std::unique_ptr<::mega::MegaRequest> request;
+    mega::MegaApi* mApi;
 };
 
 class ChatRequestTracker : public megachat::MegaChatRequestListener, public ResultHandler
 {
 public:
+    ChatRequestTracker(megachat::MegaChatApi* megaChatApi)
+        : mMegaChatApi(megaChatApi)
+    {
+    }
+
+    ~ChatRequestTracker()
+    {
+        if (!resultReceived)
+        {
+            mMegaChatApi->removeChatRequestListener(this);
+        }
+    }
+
     void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
                          ::megachat::MegaChatError* e) override
     {
@@ -1106,6 +1134,7 @@ public:
 
 private:
     std::unique_ptr<::megachat::MegaChatRequest> request;
+    megachat::MegaChatApi* mMegaChatApi;
 };
 
 class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public ResultHandler

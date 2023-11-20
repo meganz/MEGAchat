@@ -3691,6 +3691,7 @@ void exec_startdownload(ac::ACState& s)
         g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, ct,
                                  ::mega::MegaTransfer::COLLISION_CHECK_FINGERPRINT,
                                  ::mega::MegaTransfer::COLLISION_RESOLUTION_OVERWRITE,
+                                 false,
                                  new OneShotTransferListener(
                                      [](m::MegaApi*, m::MegaTransfer*, m::MegaError* e) { check_err("startDownload", e, ReportResult); },
                                      logstage));

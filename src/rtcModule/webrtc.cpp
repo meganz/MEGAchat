@@ -67,7 +67,7 @@ Call::Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id&
     , mIsJoining(false)
     , mRtc(rtc)
 {
-    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), sfu::SfuProtocol::SFU_PROTO_INVAL, avflags.value()));
+    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), sfu::MY_SFU_PROTOCOL_VERSION, avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
@@ -1562,29 +1562,31 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             assert(false);
             continue;
         }
-        assert(peer.checkPeerSfuVersion()); // ensures that peer SFU version is valid
-        if (isWrFlagEnabled() && !isWaitingRoomsSfuVersion(peer.getPeerSfuVersion()))
-        {
-            SFU_LOG_WARNING("SFU version: %u from peer: %s, doesn't support waiting rooms",
-                            peer.getPeerSfuVersion(), peer.getPeerid().toString().c_str());
-            assert(false);
-        }
-
-        if (isSpeakRequestEnabled() && !isSpeakRequestSfuVersion(peer.getPeerSfuVersion()))
-        {
-            SFU_LOG_WARNING("SFU version: %u from peer: %s, doesn't support speak requests",
-                            peer.getPeerSfuVersion(), peer.getPeerid().toString().c_str());
-            assert(false);
-        }
 
         // check if peerid is included in mods list received upon HELLO
         peer.setModerator(isOnModeratorsList(peer.getPeerid()));
-        if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion())) // there's no ephemeral key, just add peer
+        if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V0) // there's no ephemeral key, just add peer
         {
             addPeerWithEphemKey(peer, true, std::string());
         }
-        else if (sfu::isForwardSecrecySfuVersion(peer.getPeerSfuVersion())) // verify ephemeral key signature, derive it, and then add the peer
+        else if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V1)
         {
+            // we shouldn't receive any peer with protocol v1
+            RTCM_LOG_ERROR("handleAnswerCommand: unexpected SFU protocol version [%u] for user: %s, cid: %u",
+                           static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
+                           peer.getPeerid().toString().c_str(), peer.getCid());
+            assert(false);
+        }
+        else if (peer.getPeerSfuVersion() >= sfu::SfuProtocol::SFU_PROTO_V2) // verify ephemeral key signature, derive it, and then add the peer
+        {
+            if (!sfu::isKnownSfuVersion(peer.getPeerSfuVersion()))
+            {
+                // important: upon an unkown peers's SFU protocol version, native client should act as if they are the latest known version
+                RTCM_LOG_WARNING("handleAnswerCommand: unknown SFU protocol version [%u] for user: %s, cid: %u",
+                                 static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
+                                 peer.getPeerid().toString().c_str(), peer.getCid());
+            }
+
             if (keyStr.empty())
             {
                 RTCM_LOG_ERROR("Empty Ephemeral key for user: %s, cid: %u, SFU protocol version: %u",
@@ -1644,14 +1646,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 RTCM_LOG_ERROR("Error verifying ephemeral key signature: %s", e.what());
                 return false; // wprt doesn't exists
             }
-        }
-        else
-        {
-            assert(false);
-            RTCM_LOG_ERROR("handleAnswerCommand: unknown SFU protocol version [%u] for user: %s, cid: %u",
-                           static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
-                           peer.getPeerid().toString().c_str(), peer.getCid());
-            addPeerWithEphemKey(peer, false, std::string());
         }
     }
 
@@ -1801,8 +1795,7 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
         const sfu::Peer& peer = session->getPeer();
         auto wptr = weakHandle();
 
-        assert(peer.checkPeerSfuVersion()); // ensures that peer SFU version is valid
-        if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion()))
+        if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V0)
         {
             mSfuClient.getRtcCryptoMeetings()->getCU25519PublicKey(peer.getPeerid())
             .then([wptr, keyid, cid, key, this](Buffer*) -> void
@@ -1840,8 +1833,25 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
                 session->addKey(keyid, newKey);
             });
         }
-        else if (sfu::isForwardSecrecySfuVersion(peer.getPeerSfuVersion()))
+        else if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V1)
         {
+            // we shouldn't receive any peer with protocol v1
+            RTCM_LOG_ERROR("handleKeyCommand: unexpected SFU protocol version [%u] for user: %s, cid: %u",
+                           static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
+                           peer.getPeerid().toString().c_str(), peer.getCid());
+            assert(false);
+            return;
+        }
+        else if (peer.getPeerSfuVersion() >= sfu::SfuProtocol::SFU_PROTO_V2)
+        {
+            if (!sfu::isKnownSfuVersion(peer.getPeerSfuVersion()))
+            {
+                // important: upon an unkown peers's SFU protocol version, native client should act as if they are the latest known version
+                RTCM_LOG_WARNING("handlePeerJoin: unknown SFU protocol version [%u] for user: %s, cid: %u",
+                                 static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
+                                 peer.getPeerid().toString().c_str(), peer.getCid());
+            }
+
             Session* session = getSession(cid);
             if (!session)
             {
@@ -1886,14 +1896,6 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
                 return;
             }
             session->addKey(keyid, result);
-
-        }
-        else
-        {
-            RTCM_LOG_ERROR("handleKeyCommand: unknown SFU protocol version [%u] for user: %s, cid: %u",
-                           static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
-                           peer.getPeerid().toString().c_str(), peer.getCid());
-            return;
         }
     })
     .fail([cid](const ::promise::Error&)
@@ -2070,28 +2072,30 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
         return false;
     }
 
-    std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (isOnModeratorsList(userid))));
-    assert(peer->checkPeerSfuVersion());
-    if (isWrFlagEnabled() && !isWaitingRoomsSfuVersion(peer->getPeerSfuVersion()))
-    {
-        SFU_LOG_WARNING("SFU version: %u from peer: %s, doesn't support waiting rooms",
-                        peer->getPeerSfuVersion(), peer->getPeerid().toString().c_str());
-        assert(false);
-    }
-
-    if (isSpeakRequestEnabled() && !isSpeakRequestSfuVersion(peer->getPeerSfuVersion()))
-    {
-        SFU_LOG_WARNING("SFU version: %u from peer: %s, doesn't support speak requests",
-                        peer->getPeerSfuVersion(), peer->getPeerid().toString().c_str());
-        assert(false);
-    }
-
-    if (sfu::isInitialSfuVersion(sfuProtoVersion))
+    std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (mModerators.find(userid) != mModerators.end())));
+    if (sfuProtoVersion == sfu::SfuProtocol::SFU_PROTO_V0)
     {
         addPeerWithEphemKey(*peer, std::string());
     }
-    else if (sfu::isForwardSecrecySfuVersion(sfuProtoVersion))
+    else if (sfuProtoVersion == sfu::SfuProtocol::SFU_PROTO_V1)
     {
+        // we shouldn't receive any peer with protocol v1
+        RTCM_LOG_ERROR("handlePeerJoin: unexpected SFU protocol version [%u] for user: %s, cid: %u",
+                       static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer->getPeerSfuVersion()),
+                       peer->getPeerid().toString().c_str(), peer->getCid());
+        assert(false);
+        return false;
+    }
+    else if (sfuProtoVersion >= sfu::SfuProtocol::SFU_PROTO_V2)
+    {
+        if (!sfu::isKnownSfuVersion(sfuProtoVersion))
+        {
+            // important: upon an unkown peers's SFU protocol version, native client should act as if they are the latest known version
+            RTCM_LOG_WARNING("handlePeerJoin: unknown SFU protocol version [%u] for user: %s, cid: %u",
+                            static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer->getPeerSfuVersion()),
+                            peer->getPeerid().toString().c_str(), peer->getCid());
+        }
+
         if (keyStr.empty())
         {
             RTCM_LOG_ERROR("handlePeerJoin: ephemeral key not received");
@@ -2139,15 +2143,6 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
             RTCM_LOG_ERROR("Can't retrieve public ED25519 attr for user %s", karere::Id(userid).toString().c_str());
             addPeerWithEphemKey(*peer, std::string());
         });
-    }
-    else
-    {
-        RTCM_LOG_ERROR("handlePeerJoin: unknown SFU protocol version [%u] for user: %s, cid: %u",
-                       static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer->getPeerSfuVersion()),
-                       peer->getPeerid().toString().c_str(), peer->getCid());
-        assert(false);
-        addPeerWithEphemKey(*peer, std::string());
-        return false;
     }
     return true;
 }
@@ -3183,16 +3178,32 @@ void Call::generateAndSendNewMediakey(bool reset)
             // get peer Cid
             Cid_t sessionCid = session.first;
             const sfu::Peer& peer = session.second->getPeer();
-            assert(peer.checkPeerSfuVersion()); // ensures that peer SFU version is valid
-            if (sfu::isInitialSfuVersion(peer.getPeerSfuVersion()))
+            if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V0)
             {
                 // encrypt key to participant
                 strongvelope::SendKey encryptedKey;
                 mSfuClient.getRtcCryptoMeetings()->encryptKeyTo(peer.getPeerid(), *newPlainKey.get(), encryptedKey);
                 (*keys)[sessionCid] = mega::Base64::btoa(std::string(encryptedKey.buf(), encryptedKey.size()));
             }
-            else if (sfu::isForwardSecrecySfuVersion(peer.getPeerSfuVersion()))
+            else if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V1)
             {
+                // we shouldn't receive any peer with protocol v1
+                RTCM_LOG_ERROR("generateAndSendNewMediaKey: unexpected SFU protocol version [%u] for user: %s, cid: %u",
+                               static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
+                               peer.getPeerid().toString().c_str(), peer.getCid());
+                assert(false);
+                continue;
+            }
+            else if (peer.getPeerSfuVersion() >= sfu::SfuProtocol::SFU_PROTO_V2)
+            {
+                if (!sfu::isKnownSfuVersion(peer.getPeerSfuVersion()))
+                {
+                    // important: upon an unkown peers's SFU protocol version, native client should act as if they are the latest known version
+                    RTCM_LOG_WARNING("generateAndSendNewMediaKey: unknown SFU protocol version [%u] for user: %s, cid: %u",
+                                     static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
+                                     peer.getPeerid().toString().c_str(), peer.getCid());
+                }
+
                 auto&& ephemeralPubKey = peer.getEphemeralPubKeyDerived();
                 if (ephemeralPubKey.empty())
                 {
@@ -3212,14 +3223,6 @@ void Call::generateAndSendNewMediakey(bool reset)
                 }
 
                 (*keys)[sessionCid] = mega::Base64::btoa(encryptedKey);
-            }
-            else
-            {
-                RTCM_LOG_ERROR("generateAndSendNewMediakey: unknown SFU protocol version [%u] for user: %s, cid: %u",
-                               static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
-                               peer.getPeerid().toString().c_str(), peer.getCid());
-                assert(false);
-                return;
             }
         }
 

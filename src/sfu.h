@@ -45,13 +45,10 @@ enum class SfuProtocol: uint32_t
     SFU_PROTO_INVAL    = UINT32_MAX,
 };
 
-constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION                  { SfuProtocol::SFU_PROTO_LAST };                // current own client SFU protocol version
-static bool isInitialSfuVersion(const sfu::SfuProtocol v)           { return v == SfuProtocol::SFU_PROTO_V0; }      // initial version (forward secrecy not supported)
-static bool isForwardSecrecySfuVersion(const sfu::SfuProtocol v)    { return v >= SfuProtocol::SFU_PROTO_V2; }      // supports forward secrecy
-static bool isWaitingRoomsSfuVersion(const sfu::SfuProtocol v)      { return v >= SfuProtocol::SFU_PROTO_V2; }      // supports waiting rooms
-static bool isSpeakRequestSfuVersion(const sfu::SfuProtocol v)      { return v >= SfuProtocol::SFU_PROTO_V3; }      // supports speak request
-static bool isSupportedSfuVersion(const sfu::SfuProtocol v)         { return v >= SfuProtocol::SFU_PROTO_FIRST      // SFU version supported by MegaChat
-                                                                        && v <= SfuProtocol::SFU_PROTO_LAST; }
+constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION      { SfuProtocol::SFU_PROTO_LAST };             // current own client SFU protocol version
+static bool isKnownSfuVersion(sfu::SfuProtocol v)       { return v >= SfuProtocol::SFU_PROTO_V0      // returns true if provided version as param is a known SFU version
+                                                            && v <= SfuProtocol::SFU_PROTO_V2; }
+
 // enum for user status in waiting room
 enum class WrState: int
 {
@@ -122,19 +119,6 @@ public:
 
     // returns the SFU protocol version used by the peer
     sfu::SfuProtocol getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
-
-    // returns true if provided version as param, is a SFU version supported by MegaChat
-    bool checkPeerSfuVersion() const
-    {
-        if (!isSupportedSfuVersion(mSfuPeerProtoVersion))
-        {
-            SFU_LOG_WARNING("unsupported SFU version: %u for peer: %s ",
-                             mSfuPeerProtoVersion,
-                             mPeerid.toString().c_str());
-            return false;
-        }
-        return true;
-    }
 
 protected:
     Cid_t mCid = K_INVALID_CID;
