@@ -3169,6 +3169,26 @@ void ChatRoom::notifyRejoinedChat()
 
 void ChatRoomList::removeRoomPreview(Id chatid)
 {
+    auto it = find(chatid);
+    if (it == end())
+    {
+        CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
+        return;
+    }
+    if (!it->second->previewMode())
+    {
+        CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
+        return;
+    }
+
+    GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
+    groupchat->notifyPreviewClosed();
+    erase(it);
+    delete groupchat;
+}
+
+void ChatRoomList::removeRoomPreviewMarshall(Id chatid)
+{
     auto wptr = mKarereClient.weakHandle();
     marshallCall([wptr, this, chatid]()
     {
@@ -3176,23 +3196,7 @@ void ChatRoomList::removeRoomPreview(Id chatid)
         {
             return;
         }
-
-        auto it = find(chatid);
-        if (it == end())
-        {
-            CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
-            return;
-        }
-        if (!it->second->previewMode())
-        {
-            CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
-            return;
-        }
-
-        GroupChatRoom *groupchat = (GroupChatRoom*)it->second;
-        groupchat->notifyPreviewClosed();
-        erase(it);
-        delete groupchat;
+        removeRoomPreview(chatid);
     },mKarereClient.appCtx);
 }
 
@@ -3717,15 +3721,19 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 
 void GroupChatRoom::onUserLeave(Id userid)
 {
-    if (userid == parent.mKarereClient.myHandle())
+    if (userid == Id::null())
     {
+        if (!previewMode())
+        {
+            assert(false);
+            return;
+        }
+
+        // preview is not allowed anymore, notify the user and clean cache
         setRemoved();
     }
-    else if (userid == Id::null())
+    else if (userid == parent.mKarereClient.myHandle())
     {
-        // preview is not allowed anymore, notify the user and clean cache
-        assert(previewMode());
-
         setRemoved();
     }
     else
@@ -4153,6 +4161,20 @@ void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted
     });
 }
 
+bool GroupChatRoom::hasChatLinkChanged(const uint64_t ph, const std::string &decryptedTitle,
+                                       const bool meeting, const ::mega::ChatOptions_t opts) const
+{
+    if ((ph != getPublicHandle())
+        || (meeting != mMeeting)
+        || (!mChatOptions.areEqual(opts))
+        || (titleString().compare(decryptedTitle)))
+    {
+        return true;
+    }
+
+    return false;
+}
+
 void GroupChatRoom::clearTitle()
 {
     makeTitleFromMemberNames();
@@ -4354,6 +4376,66 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaScheduledMeetingList* sched
             KR_LOG_WARNING("addSchedMeetings: can't add a scheduled meeting");
         }
     }
+}
+
+void GroupChatRoom::updateSchedMeetingsWithList(const mega::MegaScheduledMeetingList* smList)
+{
+    if (!smList) { return; }
+
+    // update sched meetings in ram and db with received ones in smList
+    for (unsigned int i = 0; i < smList->size(); ++i)
+    {
+        const mega::MegaScheduledMeeting* sm = smList->at(i);
+        auto it = mScheduledMeetings.find(sm->schedId());
+        if (it != mScheduledMeetings.end() && it->second)
+        {
+            const KarereScheduledMeeting* ksm = it->second.get();
+            KarereScheduledMeeting::sched_bs_t diff = ksm->compare(sm);
+
+            if (diff.any()) // sm has changed respect received data in smList
+            {
+                it->second.reset(new KarereScheduledMeeting(sm));
+                notifySchedMeetingUpdated(it->second.get(), diff.to_ulong());
+                getClientDbInterface().insertOrUpdateSchedMeeting(*it->second);
+            }
+        }
+        else // not found (new scheduled meeting), add it
+        {
+            auto res = mScheduledMeetings.emplace(sm->schedId(), new KarereScheduledMeeting(sm));
+            if (res.second)
+            {
+                notifySchedMeetingUpdated(res.first->second.get(), KarereScheduledMeeting::newSchedMeetingFlagsValue());
+                assert(res.first->second);
+                getClientDbInterface().insertOrUpdateSchedMeeting(*res.first->second);
+            }
+        }
+    }
+
+    // remove (from ram and db) those sched meetings in db not found in smList
+    const auto schedMeetingsInDb = getClientDbInterface().getSchedMeetingsByChatId(chatid());
+    for (const auto& i: schedMeetingsInDb)
+    {
+        const auto sm = i.get();
+        assert(sm);
+        if (sm && !smList->getBySchedId(sm->schedId())) // if schedid not found in list received from API
+        {
+            notifySchedMeetingUpdated(sm, KarereScheduledMeeting::deletedSchedMeetingFlagsValue());
+            mScheduledMeetings.erase(sm->schedId());
+            getClientDbInterface().removeSchedMeetingBySchedId(sm->schedId());
+        }
+    }
+
+    // clear list of current scheduled meetings occurrences from db by chatid
+    getClientDbInterface().clearSchedMeetingOcurrByChatid(chatid());
+
+    // clear list of current scheduled meetings occurrences in ram
+    mScheduledMeetingsOcurrences.clear();
+
+    // set occurrences loaded flag to false
+    mAllDbOccurrencesLoadedInRam = false;
+
+    // notify scheduled meetings occurrences for this chat have changed (in order to app discard them)
+    notifySchedMeetingOccurrencesUpdated(false /*append*/);
 }
 
 void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
