@@ -541,9 +541,6 @@ protected:
       */
     bool mIsDestroyingCall = false;
 
-    // this var detects if we are destroying call due to BYE command received, with non retriable termcode
-    TermCode mByeTermCode = kUnKnownTermCode;
-
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
     bool mIsReconnectingToChatd = false;
 

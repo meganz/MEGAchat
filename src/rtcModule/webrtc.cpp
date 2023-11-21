@@ -2352,7 +2352,6 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
     }
     else
     {
-        mByeTermCode = auxTermCode;
         auto wptr = weakHandle();
         karere::marshallCall([wptr, auxTermCode, this]()
         {
