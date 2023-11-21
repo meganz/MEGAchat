@@ -1348,6 +1348,7 @@ void SfuConnection::doReconnect(const bool applyInitialBackoff)
          */
         mConnectTimer = karere::setTimeout([this, reconnectFunc, wptr]()
         {
+            if (wptr.deleted()) { return; }
             mConnectTimer = 0;
             reconnectFunc();
         }, getInitialBackoff() * 100, mAppCtx);
