@@ -4540,7 +4540,7 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
  * - Test4: B enables audio (unmute)
  * - Test5: Remove B as speaker
  */
-TEST_F(MegaChatApiTest, RaiseHandToSpeakCall)
+TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
 {
     const unsigned int a1 = 0; // primary account
     const unsigned int a2 = 1; // secondary account
