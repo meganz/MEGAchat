@@ -1186,7 +1186,7 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
         return;
     }
 
-    // send BYE command as part of the protocol to inform SFU about the disconnection reason
+    // avoid sending BYE command more than once
     if (mSfuConnection->isSendingByeCommand())
     {
         RTCM_LOG_DEBUG("orderedCallDisconnect, already sending BYE command");
@@ -1196,6 +1196,7 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
     // we need to store termcode temporarily until confirm BYE command has been sent
     mTempTermCode = termCode;
 
+    // send BYE command as part of the protocol to inform SFU about the disconnection reason
     // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
     mSfuConnection->sendBye(termCode);
 }
@@ -2703,7 +2704,7 @@ void Call::sfuDisconnect(const TermCode& termCode, bool hadParticipants)
     }
 }
 
-void Call::onSendByeCommand()
+void Call::onByeCommandSent()
 {
     auto wptr = weakHandle();
     karere::marshallCall([wptr, this]()

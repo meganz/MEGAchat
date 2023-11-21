@@ -486,7 +486,7 @@ public:
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     void onSfuDisconnected() override;
-    void onSendByeCommand() override;
+    void onByeCommandSent() override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
