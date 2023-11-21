@@ -1493,6 +1493,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         RTCM_LOG_WARNING("handleAnswerCommand: speak request option temporarily disabled");
         assert(false); // theoretically, it should not happen
         orderedCallDisconnect(TermCode::kUserHangup, "handleAnswerCommand: speak request option temporarily disabled");
+        return true;
     }
 
     if (mState != kStateJoining)
