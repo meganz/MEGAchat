@@ -393,7 +393,7 @@ public:
     void sfuDisconnect(const TermCode &termCode, bool hadParticipants);
 
     // ordered call disconnect by sending BYE command before performing SFU and media channel disconnect
-    void orderedCallDisconnect(TermCode termCode, const std::string &msg);
+    void orderedCallDisconnect(TermCode termCode, const std::string &msg, const bool forceDisconnect = false);
 
     // immediate disconnect (without sending BYE command) from SFU and media channel, and also clear call resources
     void immediateCallDisconnect(const TermCode& termCode);
@@ -754,6 +754,7 @@ public:
     DNScache& getDnsCache() override;
 
     void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
+    void orderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode);
     void immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode);
 
     void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) override;

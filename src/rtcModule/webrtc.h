@@ -275,7 +275,7 @@ public:
     virtual DNScache& getDnsCache() = 0;
 
     virtual void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
-
+    virtual void orderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode) = 0;
     virtual void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) = 0;
     virtual void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;

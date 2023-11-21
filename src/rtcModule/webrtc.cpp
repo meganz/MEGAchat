@@ -1162,8 +1162,21 @@ void Call::getLocalStreams()
     }
 }
 
-void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
+void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, const bool forceDisconnect)
 {
+    if (isDestroying() && !forceDisconnect)
+    {
+        RTCM_LOG_WARNING("orderedCallDisconnect: call is already being destroyed");
+        return;
+    }
+
+    // avoid sending BYE command more than once
+    if (mSfuConnection->isSendingByeCommand())
+    {
+        RTCM_LOG_DEBUG("orderedCallDisconnect, there's a disconnection attempt in progress by sending BYE command");
+        return;
+    }
+
     // When the client initiates a disconnect we need to send BYE command to inform SFU about the reason
     RTCM_LOG_DEBUG("orderedCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
     if (mSfuConnection && mSfuConnection->isOnline())
@@ -1179,17 +1192,7 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg)
     if (!mSfuConnection || !mSfuConnection->isOnline()
             || termCode == kSigDisconn)  // kSigDisconn is mutually exclusive with the BYE command
     {
-        isDestroying()
-            ? mRtc.immediateRemoveCall(this, mTempEndCallReason, termCode) // destroy call immediately
-            : immediateCallDisconnect(termCode); // we don't need to send BYE command, just perform disconnection
-
-        return;
-    }
-
-    // avoid sending BYE command more than once
-    if (mSfuConnection->isSendingByeCommand())
-    {
-        RTCM_LOG_DEBUG("orderedCallDisconnect, already sending BYE command");
+        immediateCallDisconnect(termCode); // we don't need to send BYE command, just perform disconnection
         return;
     }
 
@@ -2349,41 +2352,13 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
     }
     else
     {
-        if (auxTermCode == kKickedFromWaitingRoom           // => we have been kicked from call
-            || auxTermCode == kWaitingRoomAllowTimeout)     // => timed out waiting to be allowed from waiting room into call
+        mByeTermCode = auxTermCode;
+        auto wptr = weakHandle();
+        karere::marshallCall([wptr, auxTermCode, this]()
         {
-            auto wptr = weakHandle();
-            karere::marshallCall([wptr, auxTermCode, this]()
-            {
-                // need to marshall this, otherwise there could be memory issues when we remove Sfuconnection
-                if (wptr.deleted())
-                {
-                    return;
-                }
-
-                RTCM_LOG_DEBUG("handleBye: immediate call disconnect due to BYE [%u] command received from SFU (kKickedFromWaitingRoom)", auxTermCode);
-                immediateCallDisconnect(auxTermCode); // we don't need to send BYE command, just perform disconnection
-            }, mRtc.getAppCtx());
-        }
-        else
-        {
-            EndCallReason reason = getEndCallReasonFromTermcode(auxTermCode);
-            if (reason == kInvalidReason)
-            {
-                RTCM_LOG_ERROR("Invalid end call reason for termcode [%u]", termCode);
-                assert(false); // we don't need to fail, just log a msg and assert => check getEndCallReasonFromTermcode
-            }
-
-            RTCM_LOG_DEBUG("Immediate removing call due to BYE [%u] command received from SFU", auxTermCode);
-            mByeTermCode = auxTermCode;
-            setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
-            auto wptr = weakHandle();
-            karere::marshallCall([wptr, auxTermCode, reason, this]()
-            {
-                if (wptr.deleted()) { return; }
-                mRtc.immediateRemoveCall(this, reason, auxTermCode);
-            }, mRtc.getAppCtx());
-        }
+            if (wptr.deleted()) { return; }
+            immediateCallDisconnect(auxTermCode);
+        }, mRtc.getAppCtx());
     }
     return true;
 }
@@ -2625,38 +2600,30 @@ bool Call::handleMutedCommand(const unsigned av)
 
 void Call::onSfuDisconnected()
 {
-    if (isDestroying()) // we was trying to destroy call but we have received a sfu socket close (before processing BYE command)
-    {
-        // if mByeTermCode is kUnKnownTermCode, but we are not sending BYE command, we are not destroying call properly
-        if (mByeTermCode == kUnKnownTermCode
-            && !mSfuConnection->isSendingByeCommand())
-        {
-            // if we called orderedDisconnectAndCallRemove (call state not between kStateConnecting and kStateInProgress) immediateRemoveCall would have been called, and call wouldn't exists at this point
-            RTCM_LOG_ERROR("onSfuDisconnected: call is being destroyed but we are not sending BYE command, current call shouldn't exist at this point");
-            assert(mSfuConnection->isSendingByeCommand()); // in prod fallback to mediaChannelDisconnect and clearResources
-        }
-        else
-        {
-            auto wptr = weakHandle();
-            karere::marshallCall([wptr, this]()
-            {
-                if (wptr.deleted())
-                {
-                    return;
-                }
-                /* if we called orderedDisconnectAndCallRemove (call state between kStateConnecting and kStateInProgress),
-                 * but socket has been closed before BYE command is delivered, we need to remove call */
-                mRtc.immediateRemoveCall(this, mTempEndCallReason, kSigDisconn);
-            }, mRtc.getAppCtx());
-            return;
-        }
-    }
-
     // Not necessary to call to orderedCallDisconnect, as we are not connected to SFU
     // disconnect from media channel and clear resources
     mediaChannelDisconnect();
     clearResources(kRtcDisconn);
     setState(CallState::kStateConnecting);
+
+    if (isDestroying())
+    {
+        /* We have received a OP_DELCALLREASON, and we tried to disconnect orderly from SFU, by sending 'BYE' command before removing call,
+         * but we have received a sfu socket close, before onSfuDisconnected onSendByeCommand is executed (BYE cannot be sent).
+         *
+         * As call was marked to be destroyed, we need to remove it.
+         */
+        auto wptr = weakHandle();
+        karere::marshallCall([wptr, this]()
+        {
+            if (wptr.deleted())
+            {
+                return;
+            }
+            mRtc.immediateRemoveCall(this, mTempEndCallReason, kSigDisconn);
+        }, mRtc.getAppCtx());
+        return;
+    }
 }
 
 void Call::immediateCallDisconnect(const TermCode& termCode)
@@ -2730,8 +2697,10 @@ void Call::onByeCommandSent()
             return;
         }
 
-        if (isDestroying()) // we was trying to destroy call, and we have received BYE command delivering notification
+        if (isDestroying())
         {
+            // We have received a OP_DELCALLREASON, and we tried to disconnect orderly from SFU, by sending 'BYE' command before removing call,
+            // Now we have received BYE command delivering notification, so we can remove call
             mRtc.immediateRemoveCall(this, mTempEndCallReason, mTempTermCode);
         }
         else
@@ -2792,13 +2761,9 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         return true;
     }
 
-    if (!isTermCodeRetriable(connectionTermCode) || mParticipants.empty())
-    {
-        setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
-    }
-
+    const bool disconnectCall = !isTermCodeRetriable(connectionTermCode) || mParticipants.empty();
     auto wptr = weakHandle();
-    karere::marshallCall([wptr, this, connectionTermCode, errMsg]()
+    karere::marshallCall([wptr, this, connectionTermCode, errMsg, disconnectCall]()
     {
         // error() is called from LibwebsocketsClient::wsCallback() for LWS_CALLBACK_CLIENT_RECEIVE.
         // If disconnect() is called here immediately, it will destroy the LWS client synchronously,
@@ -2819,11 +2784,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         std::string errMsgStr = errMsg.empty() || !errMsg.compare("Unknown reason") ? connectionTermCodeToString(connectionTermCode): errMsg;
         mCallHandler.onCallError(*this, static_cast<int>(connectionTermCode), errMsgStr);
 
-        // remove call just if there are no participants or termcode is not recoverable (we don't need to send BYE command upon SFU error reception)
-        if (isDestroying())
+        if (disconnectCall)
         {
-            //immediateCallDisconnect will be called inside immediateRemoveCall
-            mRtc.immediateRemoveCall(this, EndCallReason::kFailed, connectionTermCode);
+            // disconnect call just if there are no participants or termcode is not recoverable (we don't need to send BYE command upon SFU error reception)
+            // call just can be removed upon OP_DELCALLREASON command received from chatd
+            immediateCallDisconnect(connectionTermCode);
         }
     }, mRtc.getAppCtx());
 
@@ -4130,10 +4095,28 @@ DNScache& RtcModuleSfu::getDnsCache()
     return mDnsCache;
 }
 
+void RtcModuleSfu::orderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode)
+{
+    Call* call = static_cast<Call*>(iCall);
+    if (!call)
+    {
+        RTCM_LOG_WARNING("orderedCallDisconnect: call no longer exists");
+        return;
+    }
+
+    if (call->isDestroying())
+    {
+        RTCM_LOG_WARNING("orderedCallDisconnect: call is already being destroyed");
+        return;
+    }
+
+    RTCM_LOG_DEBUG("Ordered removing call with callid: %s", call->getCallid().toString().c_str());
+    call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str());
+}
 
 void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode)
 {
-    Call *call = static_cast<Call*>(iCall);
+    Call* call = static_cast<Call*>(iCall);
     if (!call)
     {
         RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call no longer exists");
@@ -4145,15 +4128,21 @@ void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCa
         RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call is already being destroyed");
         return;
     }
+    call->setDestroying(true);
 
     // set temporary endCall reason in case immediateRemoveCall is not called immediately (i.e if we first need to send BYE command)
     call->setTempEndCallReason(reason);
 
-    RTCM_LOG_DEBUG("Ordered removing call with callid: %s", call->getCallid().toString().c_str());
-    call->setDestroying(true);
-    (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
-            ? call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str())
-            : immediateRemoveCall(call, reason, connectionTermCode);
+    if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
+    {
+        RTCM_LOG_DEBUG("ordered call disconnect before call destruction");
+        call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str(), true /*forceDisconnect*/);
+    }
+    else
+    {
+        RTCM_LOG_DEBUG("immediate call destruction");
+        immediateRemoveCall(call, reason, connectionTermCode);
+    }
 }
 
 
