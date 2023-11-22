@@ -4542,6 +4542,8 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
  */
 TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
 {
+    // Note: Speak request feature is not available for current protocol SFU version, enable this test once
+    // SFU code has been updated and MegaChat also has made required adjustments
     const unsigned int a1 = 0; // primary account
     const unsigned int a2 = 1; // secondary account
 

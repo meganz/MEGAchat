@@ -1481,6 +1481,12 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
+    if (isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("handleAnswerCommand: speak request option not available for this protocol version");
+        assert(false); // theoretically, it should not happen
+    }
+
     if (mState != kStateJoining)
     {
         RTCM_LOG_WARNING("handleAnswerCommand: get unexpected state change");
@@ -4132,12 +4138,6 @@ void RtcModuleSfu::immediateRemoveCall(Call* call, uint8_t reason, TermCode conn
     if (!call)
     {
         RTCM_LOG_WARNING("removeCall: call no longer exists");
-        return;
-    }
-
-    if (!findCall(call->getCallid()))
-    {
-        RTCM_LOG_DEBUG("Call: %s already destroyed", call->getCallid().toString().c_str());
         return;
     }
 
