@@ -62,6 +62,11 @@ public:
 int main(int argc, char **argv)
 {
     RuntimeArgValues argVals(vector<string>(argv, argv + argc));
+    if (argVals.isHelp())
+    {
+        return 0;
+    }
+
     if (!argVals.isValid())
     {
         std::cout << "No tests executed (invalid arguments)." << std::endl;
