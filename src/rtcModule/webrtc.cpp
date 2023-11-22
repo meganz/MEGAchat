@@ -2625,7 +2625,7 @@ void Call::onSfuDisconnected()
             {
                 return;
             }
-            mRtc.immediateRemoveCall(this, mTempEndCallReason, kSigDisconn);
+            mRtc.removeCallImmediately(this, mTempEndCallReason, kSigDisconn);
         }, mRtc.getAppCtx());
         return;
     }
@@ -2706,7 +2706,7 @@ void Call::onByeCommandSent()
         {
             // We have received a OP_DELCALLREASON, and we tried to disconnect orderly from SFU, by sending 'BYE' command before removing call,
             // Now we have received BYE command delivering notification, so we can remove call
-            mRtc.immediateRemoveCall(this, mTempEndCallReason, mTempTermCode);
+            mRtc.removeCallImmediately(this, mTempEndCallReason, mTempTermCode);
         }
         else
         {
@@ -4146,12 +4146,11 @@ void RtcModuleSfu::onDelCallReason(rtcModule::ICall* iCall, EndCallReason reason
     else
     {
         RTCM_LOG_DEBUG("immediate call destruction");
-        immediateRemoveCall(call, reason, connectionTermCode);
+        removeCallImmediately(call, reason, connectionTermCode);
     }
 }
 
-
-void RtcModuleSfu::immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode)
+void RtcModuleSfu::removeCallImmediately(Call* call, uint8_t reason, TermCode connectionTermCode)
 {
     assert(reason != kInvalidReason);
     if (!call)
