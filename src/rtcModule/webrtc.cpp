@@ -956,13 +956,6 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 
 void Call::joinSfu()
 {
-    if (isSpeakRequestEnabled())
-    {
-        RTCM_LOG_WARNING("joinSfu: speak request option temporarily disabled");
-        assert(false); // theoretically, it should not happen
-        orderedCallDisconnect(TermCode::kUserHangup, "joinSfu: speak request option temporarily disabled");
-    }
-
     clearPendingPeers(); // clear pending peers (if any) before joining call
     initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
@@ -1490,10 +1483,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 {
     if (isSpeakRequestEnabled())
     {
-        RTCM_LOG_WARNING("handleAnswerCommand: speak request option temporarily disabled");
+        RTCM_LOG_WARNING("handleAnswerCommand: speak request option not available for this protocol version");
         assert(false); // theoretically, it should not happen
-        orderedCallDisconnect(TermCode::kUserHangup, "handleAnswerCommand: speak request option temporarily disabled");
-        return true;
     }
 
     if (mState != kStateJoining)
@@ -2375,7 +2366,6 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
             }
 
             RTCM_LOG_DEBUG("Immediate removing call due to BYE [%u] command received from SFU", auxTermCode);
-            mByeTermCode = auxTermCode;
             setDestroying(true); // we need to set destroying true to avoid notifying (kStateClientNoParticipating) when sfuDisconnect is called, and we are going to finally remove call
             auto wptr = weakHandle();
             karere::marshallCall([wptr, auxTermCode, reason, this]()
@@ -2440,13 +2430,6 @@ bool Call::handleModDel(uint64_t userid)
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
                        const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
 {
-    if (speakRequest)
-    {
-        RTCM_LOG_WARNING("handleHello: speak request option temporarily disabled");
-        assert(false); // theoretically, it should not happen
-        orderedCallDisconnect(TermCode::kUserHangup, "handleHello: speak request option temporarily disabled");
-    }
-
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
     if (!isValidInputVideoTracksLimit(numInputVideoTracks))
@@ -2625,31 +2608,23 @@ bool Call::handleMutedCommand(const unsigned av)
 
 void Call::onSfuDisconnected()
 {
-    if (isDestroying()) // we was trying to destroy call but we have received a sfu socket close (before processing BYE command)
+    if (isDestroying()) // we was trying to destroy call but we have received a sfu socket close (before call has been destroyed)
     {
-        // if mByeTermCode is kUnKnownTermCode, but we are not sending BYE command, we are not destroying call properly
-        if (mByeTermCode == kUnKnownTermCode
-            && !mSfuConnection->isSendingByeCommand())
+        // codepath that calls Call::setDestroying is responsible to send BYE command if required
+        // at this point we only can destroy call as mIsDestroyingCall has been already set true
+        auto wptr = weakHandle();
+        karere::marshallCall([wptr, this]()
         {
-            // if we called orderedDisconnectAndCallRemove (call state not between kStateConnecting and kStateInProgress) immediateRemoveCall would have been called, and call wouldn't exists at this point
-            RTCM_LOG_ERROR("onSfuDisconnected: call is being destroyed but we are not sending BYE command, current call shouldn't exist at this point");
-            assert(mSfuConnection->isSendingByeCommand()); // in prod fallback to mediaChannelDisconnect and clearResources
-        }
-        else
-        {
-            auto wptr = weakHandle();
-            karere::marshallCall([wptr, this]()
+            if (wptr.deleted())
             {
-                if (wptr.deleted())
-                {
-                    return;
-                }
-                /* if we called orderedDisconnectAndCallRemove (call state between kStateConnecting and kStateInProgress),
-                 * but socket has been closed before BYE command is delivered, we need to remove call */
-                mRtc.immediateRemoveCall(this, mTempEndCallReason, kSigDisconn);
-            }, mRtc.getAppCtx());
-            return;
-        }
+                return;
+            }
+
+            /* if we called orderedDisconnectAndCallRemove (call state between kStateConnecting and kStateInProgress),
+             * but socket has been closed before BYE command is delivered, we need to remove call */
+            mRtc.immediateRemoveCall(this, mTempEndCallReason, kSigDisconn);
+        }, mRtc.getAppCtx());
+        return;
     }
 
     // Not necessary to call to orderedCallDisconnect, as we are not connected to SFU

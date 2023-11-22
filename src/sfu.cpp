@@ -683,10 +683,6 @@ SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete, Sf
 
 bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
 {
-    // remove this when SFU is ready
-    SFU_LOG_ERROR("SpeakReqsCommand::processCommand - command temporarily disabled");
-    return true;
-
     rapidjson::Value::ConstMemberIterator cidsIterator = command.FindMember("cids");
     if (cidsIterator == command.MemberEnd() || !cidsIterator->value.IsArray())
     {
@@ -720,10 +716,6 @@ SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &comple
 
 bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 {
-    // remove this when SFU is ready
-    SFU_LOG_ERROR("SpeakReqDelCommand::processCommand - command temporarily disabled");
-    return true;
-
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
@@ -762,11 +754,7 @@ SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete, SfuIn
 }
 
 bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
-{
-    // remove this when SFU is ready
-    SFU_LOG_ERROR("SpeakOffCommand::processCommand - command temporarily disabled");
-    return true;
-
+{    
     Cid_t cid = 0;
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
@@ -1360,6 +1348,7 @@ void SfuConnection::doReconnect(const bool applyInitialBackoff)
          */
         mConnectTimer = karere::setTimeout([this, reconnectFunc, wptr]()
         {
+            if (wptr.deleted()) { return; }
             mConnectTimer = 0;
             reconnectFunc();
         }, getInitialBackoff() * 100, mAppCtx);
