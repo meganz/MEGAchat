@@ -1126,26 +1126,29 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                    {
                        Id ph = result->getNodeHandle();
                        request->setUserHandle(ph.val);
-
                        GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
-                       if (room)
+                       const bool hasChanged = room && room->hasChatLinkChanged(ph.val, decryptedTitle, meeting, opts);
+                       std::string url = result->getLink() ? result->getLink() : "";
+                       int shard = result->getAccess();
+
+                       if (room && !hasChanged)
                        {
-                           if (room->isActive()
-                              || (!room->isActive() && !room->previewMode()))
+                           int err = MegaChatError::ERROR_EXIST;
+                           const bool enablePreview = !room->isActive() && room->previewMode();
+                           if (enablePreview)
                            {
-                               MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
-                               fireOnChatRequestFinish(request, megaChatError);
-                           }
-                           else
-                           {
-                               MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                               err = MegaChatError::ERROR_OK;
                                room->enablePreview(ph);
-                               fireOnChatRequestFinish(request, megaChatError);
                            }
+
+                           // update sched meetings if necessary and notify app
+                           room->updateSchedMeetingsWithList(smList);
+                           MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err);
+                           fireOnChatRequestFinish(request, megaChatError);
                        }
                        else
                        {
-                           if (mClient->mChatdClient->chatFromId(chatId))
+                           if (!room && mClient->mChatdClient->chatFromId(chatId))
                            {
                               assert(!mClient->mChatdClient->chatFromId(chatId));
                               API_LOG_ERROR("Chatid (%s) already exists at mChatForChatId but not at ChatRoomList", karere::Id(chatId).toString().c_str());
@@ -1154,11 +1157,17 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                               return;
                            }
 
-                           std::string url = result->getLink() ? result->getLink() : "";
-                           int shard = result->getAccess();
+                           if (hasChanged)
+                           {
+                              assert(room);
+                              // if mcphurl information is different respect GroupChatRoom in ram
+                              // we need to remove preview and recreate again, this is simplier than update
+                              // groupchatroom field by field
+                              mClient->chats->removeRoomPreview(chatId);
+                           }
+
                            std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
                            uint32_t ts = static_cast<uint32_t>(result->getNumber());
-
                            mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
                            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                            fireOnChatRequestFinish(request, megaChatError);
@@ -5320,7 +5329,7 @@ void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 
     SdkMutexGuard g(sdkMutex);
 
-   mClient->chats->removeRoomPreview(chatid);
+   mClient->chats->removeRoomPreviewMarshall(chatid);
 }
 
 int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
