@@ -61,7 +61,11 @@ public:
 
 int main(int argc, char **argv)
 {
-    RuntimeArgValues argVals(vector<string>(argv, argv + argc));
+    vector<pair<string, string>> accEnvVars{{"MEGA_EMAIL0", "MEGA_PWD0"},
+                                            {"MEGA_EMAIL1", "MEGA_PWD1"},
+                                            {"MEGA_EMAIL2", "MEGA_PWD2"}};
+
+    RuntimeArgValues argVals(vector<string>(argv, argv + argc), std::move(accEnvVars));
     if (argVals.isHelp())
     {
         return 0;
