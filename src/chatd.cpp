@@ -2705,7 +2705,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                         CHATDS_LOG_DEBUG("Ignore DELCALLREASON command, as we are still connected to SFU");
                         break;
                     }
-                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, endCallReason, connectionTermCode);
+                    mChatdClient.mKarereClient->rtc->onDelCallReason(call, endCallReason, connectionTermCode);
                 }
 #endif
                 break;

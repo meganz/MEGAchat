@@ -750,8 +750,8 @@ public:
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
-    void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
-    void orderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode);
+    void onDelCallReason(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
+    void orderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode) override;
     void immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode);
 
     void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) override;

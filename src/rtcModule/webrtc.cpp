@@ -134,9 +134,15 @@ void Call::setState(CallState newState)
             {
                 mConnectTimer = 0;
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
-                mIsReconnectingToChatd
-                    ? mRtc.orderedDisconnectAndCallRemove(this, rtcModule::EndCallReason::kFailed, kUserHangup) // no need to marshall, as we are executing a lambda in a timer
-                    : orderedCallDisconnect(kUserHangup, "Reconnection attempt has not succeed"); // TODO add new termcode to notify apps that reconnection attempt failed
+                if (mIsReconnectingToChatd)
+                {
+                    // todo: thing the best way to manage this codepath
+                    mRtc.onDelCallReason(this, rtcModule::EndCallReason::kFailed, kUserHangup); // no need to marshall, as we are executing a lambda in a timer
+                }
+                else
+                {
+                    orderedCallDisconnect(kUserHangup, "Reconnection attempt has not succeed"); // TODO add new termcode to notify apps that reconnection attempt failed
+                }
             }
         }, kConnectingTimeout * 1000, mRtc.getAppCtx());
     }
@@ -4113,7 +4119,7 @@ void RtcModuleSfu::orderedCallDisconnect(rtcModule::ICall* iCall, TermCode conne
     call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str());
 }
 
-void RtcModuleSfu::orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode)
+void RtcModuleSfu::onDelCallReason(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode)
 {
     Call* call = static_cast<Call*>(iCall);
     if (!call)
