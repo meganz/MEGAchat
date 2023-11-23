@@ -2599,13 +2599,15 @@ bool Call::handleMutedCommand(const unsigned av)
 
 void Call::onSfuDisconnected()
 {
-    // Not necessary to call to orderedCallDisconnect, as we are not connected to SFU
-    // disconnect from media channel and clear resources
-    mediaChannelDisconnect();
-    clearResources(kRtcDisconn);
-    setState(CallState::kStateConnecting);
-
-    if (isDestroying())
+    if (!isDestroying())
+    {
+        // Not necessary to call to orderedCallDisconnect, as we are not connected to SFU
+        // disconnect from media channel and clear resources
+        mediaChannelDisconnect();
+        clearResources(kRtcDisconn);
+        setState(CallState::kStateConnecting);
+    }
+    else
     {
         /* We have received a OP_DELCALLREASON, and we tried to disconnect orderly from SFU, by sending 'BYE' command before removing call,
          * but we have received a sfu socket close, before onSfuDisconnected onSendByeCommand is executed (BYE cannot be sent).
@@ -4148,6 +4150,7 @@ void RtcModuleSfu::removeCallImmediately(Call* call, uint8_t reason, TermCode co
     }
 
     RTCM_LOG_DEBUG("Removing call with callid: %s", call->getCallid().toString().c_str());
+    // clear resources and disconnect from media channel and SFU (if required)
     call->immediateCallDisconnect(connectionTermCode);
     // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
     call->setEndCallReason(reason);
