@@ -136,7 +136,7 @@ void Call::setState(CallState newState)
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
                 if (mIsReconnectingToChatd)
                 {
-                    // todo: thing the best way to manage this codepath
+                    // todo: pending to check this codepath
                     mRtc.onDelCallReason(this, rtcModule::EndCallReason::kFailed, kUserHangup); // no need to marshall, as we are executing a lambda in a timer
                 }
                 else
@@ -2656,18 +2656,17 @@ void Call::immediateCallDisconnect(const TermCode& termCode)
         return;
     }
 
-    bool hadParticipants = !mSessions.empty();
     mediaChannelDisconnect(true /*releaseDevices*/);
     clearResources(termCode);
-    sfuDisconnect(termCode, hadParticipants);
+    disconnectFromSfu(termCode, !mSessions.empty() /*hadParticipants*/);
 }
-    RTCM_LOG_DEBUG("callDisconnect, termcode (%u): %s", termCode, connectionTermCodeToString(termCode).c_str());
+
+void Call::disconnectFromSfu(const TermCode& termCode, bool hadParticipants)
+{
+    RTCM_LOG_DEBUG("disconnectFromSfu, termcode (%u): %s", termCode, connectionTermCodeToString(termCode).c_str());
+    const bool wasJoined = mSfuConnection && mSfuConnection->isJoined();
     mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
     setState(CallState::kStateTerminatingUserParticipation);
-
-    // skip kStateClientNoParticipating notification if:
-    bool skipClientNoParticipating = (isDestroying())             // we are destroying call
-            || (!hadParticipants && mSfuConnection && mSfuConnection->isJoined());  // no more participants but still joined to SFU
 
     if (mSfuConnection)
     {
@@ -2675,7 +2674,9 @@ void Call::immediateCallDisconnect(const TermCode& termCode)
         mSfuConnection = nullptr;
     }
 
-    if (!skipClientNoParticipating)
+    bool skipNotification = (isDestroying())                    // we are destroying call
+                            || (!hadParticipants && wasJoined); // no more participants but still joined to SFU
+    if (!skipNotification)
     {
         mTermCode = kInvalidTermCode;
         setState(CallState::kStateClientNoParticipating);
@@ -2699,15 +2700,6 @@ void Call::onByeCommandSent()
             return;
         }
 
-        if (mState == CallState::kStateConnecting)
-        {
-            // we have sent BYE command from onConnectionChange (kDisconnected | kFailed | kClosed)
-            // and now we need to force reconnect to SFU
-            mSfuConnection->clearCommandsQueue();
-            mSfuConnection->retryPendingConnection(true);
-            return;
-        }
-
         if (isDestroying())
         {
             // We have received a OP_DELCALLREASON, and we tried to disconnect orderly from SFU, by sending 'BYE' command before removing call,
@@ -2716,12 +2708,22 @@ void Call::onByeCommandSent()
         }
         else
         {
-            // once we have confirmed that BYE command has been sent, we can proceed with disconnect
-            assert (mTempTermCode != kInvalidTermCode);
+            if (mState == CallState::kStateConnecting)
+            {
+                // we have sent BYE command from onConnectionChange (kDisconnected | kFailed | kClosed)
+                // and now we need to force reconnect to SFU
+                mSfuConnection->clearCommandsQueue();
+                mSfuConnection->retryPendingConnection(true);
+            }
+            else
+            {
+                // once we have confirmed that BYE command has been sent, we can proceed with disconnect
+                assert (mTempTermCode != kInvalidTermCode);
 
-            // close sfu and media channel connection and clear some call stuff
-            immediateCallDisconnect(mTempTermCode);
-            mTempTermCode = kInvalidTermCode;
+                // close sfu and media channel connection and clear some call stuff
+                immediateCallDisconnect(mTempTermCode);
+                mTempTermCode = kInvalidTermCode;
+            }
         }
     }, mRtc.getAppCtx());
 }
@@ -2868,7 +2870,6 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
 
     if (newState >= webrtc::PeerConnectionInterface::PeerConnectionState::kDisconnected)
     {
-
         if (isDestroying()) // we was trying to destroy call, but we have received onConnectionChange. Don't do anything else (wait for BYE command delivering)
         {
             return;
@@ -4120,12 +4121,6 @@ void RtcModuleSfu::rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode co
         return;
     }
 
-    if (call->isDestroying())
-    {
-        RTCM_LOG_WARNING("rtcOrderedCallDisconnect: call is already being destroyed");
-        return;
-    }
-
     RTCM_LOG_DEBUG("rtcOrderedCallDisconnect: Ordered removing call with callid: %s", call->getCallid().toString().c_str());
     call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str());
 }
@@ -4151,16 +4146,10 @@ void RtcModuleSfu::onDelCallReason(rtcModule::ICall* iCall, EndCallReason reason
     // set temporary endCall reason in case immediateRemoveCall is not called immediately (i.e if we first need to send BYE command)
     call->setTempEndCallReason(reason);
 
-    if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
-    {
-        RTCM_LOG_DEBUG("ordered call disconnect before call destruction");
-        call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str(), true /*forceDisconnect*/);
-    }
-    else
-    {
-        RTCM_LOG_DEBUG("immediate call destruction");
-        removeCallImmediately(call, reason, connectionTermCode);
-    }
+    // we are going to destroy call, but in case we are still connected to SFU we need to send BYE command
+    call->isConnectedToSfu()
+        ? call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str(), true /*forceDisconnect*/)
+        : removeCallImmediately(call, reason, connectionTermCode);
 }
 
 void RtcModuleSfu::removeCallImmediately(Call* call, uint8_t reason, TermCode connectionTermCode)
@@ -4173,11 +4162,7 @@ void RtcModuleSfu::removeCallImmediately(Call* call, uint8_t reason, TermCode co
     }
 
     RTCM_LOG_DEBUG("Removing call with callid: %s", call->getCallid().toString().c_str());
-    if (call->getState() > kStateClientNoParticipating && call->getState() <= kStateInProgress)
-    {
-        call->immediateCallDisconnect(connectionTermCode);
-    }
-
+    call->immediateCallDisconnect(connectionTermCode);
     // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
     call->setEndCallReason(reason);
     mCalls.erase(call->getCallid());
