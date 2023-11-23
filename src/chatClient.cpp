@@ -936,7 +936,6 @@ promise::Promise<void> Client::removeScheduledMeeting(uint64_t chatid, uint64_t 
 
 promise::Promise<ReqResult> Client::ringIndividualInACall(const uint64_t chatid, const uint64_t userid)
 {
-    auto wptr = weakHandle();
     return api.call(&::mega::MegaApi::ringIndividualInACall, chatid, userid);
 }
 
