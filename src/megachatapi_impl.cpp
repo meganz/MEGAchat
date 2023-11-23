@@ -5982,8 +5982,8 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         API_LOG_ERROR("Ring individual in call: invalid chat id");
         return MegaChatError::ERROR_ARGS;
     }
-    const auto userToCallId = request->getUserHandle();
-    if (userToCallId == MEGACHAT_INVALID_HANDLE)
+    const auto userIdToCall = request->getUserHandle();
+    if (userIdToCall == MEGACHAT_INVALID_HANDLE)
     {
         API_LOG_ERROR("Ring individual in call: invalid user id");
         return MegaChatError::ERROR_ARGS;
@@ -6009,12 +6009,27 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         return MegaChatError::ERROR_NOENT;
     }
 
-    auto callId = call->getCallid();
-    Chat &chat = chatroom->chat();
+    // send OP_RINGUSER followed by 'mcru'
+    Chat& chat = chatroom->chat();
     const int16_t ringTimeout = static_cast<int16_t>(request->getParamType());
-    chat.ringIndividualInACall(userToCallId, callId, ringTimeout);
-    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+    chat.ringIndividualInACall(userIdToCall, call->getCallid(), ringTimeout);
 
+    // Important: remove this call to Client::ringIndividualInACall (send 'mcru' to API) when chatd makes the required adjustments
+    // to manage this logic without client intervention. When this happens we'll only need to send OP_RINGUSER as
+    // we previously did.
+    auto wptr = mClient->weakHandle();
+    mClient->ringIndividualInACall(chatId, userIdToCall)
+    .then([this, request, wptr](ReqResult)
+    {
+        wptr.throwIfDeleted();
+        fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+    })
+    .fail([request, this](const ::promise::Error& err)
+    {
+        API_LOG_ERROR("Error sending 'mcru' command to API: %s", err.what());
+        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+        fireOnChatRequestFinish(request, megaChatError);
+    });
     return MegaChatError::ERROR_OK;
 }
 
