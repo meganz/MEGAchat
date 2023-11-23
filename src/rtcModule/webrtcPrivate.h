@@ -753,7 +753,7 @@ public:
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
-    void onDelCallReason(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
+    void onDestroyCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
     void rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode) override;
     void removeCallImmediately(Call* call, uint8_t reason, TermCode connectionTermCode);
 

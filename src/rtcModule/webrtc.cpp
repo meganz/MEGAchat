@@ -136,8 +136,9 @@ void Call::setState(CallState newState)
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
                 if (mIsReconnectingToChatd)
                 {
-                    // todo: pending to check this codepath
-                    mRtc.onDelCallReason(this, rtcModule::EndCallReason::kFailed, kUserHangup); // no need to marshall, as we are executing a lambda in a timer
+                    // if timeout to connect to SFU has expired, and we are also connecting to chatd, we need to remove call
+                    // when we finally connect to chatd, it should inform us if any call exists
+                    mRtc.onDestroyCall(this, rtcModule::EndCallReason::kFailed, kUserHangup); // no need to marshall, as we are executing a lambda in a timer
                 }
                 else
                 {
@@ -4125,7 +4126,7 @@ void RtcModuleSfu::rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode co
     call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str());
 }
 
-void RtcModuleSfu::onDelCallReason(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode)
+void RtcModuleSfu::onDestroyCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode)
 {
     Call* call = static_cast<Call*>(iCall);
     if (!call)
