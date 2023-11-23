@@ -7032,7 +7032,7 @@ void MegaChatApiImpl::cleanCalls()
             rtcModule::ICall* call = findCall(chatids[i]);
             if (call)
             {
-                mClient->rtc->orderedCallDisconnect(call, rtcModule::TermCode::kUserHangup);
+                mClient->rtc->rtcOrderedCallDisconnect(call, rtcModule::TermCode::kUserHangup);
             }
         }
     }

@@ -5812,7 +5812,7 @@ void Chat::onUserLeave(const Id& userid)
         if (call && mChatdClient.mKarereClient->rtc && !previewMode())
         {
             CHATID_LOG_DEBUG("remove call associated to chatRoom if our own user is not an active participant");
-            mChatdClient.mKarereClient->rtc->orderedCallDisconnect(call, rtcModule::TermCode::kLeavingRoom);
+            mChatdClient.mKarereClient->rtc->rtcOrderedCallDisconnect(call, rtcModule::TermCode::kLeavingRoom);
         }
 #endif
     }
@@ -6067,7 +6067,7 @@ void Chat::setOnlineState(ChatState state)
                 if (call->getParticipants().empty())
                 {
                     CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s with no participants", call->getCallid().toString().c_str());
-                    mChatdClient.mKarereClient->rtc->orderedCallDisconnect(call, rtcModule::TermCode::kErrNoCall);
+                    mChatdClient.mKarereClient->rtc->rtcOrderedCallDisconnect(call, rtcModule::TermCode::kErrNoCall);
                 }
                 else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
                 {

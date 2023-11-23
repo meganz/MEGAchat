@@ -4113,22 +4113,22 @@ DNScache& RtcModuleSfu::getDnsCache()
     return mDnsCache;
 }
 
-void RtcModuleSfu::orderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode)
+void RtcModuleSfu::rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode)
 {
     Call* call = static_cast<Call*>(iCall);
     if (!call)
     {
-        RTCM_LOG_WARNING("orderedCallDisconnect: call no longer exists");
+        RTCM_LOG_WARNING("rtcOrderedCallDisconnect: call no longer exists");
         return;
     }
 
     if (call->isDestroying())
     {
-        RTCM_LOG_WARNING("orderedCallDisconnect: call is already being destroyed");
+        RTCM_LOG_WARNING("rtcOrderedCallDisconnect: call is already being destroyed");
         return;
     }
 
-    RTCM_LOG_DEBUG("Ordered removing call with callid: %s", call->getCallid().toString().c_str());
+    RTCM_LOG_DEBUG("rtcOrderedCallDisconnect: Ordered removing call with callid: %s", call->getCallid().toString().c_str());
     call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str());
 }
 
