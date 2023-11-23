@@ -2641,14 +2641,6 @@ void Call::onSfuDisconnected()
 
 void Call::immediateCallDisconnect(const TermCode& termCode)
 {
-    bool hadParticipants = !mSessions.empty();
-    mediaChannelDisconnect(true /*releaseDevices*/);
-    clearResources(termCode);
-    sfuDisconnect(termCode, hadParticipants);
-}
-
-void Call::sfuDisconnect(const TermCode& termCode, bool hadParticipants)
-{
     if (isTermCodeRetriable(termCode))
     {
         // if termcode is retriable, a reconnection attempt should be started automatically, so we can't destroy mSfuConnection
@@ -2656,13 +2648,19 @@ void Call::sfuDisconnect(const TermCode& termCode, bool hadParticipants)
         return;
     }
 
-    if (mState > CallState::kStateInProgress)
+    if (isDisconnecting())
     {
-        RTCM_LOG_DEBUG("sfuDisconnect, current call state is %s", mState == CallState::kStateDestroyed ? "kStateDestroyed": "kStateTerminatingUserParticipation");
+        // prevents multiple disconnection attempts simultaneously
+        RTCM_LOG_DEBUG("immediateCallDisconnect call state is %s", mState == CallState::kStateDestroyed ? "kStateDestroyed": "kStateTerminatingUserParticipation");
         assert(!mSfuConnection);
         return;
     }
 
+    bool hadParticipants = !mSessions.empty();
+    mediaChannelDisconnect(true /*releaseDevices*/);
+    clearResources(termCode);
+    sfuDisconnect(termCode, hadParticipants);
+}
     RTCM_LOG_DEBUG("callDisconnect, termcode (%u): %s", termCode, connectionTermCodeToString(termCode).c_str());
     mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
     setState(CallState::kStateTerminatingUserParticipation);
