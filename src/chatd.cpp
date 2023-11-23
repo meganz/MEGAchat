@@ -3143,11 +3143,11 @@ void Chat::manageReaction(const Message &message, const std::string &reaction, O
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
 }
 
-void Chat::ringIndividualInACall(const karere::Id& userToCallId, const karere::Id& callId, const int16_t ringTimeout)
+void Chat::ringIndividualInACall(const karere::Id& userIdToCall, const karere::Id& callId, const int16_t ringTimeout)
 {
     const Opcode opcode = OP_RINGUSER;
     static const int8_t callState = 1;
-    sendCommand(Command(opcode) + mChatId + userToCallId + callId + callState + ringTimeout);
+    sendCommand(Command(opcode) + mChatId + userIdToCall + callId + callState + ringTimeout);
 }
 
 void Chat::sendReactionSn()

@@ -656,13 +656,6 @@ int MegaChatApiImpl::performRequest_setChatroomOptions(MegaChatRequestPrivate *r
             bool changed = false;
             int option = request->getPrivilege();
             bool enabled = request->getFlag();
-
-            if (option == MegaChatApi::CHAT_OPTION_SPEAK_REQUEST)
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS: speak request option temporarily disabled");
-                return MegaChatError::ERROR_ARGS;
-            }
-
             switch (option)
             {
                 case MegaChatApi::CHAT_OPTION_OPEN_INVITE:
@@ -1742,12 +1735,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_NOENT;
             }
 
-            if (chatroom->isSpeakRequest())
-            {
-                API_LOG_ERROR("Start call - speak request option temporarily disabled");
-                return MegaChatError::ERROR_ARGS;
-            }
-
             if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
             {
                 API_LOG_ERROR("Start call - Invalid value for simultaneous input video tracks");
@@ -1883,12 +1870,6 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             {
                 API_LOG_ERROR("Answer call - Chatroom has not been found");
                 return MegaChatError::ERROR_NOENT;
-            }
-
-            if (chatroom->isSpeakRequest())
-            {
-                API_LOG_ERROR("Answer call - speak request option temporarily disabled");
-                return MegaChatError::ERROR_ARGS;
             }
 
             if (!chatroom->chat().connection().clientId())
@@ -2449,19 +2430,6 @@ int MegaChatApiImpl::performRequest_speakRequest(MegaChatRequestPrivate* request
                 return MegaChatError::ERROR_ARGS;
             }
 
-            ChatRoom* chatroom = findChatRoom(chatid);
-            if (!chatroom)
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK - Chatroom has not been found");
-                return MegaChatError::ERROR_NOENT;
-            }
-
-            if (chatroom->isSpeakRequest())
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_SPEAK: speak request option temporarily disabled");
-                return MegaChatError::ERROR_ARGS;
-            }
-
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
@@ -2509,12 +2477,6 @@ int MegaChatApiImpl::performRequest_speakApproval(MegaChatRequestPrivate* reques
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK- Chatroom has not been found");
                 return MegaChatError::ERROR_NOENT;
-            }
-
-            if (chatroom->isSpeakRequest())
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_APPROVE_SPEAK - speak request option temporarily disabled");
-                return MegaChatError::ERROR_ARGS;
             }
 
             if (!call->isOwnPrivModerator()
@@ -2768,12 +2730,6 @@ int MegaChatApiImpl::performRequest_removeSpeaker(MegaChatRequestPrivate* reques
             if (!chatroom)
             {
                 return MegaChatError::ERROR_NOENT;
-            }
-
-            if (chatroom->isSpeakRequest())
-            {
-                API_LOG_ERROR("MegaChatRequest::TYPE_DEL_SPEAKER - speak request option temporarily disabled");
-                return MegaChatError::ERROR_ARGS;
             }
 
             if (!call->isOwnPrivModerator() && cid)
@@ -6026,8 +5982,8 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         API_LOG_ERROR("Ring individual in call: invalid chat id");
         return MegaChatError::ERROR_ARGS;
     }
-    const auto userToCallId = request->getUserHandle();
-    if (userToCallId == MEGACHAT_INVALID_HANDLE)
+    const auto userIdToCall = request->getUserHandle();
+    if (userIdToCall == MEGACHAT_INVALID_HANDLE)
     {
         API_LOG_ERROR("Ring individual in call: invalid user id");
         return MegaChatError::ERROR_ARGS;
@@ -6053,12 +6009,27 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         return MegaChatError::ERROR_NOENT;
     }
 
-    auto callId = call->getCallid();
-    Chat &chat = chatroom->chat();
+    // send OP_RINGUSER followed by 'mcru'
+    Chat& chat = chatroom->chat();
     const int16_t ringTimeout = static_cast<int16_t>(request->getParamType());
-    chat.ringIndividualInACall(userToCallId, callId, ringTimeout);
-    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+    chat.ringIndividualInACall(userIdToCall, call->getCallid(), ringTimeout);
 
+    // Important: remove this call to Client::ringIndividualInACall (send 'mcru' to API) when chatd makes the required adjustments
+    // to manage this logic without client intervention. When this happens we'll only need to send OP_RINGUSER as
+    // we previously did.
+    auto wptr = mClient->weakHandle();
+    mClient->ringIndividualInACall(chatId, userIdToCall)
+    .then([this, request, wptr](ReqResult)
+    {
+        wptr.throwIfDeleted();
+        fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+    })
+    .fail([request, this](const ::promise::Error& err)
+    {
+        API_LOG_ERROR("Error sending 'mcru' command to API: %s", err.what());
+        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+        fireOnChatRequestFinish(request, megaChatError);
+    });
     return MegaChatError::ERROR_OK;
 }
 
