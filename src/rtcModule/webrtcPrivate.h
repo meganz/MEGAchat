@@ -421,6 +421,8 @@ public:
     void clearParticipants();
     bool hasCallKey();
     bool isValidWrJoiningState() const;
+    bool isConnectedToSfu() const;
+    bool isSendingBye() const;
     void clearWrJoiningState();
     void setWrJoiningState(const sfu::WrState status);
     void setPrevCid(Cid_t prevcid);
@@ -462,6 +464,7 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
+    bool isDisconnecting();
     bool addWrUsers(const sfu::WrUserList& users, const bool clearCurrent);
     void pushIntoWr(const TermCode& termCode);
     bool dumpWrUsers(const sfu::WrUserList& wrUsers, const bool clearCurrent);

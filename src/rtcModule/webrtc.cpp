@@ -532,6 +532,16 @@ bool Call::checkWrFlag() const
     return true;
 }
 
+bool Call::isConnectedToSfu() const
+{
+    return mSfuConnection && mSfuConnection->isOnline();
+}
+
+bool Call::isSendingBye() const
+{
+    return mSfuConnection && mSfuConnection->isSendingByeCommand();
+}
+
 void Call::clearWrJoiningState()
 {
     mWrJoiningState = sfu::WrState::WR_NOT_ALLOWED;
@@ -1176,33 +1186,31 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, cons
         return;
     }
 
-    // avoid sending BYE command more than once
-    if (mSfuConnection->isSendingByeCommand())
+    if (isSendingBye())
     {
-        RTCM_LOG_DEBUG("orderedCallDisconnect, there's a disconnection attempt in progress by sending BYE command");
+        RTCM_LOG_DEBUG("orderedCallDisconnect, there's a disconnection attempt in progress (by sending BYE command)");
         return;
     }
 
-    // When the client initiates a disconnect we need to send BYE command to inform SFU about the reason
     RTCM_LOG_DEBUG("orderedCallDisconnect, termcode: %s, msg: %s", connectionTermCodeToString(termCode).c_str(), msg.c_str());
-    if (mSfuConnection && mSfuConnection->isOnline())
-    {
-        sendStats(termCode); // send stats if we are connected to SFU regardless termcode
-    }
-
     if (mIsReconnectingToChatd)
     {
         clearParticipants();
     }
 
-    if (!mSfuConnection || !mSfuConnection->isOnline()
-            || termCode == kSigDisconn)  // kSigDisconn is mutually exclusive with the BYE command
+    if (isConnectedToSfu())
     {
-        immediateCallDisconnect(termCode); // we don't need to send BYE command, just perform disconnection
+        sendStats(termCode);
+    }
+    else if (!isConnectedToSfu() || termCode == kSigDisconn)
+    {
+        // if we are not connected to SFU or kSigDisconn which is mutually exclusive with the BYE command
+        // we don't need to send BYE command, just perform disconnection
+        immediateCallDisconnect(termCode);
         return;
     }
 
-    // we need to store termcode temporarily until confirm BYE command has been sent
+    // store termcode temporarily until confirm BYE command has been sent
     mTempTermCode = termCode;
 
     // send BYE command as part of the protocol to inform SFU about the disconnection reason
@@ -2780,7 +2788,7 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         }
 
         // send call stats
-        if (mSfuConnection && mSfuConnection->isOnline())
+        if (isConnectedToSfu())
         {
             sendStats(connectionTermCode);
         }
@@ -2884,13 +2892,13 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
                 return;
             }
 
-            if (!mSfuConnection->isOnline())
+            if (!isConnectedToSfu())
             {
                 setState(CallState::kStateConnecting);
                 mSfuConnection->clearCommandsQueue();
                 mSfuConnection->retryPendingConnection(true);
             }
-            else if (!mSfuConnection->isSendingByeCommand())    // if we are connected to SFU we need to send BYE command (if we haven't already done)
+            else if (!isSendingBye())    // if we are connected to SFU we need to send BYE command (if we haven't already done)
             {                                                   // don't clear commands queue here, wait for onSendByeCommand
                 setState(CallState::kStateConnecting);          // just set kStateConnecting if we have not already sent a previous BYE command, or executed action upon onSendByeCommand won't match with expected one
                 sendStats(TermCode::kRtcDisconn);               // send stats if we are connected to SFU regardless termcode
@@ -2900,7 +2908,7 @@ void Call::onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionSta
     }
     else if (newState == webrtc::PeerConnectionInterface::PeerConnectionState::kConnected)
     {
-        bool reconnect = !mSfuConnection->isOnline();
+        bool reconnect = !isConnectedToSfu();
         RTCM_LOG_DEBUG("onConnectionChange retryPendingConnection (reconnect) : %d", reconnect);
         mSfuConnection->retryPendingConnection(reconnect);
     }
@@ -3002,7 +3010,7 @@ bool Call::addWrUsers(const sfu::WrUserList& users, const bool clearCurrent)
 
 void Call::pushIntoWr(const TermCode& termCode)
 {
-    if (mSfuConnection && mSfuConnection->isOnline())
+    if (isConnectedToSfu())
     {
         sendStats(termCode); //send stats
     }
@@ -3595,6 +3603,11 @@ bool Call::isDestroying()
     return mIsDestroyingCall;
 }
 
+bool Call::isDisconnecting()
+{
+    return mState > CallState::kStateInProgress;
+}
+
 void Call::generateEphemeralKeyPair()
 {
     mEphemeralKeyPair.reset(new mega::ECDH());
@@ -4133,6 +4146,8 @@ void RtcModuleSfu::onDelCallReason(rtcModule::ICall* iCall, EndCallReason reason
         RTCM_LOG_WARNING("orderedDisconnectAndCallRemove: call is already being destroyed");
         return;
     }
+
+    // by setting this flag true, we prevent more than once call destruction attempt
     call->setDestroying(true);
 
     // set temporary endCall reason in case immediateRemoveCall is not called immediately (i.e if we first need to send BYE command)
