@@ -2700,11 +2700,6 @@ void Connection::execCommand(const StaticBuffer& buf)
                 rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatid);
                 if (call && mChatdClient.mKarereClient->rtc)
                 {
-                    if (call->isJoined())
-                    {
-                        CHATDS_LOG_DEBUG("Ignore DELCALLREASON command, as we are still connected to SFU");
-                        break;
-                    }
                     mChatdClient.mKarereClient->rtc->onDestroyCall(call, endCallReason, connectionTermCode);
                 }
 #endif
