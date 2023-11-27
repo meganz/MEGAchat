@@ -131,6 +131,7 @@ MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 MegaChatApiImpl::~MegaChatApiImpl()
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DELETE);
+    request->setPerformRequest([this, request]() { return performRequest_delete(request); });
     requestQueue.push(request);
     waiter->notify();
     thread.join();
@@ -295,15 +296,13 @@ void MegaChatApiImpl::sendPendingRequests()
             continue;
         }
 
-        if (request->hasPerformRequest())
-        {
-            errorCode = request->performRequest();
-            continue;
-        }
+        errorCode = request->hasPerformRequest() ? request->performRequest() : MegaChatError::ERROR_UNKNOWN;
+    } // end of while(1)
+}
 
-        switch (request->getType())
-        {
-        case MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS:
+int MegaChatApiImpl::performRequest_retryPendingConnections(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             bool disconnect = request->getFlag();
             bool refreshURLs = (bool)(request->getParamType() == 1);
@@ -311,25 +310,32 @@ void MegaChatApiImpl::sendPendingRequests()
 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_SIGNAL_ACTIVITY:
+}
+
+int MegaChatApiImpl::performRequest_signalActivity(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             mClient->presenced().signalActivity();
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
 
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY:
+}
+
+int MegaChatApiImpl::performRequest_setPresenceAutoaway(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             int64_t timeout = request->getNumber();
             bool enable = request->getFlag();
 
             if (timeout > presenced::Config::kMaxAutoawayTimeout)
             {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             mClient->presenced().setAutoaway(enable, timeout);
@@ -337,10 +343,13 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
 
-            break;
+            return MegaChatError::ERROR_OK;
         }
+}
 
-        case MegaChatRequest::TYPE_SET_PRESENCE_PERSIST:
+int MegaChatApiImpl::performRequest_setPresencePersist(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             bool enable = request->getFlag();
 
@@ -349,27 +358,39 @@ void MegaChatApiImpl::sendPendingRequests()
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
 
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE:
+}
+
+int MegaChatApiImpl::performRequest_setLastGreenVisible(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             bool enable = request->getFlag();
             mClient->presenced().setLastGreenVisible(enable);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
 
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_LAST_GREEN:
+}
+
+int MegaChatApiImpl::performRequest_lastGreen(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             MegaChatHandle userid = request->getUserHandle();
             mClient->presenced().requestLastGreen(userid);
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
 
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_LOGOUT:
+}
+
+int MegaChatApiImpl::performRequest_logout(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             bool deleteDb = request->getFlag();
             cleanChatHandlers();
@@ -387,9 +408,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 mTerminating = false;
             }, this);
 
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_DELETE:
+}
+
+int MegaChatApiImpl::performRequest_delete(MegaChatRequestPrivate */*request*/)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             if (mClient && !mTerminating)
             {
@@ -402,15 +427,19 @@ void MegaChatApiImpl::sendPendingRequests()
             }
 
             threadExit = 1;
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_SET_ONLINE_STATUS:
+}
+
+int MegaChatApiImpl::performRequest_setOnlineStatus(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             auto status = request->getNumber();
             if (status < MegaChatApi::STATUS_OFFLINE || status > MegaChatApi::STATUS_BUSY)
             {
                 fireOnChatRequestFinish(request, new MegaChatErrorPrivate("Invalid online status", MegaChatError::ERROR_ARGS));
-                break;
+                return MegaChatError::ERROR_OK;
             }
 
             mClient->setPresence(static_cast<::karere::Presence::Code>(status))
@@ -426,16 +455,18 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
-            break;
+            return MegaChatError::ERROR_OK;
         }
+}
 
-        case MegaChatRequest::TYPE_CREATE_CHATROOM:
+int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             MegaChatPeerList *peersList = request->getMegaChatPeerList();
             if (!peersList)   // force to provide a list, even without participants
             {
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             bool isMeeting = request->getNumber();
@@ -444,14 +475,12 @@ void MegaChatApiImpl::sendPendingRequests()
             const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
             if (!userpriv || (!group && publicChat))
             {
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             if (!group && peersList->size() == 0)
             {
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             if (!group && peersList->size() > 1)
@@ -470,8 +499,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     if (!sm)
                     {
                         API_LOG_ERROR("Error creating a scheduled meeting: invalid scheduled meeting");
-                        errorCode = MegaChatError::ERROR_ARGS;
-                        break;
+                        return MegaChatError::ERROR_ARGS;
                     }
 
                     if (!sm->timezone() || !sm->title()
@@ -480,16 +508,14 @@ void MegaChatApiImpl::sendPendingRequests()
                     {
 
                         API_LOG_ERROR("Error creating a scheduled meeting: invalid timezone, title, description, start date time or end date time");
-                        errorCode = MegaChatError::ERROR_ARGS;
-                        break;
+                        return MegaChatError::ERROR_ARGS;
                     }
 
                     if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title())
                             || !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
                     {
                         API_LOG_ERROR("Error creating a scheduled meeting: title or description length exceeded");
-                        errorCode = MegaChatError::ERROR_ARGS;
-                        break;
+                        return MegaChatError::ERROR_ARGS;
                     }
 
                     std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
@@ -511,8 +537,7 @@ void MegaChatApiImpl::sendPendingRequests()
                 int chatOptionsBitMask = request->getParamType();
                 if (!isValidChatOptionsBitMask (chatOptionsBitMask)) // empty bitmask is considered as a valid value
                 {
-                    errorCode = MegaChatError::ERROR_ACCESS;
-                    break;
+                    return MegaChatError::ERROR_ACCESS;
                 }
 
                 const char *title = request->getText();
@@ -568,22 +593,19 @@ void MegaChatApiImpl::sendPendingRequests()
                 if (peersList->getPeerHandle(0) == mClient->myHandle())
                 {
                     // can't create a 1on1 chat with own user.
-                    errorCode = MegaChatError::ERROR_NOENT;
-                    break;
+                    return MegaChatError::ERROR_NOENT;
                 }
                 ContactList::iterator it = mClient->mContactList->find(peersList->getPeerHandle(0));
                 if (it == mClient->mContactList->end())
                 {
                     // contact not found
-                    errorCode = MegaChatError::ERROR_ACCESS;
-                    break;
+                    return MegaChatError::ERROR_ACCESS;
                 }
                 if (it->second->chatRoom())
                 {
                     // chat already exists
                     request->setChatHandle(it->second->chatRoom()->chatid());
-                    errorCode = MegaChatError::ERROR_OK;
-                    break;
+                    return MegaChatError::ERROR_OK;
                 }
                 it->second->createChatRoom()
                 .then([request,this](ChatRoom* room)
@@ -601,34 +623,34 @@ void MegaChatApiImpl::sendPendingRequests()
                     fireOnChatRequestFinish(request, megaChatError);
                 });
             }
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS:
+}
+
+int MegaChatApiImpl::performRequest_setChatroomOptions(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             ChatRoom* chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (!chatroom->isGroup())
             {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (chatroom->ownPriv() != (Priv) MegaChatPeerList::PRIV_MODERATOR)
             {
-                errorCode = MegaChatError::ERROR_ACCESS;
-                break;
+                return MegaChatError::ERROR_ACCESS;
             }
 
             bool changed = false;
@@ -638,8 +660,7 @@ void MegaChatApiImpl::sendPendingRequests()
             if (option == MegaChatApi::CHAT_OPTION_SPEAK_REQUEST)
             {
                 API_LOG_ERROR("MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS: speak request option temporarily disabled");
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             switch (option)
@@ -654,14 +675,12 @@ void MegaChatApiImpl::sendPendingRequests()
                     changed = enabled != chatroom->isWaitingRoom();
                     break;
                 default:
-                    errorCode = MegaChatError::ERROR_ARGS; // unknown chat option
-                    break;
+                    return MegaChatError::ERROR_ARGS; // unknown chat option
             }
 
             if (!changed) // chat option already is (enabled/disabled)
             {
-                errorCode = MegaChatError::ERROR_EXIST;
-                break;
+                return MegaChatError::ERROR_EXIST;
             }
 
             ((GroupChatRoom *)chatroom)->setChatRoomOption(option, enabled)
@@ -676,9 +695,13 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
-            break;
+            return MegaChatError::ERROR_OK;
         }
-        case MegaChatRequest::TYPE_INVITE_TO_CHATROOM:
+}
+
+int MegaChatApiImpl::performRequest_inviteToChatroom(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             handle uh = request->getUserHandle();
@@ -688,23 +711,20 @@ void MegaChatApiImpl::sendPendingRequests()
             {
                 API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Invalid chatid: %s or userid %s",
                                karere::Id(chatid).toString().c_str(), karere::Id(uh).toString().c_str());
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
                 API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Chatroom not found. chatid: %s",
                               karere::Id(chatid).toString().c_str());
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
             if (!chatroom->isGroup())   // invite only for group chats
             {
                 API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Chatroom is not groupal. chatid: %s",
                               karere::Id(chatid).toString().c_str());
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             if (chatroom->ownPriv() < static_cast<Priv>(MegaChatPeerList::PRIV_MODERATOR))
@@ -714,8 +734,7 @@ void MegaChatApiImpl::sendPendingRequests()
                     // only allowed moderators or participants with standard permissions just if openInvite is enabled
                     API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Insufficient permissions to perform this action, for chat: %s",
                                   karere::Id(chatid).toString().c_str());
-                    errorCode = MegaChatError::ERROR_ACCESS;
-                    break;
+                    return MegaChatError::ERROR_ACCESS;
                 }
             }
 
@@ -732,31 +751,31 @@ void MegaChatApiImpl::sendPendingRequests()
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                 fireOnChatRequestFinish(request, megaChatError);
             });
-            break;
+            return MegaChatError::ERROR_OK;
         }
+}
 
-        case MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT:
+int MegaChatApiImpl::performRequest_autojoinPublicChat(MegaChatRequestPrivate *request)
+{
+    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
         {
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             if (!chatroom->isGroup()
                 || !chatroom->publicChat()
                 || (!chatroom->previewMode() && chatroom->isActive())) // cannot autojoin an active chat if it's not in preview mode
             {
-                errorCode = MegaChatError::ERROR_ARGS;
-                break;
+                return MegaChatError::ERROR_ARGS;
             }
 
             handle phTmp = request->getUserHandle();
@@ -773,8 +792,7 @@ void MegaChatApiImpl::sendPendingRequests()
 
             if (ph == MEGACHAT_INVALID_HANDLE)
             {
-                errorCode = MegaChatError::ERROR_NOENT;
-                break;
+                return MegaChatError::ERROR_NOENT;
             }
 
             ((GroupChatRoom *)chatroom)->autojoinPublicChat(ph)
@@ -790,15 +808,8 @@ void MegaChatApiImpl::sendPendingRequests()
                 fireOnChatRequestFinish(request, megaChatError);
             });
 
-            break;
+            return MegaChatError::ERROR_OK;
         }
-
-        default:
-        {
-            errorCode = MegaChatError::ERROR_UNKNOWN;
-        }
-        }   // end of switch(request->getType())
-    } // end of while(1)
 }
 
 int MegaChatApiImpl::performRequest_updatePeerPermissions(MegaChatRequestPrivate *request)
@@ -1734,6 +1745,7 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_ARGS;
             }
 
+            const bool notRinging = request->getNumber();
             if (!chatroom->isGroup())
             {
                 uint64_t uh = ((PeerChatRoom*)chatroom)->peer();
@@ -1762,14 +1774,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 return MegaChatError::ERROR_ACCESS;
             }
 
-            MegaChatHandle schedId = request->getUserHandle();
-            if (schedId != MEGACHAT_INVALID_HANDLE &&
-                    !dynamic_cast<GroupChatRoom *>(chatroom)->getScheduledMeetingsBySchedId(schedId))
-            {
-                API_LOG_ERROR("Start call - scheduled meeting id doesn't exists");
-                return MegaChatError::ERROR_NOENT;
-            }
-
             bool enableAudio = request->getParamType();
             if (enableAudio
                 && chatroom->isSpeakRequest()
@@ -1785,16 +1789,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-               const bool waitingRoom = request->getPrivilege();
-               if (waitingRoom != chatroom->isWaitingRoom())
-               {
-                   API_LOG_ERROR("Start call - trying to start a %s, but waiting room option is currently %s. Chatid: %s"
-                                 , waitingRoom ? "waiting room call" : "standard call"
-                                 , chatroom->isWaitingRoom() ? "enabled" : "disabled"
-                                 , karere::Id(chatid).toString().c_str());
-                   return MegaChatError::ERROR_ARGS;
-               }
-
                if (mClient->rtc->isCallStartInProgress(chatid))
                {
                    API_LOG_ERROR("Start call - start call attempt already in progress");
@@ -1812,9 +1806,9 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                }
 
                bool isGroup = chatroom->isGroup();
-               pms.then([request, this, chatid, avFlags, isGroup, schedId] (shared_ptr<string> unifiedKey)
+               pms.then([request, this, chatid, avFlags, isGroup, notRinging] (shared_ptr<string> unifiedKey)
                {
-                   mClient->rtc->startCall(chatid, avFlags, isGroup, schedId, unifiedKey)
+                   mClient->rtc->startCall(chatid, avFlags, isGroup, notRinging, unifiedKey)
                    .then([request, this]()
                    {
                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -4118,6 +4112,7 @@ void MegaChatApiImpl::retryPendingConnections(bool disconnect, bool refreshURL, 
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS, listener);
     request->setFlag(disconnect);
     request->setParamType(refreshURL ? 1 : 0);
+    request->setPerformRequest([this, request]() { return performRequest_retryPendingConnections(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4126,6 +4121,7 @@ void MegaChatApiImpl::logout(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOGOUT, listener);
     request->setFlag(true);
+    request->setPerformRequest([this, request]() { return performRequest_logout(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4134,6 +4130,7 @@ void MegaChatApiImpl::localLogout(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LOGOUT, listener);
     request->setFlag(false);
+    request->setPerformRequest([this, request]() { return performRequest_logout(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4142,6 +4139,7 @@ void MegaChatApiImpl::setOnlineStatus(int status, MegaChatRequestListener *liste
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_ONLINE_STATUS, listener);
     request->setNumber(status);
+    request->setPerformRequest([this, request]() { return performRequest_setOnlineStatus(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4151,6 +4149,7 @@ void MegaChatApiImpl::setPresenceAutoaway(bool enable, int64_t timeout, MegaChat
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRESENCE_AUTOAWAY, listener);
     request->setFlag(enable);
     request->setNumber(timeout);
+    request->setPerformRequest([this, request]() { return performRequest_setPresenceAutoaway(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4159,6 +4158,7 @@ void MegaChatApiImpl::setPresencePersist(bool enable, MegaChatRequestListener *l
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_PRESENCE_PERSIST, listener);
     request->setFlag(enable);
+    request->setPerformRequest([this, request]() { return performRequest_setPresencePersist(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4166,6 +4166,7 @@ void MegaChatApiImpl::setPresencePersist(bool enable, MegaChatRequestListener *l
 void MegaChatApiImpl::signalPresenceActivity(MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SIGNAL_ACTIVITY, listener);
+    request->setPerformRequest([this, request]() { return performRequest_signalActivity(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4174,6 +4175,7 @@ void MegaChatApiImpl::setLastGreenVisible(bool enable, MegaChatRequestListener *
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LAST_GREEN_VISIBLE, listener);
     request->setFlag(enable);
+    request->setPerformRequest([this, request]() { return performRequest_setLastGreenVisible(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4182,6 +4184,7 @@ void MegaChatApiImpl::requestLastGreen(MegaChatHandle userid, MegaChatRequestLis
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_LAST_GREEN, listener);
     request->setUserHandle(userid);
+    request->setPerformRequest([this, request]() { return performRequest_lastGreen(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4935,6 +4938,7 @@ void MegaChatApiImpl::setChatOption(MegaChatHandle chatid, int option, bool enab
     request->setChatHandle(chatid);
     request->setPrivilege(option);
     request->setFlag(enabled);
+    request->setPerformRequest([this, request]() { return performRequest_setChatroomOptions(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4945,6 +4949,7 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList *peerList, MegaCha
     request->setFlag(group);
     request->setPrivilege(0);
     request->setMegaChatPeerList(peerList);
+    request->setPerformRequest([this, request]() { return performRequest_createChatroom(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4957,6 +4962,7 @@ void MegaChatApiImpl::createChat(bool group, MegaChatPeerList* peerList, const c
     request->setMegaChatPeerList(peerList);
     request->setText(title);
     request->setParamType(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
+    request->setPerformRequest([this, request]() { return performRequest_createChatroom(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -4970,6 +4976,7 @@ void MegaChatApiImpl::createPublicChat(MegaChatPeerList *peerList, bool meeting,
     request->setText(title);
     request->setNumber(meeting);
     request->setParamType(createChatOptionsBitMask(speakRequest, waitingRoom, openInvite));
+    request->setPerformRequest([this, request]() { return performRequest_createChatroom(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5013,6 +5020,7 @@ void MegaChatApiImpl::createChatroomAndSchedMeeting(MegaChatPeerList* peerList, 
     std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
     l->insert(scheduledMeeting->copy());
     request->setMegaChatScheduledMeetingList(l.get());
+    request->setPerformRequest([this, request]() { return performRequest_createChatroom(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5144,6 +5152,7 @@ void MegaChatApiImpl::inviteToChat(MegaChatHandle chatid, MegaChatHandle uh, int
     request->setChatHandle(chatid);
     request->setUserHandle(uh);
     request->setPrivilege(privilege);
+    request->setPerformRequest([this, request]() { return performRequest_inviteToChatroom(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5152,6 +5161,7 @@ void MegaChatApiImpl::autojoinPublicChat(MegaChatHandle chatid, MegaChatRequestL
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT, listener);
     request->setChatHandle(chatid);
+    request->setPerformRequest([this, request]() { return performRequest_autojoinPublicChat(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5161,6 +5171,7 @@ void MegaChatApiImpl::autorejoinPublicChat(MegaChatHandle chatid, MegaChatHandle
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_AUTOJOIN_PUBLIC_CHAT, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(ph);
+    request->setPerformRequest([this, request]() { return performRequest_autojoinPublicChat(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -5986,14 +5997,13 @@ char *MegaChatApiImpl::getVideoDeviceSelected()
     return deviceName;
 }
 
-void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool waitingRoom, bool enableVideo, bool enableAudio, MegaChatHandle schedId, MegaChatRequestListener *listener)
+void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, bool notRinging, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_START_CHAT_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enableVideo);
     request->setParamType(enableAudio);
-    request->setUserHandle(schedId);
-    request->setPrivilege(waitingRoom);
+    request->setNumber(notRinging);
     request->setPerformRequest([this, request]() { return performRequest_startChatCall(request); });
     requestQueue.push(request);
     waiter->notify();

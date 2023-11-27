@@ -88,6 +88,30 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->canRecvVideoLowRes() : NO;
 }
 
+- (BOOL)hasCamera {
+    return self.megaChatSession ? self.megaChatSession->hasCamera() : NO;
+}
+
+- (BOOL)isLowResCamera {
+    return self.megaChatSession ? self.megaChatSession->isLowResCamera() : NO;
+}
+
+- (BOOL)isHiResCamera {
+    return self.megaChatSession ? self.megaChatSession->isHiResCamera() : NO;
+}
+
+- (BOOL)hasScreenShare {
+    return self.megaChatSession ? self.megaChatSession->hasScreenShare() : NO;
+}
+
+- (BOOL)isLowResScreenShare {
+    return self.megaChatSession ? self.megaChatSession->isLowResScreenShare() : NO;
+}
+
+- (BOOL)isHiResScreenShare {
+    return self.megaChatSession ? self.megaChatSession->isHiResScreenShare() : NO;
+}
+
 - (BOOL)hasChanged:(MEGAChatSessionChange)change {
     return self.megaChatSession ? self.megaChatSession->hasChanged((int)change) : NO;
 }

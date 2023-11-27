@@ -1358,6 +1358,19 @@ private:
     static int convertDbError(int errCode);
     bool isChatroomFromType(const karere::ChatRoom& chat, int type) const;
 
+    int performRequest_retryPendingConnections(MegaChatRequestPrivate* request);
+    int performRequest_signalActivity(MegaChatRequestPrivate* request);
+    int performRequest_setPresenceAutoaway(MegaChatRequestPrivate* request);
+    int performRequest_setPresencePersist(MegaChatRequestPrivate* request);
+    int performRequest_setLastGreenVisible(MegaChatRequestPrivate* request);
+    int performRequest_lastGreen(MegaChatRequestPrivate* request);
+    int performRequest_logout(MegaChatRequestPrivate* request);
+    int performRequest_delete(MegaChatRequestPrivate* request);
+    int performRequest_setOnlineStatus(MegaChatRequestPrivate* request);
+    int performRequest_createChatroom(MegaChatRequestPrivate* request);
+    int performRequest_setChatroomOptions(MegaChatRequestPrivate* request);
+    int performRequest_inviteToChatroom(MegaChatRequestPrivate* request);
+    int performRequest_autojoinPublicChat(MegaChatRequestPrivate* request);
     int performRequest_updatePeerPermissions(MegaChatRequestPrivate* request);
     int performRequest_removeFromChatroom(MegaChatRequestPrivate* request);
     int performRequest_truncateHistory(MegaChatRequestPrivate* request);
@@ -1656,7 +1669,7 @@ public:
     char *getVideoDeviceSelected();
 
     // Calls
-    void startChatCall(MegaChatHandle chatid, bool waitingRoom, bool enableVideo = true,  bool enableAudio = true, MegaChatHandle schedId = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener *listener = NULL);
+    void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, bool notRinging = false, MegaChatRequestListener *listener = NULL);
     void ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener = nullptr);
     void answerChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, MegaChatRequestListener *listener = NULL);
     void hangChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);

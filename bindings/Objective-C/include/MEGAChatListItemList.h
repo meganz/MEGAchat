@@ -1,13 +1,14 @@
 #import <Foundation/Foundation.h>
 #import "MEGAChatListItem.h"
 
-@interface MEGAChatListItemList : NSObject
+NS_ASSUME_NONNULL_BEGIN
 
+@interface MEGAChatListItemList : NSObject
 
 @property (readonly, nonatomic) NSUInteger size;
 
-- (instancetype)clone;
-
-- (MEGAChatListItem *)chatListItemAtIndex:(NSUInteger)index;
+- (nullable MEGAChatListItem *)chatListItemAtIndex:(NSUInteger)index;
 
 @end
+
+NS_ASSUME_NONNULL_END

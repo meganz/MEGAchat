@@ -5,6 +5,8 @@
 #import "MEGAChatGeolocation.h"
 #import "MEGAChatGiphy.h"
 
+NS_ASSUME_NONNULL_BEGIN
+
 typedef NS_ENUM(NSInteger, MEGAChatContainsMetaType) {
     MEGAChatContainsMetaTypeInvalid     = -1,
     MEGAChatContainsMetaTypeRichPreview = 0,
@@ -15,9 +17,11 @@ typedef NS_ENUM(NSInteger, MEGAChatContainsMetaType) {
 @interface MEGAChatContainsMeta : NSObject
 
 @property (readonly, nonatomic) MEGAChatContainsMetaType type;
-@property (readonly, nonatomic) NSString *textMessage;
-@property (readonly, nonatomic) MEGAChatRichPreview *richPreview;
-@property (readonly, nonatomic) MEGAChatGeolocation *geolocation;
-@property (readonly, nonatomic) MEGAChatGiphy *giphy;
+@property (nullable, readonly, nonatomic) NSString *textMessage;
+@property (nullable, readonly, nonatomic) MEGAChatRichPreview *richPreview;
+@property (nullable, readonly, nonatomic) MEGAChatGeolocation *geolocation;
+@property (nullable, readonly, nonatomic) MEGAChatGiphy *giphy;
 
 @end
+
+NS_ASSUME_NONNULL_END
