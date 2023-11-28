@@ -1,9 +1,9 @@
+#include "gtestcommon.h"
 #include "sdk_test.h"
 
 #include <mega.h>
 #include <megaapi.h>
 #include <mega/process.h>
-#include <mega/testcommon/gtestcommon.h>
 
 #ifdef _WIN32
 #include <direct.h>

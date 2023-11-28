@@ -7,12 +7,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set (SRCS
     sdk_test.cpp
+    ../../third-party/mega/tests/gtestcommon.cpp
 )
 
 add_subdirectory(../../src karere)
 
 get_property(KARERE_INCLUDE_DIRS GLOBAL PROPERTY KARERE_INCLUDE_DIRS)
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${KARERE_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${KARERE_INCLUDE_DIRS} ../../third-party/mega/tests)
 
 get_property(KARERE_DEFINES GLOBAL PROPERTY KARERE_DEFINES)
 add_definitions(${KARERE_DEFINES})
