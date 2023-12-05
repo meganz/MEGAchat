@@ -9,8 +9,6 @@
 #include <direct.h>
 #endif
 
-#include <regex>
-
 using namespace mega;
 using namespace megachat;
 using namespace std;
@@ -24,6 +22,13 @@ const std::string MegaChatApiTest::LOCAL_PATH = "./tmp"; // no ending slash
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 std::string USER_AGENT_DESCRIPTION = "MEGAChatTest";
+
+const string& getDefaultLogName()
+{
+    static const string LOG_NAME{"test.log"};
+    return LOG_NAME;
+}
+
 
 class GTestLogger : public ::testing::EmptyTestEventListener
 {
