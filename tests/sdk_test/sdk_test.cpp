@@ -1,4 +1,4 @@
-#include "gtestcommon.h"
+#include "gtest_common.h"
 #include "sdk_test.h"
 
 #include <mega.h>

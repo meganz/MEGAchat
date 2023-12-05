@@ -7,7 +7,7 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set (SRCS
     sdk_test.cpp
-    ../../third-party/mega/tests/gtestcommon.cpp
+    ../../third-party/mega/tests/gtest_common.cpp
 )
 
 add_subdirectory(../../src karere)
