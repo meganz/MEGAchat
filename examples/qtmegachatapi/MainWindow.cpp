@@ -268,6 +268,13 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) && call->getNotificationType() == MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR)
     {
+        if (call->getTermCode() == megachat::MegaChatCall::TERM_CODE_PROTOCOL_VERSION)
+        {
+            QMessageBox msgBox;
+            msgBox.setText("Please update your mega application to enjoy of latests calls features.");
+            msgBox.setStandardButtons(QMessageBox::Ok);
+            msgBox.exec();
+        }
         std::cerr << "onChatCallUpdate: " << MegaChatCall::termcodeToString(call->getTermCode()) << ", " << call->getGenericMessage() << std::endl;
     }
 

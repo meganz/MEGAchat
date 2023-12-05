@@ -525,12 +525,20 @@ public:
      */
     size_t loadOccurresInMemoryFromDb();
 
+    /**
+     * @brief This method compares the Chatroom fields stored in ram, with information received from API via mcphurl
+     *
+     * @return true if API information differs from stored chatroom, otherwise returns false
+     */
+    bool hasChatLinkChanged(const uint64_t ph, const std::string &decryptedTitle, const bool meeting, const ::mega::ChatOptions_t opts) const;
+
     unsigned long numMembers() const override;
 
     bool isMeeting() const override;
     bool isWaitingRoom() const override;
     bool isSpeakRequest() const override;
     bool isOpenInvite() const override;
+    void updateSchedMeetingsWithList(const mega::MegaScheduledMeetingList* smList);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -545,6 +553,7 @@ public:
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom* addRoom(const mega::MegaTextChat &room);
     void removeRoomPreview(Id chatid);
+    void removeRoomPreviewMarshall(Id chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
@@ -1092,6 +1101,15 @@ public:
      * TODO: complete documentation
      */
     promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
+
+    /**
+     * @brief This function allows a user in an existing call to send an incoming call push notification to another user in the chat
+     * to notify that call is ringing.
+     * @param chatid handle that identify the chatroom
+     * @param userid handle that identify the user
+     * @return a promise to ReqResult
+     */
+    promise::Promise<ReqResult> ringIndividualInACall(const uint64_t chatid, const uint64_t userid);
 
     /** sort the occurrences list by StartDateTime */
     void sortOccurrences(std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>& occurrList) const;

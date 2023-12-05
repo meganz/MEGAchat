@@ -182,14 +182,25 @@ std::string Peer::getEphemeralPubKeyDerived() const
 
 bool Peer::setEphemeralPubKeyDerived(const std::string& key)
 {
-    if (!sfu::isValidSfuVersion(getPeerSfuVersion()))
+    if (getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V1)
     {
-        SFU_LOG_WARNING("setEphemeralPubKeyDerived: Invalid SFU version for PeerId: %s Cid: %u",
-                        getPeerid().toString().c_str() ,getCid());
+        // we shouldn't receive any peer with protocol v1
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: unexpected SFU protocol version [%u] for user: %s, cid: %u",
+                        static_cast<std::underlying_type<sfu::SfuProtocol>::type>(getPeerSfuVersion()),
+                        getPeerid().toString().c_str(), getCid());
+        assert(false);
         return false;
     }
 
-    if (key.empty() && !sfu::isInitialSfuVersion(getPeerSfuVersion()))
+    if (!sfu::isKnownSfuVersion(getPeerSfuVersion()))
+    {
+        // important: upon an unkown peers's SFU protocol version, native client should act as if they are the latest known version
+        SFU_LOG_WARNING("setEphemeralPubKeyDerived: unknown SFU protocol version [%u] for user: %s, cid: %u",
+                         static_cast<std::underlying_type<sfu::SfuProtocol>::type>(getPeerSfuVersion()),
+                         getPeerid().toString().c_str(), getCid());
+    }
+
+    if (key.empty() && getPeerSfuVersion() > sfu::SfuProtocol::SFU_PROTO_V0)
     {
         SFU_LOG_WARNING("setEphemeralPubKeyDerived: Empty ephemeral key for PeerId: %s Cid: %u",
                         getPeerid().toString().c_str() ,getCid());
@@ -672,10 +683,6 @@ SpeakReqsCommand::SpeakReqsCommand(const SpeakReqsCompleteFunction &complete, Sf
 
 bool SpeakReqsCommand::processCommand(const rapidjson::Document &command)
 {
-    // remove this when SFU is ready
-    SFU_LOG_ERROR("SpeakReqsCommand::processCommand - command temporarily disabled");
-    return true;
-
     rapidjson::Value::ConstMemberIterator cidsIterator = command.FindMember("cids");
     if (cidsIterator == command.MemberEnd() || !cidsIterator->value.IsArray())
     {
@@ -709,10 +716,6 @@ SpeakReqDelCommand::SpeakReqDelCommand(const SpeakReqDelCompleteFunction &comple
 
 bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 {
-    // remove this when SFU is ready
-    SFU_LOG_ERROR("SpeakReqDelCommand::processCommand - command temporarily disabled");
-    return true;
-
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator == command.MemberEnd() || !cidIterator->value.IsUint())
     {
@@ -751,11 +754,7 @@ SpeakOffCommand::SpeakOffCommand(const SpeakOffCompleteFunction &complete, SfuIn
 }
 
 bool SpeakOffCommand::processCommand(const rapidjson::Document &command)
-{
-    // remove this when SFU is ready
-    SFU_LOG_ERROR("SpeakOffCommand::processCommand - command temporarily disabled");
-    return true;
-
+{    
     Cid_t cid = 0;
     rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("cid");
     if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
@@ -1349,6 +1348,7 @@ void SfuConnection::doReconnect(const bool applyInitialBackoff)
          */
         mConnectTimer = karere::setTimeout([this, reconnectFunc, wptr]()
         {
+            if (wptr.deleted()) { return; }
             mConnectTimer = 0;
             reconnectFunc();
         }, getInitialBackoff() * 100, mAppCtx);
