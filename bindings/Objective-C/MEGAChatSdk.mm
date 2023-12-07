@@ -362,6 +362,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate {
+    if (delegate == nil) return;
+    
     std::vector<DelegateMEGAChatListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
@@ -474,6 +476,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)removeChatCallDelegate:(id<MEGAChatCallDelegate>)delegate {
+    if (delegate == nil) return;
+    
     std::vector<DelegateMEGAChatCallListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
