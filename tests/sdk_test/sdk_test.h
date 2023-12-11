@@ -927,6 +927,7 @@ public:
     bool msgDelivered[NUM_ACCOUNTS];
     bool msgReceived[NUM_ACCOUNTS];
     bool msgEdited[NUM_ACCOUNTS];
+    bool msgDeleted[NUM_ACCOUNTS];
     bool msgSeen[NUM_ACCOUNTS] = {};
     bool msgRejected[NUM_ACCOUNTS];
     bool msgAttachmentReceived[NUM_ACCOUNTS];

@@ -3348,8 +3348,9 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     chatid = getGroupChatRoom({a1, b}, peers.get());
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE);
 
-    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
     ASSERT_TRUE(megaChatApi[b]->openChatRoom(chatid, chatroomListener(b))) << "Can't open chatRoom for account b";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(b, chatid, chatroomListener(b)));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
     ASSERT_NO_FATAL_FAILURE(setRetentionTime(a1, 0)); // reset retention time, if it was left by a previous session
     ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
@@ -3370,18 +3371,33 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     dbPathNSE = karereClientDbPath(megaApi[a2]->getBasePath(), sessionNSE.get());
     ASSERT_FALSE(dbPathNSE.empty());
 
-    // truncate NSE db
+    // send messages
+    int msgCount = 4;
+    MegaChatHandle lastMessageId = MEGACHAT_INVALID_HANDLE;
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
-    ChatRequestTracker crtClearHist(megaChatApi[a2]);
-    megaChatApi[a2]->clearChatHistory(chatid, &crtClearHist);
+    for (int i = 0; i < msgCount; i++)
+    {
+        string textToSend = "Msg " + std::to_string(i + 1);
+        chatroomListener(a2)->msgReceived[a2] = false;
+        std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(b, UINT_MAX, chatid, textToSend, chatroomListener(b)));
+        ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
+        ASSERT_TRUE(msgSent);
+        lastMessageId = msgSent->getMsgId();
+        ASSERT_TRUE(chatroomListener(a2)->msgId[a2].size());
+        ASSERT_EQ(chatroomListener(a2)->msgId[a2].back(), lastMessageId);
+        ASSERT_NE(lastMessageId, MEGACHAT_INVALID_HANDLE);
+    }
+
+    // truncate NSE db
+    chatroomListener(a2)->historyTruncated[a2] = false;
+    ChatRequestTracker crtClearHist(megaChatApi[b]);
+    megaChatApi[b]->clearChatHistory(chatid, &crtClearHist);
     ASSERT_EQ(crtClearHist.waitForResult(), MegaChatError::ERROR_OK)
-            << "Failed to truncate history for account NSE (a2). Error: " << crtClearHist.getErrorString();
-    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
+            << "Failed to truncate history for account NSE (b). Error: " << crtClearHist.getErrorString();
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->historyTruncated[a2])) << "History truncate not received at account a2";
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
-
-    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Should (only) have the special 'truncate' message"; // SOMETIMES it has 0 messages after import !
-
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Should (only) have the special 'truncate' message";
 
     ///
     ///  Import messages when there are no messages to import from external db
@@ -3390,14 +3406,17 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     sessionA1.reset(login(a1));
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
-    int msgCount = 4;
-    MegaChatHandle lastMessageId = MEGACHAT_INVALID_HANDLE;
+    lastMessageId = MEGACHAT_INVALID_HANDLE;
     for (int i = 0; i < msgCount; i++)
     {
         string textToSend = "Msg " + std::to_string(i + 1);
-        std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(a1, UINT_MAX, chatid, textToSend, chatroomListener(a1)));
+        chatroomListener(a1)->msgReceived[a1] = false;
+        std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(b, UINT_MAX, chatid, textToSend, chatroomListener(b)));
+        ASSERT_TRUE(waitForResponse(&chatroomListener(a1)->msgReceived[a1]));
         ASSERT_TRUE(msgSent);
         lastMessageId = msgSent->getMsgId();
+        ASSERT_TRUE(chatroomListener(a1)->msgId[a1].size());
+        ASSERT_EQ(chatroomListener(a1)->msgId[a1].back(), lastMessageId);
         ASSERT_NE(lastMessageId, MEGACHAT_INVALID_HANDLE);
     }
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
@@ -3412,10 +3431,12 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for for account NSE (a2)";
-    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
-    std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(a2, UINT_MAX, chatid, "message updated by NSE (a2)", chatroomListener(a2), lastMessageId));
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // Load all messages to receive message update
+    chatroomListener(a2)->msgEdited[a2] = false;
+    std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(b, UINT_MAX, chatid, "message updated by b", chatroomListener(b), lastMessageId));
     ASSERT_TRUE(msgSent);
     ASSERT_EQ(lastMessageId, msgSent->getMsgId()) << "Message has different id after update";
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgEdited[a2]));
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Updated message should have been imported";
@@ -3428,12 +3449,14 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
-    std::unique_ptr<MegaChatMessage> deletedMessage(megaChatApi[a2]->deleteMessage(chatid, lastMessageId));
-    ASSERT_TRUE(deletedMessage) << "Failed to delete a message by NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    chatroomListener(a2)->msgDeleted[a2] = false;
+    std::unique_ptr<MegaChatMessage> deletedMessage(megaChatApi[b]->deleteMessage(chatid, lastMessageId));
+    ASSERT_TRUE(deletedMessage) << "Failed to delete a message by NSE (a2)";
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgDeleted[a2]));
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
-    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; deleted message doesn't count"; // really ?
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Deleted message has to be imported too";
 
 
     ///
@@ -3444,19 +3467,24 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     // clear history in app
     sessionA1.reset(login(a1, sessionA1.get()));
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
+    chatroomListener(a1)->historyTruncated[a1] = false;
     ChatRequestTracker crtClearHistA1(megaChatApi[a1]);
     megaChatApi[a1]->clearChatHistory(chatid, &crtClearHistA1);
     ASSERT_EQ(crtClearHistA1.waitForResult(), MegaChatError::ERROR_OK)
             << "Failed to truncate history for account a1. Error: " << crtClearHistA1.getErrorString();
-    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a1)->historyTruncated[a1])) << "History truncate not received at account a1";
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
 
     // login NSE and get a message from b (will wait for received confirmation)
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    chatroomListener(a2)->msgReceived[a2] = false;
     std::unique_ptr<MegaChatMessage> msgSentByB(sendTextMessageOrUpdate(b, UINT_MAX, chatid, "Msg from B", chatroomListener(b)));
     ASSERT_TRUE(msgSentByB) << "Message from B was not sent";
-    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last message
+    lastMessageId = msgSentByB->getMsgId();
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
+    ASSERT_EQ(chatroomListener(a2)->msgId[a2].back(), lastMessageId);
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "1 new message from B should have been imported";
@@ -3474,7 +3502,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     bool* flagSeenA2 = &chatroomListener(a2)->msgSeen[a2]; *flagSeenA2 = false;
     ASSERT_TRUE(megaChatApi[a2]->setMessageSeen(chatid, msgSentByB->getMsgId())) << "Couldn't mark message as seen";
     EXPECT_TRUE(waitForResponse(flagSeenA2)) << "Timeout expired for message marked as seen";
-    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; marked as read message doesn't count"; // really ?
@@ -3487,11 +3515,13 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
+    chatroomListener(a2)->historyTruncated[a2] = false;
     ChatRequestTracker crtClearHistA2(megaChatApi[a2]);
     megaChatApi[a2]->clearChatHistory(chatid, &crtClearHistA2);
     ASSERT_EQ(crtClearHistA2.waitForResult(), MegaChatError::ERROR_OK)
             << "Failed to truncate history for account a2. Error: " << crtClearHistA2.getErrorString();
-    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->historyTruncated[a2])) << "History truncate not received at account a2";
     bool *flagRetentionHistTruncated = &chatroomListener(a2)->retentionHistoryTruncated[a2]; *flagRetentionHistTruncated = false;
     ASSERT_NO_FATAL_FAILURE(setRetentionTime(a2, 5));
     EXPECT_TRUE(waitForResponse(flagRetentionHistTruncated)) << "Timeout expired for retention history to be truncated";
@@ -3500,7 +3530,6 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[a2]->getChatRoom(chatid));
     ASSERT_TRUE(chatroom);
     ASSERT_EQ(chatroom->getRetentionTime(), 5);
-    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
 
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should be there, including 'truncate', because they all got truncated";
@@ -3517,8 +3546,10 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     chatroom.reset(megaChatApi[a2]->getChatRoom(chatid));
     ASSERT_TRUE(chatroom);
     ASSERT_EQ(chatroom->getRetentionTime(), 5);
+    chatroomListener(a2)->msgReceived[a2] = false;
     msgSentByB.reset(sendTextMessageOrUpdate(b, UINT_MAX, chatid, "Msg from B, after retention changed", chatroomListener(b)));
     ASSERT_TRUE(msgSentByB) << "Message from B was not sent";
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
     msgSentByB.reset(megaChatApi[a2]->getMessage(chatid, msgSentByB->getMsgId()));
     ASSERT_TRUE(msgSentByB) << "Message from B was not received by A2";
     auto retentionStart = std::chrono::system_clock::now();
@@ -9436,6 +9467,11 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
     {
         mEditedMessageHandle[apiIndex] = msg->getMsgId();
         msgEdited[apiIndex] = true;
+    }
+
+    if (msg->hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT) && msg->isDeleted())
+    {
+        msgDeleted[apiIndex] = true;
     }
 
     if (msg->getType() == MegaChatMessage::TYPE_TRUNCATE)
