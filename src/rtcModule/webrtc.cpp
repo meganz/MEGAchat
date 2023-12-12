@@ -4193,9 +4193,9 @@ bool KarereWaitingRoom::updateUsers(const std::set<karere::Id>& users, const sfu
 
         if (!found)
         {
-            RTCM_LOG_WARNING("KarereWaitingRoom::updateUsers user with userid: %s not found.",
+            RTCM_LOG_WARNING("KarereWaitingRoom::updateUsers - skip user(%s) status update, as it has not been found in waiting room. "
+                             "Note: a moderator could send WR_ALLOW/DENY for an user that dind't answered call yet.",
                              karere::Id(u.val).toString().c_str());
-            addWrUserStatus(u.val, status);
         }
     });
 
