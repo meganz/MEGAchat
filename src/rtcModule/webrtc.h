@@ -303,11 +303,6 @@ public:
 
     void clear() { mWaitingRoomUsers.clear(); }
 
-    void addWrUserStatus(const uint64_t& userid, sfu::WrState status)
-    {
-        mWaitingRoomUsers.emplace_back(sfu::WrRoomUser { userid, status });
-    }
-
     bool addOrUpdateUserStatus(const uint64_t& userid, const sfu::WrState status)
     {
         if (!isValidWrStatus(status))
@@ -324,7 +319,7 @@ public:
                 return true;
             }
         }
-        addWrUserStatus(userid, status);
+        mWaitingRoomUsers.emplace_back(sfu::WrRoomUser { userid, status });
         return true;
     }
 
