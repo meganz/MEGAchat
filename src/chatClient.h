@@ -768,7 +768,7 @@ class InitStats
             kStatsLoginChatd        = 3
         };
 
-        std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
+        std::string onCompleted(unsigned long long numNodes, size_t numChats, size_t numContacts);
         bool isCompleted() const;
         void onCanceled();
 
@@ -831,7 +831,7 @@ private:
     StageShardMap mStageShardStats;
 
     /** @brief Number of nodes in the account */
-    long long int mNumNodes = 0;
+    unsigned long long int mNumNodes = 0;
 
     /** @brief Number of chats in the account */
     long int mNumChats = 0;
