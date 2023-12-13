@@ -398,6 +398,9 @@ public:
     // immediate disconnect (without sending BYE command) from SFU and media channel, and also clear call resources
     void immediateCallDisconnect(const TermCode& termCode);
 
+    // delete call immediately
+    void removeCallImmediately(uint8_t reason, TermCode connectionTermCode);
+
     // clear call resources
     void clearResources(const TermCode& termCode);
 
@@ -755,7 +758,7 @@ public:
 
     void onDestroyCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
     void rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode) override;
-    void removeCallImmediately(Call* call, uint8_t reason, TermCode connectionTermCode);
+    void deleteCall(const karere::Id& callId);
 
     void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) override;
     void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) override;

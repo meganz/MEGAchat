@@ -1212,6 +1212,17 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, cons
     mSfuConnection->sendBye(termCode);
 }
 
+void Call::removeCallImmediately(uint8_t reason, TermCode connectionTermCode)
+{
+    assert(reason != kInvalidReason);
+    RTCM_LOG_DEBUG("Removing call with callid: %s", getCallid().toString().c_str());
+    // clear resources and disconnect from media channel and SFU (if required)
+    immediateCallDisconnect(connectionTermCode);
+    // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
+    setEndCallReason(reason);
+    mRtc.deleteCall(getCallid());
+}
+
 void Call::clearResources(const TermCode& termCode)
 {
     RTCM_LOG_DEBUG("clearResources, termcode (%u): %s", termCode, connectionTermCodeToString(termCode).c_str());
@@ -2621,7 +2632,7 @@ void Call::onSfuDisconnected()
             {
                 return;
             }
-            mRtc.removeCallImmediately(this, mTempEndCallReason, kSigDisconn);
+            removeCallImmediately(mTempEndCallReason, kSigDisconn);
         }, mRtc.getAppCtx());
         return;
     }
@@ -2692,7 +2703,7 @@ void Call::onByeCommandSent()
         {
             // We have received a OP_DELCALLREASON, and we tried to disconnect orderly from SFU, by sending 'BYE' command before removing call,
             // Now we have received BYE command delivering notification, so we can remove call
-            mRtc.removeCallImmediately(this, mTempEndCallReason, mTempTermCode);
+            removeCallImmediately(mTempEndCallReason, mTempTermCode);
         }
         else
         {
@@ -4137,24 +4148,12 @@ void RtcModuleSfu::onDestroyCall(rtcModule::ICall* iCall, EndCallReason reason, 
     // we are going to destroy call, but in case we are still connected to SFU we need to send BYE command
     call->isConnectedToSfu()
         ? call->orderedCallDisconnect(connectionTermCode, call->connectionTermCodeToString(connectionTermCode).c_str(), true /*forceDisconnect*/)
-        : removeCallImmediately(call, reason, connectionTermCode);
+        : call->removeCallImmediately(reason, connectionTermCode);
 }
 
-void RtcModuleSfu::removeCallImmediately(Call* call, uint8_t reason, TermCode connectionTermCode)
+void RtcModuleSfu::deleteCall(const karere::Id& callId)
 {
-    assert(reason != kInvalidReason);
-    if (!call)
-    {
-        RTCM_LOG_WARNING("removeCall: call no longer exists");
-        return;
-    }
-
-    RTCM_LOG_DEBUG("Removing call with callid: %s", call->getCallid().toString().c_str());
-    // clear resources and disconnect from media channel and SFU (if required)
-    call->immediateCallDisconnect(connectionTermCode);
-    // upon kStateDestroyed state change (in call dtor) mEndCallReason will be notified through onCallStateChange
-    call->setEndCallReason(reason);
-    mCalls.erase(call->getCallid());
+    mCalls.erase(callId);
 }
 
 void RtcModuleSfu::handleJoinedCall(const karere::Id &/*chatid*/, const karere::Id &callid, const std::set<karere::Id> &usersJoined)
