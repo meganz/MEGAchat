@@ -1195,21 +1195,20 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, cons
     if (isConnectedToSfu())
     {
         sendStats(termCode);
-    }
-    else if (!isConnectedToSfu() || termCode == kSigDisconn)
-    {
-        // if we are not connected to SFU or kSigDisconn which is mutually exclusive with the BYE command
-        // we don't need to send BYE command, just perform disconnection
-        immediateCallDisconnect(termCode);
-        return;
+        if (termCode != kSigDisconn) // kSigDisconn is mutually exclusive with BYE command
+        {
+            // store termcode temporarily until confirm BYE command has been sent
+            mTempTermCode = termCode;
+
+            // send BYE command as part of the protocol to inform SFU about the disconnection reason
+            // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
+            mSfuConnection->sendBye(termCode);
+            return;
+        }
     }
 
-    // store termcode temporarily until confirm BYE command has been sent
-    mTempTermCode = termCode;
-
-    // send BYE command as part of the protocol to inform SFU about the disconnection reason
-    // once LWS confirms that BYE command has been sent (check processNextCommand) onSendByeCommand will be called
-    mSfuConnection->sendBye(termCode);
+    // if we are not connected to SFU or kSigDisconn, just perform disconnection
+    immediateCallDisconnect(termCode);
 }
 
 void Call::removeCallImmediately(uint8_t reason, TermCode connectionTermCode)
