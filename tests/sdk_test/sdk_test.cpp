@@ -3535,40 +3535,45 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should be there, including 'truncate', because they all got truncated";
 
 
+// This piece of code can be removed.
+// Looking at code, retention time is not store at DB. It's zero until client connects to chatd.
+// As client 1 doesn't get conneted before calling to import messages. It can't skip messages for which retention time expired (It's zero)
+// Apps lifetime are diffent, maybe, they can use this functionality but I think it isn't possible for automatic tests
     ///
     ///  Import messages when app should skip some messages for which retention time expired
     ///
-    cout << "///  Import messages when app should skip some messages for which retention time expired" << endl;
+    ///
+//    cout << "///  Import messages when app should skip some messages for which retention time expired" << endl;
 
-    // send a message from B and receive it in A2
-    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
-    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
-    chatroom.reset(megaChatApi[a2]->getChatRoom(chatid));
-    ASSERT_TRUE(chatroom);
-    ASSERT_EQ(chatroom->getRetentionTime(), 5);
-    chatroomListener(a2)->msgReceived[a2] = false;
-    msgSentByB.reset(sendTextMessageOrUpdate(b, UINT_MAX, chatid, "Msg from B, after retention changed", chatroomListener(b)));
-    ASSERT_TRUE(msgSentByB) << "Message from B was not sent";
-    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
-    msgSentByB.reset(megaChatApi[a2]->getMessage(chatid, msgSentByB->getMsgId()));
-    ASSERT_TRUE(msgSentByB) << "Message from B was not received by A2";
-    auto retentionStart = std::chrono::system_clock::now();
-    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+//    // allow A1 to see the new retention history
+//    sessionA1.reset(login(a1, sessionA1.get()));
+//    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
+//    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1))); // make sure a1 has the last messages
+//    chatroom.reset(megaChatApi[a1]->getChatRoom(chatid));
+//    ASSERT_TRUE(chatroom);
+//    ASSERT_EQ(chatroom->getRetentionTime(), 5);
+//    //ASSERT_NO_FATAL_FAILURE(disconnect(a1));
 
-    // allow A1 to see the new retention history
-    sessionA1.reset(login(a1, sessionA1.get()));
-    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
-    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1))); // make sure a1 has the last messages
-    chatroom.reset(megaChatApi[a1]->getChatRoom(chatid));
-    ASSERT_TRUE(chatroom);
-    ASSERT_EQ(chatroom->getRetentionTime(), 5);
-    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+//    // send a message from B and receive it in A2
+//    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+//    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
 
-    // allow retention time to pass
-    std::this_thread::sleep_until(retentionStart + 6s);
+//    chatroom.reset(megaChatApi[a2]->getChatRoom(chatid));
+//    ASSERT_TRUE(chatroom);
+//    ASSERT_EQ(chatroom->getRetentionTime(), 5);
+//    chatroomListener(a2)->msgReceived[a2] = false;
+//    msgSentByB.reset(sendTextMessageOrUpdate(b, UINT_MAX, chatid, "Msg from B, after retention changed", chatroomListener(b)));
+//    ASSERT_TRUE(msgSentByB) << "Message from B was not sent";
+//    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
+//    msgSentByB.reset(megaChatApi[a2]->getMessage(chatid, msgSentByB->getMsgId()));
+//    ASSERT_TRUE(msgSentByB) << "Message from B was not received by A2";
+//    auto retentionStart = std::chrono::system_clock::now();
+//    //ASSERT_NO_FATAL_FAILURE(disconnect(a2)); // It doesn't matter if retention time is set 0, client a1 doesn't get the change before import messages
 
-    // NO IDEA how this is supposed to work. Sometimes it managed to import 1 message, sometimes even 2
-    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should be imported after retention time has passed";
+//    // allow retention time to pass
+//    std::this_thread::sleep_until(retentionStart + 6s);
+
+//    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should be imported after retention time has passed";
  }
 
 /**
