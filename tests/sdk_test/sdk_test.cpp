@@ -439,79 +439,68 @@ void clearMegaChatApiImplLeftovers();
 
 void MegaChatApiTest::TearDown()
 {
+    // Required order:
+    // 1. clear and leave unused chatrooms
+    // 2. logout megaApi
+    // 3. logout megaChatApi
+    // 4. delete megaChatApi
+    // 5. delete megaApi
     const ::testing::TestInfo* ti = ::testing::UnitTest::GetInstance()->current_test_info();
     string name = string(ti->test_suite_name()) + '.' + ti->name();
     LOG_info << "Test " << name << ": TearDown starting.";
 
-    for (unsigned int i = 0; i < NUM_ACCOUNTS; i++)
+    for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
     {
+        // 1. clear and leave unused chatrooms
         if (megaChatApi[i])
         {
             if (megaChatApi[i]->getInitState() == MegaChatApi::INIT_ONLINE_SESSION ||
-                    megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION )
+                    megaChatApi[i]->getInitState() == MegaChatApi::INIT_OFFLINE_SESSION)
             {
                 vector<MegaChatHandle> chatsToSkip;
-                for (unsigned a2 = 0; a2 < NUM_ACCOUNTS; ++a2)
+                for (unsigned j = 0; j < NUM_ACCOUNTS; ++j)
                 {
-                    if (a2 == i)
-                    {
-                        continue;
-                    }
+                    if (j == i) { continue; }
 
-                    MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(account(a2).getEmail().c_str());
+                    MegaChatHandle uh = megaChatApi[i]->getUserHandleByEmail(account(j).getEmail().c_str());
                     if (uh != MEGACHAT_INVALID_HANDLE)
                     {
                         std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
                         peers->addPeer(uh, MegaChatPeerList::PRIV_STANDARD);
-                        MegaChatHandle chatToSkip = getGroupChatRoom({i, a2}, peers.get(), MegaChatPeerList::PRIV_UNKNOWN, false);
+                        MegaChatHandle chatToSkip = getGroupChatRoom({i, j}, peers.get(), MegaChatPeerList::PRIV_UNKNOWN, false);
                         chatsToSkip.push_back(chatToSkip);
                     }
                 }
-
                 clearAndLeaveChats(i, chatsToSkip);
             }
         }
 
-        // Required order:
-        // 1. logout megaApi;
-        // 2. logout megaChatApi;
-        // 3. delete megaChatApi;
-        // 4. delete megaApi.
-
-        if (megaApi[i])
+        if (megaApi[i] && megaApi[i]->isLoggedIn())
         {
-            if (megaApi[i]->isLoggedIn())
-            {
-                MegaNode* cloudNode = megaApi[i]->getRootNode();
-                purgeCloudTree(i, cloudNode);
-                delete cloudNode;
-                cloudNode = NULL;
-                MegaNode* rubbishNode = megaApi[i]->getRubbishNode();
-                purgeCloudTree(i, rubbishNode);
-                delete rubbishNode;
-                rubbishNode = NULL;
+            std::unique_ptr <MegaNode> cloudNode(megaApi[i]->getRootNode());
+            purgeCloudTree(i, cloudNode.get());
+            std::unique_ptr <MegaNode> rubbishNode(megaApi[i]->getRubbishNode());
+            purgeCloudTree(i, rubbishNode.get());
+            removePendingContactRequest(i);
 
-                removePendingContactRequest(i);
+            // 2. logout megaApi
+            ChatLogoutTracker chatLogoutCrt;
+            megaChatApi[i]->addChatRequestListener(&chatLogoutCrt);
 
-                // 1. logout megaApi;
-                ChatLogoutTracker chatLogoutTracker;
-                megaChatApi[i]->addChatRequestListener(&chatLogoutTracker);
-
-                RequestTracker logoutTracker(megaApi[i]);
+            RequestTracker logoutRt(megaApi[i]);
 #ifdef ENABLE_SYNC
-                megaApi[i]->logout(false, &logoutTracker);
+            megaApi[i]->logout(false, &logoutRt);
 #else
-                megaApi[i]->logout(&logoutTracker);
+            megaApi[i]->logout(&logoutTracker);
 #endif
-                TEST_LOG_ERROR(logoutTracker.waitForResult(60) == API_OK, "Failed to logout from SDK. Error: " + logoutTracker.getErrorString());
-                TEST_LOG_ERROR(chatLogoutTracker.waitForResult() == MegaChatError::ERROR_OK, "Failed to auto-logout from chat. Error: " + chatLogoutTracker.getErrorString());
-                megaChatApi[i]->removeChatRequestListener(&chatLogoutTracker);
-            }
+            TEST_LOG_ERROR(logoutRt.waitForResult(60) == API_OK, "Failed to logout from SDK. Error: " + logoutRt.getErrorString());
+            TEST_LOG_ERROR(chatLogoutCrt.waitForResult() == MegaChatError::ERROR_OK, "Failed to auto-logout from chat. Error: " + chatLogoutCrt.getErrorString());
+            megaChatApi[i]->removeChatRequestListener(&chatLogoutCrt);
         }
 
         if (megaChatApi[i])
         {
-            // 2. logout megaChatApi;
+            // 3. logout megaChatApi
             ChatRequestTracker crtLogout(megaChatApi[i]);
             megaChatApi[i]->logout(&crtLogout);
             TEST_LOG_ERROR(crtLogout.waitForResult(60) == MegaChatError::ERROR_OK, "Failed to logout from Chat. Error: " + crtLogout.getErrorString());
@@ -523,14 +512,14 @@ void MegaChatApiTest::TearDown()
 #endif
             megaChatApi[i]->removeChatListener(this);
 
-            // 3. delete megaChatApi;
+            // 4. delete megaChatApi
             delete megaChatApi[i];
             megaChatApi[i] = NULL;
         }
 
         if (megaApi[i])
         {
-            // 4. delete megaApi.
+            // 5. delete megaApi
             delete megaApi[i];
             megaApi[i] = NULL;
         }
