@@ -297,10 +297,10 @@ void MegaChatApiTest::terminate()
 void MegaChatApiTest::SetUp()
 {
     const ::testing::TestInfo* ti = ::testing::UnitTest::GetInstance()->current_test_info();
-    string name = string(ti->test_suite_name()) + '.' + ti->name();
-    LOG_info << "Test " << name << ": SetUp starting.";
-
+    const string name = string(ti->test_suite_name()) + '.' + ti->name();
     struct stat st = {}; // init all members to default values (0)
+
+    LOG_info << "Test " << name << ": SetUp starting.";
     if (stat(LOCAL_PATH.c_str(), &st) == -1)
     {
 #ifdef _WIN32
@@ -310,7 +310,7 @@ void MegaChatApiTest::SetUp()
 #endif
     }
 
-    for (unsigned i = 0u; i < NUM_ACCOUNTS; i++)
+    for (unsigned i = 0u; i < NUM_ACCOUNTS; ++i)
     {
         char path[1024];
 #ifdef _WIN32
@@ -335,42 +335,56 @@ void MegaChatApiTest::SetUp()
         megaChatApi[i]->addSchedMeetingListener(this);
 #endif
 
-        // kill all sessions to ensure no interferences from other tests running in parallel
-        RequestTracker loginTracker(megaApi[i]);
+        RequestTracker loginRt(megaApi[i]);
         megaApi[i]->login(account(i).getEmail().c_str(), account(i).getPassword().c_str(),
-                          &loginTracker);
+                          &loginRt);
 
-        const int loginResult = loginTracker.waitForResult();
-        if (loginResult != API_OK)
+        const bool sdkLoginSuccess = loginRt.waitForResult() == API_OK;
+        if (!sdkLoginSuccess)
         {
+            LOG_err << "Login failed, clearing resources";
+
+            // destroy MegaChatApi instance
             megaChatApi[i]->removeChatCallListener(this);
             delete megaChatApi[i];
             megaChatApi[i] = nullptr;
 
-            RequestTracker logoutTracker(megaApi[i]);
-            megaApi[i]->localLogout(&logoutTracker);
-            const int logoutResult = logoutTracker.waitForResult();
+            // SDK logout and destroy MegaApi instance
+            RequestTracker sdkLocalLogoutRt(megaApi[i]);
+            megaApi[i]->localLogout(&sdkLocalLogoutRt);
+            const int logoutErr = sdkLocalLogoutRt.waitForResult();
             megaApi[i]->removeListener(this);
             delete megaApi[i];
             megaApi[i] = NULL;
-            ASSERT_TRUE(logoutResult == API_OK || logoutResult == API_ESID)
-                    << "Error sdk logout. Error: " << logoutResult << ' ' << logoutTracker.getErrorString();
 
-            ASSERT_EQ(loginResult, API_OK) << "Login failed in SetUp(). Error: " << loginTracker.getErrorString(); // this will always fail
+            if (logoutErr != API_OK && logoutErr != API_ESID)
+            {
+                LOG_err << "Error sdk local logout. Error: " << logoutErr
+                        << ' ' << sdkLocalLogoutRt.getErrorString();
+            }
+
+            // test has failed
+            ASSERT_TRUE(sdkLoginSuccess) << "Login failed in SetUp(). Error: " << loginRt.getErrorString();
         }
 
-        RequestTracker killSessionTracker(megaApi[i]);
-        megaApi[i]->killSession(INVALID_HANDLE, &killSessionTracker);
-        ASSERT_EQ(killSessionTracker.waitForResult(), API_OK) << "Kill sessions failed in SetUp(). Error: " << killSessionTracker.getErrorString();
+        // SDK login succeeded
+        // kill all sessions to ensure no interferences from other tests running in parallel
+        RequestTracker killSessionRT(megaApi[i]);
+        megaApi[i]->killSession(INVALID_HANDLE, &killSessionRT);
+        ASSERT_EQ(killSessionRT.waitForResult(), API_OK) << "Kill sessions failed in SetUp(). Error: "
+                                                         << killSessionRT.getErrorString();
+
+        // Logout from SDK
         RequestTracker logoutTracker(megaApi[i]);
 #ifdef ENABLE_SYNC
         megaApi[i]->logout(false, &logoutTracker);
 #else
         megaApi[i]->logout(&logoutTracker);
 #endif
-        int logoutResult = logoutTracker.waitForResult();
-        ASSERT_TRUE(logoutResult == API_OK || logoutResult == API_ESID) <<
-                         "Logout failed in SetUp(). Error: " << logoutResult << ' ' << logoutTracker.getErrorString();
+        const int logoutResult = logoutTracker.waitForResult();
+        ASSERT_TRUE(logoutResult == API_OK || logoutResult == API_ESID)
+            << "Logout failed in SetUp(). Error: " << logoutResult << ' '
+            << logoutTracker.getErrorString();
 
         for (int j = 0; j < ::mega::MegaRequest::TOTAL_OF_REQUEST_TYPES; ++j)
         {
@@ -384,7 +398,6 @@ void MegaChatApiTest::SetUp()
         mChatsUpdated[i] = false;
         mChatListUpdated[i].clear();
         lastErrorTransfer[i] = -1;
-
         chatroom[i] = NULL;
         chatUpdated[i] = false;
         chatItemUpdated[i] = false;
@@ -393,7 +406,6 @@ void MegaChatApiTest::SetUp()
         titleUpdated[i] = false;
         chatArchived[i] = false;
         chatPreviewClosed[i] = false;
-
         mNotTransferRunning[i] = true;
         mPresenceConfigUpdated[i] = false;
         mUsersUpdate[i] = false;
