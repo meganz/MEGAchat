@@ -1161,7 +1161,7 @@ public:
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
-    void onSendByeCommand() override;
+    void onByeCommandSent() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     bool processDeny(const std::string&, const std::string&) override;

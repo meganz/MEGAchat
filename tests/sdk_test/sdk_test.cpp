@@ -9579,7 +9579,7 @@ bool MockupCall::handleModDel(uint64_t)
     return true;
 }
 
-void MockupCall::onSendByeCommand()
+void MockupCall::onByeCommandSent()
 {
 
 }
