@@ -898,6 +898,11 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 
 #ifndef KARERE_DISABLE_WEBRTC
          case MegaChatRequest::TYPE_ANSWER_CHAT_CALL:
+            if (error != MegaChatError::ERROR_OK)
+            {
+                QMessageBox::critical(nullptr, tr("Answer call"), tr("Error answering call: ").append(e->getErrorString()));
+            }
+            break;
          case MegaChatRequest::TYPE_START_CHAT_CALL:
             if (error != MegaChatError::ERROR_OK)
             {

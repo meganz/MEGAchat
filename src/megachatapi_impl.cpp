@@ -1771,15 +1771,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             }
 
             bool enableAudio = request->getParamType();
-            if (enableAudio
-                && chatroom->isSpeakRequest()
-                && chatroom->ownPriv() != Priv::PRIV_OPER)
-            {
-                API_LOG_ERROR("Start call - can't start a call with audio enabled "
-                              "if speak request is enabled for chatroom and we are non-host");
-                return MegaChatError::ERROR_ARGS;
-            }
-
             bool enableVideo = request->getFlag();
             karere::AvFlags avFlags(enableAudio, enableVideo);
             rtcModule::ICall* call = findCall(chatid);
@@ -1910,15 +1901,6 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             }
 
             bool enableAudio = request->getParamType();
-            if (enableAudio
-                && chatroom->isSpeakRequest()
-                && chatroom->ownPriv() != Priv::PRIV_OPER)
-            {
-                API_LOG_ERROR("Answer call - can't answer a call with audio enabled "
-                              "if speak request is enabled for chatroom and we are non-host");
-                return MegaChatError::ERROR_ARGS;
-            }
-
             bool enableVideo = request->getFlag();
             karere::AvFlags avFlags(enableAudio, enableVideo);
             call->join(avFlags)

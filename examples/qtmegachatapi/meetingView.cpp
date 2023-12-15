@@ -168,7 +168,7 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append("<br /> Audio flag: ")
             .append(call->hasLocalAudio() ? on : off)
             .append("<br /> Video flag: ")
-            .append(call->hasLocalAudio() ? on : off)
+            .append(call->hasLocalVideo() ? on : off)
             .append("<br /> Has speak permission: ")
             .append(call->hasSpeakPermission() ? on : off)
             .append("<br /> Has speak request pending to be approved: ")
@@ -593,7 +593,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string requestHiRes("Request hiRes");
     std::string stopThumb("Stop vThumb");
     std::string stopHiRes("Stop hiRes");
-    std::string addActiveSpeaker("Add active request");
+    std::string addActiveSpeaker("Add active speaker");
     std::string rejectSpeak("Reject Speak request");
     std::string pushWr("Push waiting room");
     std::string kickWr("Kick waiting room");

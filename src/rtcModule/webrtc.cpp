@@ -1032,47 +1032,7 @@ void Call::joinSfu()
         }
 
         karere::AvFlags joinFlags = getLocalAvFlags();
-        if (joinFlags.audio() && isSpeakRequestEnabled() && !isOwnPrivModerator())
-        {
-            const bool isReconnecting = getPrevCid() != K_INVALID_CID;
-            if (!isReconnecting)
-            {
-                // If speak request is enabled and we want to start call with audio enabled, we must be a moderator,
-                // otherwise we need be granted to speak before sending AV command to enable audio
-                orderedCallDisconnect(TermCode::kErrClientGeneral, 
-                                      std::string("audio flags cannot be enabled"
-                                                  " if speak request is also enabled for call"
-                                                  " and we are non moderator"));
-                assert(false);
-                return;
-            }
-            else
-            {
-                // we are non-host and we are trying to reconnect. we had permission to speak before reconnect as
-                // audio flags are enabled. We can't send audio flag enabled in JOIN command as we say below.
-                setSpeakerState(SpeakerState::kNoSpeaker);
-                muteMyClient(true/*audio*/, false /*video*/);
-                RTCM_LOG_DEBUG("joinSfu: re-joining to SFU with audio disabled, as speak request "
-                               "is enabled and our peer is non-host");
-            }
-        }
-
-        bool sendAv = false;
-        if (joinFlags.audio())
-        {
-            /* SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
-             *  - 1) send JOIN command with audio flag disabled
-             *  - 2) send an AV command enabling audio flag (immediately after send JOIN)
-             */
-            joinFlags.remove(karere::AvFlags::kAudio);
-            sendAv = true;
-        }
-
         mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, joinFlags.value(), getPrevCid(), kInitialvthumbCount);
-        if (sendAv)
-        {
-            mSfuConnection->sendAv(getLocalAvFlags().value());
-        }
     })
     .fail([wptr, this](const ::promise::Error& err)
     {

@@ -1727,9 +1727,7 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
                             std::string& ephemeralKey, int avFlags, Cid_t prevCid, int vthumbs)
 
 {
-    assert(!karere::AvFlags(static_cast<uint8_t>(avFlags)).audio());
     rapidjson::Document json(rapidjson::kObjectType);
-
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_JOIN.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
