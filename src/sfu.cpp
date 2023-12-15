@@ -1345,6 +1345,7 @@ void SfuConnection::doReconnect(const bool applyInitialBackoff)
          */
         mConnectTimer = karere::setTimeout([this, reconnectFunc, wptr]()
         {
+            if (wptr.deleted()) { return; }
             mConnectTimer = 0;
             reconnectFunc();
         }, getInitialBackoff() * 100, mAppCtx);
@@ -1505,9 +1506,9 @@ void SfuConnection::processNextCommand(bool resetSending)
     {
         // upon wsSendMsgCb we need to reset isSending flag
         mCommandsQueue.setSending(false);
-        if (mIsSendingBye)
+        if (isSendingByeCommand())
         {
-            mCall.onSendByeCommand();
+            mCall.onByeCommandSent();
             return; // we have sent BYE command to SFU, following commands will be ignored
         }
     }
@@ -1528,7 +1529,7 @@ void SfuConnection::processNextCommand(bool resetSending)
     if (command.find("{\"a\":\"BYE\",\"rsn\":") != std::string::npos)
     {
         // set mIsSendingBye flag true, to indicate that we are going to send BYE command
-        mIsSendingBye = true;
+        setIsSendingBye(true);
     }
 
     assert(!command.empty());
@@ -1539,12 +1540,12 @@ void SfuConnection::processNextCommand(bool resetSending)
     if (!rc)
     {
         mSendPromise.reject("Socket is not ready");
-        if (mIsSendingBye)
+        if (isSendingByeCommand())
         {
              // if wsSendMessage failed inmediately trying to send BYE command, call onSendByeCommand in order to
              // execute the expected action (retry, remove or disconnect call) that triggered the BYE command sent
              mCommandsQueue.setSending(false);
-             mCall.onSendByeCommand();
+             mCall.onByeCommandSent();
              return;
         }
         processNextCommand(true);

@@ -362,6 +362,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate {
+    if (delegate == nil) return;
+    
     std::vector<DelegateMEGAChatListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
@@ -474,6 +476,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)removeChatCallDelegate:(id<MEGAChatCallDelegate>)delegate {
+    if (delegate == nil) return;
+    
     std::vector<DelegateMEGAChatCallListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
@@ -1723,6 +1727,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 - (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
     if (self.megaChatApi) {
         self.megaChatApi->startChatCallNoRinging(chatId, scheduledId, enableVideo, enableAudio);
+    }
+}
+
+- (void)ringIndividualInACall:(uint64_t)chatId userId:(uint64_t)userId timeout:(NSInteger)timeout delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->ringIndividualInACall(chatId, userId, (int)timeout, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)ringIndividualInACall:(uint64_t)chatId userId:(uint64_t)userId timeout:(NSInteger)timeout {
+    if (self.megaChatApi) {
+        self.megaChatApi->ringIndividualInACall(chatId, userId, (int)timeout);
     }
 }
 

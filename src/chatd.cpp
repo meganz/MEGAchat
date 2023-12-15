@@ -2700,12 +2700,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCallByChatid(chatid);
                 if (call && mChatdClient.mKarereClient->rtc)
                 {
-                    if (call->isJoined())
-                    {
-                        CHATDS_LOG_DEBUG("Ignore DELCALLREASON command, as we are still connected to SFU");
-                        break;
-                    }
-                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, endCallReason, connectionTermCode);
+                    mChatdClient.mKarereClient->rtc->onDestroyCall(call, endCallReason, connectionTermCode);
                 }
 #endif
                 break;
@@ -3143,11 +3138,11 @@ void Chat::manageReaction(const Message &message, const std::string &reaction, O
                     + static_cast<int8_t>(data->bufSize()) + encReaction);
 }
 
-void Chat::ringIndividualInACall(const karere::Id& userToCallId, const karere::Id& callId, const int16_t ringTimeout)
+void Chat::ringIndividualInACall(const karere::Id& userIdToCall, const karere::Id& callId, const int16_t ringTimeout)
 {
     const Opcode opcode = OP_RINGUSER;
     static const int8_t callState = 1;
-    sendCommand(Command(opcode) + mChatId + userToCallId + callId + callState + ringTimeout);
+    sendCommand(Command(opcode) + mChatId + userIdToCall + callId + callState + ringTimeout);
 }
 
 void Chat::sendReactionSn()
@@ -5767,12 +5762,29 @@ void Chat::onUserLeave(const Id& userid)
 {
     assert(mOnlineState >= kChatStateJoining);
 
-    bool previewer = (userid == Id::null());  // the handle of a public chat (being previewer) has become invalid
-    if (userid == client().myHandle() || previewer)
+    // We should only receive JOIN with user 'AAAAAAAAAAA', if we are in preview mode
+    bool isPreviewerIdRecv = (userid == Id::null());
+    if (userid == client().myHandle() || isPreviewerIdRecv)
     {
+        if (isPreviewerIdRecv && !previewMode())
+        {
+            CHATID_LOG_ERROR("We have received JOIN -1 for user 'AAAAAAAAAAA', but we are not in "
+                             "preview mode. chat: %s", chatId().toString().c_str());
+            assert(false);
+            return;
+        }
+
         mOwnPrivilege = PRIV_NOTPRESENT;
-        disable(previewer);    // the ph is invalid -> do not keep trying to login into chatd anymore
+        disable(isPreviewerIdRecv);    // the ph is invalid -> do not keep trying to login into chatd anymore
         onPreviewersUpdate(0);
+
+        if (isPreviewerIdRecv)
+        {
+            // notify that our own user permission (in preview mode) has been updated to PRIV_NOTPRESENT
+            // probably chat-link has been invalidated, so chatd send us a JOIN command with priv -1
+            CHATID_LOG_DEBUG("our own user permission (in preview mode) has been updated to not present (-1)");
+            CALL_LISTENER(onUserLeave, userid);
+        }
 
         // due to a race-condition at client-side receiving the removal of own user from API and chatd,
         // if own user was the only moderator, chatd sends the JOIN 3 for remaining peers followed by the
@@ -5795,7 +5807,7 @@ void Chat::onUserLeave(const Id& userid)
         if (call && mChatdClient.mKarereClient->rtc && !previewMode())
         {
             CHATID_LOG_DEBUG("remove call associated to chatRoom if our own user is not an active participant");
-            mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kFailed, rtcModule::TermCode::kLeavingRoom);
+            mChatdClient.mKarereClient->rtc->rtcOrderedCallDisconnect(call, rtcModule::TermCode::kLeavingRoom);
         }
 #endif
     }
@@ -6050,7 +6062,7 @@ void Chat::setOnlineState(ChatState state)
                 if (call->getParticipants().empty())
                 {
                     CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s with no participants", call->getCallid().toString().c_str());
-                    mChatdClient.mKarereClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kErrNoCall);
+                    mChatdClient.mKarereClient->rtc->rtcOrderedCallDisconnect(call, rtcModule::TermCode::kErrNoCall);
                 }
                 else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
                 {

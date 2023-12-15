@@ -730,6 +730,12 @@ protected:
     void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                                std::shared_ptr<TestChatRoomListener>chatroomListener);
 
+    // updates an existing scheduled meeting
+    void updateSchedMeeting(const unsigned int a1, const unsigned int a2, const int expectedError, const SchedMeetingData& smData, const bool updateChatTitle);
+
+    // update chatroom title
+    void changeTitle(const unsigned int a1, TestChatRoomListener* chatroomListener, const megachat::MegaChatHandle chatid, const std::string& title);
+
 #ifndef KARERE_DISABLE_WEBRTC
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
@@ -788,6 +794,7 @@ protected:
     bool peersUpdated[NUM_ACCOUNTS];
     bool titleUpdated[NUM_ACCOUNTS];
     bool chatArchived[NUM_ACCOUNTS];
+    bool chatPreviewClosed[NUM_ACCOUNTS];
 
     ::mega::MegaHandle mNodeCopiedHandle[NUM_ACCOUNTS];
     ::mega::MegaHandle mNodeUploadHandle[NUM_ACCOUNTS];
@@ -1172,7 +1179,7 @@ public:
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
-    void onSendByeCommand() override;
+    void onByeCommandSent() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     bool processDeny(const std::string&, const std::string&) override;

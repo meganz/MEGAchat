@@ -387,13 +387,16 @@ public:
 
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
-    void sfuDisconnect(const TermCode &termCode, bool hadParticipants);
+    void disconnectFromSfu(const TermCode &termCode, bool hadParticipants);
 
     // ordered call disconnect by sending BYE command before performing SFU and media channel disconnect
-    void orderedCallDisconnect(TermCode termCode, const std::string &msg);
+    void orderedCallDisconnect(TermCode termCode, const std::string &msg, const bool forceDisconnect = false);
 
     // immediate disconnect (without sending BYE command) from SFU and media channel, and also clear call resources
     void immediateCallDisconnect(const TermCode& termCode);
+
+    // delete call immediately
+    void removeCallImmediately(uint8_t reason, TermCode connectionTermCode);
 
     // clear call resources
     void clearResources(const TermCode& termCode);
@@ -418,6 +421,8 @@ public:
     void clearParticipants();
     bool hasCallKey();
     bool isValidWrJoiningState() const;
+    bool isConnectedToSfu() const;
+    bool isSendingBye() const;
     void clearWrJoiningState();
     void setWrJoiningState(const sfu::WrState status);
     void setPrevCid(Cid_t prevcid);
@@ -459,6 +464,7 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
+    bool isDisconnecting();
     bool addWrUsers(const sfu::WrUserList& users, const bool clearCurrent);
     void pushIntoWr(const TermCode& termCode);
     bool dumpWrUsers(const sfu::WrUserList& wrUsers, const bool clearCurrent);
@@ -508,7 +514,7 @@ public:
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     void onSfuDisconnected() override;
-    void onSendByeCommand() override;
+    void onByeCommandSent() override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
@@ -568,9 +574,6 @@ protected:
       * - Reconnection attempt has not succeeded after max timeout
       */
     bool mIsDestroyingCall = false;
-
-    // this var detects if we are destroying call due to BYE command received, with non retriable termcode
-    TermCode mByeTermCode = kUnKnownTermCode;
 
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
     bool mIsReconnectingToChatd = false;
@@ -781,8 +784,9 @@ public:
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
-    void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
-    void immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode);
+    void onDestroyCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
+    void rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode) override;
+    void deleteCall(const karere::Id& callId);
 
     void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) override;
     void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) override;

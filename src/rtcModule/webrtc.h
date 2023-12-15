@@ -274,8 +274,8 @@ public:
     virtual sfu::SfuClient& getSfuClient() = 0;
     virtual DNScache& getDnsCache() = 0;
 
-    virtual void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
-
+    virtual void onDestroyCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
+    virtual void rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode) = 0;
     virtual void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) = 0;
     virtual void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
@@ -303,11 +303,6 @@ public:
 
     void clear() { mWaitingRoomUsers.clear(); }
 
-    void addWrUserStatus(const uint64_t& userid, sfu::WrState status)
-    {
-        mWaitingRoomUsers.emplace_back(sfu::WrRoomUser { userid, status });
-    }
-
     bool addOrUpdateUserStatus(const uint64_t& userid, const sfu::WrState status)
     {
         if (!isValidWrStatus(status))
@@ -324,7 +319,7 @@ public:
                 return true;
             }
         }
-        addWrUserStatus(userid, status);
+        mWaitingRoomUsers.emplace_back(sfu::WrRoomUser { userid, status });
         return true;
     }
 

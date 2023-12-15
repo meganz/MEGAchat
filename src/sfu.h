@@ -269,7 +269,7 @@ public:
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
     virtual bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) = 0;
     virtual void onSfuDisconnected() = 0;
-    virtual void onSendByeCommand() = 0;
+    virtual void onByeCommandSent() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
@@ -756,7 +756,7 @@ protected:
     promise::Promise<void> reconnect();
     void abortRetryController();
 
-    // This flag is set true when BYE command is sent to SFU
+    // This flag is set true when BYE command is being sent to SFU
     bool mIsSendingBye = false;
 
     Cid_t mMyCid = K_INVALID_CID;
