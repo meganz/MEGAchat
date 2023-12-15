@@ -261,18 +261,18 @@ public:
         kTsTrue   = 1,
     };
 
-    ~MTristate() = default;
-    MTristate(const bool v) { mStatus = v; }
-    MTristate() = default;
-    MTristate(MTristate&) = default;
-    MTristate(MTristate&&) = default;
-    MTristate& operator=(MTristate&) = default;
-    MTristate& operator=(MTristate&&) = default;
+    MTristate(const bool v)             { mStatus = v; }
+    ~MTristate()                        = default;
+    MTristate()                         = default;
+    MTristate(MTristate&)               = default;
+    MTristate(MTristate&&)              = default;
+    MTristate& operator=(MTristate&)    = default;
+    MTristate& operator=(MTristate&&)   = default;
 
-    static bool isValid(int v)  { return v >= kTsUndef && v <= kTsTrue; }
-    bool isUndef() const        { return mStatus == kTsUndef; }
-    bool get () const           { return mStatus; }
-    void reset ()               { mStatus = kTsUndef;}
+    static bool isValid(int v)          { return v >= kTsUndef && v <= kTsTrue; }
+    bool isUndef() const                { return mStatus == kTsUndef; }
+    bool get () const                   { return mStatus; }
+    void reset ()                       { mStatus = kTsUndef;}
     bool set (int v)
     {
         if (!isValid(v)) { return false; }

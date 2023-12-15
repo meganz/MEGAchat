@@ -2423,7 +2423,7 @@ int MegaChatApiImpl::performRequest_addDelspeakRequest(MegaChatRequestPrivate* r
     const handle chatid = request->getChatHandle();
     const MegaChatHandle user = request->getUserHandle();
     const bool add = request->getFlag();
-    const std::string errMsg = {"MegaChatRequest::TYPE_SPEAKRQ_ADD_DEL" + std::string(add ? "(ADD)" : "(DEL)")};
+    const std::string errMsg {"MegaChatRequest::TYPE_SPEAKRQ_ADD_DEL" + std::string(add ? "(ADD)" : "(DEL)")};
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
         API_LOG_ERROR("%s - Invalid chatid", errMsg.c_str());
@@ -2432,7 +2432,7 @@ int MegaChatApiImpl::performRequest_addDelspeakRequest(MegaChatRequestPrivate* r
 
     if (add && user != MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("%s - Invalid userid expected", errMsg.c_str());
+        API_LOG_ERROR("%s - expected userid for adding speak request", errMsg.c_str());
         return MegaChatError::ERROR_ARGS;
     }
 
@@ -2452,9 +2452,10 @@ int MegaChatApiImpl::performRequest_addDelspeakRequest(MegaChatRequestPrivate* r
                                                           : " a pending speak request in flight" );
         return MegaChatError::ERROR_EXIST;
     }
-    else if (!add && user == MEGACHAT_INVALID_HANDLE && (!call->hasPendingSpeakRequest()))
+
+    if (!add && user == MEGACHAT_INVALID_HANDLE && (!call->hasPendingSpeakRequest()))
     {
-        API_LOG_ERROR("%s - userid doesn't has a pending speak request in flight");
+        API_LOG_ERROR("%s - own user doesn't has a pending speak request in flight");
         return MegaChatError::ERROR_EXIST;
     }
 
@@ -2483,8 +2484,9 @@ int MegaChatApiImpl::performRequest_addRemoveSpeaker(MegaChatRequestPrivate* req
                 return MegaChatError::ERROR_ARGS;
             }
 
-            const bool ownPrivMod = user != MEGACHAT_INVALID_HANDLE;
-            auto res = getCall(request->getChatHandle(), errMsg, ownPrivMod);
+            // moderator role is required to add/remove an user as speaker
+            const bool isModeratorRoleRequired = user != MEGACHAT_INVALID_HANDLE;
+            auto res = getCall(request->getChatHandle(), errMsg, isModeratorRoleRequired);
             if (res.first != MegaChatError::ERROR_OK)
             {
                 API_LOG_ERROR("%s - can't get chat call", errMsg.c_str());

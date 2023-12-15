@@ -130,10 +130,13 @@ protected:
     std::vector<std::string> mIvs;
 
     /* The speak permission (mHasSpeakPermission stores this permission up to date with SFU)
-     *      1.1) If peer is moderator. SFU sends a SPEAK_ON command to inform that peer is a speaker
+     *      1.1) If peer is moderator. The client is able to determine if it can speak by itself,
+     *           from the list of moderators and speakers (a moderator always has speak permission),
+     *           and from the sr flag in the HELLO message, which specifies whether speak approval
+     *           is enabled for the call (if it's not enabled, everybody has speak permission).
      *
-     *      1.2) If peer is not moderator, needs to manually send SPEAKRQ to SFU that will be broadcasted it to all moderators.
-     *           When speak request is approved by a moderator, a SPEAK_ON command will be received
+     *      1.2) If peer is non moderator, needs to manually send SPEAKRQ to SFU that will be broadcasted it to all moderators.
+     *           When speak request is approved by a moderator, a SPEAKER_ADD command will be received
      */
     bool mHasSpeakPermission = false;
 

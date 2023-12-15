@@ -646,6 +646,7 @@ bool Call::hasOwnUserSpeakPermission() const
 
 bool Call::addDelSpeakRequest(const karere::Id& user, const bool add)
 {
+    // SPEAKRQ cannot be sent on behalf of another user
     assert(!add || !user.isValid());
     mSfuConnection->sendSpeakReqAddDel(user, add);
     return true;
@@ -658,6 +659,8 @@ bool Call::isSpeakAllow() const
 
 void Call::addOrRemoveSpeaker(const karere::Id& user, const bool add)
 {
+    // SPEAKER_ADD cannot be sent for own user
+    // moderators don't need to send SPEAKER_ADD for themselves
     assert(user.isValid() || !add);
     mSfuConnection->sendSpeakerAddDel(user, add);
 }
@@ -1035,8 +1038,7 @@ void Call::joinSfu()
             if (!isReconnecting)
             {
                 // If speak request is enabled and we want to start call with audio enabled, we must be a moderator,
-                // otherwise we need to manually send SPEAKRQ and receive SPEAK_ON (when we are approved by a moderator)
-                // before sending AV command to enable audio
+                // otherwise we need be granted to speak before sending AV command to enable audio
                 orderedCallDisconnect(TermCode::kErrClientGeneral, 
                                       std::string("audio flags cannot be enabled"
                                                   " if speak request is also enabled for call"
@@ -2020,10 +2022,7 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     if (add)
     {
         if (isOwnUser) { updateAudioTracks(); }
-        else
-        {
-            updateUserSpeakRequest(uh, false/*add*/);
-        }
+        else           { updateUserSpeakRequest(uh, false/*add*/); }
     }
     return true;
 }
@@ -2046,14 +2045,15 @@ bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
 {
     if (userid == getOwnPeerId()) // own user
     {
-        if (add && getOwnSpeakerState() == SpeakerState::kNoSpeaker)
+        if (getOwnSpeakerState() == SpeakerState::kActive)
         {
-            setSpeakerState(SpeakerState::kPending);
+            RTCM_LOG_WARNING("handleSpeakReqAddDelCommand: our own user already has speak permission. Ignore %s",
+                             add ? "SPEAKRQ" : "SPEAKRQ_DEL");
+            return true;
         }
-        else if (!add && getOwnSpeakerState() == SpeakerState::kPending)
-        {
-            setSpeakerState(SpeakerState::kNoSpeaker);
-        }
+        add
+            ? setSpeakerState(SpeakerState::kPending)
+            : setSpeakerState(SpeakerState::kNoSpeaker);
     }
     else
     {
@@ -2162,7 +2162,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
             Session* session = getSession(peer->getCid());
             if (session)
             {
-                // set speak permission and speak request status for verified peer session
+                // update speak permission and speak request status for verified peer session
                 session->setSpeakPermission(isOnSpeakersList(peer->getPeerid()));
                 session->setSpeakRequested(isOnSpeakRequestsList(peer->getPeerid()));
             }
@@ -2265,17 +2265,18 @@ bool Call::handleModAdd(uint64_t userid)
     if (removeFromSpeakersList(userid))
     {
         // note: moderators should never be included on speakers list,
-        //       remove user from that list, in case it's included
+        //       in case the user already had speak permission upon this command,
+        //       we need to remove it from the list
         RTCM_LOG_DEBUG("MOD_ADD received, remove user: %s from speakers list, as moderators are not included there",
                        karere::Id(userid).toString().c_str());
     }
-    updateUserSpeakPermision(userid, true, false /*updateSpeakersList*/); // moderators have speak permission implicitly
 
     if (userid != getOwnPeerId())
     {
         updateUserSpeakRequest(userid, false/*add*/); // remove speak request (if any) for this user
     }
 
+    updateUserSpeakPermision(userid, true, false /*updateSpeakersList*/); // moderators have speak permission by default
     if (!hasSpeakPermission(userid))
     {
         RTCM_LOG_DEBUG("MOD_ADD received, but speak permission could not be updated for user: %s ",
@@ -2291,7 +2292,7 @@ bool Call::handleModAdd(uint64_t userid)
             && static_cast<sfu::WrState>(getWrJoiningState()) != sfu::WrState::WR_ALLOWED
             && getState() == kInWaitingRoom)
         {
-            // automatically JOIN call from WR
+            // automatically JOIN call from WR as now we have moderator role, so we have permission
             RTCM_LOG_DEBUG("MOD_ADD received for our own user, and we are in waiting room. JOIN call automatically");
             setWrJoiningState(sfu::WrState::WR_ALLOWED);
             mCallHandler.onWrAllow(*this);
@@ -2305,8 +2306,9 @@ bool Call::handleModAdd(uint64_t userid)
 
 bool Call::handleModDel(uint64_t userid)
 {
+    // Note: if command is received for own user, we don't need to call updateAudioTracks(), SFU will send us 'MUTED' command
     updateUserModeratorStatus(userid, false /*enable*/);
-    // if command is received for own user, we don't need to call updateAudioTracks(), SFU will send us 'MUTED' command
+
     if (removeFromSpeakersList(userid))
     {
         // note: moderators should never be included on the speakers list
@@ -2314,6 +2316,7 @@ bool Call::handleModDel(uint64_t userid)
                          karere::Id(userid).toString().c_str());
         assert(false);
     }
+
     if (!hasSpeakPermission(userid))
     {
         updateUserSpeakPermision(userid, false, false /*updateSpeakersList*/);
@@ -3068,6 +3071,7 @@ bool Call::updateUserSpeakRequest(const karere::Id& userid, const bool add)
 {
     if (userid == getOwnPeerId())
     {
+        // own user speak requests are managed at Call::setSpeakerState
         RTCM_LOG_WARNING("updateUserSpeakRequest called for own user id");
         assert(false);
         return false;
@@ -3228,9 +3232,7 @@ void Call::generateAndSendNewMediakey(bool reset)
                 return;
             }
 
-            // add key to peer's key map, although is not encrypted for any other participant,
-            // as we need to start sending audio frames as soon as we receive SPEAK_ON command
-            // and we could receive it even if there's no more participants in the meeting
+            // add key to peer's key map, although is not encrypted for any other participant
             mMyPeer->addKey(newKeyId, plainKeyStr);
         }, RtcConstant::kRotateKeyUseDelay, mRtc.getAppCtx());
 
@@ -3344,7 +3346,6 @@ void Call::addSpeaker(const Cid_t cid, const uint32_t amid)
     if (amid == sfu::TrackDescriptor::invalidMid)
     {
         // peer notified as speaker from SFU, but track not provided yet (this happens if peer is muted)
-        // TODO: check when we fully support raise-to-speak requests (to avoid sending an unnecessary speak request)
         return;
     }
 

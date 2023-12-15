@@ -554,6 +554,7 @@ protected:
     bool mIsRinging = false;
 
     // list of active speakers that is updated with ANSWER, SPEAKER_ADD, SPEAKER_DEL and MOD_ADD commands
+    // moderators are not included in this list
     std::set<karere::Id> mSpeakers;
 
     // list of speak requests
