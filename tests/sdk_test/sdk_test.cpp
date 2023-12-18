@@ -1110,7 +1110,6 @@ TEST_F(MegaChatApiTest, ResumeSession)
 {
     unsigned accountIndex = 0;
 
-    // ___ Create a new session ___
     LOG_debug << "Test1: Create a new session";
     char *session = login(accountIndex);
     ASSERT_TRUE(session);
@@ -1129,7 +1128,6 @@ TEST_F(MegaChatApiTest, ResumeSession)
 //        ASSERT_TRUE(session);
 //    }
 
-    // ___ Resume an existing session ___
     LOG_debug << "Test2: Resume with previous sesion";
     ASSERT_NO_FATAL_FAILURE({ logout(accountIndex, false); }); // keeps session alive
     char *tmpSession = login(accountIndex, session);
@@ -1139,10 +1137,8 @@ TEST_F(MegaChatApiTest, ResumeSession)
 
     ASSERT_NO_FATAL_FAILURE({ checkEmail(accountIndex); });
 
-    // ___ Resume an existing session without karere cache ___
     LOG_debug << "Test3: Resume an existing session without karere cache";
-    // logout from SDK keeping cache
-    RequestTracker logoutTracker(megaApi[accountIndex]);
+    RequestTracker logoutTracker(megaApi[accountIndex]);  // keeping cache
     megaApi[accountIndex]->localLogout(&logoutTracker);
     ASSERT_EQ(logoutTracker.waitForResult(), API_OK) << "Error local sdk logout. Error: " << logoutTracker.getErrorString();
 
@@ -1159,10 +1155,8 @@ TEST_F(MegaChatApiTest, ResumeSession)
     MegaApi::removeLoggerObject(logger());
     megaApi[accountIndex]->invalidateCache();
 
-    // ___ Re-create Karere cache without login out from SDK___
     LOG_debug << "Test4: Re-create Karere cache without login out from SDK";
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
-    // login in SDK
     RequestTracker loginTracker(megaApi[accountIndex]);
     session ? megaApi[accountIndex]->fastLogin(session, &loginTracker)
             : megaApi[accountIndex]->login(account(accountIndex).getEmail().c_str(),
@@ -1183,12 +1177,10 @@ TEST_F(MegaChatApiTest, ResumeSession)
     ASSERT_TRUE(list->size()) << "Chat list item is empty";
     delete list; list = NULL;
 
-    // ___ Close session ___
     LOG_debug << "Test5: Close session";
     ASSERT_NO_FATAL_FAILURE({ logout(accountIndex, true); });
     delete [] session; session = NULL;
 
-    // ___ Login with chat enabled, transition to disabled and back to enabled
     LOG_debug << "Test6: Login with chat enabled, transition to disabled and back to enabled";
     session = login(accountIndex);
     ASSERT_TRUE(session) << "Empty session key";
@@ -1232,7 +1224,6 @@ TEST_F(MegaChatApiTest, ResumeSession)
     ASSERT_NO_FATAL_FAILURE({ logout(accountIndex, true); });
     delete [] session; session = NULL;
 
-    // ___ Login with chat disabled, transition to enabled ___
     LOG_debug << "Test7: Login with chat disabled, transition to enabled";
     // fully disable chat: remove logger + delete MegaChatApi instance
     delete megaChatApi[accountIndex];
@@ -1270,7 +1261,6 @@ TEST_F(MegaChatApiTest, ResumeSession)
     delete list;
     list = NULL;
 
-    // ___ Test going into background, sleep and back to foreground ___
     LOG_debug << "Test8: Go into background, sleep and back to foreground";
     for(int i = 0; i < 3; i++)
     {
@@ -1476,18 +1466,15 @@ TEST_F(MegaChatApiTest, GetChatRoomsAndMessages)
             }
         }
 
-        // Load history
         LOG_debug << "Test2: Load history from one chatroom";
         buffer << "Loading messages for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
         loadHistory(accountIndex, chatid, chatroomListener);
 
-        // Close the chatroom
         LOG_debug << "Test3: Close chatroom";
         megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
         delete chatroomListener;
 
-        // Now, load history locally (it should be cached by now)
-        LOG_debug << "Test4: Load history from cache";
+        LOG_debug << "Test4: Load history from cache (it should be cached now)";
         chatroomListener = new TestChatRoomListener(this, megaChatApi, chatid);
         ASSERT_TRUE(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (accountIndex+1);
         buffer << "Loading messages locally for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
@@ -1557,7 +1544,6 @@ TEST_F(MegaChatApiTest, EditAndDeleteMessages)
     MegaChatMessage *msgSent = sendTextMessageOrUpdate(a1, a2, chatid, messageToSend, chatroomListener);
     ASSERT_TRUE(msgSent);
 
-    // edit the message
     LOG_debug << "Test2: Update the message";
     std::string messageToUpdate = "This is an edited message to " + account(a1).getEmail();
     MegaChatMessage *msgUpdated = sendTextMessageOrUpdate(a1, a2, chatid, messageToUpdate, chatroomListener, msgSent->getMsgId());
@@ -1638,7 +1624,6 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a1+1);
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
 
-    // --> Remove from chat
     LOG_debug << "Test2: Remove member from chat";
     bool *chatItemLeft0 = &chatItemUpdated[a1]; *chatItemLeft0 = false;
     bool *chatItemLeft1 = &chatItemUpdated[a2]; *chatItemLeft1 = false;
@@ -4988,14 +4973,14 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
  * (if not accomplished, the test automatically solves them)
  *
  * This test does the following:
- * + Test1: A starts a groupal Meeting in chat1 (without audio nor video)
- * - Test2: B answers call (without audio nor video)
- * / Test3: C doesn't answer the call and times out
+ * Test1: A starts a groupal Meeting in chat1 (without audio nor video)
+ * Test2: B answers call (without audio nor video)
+ * Test3: C doesn't answer the call and times out
  * <optional - just performing some actions in the call> B, A set audio, and then stop it
- * + Test4: A rings C individually
- * / Test5: C receives the new ring, doesn't answer, and the call times out again
- * - Test6: B hangs up call
- * + Test7: A hangs up call
+ * Test4: A rings C individually
+ * Test5: C receives the new ring, doesn't answer, and the call times out again
+ * Test6: B hangs up call
+ * Test7: A hangs up call
  *
  */
 TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
@@ -5819,9 +5804,9 @@ TEST_F(MegaChatApiTest, WaitingRooms)
  *
  * This test does the following:
  *
- * - Test1: Send a message to chatroom
- * + Test2: Receive message
- * + Test3: Try to edit a message by a different user than composer
+ * Test1: Send a message to chatroom
+ * Test2: Receive message
+ * Test3: Try to edit a message by a different user than composer
  *
  */
 TEST_F(MegaChatApiTest, EditMessageFromDifferentSender)
@@ -6211,18 +6196,18 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
  * (if not accomplished, the test automatically solves them)
  *
  * This test does the following:
- * + Test 1.  A Creates a Meeting room and a recurrent scheduled meeting in one step
- * + Test 2.  A Updates a recurrent scheduled meeting with invalid TimeZone (Error)
- * + Test 3.  A Updates previous recurrent scheduled meeting with valid data
- * + Test 4.  A Updates scheduled meeting title along with chatroom title
- * + Test 5.  A Updates a scheduled meeting occurrence with invalid schedId (Error)
- * + Test 6.  A Updates a scheduled meeting occurrence (new child sched meeting created)
- * + Test 7.  A Fetch scheduled meetings occurrences chatroom
- * + Test 8.  A Cancels previous scheduled meeting occurrence
- * + Test 9.  A Sets negative offset at byMonthWeekDay
- * + Test 10. A Cancels entire series
- * + Test 11. A Deletes scheduled meeting with invalid schedId (Error)
- * + Test 12. A Deletes scheduled meeting
+ * Test 1.  A Creates a Meeting room and a recurrent scheduled meeting in one step
+ * Test 2.  A Updates a recurrent scheduled meeting with invalid TimeZone (Error)
+ * Test 3.  A Updates previous recurrent scheduled meeting with valid data
+ * Test 4.  A Updates scheduled meeting title along with chatroom title
+ * Test 5.  A Updates a scheduled meeting occurrence with invalid schedId (Error)
+ * Test 6.  A Updates a scheduled meeting occurrence (new child sched meeting created)
+ * Test 7.  A Fetch scheduled meetings occurrences chatroom
+ * Test 8.  A Cancels previous scheduled meeting occurrence
+ * Test 9.  A Sets negative offset at byMonthWeekDay
+ * Test 10. A Cancels entire series
+ * Test 11. A Deletes scheduled meeting with invalid schedId (Error)
+ * Test 12. A Deletes scheduled meeting
  */
 TEST_F(MegaChatApiTest, ScheduledMeetings)
 {
@@ -6554,9 +6539,6 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
         ASSERT_TRUE(user) << "Secondary account is not a contact of primary account yet";
     }
 
-    //================================================================================//
-    // Test1. A Creates a Meeting room and a recurrent scheduled meeting in one step
-    //================================================================================//
     LOG_debug << "Test1. A Creates a Meeting room and a recurrent scheduled meeting in one step";
     const std::shared_ptr<MegaChatPeerList> peerList(MegaChatPeerList::createInstance());
     const time_t now = time(nullptr);
