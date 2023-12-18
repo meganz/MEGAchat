@@ -865,7 +865,6 @@ TEST_F(MegaChatApiTest, BasicTest)
     {
         LOG_debug << "MegaChatApiTest.BasicTest: Cleanup";
         closeOpenedChatrooms();
-        cleanChatVideoListeners();
         logoutTestAccounts();
     };
     MegaMrProper p (testCleanup);
@@ -874,6 +873,7 @@ TEST_F(MegaChatApiTest, BasicTest)
     // Note: all involved accounts in this test, must be added to mSessions and mAccounts
     const unsigned a1 = 0;
     const unsigned a2 = 1;
+    mData.mOpIdx = a1; // set test operator role index
     mData.mSessions.emplace(a1, login(a1));
     mData.mSessions.emplace(a2, login(a2));
     const MegaChatHandle a1Uh = megaChatApi[a1]->getMyUserHandle();
@@ -916,19 +916,11 @@ TEST_F(MegaChatApiTest, BasicTest)
     ASSERT_GE(loadHistory(a1, mData.mChatid, crl.get()), 0);
     ASSERT_GE(loadHistory(a2, mData.mChatid, crl.get()), 0);
 
-    // add video listeners
-    ASSERT_TRUE(addChatVideoListener(a1, mData.mChatid)) << "Cannot register a video listener for a1 account";
-    ASSERT_TRUE(addChatVideoListener(a2, mData.mChatid)) << "Cannot register a video listener for a2 account";
-
-    // set test operator role index (will be the account in charge of performing all operations)
-    // This index can be changed at any point of the test. Every auxiliar method will check for
-    // mData.mOpIdx to get the index of account with operator role
-    mData.mOpIdx = a1;
-
     LOG_debug << "#### Test1: Change chatroom title from a1 ####";
     setChatTitle(std::string("Title ") + std::to_string(time(NULL)), 120 /*waitSecs*/);
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 /**
  * @brief MegaChatApiTest.WaitingRoomsJoiningOrder
  * + Test1: Check Waiting room order from A, when B and C answer call.
@@ -952,7 +944,9 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 
     CleanupFunction testCleanup = [this] () -> void
     {
-        LOG_debug << "MegaChatApiTest.WaitingRoomsJoiningOrder: Cleanup";
+        ExitBoolFlags eF;
+        addBoolExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        endChatCall(mData.mOpIdx, eF, mData.mChatid);
         closeOpenedChatrooms();
         cleanChatVideoListeners();
         logoutTestAccounts();
@@ -964,6 +958,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     const unsigned a1 = 0;
     const unsigned a2 = 1;
     const unsigned a3 = 2;
+    mData.mOpIdx = a1;  // set test operator role index
     mData.mSessions.emplace(a1, login(a1));
     mData.mSessions.emplace(a2, login(a2));
     mData.mSessions.emplace(a3, login(a3));
@@ -1026,9 +1021,6 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     mData.mChatroomListeners.emplace(a1, crl);
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
 
-    // mData.mOpIdx to get the index of account with operator role
-    mData.mOpIdx = a1;
-
     LOG_debug << "#### Test1: Check Waiting room order ####";
     // A Starts call with waiting room enabled. B and C answers call,
     // ensure that users in WR are ordered by joining time.
@@ -1071,6 +1063,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     ASSERT_EQ(wrUsers->get(0), a2Uh) << "First user in waiting room should be a2. chatid: " << getChatIdStrB64(mData.mChatid);
     ASSERT_EQ(wrUsers->get(1), a3Uh) << "Second user in waiting room should be a3. chatid: " << getChatIdStrB64(mData.mChatid);
 }
+#endif
 
 /**
  * @brief MegaChatApiTest.ResumeSession
@@ -4746,28 +4739,27 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
                                                        lvlA = &localVideoListenerA, lvlB = &localVideoListenerB]
         (MegaChatHandle chatid) -> void
     {
-        ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid chatid provided";
+        EXPECT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid chatid provided";
         std::unique_ptr<MegaChatCall> call(megaChatApi[a1]->getChatCall(chatid));
         if (call)
         {
             LOG_debug << "A ends call for all participants";
-            ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid callid";
-            ASSERT_NO_FATAL_FAILURE({
-                waitForAction (1,
-                              { &mCallDestroyed[a1], &mCallDestroyed[a2] },
-                              { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
-                              "A ends call for all participants",
-                              true /* wait for all exit flags*/,
-                              true /*reset flags*/,
-                              maxTimeout,
-                              [this, a1, callid = call->getCallId()]()
-                              {
-                                  ChatRequestTracker crtEndCall(megaChatApi[a1]);
-                                  megaChatApi[a1]->endChatCall(callid, &crtEndCall);
-                                  ASSERT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
-                                      << "Failed to end call. Error: " << crtEndCall.getErrorString();
-                              });
-            });
+            EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid callid";
+            waitForAction (1,
+                          { &mCallDestroyed[a1], &mCallDestroyed[a2] },
+                          { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
+                          "A ends call for all participants",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, a1, callid = call->getCallId()]()
+                          {
+                              ChatRequestTracker crtEndCall(megaChatApi[a1]);
+                              megaChatApi[a1]->endChatCall(callid, &crtEndCall);
+                              EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to end call. Error: " << crtEndCall.getErrorString();
+                          });
+
         }
         // else => call doesn't exists anymore for this chat, the main purpose of this method is cleaning up test environment
         //         so in case there's no call, we can assume that it has ended by any other reason
@@ -5363,28 +5355,26 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                                                        lvlA = &localVideoListenerA, lvlB = &localVideoListenerB]
         (MegaChatHandle chatid) -> void
     {
-        ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid chatid provided";
+        EXPECT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid chatid provided";
         std::unique_ptr<MegaChatCall> call(megaChatApi[a1]->getChatCall(chatid));
         if (call)
         {
             LOG_debug << "testCleanup: A ends call for all participants";
-            ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid callid";
-            ASSERT_NO_FATAL_FAILURE({
-                waitForAction (1,
-                              std::vector<bool *> { &mCallDestroyed[a1], &mCallDestroyed[a2] },
-                              std::vector<string> { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
-                              "A ends call for all participants",
-                              true /* wait for all exit flags*/,
-                              true /*reset flags*/,
-                              maxTimeout,
-                              [this, a1, callid = call->getCallId()]()
-                              {
-                                  ChatRequestTracker crtEndCall(megaChatApi[a1]);
-                                  megaChatApi[a1]->endChatCall(callid, &crtEndCall);
-                                  ASSERT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
-                                      << "Failed to end call. Error: " << crtEndCall.getErrorString();
-                              });
-            });
+            EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid callid";
+            waitForAction (1,
+                          std::vector<bool *> { &mCallDestroyed[a1], &mCallDestroyed[a2] },
+                          std::vector<string> { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
+                          "A ends call for all participants",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, a1, callid = call->getCallId()]()
+                          {
+                              ChatRequestTracker crtEndCall(megaChatApi[a1]);
+                              megaChatApi[a1]->endChatCall(callid, &crtEndCall);
+                              EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to end call. Error: " << crtEndCall.getErrorString();
+                          });
         }
         // else => call doesn't exists anymore for this chat, the main purpose of this method is cleaning up test environment
         //         so in case there's no call, we can assume that it has ended by any other reason
@@ -5662,7 +5652,7 @@ TEST_F(MegaChatApiTest, EditMessageFromDifferentSender)
     MrProper p {[this, &a1, &a2, crl = chatroomListener.get()](MegaChatHandle pChatId)
                 {
                     LOG_debug << "# Clearing history and closing chat room for each user";
-                    ASSERT_NO_FATAL_FAILURE(clearHistory(a1, a2, pChatId, crl););
+                    EXPECT_NO_FATAL_FAILURE(clearHistory(a1, a2, pChatId, crl););
                     megaChatApi[a1]->closeChatRoom(pChatId, crl);
                     megaChatApi[a2]->closeChatRoom(pChatId, crl);
                 }, chatId};
@@ -5937,28 +5927,26 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
                                                        lvlA = &localVideoListenerA, lvlB = &localVideoListenerB]
         (MegaChatHandle chatid) -> void
     {
-        ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid chatid provided";
+        EXPECT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid chatid provided";
         std::unique_ptr<MegaChatCall> call(megaChatApi[a1]->getChatCall(chatid));
         if (call)
         {
             LOG_debug << "testCleanup: A ends call for all participants";
-            ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid callid";
-            ASSERT_NO_FATAL_FAILURE({
-                waitForAction (1,
-                              { &mCallDestroyed[a1], &mCallDestroyed[a2] },
-                              { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
-                              "A ends call for all participants",
-                              true /* wait for all exit flags*/,
-                              true /*reset flags*/,
-                              maxTimeout,
-                              [this, &a1, callid = call->getCallId()]()
-                              {
-                                  ChatRequestTracker crtEndCall(megaChatApi[a1]);
-                                  megaChatApi[a1]->endChatCall(callid, &crtEndCall);
-                                  ASSERT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
-                                      << "Failed to end call. Error: " << crtEndCall.getErrorString();
-                              });
-            });
+            EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "testCleanup: Invalid callid";
+            waitForAction (1,
+                          { &mCallDestroyed[a1], &mCallDestroyed[a2] },
+                          { "&mCallDestroyed[a1]", "&mCallDestroyed[a2]" },
+                          "A ends call for all participants",
+                          true /* wait for all exit flags*/,
+                          true /*reset flags*/,
+                          maxTimeout,
+                          [this, &a1, callid = call->getCallId()]()
+                          {
+                              ChatRequestTracker crtEndCall(megaChatApi[a1]);
+                              megaChatApi[a1]->endChatCall(callid, &crtEndCall);
+                              EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to end call. Error: " << crtEndCall.getErrorString();
+                          });
         }
         // else => call doesn't exists anymore for this chat, the main purpose of this method is cleaning up test environment
         //         so in case there's no call, we can assume that it has ended by any other reason
@@ -7140,6 +7128,31 @@ void MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, c
     ASSERT_TRUE(eF.add(n + std::to_string(i), f)) << n << " couldn't be added to eF for account " << std::to_string(i);
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
+void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid)
+{
+    std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(chatid));
+    if (call)
+    {
+       std::string errMsg = "ending call for all participants from account " + std::to_string(performerIdx);
+       LOG_debug << errMsg;
+       EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "endChatCall: Invalid callid";
+       waitForAction (1,  /* just one attempt */
+                     eF,
+                     errMsg,
+                     true /* wait for all exit flags */,
+                     true /* reset flags */,
+                     maxTimeout,
+                     [this, performerIdx, callid = call->getCallId()]()
+                     {
+                         ChatRequestTracker crtEndCall(megaChatApi[performerIdx]);
+                         megaChatApi[performerIdx]->endChatCall(callid, &crtEndCall);
+                         EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                             << "endChatCall: Failed to end call. Error: " << crtEndCall.getErrorString();
+                     });
+    }
+}
+
 void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,
                                            const bool enableVideo, const bool enableAudio)
 {
@@ -7179,6 +7192,7 @@ void MegaChatApiTest::answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, 
                       });
     });
 }
+#endif
 
 void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int waitSecs)
 {
@@ -8617,6 +8631,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         }
 
         case MegaChatCall::CALL_STATUS_DESTROYED:
+            getBoolVars().updateIfExists(apiIndex, "CallDestroyed", true);
             mCallDestroyed[apiIndex] = true;
             break;
 
@@ -9432,7 +9447,7 @@ bool MockupCall::handleModDel(uint64_t)
     return true;
 }
 
-void MockupCall::onSendByeCommand()
+void MockupCall::onByeCommandSent()
 {
 
 }
