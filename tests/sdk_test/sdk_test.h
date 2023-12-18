@@ -282,7 +282,8 @@ public:
         TestData& operator=(const TestData&)  = delete;
         TestData& operator=(TestData&&)       = delete;
 
-        // idx account that represents the operator role (not related to MegaChatRoom privileges)
+        // set test operator role index (will be the account in charge of performing all operations)
+        // This index can be changed at any point of the test.
         unsigned int mOpIdx = testInvalidIdx;
 
         // chatid of chatroom that will be used in the test
@@ -664,6 +665,7 @@ protected:
     // Adds a temporal boolean variable, to ExitBoolFlags param, and also to MegaChatApiTest::mAuxBool
     void addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val);
 
+#ifndef KARERE_DISABLE_WEBRTC
     // starts a call in a chatroom with waiting room option enabled
     void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
                               const bool enableVideo, const bool enableAudio);
@@ -671,6 +673,9 @@ protected:
     // answers a call in a chatroom
     void answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
                         const bool enableVideo, const bool enableAudio);
+
+    void endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatid);
+#endif
 
     /**
      * @brief Allows to set the title of a group chat
