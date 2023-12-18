@@ -363,8 +363,7 @@ void MegaChatApiTest::SetUp()
                         << ' ' << sdkLocalLogoutRt.getErrorString();
             }
 
-            // test has failed
-            ASSERT_TRUE(sdkLoginSuccess) << "Login failed in SetUp(). Error: " << loginRt.getErrorString();
+            ASSERT_TRUE(false) << "Login failed in SetUp(). Error: " << loginRt.getErrorString();
         }
 
         // SDK login succeeded
