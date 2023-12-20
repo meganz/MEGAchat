@@ -479,6 +479,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
 - (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
+- (void)ringIndividualInACall:(uint64_t)chatId userId:(uint64_t)userId timeout:(NSInteger)timeout delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)ringIndividualInACall:(uint64_t)chatId userId:(uint64_t)userId timeout:(NSInteger)timeout;
 - (void)startMeetingInWaitingRoomChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startMeetingInWaitingRoomChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio;
 - (void)startMeetingInWaitingRoomChatNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate;
