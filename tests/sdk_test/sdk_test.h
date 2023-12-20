@@ -666,6 +666,14 @@ protected:
     void addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val);
 
 #ifndef KARERE_DISABLE_WEBRTC
+
+    // starts a call in a chatroom
+    void startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
+                         const bool enableVideo, const bool enableAudio, const bool notRinging);
+
+    // rejects a call
+    void rejectCall(const unsigned int performerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid);
+
     // starts a call in a chatroom with waiting room option enabled
     void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
                               const bool enableVideo, const bool enableAudio);
@@ -674,7 +682,7 @@ protected:
     void answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
                         const bool enableVideo, const bool enableAudio);
 
-    void endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatid);
+    void endChatCallTestCleanup(unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatid);
 #endif
 
     /**
