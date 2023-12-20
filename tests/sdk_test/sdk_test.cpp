@@ -1086,7 +1086,7 @@ TEST_F(MegaChatApiTest, RejectCall)
                                                   << " " << getChatIdStrB64(*callId);
     };
 
-    CleanupFunction testCleanup = [this] () -> void
+    CleanupFunction testCleanup = [this]() -> void
     {
         ExitBoolFlags eF;
         addBoolExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)

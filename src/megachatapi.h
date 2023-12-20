@@ -6652,7 +6652,7 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ACCESS - if webrtc is not initialized
      * - MegaChatError::ERROR_ARGS   - if specified callId is invalid
-     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom, or chatroom cannot be found
+     * - MegaChatError::ERROR_NOENT  - if there's not a call in the specified chatroom, or chatroom cannot be found
      *
      * @param callId MegaChatHandle that identifies the call
      * @param listener MegaChatRequestListener to track this request
