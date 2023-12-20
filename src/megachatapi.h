@@ -2475,7 +2475,7 @@ public:
         TYPE_DELETE_SCHEDULED_MEETING, TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES,
         TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE,
         TYPE_UPDATE_SCHEDULED_MEETING, TYPE_WR_PUSH, TYPE_WR_ALLOW, TYPE_WR_KICK,
-        TYPE_RING_INDIVIDUAL_IN_CALL, TYPE_MUTE,
+        TYPE_RING_INDIVIDUAL_IN_CALL, TYPE_MUTE, TYPE_REJECT_CALL,
         TOTAL_OF_REQUEST_TYPES
     };
 
@@ -6612,6 +6612,22 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener = NULL);
+
+    /** @brief Rejects a call for all client of our user account
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REJECT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the callId
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS   - if specified callId is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom, or chatroom cannot be found
+     *
+     * @param callId MegaChatHandle that identifies the call
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void rejectCall(const MegaChatHandle callId, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Allow a list of users in the waiting room to join the call.

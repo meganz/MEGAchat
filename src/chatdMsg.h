@@ -551,6 +551,15 @@ enum Opcode
 
     /**
       * @brief
+      * C->S: command sent to chatd, to stop ringing a call
+      * for all clients of our user account
+      *
+      * Send: <chatId.8>, <callId.8>
+      */
+    OP_CALLREJECT = 58,
+
+    /**
+      * @brief
       * C->S: Call again user who didn't pick up the call
       *
       * Receive: <chatid.8> <userid.8> <callid.8> <callstate.1> <timeout.2>
