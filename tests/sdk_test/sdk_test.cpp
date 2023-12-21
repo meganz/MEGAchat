@@ -110,6 +110,15 @@ int main(int argc, char **argv)
     {
         USER_AGENT_DESCRIPTION = argVals.getCustomUserAget();
     }
+    if (argVals.isMainProcOnly())
+    {
+        // Env vars might need to be set, for example when an email template was used
+        auto envVars = argVals.getEnvVarsForWorker(0);
+        for (const auto& env : envVars)
+        {
+            Utils::setenv(env.first, env.second);
+        }
+    }
 
     MegaChatApiTest::init(argVals.getLog()); // logger set here will also be enough for MegaChatApiUnitaryTest
     testing::InitGoogleTest(&argc, argv);
