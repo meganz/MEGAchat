@@ -1408,6 +1408,7 @@ private:
     int performRequest_removeSpeaker(MegaChatRequestPrivate* request);
     int performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request);
     int performRequest_kickUsersFromCall(MegaChatRequestPrivate* request);
+    int performRequest_rejectCall(MegaChatRequestPrivate* request);
     int performRequest_sendRingIndividualInACall(MegaChatRequestPrivate* request);
     int performRequest_mutePeersInCall(MegaChatRequestPrivate* request);
 #endif
@@ -1679,6 +1680,7 @@ public:
     void openVideoDevice(MegaChatRequestListener *listener = NULL);
     void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
+    void rejectCall(const MegaChatHandle callId, MegaChatRequestListener* listener = nullptr);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
     void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
