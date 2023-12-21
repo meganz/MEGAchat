@@ -1026,11 +1026,11 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     // ensure that users in WR are ordered by joining time.
     ExitBoolFlags eF;
     MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    addHandleVar(a1, "CallIdInProgress", invalHandle);                           // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-    addBoolVarAndExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolVarAndExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolVarAndExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolVarAndExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addHandleVar(a1, "CallIdInProgress", invalHandle);                          // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addBoolVarAndExitFlag(a1, eF, "CallReceived"  , false);                     // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolVarAndExitFlag(a2, eF, "CallReceived"  , false);                     // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolVarAndExitFlag(a3, eF, "CallReceived"  , false);                     // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolVarAndExitFlag(a1, eF, "CallInProgress", false);                     // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     startWaitingRoomCall(a1, eF, mData.mChatid, schedId,
                          false /*audio*/, false /*video*/);
     checkCallIdInProgress(a1);  // check received callid for caller(a1)
