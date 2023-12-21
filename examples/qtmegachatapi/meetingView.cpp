@@ -343,7 +343,7 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
         mRingingWindow = mega::make_unique<QMessageBox>(this);
         mRingingWindow->setText("New call");
         mRingingWindow->setInformativeText("Answer?");
-        mRingingWindow->setStandardButtons(QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
+        mRingingWindow->setStandardButtons(QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore|QMessageBox::Abort);
         int ringingWindowOption = mRingingWindow->exec();
         if (ringingWindowOption == QMessageBox::Yes)
         {
@@ -359,6 +359,10 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
         else if (ringingWindowOption == QMessageBox::Ignore)
         {
             mMegaChatApi.setIgnoredCall(mChatid);
+        }
+        else if (ringingWindowOption == QMessageBox::Abort)
+        {
+            mMegaChatApi.rejectCall(callid);
         }
     }
 }

@@ -946,7 +946,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     {
         ExitBoolFlags eF;
         addBoolExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
-        endChatCall(mData.mOpIdx, eF, mData.mChatid);
+        endChatCallTestCleanup(mData.mOpIdx, eF, mData.mChatid);
         closeOpenedChatrooms();
         cleanChatVideoListeners();
         logoutTestAccounts();
@@ -1062,6 +1062,104 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     ASSERT_TRUE(wrUsers->size() == 2) << "Unexpected size for Waiting room user list from a1 for chatid: " << getChatIdStrB64(mData.mChatid);
     ASSERT_EQ(wrUsers->get(0), a2Uh) << "First user in waiting room should be a2. chatid: " << getChatIdStrB64(mData.mChatid);
     ASSERT_EQ(wrUsers->get(1), a3Uh) << "Second user in waiting room should be a3. chatid: " << getChatIdStrB64(mData.mChatid);
+}
+
+/**
+ * @brief MegaChatApiTest.RejectCall
+ * + Test1: A starts chat call, B answers it
+ * + Test2: B rejects chat call
+ */
+TEST_F(MegaChatApiTest, RejectCall)
+{
+    /** Checks that callId for account i has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS) **/
+    auto checkCallIdInProgress = [this](unsigned i) -> void
+    {
+        std::unique_ptr<MegaChatCall> call(megaChatApi[i]->getChatCall(mData.mChatid));
+        ASSERT_TRUE(call) << "Can't get call for " << std::to_string(i) <<". CallId: " << getChatIdStrB64(mData.mChatid);
+
+        MegaChatHandle* callId = getHandleVars().get(i, "CallIdInProgress");
+        ASSERT_TRUE(callId) << "Can't get CallInProgress var for " << std::to_string(i);
+        ASSERT_NE(*callId, MEGACHAT_INVALID_HANDLE) << "Invalid callId received at onChatCallUpdate for: " << std::to_string(i);
+        ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "Invalid callId in MegaChatCall for: " << std::to_string(i);
+        ASSERT_TRUE(*callId == call->getCallId()) << "CallId's don't match "
+                                                  << getChatIdStrB64(mData.mChatid)
+                                                  << " " << getChatIdStrB64(*callId);
+    };
+
+    CleanupFunction testCleanup = [this]() -> void
+    {
+        ExitBoolFlags eF;
+        addBoolExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        endChatCallTestCleanup(mData.mOpIdx, eF, mData.mChatid);
+        closeOpenedChatrooms();
+        cleanChatVideoListeners();
+        logoutTestAccounts();
+    };
+    MegaMrProper p (testCleanup);
+
+    // login into all involved accounts for this test, and establish required contact relationships
+    // Note: all involved accounts in this test, must be added to mSessions and mAccounts
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+    mData.mOpIdx = a1;  // set test operator role index
+    mData.mSessions.emplace(a1, login(a1));
+    mData.mSessions.emplace(a2, login(a2));
+    const MegaChatHandle a1Uh = megaChatApi[a1]->getMyUserHandle();
+    const MegaChatHandle a2Uh = megaChatApi[a2]->getMyUserHandle();
+    mData.mAccounts.emplace(a1, a1Uh);
+    mData.mAccounts.emplace(a2, a2Uh);
+    ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid(););
+    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2););
+    ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts(););
+
+    // set chat selection criteria
+    mData.mChatOptions.mCreate          = true;
+    mData.mChatOptions.mPublicChat      = true;
+    mData.mChatOptions.mMeetingRoom     = false;
+    mData.mChatOptions.mWaitingRoom     = false;
+    mData.mChatOptions.mSpeakRequest    = false;
+    mData.mChatOptions.mOpenInvite      = false;
+
+    // set chat operator idx and privileges, and create chat participants list
+    // chat operator idx corresponds with idx of account from which we retrieve chatroom
+    mData.mChatOptions.mChatOpIdx = a1;
+    mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
+    mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
+    mData.mChatOptions.mChatPeerList->addPeer(a2Uh, MegaChatPeerList::PRIV_STANDARD);
+    mData.mChatOptions.mChatPeerIdx.emplace_back(a2);
+
+    // get a chat room
+    std::string err = "Cannot get a chatroom ";
+    mData.mChatid = getGroupChatRoom();
+    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Invalid chatid returned by getGroupChatRoom";
+
+    // retrieve chatroom by chatid
+    std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[a1]->getChatRoom(mData.mChatid));
+    ASSERT_TRUE(chatroom) << err << "with selected criteria";
+
+    // open chatroom (just add chatroom listeners for chatroom participants)
+    std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, mData.mChatid));
+    mData.mChatroomListeners.emplace(a1, crl);
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
+
+    LOG_debug << "#### Test1: A starts chat call, B answers it ####";
+    // ensure that users in WR are ordered by joining time.
+    ExitBoolFlags eF;
+    MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
+    addHandleFlag(a1, "CallIdInProgress", invalHandle);                    // a1 - callId received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    startCallInChat(a1, eF, mData.mChatid, false /*audio*/,
+                    false /*video*/, false /*notRinging*/);
+
+    checkCallIdInProgress(a1); // check received callId for caller(a1)
+    getBoolVars().cleanAll();  // clean all bool vars (this prevents conflicts in following tests)
+
+    LOG_debug << "#### Test2: B rejects chat call ####";
+    ExitBoolFlags eF1;
+    addBoolExitFlag(a2, eF1, "CallStopsRinging"  , false);                  // a2 - onChatCallUpdate(CHANGE_TYPE_RINGING_STATUS)
+    rejectCall(a2, eF1, mData.mChatid);
 }
 #endif
 
@@ -7626,14 +7724,14 @@ void MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, c
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid)
+void MegaChatApiTest::endChatCallTestCleanup(unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId)
 {
-    std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(chatid));
+    std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(chatId));
     if (call)
     {
        std::string errMsg = "ending call for all participants from account " + std::to_string(performerIdx);
        LOG_debug << errMsg;
-       EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "endChatCall: Invalid callid";
+       EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "endChatCall: Invalid callId";
        waitForAction (1,  /* just one attempt */
                      eF,
                      errMsg,
@@ -7648,6 +7746,50 @@ void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, 
                              << "endChatCall: Failed to end call. Error: " << crtEndCall.getErrorString();
                      });
     }
+}
+
+void MegaChatApiTest::startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId,
+                                      const bool enableVideo, const bool enableAudio, const bool notRinging)
+{
+    ASSERT_NO_FATAL_FAILURE({
+        waitForAction (1,  /* just one attempt */
+                      eF,
+                      "starting chat call",
+                      true /* wait for all exit flags */,
+                      true /* reset flags */,
+                      maxTimeout,
+                      [this, &chatId, &notRinging, &enableVideo, &enableAudio, &callerIdx]()
+                      {
+                          ChatRequestTracker crtStartCall(megaChatApi[callerIdx]);
+                          megaChatApi[callerIdx]->startCallInChat(chatId, enableVideo, enableAudio, notRinging, &crtStartCall);
+                          ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
+                              << "Failed to start call. Error: " << crtStartCall.getErrorString();
+                      });
+    });
+}
+
+void MegaChatApiTest::rejectCall(const unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId)
+{
+    std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(chatId));
+    ASSERT_TRUE(call) << "Can't get call for " << std::to_string(performerIdx) <<". CallId: " << getChatIdStrB64(mData.mChatid);
+
+    MegaChatHandle callId = call->getCallId();
+
+    ASSERT_NO_FATAL_FAILURE({
+        waitForAction (1,  /* just one attempt */
+                      eF,
+                      "rejecting chat call",
+                      true /* wait for all exit flags */,
+                      true /* reset flags */,
+                      maxTimeout,
+                      [this, &callId, &performerIdx]()
+                      {
+                          ChatRequestTracker crtRejectCall(megaChatApi[performerIdx]);
+                          megaChatApi[performerIdx]->rejectCall(callId, &crtRejectCall);
+                          ASSERT_EQ(crtRejectCall.waitForResult(), MegaChatError::ERROR_OK)
+                              << "Failed to reject call. Error: " << crtRejectCall.getErrorString();
+                      });
+    });
 }
 
 void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,
@@ -9076,12 +9218,14 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
                 mCallReceivedRinging[apiIndex] = true;
                 mChatIdRingInCall[apiIndex] = call->getChatid();
                 mCallIdRingIn[apiIndex] = call->getCallId();
+                getBoolVars().updateIfExists(apiIndex, "CallIsRinging", true);
             }
             else
             {
                 mCallStopRinging[apiIndex] = true;
                 mCallIdStopRingIn[apiIndex] = call->getCallId();
                 mChatIdStopRingInCall[apiIndex] = call->getChatid();
+                getBoolVars().updateIfExists(apiIndex, "CallStopsRinging", true);
             }
         }
     }

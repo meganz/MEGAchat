@@ -1211,6 +1211,11 @@ void MegaChatApi::mutePeers(const MegaChatHandle chatid, const MegaChatHandle cl
     pImpl->mutePeers(chatid, clientId, listener);
 }
 
+void MegaChatApi::rejectCall(const MegaChatHandle callId, MegaChatRequestListener* listener)
+{
+    pImpl->rejectCall(callId, listener);
+}
+
 void MegaChatApi::allowUsersJoinCall(MegaChatHandle chatid, const MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
 {
     pImpl->allowUsersJoinCall(chatid, users, all, listener);
