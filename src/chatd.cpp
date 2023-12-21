@@ -1586,6 +1586,18 @@ string Command::toString(const StaticBuffer& data)
             return tmpString;
         }
 
+        case OP_CALLREJECT:
+        {
+            string tmpString;
+            const karere::Id chatId = data.read<uint64_t>(1);
+            const karere::Id callId = data.read<uint64_t>(9);
+            tmpString.append("CALLREJECT chatId: ");
+            tmpString.append(ID_CSTR(chatId));
+            tmpString.append(" callId: ");
+            tmpString.append(ID_CSTR(callId));
+            return tmpString;
+        }
+
         default:
             return opcodeToStr(opcode);
     }
@@ -3143,6 +3155,12 @@ void Chat::ringIndividualInACall(const karere::Id& userIdToCall, const karere::I
     const Opcode opcode = OP_RINGUSER;
     static const int8_t callState = 1;
     sendCommand(Command(opcode) + mChatId + userIdToCall + callId + callState + ringTimeout);
+}
+
+void Chat::rejectCall(const karere::Id& callId)
+{
+    const Opcode opcode = OP_CALLREJECT;
+    sendCommand(Command(opcode) + mChatId + callId);
 }
 
 void Chat::sendReactionSn()
