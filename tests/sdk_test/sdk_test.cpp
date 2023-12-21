@@ -4682,7 +4682,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
                           {
                               ChatRequestTracker crtSpeakReq(megaChatApi[moderatorIdx]);
                               approve
-                                  ? megaChatApi[moderatorIdx]->addActiveSpeaker(chatid, requesterId, &crtSpeakReq)
+                                  ? megaChatApi[moderatorIdx]->grantSpeakPermission(chatid, requesterId, &crtSpeakReq)
                                   : megaChatApi[moderatorIdx]->removeSpeakRequest(chatid, requesterId, &crtSpeakReq);
 
                               auto res = crtSpeakReq.waitForResult();
@@ -4782,7 +4782,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
                           [this, &moderatorIdx, &userid, &chatid]()
                           {
                               ChatRequestTracker crtSpeakerRemove(megaChatApi[moderatorIdx]);
-                              megaChatApi[moderatorIdx]->removeActiveSpeaker(chatid, userid, &crtSpeakerRemove);
+                              megaChatApi[moderatorIdx]->revokeSpeakPermission(chatid, userid, &crtSpeakerRemove);
                               auto res = crtSpeakerRemove.waitForResult();
                               ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to remove speaker: " << crtSpeakerRemove.getErrorString();
                           });
@@ -4871,7 +4871,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
             [this, &moderatorIdx, &nonSpeakerId, &chatid, &msgSpeakReq]()
             {
                 ChatRequestTracker crtSpeakReq(megaChatApi[moderatorIdx]);
-                megaChatApi[moderatorIdx]->addActiveSpeaker(chatid, nonSpeakerId, &crtSpeakReq);
+                              megaChatApi[moderatorIdx]->grantSpeakPermission(chatid, nonSpeakerId, &crtSpeakReq);
 
                 auto res = crtSpeakReq.waitForResult();
                 ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to " << msgSpeakReq << crtSpeakReq.getErrorString();
@@ -5174,7 +5174,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
                           [this, &moderatorIdx, &userid, &chatid]()
                           {
                               ChatRequestTracker crtSpeakerRemove(megaChatApi[moderatorIdx]);
-                              megaChatApi[moderatorIdx]->removeActiveSpeaker(chatid, userid, &crtSpeakerRemove);
+                              megaChatApi[moderatorIdx]->revokeSpeakPermission(chatid, userid, &crtSpeakerRemove);
                               auto res = crtSpeakerRemove.waitForResult();
                               ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to remove speaker: " << crtSpeakerRemove.getErrorString();
                           });
@@ -5260,8 +5260,8 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
                           {
                               ChatRequestTracker crtSpeakReq(megaChatApi[moderatorIdx]);
                               approve
-                                  ? megaChatApi[moderatorIdx]->addActiveSpeaker(chatid, userid, &crtSpeakReq)
-                                  : megaChatApi[moderatorIdx]->removeActiveSpeaker(chatid, userid, &crtSpeakReq);
+                                  ? megaChatApi[moderatorIdx]->grantSpeakPermission(chatid, userid, &crtSpeakReq)
+                                  : megaChatApi[moderatorIdx]->revokeSpeakPermission(chatid, userid, &crtSpeakReq);
 
                               auto res = crtSpeakReq.waitForResult();
                               ASSERT_EQ(res, MegaChatError::ERROR_OK) << "Failed to request speak: " << crtSpeakReq.getErrorString();

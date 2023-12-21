@@ -2988,7 +2988,7 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
 
 bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList)
 {
-    // update call speakers list
+    // update call speakers list (i.e upon "MOD_ADD" we want to remove user from speakers list)
     add && updateSpeakersList
         ? addToSpeakersList(userid)
         : removeFromSpeakersList(userid);

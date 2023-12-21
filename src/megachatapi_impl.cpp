@@ -2447,7 +2447,7 @@ int MegaChatApiImpl::performRequest_addDelspeakRequest(MegaChatRequestPrivate* r
     return MegaChatError::ERROR_OK;
 }
 
-int MegaChatApiImpl::performRequest_addRemoveSpeaker(MegaChatRequestPrivate* request)
+int MegaChatApiImpl::performRequest_addRevokeSpeakePermission(MegaChatRequestPrivate* request)
 {
         {
             const handle chatid = request->getChatHandle();
@@ -2665,14 +2665,6 @@ int MegaChatApiImpl::performRequest_requestHiResQuality(MegaChatRequestPrivate* 
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
             fireOnChatRequestFinish(request, megaChatError);
             return MegaChatError::ERROR_OK;
-        }
-}
-
-int MegaChatApiImpl::performRequest_removeSpeaker(MegaChatRequestPrivate*)
-{
-        {
-            // deprecated
-            return MegaChatError::ERROR_ARGS;
         }
 }
 
@@ -6391,13 +6383,13 @@ void MegaChatApiImpl::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid
     waiter->notify();
 }
 
-void MegaChatApiImpl::addRemoveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener *listener)
+void MegaChatApiImpl::addRevokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SPEAKER_ADD_DEL, listener);
     request->setChatHandle(chatid);
     request->setUserHandle(userid);
     request->setFlag(add);
-    request->setPerformRequest([this, request]() { return performRequest_addRemoveSpeaker(request); });
+    request->setPerformRequest([this, request]() { return performRequest_addRevokeSpeakePermission(request); });
     requestQueue.push(request);
     waiter->notify();
 }

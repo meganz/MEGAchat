@@ -1406,12 +1406,11 @@ private:
     int performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request);
     int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
     int performRequest_addDelspeakRequest(MegaChatRequestPrivate* request);
-    int performRequest_addRemoveSpeaker(MegaChatRequestPrivate* request);
+    int performRequest_addRevokeSpeakePermission(MegaChatRequestPrivate* request);
     int performRequest_hiResVideo(MegaChatRequestPrivate* request);
     int performRequest_lowResVideo(MegaChatRequestPrivate* request);
     int performRequest_videoDevice(MegaChatRequestPrivate* request);
     int performRequest_requestHiResQuality(MegaChatRequestPrivate* request);
-    int performRequest_removeSpeaker(MegaChatRequestPrivate* request);
     int performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request);
     int performRequest_kickUsersFromCall(MegaChatRequestPrivate* request);
     int performRequest_rejectCall(MegaChatRequestPrivate* request);
@@ -1704,7 +1703,7 @@ public:
     bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const;
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void addRemoveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
+    void addRevokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
     void addDelSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);

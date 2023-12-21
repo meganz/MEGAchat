@@ -462,7 +462,7 @@ public:
      *
      * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
      *
-     * A peer with speak permission, is not necessarily allowed to speak, it also must have audio flag enabled (unmuted)
+     * A peer with speak permission, is not necessarily abled to speak, it also must have audio flag enabled (unmuted)
      * Check MegaChatSession::isSpeakAllowed() to know if peer has audio flag enabled
      *
      * @return True if peer associated to the session, has permission to speak
@@ -840,7 +840,7 @@ public:
      *
      * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
      *
-     * An user with speak permission, is not necessarily allowed to speak, it also must have audio av flag enabled (unmuted).
+     * An user with speak permission, is not necessarily abled to speak, it also must have audio av flag enabled (unmuted).
      * Check MegaChatCall::isSpeakAllowed
      *
      * @return True if our own peer, has speak permission
@@ -946,7 +946,7 @@ public:
      * If speak request option is enabled, users with non-host role, must request permission to speak.
      * Check MegaChatApi::requestSpeak documentation.
      *
-     * An user with speak permission, is not necessarily allowed to speak, it also must have audio av flag enabled.
+     * An user with speak permission, is not necessarily abled to speak, it also must have audio av flag enabled (unmuted).
      * Check MegaChatCall::isSpeakAllowed
      *
      * @return if speak request option is enabled for this call
@@ -6844,9 +6844,11 @@ public:
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
 
     /**
-     * @brief Adds an active speaker to the call
+     * @brief Grants speak permission for a chat participant in active call (if any), even if user has not joined call yet
      *
      * This method has to be called only by an user with moderator role
+     *
+     * Note: An user with speak permission granted, is not necessarily abled to speak, it also must have audio av flag enabled (unmuted).
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SPEAKER_ADD_DEL
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -6865,10 +6867,10 @@ public:
      * @param userid MegaChatHandle that identifies userid
      * @param listener MegaChatRequestListener to track this request
      */
-    void addActiveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener =  NULL);
+    void grantSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener =  NULL);
 
     /**
-     * @brief Removes an active speaker from the call
+     * @brief Revokes speak permission for a chat participant in active call (even if user has not joined call yet)
      *
      * This method can be called by the speaker itself (voluntary action) or by any moderator of the groupchat.
      *
@@ -6888,12 +6890,12 @@ public:
      * @param userid MegaChatHandle that identifies userid, or MEGACHAT_INVALID_HANDLE for own user
      * @param listener MegaChatRequestListener to track this request
      */
-    void removeActiveSpeaker(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener = NULL);
+    void revokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener = NULL);
 
     /**
      * @brief Send speak request
      *
-     * Moderator approval required to become an active speaker
+     * Moderator approval is required to have speak permission granted
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SPEAKRQ_ADD_DEL
      * Valid data in the MegaChatRequest object received on callbacks:

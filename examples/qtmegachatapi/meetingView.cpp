@@ -597,7 +597,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string requestHiRes("Request hiRes");
     std::string stopThumb("Stop vThumb");
     std::string stopHiRes("Stop hiRes");
-    std::string addActiveSpeaker("Add active speaker");
+    std::string addActiveSpeaker("Grants active speaker");
     std::string rejectSpeak("Reject Speak request");
     std::string pushWr("Push waiting room");
     std::string kickWr("Kick waiting room");
@@ -670,7 +670,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         }
         else if (rightClickItem->text().contains(addActiveSpeaker.c_str()))
         {
-            mMegaChatApi.addActiveSpeaker(mChatid, userid);
+            mMegaChatApi.grantSpeakPermission(mChatid, userid);
         }
         else if (rightClickItem->text().contains(rejectSpeak.c_str()))
         {
@@ -678,7 +678,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         }
         else if (rightClickItem->text().contains(requestDelSpeaker.c_str()))
         {
-            mMegaChatApi.removeActiveSpeaker(mChatid, userid);
+            mMegaChatApi.revokeSpeakPermission(mChatid, userid);
         }
         else if (rightClickItem->text().contains(stopThumb.c_str()))
         {
@@ -773,7 +773,7 @@ void MeetingView::onEnableVideo()
 
 void MeetingView::onRemoveOwnSpeaker()
 {
-    mMegaChatApi.removeActiveSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+    mMegaChatApi.revokeSpeakPermission(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
 
 void MeetingView::onEnableAudioMonitor(bool)
