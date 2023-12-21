@@ -1035,8 +1035,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
                          false /*audio*/, false /*video*/);
     checkCallIdInProgress(a1);  // check received callid for caller(a1)
 
-    /* Important: clear all temporal variables (this prevents conflicts in following test cases) */
-    clearTemporalVars();
+    clearTemporalVars();  // important: this prevents conflicts in following test cases of this integration test
 
     // a2 answers call
     ExitBoolFlags eF1;
@@ -1045,8 +1044,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     answerChatCall(a2, eF1, mData.mChatid, false /*video*/,
                    false /*audio*/);
 
-    /* Important: clear all temporal variables (this prevents conflicts in following test cases) */
-    clearTemporalVars();
+    clearTemporalVars();    // clean-up for next test cases
 
     // a3 answers call
     ExitBoolFlags eF2;
@@ -1055,8 +1053,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     answerChatCall(a3, eF2, mData.mChatid, false /*video*/,
                    false /*audio*/);
 
-    /* Important: clear all temporal variables (this prevents conflicts in following test cases) */
-    clearTemporalVars();
+    clearTemporalVars();  // clean-up for next test cases
 
     // a1 checks waiting room participants order
     std::unique_ptr<MegaChatCall>call(megaChatApi[a1]->getChatCall(mData.mChatid));
@@ -1152,7 +1149,7 @@ TEST_F(MegaChatApiTest, RejectCall)
     // ensure that users in WR are ordered by joining time.
     ExitBoolFlags eF;
     MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    addHandleVar(a1, "CallIdInProgress", invalHandle);                    // a1 - callId received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addHandleVar(a1, "CallIdInProgress", invalHandle);                           // a1 - callId received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     addBoolVarAndExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolVarAndExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
     addBoolVarAndExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
@@ -1160,8 +1157,7 @@ TEST_F(MegaChatApiTest, RejectCall)
                     false /*video*/, false /*notRinging*/);
     checkCallIdInProgress(a1); // check received callId for caller(a1)
 
-    /* Important: clear all temporal variables (this prevents conflicts in following test cases) */
-    clearTemporalVars();
+    clearTemporalVars();  // clean-up for next test cases
 
     LOG_debug << "#### Test2: B rejects chat call ####";
     ExitBoolFlags eF1;

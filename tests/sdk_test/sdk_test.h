@@ -907,7 +907,7 @@ private:
     // Aux vars maps: these maps can be used to add temporal variables that needs to be updated by any callback or code path,
     // this avoids defining amounts of vars in MegaChatApiTest class
     //
-    // The lifetime of these maps is the lifetime of MegaChatApiTest, so these maps will be automatically cleared after
+    // The lifetime of these maps is the lifetime of MegaChatApiTest, so these maps will be automatically released after
     // each test execution. To prevent conflicts between different test cases at any particular automated test, it's recommended to remove
     // unused variables after it's use, or clear maps (just in case we don't need any variable already defined).
 
