@@ -283,6 +283,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)kickUsersFromCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)kickUsersFromCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles;
 
+- (void)mutePeers:(uint64_t)chatId client:(uint64_t)clientId delegate:(id<MEGAChatRequestDelegate>)delegate;
+
 - (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles;
 
