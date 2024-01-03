@@ -532,9 +532,11 @@ public:
     ~MegaChatApiTest();
 
     // Global test environment initialization
+    static void initFS();
     static void init(const std::string& log);
     // Global test environment clear up
     static void terminate();
+    static void terminateFS();
 
     using AuxVarsBool     = AuxVars<bool>;
     using AuxVarsMCHandle = AuxVars<megachat::MegaChatHandle>;
@@ -734,7 +736,7 @@ protected:
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
-    int purgeLocalTree(const std::string& path);
+    static int purgeLocalTree(const std::string& path);
     void purgeCloudTree(unsigned int accountIndex, ::mega::MegaNode* node);
     void clearAndLeaveChats(unsigned accountIndex, const std::vector<megachat::MegaChatHandle>& skipChats);
     void removePendingContactRequest(unsigned int accountIndex);

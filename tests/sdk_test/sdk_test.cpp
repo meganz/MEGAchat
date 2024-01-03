@@ -98,7 +98,10 @@ int main(int argc, char **argv)
         // Password for all emails built from template will be taken from MEGA_PWD0 env var.
         // If it did not get an email template, it'll use 1 single subprocess with the existing env vars.
         GTestParallelRunner pr(std::move(argVals));
-        return pr.run();
+        MegaChatApiTest::initFS();
+        int rc = pr.run();
+        MegaChatApiTest::terminateFS();
+        return rc;
     }
 
     // runt test(s)
@@ -120,13 +123,22 @@ int main(int argc, char **argv)
         }
     }
 
+    if (argVals.isMainProcOnly())
+    {
+        MegaChatApiTest::initFS();
+    }
     MegaChatApiTest::init(argVals.getLog()); // logger set here will also be enough for MegaChatApiUnitaryTest
+
     testing::InitGoogleTest(&argc, argv);
     testing::UnitTest::GetInstance()->listeners().Append(new GTestLogger());
 
     int rc = RUN_ALL_TESTS(); // returns 0 (success) or 1 (failed tests)
 
     MegaChatApiTest::terminate();
+    if (argVals.isMainProcOnly())
+    {
+        MegaChatApiTest::terminateFS();
+    }
 
     return rc;
 }
@@ -291,6 +303,19 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
 }
 
+void MegaChatApiTest::initFS()
+{
+    struct stat st = {}; // init all members to default values (0)
+    if (stat(LOCAL_PATH.c_str(), &st) == -1)
+    {
+#ifdef _WIN32
+        _mkdir(LOCAL_PATH.c_str());
+#else
+        mkdir(LOCAL_PATH.c_str(), 0700);
+#endif
+    }
+}
+
 void MegaChatApiTest::init(const std::string& log)
 {
     std::cout << "[========] Global test environment initialization" << endl;
@@ -345,21 +370,17 @@ void MegaChatApiTest::terminate()
     MegaChatApi::setLoggerObject(NULL);
 }
 
+void MegaChatApiTest::terminateFS()
+{
+    purgeLocalTree(LOCAL_PATH);
+}
+
 void MegaChatApiTest::SetUp()
 {
     const ::testing::TestInfo* ti = ::testing::UnitTest::GetInstance()->current_test_info();
     const string name = string(ti->test_suite_name()) + '.' + ti->name();
-    struct stat st = {}; // init all members to default values (0)
 
     LOG_info << "Test " << name << ": SetUp starting.";
-    if (stat(LOCAL_PATH.c_str(), &st) == -1)
-    {
-#ifdef _WIN32
-        _mkdir(LOCAL_PATH.c_str());
-#else
-        mkdir(LOCAL_PATH.c_str(), 0700);
-#endif
-    }
 
     for (unsigned i = 0u; i < NUM_ACCOUNTS; ++i)
     {
@@ -574,8 +595,6 @@ void MegaChatApiTest::TearDown()
             megaApi[i] = NULL;
         }
     }
-
-    purgeLocalTree(LOCAL_PATH);
 
     // Clear MegaChatApi leftovers AFTER MegaApi instances have been released
     clearMegaChatApiImplLeftovers();
