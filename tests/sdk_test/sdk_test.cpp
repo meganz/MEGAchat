@@ -2856,10 +2856,10 @@ TEST_F(MegaChatApiTest, Attachment)
     chatroomListener->clearMessages(a1);   // will be set at confirmation
     chatroomListener->clearMessages(a2);   // will be set at reception
 
-    std::string formatDate = dateToString();
+    std::string formatDate = dateToString() + "_Attachment_test";
 
     LOG_debug << "#### Test1: Upload new file ####";
-    createFile(formatDate, LOCAL_PATH, formatDate);
+    ASSERT_NO_FATAL_FAILURE(createFile(formatDate, LOCAL_PATH, formatDate));
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
     ASSERT_TRUE(nodeSent);
 
@@ -3044,8 +3044,8 @@ TEST_F(MegaChatApiTest, LastMessage)
     chatroomListener->clearMessages(a2);
 
     LOG_debug << "#### Test3: Upload new file ####";
-    formatDate = dateToString();
-    createFile(formatDate, LOCAL_PATH, formatDate);
+    formatDate = dateToString() + "_LastMessage_test";
+    ASSERT_NO_FATAL_FAILURE(createFile(formatDate, LOCAL_PATH, formatDate));
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
     ASSERT_TRUE(nodeSent);
 
@@ -8098,6 +8098,7 @@ void MegaChatApiTest::createFile(const string &fileName, const string &sourcePat
 {
     std::string filePath = sourcePath + "/" + fileName;
     FILE* fileDescriptor = fopen(filePath.c_str(), "w");
+    ASSERT_TRUE(fileDescriptor) << "File " << filePath << " could not be opened for writing";
     fprintf(fileDescriptor, "%s", contain.c_str());
     fclose(fileDescriptor);
 }
