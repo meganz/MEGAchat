@@ -933,7 +933,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
         std::unique_ptr<MegaChatCall> call(megaChatApi[i]->getChatCall(mData.mChatid));
         ASSERT_TRUE(call) << "Can't get call for a1. Callid: " << getChatIdStrB64(mData.mChatid);
 
-        MegaChatHandle* callId = getHandleVars().get(i, "CallIdInProgress");
+        MegaChatHandle* callId = handleVars().getVar(i, "CallIdInProgress");
         ASSERT_TRUE(callId) << "Can't get CallInProgress var for a1";
         ASSERT_NE(*callId, MEGACHAT_INVALID_HANDLE) << "Invalid callid received at onChatCallUpdate for a1";
         ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "Invalid callid in MegaChatCall for a1";
@@ -945,7 +945,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     CleanupFunction testCleanup = [this] () -> void
     {
         ExitBoolFlags eF;
-        addBoolExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCallTestCleanup(mData.mOpIdx, eF, mData.mChatid);
         closeOpenedChatrooms();
         cleanChatVideoListeners();
@@ -1026,31 +1026,34 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     // ensure that users in WR are ordered by joining time.
     ExitBoolFlags eF;
     MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    addHandleFlag(a1, "CallIdInProgress", invalHandle);                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-    addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addHandleVar(a1, "CallIdInProgress", invalHandle);                          // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addBoolVarAndExitFlag(a1, eF, "CallReceived"  , false);                     // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolVarAndExitFlag(a2, eF, "CallReceived"  , false);                     // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolVarAndExitFlag(a3, eF, "CallReceived"  , false);                     // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolVarAndExitFlag(a1, eF, "CallInProgress", false);                     // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     startWaitingRoomCall(a1, eF, mData.mChatid, schedId,
                          false /*audio*/, false /*video*/);
-    checkCallIdInProgress(a1); // check received callid for caller(a1)
-    getBoolVars().cleanAll();  // clean all bool vars (this prevents conflicts in following tests)
+    checkCallIdInProgress(a1);  // check received callid for caller(a1)
+
+    clearTemporalVars();  // important: this prevents conflicts in following test cases of this integration test
 
     // a2 answers call
     ExitBoolFlags eF1;
-    addBoolExitFlag(a2, eF1, "CallWR"        , false);                     // a2 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    addBoolExitFlag(a1, eF1, "CallWrChanged" , false);                     // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
+    addBoolVarAndExitFlag(a2, eF1, "CallWR"        , false);                     // a2 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    addBoolVarAndExitFlag(a1, eF1, "CallWrChanged" , false);                     // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
     answerChatCall(a2, eF1, mData.mChatid, false /*video*/,
                    false /*audio*/);
-    getBoolVars().cleanAll(); // clean all bool vars (this prevents conflicts in following tests)
+
+    clearTemporalVars();    // clean-up for next test cases
 
     // a3 answers call
     ExitBoolFlags eF2;
-    addBoolExitFlag(a3, eF2, "CallWR"        , false);                      // a3 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    addBoolExitFlag(a1, eF2, "CallWrChanged" , false);                      // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
+    addBoolVarAndExitFlag(a3, eF2, "CallWR"        , false);                      // a3 - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    addBoolVarAndExitFlag(a1, eF2, "CallWrChanged" , false);                      // a1 - onChatCallUpdate(CHANGE_TYPE_WR_USERS_ENTERED)
     answerChatCall(a3, eF2, mData.mChatid, false /*video*/,
                    false /*audio*/);
-    getBoolVars().cleanAll();  // clean all bool vars (this prevents conflicts in following tests)
+
+    clearTemporalVars();  // clean-up for next test cases
 
     // a1 checks waiting room participants order
     std::unique_ptr<MegaChatCall>call(megaChatApi[a1]->getChatCall(mData.mChatid));
@@ -1077,7 +1080,7 @@ TEST_F(MegaChatApiTest, RejectCall)
         std::unique_ptr<MegaChatCall> call(megaChatApi[i]->getChatCall(mData.mChatid));
         ASSERT_TRUE(call) << "Can't get call for " << std::to_string(i) <<". CallId: " << getChatIdStrB64(mData.mChatid);
 
-        MegaChatHandle* callId = getHandleVars().get(i, "CallIdInProgress");
+        MegaChatHandle* callId = handleVars().getVar(i, "CallIdInProgress");
         ASSERT_TRUE(callId) << "Can't get CallInProgress var for " << std::to_string(i);
         ASSERT_NE(*callId, MEGACHAT_INVALID_HANDLE) << "Invalid callId received at onChatCallUpdate for: " << std::to_string(i);
         ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "Invalid callId in MegaChatCall for: " << std::to_string(i);
@@ -1089,7 +1092,7 @@ TEST_F(MegaChatApiTest, RejectCall)
     CleanupFunction testCleanup = [this]() -> void
     {
         ExitBoolFlags eF;
-        addBoolExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCallTestCleanup(mData.mOpIdx, eF, mData.mChatid);
         closeOpenedChatrooms();
         cleanChatVideoListeners();
@@ -1146,19 +1149,19 @@ TEST_F(MegaChatApiTest, RejectCall)
     // ensure that users in WR are ordered by joining time.
     ExitBoolFlags eF;
     MegaChatHandle invalHandle = MEGACHAT_INVALID_HANDLE;
-    addHandleFlag(a1, "CallIdInProgress", invalHandle);                    // a1 - callId received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-    addBoolExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
-    addBoolExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addHandleVar(a1, "CallIdInProgress", invalHandle);                           // a1 - callId received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+    addBoolVarAndExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolVarAndExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
+    addBoolVarAndExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     startCallInChat(a1, eF, mData.mChatid, false /*audio*/,
                     false /*video*/, false /*notRinging*/);
-
     checkCallIdInProgress(a1); // check received callId for caller(a1)
-    getBoolVars().cleanAll();  // clean all bool vars (this prevents conflicts in following tests)
+
+    clearTemporalVars();  // clean-up for next test cases
 
     LOG_debug << "#### Test2: B rejects chat call ####";
     ExitBoolFlags eF1;
-    addBoolExitFlag(a2, eF1, "CallStopsRinging"  , false);                  // a2 - onChatCallUpdate(CHANGE_TYPE_RINGING_STATUS)
+    addBoolVarAndExitFlag(a2, eF1, "CallStopsRinging"  , false);                  // a2 - onChatCallUpdate(CHANGE_TYPE_RINGING_STATUS)
     rejectCall(a2, eF1, mData.mChatid);
 }
 #endif
@@ -7709,17 +7712,36 @@ void MegaChatApiTest::initLocalSchedMeeting(const MegaChatHandle chatId, const M
                                                                      rulesByMonthWeekDay));
 }
 
-void MegaChatApiTest::addHandleFlag(const unsigned int i, const std::string& n, const MegaChatHandle val)
+void MegaChatApiTest::clearTemporalVars()
 {
-    ASSERT_TRUE(getHandleVars().add(i, n, val)) << n << " couldn't be added to mAuxHandles for account " << std::to_string(i);
+    boolVars().cleanAll();
+    handleVars().cleanAll();
 }
 
-
-void MegaChatApiTest::addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val)
+void MegaChatApiTest::addHandleVar(const unsigned int i, const std::string& n, const MegaChatHandle val)
 {
-    bool* f = getBoolVars().add(i, n, val);
+    // adds a handle var to mAuxHandles <var_name, MegaChatHandle>[NUM_ACCOUNTS]
+    ASSERT_TRUE(handleVars().add(i, n, val)) << n << " couldn't be added to mAuxHandles for account " << std::to_string(i);
+}
+
+bool* MegaChatApiTest::addBoolVar(const unsigned int i, const std::string& n, const bool val)
+{
+    return boolVars().add(i, n, val);
+}
+
+void MegaChatApiTest::addBoolVarAndExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val)
+{
+    // adds a boolean var to mAuxBool <var_name, boolVal>[NUM_ACCOUNTS]
+    bool* f = addBoolVar(i, n, val);
     ASSERT_TRUE(f) << n << " couldn't be added to mAuxBool for account " << std::to_string(i);
-    // add idx to differentiate this var from the other accounts
+
+    // add entry above, to temporal ExitBoolFlags <var_name(i), *boolVal>
+    // we may want to preserve all mAuxBool entries, but store a subset of them in ExitBoolFlags,
+    // used as an array of conditions that need to be met to exit from a waitForAction call
+    //
+    // (i) is added to var_name to differentiate this var from the other accounts.
+    // i.e: { {CallReceived0, *boolVal0}, {CallReceived1, *boolVal1} }
+    //
     ASSERT_TRUE(eF.add(n + std::to_string(i), f)) << n << " couldn't be added to eF for account " << std::to_string(i);
 }
 
@@ -7840,11 +7862,11 @@ void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int 
     {
         auto idx = it.first;
         // add flag to wait for onChatListItemUpdate(CHANGE_TYPE_TITLE)
-        ASSERT_TRUE(getBoolVars().add(idx, "titleItemChanged", false /*val*/)) << "titleItemChanged couldn't be added for account "
+        ASSERT_TRUE(addBoolVar(idx, "titleItemChanged", false /*val*/)) << "titleItemChanged couldn't be added for account "
                                                                           << std::to_string(idx);
 
         // add flag to wait for onChatRoomUpdate(CHANGE_TYPE_TITLE)
-        ASSERT_TRUE(getBoolVars().add(idx, "titleChanged", false /*val*/)) << "titleChanged couldn't be added for account "
+        ASSERT_TRUE(addBoolVar(idx, "titleChanged", false /*val*/)) << "titleChanged couldn't be added for account "
                                                                       << std::to_string(idx);
     });
 
@@ -7859,15 +7881,13 @@ void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int 
     std::for_each(crlisteners.begin(), crlisteners.end(), [this](const auto& it)
     {
         auto idx = it.first;
-        auto f1 = getBoolVars().get(idx, "titleItemChanged");
+        bool* f1 = boolVars().getVar(idx, "titleItemChanged");
         ASSERT_TRUE(f1) << "titleItemChanged wait flag not found for account: " << idx;
         ASSERT_TRUE(waitForResponse(f1)) << "Timeout expired for receiving chat list item update";
-        getBoolVars().remove(idx, "titleItemChanged");
 
-        auto f2 = getBoolVars().get(idx, "titleChanged");
+        bool* f2 = boolVars().getVar(idx, "titleChanged");
         ASSERT_TRUE(f2) << "titleChanged wait flag not found for account: " << idx;
         ASSERT_TRUE(waitForResponse(f2)) << "Timeout expired for receiving chatroom update";
-        getBoolVars().remove(idx, "titleChanged");
     });
 };
 
@@ -9123,7 +9143,7 @@ void MegaChatApiTest::onChatListItemUpdate(MegaChatApi *api, MegaChatListItem *i
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_TITLE))
         {
-            getBoolVars().updateIfExists(apiIndex, "titleItemChanged", true);
+            boolVars().updateIfExists(apiIndex, "titleItemChanged", true);
             titleUpdated[apiIndex] = true;
         }
         if (item->hasChanged(MegaChatListItem::CHANGE_TYPE_ARCHIVE))
@@ -9218,14 +9238,14 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
                 mCallReceivedRinging[apiIndex] = true;
                 mChatIdRingInCall[apiIndex] = call->getChatid();
                 mCallIdRingIn[apiIndex] = call->getCallId();
-                getBoolVars().updateIfExists(apiIndex, "CallIsRinging", true);
+                boolVars().updateIfExists(apiIndex, "CallIsRinging", true);
             }
             else
             {
                 mCallStopRinging[apiIndex] = true;
                 mCallIdStopRingIn[apiIndex] = call->getCallId();
                 mChatIdStopRingInCall[apiIndex] = call->getChatid();
-                getBoolVars().updateIfExists(apiIndex, "CallStopsRinging", true);
+                boolVars().updateIfExists(apiIndex, "CallStopsRinging", true);
             }
         }
     }
@@ -9233,8 +9253,8 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_COMPOSITION))
     {
-        getBoolVars().updateIfExists(apiIndex, "CallWrChanged", true);
-         mCallWrChanged[apiIndex] = true;
+        boolVars().updateIfExists(apiIndex, "CallWrChanged", true);
+        mCallWrChanged[apiIndex] = true;
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW))
@@ -9282,13 +9302,13 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
                  * we receive multiple onChatCallUpdate like a login */
                 mCallWithIdReceived[apiIndex] = true;
             }
-            getBoolVars().updateIfExists(apiIndex, "CallReceived", true);
+            boolVars().updateIfExists(apiIndex, "CallReceived", true);
             mCallReceived[apiIndex] = true;
             break;
 
         case MegaChatCall::CALL_STATUS_IN_PROGRESS:
-            getHandleVars().updateIfExists(apiIndex, "CallIdInProgress", call->getCallId());
-            getBoolVars().updateIfExists(apiIndex, "CallInProgress", true);
+            handleVars().updateIfExists(apiIndex, "CallIdInProgress", call->getCallId());
+            boolVars().updateIfExists(apiIndex, "CallInProgress", true);
             mCallInProgress[apiIndex] = true;
             mChatIdInProgressCall[apiIndex] = call->getChatid();
             break;
@@ -9305,7 +9325,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         }
 
         case MegaChatCall::CALL_STATUS_DESTROYED:
-            getBoolVars().updateIfExists(apiIndex, "CallDestroyed", true);
+            boolVars().updateIfExists(apiIndex, "CallDestroyed", true);
             mCallDestroyed[apiIndex] = true;
             break;
 
@@ -9315,7 +9335,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
         case MegaChatCall::CALL_STATUS_WAITING_ROOM:
         {
-            getBoolVars().updateIfExists(apiIndex, "CallWR", true);
+            boolVars().updateIfExists(apiIndex, "CallWR", true);
             mCallWR[apiIndex] = true;
             break;
         }
@@ -9532,7 +9552,7 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         }
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_TITLE))
         {
-            t->getBoolVars().updateIfExists(apiIndex, "titleChanged", true);
+            t->boolVars().updateIfExists(apiIndex, "titleChanged", true);
             titleUpdated[apiIndex] = true;
         }
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_ARCHIVE))
