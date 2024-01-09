@@ -8323,6 +8323,11 @@ int MegaChatCallPrivate::getNotificationType() const
     return mNotificationType;
 }
 
+MegaChatHandle MegaChatCallPrivate::getAuxHandle() const
+{
+    return mAuxHandle;
+}
+
 bool MegaChatCallPrivate::isRinging() const
 {
     return mRinging;
@@ -8652,6 +8657,11 @@ void MegaChatCallPrivate::setNotificationType(int notificationType)
 {
     mNotificationType = notificationType;
     setChange(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION);
+}
+
+void MegaChatCallPrivate::setAuxHandle(const MegaChatHandle h)
+{
+    mAuxHandle = h;
 }
 
 void MegaChatCallPrivate::setTermCode(int termCode)
@@ -11588,10 +11598,11 @@ void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModul
     mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
 }
 
-void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call)
+void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call, const Cid_t cidPerf)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS);
+    chatCall->setAuxHandle(cidPerf);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

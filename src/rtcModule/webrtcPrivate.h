@@ -508,7 +508,7 @@ public:
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
 
-    bool handleMutedCommand(const unsigned av) override;
+    bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
     bool processDeny(const std::string& cmd, const std::string& msg) override;
@@ -714,7 +714,7 @@ protected:
     void setOwnModerator(bool isModerator);
 
     // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-    void muteMyClient(const bool audio, const bool video);
+    void muteMyClient(const bool audio, const bool video, const Cid_t cidPerf = K_INVALID_CID);
 
     // initializes a new pair of keys x25519 (for session key)
     void generateEphemeralKeyPair();

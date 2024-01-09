@@ -4405,9 +4405,19 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     MegaChatHandle secondaryCid = secondarySess->getClientid();
     ASSERT_NE(secondaryCid, MEGACHAT_INVALID_HANDLE) << "Invalid client id for secondary session";
 
+    unique_ptr<MegaChatCall> a2Call(megaChatApi[a2]->getChatCall(chatid));
+    ASSERT_TRUE(a2Call) << "Can't get call for account a2 from chatroom: " << getChatIdStrB64(chatid);
+    std::unique_ptr<MegaHandleList> a2hl(a2Call->getSessionsClientid());
+    ASSERT_TRUE(a2hl && a2hl->size()) << "Can't get a client id list from call";
+    MegaChatSession* a1Sess = a2Call->getMegaChatSession(a2hl->get(0));
+    ASSERT_TRUE(a1Sess) << "Can't get a session for clientid: " << a2hl->get(0);
+    MegaChatHandle a1Cid = a1Sess->getClientid();
+    ASSERT_NE(a1Cid, MEGACHAT_INVALID_HANDLE) << "Invalid client id for primary session";
+
     LOG_debug << "#### Test3: A mutes B in call ####";
     bool* remoteAvFlagsChanged = &mChatCallAudioDisabled[a1]; *remoteAvFlagsChanged = false; // a2 will receive onChatSessionUpdate (CHANGE_TYPE_REMOTE_AVFLAGS)
     exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // a2 will receive onChatCallUpdate (CHANGE_TYPE_LOCAL_AVFLAGS)
+    addHandleVar(a2, "MutePerformer", MEGACHAT_INVALID_HANDLE); // a2 onChatCallUpdate (MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS)
     action = [this, a1, chatid, secondaryCid]()
     {
         ChatRequestTracker crtMutePeers(megaChatApi[a1]);
@@ -4417,6 +4427,9 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     };
     ASSERT_NO_FATAL_FAILURE({
         waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving MUTED notification from SFU for secondary account", maxTimeout, action);
+        MegaChatHandle* mutePerformerCid = handleVars().getVar(a2, "MutePerformer");
+        ASSERT_TRUE(mutePerformerCid) << "Invalid MutePerformer Cid for account" << std::to_string(a2);
+        ASSERT_EQ(*mutePerformerCid, a1Cid) << "Unexpected MutePerformer Cid for account: " << std::to_string(a2);
     });
     ASSERT_TRUE(waitForResponse(remoteAvFlagsChanged)) << "Timeout expired for Primary account receiving AvFlags update for Secondary account";
 
@@ -8823,6 +8836,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
     {
+        handleVars().updateIfExists(apiIndex, "MutePerformer", call->getAuxHandle());
         mChatCallAudioEnabled[apiIndex] = call->hasLocalAudio();
         mChatCallAudioDisabled[apiIndex] = !call->hasLocalAudio();
         mOwnFlagsChanged[apiIndex] = true;
@@ -9683,7 +9697,7 @@ bool MockupCall::handleWrUsersDeny(const std::set<karere::Id>& /*users*/)
     return true;
 }
 
-bool MockupCall::handleMutedCommand(const unsigned /*av*/)
+bool MockupCall::handleMutedCommand(const unsigned /*av*/, const Cid_t /*cidPerf*/)
 {
     return true;
 }

@@ -1202,7 +1202,7 @@ public:
     bool handleWrDeny(const std::set<karere::Id>& mods) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
-    bool handleMutedCommand(const unsigned av) override;
+    bool handleMutedCommand(const unsigned av, const Cid_t /*cidPerf*/) override;
 };
 #endif
 #endif // CHATTEST_H
