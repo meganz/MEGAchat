@@ -1429,6 +1429,7 @@ public:
     Priv getOwnprivilege() const;
 
     void ringIndividualInACall(const karere::Id &userIdToCall, const karere::Id &callId, const int16_t ringTimeout);
+    void rejectCall(const karere::Id& callId);
 
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);

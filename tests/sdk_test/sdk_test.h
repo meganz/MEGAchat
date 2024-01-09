@@ -282,7 +282,8 @@ public:
         TestData& operator=(const TestData&)  = delete;
         TestData& operator=(TestData&&)       = delete;
 
-        // idx account that represents the operator role (not related to MegaChatRoom privileges)
+        // set test operator role index (will be the account in charge of performing all operations)
+        // This index can be changed at any point of the test.
         unsigned int mOpIdx = testInvalidIdx;
 
         // chatid of chatroom that will be used in the test
@@ -377,8 +378,8 @@ public:
             return res.second ? &res.first->second : nullptr;
         }
 
-        // returns value<T> mapped by key n
-        T* get(const unsigned int i, const std::string_view n)
+        // returns pointer to value<T> mapped by key n
+        T* getVar(const unsigned int i, const std::string_view n)
         {
             if (!validInput(i, n)) { return nullptr; }
             if (!exists(i, n))     { return nullptr; }
@@ -539,8 +540,8 @@ public:
     using AuxVarsBool     = AuxVars<bool>;
     using AuxVarsMCHandle = AuxVars<megachat::MegaChatHandle>;
 
-    AuxVarsBool& getBoolVars()       { return mAuxBool; };
-    AuxVarsMCHandle& getHandleVars() { return mAuxHandles; };
+    AuxVarsBool& boolVars()       { return mAuxBool; };
+    AuxVarsMCHandle& handleVars() { return mAuxHandles; };
 
 protected:
     static Account& account(unsigned i) { return getEnv().account(i); }
@@ -658,11 +659,26 @@ protected:
                                const ::megachat::MegaChatPeerList* peerlist, const ::mega::MegaIntegerList* rulesByWeekDay,
                                const ::mega::MegaIntegerList* rulesByMonthDay, const ::mega::MegaIntegerMap* rulesByMonthWeekDay);
 
-    // Adds a temporal MegaChatHandle variable, to MegaChatApiTest::mAuxHandles
-    void addHandleFlag(const unsigned int i, const std::string& n, const ::megachat::MegaChatHandle val);
+    // Clears all temporal variables from MegaChatApiTest::mAuxHandles and MegaChatApiTest::mAuxBool
+    void clearTemporalVars();
+
+    // Adds a temporal MegaChatHandle variable to MegaChatApiTest::mAuxHandles
+    void addHandleVar(const unsigned int i, const std::string& n, const ::megachat::MegaChatHandle val);
+
+    // Adds a temporal boolean variable to MegaChatApiTest::mAuxBool
+    bool* addBoolVar(const unsigned int i, const std::string& n, const bool val);
 
     // Adds a temporal boolean variable, to ExitBoolFlags param, and also to MegaChatApiTest::mAuxBool
-    void addBoolExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val);
+    void addBoolVarAndExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val);
+
+#ifndef KARERE_DISABLE_WEBRTC
+
+    // starts a call in a chatroom
+    void startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
+                         const bool enableVideo, const bool enableAudio, const bool notRinging);
+
+    // rejects a call
+    void rejectCall(const unsigned int performerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid);
 
     // starts a call in a chatroom with waiting room option enabled
     void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
@@ -671,6 +687,9 @@ protected:
     // answers a call in a chatroom
     void answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
                         const bool enableVideo, const bool enableAudio);
+
+    void endChatCallTestCleanup(unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatid);
+#endif
 
     /**
      * @brief Allows to set the title of a group chat
@@ -887,13 +906,19 @@ private:
 
     // Aux vars maps: these maps can be used to add temporal variables that needs to be updated by any callback or code path,
     // this avoids defining amounts of vars in MegaChatApiTest class
+    //
+    // The lifetime of these maps is the lifetime of MegaChatApiTest, so these maps will be automatically released after
+    // each test execution. To prevent conflicts between different test cases at any particular automated test, it's recommended to remove
+    // unused variables after it's use, or clear maps (just in case we don't need any variable already defined).
 
     // maps a var name to boolean.
     // It can be used to "register" temporal boolean variables that will be used to wait for async events.
+    // <var_name, boolVal>[NUM_ACCOUNTS]
     AuxVarsBool mAuxBool;
 
     // maps a var name to MegaChatHandle
     // It can be used to "register" temporal variables that will be used to store received handles on MegaChat callbacks
+    // <var_name, MegaChatHandle>[NUM_ACCOUNTS]
     AuxVarsMCHandle mAuxHandles;
 
     class TestEnv
@@ -1161,7 +1186,7 @@ public:
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
-    void onSendByeCommand() override;
+    void onByeCommandSent() override;
     void onSfuDisconnected() override;
     bool error(unsigned int, const std::string &) override;
     bool processDeny(const std::string&, const std::string&) override;

@@ -5267,7 +5267,7 @@ void InitStats::onCanceled()
     KR_LOG_WARNING("Init stats have been cancelled");
 }
 
-std::string InitStats::onCompleted(long long numNodes, size_t numChats, size_t numContacts)
+std::string InitStats::onCompleted(unsigned long long numNodes, size_t numChats, size_t numContacts)
 {
     assert(!mCompleted);
     mCompleted = true;
@@ -5557,7 +5557,7 @@ std::string InitStats::toJson()
     }
 
     // Add number of nodes
-    jsonValue.SetInt64(mNumNodes);
+    jsonValue.SetUint64(mNumNodes);
     jSonObject.AddMember(rapidjson::Value("nn"), jsonValue, jSonDocument.GetAllocator());
 
     // Add number of contacts

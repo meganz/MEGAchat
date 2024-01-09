@@ -5974,6 +5974,42 @@ void MegaChatApiImpl::startChatCall(MegaChatHandle chatid, bool enableVideo, boo
     waiter->notify();
 }
 
+int MegaChatApiImpl::performRequest_rejectCall(MegaChatRequestPrivate* request)
+{
+    if (!mClient->rtc)
+    {
+        API_LOG_ERROR("REJECT_CALL - WebRTC is not initialized");
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    const MegaChatHandle callId = request->getChatHandle();
+    if (callId == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("REJECT_CALL - invalid callId");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    const rtcModule::ICall* call = mClient->rtc->findCall(callId);
+    if (!call)
+    {
+        API_LOG_ERROR("REJECT_CALL - There is not any call with that callId");
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    ChatRoom* chatroom = findChatRoom(call->getChatid());
+    if (!chatroom)
+    {
+        API_LOG_ERROR("REJECT_CALL - Chatroom has not been found");
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    Chat& chat = chatroom->chat();
+    chat.rejectCall(call->getCallid());
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
+}
+
 int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPrivate* request)
 {
     const auto chatId = request->getChatHandle();
@@ -6174,6 +6210,15 @@ void MegaChatApiImpl::mutePeers(const MegaChatHandle chatid, const MegaChatHandl
     request->setChatHandle(chatid);
     request->setUserHandle(clientId);
     request->setPerformRequest([this, request]() { return performRequest_mutePeersInCall(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
+void MegaChatApiImpl::rejectCall(const MegaChatHandle callId, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REJECT_CALL, listener);
+    request->setChatHandle(callId);
+    request->setPerformRequest([this, request]() { return performRequest_rejectCall(request); });
     requestQueue.push(request);
     waiter->notify();
 }
@@ -7003,7 +7048,7 @@ void MegaChatApiImpl::cleanCalls()
             rtcModule::ICall* call = findCall(chatids[i]);
             if (call)
             {
-                mClient->rtc->orderedDisconnectAndCallRemove(call, rtcModule::EndCallReason::kEnded, rtcModule::TermCode::kUserHangup);
+                mClient->rtc->rtcOrderedCallDisconnect(call, rtcModule::TermCode::kUserHangup);
             }
         }
     }
@@ -7579,6 +7624,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_WR_ALLOW: return "WR_ALLOW";
         case TYPE_WR_KICK: return "WR_KICK";
         case TYPE_MUTE: return "MUTE";
+        case TYPE_REJECT_CALL: return "REJECT_CALL";
     }
     return "UNKNOWN";
 }
