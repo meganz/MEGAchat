@@ -646,8 +646,9 @@ bool Call::hasOwnUserSpeakPermission() const
 
 bool Call::addDelSpeakRequest(const karere::Id& user, const bool add)
 {
-    // SPEAKRQ cannot be sent on behalf of another user
-    assert(!add || !user.isValid());
+    assert(!add || !user.isValid());                            // SPEAKRQ cannot be sent on behalf of another user
+    assert(!add || mSpeakerState == SpeakerState::kNoSpeaker);  // if request speak, speaker state should be kNoSpeaker
+    assert(add  || mSpeakerState == SpeakerState::kPending);    // if request speak is removed, speaker state should be kPending
     mSfuConnection->sendSpeakReqAddDel(user, add);
     return true;
 }
@@ -1726,9 +1727,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 {
                     addSpeaker(cid, it->second/*amid*/);
                 }
-
-                // 3) if it has pending speak request
-                if (isOnSpeakRequestsList(uh))
+                else if (isOnSpeakRequestsList(uh)) // 3) if it has pending speak request
                 {
                     s.second->setSpeakRequested(true);
                 }
@@ -2017,6 +2016,7 @@ bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
     }
     else
     {
+        assert(isOwnPrivModerator());
         updateUserSpeakRequest(userid, add);
     }
     return true;
@@ -2986,10 +2986,10 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
     return true;
 }
 
-bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList)
+bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool addOrRemoveFromSpeakersList)
 {
     // update call speakers list (i.e upon "MOD_ADD" we want to remove user from speakers list)
-    add && updateSpeakersList
+    add && addOrRemoveFromSpeakersList
         ? addToSpeakersList(userid)
         : removeFromSpeakersList(userid);
 
