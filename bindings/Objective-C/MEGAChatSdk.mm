@@ -1018,6 +1018,12 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)mutePeers:(uint64_t)chatId client:(uint64_t)clientId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->mutePeers(chatId, clientId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
 - (void)autojoinPublicChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->autojoinPublicChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);

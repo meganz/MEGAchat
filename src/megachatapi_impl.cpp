@@ -2916,6 +2916,8 @@ int MegaChatApiImpl::performRequest_mutePeersInCall(MegaChatRequestPrivate* requ
     }
 
     call->mutePeers(cid, karere::AvFlags::kAudio);
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
     return MegaChatError::ERROR_OK;
 }
 #endif // ifndef KARERE_DISABLE_WEBRTC
@@ -6066,6 +6068,9 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
         fireOnChatRequestFinish(request, megaChatError);
     });
+
+    // REMINDER: when Client::ringIndividualInACall call is removed (chatd has applied the required fix) we need to
+    // add a call to fireOnChatRequestFinish with MegaChatError::ERROR_OK
     return MegaChatError::ERROR_OK;
 }
 

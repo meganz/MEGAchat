@@ -4408,7 +4408,13 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     LOG_debug << "#### Test3: A mutes B in call ####";
     bool* remoteAvFlagsChanged = &mChatCallAudioDisabled[a1]; *remoteAvFlagsChanged = false; // a2 will receive onChatSessionUpdate (CHANGE_TYPE_REMOTE_AVFLAGS)
     exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // a2 will receive onChatCallUpdate (CHANGE_TYPE_LOCAL_AVFLAGS)
-    action = [this, a1, chatid, secondaryCid](){ megaChatApi[a1]->mutePeers(chatid, secondaryCid); };
+    action = [this, a1, chatid, secondaryCid]()
+    {
+        ChatRequestTracker crtMutePeers(megaChatApi[a1]);
+        megaChatApi[a1]->mutePeers(chatid, secondaryCid, &crtMutePeers);
+        ASSERT_EQ(crtMutePeers.waitForResult(), MegaChatError::ERROR_OK)
+            << "Failed to mute peer. Error: " << crtMutePeers.getErrorString();
+    };
     ASSERT_NO_FATAL_FAILURE({
         waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving MUTED notification from SFU for secondary account", maxTimeout, action);
     });
