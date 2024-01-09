@@ -6068,7 +6068,9 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
         fireOnChatRequestFinish(request, megaChatError);
     });
-    // TODO: add call to fireOnChatRequestFinish when call to Client::ringIndividualInACall is removed
+
+    // REMINDER: when Client::ringIndividualInACall call is removed (chatd has applied the required fix) we need to
+    // add a call to fireOnChatRequestFinish with MegaChatError::ERROR_OK
     return MegaChatError::ERROR_OK;
 }
 
