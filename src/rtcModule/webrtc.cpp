@@ -2237,7 +2237,8 @@ bool Call::handleModAdd(uint64_t userid)
         updateUserSpeakRequest(userid, false/*add*/); // remove speak request (if any) for this user
     }
 
-    updateUserSpeakPermision(userid, true, false /*updateSpeakersList*/); // moderators have speak permission by default
+    // moderators have speak permission by default, and shouldn't be in speakers list
+    updateUserSpeakPermision(userid, true, false /*updateSpeakersList*/);
     if (!hasSpeakPermission(userid))
     {
         RTCM_LOG_DEBUG("MOD_ADD received, but speak permission could not be updated for user: %s ",
@@ -2270,18 +2271,21 @@ bool Call::handleModDel(uint64_t userid)
     // Note: if command is received for own user, we don't need to call updateAudioTracks(), SFU will send us 'MUTED' command
     updateUserModeratorStatus(userid, false /*enable*/);
 
-    if (removeFromSpeakersList(userid))
+    if (isOnSpeakersList(userid))
     {
         // note: moderators should never be included on the speakers list
         RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speakers list",
                          karere::Id(userid).toString().c_str());
+
+        removeFromSpeakersList(userid);
         assert(false);
     }
 
-    if (!hasSpeakPermission(userid))
-    {
-        updateUserSpeakPermision(userid, false, false /*updateSpeakersList*/);
-    }
+    // in case user doesn't have speak permission we don't need to update speakers list, before this change
+    // user was MOD and it should be included in that list
+    hasSpeakPermission(userid)
+        ? updateUserSpeakPermision(userid, true, true /*updateSpeakersList*/)
+        : updateUserSpeakPermision(userid, false, false /*updateSpeakersList*/);
 
     // Note: ex-moderators need be granted speak permission again by a moderator
     RTCM_LOG_DEBUG("MOD_DEL: user[%s] removed from moderators list", karere::Id(userid).toString().c_str());
@@ -2987,10 +2991,18 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
     return true;
 }
 
-bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool addOrRemoveFromSpeakersList)
+bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList)
 {
+    if (updateSpeakersList)
+    {
+        add
+            ? addToSpeakersList(userid)
+            : removeFromSpeakersList(userid);
+    }
+    // else => i.e moderators have speak permission by default but shouldn'pt be included in speakers list
+
     // update call speakers list (i.e upon "MOD_ADD" we want to remove user from speakers list)
-    add && addOrRemoveFromSpeakersList
+    add && updateSpeakersList
         ? addToSpeakersList(userid)
         : removeFromSpeakersList(userid);
 

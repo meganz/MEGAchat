@@ -471,7 +471,7 @@ public:
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
     bool updateUserModeratorStatus(const karere::Id& userid, const bool enable);
-    bool updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool addOrRemoveFromSpeakersList);
+    bool updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList);
     bool updateUserSpeakRequest(const karere::Id& userid, const bool add);
     void setSpeakerState(const SpeakerState state);
 
