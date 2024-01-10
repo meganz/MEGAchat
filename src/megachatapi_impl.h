@@ -309,6 +309,8 @@ public:
     void setId(const karere::Id& callid);
     void setCaller(const karere::Id& caller);
     void setHandleList(const mega::MegaHandleList* handleList);
+    void setSpeakersList(const ::mega::MegaHandleList* speakersList);
+    const mega::MegaHandleList* getSpeakersList() const override;
     const mega::MegaHandleList* getHandleList() const override;
     void setNotificationType(int notificationType);
     void setTermCode(int termCode);
@@ -335,6 +337,7 @@ protected:
     std::string mMessage;
     std::unique_ptr<::mega::MegaHandleList> mModerators;
     std::unique_ptr<::mega::MegaHandleList> mHandleList;
+    std::unique_ptr<::mega::MegaHandleList> mSpeakersList;
     std::unique_ptr<MegaChatWaitingRoom> mMegaChatWaitingRoom;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;

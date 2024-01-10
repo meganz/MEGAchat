@@ -8067,6 +8067,13 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
         mModerators->addMegaHandle(moderator);
     }
 
+    // always create a valid instance of MegaHandleList
+    mSpeakersList.reset(::mega::MegaHandleList::createInstance());
+    for (const auto &speaker: call.getSpeakersList())
+    {
+        mSpeakersList->addMegaHandle(speaker);
+    }
+
     mRinging = call.isRinging();
     mOwnModerator = call.isOwnPrivModerator();
 
@@ -8105,6 +8112,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mModerators.reset(call.getModerators() ? call.getModerators()->copy() : nullptr);
     mParticipants = call.mParticipants;
     mHandleList.reset(call.getHandleList() ? call.getHandleList()->copy() : nullptr);
+    mSpeakersList.reset(call.getSpeakersList() ? call.getSpeakersList()->copy() : nullptr);
     mSpeakRequest = call.isSpeakRequestEnabled();
     mHandle = call.getHandle();
     mFlag = call.getFlag();
@@ -8378,6 +8386,11 @@ const ::mega::MegaHandleList* MegaChatCallPrivate::getHandleList() const
     return mHandleList.get();
 }
 
+const ::mega::MegaHandleList* MegaChatCallPrivate::getSpeakersList() const
+{
+    return mSpeakersList.get();
+}
+
 void MegaChatCallPrivate::setStatus(int status)
 {
     mStatus = status;
@@ -8557,6 +8570,11 @@ void MegaChatCallPrivate::setCaller(const Id& caller)
 void MegaChatCallPrivate::setHandleList(const ::mega::MegaHandleList* handleList)
 {
     mHandleList.reset(handleList ? handleList->copy() : nullptr);
+}
+
+void MegaChatCallPrivate::setSpeakersList(const ::mega::MegaHandleList* speakersList)
+{
+    mSpeakersList.reset(speakersList ? speakersList->copy() : nullptr);
 }
 
 void MegaChatCallPrivate::setNotificationType(int notificationType)

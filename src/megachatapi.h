@@ -1268,6 +1268,19 @@ public:
      * @return a MegaHandleList that can be used for multiple purposes, or NULL in case it doesn't exists
      */
     virtual const mega::MegaHandleList* getHandleList() const;
+
+    /**
+     * @brief Returns a MegaHandleList that contains the user handles of all non-moderator users that have
+     * been given speak permission.
+     *
+     * This method will return a valid MegaHandleList instance even if speakers list doesn't contain any element
+     *
+     * The MegaChatCall retains the ownership of returned value
+     *
+     * @return a MegaHandleList that contains the user handles of all non-moderator users that have
+     * been given speak permission.
+     */
+    virtual const mega::MegaHandleList* getSpeakersList() const;
 };
 
 /**

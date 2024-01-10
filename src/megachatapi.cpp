@@ -417,6 +417,11 @@ const ::mega::MegaHandleList* MegaChatCall::getHandleList() const
     return NULL;
 }
 
+const mega::MegaHandleList* MegaChatCall::getSpeakersList() const
+{
+    return NULL;
+}
+
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
 {
     pImpl = new MegaChatApiImpl(this, megaApi);
