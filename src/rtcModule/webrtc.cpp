@@ -1983,6 +1983,7 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
         if (isOwnUser) { updateAudioTracks(); }
         else           { updateUserSpeakRequest(uh, false/*add*/); }
     }
+    // else => no need to update audio tracks for own user upon SPEAKER_DEL, MUTED command will be received
     return true;
 }
 
