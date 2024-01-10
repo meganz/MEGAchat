@@ -49,7 +49,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mAudioMonitor->setVisible(false);
 
     mRemOwnSpeaker = new QPushButton("Remove own user speaker", this);
-    connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
+    connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveOwnSpeaker()));
     mRemOwnSpeaker->setVisible(false);
 
     mJoinCallWithVideo = new QPushButton("Join Call with Video", this);

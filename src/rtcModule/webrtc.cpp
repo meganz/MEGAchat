@@ -3001,11 +3001,6 @@ bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, co
     }
     // else => i.e moderators have speak permission by default but shouldn'pt be included in speakers list
 
-    // update call speakers list (i.e upon "MOD_ADD" we want to remove user from speakers list)
-    add && updateSpeakersList
-        ? addToSpeakersList(userid)
-        : removeFromSpeakersList(userid);
-
     if (userid == getOwnPeerId())
     {
         setSpeakerState(add ? SpeakerState::kActive : SpeakerState::kNoSpeaker);
