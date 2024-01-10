@@ -1476,7 +1476,11 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         return false;
     }
 
-    // store speakers list received from SFU (moderators not included)
+    /* Store speakers list received from SFU, which contains user handles of all non-moderator
+     * users that have been given speak permission (moderators not included)
+     *
+     * If call doesn't have speak request option enabled, this array is not included in the ANSWER command
+     */
     mSpeakers = speakers;
 
     // store speak requests list received from SFU
@@ -2223,13 +2227,13 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
 bool Call::handleModAdd(uint64_t userid)
 {
     updateUserModeratorStatus(userid, true /*enable*/);
-    if (removeFromSpeakersList(userid))
+    if (isSpeakRequestEnabled() && isOnSpeakersList(userid))
     {
-        // note: moderators should never be included on speakers list,
-        //       in case the user already had speak permission upon this command,
-        //       we need to remove it from the list
+        // note: moderators should never be included on speakers list
         RTCM_LOG_DEBUG("MOD_ADD received, remove user: %s from speakers list, as moderators are not included there",
                        karere::Id(userid).toString().c_str());
+        removeFromSpeakersList(userid);
+        assert(false);
     }
 
     if (userid != getOwnPeerId())
@@ -2271,7 +2275,7 @@ bool Call::handleModDel(uint64_t userid)
     // Note: if command is received for own user, we don't need to call updateAudioTracks(), SFU will send us 'MUTED' command
     updateUserModeratorStatus(userid, false /*enable*/);
 
-    if (isOnSpeakersList(userid))
+    if (isSpeakRequestEnabled() && isOnSpeakersList(userid))
     {
         // note: moderators should never be included on the speakers list
         RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speakers list",
@@ -2281,11 +2285,11 @@ bool Call::handleModDel(uint64_t userid)
         assert(false);
     }
 
-    // in case user doesn't have speak permission we don't need to update speakers list, before this change
-    // user was MOD and it should be included in that list
-    hasSpeakPermission(userid)
-        ? updateUserSpeakPermision(userid, true, true /*updateSpeakersList*/)
-        : updateUserSpeakPermision(userid, false, false /*updateSpeakersList*/);
+    if (!hasSpeakPermission(userid))
+    {
+        updateUserSpeakPermision(userid, false, false /*updateSpeakersList*/);
+    }
+    // else => If MOD DEL received but speak request is disabled, speaker list won't be received in answer command
 
     // Note: ex-moderators need be granted speak permission again by a moderator
     RTCM_LOG_DEBUG("MOD_DEL: user[%s] removed from moderators list", karere::Id(userid).toString().c_str());
@@ -2993,7 +2997,7 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
 
 bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList)
 {
-    if (updateSpeakersList)
+    if (isSpeakRequestEnabled() && updateSpeakersList)
     {
         add
             ? addToSpeakersList(userid)
@@ -3037,6 +3041,13 @@ bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, co
 
 bool Call::updateUserSpeakRequest(const karere::Id& userid, const bool add)
 {
+    if (!isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("speak request option is disabled for call");
+        assert(false);
+        return false;
+    }
+
     if (userid == getOwnPeerId())
     {
         // own user speak requests are managed at Call::setSpeakerState

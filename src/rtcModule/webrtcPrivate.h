@@ -478,13 +478,13 @@ public:
     // --- speakers list methods ---
     bool addToSpeakersList (const uint64_t userid)              { return mSpeakers.emplace(userid).second; }
     bool removeFromSpeakersList (const uint64_t userid)         { return mSpeakers.erase(userid); }
-    bool isOnSpeakersList (const uint64_t userid) const         { return mSpeakers.find(userid) != mSpeakers.end(); }
+    bool isOnSpeakersList (const uint64_t userid) const         { return isSpeakRequestEnabled() && mSpeakers.find(userid) != mSpeakers.end(); }
     void clearSpeakersList()                                    { mSpeakers.clear(); }
 
     // --- speak requests list methods ---
     bool addToSpeakRequestsList (const uint64_t userid)         { return mSpeakRequests.emplace(userid).second; }
     bool removeFromSpeakRequestsList (const uint64_t userid)    { return mSpeakRequests.erase(userid); }
-    bool isOnSpeakRequestsList (const uint64_t userid) const    { return mSpeakRequests.find(userid) != mSpeakRequests.end(); }
+    bool isOnSpeakRequestsList (const uint64_t userid) const    { return isSpeakRequestEnabled() && mSpeakRequests.find(userid) != mSpeakRequests.end(); }
     void clearSpeakRequestsList()                               { mSpeakRequests.clear(); }
 
     // --- moderators list methods ---
