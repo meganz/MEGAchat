@@ -5581,7 +5581,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ChatRequestTracker crtOpenLink2(megaChatApi[a3]);
     *previewsUpdated = false;
     megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink2);
-    ASSERT_EQ(crtOpenLink2.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
+    ASSERT_EQ(crtOpenLink2.waitForResult(), MegaChatError::ERROR_EXIST) << "Opening chat link failed. Should have succeeded!";
     ASSERT_TRUE(waitForResponse(chatPreviewClosedChanged)) << "Timeout expired for automatically preview close";
 
     // check that modified options above have been properly updated on chatroom

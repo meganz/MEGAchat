@@ -1145,6 +1145,14 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                 API_LOG_DEBUG("Chat (%s) has changed", karere::Id(chatId).toString().c_str());
                                 mClient->chats->removeRoomPreview(chatId);
                                 mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
+                                room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
+                                if (!room)
+                                {
+                                    API_LOG_DEBUG("Cannot re-create chat (%s) preview", karere::Id(chatId).toString().c_str());
+                                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN);
+                                    fireOnChatRequestFinish(request, megaChatError);
+                                    return;
+                                }
                             }
                             else if (!room->isActive() && room->previewMode()) // re-enable preview
                             {
