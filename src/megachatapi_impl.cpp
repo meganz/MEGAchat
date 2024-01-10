@@ -11487,13 +11487,6 @@ void MegaChatCallHandler::onUserSpeakStatusUpdate(const rtcModule::ICall& call, 
     auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setHandle(userid);
     chatCall->setFlag(add);
-    chatCall->setChange(MegaChatCall::CHANGE_USERS_SPEAK_PERMISSION);
-    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
-}
-
-void MegaChatCallHandler::onOwnUserSpeakStatusUpdate(const rtcModule::ICall& call)
-{
-    auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_SPEAK);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }

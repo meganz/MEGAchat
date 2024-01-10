@@ -729,7 +729,6 @@ public:
     void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrPushedFromCall(const rtcModule::ICall& call) override;
     void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) override;
-    void onOwnUserSpeakStatusUpdate(const rtcModule::ICall& call) override;
     void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
 
 private:

@@ -3087,7 +3087,6 @@ void Call::setSpeakerState(const SpeakerState state)
 {
     if (state == mSpeakerState) { return; }
     mSpeakerState = state;
-    mCallHandler.onOwnUserSpeakStatusUpdate(*this);
 }
 
 Keyid_t Call::generateNextKeyId()

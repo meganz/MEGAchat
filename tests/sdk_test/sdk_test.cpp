@@ -4856,10 +4856,10 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     {
         const MegaChatHandle nonSpeakerId = megaChatApi[nonSpeakerIdx]->getMyUserHandle();
         ExitBoolFlags eF2;
-        // moderatorIdx - onchatCallUpdate(CHANGE_USERS_SPEAK_PERMISSION)
+        // moderatorIdx - onchatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
         addBoolVarAndExitFlag(moderatorIdx, eF2, "UsersSpeakPermAdd", false);
 
-        // moderatorIdx - user handle received at onchatCallUpdate(CHANGE_USERS_SPEAK_PERMISSION)
+        // moderatorIdx - user handle received at onchatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
         handleVars().add(moderatorIdx, "SpeakStatusUserId", MEGACHAT_INVALID_HANDLE);
 
         std::string msgSpeakReq = "add speaker";
@@ -9354,23 +9354,26 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK))
     {
-        boolVars().updateIfExists(apiIndex, "OwnSpeakStatusChanged", true);
-        mOwnSpeakStatusChanged[apiIndex] = true;
-        mOwnSpeakStatus[apiIndex] = call->getSpeakerState();
+        if (call->getHandle() == megaChatApi[apiIndex]->getMyUserHandle())
+        {
+            // TODO adjust use case to unify with behavior below
+            boolVars().updateIfExists(apiIndex, "OwnSpeakStatusChanged", true);
+            mOwnSpeakStatusChanged[apiIndex] = true;
+            mOwnSpeakStatus[apiIndex] = call->getSpeakerState();
+        }
+        else
+        {
+            call->getFlag()
+                ? boolVars().updateIfExists(apiIndex, "UsersSpeakPermAdd", true)
+                : boolVars().updateIfExists(apiIndex, "UsersSpeakPermDel", true);
+
+            handleVars().updateIfExists(apiIndex, "SpeakStatusUserId", call->getHandle());
+        }
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS))
     {
         mOwnCallPermissionsChanged[apiIndex] = true;
-    }
-
-    if (call->hasChanged(MegaChatCall::CHANGE_USERS_SPEAK_PERMISSION))
-    {
-        call->getFlag()
-            ? boolVars().updateIfExists(apiIndex, "UsersSpeakPermAdd", true)
-            : boolVars().updateIfExists(apiIndex, "UsersSpeakPermDel", true);
-
-        handleVars().updateIfExists(apiIndex, "SpeakStatusUserId", call->getHandle());
     }
 
     LOG_debug << "On chat call change state ";
