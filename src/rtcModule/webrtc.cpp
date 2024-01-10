@@ -1981,13 +1981,24 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     }
 
     const karere::Id uh = isOwnUser ? getOwnPeerId() : karere::Id(userid);
-    updateUserSpeakPermision(uh, add, true /*updateSpeakersList*/);
+    updateUserSpeakPermision(uh, add);
     if (add)
     {
         if (isOwnUser) { updateAudioTracks(); }
         else           { updateUserSpeakRequest(uh, false/*add*/); }
     }
     // else => no need to update audio tracks for own user upon SPEAKER_DEL, MUTED command will be received
+
+    if (isSpeakRequestEnabled())
+    {
+        const bool updated = add ? addToSpeakersList(userid) : removeFromSpeakersList(userid);
+        if (updated)
+        {
+            mCallHandler.onUserSpeakStatusUpdate(*this, userid, add);
+        }
+    }
+    // else => i.e moderators have speak permission by default but shouldn'pt be included in speakers list
+
     return true;
 }
 
@@ -2242,7 +2253,7 @@ bool Call::handleModAdd(uint64_t userid)
     }
 
     // moderators have speak permission by default, and shouldn't be in speakers list
-    updateUserSpeakPermision(userid, true, false /*updateSpeakersList*/);
+    updateUserSpeakPermision(userid, true);
     if (!hasSpeakPermission(userid))
     {
         RTCM_LOG_DEBUG("MOD_ADD received, but speak permission could not be updated for user: %s ",
@@ -2287,7 +2298,7 @@ bool Call::handleModDel(uint64_t userid)
 
     if (!hasSpeakPermission(userid))
     {
-        updateUserSpeakPermision(userid, false, false /*updateSpeakersList*/);
+        updateUserSpeakPermision(userid, false);
     }
     // else => If MOD DEL received but speak request is disabled, speaker list won't be received in answer command
 
@@ -2995,24 +3006,11 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
     return true;
 }
 
-bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add, const bool updateSpeakersList)
+bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add)
 {
-    if (isSpeakRequestEnabled() && updateSpeakersList)
-    {
-        add
-            ? addToSpeakersList(userid)
-            : removeFromSpeakersList(userid);
-    }
-    // else => i.e moderators have speak permission by default but shouldn'pt be included in speakers list
-
     if (userid == getOwnPeerId())
     {
         setSpeakerState(add ? SpeakerState::kActive : SpeakerState::kNoSpeaker);
-    }
-    else
-    {
-        // notify change, and in case session is not still verified app will be informed anyway
-        mCallHandler.onUserSpeakStatusUpdate(*this, userid, add);
     }
 
     // for all sessions whose userid matches with received one, update speak permission value
