@@ -124,7 +124,6 @@ public:
     virtual void onRemoteAudioDetected(ISession& session) = 0;
     virtual void onPermissionsChanged(ISession& session) = 0;
     virtual void onRecordingChanged(ISession& session) = 0;
-    virtual void onSpeakStatusUpdate(rtcModule::ISession& session) = 0;
 };
 
 class ISession
@@ -145,7 +144,6 @@ public:
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
     virtual bool isModerator() const = 0;
-    virtual bool hasSpeakPermission() const = 0;
 };
 
 class ICall;

@@ -166,7 +166,6 @@ public:
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
-    void setSpeakPermission(const bool hasSpeakPermission);
     void disableAudioSlot();
     void setSpeakRequested(bool requested);
     void setAudioDetected(bool audioDetected);    
@@ -190,7 +189,6 @@ public:
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
     bool isModerator() const override;
-    bool hasSpeakPermission() const override;
 
 private:
     // Data about the partipant in the call relative to this session

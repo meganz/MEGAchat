@@ -104,7 +104,7 @@ public:
         CHANGE_TYPE_SESSION_ON_HOLD = 0x20,         /// Session is on hold
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
         CHANGE_TYPE_PERMISSIONS = 0x80,             /// Indicates that peer moderator role status has changed
-        CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Speak permission has changed for peer
+        CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Speak permission has changed for peer (deprecated)
         CHANGE_TYPE_SESSION_ON_RECORDING = 0x200,   /// Call has been started/stopped recording by the peer associated to this Session
     };
 
@@ -152,17 +152,6 @@ public:
      * @return MegaChatHandle of the client.
      */
     virtual MegaChatHandle getClientid() const;
-
-    /**
-     * @brief Returns if peer associated to this session is allowed to speak in the call
-     *
-     * The hability to speak in a call depends on two factors:
-     *	1) Peer must have speak permission      (Check MegaChatSession::hasSpeakPermission for more information)
-     *  2) Peer must have audio av flag enabled (unmuted) (Check MegaChatSession::hasAudio for more information)
-     *
-     * @return True if peer associated to this session is allowed to speak in the call
-     */
-    virtual bool isSpeakAllowed() const;
 
     /**
      * @brief Returns if audio flags are enabled for the session (peer is muted or not)
@@ -456,18 +445,6 @@ public:
      * @return True if peer associated to the session is recording the call, otherwise returns false
      */
     virtual bool isRecording() const;
-
-    /**
-     * @brief Returns if peer associated to the session, has speak permission
-     *
-     * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
-     *
-     * A peer with speak permission, is not necessarily abled to speak, it also must have audio flag enabled (unmuted)
-     * Check MegaChatSession::isSpeakAllowed() to know if peer has audio flag enabled
-     *
-     * @return True if peer associated to the session, has permission to speak
-     */
-    virtual bool hasSpeakPermission() const;
 
     /**
      * @brief Returns session av flags in a readable format
@@ -844,7 +821,7 @@ public:
      *
      * @return True if our own peer, has speak permission
      */
-    virtual bool hasSpeakPermission() const;
+    virtual bool hasOwnSpeakPermission() const;
 
     /**
      * @brief Returns if local audio is detected

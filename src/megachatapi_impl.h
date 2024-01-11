@@ -195,7 +195,6 @@ public:
     virtual int getStatus() const override;
     virtual MegaChatHandle getPeerid() const override;
     virtual MegaChatHandle getClientid() const override;
-    bool isSpeakAllowed() const override;
     virtual bool hasAudio() const override;
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
@@ -215,7 +214,6 @@ public:
     virtual bool hasPendingSpeakRequest() const override;
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
-    virtual bool hasSpeakPermission() const override;
     virtual bool isModerator() const override;
 
     char* avFlagsToString() const override;
@@ -240,7 +238,6 @@ private:
     bool mHasHiResTrack = false;
     bool mHasLowResTrack = false;
     bool mIsModerator = false;
-    bool mHasSpeakPermission = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -262,7 +259,7 @@ public:
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
-    bool hasSpeakPermission() const override;
+    bool hasOwnSpeakPermission() const override;
 
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
@@ -766,7 +763,6 @@ public:
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
     void onPermissionsChanged(rtcModule::ISession& session) override;
     void onRecordingChanged(rtcModule::ISession& session) override;
-    void onSpeakStatusUpdate(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;

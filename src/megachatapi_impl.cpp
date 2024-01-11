@@ -7781,7 +7781,6 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , mHasHiResTrack(session.hasHighResolutionTrack())
     , mHasLowResTrack(session.hasLowResolutionTrack())
     , mIsModerator(session.isModerator())
-    , mHasSpeakPermission(session.hasSpeakPermission())
 {
 }
 
@@ -7797,7 +7796,6 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mHasHiResTrack(session.mHasHiResTrack)
     , mHasLowResTrack(session.mHasLowResTrack)
     , mIsModerator(session.isModerator())
-    , mHasSpeakPermission(session.hasSpeakPermission())
 {
 }
 
@@ -7823,11 +7821,6 @@ MegaChatHandle MegaChatSessionPrivate::getPeerid() const
 MegaChatHandle MegaChatSessionPrivate::getClientid() const
 {
     return mClientId;
-}
-
-bool MegaChatSessionPrivate::isSpeakAllowed() const
-{
-    return hasAudio() && hasSpeakPermission();
 }
 
 bool MegaChatSessionPrivate::hasAudio() const
@@ -7942,11 +7935,6 @@ bool MegaChatSessionPrivate::canRecvVideoHiRes() const
 bool MegaChatSessionPrivate::canRecvVideoLowRes() const
 {
     return mHasLowResTrack;
-}
-
-bool MegaChatSessionPrivate::hasSpeakPermission() const
-{
-    return mHasSpeakPermission;
 }
 
 bool MegaChatSessionPrivate::isModerator() const
@@ -8168,7 +8156,7 @@ bool MegaChatCallPrivate::hasChanged(int changeType) const
     return (mChanged & changeType);
 }
 
-bool MegaChatCallPrivate::hasSpeakPermission() const
+bool MegaChatCallPrivate::hasOwnSpeakPermission() const
 {
     return mSpeakerState == SPEAKER_STATUS_ACTIVE;
 }
@@ -8349,7 +8337,7 @@ bool MegaChatCallPrivate::isOnHold() const
 
 bool MegaChatCallPrivate::isSpeakAllowed() const
 {
-    return hasSpeakPermission() && hasLocalAudio();
+    return hasOwnSpeakPermission() && hasLocalAudio();
 }
 
 int MegaChatCallPrivate::getNetworkQuality() const
@@ -11656,13 +11644,6 @@ void MegaChatSessionHandler::onRecordingChanged(rtcModule::ISession& session)
 {
     std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setRecording(session.getAvFlags().isRecording());
-    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
-}
-
-void MegaChatSessionHandler::onSpeakStatusUpdate(rtcModule::ISession& session)
-{
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
-    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 

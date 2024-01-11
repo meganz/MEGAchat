@@ -1728,7 +1728,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 // 1) if speak request is disabled, peer is included in speakers list, or it's moderator
                 const auto& uh = s.second->getPeerid();
                 const auto cid = s.second->getClientid();
-                s.second->setSpeakPermission(hasSpeakPermission(uh.val));
 
                 // 2) if is currently sending audio (valid amid received)
                 const auto it = amidmap.find(cid);
@@ -2143,8 +2142,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
             Session* session = getSession(peer->getCid());
             if (session)
             {
-                // update speak permission and speak request status for verified peer session
-                session->setSpeakPermission(isOnSpeakersList(peer->getPeerid()));
+                // update speak request status for verified peer session
                 session->setSpeakRequested(isOnSpeakRequestsList(peer->getPeerid()));
             }
         })
@@ -3016,28 +3014,6 @@ bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add)
     if (userid == getOwnPeerId())
     {
         setSpeakerState(add ? SpeakerState::kActive : SpeakerState::kNoSpeaker);
-    }
-
-    // for all sessions whose userid matches with received one, update speak permission value
-    for (auto& it : mPeersVerification)
-    {
-        promise::Promise<void>* pms = &it.second;
-        auto wptr = weakHandle();
-        pms->then([this, &cid = it.first, userid, add, wptr]()
-        {
-            if (wptr.deleted())  { return; }
-            Session* session = getSession(cid);
-            if (!session || session->getPeerid() != userid)
-            {
-                return;
-            }
-            session->setSpeakPermission(add);
-        })
-        .fail([&cid = it.first](const ::promise::Error&)
-        {
-            RTCM_LOG_WARNING("updateUserSpeakPermission: PeerVerification promise was rejected for cid: %u", cid);
-            return;
-        });
     }
     return true;
 }
@@ -4761,11 +4737,6 @@ bool Session::isModerator() const
     return mPeer.isModerator();
 }
 
-bool Session::hasSpeakPermission() const
-{
-    return mPeer.hasSpeakPermission();
-}
-
 void Session::notifyHiResReceived()
 {
     mSessionHandler->onHiResReceived(*this);
@@ -4830,16 +4801,6 @@ void Session::setRemoteAvFlags(karere::AvFlags flags)
     if (recordingChanged)   { mSessionHandler->onRecordingChanged(*this); }
     if (onHoldChanged)      { mSessionHandler->onOnHold(*this); }
     if (onAvChanged)        { mSessionHandler->onRemoteFlagsChanged(*this); }
-}
-
-void Session::setSpeakPermission(const bool hasSpeakPermission)
-{
-    if (hasSpeakPermission == mPeer.hasSpeakPermission())
-    {
-        return;
-    }
-    mPeer.setSpeakPermission(hasSpeakPermission);
-    mSessionHandler->onSpeakStatusUpdate(*this);
 }
 
 RemoteAudioSlot *Session::getAudioSlot()

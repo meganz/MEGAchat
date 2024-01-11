@@ -4606,7 +4606,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         ASSERT_EQ(call->isOwnModerator(), isMod) << "Unexpected call permission for account: " << idx
                                                  << " call: " << getCallIdStrB64(call->getCallId());
 
-        ASSERT_EQ(call->hasSpeakPermission(), expSpeakPermission) << "Unexpected speak permission for account: "
+        ASSERT_EQ(call->hasOwnSpeakPermission(), expSpeakPermission) << "Unexpected speak permission for account: "
                                                                   << idx << " call: " << getCallIdStrB64(call->getCallId());
     };
 
@@ -4815,7 +4815,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         ASSERT_TRUE(peerCall) << "Cannot get call in chat: " << getChatIdStrB64(mData.mChatid)
                               << " for account " << std::to_string(peerIdx);
 
-        ASSERT_TRUE(!peerCall->hasSpeakPermission()) << "own speak permission not expected for userid: "
+        ASSERT_TRUE(!peerCall->hasOwnSpeakPermission()) << "own speak permission not expected for userid: "
                                                      << getUserIdStrB64(userid);
     };
 
@@ -5199,7 +5199,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
 
         // check own speak permissions
         ASSERT_TRUE(call->isOwnModerator() || !isMod) << "Unexpected call permission for account: " << performerIdx;
-        ASSERT_TRUE(call->hasSpeakPermission() || !isMod) << "Unexpected speak permission for account: " << performerIdx;
+        ASSERT_TRUE(call->hasOwnSpeakPermission() || !isMod) << "Unexpected speak permission for account: " << performerIdx;
         ASSERT_TRUE(!call->hasLocalAudio()) << "Audio is flag is enabled for account: " << performerIdx;
 
         // check speak permissions for the rest of participants

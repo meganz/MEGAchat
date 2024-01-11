@@ -69,11 +69,6 @@ MegaChatHandle MegaChatSession::getClientid() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-bool MegaChatSession::isSpeakAllowed() const
-{
-    return false;
-}
-
 bool MegaChatSession::hasAudio() const
 {
     return false;
@@ -175,11 +170,6 @@ bool MegaChatSession::isRecording() const
     return false;
 }
 
-bool MegaChatSession::hasSpeakPermission() const
-{
-    return false;
-}
-
 char* MegaChatSession::avFlagsToString() const
 {
     return NULL;
@@ -252,7 +242,7 @@ bool MegaChatCall::hasChanged(int ) const
     return false;
 }
 
-bool MegaChatCall::hasSpeakPermission() const
+bool MegaChatCall::hasOwnSpeakPermission() const
 {
     return false;
 }
