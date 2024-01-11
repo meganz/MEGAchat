@@ -74,7 +74,15 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     layout()->addWidget(mTitleLabel.get());
     setToolTip(title.c_str());
 
-    bool speakPermission = session.hasSpeakPermission();
+    const auto chatid = mMeetingView->getChatid();
+    std::unique_ptr<megachat::MegaChatCall> call(mMeetingView->megachatApi().getChatCall(chatid));
+    if (!call)
+    {
+        assert(false); // call should exists at this point
+        return;
+    }
+
+    const bool speakPermission = call->hasUserSpeakPermission(session.getPeerid());
     QPixmap spkPerPixMap = speakPermission
                                ? QApplication::style()->standardPixmap(QStyle::SP_DialogYesButton)
                                : QApplication::style()->standardPixmap(QStyle::SP_DialogNoButton);

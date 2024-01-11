@@ -253,6 +253,16 @@ bool MeetingView::hasHiResByCid(uint32_t cid)
     return mHiResWidget.find(cid) != mHiResWidget.end();
 }
 
+megachat::MegaChatHandle MeetingView::getChatid()
+{
+    return mChatid;
+}
+
+megachat::MegaChatApi& MeetingView::megachatApi()
+{
+    return mMegaChatApi;
+}
+
 std::string MeetingView::callStateToString(const ::megachat::MegaChatCall &call)
 {
     switch (call.getStatus())

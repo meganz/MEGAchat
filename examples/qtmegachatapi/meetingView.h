@@ -38,6 +38,8 @@ public:
     void setNotParticipating();
     void setConnecting();
     static std::string callStateToString(const megachat::MegaChatCall& call);
+    megachat::MegaChatHandle getChatid();
+    megachat::MegaChatApi& megachatApi();
 
     // methods to add/remove video widgets
     bool hasLowResByCid(uint32_t cid);
@@ -50,7 +52,7 @@ public:
     void destroyRingingWindow();
 
 protected:
-    megachat::MegaChatApi &mMegaChatApi;
+    megachat::MegaChatApi& mMegaChatApi;
     mega::MegaHandle mChatid;
     int mNetworkQuality = ::megachat::MegaChatCall::NETWORK_QUALITY_GOOD;
 
