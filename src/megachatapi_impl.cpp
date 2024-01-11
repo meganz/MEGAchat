@@ -2427,6 +2427,13 @@ int MegaChatApiImpl::performRequest_addDelspeakRequest(MegaChatRequestPrivate* r
     }
 
     rtcModule::ICall* call= res.second;
+
+    if (!add && !call->hasPendingSpeakRequest())
+    {
+        API_LOG_ERROR("%s - userid doesn't has a pending speak request in flight");
+        return MegaChatError::ERROR_NOENT;
+    }
+
     if (add && (call->hasOwnUserSpeakPermission() || call->hasPendingSpeakRequest()))
     {
         API_LOG_ERROR("%s - userid already has ", call->hasOwnUserSpeakPermission()

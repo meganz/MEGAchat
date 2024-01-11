@@ -1468,13 +1468,9 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         return false;
     }
 
-    if (!speakReqs.empty()
-        && (!isSpeakRequestEnabled() || !isOwnPrivModerator()))
+    if (!speakReqs.empty() && !isSpeakRequestEnabled())
     {
-        const std::string errMsg = !isSpeakRequestEnabled()
-                                       ? "handleAnswerCommand: we shouldn't receive speak requests if that option is disabled for chatroom"
-                                       : "handleAnswerCommand: we shouldn't receive speak requests if we are non moderator";
-
+        const std::string errMsg = "handleAnswerCommand: we shouldn't receive speak requests if that option is disabled for chatroom";
         RTCM_LOG_WARNING("%s", errMsg.c_str());
         assert(false);
         orderedCallDisconnect(TermCode::kUserHangup, errMsg);
@@ -2036,7 +2032,6 @@ bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
     }
     else
     {
-        assert(isOwnPrivModerator());
         updateUserSpeakRequest(userid, add);
     }
     return true;
