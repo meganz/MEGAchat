@@ -104,7 +104,7 @@ public:
         CHANGE_TYPE_SESSION_ON_HOLD = 0x20,         /// Session is on hold
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
         CHANGE_TYPE_PERMISSIONS = 0x80,             /// Indicates that peer moderator role status has changed
-        CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Speak permission has changed for peer (deprecated)
+        CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Deprecated - Speak permission has changed for peer
         CHANGE_TYPE_SESSION_ON_RECORDING = 0x200,   /// Call has been started/stopped recording by the peer associated to this Session
     };
 
