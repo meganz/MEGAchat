@@ -552,8 +552,7 @@ protected:
     CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
 
-    // list of active speakers that is updated with ANSWER, SPEAKER_ADD, SPEAKER_DEL and MOD_ADD commands
-    // moderators are not included in this list
+    // list of user handles of all users that have been given speak permission (moderators not included)
     std::set<karere::Id> mSpeakers;
 
     // list of speak requests

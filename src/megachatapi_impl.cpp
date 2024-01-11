@@ -8161,6 +8161,31 @@ bool MegaChatCallPrivate::hasOwnSpeakPermission() const
     return mSpeakerState == SPEAKER_STATUS_ACTIVE;
 }
 
+bool MegaChatCallPrivate::hasUserSpeakPermission(const MegaChatHandle uh) const
+{
+    if (!isSpeakRequestEnabled())
+    {
+        return true;
+    }
+
+    for (unsigned int i = 0; i < mModerators->size(); ++i)
+    {
+        if (mModerators->get(i) == uh)
+        {
+            return true;
+        }
+    }
+
+    for (unsigned int i = 0; i < mSpeakersList->size(); ++i)
+    {
+        if (mSpeakersList->get(i) == uh)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
 int64_t MegaChatCallPrivate::getDuration() const
 {
     int64_t duration = 0;
@@ -8335,7 +8360,7 @@ bool MegaChatCallPrivate::isOnHold() const
     return mLocalAVFlags.isOnHold();
 }
 
-bool MegaChatCallPrivate::isSpeakAllowed() const
+bool MegaChatCallPrivate::isOwnSpeakAllowed() const
 {
     return hasOwnSpeakPermission() && hasLocalAudio();
 }

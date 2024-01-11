@@ -833,6 +833,20 @@ public:
     virtual bool isAudioDetected() const;
 
     /**
+     * @brief Returns if all clients for the same user account have permission to speak in this call
+     *
+     * The hability to speak in a call, not only depends on having permission to speak,
+     * but also audio av flags must be enabled for that user (unmuted), so you need to
+     * call MegaChatSession::hasAudio to check if a specific participant has audio av flags enabled.
+     *
+     * @note: If this method returns true, it means that all clients for the same user account has permission to speak
+     * in this call
+     *
+     * @return true if all clients for the same user account have permission to speak in this call, otherwise returns false
+     */
+    virtual bool hasUserSpeakPermission(const MegaChatHandle /*uh*/) const;
+
+    /**
      * @brief Return call duration
      *
      * @note If the call is not finished yet, the returned value represents the elapsed time
@@ -1173,7 +1187,7 @@ public:
      *
      * @return True if our own user is allowed to speak in the call
      */
-    virtual bool isSpeakAllowed() const;
+    virtual bool isOwnSpeakAllowed() const;
 
     /**
      * @brief Returns network quality

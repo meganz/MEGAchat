@@ -247,6 +247,11 @@ bool MegaChatCall::hasOwnSpeakPermission() const
     return false;
 }
 
+bool MegaChatCall::hasUserSpeakPermission(const MegaChatHandle /*uh*/) const
+{
+    return false;
+}
+
 int64_t MegaChatCall::getDuration() const
 {
     return 0;
@@ -377,7 +382,7 @@ const char* MegaChatCall::getGenericMessage() const
     return NULL;
 }
 
-bool MegaChatCall::isSpeakAllowed() const
+bool MegaChatCall::isOwnSpeakAllowed() const
 {
     return false;
 }

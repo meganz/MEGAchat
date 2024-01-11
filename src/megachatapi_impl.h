@@ -261,6 +261,7 @@ public:
     virtual bool hasChanged(int changeType) const override;
     bool hasOwnSpeakPermission() const override;
 
+    virtual bool hasUserSpeakPermission(const MegaChatHandle uh) const override;
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;
@@ -285,7 +286,7 @@ public:
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     const char* getGenericMessage() const override;
-    bool isSpeakAllowed() const override;
+    bool isOwnSpeakAllowed() const override;
     int getNetworkQuality() const override;
     bool hasPendingSpeakRequest() const override;
     int getWrJoiningState() const override;
