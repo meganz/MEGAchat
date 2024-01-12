@@ -87,7 +87,6 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
                                ? QApplication::style()->standardPixmap(QStyle::SP_DialogYesButton)
                                : QApplication::style()->standardPixmap(QStyle::SP_DialogNoButton);
 
-
     mSpkPermLabel.reset(new QLabel());
     mSpkPermLabel->setPixmap(spkPerPixMap);
     layout()->addWidget(mSpkPermLabel.get());

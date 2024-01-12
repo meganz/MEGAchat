@@ -237,8 +237,8 @@ public:
     virtual bool handleHiResStopCommand() = 0;
     virtual bool handleSpeakerAddDelCommand(const uint64_t userid, const bool add) = 0;
     virtual bool handleSpeakReqAddDelCommand(const uint64_t userid, const bool add) = 0;
-    virtual bool handleModAdd (uint64_t userid) = 0;
-    virtual bool handleModDel (uint64_t userid) = 0;
+    virtual bool handleModAdd(uint64_t userid) = 0;
+    virtual bool handleModDel(uint64_t userid) = 0;
     virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
                              bool speakRequest, const sfu::WrUserList& wrUsers) = 0;
