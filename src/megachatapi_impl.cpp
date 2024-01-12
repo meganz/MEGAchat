@@ -8217,6 +8217,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mParticipants = call.mParticipants;
     mHandleList.reset(call.getHandleList() ? call.getHandleList()->copy() : nullptr);
     mSpeakRequest = call.isSpeakRequestEnabled();
+    mAuxHandle = call.getAuxHandle();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
