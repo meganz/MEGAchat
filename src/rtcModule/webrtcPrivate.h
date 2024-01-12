@@ -167,7 +167,6 @@ public:
     RemoteVideoSlot* getHiResSlot();
 
     void disableAudioSlot();
-    void setSpeakRequested(bool requested);
     void setAudioDetected(bool audioDetected);    
     void notifyHiResReceived();
     void notifyLowResReceived();
@@ -180,7 +179,6 @@ public:
     SessionState getState() const override;
     karere::AvFlags getAvFlags() const override;
     bool isAudioDetected() const override;
-    bool hasRequestSpeak() const override;
     TermCode getTermcode() const override;
     void setTermcode(TermCode termcode) override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
@@ -203,8 +201,6 @@ private:
 
     // To notify events about the session to the app (intermediate layer)
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
-
-    bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
 
     // Session starts directly in progress: the SFU sends the tracks immediately from new peer
@@ -327,10 +323,6 @@ public:
     bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
     bool hasUserPendingSpeakRequest(const karere::Id& uh) const override;
     int getWrJoiningState() const override;
-
-    // get the list of users that have requested to speak
-    std::vector<Cid_t> getSpeakerRequested() override;
-
     void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;

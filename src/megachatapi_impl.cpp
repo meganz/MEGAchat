@@ -7776,7 +7776,6 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const rtcModule::ISession &sessio
     , mAvFlags(session.getAvFlags())
     , mTermCode(convertTermCode(session.getTermcode()))
     , mChanged(CHANGE_TYPE_NO_CHANGES)
-    , mHasRequestSpeak(session.hasRequestSpeak())
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.hasHighResolutionTrack())
     , mHasLowResTrack(session.hasLowResolutionTrack())
@@ -11522,6 +11521,15 @@ void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::st
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+void MegaChatCallHandler::onSpeakRequest(const rtcModule::ICall& call, const Id& userid, const bool add)
+{
+    auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setHandle(userid);
+    chatCall->setFlag(add);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
 void MegaChatCallHandler::onUserSpeakStatusUpdate(const rtcModule::ICall& call, const Id& userid, const bool add)
 {
     auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
@@ -11612,13 +11620,6 @@ MegaChatSessionHandler::MegaChatSessionHandler(MegaChatApiImpl *megaChatApi, con
 
 MegaChatSessionHandler::~MegaChatSessionHandler()
 {
-}
-
-void MegaChatSessionHandler::onSpeakRequest(rtcModule::ISession &session)
-{
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
-    megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED);
-    mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
 void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)

@@ -4628,11 +4628,11 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     {
         const MegaChatHandle requesterId = megaChatApi[requesterIdx]->getMyUserHandle();
         ExitBoolFlags eF;
-        // moderatorIdx - user handle received at onChatSessionUpdate(CHANGE_TYPE_SESSION_SPEAK_REQUESTED)
+        // moderatorIdx - user handle received at onChatCallUpdate(CHANGE_TYPE_SPEAK_REQUESTED)
         handleVars().add(moderatorIdx, "SpeakRequestPeerId", MEGACHAT_INVALID_HANDLE);
 
-        // moderatorIdx - onChatSessionUpdate(CHANGE_TYPE_SESSION_SPEAK_REQUESTED)
-        ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(moderatorIdx, eF, "SessSpeakReqRecv", false));
+        // moderatorIdx - onChatCallUpdate(CHANGE_TYPE_SPEAK_REQUESTED)
+        ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(moderatorIdx, eF, "SpeakReqRecv", false));
 
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1, /* just one attempt */
@@ -4667,10 +4667,10 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         }
         else
         {
-            // moderatorIdx - onChatSessionUpdate(CHANGE_TYPE_SESSION_SPEAK_REQUESTED)
-            addBoolVarAndExitFlag(moderatorIdx, eF2, "SessSpeakReqRecv", false);
+            // moderatorIdx - onChatCallUpdate(CHANGE_TYPE_SPEAK_REQUESTED)
+            addBoolVarAndExitFlag(moderatorIdx, eF2, "SpeakReqRecv", false);
 
-            // moderatorIdx - [reuse] user handle received at onChatSessionUpdate(CHANGE_TYPE_SESSION_SPEAK_REQUESTED)
+            // moderatorIdx - [reuse] user handle received at onChatCallUpdate(CHANGE_TYPE_SPEAK_REQUESTED)
             handleVars().updateIfExists(moderatorIdx, "SpeakRequestPeerId", MEGACHAT_INVALID_HANDLE);
         }
 
@@ -4703,7 +4703,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         else
         {
             ASSERT_EQ(*handleVars().getVar(moderatorIdx, "SpeakRequestPeerId"), requesterId)
-                << "User handle received upon MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED doesn't match with expected one";
+                << "User handle received upon MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED doesn't match with expected one";
         }
     };
 
@@ -5220,10 +5220,10 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
     auto requestSpeak = [this](const unsigned int requesterIdx, const unsigned int moderatorIdx, const bool approve, const MegaChatHandle chatid)
     {
         MegaChatHandle userid = MEGACHAT_INVALID_HANDLE;
-        mSessSpeakRequests[moderatorIdx].clear();
+        mSpeakRequests[moderatorIdx].clear();
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1,
-                          { &mSessSpeakReqRecv[moderatorIdx], &mOwnSpeakStatusChanged[requesterIdx]},
+                          { &mSpeakReqRecv[moderatorIdx], &mOwnSpeakStatusChanged[requesterIdx]},
                           { "mChatCallSpeakReq[moderatorIdx]", "mSpeakStatusChanged[requesterIdx]"},
                           "Send speak request",
                           true /* wait for all exit flags*/,
@@ -5238,9 +5238,9 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
                           });
         });
 
-        ASSERT_EQ(mSessSpeakRequests[moderatorIdx].size(), 1u) << "Unexpected speak request list size for account index: " << moderatorIdx;
-        ASSERT_EQ(mSessSpeakRequests[moderatorIdx].begin()->second, true) << "Speak request not received for account index: " << moderatorIdx;
-        userid = mSessSpeakRequests[moderatorIdx].begin()->first;
+        ASSERT_EQ(mSpeakRequests[moderatorIdx].size(), 1u) << "Unexpected speak request list size for account index: " << moderatorIdx;
+        ASSERT_EQ(mSpeakRequests[moderatorIdx].begin()->second, true) << "Speak request not received for account index: " << moderatorIdx;
+        userid = mSpeakRequests[moderatorIdx].begin()->first;
 
         std::vector<bool*> exitFlags = {&mOwnSpeakStatusChanged[requesterIdx]};
         std::vector<std::string> exitFlagsStr = {"mOwnSpeakStatusChanged[requesterIdx]"};
@@ -5251,7 +5251,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
         }
 
         std::string msgSpeakReq = approve ? "approve speak request" : "reject speak request";
-        mSessSpeakRequests[moderatorIdx].clear();
+        mSpeakRequests[moderatorIdx].clear();
         mUserSpeakPerm[moderatorIdx].clear();
         ASSERT_NO_FATAL_FAILURE({
             waitForAction (1,
@@ -9346,6 +9346,14 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         }
     }
 
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED))
+    {
+        handleVars().updateIfExists(apiIndex, "SpeakRequestPeerId", call->getHandle());
+        boolVars().updateIfExists(apiIndex, "SpeakReqRecv", true);
+        mSpeakRequests[apiIndex][call->getHandle()] = call->getFlag();
+        mSpeakReqRecv[apiIndex] = true;
+    }
+
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
     {
         boolVars().updateIfExists(apiIndex, "OwnFlagsChanged", true);
@@ -9406,12 +9414,6 @@ void MegaChatApiTest::onChatSessionUpdate(MegaChatApi* api, MegaChatHandle,
                 session->getStatus() == MegaChatSession::SESSION_STATUS_IN_PROGRESS;
             mChatSessionWasDestroyed[apiIndex] = mChatSessionWasDestroyed[apiIndex]
                 || !mChatCallSessionStatusInProgress[apiIndex];
-            break;
-        case MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED:
-            handleVars().updateIfExists(apiIndex, "SpeakRequestPeerId", session->getPeerid());
-            boolVars().updateIfExists(apiIndex, "SessSpeakReqRecv", true);
-            mSessSpeakRequests[apiIndex][session->getPeerid()] = session->hasPendingSpeakRequest();
-            mSessSpeakReqRecv[apiIndex] = true;
             break;
         case MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD:
             mChatCallOnHold[apiIndex] = session->isOnHold();

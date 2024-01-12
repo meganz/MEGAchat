@@ -115,7 +115,6 @@ class SessionHandler
 {
 public:
     virtual ~SessionHandler(){}
-    virtual void onSpeakRequest(ISession& session) = 0;
     virtual void onVThumbReceived(ISession& session) = 0;
     virtual void onHiResReceived(ISession& session) = 0;
     virtual void onDestroySession(ISession& session) = 0;
@@ -135,7 +134,6 @@ public:
     virtual karere::AvFlags getAvFlags() const = 0;
     virtual SessionState getState() const = 0;
     virtual bool isAudioDetected() const = 0;
-    virtual bool hasRequestSpeak() const = 0;
     virtual TermCode getTermcode() const = 0;
     virtual void setTermcode(TermCode termcode) = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
@@ -172,6 +170,7 @@ public:
     virtual void onWrPushedFromCall(const rtcModule::ICall& call) = 0;
     virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
     virtual void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
+    virtual void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
 };
 
 class KarereWaitingRoom;
@@ -225,7 +224,6 @@ public:
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
     virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
-    virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;

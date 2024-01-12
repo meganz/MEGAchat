@@ -98,7 +98,7 @@ public:
         CHANGE_TYPE_NO_CHANGES = 0x00,              /// Session doesn't have any change
         CHANGE_TYPE_STATUS = 0x01,                  /// Session status has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
-        CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04, /// Session speak requested
+        CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04, /// Deprecated - Session speak requested
         CHANGE_TYPE_SESSION_ON_LOWRES = 0x08,       /// Low-Res video received
         CHANGE_TYPE_SESSION_ON_HIRES = 0x10,        /// Hi-Res video received
         CHANGE_TYPE_SESSION_ON_HOLD = 0x20,         /// Session is on hold
@@ -308,7 +308,7 @@ public:
      *  - MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
-     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04 - Deprecated
      * Check MegaChatSession::hasRequestSpeak
      *
      *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES = 0x08
@@ -325,6 +325,8 @@ public:
      *
      * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
      * Check MegaChatSession::isModerator
+     *
+     * - MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION = 0x100 - Deprecated
      *
      * - MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING = 0x200
      * Check MegaChatSession::isRecording
@@ -369,7 +371,7 @@ public:
      *  - MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
-     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04  - Deprecated
      * Check MegaChatSession::hasRequestSpeak
      *
      *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES = 0x08
@@ -386,6 +388,8 @@ public:
      *
      * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
      * Check MegaChatSession::isModerator
+     *
+     * - MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION = 0x100 - Deprecated
      *
      * - MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING = 0x200
      * Check MegaChatSession::isRecording
@@ -510,6 +514,7 @@ public:
         CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted to enter the call. (just for moderators)
         CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied to enter the call. (just for moderators)
         CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X40000,  /// We have been pushed into a waiting room
+        CHANGE_TYPE_SPEAK_REQUESTED = 0X80000,      /// Speak request added/removed for a call participant
     };
 
     enum

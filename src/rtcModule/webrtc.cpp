@@ -673,21 +673,6 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
-std::vector<Cid_t> Call::getSpeakerRequested()
-{
-    std::vector<Cid_t> speakerRequested;
-
-    for (const auto& session : mSessions)
-    {
-        if (session.second->hasRequestSpeak())
-        {
-            speakerRequested.push_back(session.first);
-        }
-    }
-
-    return speakerRequested;
-}
-
 void Call::requestHighResolutionVideo(Cid_t cid, int quality)
 {
     // If we are requesting high resolution video for a peer, session must exists
@@ -1717,20 +1702,12 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
             for (auto& s: mSessions)
             {
-                // for each session check:
-                // 1) if speak request is disabled, peer is included in speakers list, or it's moderator
-                const auto& uh = s.second->getPeerid();
+                // add speaker if is currently sending audio (valid amid received)
                 const auto cid = s.second->getClientid();
-
-                // 2) if is currently sending audio (valid amid received)
                 const auto it = amidmap.find(cid);
                 if (it != amidmap.end())
                 {
                     addSpeaker(cid, it->second/*amid*/);
-                }
-                else if (isOnSpeakRequestsList(uh)) // 3) if it has pending speak request
-                {
-                    s.second->setSpeakRequested(true);
                 }
             }
 
@@ -2124,13 +2101,6 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                 out.clear();
             }
             addPeerWithEphemKey(*peer, out);
-
-            Session* session = getSession(peer->getCid());
-            if (session)
-            {
-                // update speak request status for verified peer session
-                session->setSpeakRequested(isOnSpeakRequestsList(peer->getPeerid()));
-            }
         })
         .fail([this, userid, peer, addPeerWithEphemKey](const ::promise::Error&)
         {
@@ -3002,27 +2972,7 @@ bool Call::updateUserSpeakRequest(const karere::Id& userid, const bool add)
         ? addToSpeakRequestsList(userid)
         : removeFromSpeakRequestsList(userid);
 
-    // for all sessions whose userid matches with received one, set speak request status
-    for (auto& it : mPeersVerification)
-    {
-        promise::Promise<void>* pms = &it.second;
-        auto wptr = weakHandle();
-        pms->then([this, &cid = it.first, userid, add, wptr]()
-        {
-            if (wptr.deleted())  { return; }
-            Session* session = getSession(cid);
-            if (!session || session->getPeerid() != userid)
-            {
-                return;
-            }
-            session->setSpeakRequested(add);
-        })
-        .fail([&cid = it.first](const ::promise::Error&)
-        {
-            RTCM_LOG_WARNING("updateUserSpeakRequest: PeerVerification promise was rejected for cid: %u", cid);
-            return;
-        });
-    }
+    mCallHandler.onSpeakRequest(*this, userid, add);
     return true;
 }
 
@@ -4725,7 +4675,6 @@ void Session::setHiResSlot(RemoteVideoSlot *slot)
 void Session::setAudioSlot(RemoteAudioSlot *slot)
 {
     mAudioSlot = slot;
-    setSpeakRequested(false);
 }
 
 void Session::addKey(Keyid_t keyid, const std::string &key)
@@ -4811,16 +4760,6 @@ void Session::setModerator(bool isModerator)
     mSessionHandler->onPermissionsChanged(*this);
 }
 
-void Session::setSpeakRequested(bool requested)
-{
-    if (mHasRequestSpeak == requested)
-    {
-        return;
-    }
-    mHasRequestSpeak = requested;
-    mSessionHandler->onSpeakRequest(*this);
-}
-
 const karere::Id& Session::getPeerid() const
 {
     return mPeer.getPeerid();
@@ -4844,11 +4783,6 @@ karere::AvFlags Session::getAvFlags() const
 bool Session::isAudioDetected() const
 {
     return mAudioDetected;
-}
-
-bool Session::hasRequestSpeak() const
-{
-    return mHasRequestSpeak;
 }
 
 AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)

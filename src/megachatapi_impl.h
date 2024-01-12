@@ -729,6 +729,7 @@ public:
     void onWrPushedFromCall(const rtcModule::ICall& call) override;
     void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) override;
     void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
+    void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add);
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -753,7 +754,6 @@ class MegaChatSessionHandler : public rtcModule::SessionHandler
 public:
     MegaChatSessionHandler(MegaChatApiImpl *mMegaChatApi, const rtcModule::ICall& call);
     virtual ~MegaChatSessionHandler();
-    void onSpeakRequest(rtcModule::ISession& session) override;
     void onVThumbReceived(rtcModule::ISession& session) override;
     void onHiResReceived(rtcModule::ISession& session) override;
     void onDestroySession(rtcModule::ISession& session) override;
