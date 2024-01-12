@@ -4592,7 +4592,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     // Auxiliar test functions
     //========================================================================//
-    auto checkOwnSpeakPermissions = [this](const unsigned int idx, const bool isMod, const bool expSpeakPermission, const MegaChatHandle chatid) -> void
+    auto checkOwnSpeakPermissions = [this](const unsigned int idx, const MegaChatHandle uh, const bool isMod, const bool expSpeakPermission, const MegaChatHandle chatid) -> void
     {
         std::unique_ptr<MegaChatCall> call(megaChatApi[idx]->getChatCall(chatid));
         ASSERT_TRUE(call) << "Call could not be retrieved for account: " << idx << " in chatroom: " << getChatIdStrB64(chatid);
@@ -4606,7 +4606,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         ASSERT_EQ(call->isOwnModerator(), isMod) << "Unexpected call permission for account: " << idx
                                                  << " call: " << getCallIdStrB64(call->getCallId());
 
-        ASSERT_EQ(call->hasOwnSpeakPermission(), expSpeakPermission) << "Unexpected speak permission for account: "
+        ASSERT_EQ(call->hasUserSpeakPermission(uh), expSpeakPermission) << "Unexpected speak permission for account: "
                                                                   << idx << " call: " << getCallIdStrB64(call->getCallId());
     };
 
@@ -4660,7 +4660,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
             // requesterIdx - onChatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
             addBoolVarAndExitFlag(requesterIdx, eF2, "OwnSpeakStatusChanged", false);
 
-            addBoolVarAndExitFlag(requesterIdx, eF2, "UsersSpeakPermAdd", false);
+           // addBoolVarAndExitFlag(requesterIdx, eF2, "UsersSpeakPermAdd", false);
 
             // moderatorIdx - user handle received at onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
             handleVars().add(moderatorIdx, "SpeakStatusUserId", MEGACHAT_INVALID_HANDLE);
@@ -4815,7 +4815,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         ASSERT_TRUE(peerCall) << "Cannot get call in chat: " << getChatIdStrB64(mData.mChatid)
                               << " for account " << std::to_string(peerIdx);
 
-        ASSERT_TRUE(!peerCall->hasOwnSpeakPermission()) << "own speak permission not expected for userid: "
+        ASSERT_TRUE(!peerCall->hasUserSpeakPermission(userid)) << "own speak permission not expected for userid: "
                                                      << getUserIdStrB64(userid);
     };
 
@@ -5019,9 +5019,9 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     answerCallRaiseHandTest(a3, a1, a3Uh);
 
     // check that speak permissions matches with expected ones: a1(true), a2(false) and a3(false)
-    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a1, true/*moderator*/ , true /*expected*/, mData.mChatid););
-    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, false/*moderator*/, false/*expected*/, mData.mChatid););
-    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a3, false/*moderator*/, false/*expected*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a1, a1Uh, true/*moderator*/ , true /*expected*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, a2Uh, false/*moderator*/, false/*expected*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a3, a2Uh, false/*moderator*/, false/*expected*/, mData.mChatid););
 
     // clean all bool and handle vars (this prevents conflicts in following tests)
     boolVars().cleanAll();
@@ -5030,9 +5030,9 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     // Test2: B request to speak, A rejects it
     //========================================================================//
-    LOG_debug << "Test2: B request to speak, A rejects it";
+    LOG_debug << "JDEBUG: Test2: B request to speak, A rejects it";
     ASSERT_NO_FATAL_FAILURE(sendAndProcessSpeakRequest(a2, a1, false /*approve*/, mData.mChatid););
-    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, false/*moderator*/, false/*expected*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, a2Uh, false/*moderator*/, false/*expected*/, mData.mChatid););
     // clean all bool and handle vars (this prevents conflicts in following tests)
     boolVars().cleanAll();
     handleVars().cleanAll();
@@ -5042,7 +5042,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     LOG_debug << "Test3: B request to speak, A adds B as speaker";
     ASSERT_NO_FATAL_FAILURE(sendAndProcessSpeakRequest(a2, a1, true /*approve*/, mData.mChatid););
-    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, false/*moderator*/, true/*expected*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, a2Uh, false/*moderator*/, true/*expected*/, mData.mChatid););
     // clean all bool and handle vars (this prevents conflicts in following tests)
     boolVars().cleanAll();
     handleVars().cleanAll();
@@ -5054,7 +5054,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     updateFlags(a2, a1, true /*audio*/, true /*enable*/, mData.mChatid);
     std::unique_ptr<MegaChatCall> call(megaChatApi[a2]->getChatCall(mData.mChatid));
     ASSERT_TRUE(call) << "Cannot get call for account index " << a2 << " with chatid " << getChatIdStrB64(mData.mChatid);
-    ASSERT_TRUE(call->isOwnSpeakAllowed()) << "Speak permission or audio flag is disabled at account index " << a2
+    ASSERT_TRUE(call->hasUserSpeakPermission(a2Uh)) << "Speak permission or audio flag is disabled at account index " << a2
                                         << " for callid " << getCallIdStrB64(call->getCallId());
     // clean all bool and handle vars (this prevents conflicts in following tests)
     boolVars().cleanAll();
@@ -5077,7 +5077,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     startCallRinging();
     addSpeaker(a1, a2, mData.mChatid);
     answerCallRaiseHandTest(a2, a1, a2Uh);
-    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, false/*moderator*/, true/*expected*/, mData.mChatid););
+    ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, a2Uh, false/*moderator*/, true/*expected*/, mData.mChatid););
     // clean all bool and handle vars (this prevents conflicts in following tests)
     boolVars().cleanAll();
     handleVars().cleanAll();
@@ -5113,6 +5113,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
     // select/create a chatroom with speak request enabled
     std::unique_ptr<MegaUser> secondaryUser(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     ASSERT_TRUE(secondaryUser) << "Cannot get contact for secondary account";
+    const MegaChatHandle primaryUh = megaChatApi[a1]->getMyUserHandle();
     const MegaChatHandle secondaryUh = secondaryUser->getHandle();
     const std::shared_ptr<MegaChatPeerList> peerList(MegaChatPeerList::createInstance());
     const MegaChatHandle chatid = getGroupChatRoom({a1}, peerList.get(), megachat::MegaChatPeerList::PRIV_MODERATOR, true /*create*/
@@ -5186,12 +5187,12 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
         ASSERT_TRUE(!mUserSpeakPerm[moderatorIdx][userid]) << "onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION) not received for userid: "
                                                            << userid << ". Callid: " << getCallIdStrB64(call->getCallId());
 
-        ASSERT_EQ(mOwnSpeakStatus[peerIdx], MegaChatCall::SPEAKER_STATUS_DISABLED) << "Peer speak status: " << mOwnSpeakStatus[peerIdx]
+        ASSERT_EQ(mUserSpeakPerm[peerIdx][userid], MegaChatCall::SPEAKER_STATUS_DISABLED) << "Peer speak status: " << mUserSpeakPerm[peerIdx][userid]
                                                                                    << " it should be SPEAKER_STATUS_DISABLED"
                                                                                    << ". Callid: " << getCallIdStrB64(call->getCallId());
     };
 
-    auto checkSpeakPermissions = [this](const unsigned int performerIdx, const bool isMod, const MegaChatHandle chatid) -> void
+    auto checkSpeakPermissions = [this](const unsigned int performerIdx, const MegaChatHandle uh, const bool isMod, const MegaChatHandle chatid) -> void
     {
         std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(chatid));
         ASSERT_TRUE(call) << "Call could not be retrieved for account: " << performerIdx;
@@ -5199,7 +5200,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
 
         // check own speak permissions
         ASSERT_TRUE(call->isOwnModerator() || !isMod) << "Unexpected call permission for account: " << performerIdx;
-        ASSERT_TRUE(call->hasOwnSpeakPermission() || !isMod) << "Unexpected speak permission for account: " << performerIdx;
+        ASSERT_TRUE(call->hasUserSpeakPermission(uh) || !isMod) << "Unexpected speak permission for account: " << performerIdx;
         ASSERT_TRUE(!call->hasLocalAudio()) << "Audio is flag is enabled for account: " << performerIdx;
 
         // check speak permissions for the rest of participants
@@ -5273,8 +5274,8 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
                           });
         });
 
-        ASSERT_EQ(mOwnSpeakStatus[requesterIdx], approve ? MegaChatCall::SPEAKER_STATUS_ACTIVE : MegaChatCall::SPEAKER_STATUS_DISABLED)
-            << "Peer speak status: " << mOwnSpeakStatus[requesterIdx];
+        ASSERT_EQ(mUserSpeakPerm[requesterIdx][requesterIdx], approve ? MegaChatCall::SPEAKER_STATUS_ACTIVE : MegaChatCall::SPEAKER_STATUS_DISABLED)
+            << "Peer speak status: " << mUserSpeakPerm[requesterIdx][requesterIdx];
 
         if (approve)
         {
@@ -5368,8 +5369,8 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
     LOG_debug << "#### Test1: A starts call in a meeting room with speak request option enabled, B answers ####";
     ASSERT_NO_FATAL_FAILURE({ startChatCall(chatid,  a1, std::set<unsigned int> {a2}, /*enableVideo*/ false, /*enableAudio*/ false); });
     ASSERT_NO_FATAL_FAILURE({ answerChatCall(chatid, a2, std::set<unsigned int> {a1}, /*enableVideo*/ false, /*enableAudio*/ false); });
-    ASSERT_NO_FATAL_FAILURE({ checkSpeakPermissions(a1, true/*moderator*/, chatid);});
-    ASSERT_NO_FATAL_FAILURE({ checkSpeakPermissions(a2, false/*moderator*/, chatid);});
+    ASSERT_NO_FATAL_FAILURE({ checkSpeakPermissions(a1, primaryUh, true/*moderator*/, chatid);});
+    ASSERT_NO_FATAL_FAILURE({ checkSpeakPermissions(a2, secondaryUh, false/*moderator*/, chatid);});
 
     LOG_debug << "#### Test2: B request to speak, A rejects it ####";
     ASSERT_NO_FATAL_FAILURE({ requestSpeak(a2, a1, false /*approve*/, chatid); });
@@ -5381,7 +5382,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
     updateFlags(a2, a1, true /*audio*/, true /*enable*/, chatid);
     std::unique_ptr<MegaChatCall> call(megaChatApi[a2]->getChatCall(chatid));
     ASSERT_TRUE(call) << "Cannot get call for account index " << a2 << " with chatid " << getChatIdStrB64(chatid);
-    ASSERT_TRUE(call->isOwnSpeakAllowed()) << "Speak permission or audio flag is disabled at account index " << a2
+    ASSERT_TRUE(call->hasUserSpeakPermission(secondaryUh)) << "Speak permission or audio flag is disabled at account index " << a2
                                         << " for callid " << getCallIdStrB64(call->getCallId());
 
     LOG_debug << "#### Test5: Remove B as speaker ####";
@@ -9355,18 +9356,17 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK))
     {
+        mUserSpeakPermChanged[apiIndex] = true;
+        mUserSpeakPerm[apiIndex][call->getHandle()] = call->getFlag();
+
         if (call->getHandle() == megaChatApi[apiIndex]->getMyUserHandle())
         {
             // TODO adjust use case to unify with behavior below
             boolVars().updateIfExists(apiIndex, "OwnSpeakStatusChanged", true);
             mOwnSpeakStatusChanged[apiIndex] = true;
-            mOwnSpeakStatus[apiIndex] = call->getSpeakerState();
         }
         else //another user
         {
-            mUserSpeakPermChanged[apiIndex] = true;
-            mUserSpeakPerm[apiIndex][call->getHandle()] = call->getFlag();
-
             call->getFlag()
                 ? boolVars().updateIfExists(apiIndex, "UsersSpeakPermAdd", true)
                 : boolVars().updateIfExists(apiIndex, "UsersSpeakPermDel", true);

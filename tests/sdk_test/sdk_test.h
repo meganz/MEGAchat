@@ -872,7 +872,6 @@ protected:
     bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
     bool mOwnCallPermissionsChanged[NUM_ACCOUNTS];
     bool mSessSpeakReqRecv[NUM_ACCOUNTS];
-    unsigned mOwnSpeakStatus[NUM_ACCOUNTS];
     std::map<::megachat::MegaChatHandle, bool> mUserSpeakPerm[NUM_ACCOUNTS];
     std::map<::megachat::MegaChatHandle, bool> mSessSpeakRequests[NUM_ACCOUNTS];
 #endif
