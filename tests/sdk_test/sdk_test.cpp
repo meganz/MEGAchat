@@ -4415,6 +4415,10 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     ASSERT_NE(a1Cid, MEGACHAT_INVALID_HANDLE) << "Invalid client id for primary session";
 
     LOG_debug << "#### Test3: A mutes B in call ####";
+    LOG_debug << "\tSwitching to staging (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
+
     bool* remoteAvFlagsChanged = &mChatCallAudioDisabled[a1]; *remoteAvFlagsChanged = false; // a2 will receive onChatSessionUpdate (CHANGE_TYPE_REMOTE_AVFLAGS)
     exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // a2 will receive onChatCallUpdate (CHANGE_TYPE_LOCAL_AVFLAGS)
     addHandleVar(a2, "MutePerformer", MEGACHAT_INVALID_HANDLE); // a2 onChatCallUpdate (MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS)
@@ -4432,6 +4436,8 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
         ASSERT_EQ(*mutePerformerCid, a1Cid) << "Unexpected MutePerformer Cid for account: " << std::to_string(a2);
     });
     ASSERT_TRUE(waitForResponse(remoteAvFlagsChanged)) << "Timeout expired for Primary account receiving AvFlags update for Secondary account";
+    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 
     LOG_debug << "#### Test4: B puts call in hold on ####";
     exitFlag = &mChatCallOnHold[a1]; *exitFlag = false;  // from receiver account
