@@ -213,15 +213,13 @@ public:
     virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
-    virtual bool hasPendingSpeakRequest() const = 0;
-    virtual unsigned int getOwnSpeakerState() const = 0;
+    virtual bool hasUserPendingSpeakRequest(const karere::Id& uh) const = 0;
     virtual int getWrJoiningState() const = 0;
     virtual TermCode getTermCode() const = 0;
     virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(const karere::Id &callerid) = 0;
     virtual bool alreadyParticipating() = 0;
-    virtual bool isSpeakAllow() const = 0;
     virtual void addOrRemoveSpeaker(const karere::Id& user, const bool add) = 0;
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
@@ -234,6 +232,7 @@ public:
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 
+    virtual std::set<karere::Id> getSpeakRequestsList() const = 0;
     virtual std::set<karere::Id> getSpeakersList() const = 0;
     virtual std::set<karere::Id> getParticipants() const = 0;
     virtual std::set<karere::Id> getModerators() const = 0;
@@ -245,7 +244,7 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
-    virtual bool hasOwnUserSpeakPermission() const = 0;
+    virtual bool hasUserSpeakPermission(const uint64_t userid) const = 0;
     virtual bool addDelSpeakRequest(const karere::Id& user, const bool add) = 0;
 };
 

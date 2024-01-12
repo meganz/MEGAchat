@@ -812,18 +812,6 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     /**
-     * @brief Returns if our own peer, has speak permission
-     *
-     * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
-     *
-     * An user with speak permission, is not necessarily abled to speak, it also must have audio av flag enabled (unmuted).
-     * Check MegaChatCall::isSpeakAllowed
-     *
-     * @return True if our own peer, has speak permission
-     */
-    virtual bool hasOwnSpeakPermission() const;
-
-    /**
      * @brief Returns if local audio is detected
      *
      * @deprecated
@@ -1133,21 +1121,6 @@ public:
     virtual bool isOwnClientCaller() const;
 
     /**
-     * @brief Returns the current speak status for our own client
-     *
-     * The value returned by this method is valid just if MegaChatCall::isSpeakRequestEnabled()
-     * returns true.
-     *
-     * This method can return the following values:
-     * - MegaChatCall::SPEAKER_STATUS_DISABLED = 0 => we don't have speak permission
-     * - MegaChatCall::SPEAKER_STATUS_PENDING  = 1 => we are pending to be granted to speak
-     * - MegaChatCall::SPEAKER_STATUS_ACTIVE   = 2 => we have speak permission
-     *
-     * @return the current speak status for our own client
-     */
-    virtual unsigned int getSpeakerState() const;
-
-    /**
      * @brief Returns the handle from user that has started the call
      *
      * This function only returns a valid value when call is or has gone through CALL_STATUS_RING_IN state.
@@ -1177,19 +1150,6 @@ public:
     virtual const char* getGenericMessage() const;
 
     /**
-     * @brief Returns if our own user is allowed to speak in the call
-     *
-     * The hability to speak in a call depends on two factors:
-     *	1) User must have speak permission      (Check MegaChatCall::hasPermissionToSpeak for more information)
-     *  2) User must have audio av flag enabled (unmuted) (Check MegaChatCall::hasLocalAudio for more information)
-     *
-     * @note If there isn't a call in that chatroom, this method returns false
-     *
-     * @return True if our own user is allowed to speak in the call
-     */
-    virtual bool isOwnSpeakAllowed() const;
-
-    /**
      * @brief Returns network quality
      *
      * The valid network quality values are:
@@ -1207,11 +1167,14 @@ public:
     virtual int getNetworkQuality() const;
 
     /**
-     * @brief Returns if our own peer has a speak request pending to be approved by a host
+     * @brief Returns if a user account that participates in a call has a pending speak request in flight
      *
-     * @return true if our own peer has a speak request pending to be approved by a host
+     * @note: speak permission affects to all clients for the same account, so when a speak request is
+     * accepted or rejected, it affects to all clients for the same account.
+     *
+     * @return true if a user account that participates in a call has a pending speak request in flight
      */
-    virtual bool hasPendingSpeakRequest() const;
+    virtual bool hasUserPendingSpeakRequest(const MegaChatHandle /*uh*/) const;
 
     /**
      * @brief Returns our current permission to join the call (just valid if we are in a waiting room)
@@ -1272,6 +1235,19 @@ public:
      * been given speak permission.
      */
     virtual const mega::MegaHandleList* getSpeakersList() const;
+
+    /**
+     * @brief Returns a MegaHandleList that contains the user handles of all non-moderator users that have
+     * a pending speak request in flight
+     *
+     * This method will return a valid MegaHandleList instance even if speak requests list doesn't contain any element
+     *
+     * The MegaChatCall retains the ownership of returned value
+     *
+     * @return a MegaHandleList that contains the user handles of all non-moderator users that have
+     * a pending speak request in flight
+     */
+    virtual const ::mega::MegaHandleList* getSpeakRequestsList() const;
 };
 
 /**

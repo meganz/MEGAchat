@@ -259,7 +259,6 @@ public:
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
-    bool hasOwnSpeakPermission() const override;
 
     virtual bool hasUserSpeakPermission(const MegaChatHandle uh) const override;
     virtual int64_t getDuration() const override;
@@ -282,13 +281,11 @@ public:
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
     virtual bool isOwnClientCaller() const override;
-    virtual unsigned int getSpeakerState() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     const char* getGenericMessage() const override;
-    bool isOwnSpeakAllowed() const override;
     int getNetworkQuality() const override;
-    bool hasPendingSpeakRequest() const override;
+    bool hasUserPendingSpeakRequest(const MegaChatHandle uh) const override;
     int getWrJoiningState() const override;
     const MegaChatWaitingRoom* getWaitingRoom() const override;
     MegaChatHandle getHandle() const override;
@@ -308,6 +305,7 @@ public:
     void setCaller(const karere::Id& caller);
     void setHandleList(const mega::MegaHandleList* handleList);
     void setSpeakersList(const ::mega::MegaHandleList* speakersList);
+    const ::mega::MegaHandleList* getSpeakRequestsList() const override;
     const mega::MegaHandleList* getSpeakersList() const override;
     const mega::MegaHandleList* getHandleList() const override;
     void setNotificationType(int notificationType);
@@ -336,12 +334,12 @@ protected:
     std::unique_ptr<::mega::MegaHandleList> mModerators;
     std::unique_ptr<::mega::MegaHandleList> mHandleList;
     std::unique_ptr<::mega::MegaHandleList> mSpeakersList;
+    std::unique_ptr<::mega::MegaHandleList> mSpeakRequestsList;
     std::unique_ptr<MegaChatWaitingRoom> mMegaChatWaitingRoom;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
     int mNotificationType = MegaChatCall::NOTIFICATION_TYPE_INVALID;
-    unsigned int mSpeakerState = SPEAKER_STATUS_DISABLED;
     bool mIgnored = false;
     bool mRinging = false;
     bool mIsCaller = false;

@@ -475,14 +475,9 @@ int Call::getNetworkQuality() const
     return mNetworkQuality;
 }
 
-bool Call::hasPendingSpeakRequest() const
+bool Call::hasUserPendingSpeakRequest(const karere::Id& uh) const
 {
-    return mSpeakerState == SpeakerState::kPending;
-}
-
-unsigned int Call::getOwnSpeakerState() const
-{
-    return mSpeakerState;
+    return isOnSpeakRequestsList(uh);
 }
 
 int Call::getWrJoiningState() const
@@ -639,23 +634,11 @@ const KarereWaitingRoom* Call::getWaitingRoom() const
     return mWaitingRoom.get();
 }
 
-bool Call::hasOwnUserSpeakPermission() const
-{
-    return mSpeakerState == SpeakerState::kActive;
-}
-
 bool Call::addDelSpeakRequest(const karere::Id& user, const bool add)
 {
     assert(!add || !user.isValid());                            // SPEAKRQ cannot be sent on behalf of another user
-    assert(!add || mSpeakerState == SpeakerState::kNoSpeaker);  // if request speak, speaker state should be kNoSpeaker
-    assert(add  || mSpeakerState == SpeakerState::kPending);    // if request speak is removed, speaker state should be kPending
     mSfuConnection->sendSpeakReqAddDel(user, add);
     return true;
-}
-
-bool Call::isSpeakAllow() const
-{
-    return hasOwnUserSpeakPermission() && getLocalAvFlags().audio();
 }
 
 void Call::addOrRemoveSpeaker(const karere::Id& user, const bool add)
@@ -880,6 +863,11 @@ std::set<karere::Id> Call::getModerators() const
 std::set<karere::Id> Call::getSpeakersList() const
 {
     return mSpeakers;
+}
+
+std::set<karere::Id> Call::getSpeakRequestsList() const
+{
+    return mSpeakRequests;
 }
 
 std::vector<Cid_t> Call::getSessionsCids() const
@@ -1301,7 +1289,7 @@ const karere::Id& Call::getOwnPeerId() const
     return mMyPeer->getPeerid();
 }
 
-bool Call::hasSpeakPermission(const uint64_t userid) const
+bool Call::hasUserSpeakPermission(const uint64_t userid) const
 {
     return !isSpeakRequestEnabled()
            || isOnSpeakersList(userid)
@@ -1498,6 +1486,15 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     // set join offset
     setJoinOffset(static_cast<int64_t>(callJoinOffset));
+
+    if (hasUserSpeakPermission(getOwnPeerId()) && isOnSpeakRequestsList(getOwnPeerId()))
+    {
+        const std::string errMsg = "handleAnswerCommand: Our own user is included on speakers list but also in speak requests list";
+        RTCM_LOG_WARNING("%s", errMsg.c_str());
+        assert(false);
+        orderedCallDisconnect(TermCode::kUserHangup, errMsg);
+        return false;
+    }
 
     // this promise will be resolved when all ephemeral keys (for users with SFU > V0) have been verified and derived
     // in case of any of the keys can't be verified or derived, the peer will be added anyway.
@@ -1737,10 +1734,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 }
             }
 
-            if (hasSpeakPermission(getOwnPeerId()))
+            if (hasUserSpeakPermission(getOwnPeerId()))
             {
-                // own user is speaker
-                setSpeakerState(SpeakerState::kActive);
                 updateAudioTracks();
             }
 
@@ -1981,7 +1976,6 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     }
 
     const karere::Id uh = isOwnUser ? getOwnPeerId() : karere::Id(userid);
-    updateUserSpeakPermision(uh, add);
     if (add)
     {
         if (isOwnUser) { updateAudioTracks(); }
@@ -1989,16 +1983,14 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     }
     // else => no need to update audio tracks for own user upon SPEAKER_DEL, MUTED command will be received
 
-    if (isSpeakRequestEnabled())
+    if (isSpeakRequestEnabled()) // just update speakers list if speak request option is enabled
     {
-        const bool updated = add ? addToSpeakersList(userid) : removeFromSpeakersList(userid);
+        const bool updated = add ? addToSpeakersList(uh) : removeFromSpeakersList(uh);
         if (updated)
         {
-            mCallHandler.onUserSpeakStatusUpdate(*this, userid, add);
+            mCallHandler.onUserSpeakStatusUpdate(*this, uh, add);
         }
     }
-    // else => i.e moderators have speak permission by default but shouldn'pt be included in speakers list
-
     return true;
 }
 
@@ -2018,22 +2010,21 @@ bool Call::handleHiResStopCommand()
 
 bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
 {
-    if (userid == getOwnPeerId()) // own user
+    if (!isSpeakRequestEnabled())
     {
-        if (getOwnSpeakerState() == SpeakerState::kActive)
-        {
-            RTCM_LOG_WARNING("handleSpeakReqAddDelCommand: our own user already has speak permission. Ignore %s",
-                             add ? "SPEAKRQ" : "SPEAKRQ_DEL");
-            return true;
-        }
-        add
-            ? setSpeakerState(SpeakerState::kPending)
-            : setSpeakerState(SpeakerState::kNoSpeaker);
+        RTCM_LOG_WARNING("handleSpeakReqAddDelCommand: speak request option is not enabled for call: %s", getCallid().toString().c_str());
+        return true;
     }
-    else
+
+    if (isOnSpeakRequestsList(userid) == add)
     {
-        updateUserSpeakRequest(userid, add);
+        RTCM_LOG_WARNING("handle %s command. Our own user %s in speak requests list",
+                         add ? "SPEAKRQ" : "SPEAKRQ_DEL", add ? "already is" : "is not");
+
+        return true;
     }
+
+    updateUserSpeakRequest(userid, add);
     return true;
 }
 
@@ -2251,8 +2242,7 @@ bool Call::handleModAdd(uint64_t userid)
     }
 
     // moderators have speak permission by default, and shouldn't be in speakers list
-    updateUserSpeakPermision(userid, true);
-    if (!hasSpeakPermission(userid))
+    if (!hasUserSpeakPermission(userid))
     {
         RTCM_LOG_DEBUG("MOD_ADD received, but speak permission could not be updated for user: %s ",
                        karere::Id(userid).toString().c_str());
@@ -2293,12 +2283,6 @@ bool Call::handleModDel(uint64_t userid)
         removeFromSpeakersList(userid);
         assert(false);
     }
-
-    if (!hasSpeakPermission(userid))
-    {
-        updateUserSpeakPermision(userid, false);
-    }
-    // else => If MOD DEL received but speak request is disabled, speaker list won't be received in answer command
 
     // Note: ex-moderators need be granted speak permission again by a moderator
     RTCM_LOG_DEBUG("MOD_DEL: user[%s] removed from moderators list", karere::Id(userid).toString().c_str());
@@ -3004,28 +2988,11 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
     return true;
 }
 
-bool Call::updateUserSpeakPermision(const karere::Id& userid, const bool add)
-{
-    if (userid == getOwnPeerId())
-    {
-        setSpeakerState(add ? SpeakerState::kActive : SpeakerState::kNoSpeaker);
-    }
-    return true;
-}
-
 bool Call::updateUserSpeakRequest(const karere::Id& userid, const bool add)
 {
     if (!isSpeakRequestEnabled())
     {
         RTCM_LOG_WARNING("speak request option is disabled for call");
-        assert(false);
-        return false;
-    }
-
-    if (userid == getOwnPeerId())
-    {
-        // own user speak requests are managed at Call::setSpeakerState
-        RTCM_LOG_WARNING("updateUserSpeakRequest called for own user id");
         assert(false);
         return false;
     }
@@ -3057,12 +3024,6 @@ bool Call::updateUserSpeakRequest(const karere::Id& userid, const bool add)
         });
     }
     return true;
-}
-
-void Call::setSpeakerState(const SpeakerState state)
-{
-    if (state == mSpeakerState) { return; }
-    mSpeakerState = state;
 }
 
 Keyid_t Call::generateNextKeyId()
@@ -3812,7 +3773,7 @@ void Call::updateAudioTracks()
         return;
     }
 
-    bool audio = mSpeakerState > SpeakerState::kNoSpeaker && getLocalAvFlags().audio();
+    bool audio = hasUserSpeakPermission(mMyPeer->getPeerid()) && getLocalAvFlags().audio();
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
     if (audio && !getLocalAvFlags().isOnHold())
     {

@@ -325,15 +325,12 @@ public:
     void setCallerId(const karere::Id& callerid) override;
     karere::Id getCallid() const override;
     bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
-
-    bool hasPendingSpeakRequest() const override;
+    bool hasUserPendingSpeakRequest(const karere::Id& uh) const override;
     int getWrJoiningState() const override;
-    unsigned int getOwnSpeakerState() const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
 
-    bool isSpeakAllow() const override; // true if request has been approved
     void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
@@ -349,6 +346,7 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
+    std::set<karere::Id> getSpeakRequestsList() const override;
     std::set<karere::Id> getSpeakersList () const override;
     std::set<karere::Id> getModerators() const override;
     std::set<karere::Id> getParticipants() const override;
@@ -363,7 +361,7 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     const KarereWaitingRoom* getWaitingRoom() const override;
-    bool hasOwnUserSpeakPermission() const override;
+    bool hasUserSpeakPermission(const uint64_t userid) const override;
     bool addDelSpeakRequest(const karere::Id& user, const bool add) override;
 
     //
@@ -470,9 +468,7 @@ public:
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
     bool updateUserModeratorStatus(const karere::Id& userid, const bool enable);
-    bool updateUserSpeakPermision(const karere::Id& userid, const bool add);
     bool updateUserSpeakRequest(const karere::Id& userid, const bool add);
-    void setSpeakerState(const SpeakerState state);
 
     // --- speakers list methods ---
     bool addToSpeakersList (const uint64_t userid)              { return mSpeakers.emplace(userid).second; }
@@ -579,9 +575,6 @@ protected:
 
     // audio level monitor is enabled or not
     bool mAudioLevelMonitor = false;
-
-    // state of request to speak for own user in this call
-    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
 
     // state of joining status for our own client, when waiting room is enabled
     sfu::WrState mWrJoiningState = sfu::WrState::WR_UNKNOWN;
@@ -737,7 +730,6 @@ protected:
     bool isDisconnectionTermcode(const TermCode& termCode) const;
     Cid_t getOwnCid() const;
     const karere::Id& getOwnPeerId() const;
-    bool hasSpeakPermission(const uint64_t userid) const;
     void setOwnModerator(bool isModerator);
 
     // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
