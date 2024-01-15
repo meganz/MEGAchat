@@ -5188,6 +5188,9 @@ public:
      * @note If the previewer doesn't explicitely close the preview, it will be lost if the
      * app is closed. A preview of a chat is not persisted in cache.
      *
+     * @note if the onRequestFinish error is MegaChatError::ERROR_EXIST, chatroom may have changed,
+     * so you should retrieve it again by calling MegaChatApi::getChatRoom
+     *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getLink - Returns the chat link.
