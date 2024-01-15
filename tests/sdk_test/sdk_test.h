@@ -530,7 +530,7 @@ public:
     };
 
     MegaChatApiTest();
-    ~MegaChatApiTest();
+    ~MegaChatApiTest() override;
 
     // Global test environment initialization
     static void init();
@@ -554,6 +554,9 @@ protected:
 
     // email and password parameter is used if you don't want to use default values for accountIndex
     char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
+    bool chatApiInit(unsigned accountIndex, const char *session = nullptr);
+    bool chatApiLogin(unsigned accountIndex, const char *session = nullptr, const char *email = nullptr, const char *password = nullptr);
+    bool chatApiJoinAll(unsigned accountIndex, const char *email = nullptr);
     void logout(unsigned int accountIndex, bool closeSession = false);
 
 public:
@@ -956,6 +959,8 @@ public:
     bool msgDelivered[NUM_ACCOUNTS];
     bool msgReceived[NUM_ACCOUNTS];
     bool msgEdited[NUM_ACCOUNTS];
+    bool msgDeleted[NUM_ACCOUNTS];
+    bool msgSeen[NUM_ACCOUNTS] = {};
     bool msgRejected[NUM_ACCOUNTS];
     bool msgAttachmentReceived[NUM_ACCOUNTS];
     bool msgContactReceived[NUM_ACCOUNTS];
@@ -1105,6 +1110,11 @@ public:
     std::string getText() const
     {
         return (finished() && request && request->getText()) ? request->getText() : std::string();
+    }
+
+    long long getNumber() const
+    {
+        return (finished() && request) ? request->getNumber() : 0;
     }
 
     bool getFlag() const

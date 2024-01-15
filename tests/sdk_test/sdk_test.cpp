@@ -113,32 +113,19 @@ MegaChatApiTest::~MegaChatApiTest()
 {
 }
 
-char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, const char *email, const char *password)
+bool MegaChatApiTest::chatApiInit(unsigned accountIndex, const char *session)
 {
-    std::string mail;
-    std::string pwd;
-    if (email == NULL || password == NULL)
-    {
-        mail = account(accountIndex).getEmail();
-        pwd = account(accountIndex).getPassword();
-    }
-    else
-    {
-        mail = email;
-        pwd = password;
-    }
-
     // Every karere::Client will add another logger -- will instantiate a MyMegaApi member,
     // which will instantiate a new MyMegaLogger member, which (by default) will call
     // MegaApi::addLoggerObject() which will add it to g_externalLogger.
     // That has led to duplicated messages in the log file. Below is an attempt to work around that.
     g_externalLogger.useOnlyFirstLogger();
 
-    // 1. Initialize chat engine
+    // Initialize chat engine
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     int initializationState = megaChatApi[accountIndex]->init(session);
     EXPECT_GE(initializationState, 0) << "MegaChatApiImpl::init returned error";
-    if (initializationState < 0) return nullptr;
+    if (initializationState < 0) return false;
     MegaApi::removeLoggerObject(logger());
 
     // MegaChatApi::INIT_TERMINATED will not be notified. Do not wait for state-change in that case.
@@ -147,22 +134,31 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
     {
         bool responseOk = waitForResponse(flagInit);
         EXPECT_TRUE(responseOk) << "Initialization failed";
-        if (!responseOk) return nullptr;
+        if (!responseOk) return false;
+
         int initStateValue = initState[accountIndex];
         if (!session)
         {
             EXPECT_EQ(initStateValue, MegaChatApi::INIT_WAITING_NEW_SESSION) << "Wrong chat initialization state (1).";
-            if (initStateValue != MegaChatApi::INIT_WAITING_NEW_SESSION) return nullptr;
+            if (initStateValue != MegaChatApi::INIT_WAITING_NEW_SESSION) return false;
         }
         else
         {
             EXPECT_EQ(initStateValue, MegaChatApi::INIT_OFFLINE_SESSION) << "Wrong chat initialization state (2).";
-            if (initStateValue != MegaChatApi::INIT_OFFLINE_SESSION) return nullptr;
+            if (initStateValue != MegaChatApi::INIT_OFFLINE_SESSION) return false;
         }
+
+        *flagInit = false; // might need to be waited for again after fetchNodes()
     }
 
-    // 2. login
-    flagInit = &initStateChanged[accountIndex]; *flagInit = false;
+    return true;
+}
+
+bool MegaChatApiTest::chatApiLogin(unsigned accountIndex, const char *session, const char *email, const char *password)
+{
+    const std::string& mail = email ? email : account(accountIndex).getEmail();
+    const std::string& pwd = password ? password : account(accountIndex).getPassword();
+
     RequestTracker loginTracker(megaApi[accountIndex]);
     session && std::strlen(session)
         ? megaApi[accountIndex]->fastLogin(session, &loginTracker)  // session must be not null and non empty
@@ -170,35 +166,55 @@ char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, con
 
     int loginResult = loginTracker.waitForResult();
     EXPECT_EQ(loginResult, API_OK) << "Login failed. Error: " << loginResult << ' ' << loginTracker.getErrorString();
-    if (loginResult != API_OK) return nullptr;
 
-    // 3. fetchnodes
+    return loginResult == API_OK;
+}
+
+
+bool MegaChatApiTest::chatApiJoinAll(unsigned accountIndex, const char *email)
+{
     bool *loggedInFlag = &mLoggedInAllChats[accountIndex]; *loggedInFlag = false;
     RequestTracker fetchNodesTracker(megaApi[accountIndex]);
     megaApi[accountIndex]->fetchNodes(&fetchNodesTracker);
     int fetchNodesResult = fetchNodesTracker.waitForResult();
     EXPECT_EQ(fetchNodesResult, API_OK) << "Error fetch nodes. Error: " << fetchNodesResult << ' ' << fetchNodesTracker.getErrorString();
-    if (fetchNodesResult != API_OK) return nullptr;
+    if (fetchNodesResult != API_OK) return false;
     // after fetchnodes, karere should be ready for offline, at least
     int initStateValue = initState[accountIndex];
     if (initStateValue == MegaChatApi::INIT_WAITING_NEW_SESSION || initStateValue == MegaChatApi::INIT_OFFLINE_SESSION)
     {
-        bool responseOk = waitForResponse(flagInit);
+        bool responseOk = waitForResponse(&initStateChanged[accountIndex]); // flag was reset during init
         EXPECT_TRUE(responseOk) << "Expired timeout for change init state";
-        if (!responseOk) return nullptr;
+        if (!responseOk) return false;
         initStateValue = initState[accountIndex];
     }
     EXPECT_EQ(initStateValue, MegaChatApi::INIT_ONLINE_SESSION) << "Wrong chat initialization state (3).";
-    if (initStateValue != MegaChatApi::INIT_ONLINE_SESSION) return nullptr;
+    if (initStateValue != MegaChatApi::INIT_ONLINE_SESSION) return false;
 
     // if there are chatrooms in this account, wait to be joined to all of them
     std::unique_ptr<MegaChatListItemList> items(megaChatApi[accountIndex]->getChatListItems());
     if (items->size())
     {
         bool responseOk = waitForResponse(loggedInFlag, 120);
-        EXPECT_TRUE(responseOk) << "Expired timeout for login to all chats in account '" << mail << "'. (DDOS protection triggered?)";
-        if (!responseOk) return nullptr;
+        EXPECT_TRUE(responseOk) << "Expired timeout for login to all chats in account '"
+                                << (email ? email : account(accountIndex).getEmail())
+                                << "'. (DDOS protection triggered?)";
+        if (!responseOk) return false;
     }
+
+    return true;
+}
+
+char *MegaChatApiTest::login(unsigned int accountIndex, const char *session, const char *email, const char *password)
+{
+    // 1. Initialize chat engine
+    if (!chatApiInit(accountIndex, session)) return nullptr;
+
+    // 2. login
+    if (!chatApiLogin(accountIndex, session, email, password)) return nullptr;
+
+    // 3. fetchnodes & join all chats
+    if (!chatApiJoinAll(accountIndex, email)) return nullptr;
 
     return megaApi[accountIndex]->dumpSession();
 }
@@ -3280,6 +3296,344 @@ TEST_F(MegaChatApiTest, GroupLastMessage)
     delete [] session1;
     session1 = NULL;
 }
+
+/**
+ * @brief MegaChatApiTest.RetentionHistoryImport
+ *
+**/
+class MegaChatApiTest_RetentionHistory : public MegaChatApiTest
+{
+protected:
+    const unsigned b = 0;
+    std::unique_ptr<char[]> sessionB;
+
+    const unsigned a1 = 1;
+    std::unique_ptr<char[]> sessionA1;
+
+    const unsigned a2 = 2; // NSE
+    std::unique_ptr<char[]> sessionNSE;
+    std::string dbPathNSE;
+
+    MegaChatHandle chatid = 0;
+
+    TestChatRoomListener* chatroomListener(unsigned id)
+    {
+        auto& lsnr = listeners[id];
+        if (!lsnr)
+        {
+            lsnr = ::mega::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
+        }
+        return lsnr.get();
+    }
+
+    // copy of karere::Client::dbPath()
+    string karereClientDbPath(const string& appPath, const string& sid)
+    {
+        string path = appPath;
+        if (sid.empty())    // anonoymous-mode
+        {
+            path.reserve(20);
+            path.append("/karere-").append("anonymous.db");
+        }
+        else
+        {
+            if (sid.size() < 50)
+            {
+                std::cout << "TEST - dbPath: sid is too small" << std::endl;
+                return string();
+            }
+
+            path.reserve(56);
+            path.append("/karere-").append(sid.c_str()+44).append(".db");
+        }
+
+        return path;
+    }
+
+    void testImport(long long expectedCount)
+    {
+        // special login for a1
+        ASSERT_TRUE(chatApiInit(a1, sessionA1.get())) << "Failed to init a1";
+        ASSERT_EQ(megaChatApi[a1]->getInitState(), MegaChatApi::INIT_OFFLINE_SESSION) << "Wrong init state for a1";
+        ASSERT_TRUE(chatApiLogin(a1, sessionA1.get())) << "Failed to login a1";
+
+        // import messages from NSE-simulation db path => Db from account a1 still has all messages but Db from NSE account doesn't have those messages as they have been truncated.
+        ChatRequestTracker crtImportHist1(megaChatApi[a1]);
+        megaChatApi[a1]->importMessages(dbPathNSE.c_str(), &crtImportHist1);
+        ASSERT_EQ(crtImportHist1.waitForResult(), MegaChatError::ERROR_OK) <<
+                  "Failed to import history to a1 from NSE (a2). Error: " << crtImportHist1.getErrorString();
+        ASSERT_EQ(crtImportHist1.getNumber(), expectedCount) << "Imported wrong number of messages";
+        ASSERT_NO_FATAL_FAILURE(logout(a1));
+    }
+
+    ~MegaChatApiTest_RetentionHistory() override
+    {
+        EXPECT_NO_FATAL_FAILURE(disconnect(a1, true));
+        EXPECT_NO_FATAL_FAILURE(disconnect(a2, true));
+        EXPECT_NO_FATAL_FAILURE(disconnect(b, true));
+    }
+
+    void setRetentionTime(unsigned id, unsigned period)
+    {
+        std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[id]->getChatRoom(chatid));
+        if (chatroom->getRetentionTime() == period)
+        {
+            // nothing to do, already set
+            return;
+        }
+
+        bool *retentionTimeChanged = &chatroomListener(id)->retentionTimeUpdated[id]; *retentionTimeChanged = false;
+        bool *mngMsgRecv = &chatroomListener(id)->msgReceived[id]; *mngMsgRecv = false;
+        ChatRequestTracker crtSetRetention(megaChatApi[id]);
+        megaChatApi[id]->setChatRetentionTime(chatid, period, &crtSetRetention);
+        ASSERT_EQ(crtSetRetention.waitForResult(), MegaChatError::ERROR_OK)
+                << "Setting retention time: Unexpected error: " << crtSetRetention.getErrorString();
+        ASSERT_TRUE(waitForMultiResponse({retentionTimeChanged, mngMsgRecv}, true, 20)) << "Timeout while waiting for Retention time to change, for " << id;
+    }
+
+    void disconnect(unsigned id, bool resetRetentionTime = false)
+    {
+        if (!megaChatApi[id]) return;
+
+        auto& listener = listeners[id];
+
+        std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[id]->getChatRoom(chatid));
+        if (chatroom)
+        {
+            if (resetRetentionTime)
+            {
+                setRetentionTime(id, 0);
+            }
+
+            megaChatApi[id]->closeChatRoom(chatid, listener.get()); // doesn't matter if listener was null
+        }
+
+        listener.reset();
+
+        ASSERT_NO_FATAL_FAILURE(logout(id));
+    }
+
+private:
+    std::map<unsigned, std::unique_ptr<TestChatRoomListener>> listeners;
+};
+
+
+
+TEST_F(MegaChatApiTest_RetentionHistory, Import)
+{
+    // Login chatting accounts
+    sessionB.reset(login(b));
+    ASSERT_TRUE(sessionB);
+    sessionA1.reset(login(a1));
+    ASSERT_TRUE(sessionA1);
+
+    // Ensure contacts
+    if (!areContact(a1, b))
+    {
+        ASSERT_NO_FATAL_FAILURE(makeContact(a1, b));
+    }
+
+    // Get a group chatroom with {a1, b}
+    std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
+    peers->addPeer(megaChatApi[b]->getMyUserHandle(), MegaChatPeerList::PRIV_MODERATOR);
+    chatid = getGroupChatRoom({a1, b}, peers.get());
+    ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE);
+
+    ASSERT_TRUE(megaChatApi[b]->openChatRoom(chatid, chatroomListener(b))) << "Can't open chatRoom for account b";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(b, chatid, chatroomListener(b)));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
+    ASSERT_NO_FATAL_FAILURE(setRetentionTime(a1, 0)); // reset retention time, if it was left by a previous session
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+
+    ///
+    ///  Import messages after history truncation
+    ///
+    cout << "///  Import messages after history truncation" << endl;
+
+    // set up NSE-simulation
+    const string a2Email(account(a1).getEmail());
+    sessionNSE.reset(login(a2, nullptr, a2Email.c_str(), account(a1).getPassword().c_str()));
+    ASSERT_TRUE(sessionNSE);
+
+    // get NSE db
+    ASSERT_TRUE(megaApi[a2]->getBasePath());
+    dbPathNSE = karereClientDbPath(megaApi[a2]->getBasePath(), sessionNSE.get());
+    ASSERT_FALSE(dbPathNSE.empty());
+
+    // send messages
+    int msgCount = 4;
+    MegaChatHandle lastMessageId = MEGACHAT_INVALID_HANDLE;
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
+    for (int i = 0; i < msgCount; i++)
+    {
+        string textToSend = "Msg " + std::to_string(i + 1);
+        chatroomListener(a2)->msgReceived[a2] = false;
+        std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(b, UINT_MAX, chatid, textToSend, chatroomListener(b)));
+        ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
+        ASSERT_TRUE(msgSent);
+        lastMessageId = msgSent->getMsgId();
+        ASSERT_TRUE(chatroomListener(a2)->msgId[a2].size());
+        ASSERT_EQ(chatroomListener(a2)->msgId[a2].back(), lastMessageId);
+        ASSERT_NE(lastMessageId, MEGACHAT_INVALID_HANDLE);
+    }
+
+    // truncate NSE db
+    chatroomListener(a2)->historyTruncated[a2] = false;
+    ChatRequestTracker crtClearHist(megaChatApi[b]);
+    megaChatApi[b]->clearChatHistory(chatid, &crtClearHist);
+    ASSERT_EQ(crtClearHist.waitForResult(), MegaChatError::ERROR_OK)
+            << "Failed to truncate history for account NSE (b). Error: " << crtClearHist.getErrorString();
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->historyTruncated[a2])) << "History truncate not received at account a2";
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Should (only) have the special 'truncate' message";
+
+    ///
+    ///  Import messages when there are no messages to import from external db
+    ///
+    cout << "///  Import messages when there are no messages to import from external db" << endl;
+
+    sessionA1.reset(login(a1));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
+    lastMessageId = MEGACHAT_INVALID_HANDLE;
+    for (int i = 0; i < msgCount; i++)
+    {
+        string textToSend = "Msg " + std::to_string(i + 1);
+        chatroomListener(a1)->msgReceived[a1] = false;
+        std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(b, UINT_MAX, chatid, textToSend, chatroomListener(b)));
+        ASSERT_TRUE(waitForResponse(&chatroomListener(a1)->msgReceived[a1]));
+        ASSERT_TRUE(msgSent);
+        lastMessageId = msgSent->getMsgId();
+        ASSERT_TRUE(chatroomListener(a1)->msgId[a1].size());
+        ASSERT_EQ(chatroomListener(a1)->msgId[a1].back(), lastMessageId);
+        ASSERT_NE(lastMessageId, MEGACHAT_INVALID_HANDLE);
+    }
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported";
+
+
+    ///
+    ///  Import messages after a message has been updated
+    ///
+    cout << "///  Import messages after a message has been updated" << endl;
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // Load all messages to receive message update
+    chatroomListener(a2)->msgEdited[a2] = false;
+    std::unique_ptr<MegaChatMessage> msgSent(sendTextMessageOrUpdate(b, UINT_MAX, chatid, "message updated by b", chatroomListener(b), lastMessageId));
+    ASSERT_TRUE(msgSent);
+    ASSERT_EQ(lastMessageId, msgSent->getMsgId()) << "Message has different id after update";
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgEdited[a2]));
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Updated message should have been imported";
+
+
+    ///
+    ///  Import messages after a message has been deleted
+    ///
+    cout << "///  Import messages after a message has been deleted" << endl;
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    chatroomListener(a2)->msgDeleted[a2] = false;
+    std::unique_ptr<MegaChatMessage> deletedMessage(megaChatApi[b]->deleteMessage(chatid, lastMessageId));
+    ASSERT_TRUE(deletedMessage) << "Failed to delete a message by NSE (a2)";
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgDeleted[a2]));
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Deleted message has to be imported too";
+
+
+    ///
+    ///  Import messages when chat history is empty in the app
+    ///
+    cout << "///  Import messages when chat history is empty in the app" << endl;
+
+    // clear history in app
+    sessionA1.reset(login(a1, sessionA1.get()));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
+    chatroomListener(a1)->historyTruncated[a1] = false;
+    ChatRequestTracker crtClearHistA1(megaChatApi[a1]);
+    megaChatApi[a1]->clearChatHistory(chatid, &crtClearHistA1);
+    ASSERT_EQ(crtClearHistA1.waitForResult(), MegaChatError::ERROR_OK)
+            << "Failed to truncate history for account a1. Error: " << crtClearHistA1.getErrorString();
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a1)->historyTruncated[a1])) << "History truncate not received at account a1";
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+    // login NSE and get a message from b (will wait for received confirmation)
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    chatroomListener(a2)->msgReceived[a2] = false;
+    std::unique_ptr<MegaChatMessage> msgSentByB(sendTextMessageOrUpdate(b, UINT_MAX, chatid, "Msg from B", chatroomListener(b)));
+    ASSERT_TRUE(msgSentByB) << "Message from B was not sent";
+    lastMessageId = msgSentByB->getMsgId();
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
+    ASSERT_EQ(chatroomListener(a2)->msgId[a2].back(), lastMessageId);
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(1)) << "1 new message from B should have been imported";
+
+
+    ///
+    ///  Import messages after marking a message as seen
+    ///
+    cout << "///  Import messages after marking a message as seen" << endl;
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
+    ASSERT_NE(megaChatApi[a2]->getLastMessageSeenId(chatid), msgSentByB->getMsgId()) << "Message from B was already marked as seen";
+    bool* flagSeenA2 = &chatroomListener(a2)->msgSeen[a2]; *flagSeenA2 = false;
+    ASSERT_TRUE(megaChatApi[a2]->setMessageSeen(chatid, msgSentByB->getMsgId())) << "Couldn't mark message as seen";
+    EXPECT_TRUE(waitForResponse(flagSeenA2)) << "Timeout expired for message marked as seen";
+
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; marked as read message doesn't count"; // really ?
+
+
+    ///
+    ///  Import messages when lastSeenId was zero, while having retention time set
+    ///
+    cout << "///  Import messages when lastSeenId was zero, while having retention time set" << endl;
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
+    chatroomListener(a2)->historyTruncated[a2] = false;
+    ChatRequestTracker crtClearHistA2(megaChatApi[a2]);
+    megaChatApi[a2]->clearChatHistory(chatid, &crtClearHistA2);
+    ASSERT_EQ(crtClearHistA2.waitForResult(), MegaChatError::ERROR_OK)
+            << "Failed to truncate history for account a2. Error: " << crtClearHistA2.getErrorString();
+    ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->historyTruncated[a2])) << "History truncate not received at account a2";
+    bool *flagRetentionHistTruncated = &chatroomListener(a2)->retentionHistoryTruncated[a2]; *flagRetentionHistTruncated = false;
+    ASSERT_NO_FATAL_FAILURE(setRetentionTime(a2, 5));
+    EXPECT_TRUE(waitForResponse(flagRetentionHistTruncated)) << "Timeout expired for retention history to be truncated";
+    MegaChatHandle lastMessageSeenAfterTruncation2 = megaChatApi[a2]->getLastMessageSeenId(chatid);
+    ASSERT_EQ(lastMessageSeenAfterTruncation2, 0) << "Invalid message seen id after truncation";
+    std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[a2]->getChatRoom(chatid));
+    ASSERT_TRUE(chatroom);
+    ASSERT_EQ(chatroom->getRetentionTime(), 5);
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should be there, including 'truncate', because they all got truncated";
+
+    ///
+    ///  Import messages when app should skip some messages for which retention time expired
+    ///
+    ///
+// Looking at code, retention time is not store at DB. It's zero until client connects to chatd.
+// As client 1 doesn't get conneted before calling to import messages. It can't skip messages for which retention time expired (It's zero)
+// Apps lifetime are diffent, maybe, they can use this functionality but I think it isn't possible for automatic tests
+
+ }
 
 /**
  * @brief MegaChatApiTest.RetentionHistory
@@ -7606,8 +7960,8 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
     {
         targetChatid = createChat();
     }
-    // wait for all clients to be connected to chatd for the chatroom
-    if (targetChatid != MEGACHAT_INVALID_HANDLE)
+    // wait for all clients to be connected to chatd for the chatroom, except in TearDown()
+    if (targetChatid != MEGACHAT_INVALID_HANDLE && create)
     {
         const bool allConnected = std::all_of(std::begin(a), std::end(a), [this, &targetChatid](const auto& ai)
         {
@@ -7800,27 +8154,34 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
                                                 TestChatRoomListener *chatroomListener, MegaChatHandle messageId)
 {
     bool *flagConfirmed = NULL;
-    bool *flagReceived = NULL;
     bool *flagDelivered = &chatroomListener->msgDelivered[senderAccountIndex]; *flagDelivered = false;
     chatroomListener->clearMessages(senderAccountIndex);
-    chatroomListener->clearMessages(receiverAccountIndex);
+
+    bool *flagReceived = NULL;
+    bool checkReceiver = receiverAccountIndex < NUM_ACCOUNTS;
+    if (checkReceiver)
+    {
+        chatroomListener->clearMessages(receiverAccountIndex);
+        flagReceived = messageId == MEGACHAT_INVALID_HANDLE ?
+                       &chatroomListener->msgReceived[receiverAccountIndex] :
+                       &chatroomListener->msgEdited[receiverAccountIndex];
+        *flagReceived = false;
+    }
 
     MegaChatMessage *messageSendEdit = NULL;
     MegaChatHandle *msgidSendEdit = NULL;
-    if (messageId == MEGACHAT_INVALID_HANDLE)
+    bool editing = messageId != MEGACHAT_INVALID_HANDLE;
+    if (!editing)
     {
         flagConfirmed = &chatroomListener->msgConfirmed[senderAccountIndex]; *flagConfirmed = false;
-        flagReceived = &chatroomListener->msgReceived[receiverAccountIndex]; *flagReceived = false;
-
+        msgidSendEdit = &chatroomListener->mConfirmedMessageHandle[senderAccountIndex]; *msgidSendEdit = MEGACHAT_INVALID_HANDLE;
         messageSendEdit = megaChatApi[senderAccountIndex]->sendMessage(chatid, textToSend.c_str());
-        msgidSendEdit = &chatroomListener->mConfirmedMessageHandle[senderAccountIndex];
     }
     else  // Update Message
     {
         flagConfirmed = &chatroomListener->msgEdited[senderAccountIndex]; *flagConfirmed = false;
-        flagReceived = &chatroomListener->msgEdited[receiverAccountIndex]; *flagReceived = false;
+        msgidSendEdit = &chatroomListener->mEditedMessageHandle[senderAccountIndex]; *msgidSendEdit = MEGACHAT_INVALID_HANDLE;
         messageSendEdit = megaChatApi[senderAccountIndex]->editMessage(chatid, messageId, textToSend.c_str());
-        msgidSendEdit = &chatroomListener->mEditedMessageHandle[senderAccountIndex];
     }
 
     EXPECT_TRUE(messageSendEdit) << "Failed to edit message";
@@ -7837,38 +8198,43 @@ MegaChatMessage * MegaChatApiTest::sendTextMessageOrUpdate(unsigned int senderAc
     if (!messageSent) return nullptr;
     EXPECT_EQ(messageSent->getMsgId(), msgPrimaryId) << "Failed to retrieve the message id";
     if (messageSent->getMsgId() != msgPrimaryId) return nullptr;
+    if (editing)
+    {
+        EXPECT_TRUE(messageSent->isEdited()) << "Edited messages was not reported as such to sender";
+        if (!messageSent->isEdited()) return nullptr;
+    }
 
-    responseOk = waitForResponse(flagReceived);
-    EXPECT_TRUE(responseOk) << "Timeout expired for receiving message by target user";    // for reception
-    if (!responseOk) return nullptr;
-    responseOk = chatroomListener->hasArrivedMessage(receiverAccountIndex, msgPrimaryId);
-    EXPECT_TRUE(responseOk) << "Message id of sent message and received message don't match";
-    if (!responseOk) return nullptr;
-    MegaChatHandle msgSecondaryId = msgPrimaryId;
-    MegaChatMessage *messageReceived = megaChatApi[receiverAccountIndex]->getMessage(chatid, msgSecondaryId);   // message should be already received, so in RAM
-    EXPECT_TRUE(messageReceived) << "Failed to retrieve the message at the receiver account";
-    if (!messageReceived) return nullptr;
-    EXPECT_STREQ(textToSend.c_str(), messageReceived->getContent()) << "Content of message received doesn't match the content of sent message";
-    if (strcmp(textToSend.c_str(), messageReceived->getContent())) return nullptr;
+    if (checkReceiver)
+    {
+        bool responseOk = waitForResponse(flagReceived);
+        EXPECT_TRUE(responseOk) << "Timeout expired for receiving message by target user";    // for reception
+        if (!responseOk) return nullptr;
+        responseOk = chatroomListener->hasArrivedMessage(receiverAccountIndex, msgPrimaryId);
+        EXPECT_TRUE(responseOk) << "Message id of sent message and received message don't match";
+        if (!responseOk) return nullptr;
+        MegaChatHandle msgSecondaryId = msgPrimaryId;
+        std::unique_ptr<MegaChatMessage> messageReceived(megaChatApi[receiverAccountIndex]->getMessage(chatid, msgSecondaryId));   // message should be already received, so in RAM
+        EXPECT_TRUE(messageReceived) << "Failed to retrieve the message at the receiver account";
+        if (!messageReceived) return nullptr;
+        EXPECT_STREQ(textToSend.c_str(), messageReceived->getContent()) << "Content of message received doesn't match the content of sent message";
+        if (strcmp(textToSend.c_str(), messageReceived->getContent())) return nullptr;
+
+        // Update Message
+        if (editing)
+        {
+            EXPECT_TRUE(messageReceived->isEdited()) << "Edited messages is not reported as edition";
+            if (!messageReceived->isEdited()) return nullptr;
+        }
+    }
 
     // Check if reception confirmation is active and, in this case, only 1on1 rooms have acknowledgement of receipt
     if (megaChatApi[senderAccountIndex]->isMessageReceptionConfirmationActive()
             && !megaChatApi[senderAccountIndex]->getChatRoom(chatid)->isGroup())
     {
-        responseOk = waitForResponse(flagDelivered);
+        bool responseOk = waitForResponse(flagDelivered);
         EXPECT_TRUE(responseOk) << "Timeout expired for receiving delivery notification";    // for delivery
         if (!responseOk) return nullptr;
     }
-
-    // Update Message
-    if (messageId != MEGACHAT_INVALID_HANDLE)
-    {
-        EXPECT_TRUE(messageReceived->isEdited()) << "Edited messages is not reported as edition";
-        if (!messageReceived->isEdited()) return nullptr;
-    }
-
-    delete messageReceived;
-    messageReceived = NULL;
 
     return messageSent;
 }
@@ -8247,6 +8613,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned accountIndex, const vector<Meg
         }
 
         if (chatroom->isGroup() && chatroom->isActive() &&
+            chatroom->getPeerPrivilegeByHandle(megaChatApi[accountIndex]->getMyUserHandle()) != PRIV_UNKNOWN && // only if in that chatroom
             std::find(skipChats.begin(), skipChats.end(), chatroom->getChatId()) == skipChats.end())
         {
             leaveChat(accountIndex, chatroom->getChatId());
@@ -9171,12 +9538,21 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
         {
             msgDelivered[apiIndex] = true;
         }
+        else if (msg->getStatus() == MegaChatMessage::STATUS_SEEN)
+        {
+            msgSeen[apiIndex] = true;
+        }
     }
 
     if (msg->hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT) && msg->isEdited())
     {
         mEditedMessageHandle[apiIndex] = msg->getMsgId();
         msgEdited[apiIndex] = true;
+    }
+
+    if (msg->hasChanged(MegaChatMessage::CHANGE_TYPE_CONTENT) && msg->isDeleted())
+    {
+        msgDeleted[apiIndex] = true;
     }
 
     if (msg->getType() == MegaChatMessage::TYPE_TRUNCATE)
