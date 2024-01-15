@@ -445,7 +445,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Initializes karere in anonymous mode for preview of chat-links
+     * Initializes karere in anonymous mode for preview of chat-links
      *
      * The initialization state will be MegaChatApi::INIT_ANONYMOUS if successful. In
      * case of initialization error, it will return MegaChatApi::INIT_ERROR.
@@ -521,7 +521,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Refresh URLs and establish fresh connections
+     * Refresh URLs and establish fresh connections
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
      *
@@ -536,7 +536,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Refresh URLs and establish fresh connections
+     * Refresh URLs and establish fresh connections
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
      *
@@ -1146,7 +1146,7 @@ public class MegaChatApiJava {
      *
      *  - If the scheduled meeting associated to the occurrence we want to modify, has repetition rules AND doesn't have a parent
      *    scheduled meeting, this method will create a new child scheduled meeting (with it's own schedId), that contains
-     *    the modified ocurrence (API requirement)
+     *    the modified occurrence (API requirement)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1161,17 +1161,19 @@ public class MegaChatApiJava {
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     * - MegaChatError::ERROR_NOENT - if chatRoom, scheduled meeting or occurrence to be modified could not be found
+     * - MegaChatError::ERROR_TOOMANY - occurrence could not be found in local and we need to fetch for more occurrences to API.
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
-     * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp UTC)
-     * @param overrides new start date time of the occurrence with the format (unix timestamp UTC)
+     * @param overrides start date time that along with schedId identifies the occurrence with the format (unix timestamp UTC)
+     * @param newStartDate new start date time of the occurrence with the format (unix timestamp UTC)
      * @param newEndDate new end date time of the occurrence with the format (unix timestamp UTC)
      * @param cancelled True if scheduled meeting occurrence is going to be cancelled
      * @param listener MegaChatRequestListener to track this request
      */
-    public void updateScheduledMeetingOccurrence(long chatid, long schedId, long overrides, long newStartDate, long newEndDate, boolean newCancelled, MegaChatRequestListenerInterface listener) {
-        megaChatApi.updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate, newCancelled, createDelegateRequestListener(listener));
+    public void updateScheduledMeetingOccurrence(long chatid, long schedId, long overrides, long newStartDate, long newEndDate, boolean cancelled, MegaChatRequestListenerInterface listener) {
+        megaChatApi.updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate, cancelled, createDelegateRequestListener(listener));
     }
 
     /**
@@ -1186,7 +1188,7 @@ public class MegaChatApiJava {
      *
      *  - If the scheduled meeting associated to the occurrence we want to modify, has repetition rules AND doesn't have a parent
      *    scheduled meeting, this method will create a new child scheduled meeting (with it's own schedId), that contains
-     *    the modified ocurrence (API requirement)
+     *    the modified occurrence (API requirement)
      *
      * The associated request type with this request is MegaChatRequest::TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -1201,16 +1203,18 @@ public class MegaChatApiJava {
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS  - if timezone, startDateTime, endDateTime, title, or description are invalid
+     * - MegaChatError::ERROR_NOENT - if chatRoom, scheduled meeting or occurrence to be modified could not be found
+     * - MegaChatError::ERROR_TOOMANY - occurrence could not be found in local and we need to fetch for more occurrences to API.
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies the scheduled meeting
-     * @param schedStartDate start date time that along with schedId identifies the occurrence with the format (unix timestamp UTC)
-     * @param overrides new start date time of the occurrence with the format (unix timestamp UTC)
+     * @param overrides start date time that along with schedId identifies the occurrence with the format (unix timestamp UTC)
+     * @param newStartDate new start date time of the occurrence with the format (unix timestamp UTC)
      * @param newEndDate new end date time of the occurrence with the format (unix timestamp UTC)
      * @param cancelled True if scheduled meeting occurrence is going to be cancelled
      */
-    public void updateScheduledMeetingOccurrence(long chatid, long schedId, long overrides, long newStartDate, long newEndDate, boolean newCancelled) {
-        megaChatApi.updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate, newCancelled);
+    public void updateScheduledMeetingOccurrence(long chatid, long schedId, long overrides, long newStartDate, long newEndDate, boolean cancelled) {
+        megaChatApi.updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate, cancelled);
     }
 
     /**
@@ -1247,7 +1251,6 @@ public class MegaChatApiJava {
      *
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies a scheduled meeting
-     * @param listener MegaChatRequestListener to track this request
      */
     public void removeScheduledMeeting(long chatid, long schedId) {
         megaChatApi.removeScheduledMeeting(chatid, schedId);
@@ -2183,7 +2186,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Returns the handle of the logged in user.
+     * Returns the handle of the logged in user.
      *
      * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
      * since the value is retrieved from cache.
@@ -2210,7 +2213,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Returns the firstname of the logged in user.
+     * Returns the firstname of the logged in user.
      *
      * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
      * since the value is retrieved from cache.
@@ -2224,7 +2227,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Returns the lastname of the logged in user.
+     * Returns the lastname of the logged in user.
      *
      * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
      * since the value is retrieved from cache.
@@ -2238,7 +2241,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Returns the fullname of the logged in user.
+     * Returns the fullname of the logged in user.
      *
      * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
      * since the value is retrieved from cache.
@@ -2252,7 +2255,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Returns the email of the logged in user.
+     * Returns the email of the logged in user.
      *
      * This function works even in offline mode (MegaChatApi::INIT_OFFLINE_SESSION),
      * since the value is retrieved from cache.
@@ -2266,7 +2269,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Get all chatrooms (1on1 and groupal) of this MEGA account
+     * Get all chat rooms (1on1 and groupal) of this MEGA account
      *
      * It is needed to have successfully called MegaChatApi::init (the initialization
      * state should be MegaChatApi::INIT_OFFLINE_SESSION or MegaChatApi::INIT_ONLINE_SESSION)
@@ -2274,14 +2277,14 @@ public class MegaChatApiJava {
      *
      * You take the ownership of the returned value
      *
-     * @return List of MegaChatRoom objects with all chatrooms of this account.
+     * @return List of MegaChatRoom objects with all chat rooms of this account.
      */
     public ArrayList<MegaChatRoom> getChatRooms() {
         return chatRoomListToArray(megaChatApi.getChatRooms());
     }
 
     /**
-     * @brief Returns a list of chatrooms of this MEGA account filtered by type
+     * Returns a list of chatrooms of this MEGA account filtered by type
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization
      * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
@@ -2420,7 +2423,7 @@ public class MegaChatApiJava {
 
     /**
      * @deprecated Use {@link #getChatListItems(int, int)} instead.
-     * @brief Get all chatrooms (1on1 and groupal) with limited information filtered by type
+     * Get all chat rooms (1on1 and groupal) with limited information filtered by type
      *
      * It is needed to have successfully called \c MegaChatApi::init (the initialization
      * state should be \c MegaChatApi::INIT_OFFLINE_SESSION or \c MegaChatApi::INIT_ONLINE_SESSION)
@@ -2570,19 +2573,6 @@ public class MegaChatApiJava {
         return megaChatApi.getChatRoom(chatid);
     }
 
-/*
-    /**
-     * @brief Returns the handle of the user.
-     *
-     * @return For outgoing messages, it returns the handle of the target user.
-     * For incoming messages, it returns the handle of the sender.
-     *
-    public long getUserHandle()
-    {
-
-    }
-*/
-
     public void removeFromChat(long chatid, long userhandle)
     {
         megaChatApi.removeFromChat(chatid, userhandle);
@@ -2648,7 +2638,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Allows any user to preview a public chat without being a participant
+     * Allows any user to preview a public chat without being a participant
      *
      * This function loads the required data to preview a public chat referenced by a
      * chat-link. It returns the actual \c chatid, the public handle, the number of peers
@@ -2703,7 +2693,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief Allows any user to obtain basic information abouts a public chat if
+     * Allows any user to obtain basic information abouts a public chat if
      * a valid public handle exists.
      *
      * This function returns the actual \c chatid, the number of peers and also the title.
@@ -3782,8 +3772,8 @@ public class MegaChatApiJava {
      * @param enableAudio True for starting a call with audio (mute disabled)
      * @param listener MegaChatRequestListener to track this request
      */
-    public void startMeetingInWaitingRoomChat(long chatid, long schedIdWr, boolean enableVideo, boolean enableAudio, MegaChatRequestListenerInterface listener) {
-        megaChatApi.startMeetingInWaitingRoomChat(chatid, schedIdWr, enableVideo, enableAudio, createDelegateRequestListener(listener));
+    public void startMeetingInWaitingRoomChat(long chatid, long schedId, boolean enableVideo, boolean enableAudio, MegaChatRequestListenerInterface listener) {
+        megaChatApi.startMeetingInWaitingRoomChat(chatid, schedId, enableVideo, enableAudio, createDelegateRequestListener(listener));
     }
 
     /**
@@ -3910,32 +3900,6 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Remove an active speaker from the call
-     *
-     * This method can be called by the speaker itself (voluntary action) or by any moderator of the groupchat.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_DEL_SPEAKER
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
-     *
-     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
-     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
-     * - MegaChatError::ERROR_ACCESS - if clientId is not MEGACHAT_INVALID_HANDLE (own user),
-     * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
-     *
-     * This functionality is ready but it shouldn't be used at this moment
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientId MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
-     * @param listener MegaChatRequestListener to track this request
-     */
-    public void removeSpeaker(long chatid, long clientId, MegaChatRequestListenerInterface listener){
-        megaChatApi.removeSpeaker(chatid, clientId, createDelegateRequestListener(listener));
-    }
-
-    /**
      * Push a list of users (for all it's connected clients) into the waiting room.
      *
      * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
@@ -4046,8 +4010,8 @@ public class MegaChatApiJava {
      * @param all if true indicates that all users with non moderator role, must be pushed into waiting room
      * @param listener MegaChatRequestListener to track this request
      */
-    public void allowUsersJoinCall(long chatid, MegaHandleList handles, boolean all, MegaChatRequestListenerInterface listener){
-        megaChatApi.allowUsersJoinCall(chatid, handles, all, createDelegateRequestListener(listener));
+    public void allowUsersJoinCall(long chatid, MegaHandleList users, boolean all, MegaChatRequestListenerInterface listener){
+        megaChatApi.allowUsersJoinCall(chatid, users, all, createDelegateRequestListener(listener));
     }
 
     /**
@@ -4251,80 +4215,6 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Request become a speaker
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - true -> indicate that it is a enable request operation
-     *
-     * This functionality is ready but it shouldn't be used at this moment
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRequestListener to track this request
-     */
-    public void requestSpeak(long chatid, MegaChatRequestListenerInterface listener) {
-        megaChatApi.requestSpeak(chatid, createDelegateRequestListener(listener));
-    }
-
-    /**
-     * Remove a request to become a speaker
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - false -> indicate that it is a remove request operation
-     *
-     * This functionality is ready but it shouldn't be used at this moment
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRequestListener to track this request
-     */
-    public void removeRequestSpeak(long chatid, MegaChatRequestListenerInterface listener){
-        megaChatApi.removeRequestSpeak(chatid, createDelegateRequestListener(listener));
-    }
-
-    /**
-     * Approve speak request
-     *
-     * This method has to be called only by a user with moderator role
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - true -> indicate that approve the request
-     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
-     *
-     * This functionality is ready but it shouldn't be used at this moment
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientId MegaChatHandle that identifies client
-     * @param listener MegaChatRequestListener to track this request
-     */
-    public void approveSpeakRequest(long chatid, long clientId, MegaChatRequestListenerInterface listener) {
-        megaChatApi.approveSpeakRequest(chatid, clientId, createDelegateRequestListener(listener));
-    }
-
-    /**
-     * Reject speak request
-     *
-     * This method has to be called only by a user with moderator role
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - false -> indicate that reject the request
-     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientId MegaChatHandle that identifies client
-     * @param listener MegaChatRequestListener to track this request
-     */
-    public void rejectSpeakRequest(long chatid, long clientId, MegaChatRequestListenerInterface listener) {
-        megaChatApi.rejectSpeakRequest(chatid, clientId, createDelegateRequestListener(listener));
-    }
-
-    /**
      * Request high resolution video from a client
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO
@@ -4412,7 +4302,7 @@ public class MegaChatApiJava {
     }
 
     /**
-     * @brief This method should be called when a node history is closed
+     * This method should be called when a node history is closed
      *
      * Note that this listener should be the one registered by MegaChatApi::openNodeHistory
      *
