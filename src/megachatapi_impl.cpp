@@ -8239,6 +8239,20 @@ bool MegaChatCallPrivate::isOwnModerator() const
     return mOwnModerator;
 }
 
+MegaHandleList* MegaChatCallPrivate::getSessionsClientidByUserHandle(const MegaChatHandle uh) const
+{
+    MegaHandleListPrivate* sessionList = new MegaHandleListPrivate();
+    for (auto it = mSessions.begin(); it != mSessions.end(); it++)
+    {
+        if (uh == it->second->getPeerid())
+        {
+            sessionList->addMegaHandle(it->first);
+        }
+    }
+
+    return sessionList;
+}
+
 MegaHandleList *MegaChatCallPrivate::getSessionsClientid() const
 {
     MegaHandleListPrivate *sessionList = new MegaHandleListPrivate();

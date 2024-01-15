@@ -287,6 +287,11 @@ bool MegaChatCall::isOwnModerator() const
     return false;
 }
 
+mega::MegaHandleList* MegaChatCall::getSessionsClientidByUserHandle(const MegaChatHandle /*uh*/) const
+{
+    return NULL;
+}
+
 MegaHandleList *MegaChatCall::getSessionsClientid() const
 {
     return NULL;

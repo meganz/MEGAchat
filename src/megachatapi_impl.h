@@ -268,6 +268,7 @@ public:
     int getNotificationType() const override;
     virtual bool isRinging() const override;
     virtual bool isOwnModerator() const override;
+    mega::MegaHandleList* getSessionsClientidByUserHandle(const MegaChatHandle uh) const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;

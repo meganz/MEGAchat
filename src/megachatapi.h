@@ -969,6 +969,17 @@ public:
     virtual bool isOwnModerator() const;
 
     /**
+     * @brief Get a list with the ids of client that have a session with me, and whose user handle matches with uh param
+     *
+     * If no elements found, an empty MegaHandleList will be returned.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of clients whose user handle matches with uh param
+     */
+    virtual mega::MegaHandleList* getSessionsClientidByUserHandle(const MegaChatHandle /*uh*/) const;
+
+    /**
      * @brief Get a list with the ids of client that have a session with me
      *
      * If there aren't any sessions at the call, an empty MegaHandleList will be returned.
