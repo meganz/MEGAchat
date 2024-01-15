@@ -4660,9 +4660,9 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
             // requesterIdx - onChatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
             addBoolVarAndExitFlag(requesterIdx, eF2, "OwnSpeakStatusChanged", false);
 
-           // addBoolVarAndExitFlag(requesterIdx, eF2, "UsersSpeakPermAdd", false);
+            // addBoolVarAndExitFlag(requesterIdx, eF2, "UsersSpeakPermAdd", false);
 
-            // moderatorIdx - user handle received at onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
+            // moderatorIdx - user handle received at onChatSessionUpdate(CHANGE_TYPE_CALL_SPEAK)
             handleVars().add(moderatorIdx, "SpeakStatusUserId", MEGACHAT_INVALID_HANDLE);
         }
         else
@@ -4698,7 +4698,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         if (approve)
         {
             ASSERT_EQ(*handleVars().getVar(moderatorIdx, "SpeakStatusUserId"), requesterId)
-                << "User handle received upon MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION doesn't match with expected one";
+                << "User handle received upon MegaChatCall::CHANGE_TYPE_CALL_SPEAK doesn't match with expected one";
         }
         else
         {
@@ -4771,10 +4771,10 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         // peerIdx - onChatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
         ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(peerIdx, eF, "OwnSpeakStatusChanged", false));
 
-        // moderatorIdx - onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
+        // moderatorIdx - onChatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
         ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(moderatorIdx, eF, "UsersSpeakPermDel", false));
 
-        // moderatorIdx - onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION)
+        // moderatorIdx - onChatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
         ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(moderatorIdx, eF, "ChatCallAudioDisabled", false));
 
         ASSERT_NO_FATAL_FAILURE({
@@ -4881,7 +4881,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
             });
         });
         ASSERT_EQ(*handleVars().getVar(moderatorIdx, "SpeakStatusUserId"), nonSpeakerId)
-            << "User handle received upon MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION doesn't match with expected one";
+            << "User handle received upon MegaChatCall::CHANGE_TYPE_CALL_SPEAK doesn't match with expected one";
     };
 
     auto answerCallRaiseHandTest = [this](const unsigned performerIdx, const unsigned observerIdx, const MegaChatHandle performerUh)
@@ -5184,7 +5184,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
                           });
         });
 
-        ASSERT_TRUE(!mUserSpeakPerm[moderatorIdx][userid]) << "onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION) not received for userid: "
+        ASSERT_TRUE(!mUserSpeakPerm[moderatorIdx][userid]) << "onChatSessionUpdate(CHANGE_TYPE_CALL_SPEAK) not received for userid: "
                                                            << userid << ". Callid: " << getCallIdStrB64(call->getCallId());
 
         ASSERT_EQ(mUserSpeakPerm[peerIdx][userid], MegaChatCall::SPEAKER_STATUS_DISABLED) << "Peer speak status: " << mUserSpeakPerm[peerIdx][userid]
@@ -5280,7 +5280,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
         if (approve)
         {
             ASSERT_EQ(mUserSpeakPerm[moderatorIdx].size(), 1u);
-            ASSERT_EQ(mUserSpeakPerm[moderatorIdx].begin()->second, approve)  << "onChatSessionUpdate(CHANGE_TYPE_SPEAK_PERMISSION) not received for userid: " << userid;
+            ASSERT_EQ(mUserSpeakPerm[moderatorIdx].begin()->second, approve)  << "onChatSessionUpdate(CHANGE_TYPE_CALL_SPEAK) not received for userid: " << userid;
         }
     };
 

@@ -309,7 +309,6 @@ public:
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
      *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04 - Deprecated
-     * Check MegaChatSession::hasRequestSpeak
      *
      *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES = 0x08
      * Check MegaChatSession::canRecvVideoLowRes
@@ -372,7 +371,6 @@ public:
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
      *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04  - Deprecated
-     * Check MegaChatSession::hasRequestSpeak
      *
      *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES = 0x08
      * Check MegaChatSession::canRecvVideoLowRes
@@ -920,7 +918,7 @@ public:
      * @brief Returns if speak request option is enabled for this call
      *
      * If speak request option is enabled, users with non-host role, must request permission to speak.
-     * Check MegaChatApi::requestSpeak documentation.
+     * Check MegaChatApi::sendSpeakRequest and MegaChatApi::removeSpeakRequest documentation.
      *
      * An user with speak permission, is not necessarily abled to speak, it also must have audio av flag enabled (unmuted).
      * MegaChatCall::hasUserSpeakPermission
