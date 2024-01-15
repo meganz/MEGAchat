@@ -1956,7 +1956,7 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     if (add)
     {
         if (isOwnUser) { updateAudioTracks(); }
-        else           { updateUserSpeakRequest(uh, false/*add*/); }
+        updateUserSpeakRequest(uh, false/*add*/);  // remove speak request (if any) for this user
     }
     // else => no need to update audio tracks for own user upon SPEAKER_DEL, MUTED command will be received
 
@@ -2205,11 +2205,7 @@ bool Call::handleModAdd(uint64_t userid)
         removeFromSpeakersList(userid);
         assert(false);
     }
-
-    if (userid != getOwnPeerId())
-    {
-        updateUserSpeakRequest(userid, false/*add*/); // remove speak request (if any) for this user
-    }
+    updateUserSpeakRequest(userid, false/*add*/); // remove speak request (if any) for this user
 
     // moderators have speak permission by default, and shouldn't be in speakers list
     if (!hasUserSpeakPermission(userid))
