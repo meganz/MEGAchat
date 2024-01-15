@@ -2202,8 +2202,8 @@ bool Call::handleModAdd(uint64_t userid)
         // note: moderators should never be included on speakers list
         RTCM_LOG_DEBUG("MOD_ADD received, remove user: %s from speakers list, as moderators are not included there",
                        karere::Id(userid).toString().c_str());
-        removeFromSpeakersList(userid);
-        assert(false);
+
+        removeFromSpeakersList(userid); // valid use case: an user with speak permissions, that is given host permissions
     }
     updateUserSpeakRequest(userid, false/*add*/); // remove speak request (if any) for this user
 
@@ -2246,8 +2246,8 @@ bool Call::handleModDel(uint64_t userid)
         RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speakers list",
                          karere::Id(userid).toString().c_str());
 
+        assert(false); // this should never happen
         removeFromSpeakersList(userid);
-        assert(false);
     }
 
     // Note: ex-moderators need be granted speak permission again by a moderator
