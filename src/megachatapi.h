@@ -157,7 +157,7 @@ public:
      * @brief Returns if audio flags are enabled for the session (peer is muted or not)
      *
      * A peer with audio flag enabled, is not necessarily allowed to speak, it also must have speak permission
-     * Check MegaChatSession::isSpeakAllowed() to know if peer is allowed to speak
+     * Check MegaChatCall::hasUserSpeakPermission to know if peer is allowed to speak
      *
      * @return true if audio flags are enabled for the session (peer is muted or not)
      */
@@ -636,7 +636,7 @@ public:
      * @brief Return if local audio flags are enabled (own peer is muted or not)
      *
      * An user with local audio flags enabled, is not necessarily allowed to speak, it also must have speak permission
-     * Check MegaChatCall::isSpeakAllowed to know if own peer is allowed to speak.
+     * Check MegaChatCall::hasUserSpeakPermission to know if own peer is allowed to speak.
      *
      * @return true if local audio flags are enabled (own peer is muted or not)
      */
@@ -923,7 +923,7 @@ public:
      * Check MegaChatApi::requestSpeak documentation.
      *
      * An user with speak permission, is not necessarily abled to speak, it also must have audio av flag enabled (unmuted).
-     * Check MegaChatCall::isSpeakAllowed
+     * MegaChatCall::hasUserSpeakPermission
      *
      * @return if speak request option is enabled for this call
      */
