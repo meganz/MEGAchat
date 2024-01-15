@@ -4353,6 +4353,11 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     ASSERT_EQ(megaChatApi[a2]->getCurrentInputVideoTracksLimit(), limitInputVideoTracks)
         << "Default limit for simultaneous input video tracks that call supports has not been updated for secondary account";
 
+    LOG_debug << "#### Test3: A mutes B in call ####";
+    LOG_debug << "\tSwitching to staging (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
+
     LOG_debug << "#### Test1: A starts a groupal Meeting in chat1 (without audio nor video) ####";
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
     mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
@@ -4432,11 +4437,6 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     ASSERT_TRUE(a1Sess) << "Can't get a session for clientid: " << a2hl->get(0);
     MegaChatHandle a1Cid = a1Sess->getClientid();
     ASSERT_NE(a1Cid, MEGACHAT_INVALID_HANDLE) << "Invalid client id for primary session";
-
-    LOG_debug << "#### Test3: A mutes B in call ####";
-    LOG_debug << "\tSwitching to staging (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
 
     bool* remoteAvFlagsChanged = &mChatCallAudioDisabled[a1]; *remoteAvFlagsChanged = false; // a2 will receive onChatSessionUpdate (CHANGE_TYPE_REMOTE_AVFLAGS)
     exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // a2 will receive onChatCallUpdate (CHANGE_TYPE_LOCAL_AVFLAGS)
