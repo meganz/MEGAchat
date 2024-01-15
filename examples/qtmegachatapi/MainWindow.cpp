@@ -290,7 +290,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD)
-        || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS)

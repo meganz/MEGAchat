@@ -7790,7 +7790,6 @@ MegaChatSessionPrivate::MegaChatSessionPrivate(const MegaChatSessionPrivate &ses
     , mAvFlags(session.getAvFlags())
     , mTermCode(session.getTermCode())
     , mChanged(session.getChanges())
-    , mHasRequestSpeak(session.hasPendingSpeakRequest())
     , mAudioDetected(session.isAudioDetected())
     , mHasHiResTrack(session.mHasHiResTrack)
     , mHasLowResTrack(session.mHasLowResTrack)
@@ -7919,11 +7918,6 @@ karere::AvFlags MegaChatSessionPrivate::getAvFlags() const
 bool MegaChatSessionPrivate::isAudioDetected() const
 {
     return mAudioDetected;
-}
-
-bool MegaChatSessionPrivate::hasPendingSpeakRequest() const
-{
-    return mHasRequestSpeak;
 }
 
 bool MegaChatSessionPrivate::canRecvVideoHiRes() const

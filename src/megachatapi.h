@@ -399,13 +399,6 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     /**
-     * @brief Returns if peer has a speak request pending to be approved by a host
-     *
-     * @return true if peer has a speak request pending to be approved by a host
-     */
-    virtual bool hasPendingSpeakRequest() const;
-
-    /**
      * @brief Returns if audio is detected for this session
      *
      * @return true if audio is detected for this session, false in other case

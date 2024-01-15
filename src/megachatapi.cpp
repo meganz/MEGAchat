@@ -140,11 +140,6 @@ bool MegaChatSession::hasChanged(int) const
     return false;
 }
 
-bool MegaChatSession::hasPendingSpeakRequest() const
-{
-    return false;
-}
-
 bool MegaChatSession::isAudioDetected() const
 {
     return false;
