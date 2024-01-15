@@ -1943,6 +1943,13 @@ bool Call::handleHiResStartCommand()
 
 bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
 {
+    if (!isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("handle %s command. Speak request option is disabled for call", add ? "SPEAKER_ADD" : "SPEAKER_DEL");
+        assert(false);
+        return false;
+    }
+
     // if userid is invalid, command is for own user
     const bool isOwnUser = !karere::Id(userid).isValid();
     if (isOwnUser && isOnModeratorsList(userid))
@@ -1953,21 +1960,21 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     }
 
     const karere::Id uh = isOwnUser ? getOwnPeerId() : karere::Id(userid);
-    if (add)
+    if (!updateSpeakersList(uh, add))
     {
-        if (isOwnUser) { updateAudioTracks(); }
-        updateUserSpeakRequest(uh, false/*add*/);  // remove speak request (if any) for this user
+        RTCM_LOG_WARNING("handle %s command. cannot update speakers list", add ? "SPEAKER_ADD" : "SPEAKER_DEL");
+    }
+
+    if (add) // Speak permission granted for user
+    {
+        if (isOwnUser)
+        {
+            updateAudioTracks();
+        }
+
+        updateSpeakRequestsList(uh, false/*add*/);  // remove speak request (if any) for this user
     }
     // else => no need to update audio tracks for own user upon SPEAKER_DEL, MUTED command will be received
-
-    if (isSpeakRequestEnabled()) // just update speakers list if speak request option is enabled
-    {
-        const bool updated = add ? addToSpeakersList(uh) : removeFromSpeakersList(uh);
-        if (updated)
-        {
-            mCallHandler.onUserSpeakStatusUpdate(*this, uh, add);
-        }
-    }
     return true;
 }
 
@@ -1989,19 +1996,15 @@ bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
 {
     if (!isSpeakRequestEnabled())
     {
-        RTCM_LOG_WARNING("handleSpeakReqAddDelCommand: speak request option is not enabled for call: %s", getCallid().toString().c_str());
+        RTCM_LOG_WARNING("handle %s command. Speak request option is disabled for call", add ? "SPEAKRQ" : "SPEAKRQ_DEL");
+        assert(false);
         return true;
     }
 
-    if (isOnSpeakRequestsList(userid) == add)
+    if (!updateSpeakRequestsList(userid, add))
     {
-        RTCM_LOG_WARNING("handle %s command. Our own user %s in speak requests list",
-                         add ? "SPEAKRQ" : "SPEAKRQ_DEL", add ? "already is" : "is not");
-
-        return true;
+        RTCM_LOG_WARNING("handle %s command. cannot update speak requests list", add ? "SPEAKRQ" : "SPEAKRQ_DEL");
     }
-
-    updateUserSpeakRequest(userid, add);
     return true;
 }
 
@@ -2197,15 +2200,13 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
 bool Call::handleModAdd(uint64_t userid)
 {
     updateUserModeratorStatus(userid, true /*enable*/);
-    if (isSpeakRequestEnabled() && isOnSpeakersList(userid))
+    if (isSpeakRequestEnabled())
     {
-        // note: moderators should never be included on speakers list
-        RTCM_LOG_DEBUG("MOD_ADD received, remove user: %s from speakers list, as moderators are not included there",
-                       karere::Id(userid).toString().c_str());
-
-        removeFromSpeakersList(userid); // valid use case: an user with speak permissions, that is given host permissions
+        // remove user from speakers and speak requests list (just if included),
+        // as moderators cannot be included on speak requests nor speakers lists
+        updateSpeakersList(userid, false);
+        updateSpeakRequestsList(userid, false/*add*/);
     }
-    updateUserSpeakRequest(userid, false/*add*/); // remove speak request (if any) for this user
 
     // moderators have speak permission by default, and shouldn't be in speakers list
     if (!hasUserSpeakPermission(userid))
@@ -2240,14 +2241,27 @@ bool Call::handleModDel(uint64_t userid)
     // Note: if command is received for own user, we don't need to call updateAudioTracks(), SFU will send us 'MUTED' command
     updateUserModeratorStatus(userid, false /*enable*/);
 
-    if (isSpeakRequestEnabled() && isOnSpeakersList(userid))
+    if (isSpeakRequestEnabled())
     {
-        // note: moderators should never be included on the speakers list
-        RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speakers list",
-                         karere::Id(userid).toString().c_str());
+        if (isOnSpeakersList(userid))
+        {
+            // note: moderators should never be included on the speakers list
+            RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speakers list",
+                             karere::Id(userid).toString().c_str());
 
-        assert(false); // this should never happen
-        removeFromSpeakersList(userid);
+            assert(false);
+            updateSpeakersList(userid, false);
+        }
+
+        if (isOnSpeakRequestsList(userid))
+        {
+            // note: moderators should never be included on the speak requests list
+            RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speak requests list",
+                             karere::Id(userid).toString().c_str());
+
+            assert(false);
+            updateSpeakRequestsList(userid, false);
+        }
     }
 
     // Note: ex-moderators need be granted speak permission again by a moderator
@@ -2954,22 +2968,26 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
     return true;
 }
 
-bool Call::updateUserSpeakRequest(const karere::Id& userid, const bool add)
+bool Call::updateSpeakersList(const karere::Id& userid, const bool add)
 {
-    if (!isSpeakRequestEnabled())
+    const bool updated = add ? addToSpeakersList(userid) : removeFromSpeakersList(userid);
+    if (updated)
     {
-        RTCM_LOG_WARNING("speak request option is disabled for call");
-        assert(false);
-        return false;
+        mCallHandler.onUserSpeakStatusUpdate(*this, userid, add);
+        return true;
     }
+    return false;
+}
 
-    // update call speak requests list
-    add
-        ? addToSpeakRequestsList(userid)
-        : removeFromSpeakRequestsList(userid);
-
-    mCallHandler.onSpeakRequest(*this, userid, add);
-    return true;
+bool Call::updateSpeakRequestsList(const karere::Id& userid, const bool add)
+{
+    const bool updated = add ? addToSpeakRequestsList(userid) : removeFromSpeakRequestsList(userid);
+    if (updated)
+    {
+        mCallHandler.onSpeakRequest(*this, userid, add);
+        return true;
+    }
+    return false;
 }
 
 Keyid_t Call::generateNextKeyId()

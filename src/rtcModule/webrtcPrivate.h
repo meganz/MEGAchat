@@ -460,7 +460,8 @@ public:
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
     bool updateUserModeratorStatus(const karere::Id& userid, const bool enable);
-    bool updateUserSpeakRequest(const karere::Id& userid, const bool add);
+    bool updateSpeakersList(const karere::Id& userid, const bool add);
+    bool updateSpeakRequestsList(const karere::Id& userid, const bool add);
 
     // --- speakers list methods ---
     bool addToSpeakersList (const uint64_t userid)              { return mSpeakers.emplace(userid).second; }
