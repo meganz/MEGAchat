@@ -739,10 +739,13 @@ bool SpeakReqCommand::processCommand(const rapidjson::Document &command)
 {
     uint64_t uh = karere::Id::inval();
     rapidjson::Value::ConstMemberIterator userIterator = command.FindMember("user");
-    if (userIterator != command.MemberEnd() && userIterator->value.IsString())
+    if (userIterator == command.MemberEnd() || !userIterator->value.IsString())
     {
-        uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
+        SFU_LOG_ERROR("SpeakReqCommand: Received data doesn't have 'user' field");
+        return false;
     }
+
+    uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
     return mComplete(uh, true);
 }
 
@@ -756,10 +759,13 @@ bool SpeakReqDelCommand::processCommand(const rapidjson::Document &command)
 {
     uint64_t uh = karere::Id::inval();
     rapidjson::Value::ConstMemberIterator userIterator = command.FindMember("user");
-    if (userIterator != command.MemberEnd() && userIterator->value.IsString())
+    if (userIterator == command.MemberEnd() || !userIterator->value.IsString())
     {
-        uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
+        SFU_LOG_ERROR("SpeakReqDelCommand: Received data doesn't have 'user' field");
+        return false;
     }
+
+    uh = ::mega::MegaApi::base64ToUserHandle(userIterator->value.GetString());
     return mComplete(uh, false);
 }
 

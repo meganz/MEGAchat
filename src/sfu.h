@@ -459,7 +459,7 @@ public:
 };
 
 class MutedCommand : public Command
-{   //"MUTED"
+{   // "MUTED"
 public:
     typedef std::function<bool(const unsigned av)> MutedCommandFunction;
     MutedCommand(const MutedCommandFunction& complete, SfuInterface& call);

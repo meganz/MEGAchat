@@ -2001,6 +2001,7 @@ bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
         return true;
     }
 
+    // userid must be always valid for SPEAKRQ and SPEAKRQ_DEL
     if (!updateSpeakRequestsList(userid, add))
     {
         RTCM_LOG_WARNING("handle %s command. cannot update speak requests list", add ? "SPEAKRQ" : "SPEAKRQ_DEL");
