@@ -299,6 +299,36 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         if (itemController->getMeetingView()) { itemController->getMeetingView()->updateLabel(call); }
     }
 
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED))
+    {
+        MeetingView* meetingView = itemController->getMeetingView();
+        if (meetingView)
+        {
+            std::unique_ptr<MegaHandleList> hl (call->getSessionsClientidByUserHandle(call->getHandle()));
+            assert(hl);
+            for (unsigned int i = 0; i < hl->size(); ++i)
+            {
+                const auto cid = hl->get(i);
+                MegaChatSession* sess = call->getMegaChatSession(cid);
+                assert(sess);
+                if (sess)
+                {
+                    meetingView->updateSession(*sess);
+                }
+            }
+            itemController->getMeetingView()->updateLabel(call);
+        }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED))
+    {
+        if (itemController->getMeetingView())
+        {
+            itemController->getMeetingView()->updateLabel(call);
+        }
+    }
+
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_DENY))
     {
         QMessageBox msg;
