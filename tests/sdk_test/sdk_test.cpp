@@ -1981,27 +1981,28 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
  * - Test6: Set title
  * - Test7: Create chat link
  * + Test8: Load chat link
- * + Test9: Open chatroom
- * + Test10: Send a message (ERR)
- * - Test11: Send a message
- * + Test12: Close preview
- * - Test13: Remove chat link
- * + Test14: Load chat link (ERR)
- * + Test15: Logout
+ * + Test9: Load chat link again
+ * + Test10: Open chatroom
+ * + Test11: Send a message (ERR)
+ * - Test12: Send a message
+ * + Test13: Close preview
+ * - Test14: Remove chat link
+ * + Test15: Load chat link (ERR)
+ * + Test16: Logout
  *
  * [ Public chat test ]
- * + Test16: Login in secondary account
- * - Test17: Create chat link
- * + Test18: Load chat link
- * + Test19: Open chatroom
- * + Test20: Send a message (ERR)
- * + Test21: Autojoin chat link
- * + Test22: Send a message
- * + Test23: Set chat to private mode
- * + Test24: Remove peer from groupchat (OK)
- * + Test25: Preview chat link (ERR)
- * - Test26: Invite other account
- * - Test27: Leave chat room
+ * + Test17: Login in secondary account
+ * - Test18: Create chat link
+ * + Test19: Load chat link
+ * + Test20: Open chatroom
+ * + Test21: Send a message (ERR)
+ * + Test22: Autojoin chat link
+ * + Test23: Send a message
+ * + Test24: Set chat to private mode
+ * + Test25: Remove peer from groupchat (OK)
+ * + Test26: Preview chat link (ERR)
+ * - Test27: Invite other account
+ * - Test28: Leave chat room
 */
 TEST_F(MegaChatApiTest, PublicChatManagement)
 {
@@ -2075,12 +2076,17 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     megaChatApi[a2]->openChatPreview(chatLink.c_str(), &crtPreviewTracker);
     ASSERT_EQ(crtPreviewTracker.waitForResult(), MegaChatError::ERROR_OK) << "Failed to open chat preview. Error: " << crtPreviewTracker.getErrorString();
 
-    LOG_debug << "#### Test9: Open chatroom ####";
+    LOG_debug << "#### Test9: Load chat link again ####";
+    ChatRequestTracker crtPreviewTracker1(megaChatApi[a2]);
+    megaChatApi[a2]->openChatPreview(chatLink.c_str(), &crtPreviewTracker1);
+    ASSERT_EQ(crtPreviewTracker1.waitForResult(), MegaChatError::ERROR_EXIST) << "Error ERROR_EXIST expected upon opening chat-link. Error: " << crtPreviewTracker1.getErrorString();
+
+    LOG_debug << "#### Test10: Open chatroom ####";
     bool *previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
     ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for update previewers";
 
-    LOG_debug << "#### Test10: Send a message (ERR) ####";
+    LOG_debug << "#### Test11: Send a message (ERR) ####";
     string msg = "HI " + account(a1).getEmail()+ " - This message will be rejected because now I'm a previewer";
     bool *flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
@@ -2089,7 +2095,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     ASSERT_TRUE(waitForResponse(flagRejected)) << "Timeout expired for rejection of message";    // for confirmation, sendMessage() is synchronous
     ASSERT_EQ(chatroomListener->mConfirmedMessageHandle[a2], MEGACHAT_INVALID_HANDLE) << "Message confirmed, when it should fail";
 
-    LOG_debug << "#### Test11: Send a message ####";
+    LOG_debug << "#### Test12: Send a message ####";
     msg = "HI Anonymous user, This message will be sent";
     flagRejected = &chatroomListener->msgRejected[a1]; *flagRejected = false;
     chatroomListener->clearMessages(a1);   // will be set at reception
@@ -2098,28 +2104,28 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     delete msgSent; msgSent = NULL;
     ASSERT_EQ(chatroomListener->mConfirmedMessageHandle[a1], MEGACHAT_INVALID_HANDLE) << "Message confirmed, when it should fail";
 
-    LOG_debug << "#### Test12: Close preview ####";
+    LOG_debug << "#### Test13: Close preview ####";
     previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     megaChatApi[a2]->closeChatPreview(chatid);
     ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for close preview";
 
-    LOG_debug << "#### Test13: Remove chat link ####";
+    LOG_debug << "#### Test14: Remove chat link ####";
     ChatRequestTracker crtRemoveLink(megaChatApi[a1]);
     megaChatApi[a1]->removeChatLink(chatid, &crtRemoveLink);
     ASSERT_EQ(crtRemoveLink.waitForResult(), MegaChatError::ERROR_OK) << "Failed to remove chat link. Error: " << crtRemoveLink.getErrorString();
 
-    LOG_debug << "#### Test14: Load chat link (ERR) ####";
+    LOG_debug << "#### Test15: Load chat link (ERR) ####";
     ChatRequestTracker crtPreviewTracker2(megaChatApi[a2]);
     megaChatApi[a2]->openChatPreview(chatLink.c_str(), &crtPreviewTracker2);
     ASSERT_NE(crtPreviewTracker2.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat preview succeeded. Should have failed!";
 
-    LOG_debug << "#### Test15: Logout ####";
+    LOG_debug << "#### Test16: Logout ####";
     ASSERT_NO_FATAL_FAILURE({ logout(a2); });
     delete [] sessionAnonymous;
     sessionAnonymous = NULL;
 
     /// Public chats test
-    LOG_debug << "#### Test16: Login in secondary account ####";
+    LOG_debug << "#### Test17: Login in secondary account ####";
     char *sessionSecondary = login(a2);
     ASSERT_TRUE(sessionSecondary);
 
@@ -2133,7 +2139,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     }
     }
 
-    LOG_debug << "#### Test17: Create chat link ####";
+    LOG_debug << "#### Test18: Create chat link ####";
     ChatRequestTracker crtCreateLink3(megaChatApi[a1]);
     megaChatApi[a1]->createChatLink(chatid, &crtCreateLink3);
     ASSERT_EQ(crtCreateLink3.waitForResult(), MegaChatError::ERROR_OK) << "Error creating chat link (3). Error: " << crtCreateLink3.getErrorString();
@@ -2141,17 +2147,17 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     const string& chatLink3 = crtCreateLink3.getText();
     ASSERT_FALSE(chatLink3.empty());
 
-    LOG_debug << "#### Test18: Load chat link ####";
+    LOG_debug << "#### Test19: Load chat link ####";
     ChatRequestTracker crtPreviewTracker3(megaChatApi[a2]);
     megaChatApi[a2]->openChatPreview(chatLink3.c_str(), &crtPreviewTracker3);
     ASSERT_EQ(crtPreviewTracker3.waitForResult(), MegaChatError::ERROR_OK) << "Failed to open chat preview (3). Error: " << crtPreviewTracker3.getErrorString();
 
-    LOG_debug << "#### Test19: Open chatroom ####";
+    LOG_debug << "#### Test20: Open chatroom ####";
     previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (a2+1);
     ASSERT_TRUE(waitForResponse(previewsUpdated)) << "Timeout expired for update previewers";
 
-    LOG_debug << "#### Test20: Send a message (ERR) ####";
+    LOG_debug << "#### Test21: Send a message (ERR) ####";
     string msgaux = "HI " + account(a1).getEmail()+ " - This message can't be send because I'm in preview mode (read-only)";
     flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
@@ -2161,7 +2167,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     ASSERT_TRUE(waitForResponse(flagRejected)) << "Timeout expired for rejection of message";
     ASSERT_EQ(chatroomListener->mConfirmedMessageHandle[a2], MEGACHAT_INVALID_HANDLE) << "Message confirmed, when it should fail";
 
-    LOG_debug << "#### Test21: Autojoin chat link ####";
+    LOG_debug << "#### Test22: Autojoin chat link ####";
     bool* flagChatsUpdated1 = &mChatsUpdated[a1]; *flagChatsUpdated1 = false;
     mChatListUpdated[a1].clear();
     previewsUpdated = &chatroomListener->previewsUpdated[a1]; *previewsUpdated = false;
@@ -2178,7 +2184,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     delete item;
     item = NULL;
 
-    LOG_debug << "#### Test22: Send a message ####";
+    LOG_debug << "#### Test23: Send a message ####";
     msgaux = "HI " + account(a1).getEmail()+ " - I have autojoined to this chat";
     flagRejected = &chatroomListener->msgRejected[a2]; *flagRejected = false;
     chatroomListener->clearMessages(a2);   // will be set at reception
@@ -2186,7 +2192,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     ASSERT_TRUE(msgSent) << "Succeed to send message, when it should fail";
     delete msgSent; msgSent = NULL;
 
-    LOG_debug << "#### Test23: Set chat to private mode ####";
+    LOG_debug << "#### Test24: Set chat to private mode ####";
     ASSERT_NO_FATAL_FAILURE({
         waitForAction (1, // just one attempt
                       std::vector<bool *> { &chatroomListener->chatModeUpdated[a1], &chatroomListener->chatModeUpdated[a2]},
@@ -2205,7 +2211,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     });
 
 
-    LOG_debug << "#### Test24: Remove peer from groupchat (OK) ####";
+    LOG_debug << "#### Test25: Remove peer from groupchat (OK) ####";
     auto uh =  megaChatApi[a2]->getMyUserHandle();
     bool *chatClosed = &chatItemClosed[a2]; *chatClosed = false;
     ChatRequestTracker crtRemoveFromGroup(megaChatApi[a1]);
@@ -2218,17 +2224,17 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     ASSERT_FALSE(auxchatroom->isActive()) << "Chatroom should be inactive, but it's still active";
     delete auxchatroom;    auxchatroom = NULL;
 
-    LOG_debug << "#### Test25: Preview chat link (ERR) ####";
+    LOG_debug << "#### Test26: Preview chat link (ERR) ####";
     ChatRequestTracker crtPreviewTracker4(megaChatApi[a2]);
     megaChatApi[a2]->openChatPreview(chatLink3.c_str(), &crtPreviewTracker4);
     ASSERT_NE(crtPreviewTracker4.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat preview succeeded (4). Should have failed!";
 
-    LOG_debug << "#### Test26: Invite other account ####";
+    LOG_debug << "#### Test27: Invite other account ####";
     ChatRequestTracker crtInvite(megaChatApi[a1]);
     megaChatApi[a1]->inviteToChat(chatid, uh, MegaChatPeerList::PRIV_STANDARD, &crtInvite);
     ASSERT_EQ(crtInvite.waitForResult(), MegaChatError::ERROR_OK) << "Failed to invite a new peer. Error: " << crtInvite.getErrorString();
 
-    LOG_debug << "#### Test27: Leave chat room ####";
+    LOG_debug << "#### Test28: Leave chat room ####";
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
 
@@ -5581,7 +5587,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ChatRequestTracker crtOpenLink2(megaChatApi[a3]);
     *previewsUpdated = false;
     megaChatApi[a3]->openChatPreview(crtCreateLink.getText().c_str(), &crtOpenLink2);
-    ASSERT_EQ(crtOpenLink2.waitForResult(), MegaChatError::ERROR_OK) << "Opening chat link failed. Should have succeeded!";
+    ASSERT_EQ(crtOpenLink2.waitForResult(), MegaChatError::ERROR_EXIST) << "Opening chat link failed. Should have succeeded!";
     ASSERT_TRUE(waitForResponse(chatPreviewClosedChanged)) << "Timeout expired for automatically preview close";
 
     // check that modified options above have been properly updated on chatroom
