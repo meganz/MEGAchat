@@ -6915,7 +6915,7 @@ public:
      *   our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param chatid MegaChatHandle that identifies the user
+     * @param userid MegaChatHandle that identifies the user
      * @param listener MegaChatRequestListener to track this request
      */
     void removeSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener* listener = NULL);
