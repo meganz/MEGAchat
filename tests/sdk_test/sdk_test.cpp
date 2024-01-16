@@ -1,7 +1,9 @@
+#include "gtest_common.h"
 #include "sdk_test.h"
 
 #include <mega.h>
 #include <megaapi.h>
+#include <mega/process.h>
 
 #ifdef _WIN32
 #include <direct.h>
@@ -19,6 +21,14 @@ const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 const std::string MegaChatApiTest::LOCAL_PATH = "./tmp"; // no ending slash
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
+std::string USER_AGENT_DESCRIPTION = "MEGAChatTest";
+
+const string& getDefaultLogName()
+{
+    static const string LOG_NAME{"test.log"};
+    return LOG_NAME;
+}
+
 
 class GTestLogger : public ::testing::EmptyTestEventListener
 {
@@ -56,26 +66,79 @@ public:
 
 int main(int argc, char **argv)
 {
-    remove("test.log");
+    vector<pair<string, string>> accEnvVars{{"MEGA_EMAIL0", "MEGA_PWD0"},
+                                            {"MEGA_EMAIL1", "MEGA_PWD1"},
+                                            {"MEGA_EMAIL2", "MEGA_PWD2"}};
 
-    std::vector<char*> myargv1(argv, argv + argc);
-    for (auto it = myargv1.begin(); it != myargv1.end(); ++it)
+    RuntimeArgValues argVals(vector<string>(argv, argv + argc), std::move(accEnvVars));
+    if (argVals.isHelp())
     {
-        if (std::string(*it).substr(0, 9) == "--APIURL:")
+        return 0;
+    }
+
+    if (!argVals.isValid())
+    {
+        std::cout << "No tests executed (invalid arguments)." << std::endl;
+        return -1;
+    }
+
+    if (argVals.isListOnly())
+    {
+        testing::InitGoogleTest(&argc, argv);
+        return RUN_ALL_TESTS(); // returns 0 (success) or 1 (failed tests)
+    }
+
+    remove(argVals.getLog().c_str());
+
+    if (argVals.isMainProcWithWorkers())
+    {
+        // Don't run tests, only manage subprocesses.
+        // To get here run with --INSTANCES:2 [--EMAIL-POOL:foo+bar-{1-28}@mega.nz]
+        // If --EMAIL-POOL runtime arg is missing, email template will be taken from MEGA_PWD0 env var.
+        // Password for all emails built from template will be taken from MEGA_PWD0 env var.
+        // If it did not get an email template, it'll use 1 single subprocess with the existing env vars.
+        GTestParallelRunner pr(std::move(argVals));
+        MegaChatApiTest::initFS();
+        int rc = pr.run();
+        MegaChatApiTest::terminateFS();
+        return rc;
+    }
+
+    // runt test(s)
+    if (!argVals.getCustomApiUrl().empty())
+    {
+        g_APIURL_default = argVals.getCustomApiUrl();
+    }
+    if (!argVals.getCustomUserAget().empty())
+    {
+        USER_AGENT_DESCRIPTION = argVals.getCustomUserAget();
+    }
+    if (argVals.isMainProcOnly())
+    {
+        // Env vars might need to be set, for example when an email template was used
+        auto envVars = argVals.getEnvVarsForWorker(0);
+        for (const auto& env : envVars)
         {
-            std::lock_guard<std::mutex> g(g_APIURL_default_mutex);
-            g_APIURL_default = std::string(*it).substr(9);
-            if (!g_APIURL_default.empty() && g_APIURL_default.back() != '/')
-                g_APIURL_default += '/';
+            Utils::setenv(env.first, env.second);
         }
     }
-    MegaChatApiTest::init(); // logger set here will also be enough for MegaChatApiUnitaryTest
+
+    if (argVals.isMainProcOnly())
+    {
+        MegaChatApiTest::initFS();
+    }
+    MegaChatApiTest::init(argVals.getLog()); // logger set here will also be enough for MegaChatApiUnitaryTest
+
     testing::InitGoogleTest(&argc, argv);
     testing::UnitTest::GetInstance()->listeners().Append(new GTestLogger());
 
     int rc = RUN_ALL_TESTS(); // returns 0 (success) or 1 (failed tests)
 
     MegaChatApiTest::terminate();
+    if (argVals.isMainProcOnly())
+    {
+        MegaChatApiTest::terminateFS();
+    }
 
     return rc;
 }
@@ -256,11 +319,24 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
 }
 
-void MegaChatApiTest::init()
+void MegaChatApiTest::initFS()
+{
+    struct stat st = {}; // init all members to default values (0)
+    if (stat(LOCAL_PATH.c_str(), &st) == -1)
+    {
+#ifdef _WIN32
+        _mkdir(LOCAL_PATH.c_str());
+#else
+        mkdir(LOCAL_PATH.c_str(), 0700);
+#endif
+    }
+}
+
+void MegaChatApiTest::init(const std::string& log)
 {
     std::cout << "[========] Global test environment initialization" << endl;
 
-    getEnv().setLogFile("test.log");
+    getEnv().setLogFile(log);
     MegaApi::addLoggerObject(logger());
     MegaApi::setLogToConsole(false);    // already disabled by default
     MegaChatApi::setLoggerObject(logger());
@@ -310,21 +386,17 @@ void MegaChatApiTest::terminate()
     MegaChatApi::setLoggerObject(NULL);
 }
 
+void MegaChatApiTest::terminateFS()
+{
+    purgeLocalTree(LOCAL_PATH);
+}
+
 void MegaChatApiTest::SetUp()
 {
     const ::testing::TestInfo* ti = ::testing::UnitTest::GetInstance()->current_test_info();
     const string name = string(ti->test_suite_name()) + '.' + ti->name();
-    struct stat st = {}; // init all members to default values (0)
 
     LOG_info << "Test " << name << ": SetUp starting.";
-    if (stat(LOCAL_PATH.c_str(), &st) == -1)
-    {
-#ifdef _WIN32
-        _mkdir(LOCAL_PATH.c_str());
-#else
-        mkdir(LOCAL_PATH.c_str(), 0700);
-#endif
-    }
 
     for (unsigned i = 0u; i < NUM_ACCOUNTS; ++i)
     {
@@ -539,8 +611,6 @@ void MegaChatApiTest::TearDown()
             megaApi[i] = NULL;
         }
     }
-
-    purgeLocalTree(LOCAL_PATH);
 
     // Clear MegaChatApi leftovers AFTER MegaApi instances have been released
     clearMegaChatApiImplLeftovers();
@@ -818,7 +888,7 @@ void MegaChatApiTest::waitForAction(int maxAttempts, ExitBoolFlags& eF, const st
     int retries = 0;
     while (!exitWait(eF, waitForAll))
     {
-        action();
+        ASSERT_NO_FATAL_FAILURE(action());
         if (!waitForMultiResponse(eF, waitForAll, timeout))
         {
             std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(":\n ");
@@ -848,7 +918,7 @@ void MegaChatApiTest::waitForAction(int maxAttempts, std::vector<bool*> exitFlag
     int retries = 0;
     while (!exitWait(exitFlags, waitForAll))
     {
-        action();
+        ASSERT_NO_FATAL_FAILURE(action());
         if (!waitForMultiResponse(exitFlags, waitForAll, timeout))
         {
             std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(": ");
@@ -2808,10 +2878,10 @@ TEST_F(MegaChatApiTest, Attachment)
     chatroomListener->clearMessages(a1);   // will be set at confirmation
     chatroomListener->clearMessages(a2);   // will be set at reception
 
-    std::string formatDate = dateToString();
+    std::string formatDate = dateToString() + "_Attachment_test";
 
     LOG_debug << "#### Test1: Upload new file ####";
-    createFile(formatDate, LOCAL_PATH, formatDate);
+    ASSERT_NO_FATAL_FAILURE(createFile(formatDate, LOCAL_PATH, formatDate));
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
     ASSERT_TRUE(nodeSent);
 
@@ -2996,8 +3066,8 @@ TEST_F(MegaChatApiTest, LastMessage)
     chatroomListener->clearMessages(a2);
 
     LOG_debug << "#### Test3: Upload new file ####";
-    formatDate = dateToString();
-    createFile(formatDate, LOCAL_PATH, formatDate);
+    formatDate = dateToString() + "_LastMessage_test";
+    ASSERT_NO_FATAL_FAILURE(createFile(formatDate, LOCAL_PATH, formatDate));
     MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
     ASSERT_TRUE(nodeSent);
 
@@ -8425,6 +8495,7 @@ void MegaChatApiTest::createFile(const string &fileName, const string &sourcePat
 {
     std::string filePath = sourcePath + "/" + fileName;
     FILE* fileDescriptor = fopen(filePath.c_str(), "w");
+    ASSERT_TRUE(fileDescriptor) << "File " << filePath << " could not be opened for writing";
     fprintf(fileDescriptor, "%s", contain.c_str());
     fclose(fileDescriptor);
 }
@@ -8825,7 +8896,7 @@ void MegaChatApiTest::waitForCallAction (unsigned int pIdx, int maxAttempts, boo
         resetTestChatCallState(pIdx, megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS);
 
         // execute custom user action and wait until exitFlag is set true, OR performer account gets disconnected from SFU for the target call
-        action();
+        ASSERT_NO_FATAL_FAILURE(action());
         ASSERT_TRUE(waitForMultiResponse(std::vector<bool *> { exitFlag, callConnecting }, false /*waitForAll*/, timeout)) << "Timeout expired for " << errStr;
 
         // if performer account gets disconnected from SFU for the target call, wait until reconnect and retry <action>

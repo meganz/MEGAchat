@@ -37,7 +37,6 @@
 #endif
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
-static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
 static constexpr unsigned int MAX_ATTEMPTS = 3;
 static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
@@ -533,9 +532,11 @@ public:
     ~MegaChatApiTest() override;
 
     // Global test environment initialization
-    static void init();
+    static void initFS();
+    static void init(const std::string& log);
     // Global test environment clear up
     static void terminate();
+    static void terminateFS();
 
     using AuxVarsBool     = AuxVars<bool>;
     using AuxVarsMCHandle = AuxVars<megachat::MegaChatHandle>;
@@ -738,7 +739,7 @@ protected:
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
-    int purgeLocalTree(const std::string& path);
+    static int purgeLocalTree(const std::string& path);
     void purgeCloudTree(unsigned int accountIndex, ::mega::MegaNode* node);
     void clearAndLeaveChats(unsigned accountIndex, const std::vector<megachat::MegaChatHandle>& skipChats);
     void removePendingContactRequest(unsigned int accountIndex);
