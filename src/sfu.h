@@ -40,6 +40,7 @@ enum class SfuProtocol: uint32_t
     SFU_PROTO_V1       = 1,
     SFU_PROTO_V2       = 2,
     SFU_PROTO_V3       = 3,
+    SFU_PROTO_V4       = 4,
     SFU_PROTO_FIRST    = SFU_PROTO_V0,
     SFU_PROTO_LAST     = SFU_PROTO_V3,
     SFU_PROTO_INVAL    = UINT32_MAX,
@@ -785,7 +786,7 @@ public:
     void retryPendingConnections(bool disconnect);
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
-    void addVersionToUrl(karere::Url& sfuUrl);
+    void addVersionToUrl(karere::Url& sfuUrl, const sfu::SfuProtocol sfuVersion);
 
 private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;

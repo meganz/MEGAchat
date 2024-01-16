@@ -6394,6 +6394,12 @@ void MegaChatApiImpl::addRevokeSpeakPermission(MegaChatHandle chatid, MegaChatHa
     waiter->notify();
 }
 
+void MegaChatApiImpl::enableSpeakRequestSupportForCalls(const bool enable)
+{
+    SdkMutexGuard g(sdkMutex);
+    mClient->rtc->enableSpeakRequestSupportForCalls(enable);
+}
+
 void MegaChatApiImpl::addDelSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SPEAKRQ_ADD_DEL, listener);

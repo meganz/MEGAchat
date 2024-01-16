@@ -1286,6 +1286,11 @@ void MegaChatApi::revokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle us
     pImpl->addRevokeSpeakPermission(chatid, userid, false/*add*/, listener);
 }
 
+void MegaChatApi::enableSpeakRequestSupportForCalls(bool enable)
+{
+    pImpl->enableSpeakRequestSupportForCalls(enable);
+}
+
 void MegaChatApi::sendSpeakRequest(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->addDelSpeakRequest(chatid, MEGACHAT_INVALID_HANDLE, true/*add*/, listener);

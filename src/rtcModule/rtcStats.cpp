@@ -16,7 +16,7 @@ std::string Stats::getJson()
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value sfuv(rapidjson::kNumberType);
-    sfuv.SetUint(static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+    sfuv.SetUint(mSfuProtoVersion);
     json.AddMember("v", sfuv, json.GetAllocator());
     rapidjson::Value userid(rapidjson::kStringType);
     userid.SetString(mPeerId.toString().c_str(), json.GetAllocator());

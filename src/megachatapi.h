@@ -6879,6 +6879,17 @@ public:
     void revokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener = NULL);
 
     /**
+     * @brief Enables or disables support for speak request feature in calls
+     *
+     * In order to start/answer a call with speak request feature, we need to call this method with enable param (true),
+     * and MegaChatRoom::isSpeakRequest also must returns true. Check MegaChatApi::setSpeakRequest to enable or disable
+     * option in chatroom.
+     *
+     * @param enable set true if we want to enable support for speak request feature in calls, otherwise set false
+     */
+    void enableSpeakRequestSupportForCalls(bool enable);
+
+    /**
      * @brief Send speak request
      *
      * Moderator approval is required to have speak permission granted

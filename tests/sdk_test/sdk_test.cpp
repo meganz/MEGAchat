@@ -4905,8 +4905,22 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     // Test preparation: login, get chatroom ...
     //========================================================================//
 
-    CleanupFunction testCleanup = [this] () -> void
+    auto enableSpeakRequestSupportForCalls = [this](std::set<unsigned int> idxs, const bool enable)
     {
+        const auto url = enable ? "https://staging.api.mega.co.nz/" : "https://g.api.mega.co.nz/";
+        const auto sfuid = enable ? 336 : sfu_invalid_id;
+        std::for_each(idxs.begin(), idxs.end(), [this, &url, &enable, &sfuid](const auto& idx)
+        {
+            megaApi[idx]->changeApiUrl(url);
+            megaApi[idx]->setSFUid(sfuid);
+            megaChatApi[idx]->enableSpeakRequestSupportForCalls(enable);
+        });
+    };
+
+    CleanupFunction testCleanup = [this, &enableSpeakRequestSupportForCalls] () -> void
+    {
+        // remove when we bump to SFU v4 protocol
+        enableSpeakRequestSupportForCalls({0/*a1*/, 1/*a2*/, 2/*a3*/}, true);
         closeOpenedChatrooms();
         cleanChatVideoListeners();
         logoutTestAccounts();
@@ -4932,6 +4946,9 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3););
     ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3););
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts(););
+
+    // remove when we bump to SFU v4 protocol
+    enableSpeakRequestSupportForCalls({a1, a2, a3}, true);
 
     // set chat selection criteria
     mData.mChatOptions.mCreate          = true;
