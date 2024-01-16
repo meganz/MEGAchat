@@ -2594,7 +2594,7 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
 }
 
-bool Call::handleMutedCommand(const unsigned av)
+bool Call::handleMutedCommand(const unsigned av, const Cid_t cidPerf)
 {
     karere::AvFlags flags(static_cast<uint8_t>(av));
     if (!flags.audioMuted() && !flags.videoMuted())
@@ -2603,7 +2603,7 @@ bool Call::handleMutedCommand(const unsigned av)
         assert(false);
         return false;
     }
-    muteMyClient(flags.audioMuted(), flags.videoMuted());
+    muteMyClient(flags.audioMuted(), flags.videoMuted(), cidPerf);
     return true;
 }
 
@@ -3615,7 +3615,7 @@ const mega::ECDH* Call::getMyEphemeralKeyPair() const
     return mEphemeralKeyPair.get();
 }
 
-void Call::muteMyClient(const bool audio, const bool video)
+void Call::muteMyClient(const bool audio, const bool video, const Cid_t cidPerf)
 {
     karere::AvFlags currentFlags = getLocalAvFlags();
     if (audio)
@@ -3632,7 +3632,7 @@ void Call::muteMyClient(const bool audio, const bool video)
         updateVideoTracks();
     }
 
-    mCallHandler.onLocalFlagsChanged(*this);  // notify app local AvFlags Change
+    mCallHandler.onLocalFlagsChanged(*this, cidPerf);  // notify app local AvFlags Change
 }
 
 void Call::addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived)

@@ -4623,12 +4623,25 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     ASSERT_TRUE(primarySession);
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     ASSERT_TRUE(secondarySession);
+    mData.mOpIdx = a1;
+
+    CleanupFunction testCleanup = [this]() -> void
+    {
+        ExitBoolFlags eF;
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "CallDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        endChatCallTestCleanup(mData.mOpIdx, eF, mData.mChatid);
+        closeOpenedChatrooms();
+        cleanChatVideoListeners();
+        logoutTestAccounts();
+    };
+    MegaMrProper p (testCleanup);
 
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
         ASSERT_NO_FATAL_FAILURE({ makeContact(a1, a2); });
     }
+
     // Get a group chatroom with both users
     MegaChatHandle uh = user->getHandle();
     std::unique_ptr<MegaChatPeerList> peers(MegaChatPeerList::createInstance());
@@ -4639,27 +4652,27 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
                                              true /*meetingRoom*/,
                                              false /*waitingRoom*/);
 
+    mData.mChatid = chatid;
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) <<
                      "Common chat for both users not found.";
     ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatid), MegaChatApi::CHAT_CONNECTION_ONLINE) <<
                      "Not connected to chatd for account " << (a1+1) << ": " <<
                      account(a1).getEmail();
 
-    std::unique_ptr<TestChatRoomListener>chatroomListener(new TestChatRoomListener(this,
+    std::shared_ptr<TestChatRoomListener>chatroomListener(new TestChatRoomListener(this,
                                                                                    megaChatApi,
                                                                                    chatid));
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener.get())) <<
                      "Can't open chatRoom user A";
+    mData.mChatroomListeners.emplace(a1, chatroomListener);
+
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener.get())) <<
                      "Can't open chatRoom user B";
-
+    mData.mChatroomListeners.emplace(a2, chatroomListener);
     loadHistory(a1, chatid, chatroomListener.get());
     loadHistory(a2, chatid, chatroomListener.get());
-
-    TestChatVideoListener localVideoListenerA;
-    megaChatApi[a1]->addChatLocalVideoListener(chatid, &localVideoListenerA);
-    TestChatVideoListener localVideoListenerB;
-    megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
+    addChatVideoListener(a1, chatid);
+    addChatVideoListener(a2, chatid);
 
     // Make some testing with limit for simultaneous input video tracks in both accounts
     LOG_debug << "Checking that default limit for simultaneous input video tracks is valid for both accounts";
@@ -4693,6 +4706,10 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
     ASSERT_EQ(megaChatApi[a2]->getCurrentInputVideoTracksLimit(), limitInputVideoTracks)
         << "Default limit for simultaneous input video tracks that call supports has not been updated for secondary account";
+
+    LOG_debug << "\tSwitching to staging (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
 
     LOG_debug << "#### Test1: A starts a groupal Meeting in chat1 (without audio nor video) ####";
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
@@ -4765,9 +4782,19 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     MegaChatHandle secondaryCid = secondarySess->getClientid();
     ASSERT_NE(secondaryCid, MEGACHAT_INVALID_HANDLE) << "Invalid client id for secondary session";
 
+    unique_ptr<MegaChatCall> a2Call(megaChatApi[a2]->getChatCall(chatid));
+    ASSERT_TRUE(a2Call) << "Can't get call for account a2 from chatroom: " << getChatIdStrB64(chatid);
+    std::unique_ptr<MegaHandleList> a2hl(a2Call->getSessionsClientid());
+    ASSERT_TRUE(a2hl && a2hl->size()) << "Can't get a client id list from call";
+    MegaChatSession* a1Sess = a2Call->getMegaChatSession(a2hl->get(0));
+    ASSERT_TRUE(a1Sess) << "Can't get a session for clientid: " << a2hl->get(0);
+    MegaChatHandle a1Cid = a1Sess->getClientid();
+    ASSERT_NE(a1Cid, MEGACHAT_INVALID_HANDLE) << "Invalid client id for primary session";
+
     LOG_debug << "#### Test3: A mutes B in call ####";
     bool* remoteAvFlagsChanged = &mChatCallAudioDisabled[a1]; *remoteAvFlagsChanged = false; // a2 will receive onChatSessionUpdate (CHANGE_TYPE_REMOTE_AVFLAGS)
     exitFlag = &mChatCallAudioDisabled[a2]; *exitFlag = false; // a2 will receive onChatCallUpdate (CHANGE_TYPE_LOCAL_AVFLAGS)
+    addHandleVar(a2, "MutePerformer", MEGACHAT_INVALID_HANDLE); // a2 onChatCallUpdate (MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS)
     action = [this, a1, chatid, secondaryCid]()
     {
         ChatRequestTracker crtMutePeers(megaChatApi[a1]);
@@ -4777,8 +4804,13 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     };
     ASSERT_NO_FATAL_FAILURE({
         waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving MUTED notification from SFU for secondary account", maxTimeout, action);
+        MegaChatHandle* mutePerformerCid = handleVars().getVar(a2, "MutePerformer");
+        ASSERT_TRUE(mutePerformerCid) << "Invalid MutePerformer Cid for account" << std::to_string(a2);
+        ASSERT_EQ(*mutePerformerCid, a1Cid) << "Unexpected MutePerformer Cid for account: " << std::to_string(a2);
     });
     ASSERT_TRUE(waitForResponse(remoteAvFlagsChanged)) << "Timeout expired for Primary account receiving AvFlags update for Secondary account";
+    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 
     LOG_debug << "#### Test4: B puts call in hold on ####";
     exitFlag = &mChatCallOnHold[a1]; *exitFlag = false;  // from receiver account
@@ -4935,13 +4967,6 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     ASSERT_TRUE(waitForResponse(callDestroyedB)) <<
                      "The call for B should be already finished and it is not";
     LOG_debug << "Destroyed for B is OK.";
-
-
-    // close & cleanup
-    megaChatApi[a1]->closeChatRoom(chatid, chatroomListener.get());
-    megaChatApi[a2]->closeChatRoom(chatid, chatroomListener.get());
-    megaChatApi[a1]->removeChatLocalVideoListener(chatid, &localVideoListenerA);
-    megaChatApi[a2]->removeChatLocalVideoListener(chatid, &localVideoListenerB);
 }
 
 /**
@@ -9196,6 +9221,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
     {
+        handleVars().updateIfExists(apiIndex, "MutePerformer", call->getAuxHandle());
         mChatCallAudioEnabled[apiIndex] = call->hasLocalAudio();
         mChatCallAudioDisabled[apiIndex] = !call->hasLocalAudio();
         mOwnFlagsChanged[apiIndex] = true;
@@ -10065,7 +10091,7 @@ bool MockupCall::handleWrUsersDeny(const std::set<karere::Id>& /*users*/)
     return true;
 }
 
-bool MockupCall::handleMutedCommand(const unsigned /*av*/)
+bool MockupCall::handleMutedCommand(const unsigned /*av*/, const Cid_t /*cidPerf*/)
 {
     return true;
 }
