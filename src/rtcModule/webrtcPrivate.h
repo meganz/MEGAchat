@@ -463,25 +463,6 @@ public:
     bool updateSpeakersList(const karere::Id& userid, const bool add);
     bool updateSpeakRequestsList(const karere::Id& userid, const bool add);
 
-    // --- speakers list methods ---
-    bool addToSpeakersList (const uint64_t userid)              { return mSpeakers.emplace(userid).second; }
-    bool removeFromSpeakersList (const uint64_t userid)         { return mSpeakers.erase(userid); }
-    bool isOnSpeakersList (const uint64_t userid) const         { return isSpeakRequestEnabled() && mSpeakers.find(userid) != mSpeakers.end(); }
-    void clearSpeakersList()                                    { mSpeakers.clear(); }
-
-    // --- speak requests list methods ---
-    bool addToSpeakRequestsList (const uint64_t userid)         { return mSpeakRequests.emplace(userid).second; }
-    bool removeFromSpeakRequestsList (const uint64_t userid)    { return mSpeakRequests.erase(userid); }
-    bool isOnSpeakRequestsList (const uint64_t userid) const    { return isSpeakRequestEnabled() && mSpeakRequests.find(userid) != mSpeakRequests.end(); }
-    void clearSpeakRequestsList()                               { mSpeakRequests.clear(); }
-
-    // --- moderators list methods ---
-    bool addToModeratorsList (const uint64_t userid)            { return mModerators.emplace(userid).second; }
-    bool removeFromModeratorsList (const uint64_t userid)       { return mModerators.erase(userid); }
-    bool isOnModeratorsList (const uint64_t userid) const       { return mModerators.find(userid) != mModerators.end(); }
-    void clearModeratorsList()                                  { mModerators.clear(); }
-
-
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
     bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
@@ -742,6 +723,24 @@ protected:
 
     // verify signature for received ephemeral key
     promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
+
+    // --- speakers list methods ---
+    bool addToSpeakersList (const uint64_t userid)              { return mSpeakers.emplace(userid).second; }
+    bool removeFromSpeakersList (const uint64_t userid)         { return mSpeakers.erase(userid); }
+    bool isOnSpeakersList (const uint64_t userid) const         { return isSpeakRequestEnabled() && mSpeakers.find(userid) != mSpeakers.end(); }
+    void clearSpeakersList()                                    { mSpeakers.clear(); }
+
+    // --- speak requests list methods ---
+    bool addToSpeakRequestsList (const uint64_t userid)         { return mSpeakRequests.emplace(userid).second; }
+    bool removeFromSpeakRequestsList (const uint64_t userid)    { return mSpeakRequests.erase(userid); }
+    bool isOnSpeakRequestsList (const uint64_t userid) const    { return isSpeakRequestEnabled() && mSpeakRequests.find(userid) != mSpeakRequests.end(); }
+    void clearSpeakRequestsList()                               { mSpeakRequests.clear(); }
+
+    // --- moderators list methods ---
+    bool addToModeratorsList (const uint64_t userid)            { return mModerators.emplace(userid).second; }
+    bool removeFromModeratorsList (const uint64_t userid)       { return mModerators.erase(userid); }
+    bool isOnModeratorsList (const uint64_t userid) const       { return mModerators.find(userid) != mModerators.end(); }
+    void clearModeratorsList()                                  { mModerators.clear(); }
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

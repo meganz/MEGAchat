@@ -1010,8 +1010,7 @@ void Call::joinSfu()
             return;
         }
 
-        karere::AvFlags joinFlags = getLocalAvFlags();
-        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, joinFlags.value(), getPrevCid(), kInitialvthumbCount);
+        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getPrevCid(), kInitialvthumbCount);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -1951,7 +1950,8 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     }
 
     // if userid is invalid, command is for own user
-    const bool isOwnUser = !karere::Id(userid).isValid();
+    const karere::Id uh = !karere::Id(userid).isValid() ? getOwnPeerId() : karere::Id(userid);
+    const bool isOwnUser = uh == getOwnPeerId();
     if (isOwnUser && isOnModeratorsList(userid))
     {
         RTCM_LOG_WARNING("SPEAKER_ADD/DEL command should not be received for own user with moderator role");
@@ -1959,7 +1959,6 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
         return true;
     }
 
-    const karere::Id uh = isOwnUser ? getOwnPeerId() : karere::Id(userid);
     if (!updateSpeakersList(uh, add))
     {
         RTCM_LOG_WARNING("handle %s command. cannot update speakers list", add ? "SPEAKER_ADD" : "SPEAKER_DEL");
