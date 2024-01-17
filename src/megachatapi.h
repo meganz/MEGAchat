@@ -6884,7 +6884,8 @@ public:
      * In order to start/answer a call with speak request feature, we need to call this method with enable param (true).
      * This feature is only available for those chats that MegaChatRoom::isSpeakRequest returns true. Check 
      * MegaChatApi::setSpeakRequest to enable or disable option in chatroom.
-     *
+     * @note Do not call this method if there's any call in progress, as it could generate side effects
+     * 
      * @param enable set true if we want to enable support for speak request feature in calls, otherwise set false
      */
     void enableSpeakRequestSupportForCalls(bool enable);
