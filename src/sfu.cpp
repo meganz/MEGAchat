@@ -1609,7 +1609,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[WrDenyCommand::COMMAND_NAME] = mega::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call), call);
     commands[WrUsersAllowCommand::COMMAND_NAME] = mega::make_unique<WrUsersAllowCommand>(std::bind(&sfu::SfuInterface::handleWrUsersAllow, &call, std::placeholders::_1), call);
     commands[WrUsersDenyCommand::COMMAND_NAME] = mega::make_unique<WrUsersDenyCommand>(std::bind(&sfu::SfuInterface::handleWrUsersDeny, &call, std::placeholders::_1), call);
-    commands[MutedCommand::COMMAND_NAME] = mega::make_unique<MutedCommand>(std::bind(&sfu::SfuInterface::handleMutedCommand, &call, std::placeholders::_1), call);
+    commands[MutedCommand::COMMAND_NAME] = mega::make_unique<MutedCommand>(std::bind(&sfu::SfuInterface::handleMutedCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
 }
 
 bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
@@ -2677,10 +2677,15 @@ bool MutedCommand::processCommand(const rapidjson::Document& command)
         SFU_LOG_ERROR("Received data doesn't have 'av' field");
         return false;
     }
-
     unsigned av = avIterator->value.GetUint();
 
-    return mComplete(av);
+    Cid_t cidPerf = K_INVALID_CID;
+    rapidjson::Value::ConstMemberIterator cidIterator = command.FindMember("by");
+    if (cidIterator != command.MemberEnd() && cidIterator->value.IsUint())
+    {
+        cidPerf = cidIterator->value.GetUint();  // optional
+    }
+    return mComplete(av, cidPerf);
 }
 
 ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)

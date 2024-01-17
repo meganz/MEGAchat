@@ -1117,54 +1117,61 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                    }
                    else //Load chat link
                    {
-                       Id ph = result->getNodeHandle();
-                       request->setUserHandle(ph.val);
-                       GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
-                       const bool hasChanged = room && room->hasChatLinkChanged(ph.val, decryptedTitle, meeting, opts);
-                       std::string url = result->getLink() ? result->getLink() : "";
-                       int shard = result->getAccess();
-
-                       if (room && !hasChanged)
-                       {
-                           int err = MegaChatError::ERROR_EXIST;
-                           const bool enablePreview = !room->isActive() && room->previewMode();
-                           if (enablePreview)
-                           {
-                               err = MegaChatError::ERROR_OK;
-                               room->enablePreview(ph);
-                           }
-
-                           // update sched meetings if necessary and notify app
-                           room->updateSchedMeetingsWithList(smList);
-                           MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err);
+                        GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
+                        if (!room && mClient->mChatdClient->chatFromId(chatId))
+                        {
+                           assert(!mClient->mChatdClient->chatFromId(chatId));
+                           API_LOG_ERROR("Chatid (%s) already exists at mChatForChatId but not at ChatRoomList", karere::Id(chatId).toString().c_str());
+                           MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
                            fireOnChatRequestFinish(request, megaChatError);
-                       }
-                       else
-                       {
-                           if (!room && mClient->mChatdClient->chatFromId(chatId))
-                           {
-                              assert(!mClient->mChatdClient->chatFromId(chatId));
-                              API_LOG_ERROR("Chatid (%s) already exists at mChatForChatId but not at ChatRoomList", karere::Id(chatId).toString().c_str());
-                              MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
-                              fireOnChatRequestFinish(request, megaChatError);
-                              return;
-                           }
+                           return;
+                        }
 
-                           if (hasChanged)
-                           {
-                              assert(room);
-                              // if mcphurl information is different respect GroupChatRoom in ram
-                              // we need to remove preview and recreate again, this is simplier than update
-                              // groupchatroom field by field
-                              mClient->chats->removeRoomPreview(chatId);
-                           }
+                        const Id& ph = result->getNodeHandle();
+                        request->setUserHandle(ph.val);
+                        const bool hasChanged = room && room->hasChatLinkChanged(ph.val, decryptedTitle, meeting, opts);
+                        const std::string url = result->getLink() ? result->getLink() : "";
+                        const int shard = result->getAccess();
+                        const uint32_t ts = static_cast<uint32_t>(result->getNumber());
+                        std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
 
-                           std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
-                           uint32_t ts = static_cast<uint32_t>(result->getNumber());
-                           mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
-                           MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                           fireOnChatRequestFinish(request, megaChatError);
-                       }
+                        if (room) // chatroom already exists
+                        {
+                            if (hasChanged)
+                            {
+                                // if mcphurl information is different respect GroupChatRoom in ram
+                                // we need to remove preview and recreate again, this is simplier than update
+                                // groupchatroom field by field
+                                API_LOG_DEBUG("Chat (%s) has changed", karere::Id(chatId).toString().c_str());
+                                mClient->chats->removeRoomPreview(chatId);
+                                mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
+                                room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
+                                if (!room)
+                                {
+                                    API_LOG_DEBUG("Cannot re-create chat (%s) preview", karere::Id(chatId).toString().c_str());
+                                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN);
+                                    fireOnChatRequestFinish(request, megaChatError);
+                                    return;
+                                }
+                            }
+                            else if (!room->isActive() && room->previewMode()) // re-enable preview
+                            {
+                                API_LOG_DEBUG("Re-enable chat (%s) preview", karere::Id(chatId).toString().c_str());
+                                room->enablePreview(ph);
+                            }
+
+                            // update sched meetings if necessary and notify app
+                            API_LOG_ERROR("Chatid (%s) already exists", karere::Id(chatId).toString().c_str());
+                            room->updateSchedMeetingsWithList(smList);
+                            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
+                            fireOnChatRequestFinish(request, megaChatError);
+                            return;
+                        }
+
+                        // create public chat room from info received from API
+                        mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
+                        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
                    }
                 })
                 .fail([request, this](const ::promise::Error& err)
@@ -2839,6 +2846,8 @@ int MegaChatApiImpl::performRequest_mutePeersInCall(MegaChatRequestPrivate* requ
     }
 
     call->mutePeers(cid, karere::AvFlags::kAudio);
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
     return MegaChatError::ERROR_OK;
 }
 #endif // ifndef KARERE_DISABLE_WEBRTC
@@ -5989,6 +5998,9 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
         MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
         fireOnChatRequestFinish(request, megaChatError);
     });
+
+    // REMINDER: when Client::ringIndividualInACall call is removed (chatd has applied the required fix) we need to
+    // add a call to fireOnChatRequestFinish with MegaChatError::ERROR_OK
     return MegaChatError::ERROR_OK;
 }
 
@@ -8115,6 +8127,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mSpeakRequest = call.isSpeakRequestEnabled();
     mHandle = call.getHandle();
     mFlag = call.getFlag();
+    mAuxHandle = call.getAuxHandle();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
@@ -8239,6 +8252,11 @@ bool MegaChatCallPrivate::isSpeakRequestEnabled() const
 int MegaChatCallPrivate::getNotificationType() const
 {
     return mNotificationType;
+}
+
+MegaChatHandle MegaChatCallPrivate::getAuxHandle() const
+{
+    return mAuxHandle;
 }
 
 bool MegaChatCallPrivate::isRinging() const
@@ -8622,6 +8640,11 @@ void MegaChatCallPrivate::setNotificationType(int notificationType)
 {
     mNotificationType = notificationType;
     setChange(MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION);
+}
+
+void MegaChatCallPrivate::setAuxHandle(const MegaChatHandle h)
+{
+    mAuxHandle = h;
 }
 
 void MegaChatCallPrivate::setTermCode(int termCode)
@@ -11569,10 +11592,11 @@ void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModul
     mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
 }
 
-void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call)
+void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call, const Cid_t cidPerf)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS);
+    chatCall->setAuxHandle(cidPerf);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

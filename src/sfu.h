@@ -252,7 +252,7 @@ public:
     virtual bool handleWrDeny() = 0;
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
-    virtual bool handleMutedCommand(const unsigned av) = 0;
+    virtual bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -463,7 +463,7 @@ public:
 class MutedCommand : public Command
 {   // "MUTED"
 public:
-    typedef std::function<bool(const unsigned av)> MutedCommandFunction;
+    typedef std::function<bool(const unsigned av, const Cid_t cidPerf)> MutedCommandFunction;
     MutedCommand(const MutedCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;

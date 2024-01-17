@@ -277,6 +277,11 @@ int MegaChatCall::getNotificationType() const
     return 0;
 }
 
+MegaChatHandle MegaChatCall::getAuxHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
 bool MegaChatCall::isRinging() const
 {
     return false;

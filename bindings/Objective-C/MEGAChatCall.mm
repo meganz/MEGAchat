@@ -129,6 +129,10 @@ using namespace megachat;
     return (MEGAChatCallNetworkQuality) (self.megaChatCall ? self.megaChatCall->getNetworkQuality() : 0);
 }
 
+- (uint64_t)auxHandle {
+    return self.megaChatCall ? self.megaChatCall->getAuxHandle() : MEGACHAT_INVALID_HANDLE;
+}
+
 - (NSUUID *)uuid {
     unsigned char tempUuid[128];
     uint64_t tempChatId = self.chatId;

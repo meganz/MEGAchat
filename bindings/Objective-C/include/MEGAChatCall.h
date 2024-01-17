@@ -107,6 +107,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 
 @property (nonatomic, readonly) MEGAHandleList *participants;
 
+@property (nonatomic, readonly) uint64_t auxHandle;
+
 @property (nonatomic, readonly) NSUUID *uuid;
 
 @property (nonatomic, readonly) MEGAChatWaitingRoomStatus waitingRoomJoiningStatus;

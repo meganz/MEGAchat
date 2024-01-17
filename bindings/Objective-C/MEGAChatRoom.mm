@@ -149,8 +149,8 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->isWaitingRoom() : NO;
 }
 
-- (NSInteger)peerPrivilegeByHandle:(uint64_t)userHande {
-    return self.megaChatRoom ? self.megaChatRoom->getPeerPrivilegeByHandle(userHande) : -2;
+- (MEGAChatRoomPrivilege)peerPrivilegeByHandle:(uint64_t)userHande {
+    return self.megaChatRoom ? MEGAChatRoomPrivilege(self.megaChatRoom->getPeerPrivilegeByHandle(userHande)) : MEGAChatRoomPrivilegeUnknown;
 }
 
 - (uint64_t)peerHandleAtIndex:(NSUInteger)index {

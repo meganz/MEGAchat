@@ -482,7 +482,11 @@ int Client::importMessages(const char *externalDbPath)
         KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);
         return -1;
     }
+
     // check external DB uses the same DB schema than the app
+    try // SqliteStmt constructor can throw
+    {
+
     SqliteStmt stmtVersion(dbExternal, "select value from vars where name = 'schema_version'");
     if (!stmtVersion.step())
     {
@@ -500,6 +504,15 @@ int Client::importMessages(const char *externalDbPath)
         KR_LOG_ERROR("importMessages: external DB version is too old");
         return -3;
     }
+
+    } // try
+    catch (const std::runtime_error& error)
+    {
+        const char* dbgWhat = error.what();
+        KR_LOG_ERROR("importMessages: failed to create SQL statement:\n%s", dbgWhat);
+        return -5;
+    }
+
     // check external DB is for the same user than the app's DB
     SqliteStmt stmtMyHandle(dbExternal, "select value from vars where name = 'my_handle'");
     if (!stmtMyHandle.step() || stmtMyHandle.uint64Col(0) != myHandle())

@@ -117,7 +117,8 @@ else()
 endif()
 
 #test apps
-add_executable(sdk_test ${KarereDir}/tests/sdk_test/sdk_test.cpp)
+add_executable(sdk_test ${KarereDir}/tests/sdk_test/sdk_test.cpp ${MegaSdkDir}/tests/gtest_common.cpp ${MegaSdkDir}/tests/gtest_common.h)
+target_include_directories(sdk_test PRIVATE ${MegaSdkDir}/tests)
 target_link_libraries(sdk_test PUBLIC karere)
 target_compile_definitions(sdk_test PRIVATE MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC>)
 
