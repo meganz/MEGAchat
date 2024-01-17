@@ -2273,10 +2273,12 @@ bool Call::handleModDel(uint64_t userid)
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
                        const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
 {
+    #ifndef NDEBUG
     // ensures that our sfu protocol version is the latest one defined in karere
     const auto sfuv = mRtc.getMySfuProtoVersion();
     assert(sfuv == sfu::SfuProtocol::SFU_PROTO_LAST
            || (sfuv == sfu::SfuProtocol::SFU_PROTO_V4 && mRtc.isSpeakRequestSupportEnabled()));
+    #endif
 
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
