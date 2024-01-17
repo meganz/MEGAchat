@@ -786,6 +786,9 @@ public:
     std::string getDeviceInfo() const;
     unsigned int getNumInputVideoTracks() const override;
     void setNumInputVideoTracks(const unsigned int numInputVideoTracks) override;
+    void enableSpeakRequestSupportForCalls(const bool enable) override;
+    bool isSpeakRequestSupportEnabled() const override;
+    sfu::SfuProtocol getMySfuProtoVersion() const override;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
@@ -801,6 +804,8 @@ private:
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;
+    bool mIsSpeakRequestEnabled = false;
+    sfu::SfuProtocol mMySfuProtoVersion = sfu::SfuProtocol::SFU_PROTO_PROD; // own client SFU protocol version
 
     // Current limit for simultaneous input video tracks that call supports. (kMaxCallVideoSenders by default)
     unsigned int mRtcNumInputVideoTracks = getMaxSupportedVideoCallParticipants();

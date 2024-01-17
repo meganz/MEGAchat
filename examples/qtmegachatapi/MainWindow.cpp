@@ -749,6 +749,9 @@ void MainWindow::on_bSettings_clicked()
     auto actSFUId = othersMenu->addAction(tr("Set SFU id"));
     connect(actSFUId, SIGNAL(triggered()), this, SLOT(onSetSFUId()));
 
+    auto actSpeakReq = othersMenu->addAction(tr("Enable speak request feature"));
+    connect(actSpeakReq, SIGNAL(triggered()), this, SLOT(onSpeakReqFeature()));
+
     auto actUseStaging = othersMenu->addAction("Use API staging");
     connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
     actUseStaging->setCheckable(true);
@@ -1616,6 +1619,12 @@ void MainWindow::on_mLogout_clicked()
 void MainWindow::onCatchUp()
 {
     mMegaApi->catchup();
+}
+
+void MainWindow::onSpeakReqFeature()
+{
+    bool enable = atoi(mApp->getText("Enable speak request feature? 1(enable) | 0(disable)").c_str());
+    mMegaChatApi->enableSpeakRequestSupportForCalls(enable);
 }
 
 void MainWindow::onSetSFUId()

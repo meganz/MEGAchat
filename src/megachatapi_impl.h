@@ -1700,6 +1700,7 @@ public:
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
     void addRevokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
+    void enableSpeakRequestSupportForCalls(const bool enable);
     void addDelSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);

@@ -67,7 +67,7 @@ Call::Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id&
     , mIsJoining(false)
     , mRtc(rtc)
 {
-    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), sfu::MY_SFU_PROTOCOL_VERSION, avflags.value()));
+    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), rtc.getMySfuProtoVersion(), avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
@@ -920,7 +920,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
         return false;
     }
 
-    mSfuClient.addVersionToUrl(sfuUrl);
+    mSfuClient.addVersionToUrl(sfuUrl, mRtc.getMySfuProtoVersion());
     setState(CallState::kStateConnecting);
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
     return true;
@@ -1436,7 +1436,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     if (!getMyEphemeralKeyPair())
     {
-        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(mRtc.getMySfuProtoVersion()));
         return false;
     }
 
@@ -1586,7 +1586,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
                     if (!ephkeypair)
                     {
-                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(mRtc.getMySfuProtoVersion()));
                         addPeerWithEphemKey(*auxPeer, false, std::string());
                         return;
                     }
@@ -2035,7 +2035,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
     if (!ephkeypair)
     {
-        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(mRtc.getMySfuProtoVersion()));
         orderedCallDisconnect(TermCode::kErrorCrypto, "Can't retrieve Ephemeral key for our own user");
         return false;
     }
@@ -2272,8 +2272,12 @@ bool Call::handleModDel(uint64_t userid)
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
                        const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
 {
+    #ifndef NDEBUG
     // ensures that our sfu protocol version is the latest one defined in karere
-    assert(sfu::MY_SFU_PROTOCOL_VERSION == sfu::SfuProtocol::SFU_PROTO_LAST);
+    const auto sfuv = mRtc.getMySfuProtoVersion();
+    assert(sfuv == sfu::SfuProtocol::SFU_PROTO_PROD
+           || (sfuv == sfu::SfuProtocol::SFU_PROTO_V4 && mRtc.isSpeakRequestSupportEnabled()));
+    #endif
 
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
@@ -3402,6 +3406,7 @@ void Call::initStatsValues()
 
 void Call::enableStats()
 {
+    mStats.mSfuProtoVersion = static_cast<uint32_t>(mRtc.getMySfuProtoVersion());
     mStats.mCid = getOwnCid();
     mStats.mTimeOffset = getJoinOffset();
     auto wptr = weakHandle();
@@ -4266,6 +4271,24 @@ std::string RtcModuleSfu::getDeviceInfo() const
 unsigned int RtcModuleSfu::getNumInputVideoTracks() const
 {
     return mRtcNumInputVideoTracks;
+}
+
+sfu::SfuProtocol RtcModuleSfu::getMySfuProtoVersion() const
+{
+    return mMySfuProtoVersion;
+}
+
+bool RtcModuleSfu::isSpeakRequestSupportEnabled() const
+{
+    return mIsSpeakRequestEnabled;
+}
+
+void RtcModuleSfu::enableSpeakRequestSupportForCalls(const bool enable)
+{
+    mIsSpeakRequestEnabled = enable;
+    mMySfuProtoVersion = enable
+                            ? sfu::SfuProtocol::SFU_PROTO_V4
+                            : sfu::SfuProtocol::SFU_PROTO_PROD;
 }
 
 void RtcModuleSfu::setNumInputVideoTracks(const unsigned int numInputVideoTracks)

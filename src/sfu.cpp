@@ -2583,7 +2583,7 @@ std::shared_ptr<rtcModule::RtcCryptoMeetings> SfuClient::getRtcCryptoMeetings()
     return mRtcCryptoMeetings;
 }
 
-void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
+void SfuClient::addVersionToUrl(karere::Url& sfuUrl, const sfu::SfuProtocol sfuVersion)
 {
     std::string app;
     if (sfuUrl.path.back() != '?')  // if last URL char is '?' just add version, otherwise:
@@ -2593,7 +2593,7 @@ void SfuClient::addVersionToUrl(karere::Url& sfuUrl)
                  : "?"; // add ? as append character
     }
 
-    sfuUrl.path.append(app).append("v=").append(std::to_string(static_cast<unsigned int>(MY_SFU_PROTOCOL_VERSION)));
+    sfuUrl.path.append(app).append("v=").append(std::to_string(static_cast<unsigned int>(sfuVersion)));
 }
 
 void SfuClient::retryPendingConnections(bool disconnect)

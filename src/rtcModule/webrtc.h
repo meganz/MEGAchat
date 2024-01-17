@@ -262,6 +262,9 @@ public:
     virtual void removeLocalVideoRenderer(const karere::Id &chatid) = 0;
     virtual unsigned int getNumInputVideoTracks() const = 0;
     virtual void setNumInputVideoTracks(const unsigned int numInputVideoTracks) = 0;
+    virtual void enableSpeakRequestSupportForCalls(const bool enable) = 0;
+    virtual bool isSpeakRequestSupportEnabled() const = 0;
+    virtual sfu::SfuProtocol getMySfuProtoVersion() const = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
