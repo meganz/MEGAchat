@@ -6396,6 +6396,12 @@ void MegaChatApiImpl::addRevokeSpeakPermission(MegaChatHandle chatid, MegaChatHa
 
 void MegaChatApiImpl::enableSpeakRequestSupportForCalls(const bool enable)
 {
+    if (!mClient->rtc)
+    {
+        API_LOG_ERROR("MegaChatApiImpl::enableSpeakRequestSupportForCalls - WebRTC is not initialized");
+        return;
+    }
+
     SdkMutexGuard g(sdkMutex);
     mClient->rtc->enableSpeakRequestSupportForCalls(enable);
 }

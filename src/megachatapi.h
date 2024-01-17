@@ -6881,9 +6881,9 @@ public:
     /**
      * @brief Enables or disables support for speak request feature in calls
      *
-     * In order to start/answer a call with speak request feature, we need to call this method with enable param (true),
-     * and MegaChatRoom::isSpeakRequest also must returns true. Check MegaChatApi::setSpeakRequest to enable or disable
-     * option in chatroom.
+     * In order to start/answer a call with speak request feature, we need to call this method with enable param (true).
+     * This feature is only available for those chats that MegaChatRoom::isSpeakRequest returns true. Check 
+     * MegaChatApi::setSpeakRequest to enable or disable option in chatroom.
      *
      * @param enable set true if we want to enable support for speak request feature in calls, otherwise set false
      */

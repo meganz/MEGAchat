@@ -48,7 +48,7 @@ enum class SfuProtocol: uint32_t
 
 constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION      { SfuProtocol::SFU_PROTO_LAST };             // current own client SFU protocol version
 static bool isKnownSfuVersion(sfu::SfuProtocol v)       { return v >= SfuProtocol::SFU_PROTO_V0      // returns true if provided version as param is a known SFU version
-                                                            && v <= SfuProtocol::SFU_PROTO_V2; }
+                                                            && v <= SfuProtocol::SFU_PROTO_V3; }
 
 // enum for user status in waiting room
 enum class WrState: int
