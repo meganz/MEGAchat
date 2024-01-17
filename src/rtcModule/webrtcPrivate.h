@@ -806,6 +806,7 @@ private:
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;
     bool mIsSpeakRequestEnabled = false;
+    sfu::SfuProtocol mMySfuProtoVersion = sfu::SfuProtocol::SFU_PROTO_PROD; // own client SFU protocol version
 
     // Current limit for simultaneous input video tracks that call supports. (kMaxCallVideoSenders by default)
     unsigned int mRtcNumInputVideoTracks = getMaxSupportedVideoCallParticipants();

@@ -40,15 +40,16 @@ enum class SfuProtocol: uint32_t
     SFU_PROTO_V1       = 1,
     SFU_PROTO_V2       = 2,
     SFU_PROTO_V3       = 3,
-    SFU_PROTO_V4       = 4,
+    SFU_PROTO_V4       = 4,            // currently for testing purposes
     SFU_PROTO_FIRST    = SFU_PROTO_V0,
-    SFU_PROTO_LAST     = SFU_PROTO_V3,
+    SFU_PROTO_PROD     = SFU_PROTO_V3, // protocol version used in production
+    SFU_PROTO_LAST     = SFU_PROTO_V4, // last known protocol version by sfu
     SFU_PROTO_INVAL    = UINT32_MAX,
 };
 
-constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION      { SfuProtocol::SFU_PROTO_LAST };             // current own client SFU protocol version
-static bool isKnownSfuVersion(sfu::SfuProtocol v)       { return v >= SfuProtocol::SFU_PROTO_V0      // returns true if provided version as param is a known SFU version
-                                                            && v <= SfuProtocol::SFU_PROTO_V3; }
+// returns true if provided version as param is a valid protocol version in SFU
+static bool isKnownSfuVersion(sfu::SfuProtocol v)       { return v >= SfuProtocol::SFU_PROTO_V0
+                                                            && v <= SfuProtocol::SFU_PROTO_LAST; }
 
 // enum for user status in waiting room
 enum class WrState: int

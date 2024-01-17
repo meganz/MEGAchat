@@ -2276,7 +2276,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
     #ifndef NDEBUG
     // ensures that our sfu protocol version is the latest one defined in karere
     const auto sfuv = mRtc.getMySfuProtoVersion();
-    assert(sfuv == sfu::SfuProtocol::SFU_PROTO_LAST
+    assert(sfuv == sfu::SfuProtocol::SFU_PROTO_PROD
            || (sfuv == sfu::SfuProtocol::SFU_PROTO_V4 && mRtc.isSpeakRequestSupportEnabled()));
     #endif
 
@@ -4276,12 +4276,7 @@ unsigned int RtcModuleSfu::getNumInputVideoTracks() const
 
 sfu::SfuProtocol RtcModuleSfu::getMySfuProtoVersion() const
 {
-    if (isSpeakRequestSupportEnabled())
-    {
-        return sfu::SfuProtocol::SFU_PROTO_V4;
-    }
-
-    return sfu::MY_SFU_PROTOCOL_VERSION;
+    return mMySfuProtoVersion;
 }
 
 bool RtcModuleSfu::isSpeakRequestSupportEnabled() const
@@ -4292,6 +4287,9 @@ bool RtcModuleSfu::isSpeakRequestSupportEnabled() const
 void RtcModuleSfu::enableSpeakRequestSupportForCalls(const bool enable)
 {
     mIsSpeakRequestEnabled = enable;
+    mMySfuProtoVersion = enable
+                            ? sfu::SfuProtocol::SFU_PROTO_V4
+                            : sfu::SfuProtocol::SFU_PROTO_PROD;
 }
 
 void RtcModuleSfu::setNumInputVideoTracks(const unsigned int numInputVideoTracks)
