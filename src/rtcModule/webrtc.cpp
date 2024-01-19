@@ -2664,7 +2664,12 @@ void Call::disconnectFromSfu(const TermCode& termCode, bool hadParticipants)
     RTCM_LOG_DEBUG("disconnectFromSfu, termcode (%u): %s", termCode, connectionTermCodeToString(termCode).c_str());
     const bool wasJoined = mSfuConnection && mSfuConnection->isJoined();
     mTermCode = termCode; // termcode is only valid at state kStateTerminatingUserParticipation
-    setState(CallState::kStateTerminatingUserParticipation);
+
+    if (mState > CallState::kStateClientNoParticipating)
+    {
+        setState(CallState::kStateTerminatingUserParticipation);
+    }
+    // else => do not set kStateTerminatingUserParticipation as we are not currently connected/connecting
 
     if (mSfuConnection)
     {

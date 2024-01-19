@@ -229,6 +229,9 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 assert(itemController->getMeetingView());
                 itemController->destroyMeetingView();
+                std::string message("End call reason: ");
+                message.append(std::to_string(call->getEndCallReason()));
+                QMessageBox::information(this, "Call destroyed", message.c_str());
                 return;
             }
             default:
