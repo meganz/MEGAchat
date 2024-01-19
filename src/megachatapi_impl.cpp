@@ -56,9 +56,7 @@
 #include <signal.h>
 #endif
 
-#ifndef KARERE_DISABLE_WEBRTC
-namespace rtcModule {void globalCleanup(); }
-#endif
+#include <execution>
 
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
 
@@ -225,9 +223,7 @@ void MegaChatApiImpl::loop()
         }
     }
 
-#ifndef KARERE_DISABLE_WEBRTC
-    rtcModule::globalCleanup();
-#endif
+    globalCleanup();
 }
 
 void MegaChatApiImpl::megaApiPostMessage(megaMessage* msg, void* ctx)
@@ -1515,10 +1511,10 @@ int MegaChatApiImpl::performRequest_attachNodeMessage(MegaChatRequestPrivate* re
             .then([this, request, buffer, msgType]()
             {
                 int errorCode = MegaChatError::ERROR_ARGS;
-                MegaChatMessage *msg = sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType);
+                std::unique_ptr<MegaChatMessage> msg{ sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType) };
                 if (msg)
                 {
-                    request->setMegaChatMessage(msg);
+                    request->setMegaChatMessage(msg.get());
                     errorCode = MegaChatError::ERROR_OK;
                 }
 
@@ -1533,10 +1529,10 @@ int MegaChatApiImpl::performRequest_attachNodeMessage(MegaChatRequestPrivate* re
                     API_LOG_WARNING("Already granted access to this node previously");
 
                     int errorCode = MegaChatError::ERROR_ARGS;
-                    MegaChatMessage *msg = sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType);
+                    std::unique_ptr<MegaChatMessage> msg{ sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType) };
                     if (msg)
                     {
-                        request->setMegaChatMessage(msg);
+                        request->setMegaChatMessage(msg.get());
                         errorCode = MegaChatError::ERROR_OK;
                     }
 
@@ -1581,8 +1577,8 @@ int MegaChatApiImpl::performRequest_revokeNodeMessage(MegaChatRequestPrivate* re
                 buf.insert(buf.begin(), Message::kMsgRevokeAttachment - Message::kMsgOffset);
                 buf.insert(buf.begin(), 0x0);
 
-                MegaChatMessage *megaMsg = sendMessage(request->getChatHandle(), buf.c_str(), buf.length());
-                request->setMegaChatMessage(megaMsg);
+                std::unique_ptr<MegaChatMessage> megaMsg{ sendMessage(request->getChatHandle(), buf.c_str(), buf.length()) };
+                request->setMegaChatMessage(megaMsg.get());
 
                 int errorCode = MegaChatError::ERROR_OK;
                 if (!megaMsg)
@@ -9390,6 +9386,17 @@ MegaChatError *MegaChatErrorPrivate::copy()
 MegaChatRoomListPrivate::MegaChatRoomListPrivate()
 {
 
+}
+
+MegaChatRoomListPrivate::~MegaChatRoomListPrivate()
+{
+    std::for_each(
+#if __cpp_lib_execution
+// clang compilers from Appple and Android NDK do not have Execution policies implemented,
+// despite claiming c++17 support
+                  std::execution::par,
+#endif
+                  mList.begin(), mList.end(), [](MegaChatRoom* c) { delete c; });
 }
 
 MegaChatRoomListPrivate::MegaChatRoomListPrivate(const MegaChatRoomListPrivate *list)
