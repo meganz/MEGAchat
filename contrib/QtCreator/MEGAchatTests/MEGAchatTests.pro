@@ -30,3 +30,8 @@ else {
 
     LIBS += -lgmock -lgtest
 }
+
+# Copy the logo.png file to the test build dir needed for one test
+MEGACHAT_ROOT_DIR = $$PWD/../../..
+QMAKE_POST_LINK += $$QMAKE_COPY $$quote($$MEGACHAT_ROOT_DIR/tests/sdk_test/logo.png) $$quote($$OUT_PWD) $$escape_expand(\\n\\t)
+
