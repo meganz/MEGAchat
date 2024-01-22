@@ -669,8 +669,8 @@ public:
          * \c kMsgPrivChange - the new privilege of the user whose handle is in \c target
          * \c kMsgAlterParticipants - this is used as a flag to specify whether the user
          * was:
-         * - removed - the value is \c PRIV_NOTPRESENT
-         * - added - the value of \c PRIV_NOCHANGE
+         * - removed - the value is \c PRIV_RM
+         * - added - the value of \c PRIV_UNKNOWN
          */
         Priv privilege = PRIV_INVALID;
     };

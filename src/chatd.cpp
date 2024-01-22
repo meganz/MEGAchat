@@ -1686,7 +1686,7 @@ void Chat::onHandleJoinRejected()
     CHATID_LOG_WARNING("HANDLEJOIN was rejected, setting chat offline and disabling it");
     disable(true);
 
-    // public-handle is not valid anymore --> notify the app: privilege is now PRIV_NOTPRESENT
+    // public-handle is not valid anymore --> notify the app: privilege is now PRIV_RM
     CALL_LISTENER(onUserLeave, Id::null());
 }
 
@@ -5803,7 +5803,7 @@ void Chat::onUserLeave(const Id& userid)
 
         if (isPreviewerIdRecv)
         {
-            // notify that our own user permission (in preview mode) has been updated to PRIV_NOTPRESENT
+            // notify that our own user permission (in preview mode) has been updated to PRIV_RM
             // probably chat-link has been invalidated, so chatd send us a JOIN command with priv -1
             CHATID_LOG_DEBUG("our own user permission (in preview mode) has been updated to not present (-1)");
             CALL_LISTENER(onUserLeave, userid);

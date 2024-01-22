@@ -3986,7 +3986,7 @@ void ChatRoom::notifyChatOptionsChanged(int option)
 
 void GroupChatRoom::enablePreview(uint64_t ph)
 {
-    // Current priv is PRIV_NOTPRESENT and need to be updated
+    // Current priv is PRIV_RM and need to be updated
     mOwnPriv = chatd::PRIV_RO;
     parent.mKarereClient.db.query("update chats set own_priv = ? where chatid = ?", mOwnPriv, mChatid);
     if (mRoomGui)
