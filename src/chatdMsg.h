@@ -573,11 +573,11 @@ enum Opcode
 enum Priv: signed char
 {
     PRIV_INVALID = -10,
-    PRIV_NOCHANGE = -2,
-    PRIV_NOTPRESENT = -1,
-    PRIV_RDONLY = 0,
-    PRIV_FULL = 2,
-    PRIV_OPER = 3
+    PRIV_UNKNOWN = -2,
+    PRIV_RM = -1,
+    PRIV_RO = 0,
+    PRIV_STANDARD = 2,
+    PRIV_MODERATOR = 3
 };
 
 class Message: public Buffer
@@ -1659,15 +1659,15 @@ static inline const char* privToString(Priv priv)
 {
     switch (priv)
     {
-    case PRIV_NOCHANGE:
+    case PRIV_UNKNOWN:
         return "No change";
-    case PRIV_NOTPRESENT:
+    case PRIV_RM:
         return "Not present";
-    case PRIV_RDONLY:
+    case PRIV_RO:
         return "READONLY";
-    case PRIV_FULL:
+    case PRIV_STANDARD:
         return "READ_WRITE";
-    case PRIV_OPER:
+    case PRIV_MODERATOR:
         return "OPERATOR";
     default:
         return "(unknown privilege)";

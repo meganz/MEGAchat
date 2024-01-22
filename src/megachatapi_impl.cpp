@@ -1215,7 +1215,7 @@ int MegaChatApiImpl::performRequest_setPrivateMode(MegaChatRequestPrivate *reque
                 return MegaChatError::ERROR_TOOMANY;
             }
 
-            if (room->ownPriv() != chatd::PRIV_OPER)
+            if (room->ownPriv() != chatd::PRIV_MODERATOR)
             {
                 return MegaChatError::ERROR_ACCESS;
             }
@@ -1267,8 +1267,8 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
 
             // anyone can retrieve an existing link, but only operator can create/delete it
             int ownPriv = room->ownPriv();
-            if ((ownPriv == Priv::PRIV_NOTPRESENT)
-                 || ((del || createifmissing) && ownPriv != Priv::PRIV_OPER))
+            if ((ownPriv == Priv::PRIV_RM)
+                 || ((del || createifmissing) && ownPriv != Priv::PRIV_MODERATOR))
             {
                 return MegaChatError::ERROR_ACCESS;
             }
@@ -1755,7 +1755,7 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                     return MegaChatError::ERROR_ACCESS;
                 }
             }
-            else if (chatroom->ownPriv() <= Priv::PRIV_RDONLY)
+            else if (chatroom->ownPriv() <= Priv::PRIV_RO)
             {
                 API_LOG_ERROR("Start call - Refusing start a call withouth enough privileges");
                 return MegaChatError::ERROR_ACCESS;
@@ -1776,7 +1776,7 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             bool enableAudio = request->getParamType();
             if (enableAudio
                 && chatroom->isSpeakRequest()
-                && chatroom->ownPriv() != Priv::PRIV_OPER)
+                && chatroom->ownPriv() != Priv::PRIV_MODERATOR)
             {
                 API_LOG_ERROR("Start call - can't start a call with audio enabled "
                               "if speak request is enabled for chatroom and we are non-host");
@@ -1915,7 +1915,7 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             bool enableAudio = request->getParamType();
             if (enableAudio
                 && chatroom->isSpeakRequest()
-                && chatroom->ownPriv() != Priv::PRIV_OPER)
+                && chatroom->ownPriv() != Priv::PRIV_MODERATOR)
             {
                 API_LOG_ERROR("Answer call - can't answer a call with audio enabled "
                               "if speak request is enabled for chatroom and we are non-host");
@@ -9213,7 +9213,7 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         mRoom->onUserJoin(userid, privilege);
 
         // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
-        if (mRoom->publicChat() && (mRoom->chat().onlineState() != kChatStateOnline || mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+        if (mRoom->publicChat() && (mRoom->chat().onlineState() != kChatStateOnline || mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_RM))
         {
             return;
         }
@@ -9238,7 +9238,7 @@ void MegaChatRoomHandler::onUserLeave(Id userid)
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserLeave(userid);
 
-        if (mRoom->publicChat() && mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT)
+        if (mRoom->publicChat() && mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_RM)
         {
             return;
         }
@@ -10791,7 +10791,7 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
     bool ownChange = (userid == chatApi.getMyUserHandle());
 
     // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
-    if (!ownChange && mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+    if (!ownChange && mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_RM))
     {
         return;
     }
@@ -10811,7 +10811,7 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 {
-    if (mRoom.publicChat() && mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT)
+    if (mRoom.publicChat() && mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_RM)
     {
         return;
     }
@@ -10943,7 +10943,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     edited = msg.updated && msg.size();
     deleted = msg.updated && !msg.size();
     mCode = 0;
-    priv = PRIV_UNKNOWN;
+    priv = MegaChatPeerList::PRIV_UNKNOWN;
     hAction = MEGACHAT_INVALID_HANDLE;
 
     switch (type)
