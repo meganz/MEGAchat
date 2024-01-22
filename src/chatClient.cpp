@@ -2854,8 +2854,8 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
 
     if(previewMode())
     {
-        assert(mOwnPriv == chatd::PRIV_RDONLY
-               || mOwnPriv == chatd::PRIV_NOTPRESENT);  // still in preview, but ph is invalid
+        assert(mOwnPriv == chatd::PRIV_RO
+               || mOwnPriv == chatd::PRIV_RM);  // still in preview, but ph is invalid
 
         if (priv >= chatd::PRIV_RO)
         {
