@@ -1662,15 +1662,15 @@ static inline const char* privToString(Priv priv)
     case PRIV_UNKNOWN:
         return "No change";
     case PRIV_RM:
-        return "Not present";
+        return "removed";
     case PRIV_RO:
-        return "READONLY";
+        return "read-only";
     case PRIV_STANDARD:
-        return "READ_WRITE";
+        return "standard";
     case PRIV_MODERATOR:
-        return "OPERATOR";
+        return "moderator";
     default:
-        return "(unknown privilege)";
+        return "unknown privilege";
     }
 }
 #ifdef __GNUC__
