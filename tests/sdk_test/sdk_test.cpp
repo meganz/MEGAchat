@@ -14,7 +14,7 @@ using namespace megachat;
 using namespace std;
 using CleanupFunction = MegaChatApiTest::MegaMrProper::CleanupFunction;
 
-const std::string MegaChatApiTest::DEFAULT_PATH = "../../tests/sdk_test/";
+const std::string MegaChatApiTest::DEFAULT_PATH = "./";
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
