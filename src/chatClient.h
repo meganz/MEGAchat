@@ -172,7 +172,7 @@ public:
     /** @brief Whether we are currently member of the chatroom (for group
       * chats), or we are contacts with the peer (for 1on1 chats)
       */
-    bool isActive() const { return mIsGroup ? (mOwnPriv != chatd::PRIV_NOTPRESENT) : true; }
+    bool isActive() const { return mIsGroup ? (mOwnPriv != chatd::PRIV_RM) : true; }
 
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }

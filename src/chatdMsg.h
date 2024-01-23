@@ -573,11 +573,11 @@ enum Opcode
 enum Priv: signed char
 {
     PRIV_INVALID = -10,
-    PRIV_NOCHANGE = -2,
-    PRIV_NOTPRESENT = -1,
-    PRIV_RDONLY = 0,
-    PRIV_FULL = 2,
-    PRIV_OPER = 3
+    PRIV_UNKNOWN = -2,
+    PRIV_RM = -1,
+    PRIV_RO = 0,
+    PRIV_STANDARD = 2,
+    PRIV_MODERATOR = 3
 };
 
 class Message: public Buffer
@@ -669,8 +669,8 @@ public:
          * \c kMsgPrivChange - the new privilege of the user whose handle is in \c target
          * \c kMsgAlterParticipants - this is used as a flag to specify whether the user
          * was:
-         * - removed - the value is \c PRIV_NOTPRESENT
-         * - added - the value of \c PRIV_NOCHANGE
+         * - removed - the value is \c PRIV_RM
+         * - added - the value of \c PRIV_UNKNOWN
          */
         Priv privilege = PRIV_INVALID;
     };
@@ -1659,18 +1659,18 @@ static inline const char* privToString(Priv priv)
 {
     switch (priv)
     {
-    case PRIV_NOCHANGE:
+    case PRIV_UNKNOWN:
         return "No change";
-    case PRIV_NOTPRESENT:
-        return "Not present";
-    case PRIV_RDONLY:
-        return "READONLY";
-    case PRIV_FULL:
-        return "READ_WRITE";
-    case PRIV_OPER:
-        return "OPERATOR";
+    case PRIV_RM:
+        return "removed";
+    case PRIV_RO:
+        return "read-only";
+    case PRIV_STANDARD:
+        return "standard";
+    case PRIV_MODERATOR:
+        return "moderator";
     default:
-        return "(unknown privilege)";
+        return "unknown privilege";
     }
 }
 #ifdef __GNUC__
