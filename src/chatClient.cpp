@@ -862,7 +862,7 @@ void Client::createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const
                                   bool meeting, const ::mega::ChatOptions_t opts, const mega::MegaScheduledMeetingList* smList)
 {
     GroupChatRoom* room = new GroupChatRoom(*chats, chatId, static_cast<unsigned char>(shard),
-                                            chatd::Priv::PRIV_RDONLY, ts, false, decryptedTitle, ph,
+                                            chatd::Priv::PRIV_RO, ts, false, decryptedTitle, ph,
                                             unifiedKey, meeting, opts, smList);
 
     chats->emplace(chatId, room);
@@ -1213,7 +1213,7 @@ bool Client::initWithNewSession(const char* sid, const std::string& scsn,
 {
     assert(sid);
 
-    mSid = sid;
+    mSid = sid ? sid : "";
     try
     {
         createDb();
@@ -1576,7 +1576,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         }
         std::shared_ptr<::mega::MegaUserList> contactList(api.sdk.getContacts());
         std::shared_ptr<::mega::MegaTextChatList> chatList(api.sdk.getChatList());
-        auto sid = std::make_shared<std::string>(api.sdk.dumpSession());
+        std::unique_ptr<char[]> sid(api.sdk.dumpSession());
         assert(sid);
 
 #ifndef NDEBUG
@@ -1584,7 +1584,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 #endif
 
         auto wptr = weakHandle();
-        marshallCall([wptr, this, state, scsn, contactList, chatList, sid]()
+        marshallCall([wptr, this, state, scsn, contactList, chatList, sess = std::move(sid)]()
         {
             if (wptr.deleted())
                 return;
@@ -1608,7 +1608,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             }
             else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
             {
-                if (initWithNewSession(sid->c_str(), scsn, *contactList, *chatList))
+                if (initWithNewSession(sess.get(), scsn, *contactList, *chatList))
                 {
                     setInitState(kInitHasOnlineSession);
                     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
@@ -2854,10 +2854,10 @@ bool ChatRoom::syncOwnPriv(chatd::Priv priv)
 
     if(previewMode())
     {
-        assert(mOwnPriv == chatd::PRIV_RDONLY
-               || mOwnPriv == chatd::PRIV_NOTPRESENT);  // still in preview, but ph is invalid
+        assert(mOwnPriv == chatd::PRIV_RO
+               || mOwnPriv == chatd::PRIV_RM);  // still in preview, but ph is invalid
 
-        if (priv >= chatd::PRIV_RDONLY)
+        if (priv >= chatd::PRIV_RO)
         {
             //Join
             mChat->setPublicHandle(Id::inval());
@@ -3254,7 +3254,7 @@ void GroupChatRoom::notifySchedMeetingOccurrencesUpdated(bool append)
 
 void GroupChatRoom::setRemoved()
 {
-    mOwnPriv = chatd::PRIV_NOTPRESENT;
+    mOwnPriv = chatd::PRIV_RM;
     parent.mKarereClient.db.query("update chats set own_priv=? where chatid=?", mOwnPriv, mChatid);
     notifyExcludedFromChat();
 }
@@ -3648,7 +3648,7 @@ promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
     })
     .then([this, myHandle](ReqResult)
     {
-        onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_FULL);
+        onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_STANDARD);
     })
     .fail([this](const ::promise::Error&)
     {
@@ -3986,8 +3986,8 @@ void ChatRoom::notifyChatOptionsChanged(int option)
 
 void GroupChatRoom::enablePreview(uint64_t ph)
 {
-    // Current priv is PRIV_NOTPRESENT and need to be updated
-    mOwnPriv = chatd::PRIV_RDONLY;
+    // Current priv is PRIV_RM and need to be updated
+    mOwnPriv = chatd::PRIV_RO;
     parent.mKarereClient.db.query("update chats set own_priv = ? where chatid = ?", mOwnPriv, mChatid);
     if (mRoomGui)
     {
@@ -4243,9 +4243,9 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
     if (ownPrivChanged)
     {
-        if (oldPriv == chatd::PRIV_NOTPRESENT)
+        if (oldPriv == chatd::PRIV_RM)
         {
-            if (mOwnPriv != chatd::PRIV_NOTPRESENT)
+            if (mOwnPriv != chatd::PRIV_RM)
             {
                 // in case chat-link was invalidated during preview, the room was disabled
                 // now, we upgrade from (invalid) previewer to participant --> enable it back
@@ -4273,7 +4273,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
                 notifyRejoinedChat();
             }
         }
-        else if (mOwnPriv == chatd::PRIV_NOTPRESENT)
+        else if (mOwnPriv == chatd::PRIV_RM)
         {
             //we were excluded
             KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed", ID_CSTR(mChatid));
@@ -5014,7 +5014,7 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
         return Promise<ChatRoom*>(mChatRoom);
     }
     mega::MegaTextChatPeerListPrivate peers;
-    peers.addPeer(mUserid, chatd::PRIV_OPER);
+    peers.addPeer(mUserid, chatd::PRIV_MODERATOR);
     return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr, mega::ChatOptions::kEmpty, nullptr)
     .then([this](ReqResult result) -> Promise<ChatRoom*>
     {

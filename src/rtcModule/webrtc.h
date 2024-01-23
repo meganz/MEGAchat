@@ -351,8 +351,6 @@ static bool isValidInputVideoTracksLimit(const unsigned int numSimVideoTracks)
            && numSimVideoTracks <= getMaxSupportedVideoCallParticipants();
 }
 
-void globalCleanup();
-
 typedef enum
 {
     kNetworkQualityBad          = 0,    // Bad network quality detected

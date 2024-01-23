@@ -932,7 +932,7 @@ class MegaChatRoomListPrivate :  public MegaChatRoomList
 {
 public:
     MegaChatRoomListPrivate();
-    virtual ~MegaChatRoomListPrivate() {}
+    virtual ~MegaChatRoomListPrivate();
     virtual MegaChatRoomList *copy() const;
     virtual const MegaChatRoom *get(unsigned int i) const;
     virtual unsigned int size() const;

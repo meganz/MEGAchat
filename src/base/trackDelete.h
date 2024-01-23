@@ -46,7 +46,7 @@ public:
     Handle getDelTracker() const { return Handle(mSharedDataHandle.mData); }
     Handle weakHandle() const { return getDelTracker(); }
     DeleteTrackable(): mSharedDataHandle(new SharedData()){}
-    ~DeleteTrackable() { mSharedDataHandle.mData->mDeleted = true; }
+    virtual ~DeleteTrackable() { mSharedDataHandle.mData->mDeleted = true; }
 };
 
 template <class T>

@@ -811,8 +811,6 @@ private:
     unsigned int mRtcNumInputVideoTracks = getMaxSupportedVideoCallParticipants();
 };
 
-void globalCleanup();
-
 #endif
 }
 

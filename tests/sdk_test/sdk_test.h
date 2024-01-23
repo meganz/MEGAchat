@@ -610,7 +610,7 @@ protected:
      * @deprecated replace current usages of this method by prototype above
      */
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
-    void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
+    void initChat(unsigned int a1, unsigned int a2, std::unique_ptr<mega::MegaUser>& user, megachat::MegaChatHandle& chatid, std::unique_ptr<char[]>& primarySession, std::unique_ptr<char[]>& secondarySession, std::unique_ptr<TestChatRoomListener>& chatroomListener);
 
     /**
      * @brief Loads history for the specified chatroom.

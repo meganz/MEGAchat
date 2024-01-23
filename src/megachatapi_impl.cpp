@@ -56,9 +56,7 @@
 #include <signal.h>
 #endif
 
-#ifndef KARERE_DISABLE_WEBRTC
-namespace rtcModule {void globalCleanup(); }
-#endif
+#include <execution>
 
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
 
@@ -225,9 +223,7 @@ void MegaChatApiImpl::loop()
         }
     }
 
-#ifndef KARERE_DISABLE_WEBRTC
-    rtcModule::globalCleanup();
-#endif
+    globalCleanup();
 }
 
 void MegaChatApiImpl::megaApiPostMessage(megaMessage* msg, void* ctx)
@@ -1219,7 +1215,7 @@ int MegaChatApiImpl::performRequest_setPrivateMode(MegaChatRequestPrivate *reque
                 return MegaChatError::ERROR_TOOMANY;
             }
 
-            if (room->ownPriv() != chatd::PRIV_OPER)
+            if (room->ownPriv() != chatd::PRIV_MODERATOR)
             {
                 return MegaChatError::ERROR_ACCESS;
             }
@@ -1271,8 +1267,8 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
 
             // anyone can retrieve an existing link, but only operator can create/delete it
             int ownPriv = room->ownPriv();
-            if ((ownPriv == Priv::PRIV_NOTPRESENT)
-                 || ((del || createifmissing) && ownPriv != Priv::PRIV_OPER))
+            if ((ownPriv == Priv::PRIV_RM)
+                 || ((del || createifmissing) && ownPriv != Priv::PRIV_MODERATOR))
             {
                 return MegaChatError::ERROR_ACCESS;
             }
@@ -1515,10 +1511,10 @@ int MegaChatApiImpl::performRequest_attachNodeMessage(MegaChatRequestPrivate* re
             .then([this, request, buffer, msgType]()
             {
                 int errorCode = MegaChatError::ERROR_ARGS;
-                MegaChatMessage *msg = sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType);
+                std::unique_ptr<MegaChatMessage> msg{ sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType) };
                 if (msg)
                 {
-                    request->setMegaChatMessage(msg);
+                    request->setMegaChatMessage(msg.get());
                     errorCode = MegaChatError::ERROR_OK;
                 }
 
@@ -1533,10 +1529,10 @@ int MegaChatApiImpl::performRequest_attachNodeMessage(MegaChatRequestPrivate* re
                     API_LOG_WARNING("Already granted access to this node previously");
 
                     int errorCode = MegaChatError::ERROR_ARGS;
-                    MegaChatMessage *msg = sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType);
+                    std::unique_ptr<MegaChatMessage> msg{ sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType) };
                     if (msg)
                     {
-                        request->setMegaChatMessage(msg);
+                        request->setMegaChatMessage(msg.get());
                         errorCode = MegaChatError::ERROR_OK;
                     }
 
@@ -1581,8 +1577,8 @@ int MegaChatApiImpl::performRequest_revokeNodeMessage(MegaChatRequestPrivate* re
                 buf.insert(buf.begin(), Message::kMsgRevokeAttachment - Message::kMsgOffset);
                 buf.insert(buf.begin(), 0x0);
 
-                MegaChatMessage *megaMsg = sendMessage(request->getChatHandle(), buf.c_str(), buf.length());
-                request->setMegaChatMessage(megaMsg);
+                std::unique_ptr<MegaChatMessage> megaMsg{ sendMessage(request->getChatHandle(), buf.c_str(), buf.length()) };
+                request->setMegaChatMessage(megaMsg.get());
 
                 int errorCode = MegaChatError::ERROR_OK;
                 if (!megaMsg)
@@ -1759,7 +1755,7 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                     return MegaChatError::ERROR_ACCESS;
                 }
             }
-            else if (chatroom->ownPriv() <= Priv::PRIV_RDONLY)
+            else if (chatroom->ownPriv() <= Priv::PRIV_RO)
             {
                 API_LOG_ERROR("Start call - Refusing start a call withouth enough privileges");
                 return MegaChatError::ERROR_ACCESS;
@@ -9192,7 +9188,7 @@ void MegaChatRoomHandler::onUserJoin(Id userid, Priv privilege)
         mRoom->onUserJoin(userid, privilege);
 
         // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
-        if (mRoom->publicChat() && (mRoom->chat().onlineState() != kChatStateOnline || mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+        if (mRoom->publicChat() && (mRoom->chat().onlineState() != kChatStateOnline || mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_RM))
         {
             return;
         }
@@ -9217,7 +9213,7 @@ void MegaChatRoomHandler::onUserLeave(Id userid)
         // forward the event to the chatroom, so chatlist items also receive the notification
         mRoom->onUserLeave(userid);
 
-        if (mRoom->publicChat() && mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT)
+        if (mRoom->publicChat() && mRoom->chat().getOwnprivilege() == chatd::Priv::PRIV_RM)
         {
             return;
         }
@@ -9365,6 +9361,17 @@ MegaChatError *MegaChatErrorPrivate::copy()
 MegaChatRoomListPrivate::MegaChatRoomListPrivate()
 {
 
+}
+
+MegaChatRoomListPrivate::~MegaChatRoomListPrivate()
+{
+    std::for_each(
+#if __cpp_lib_execution
+// clang compilers from Appple and Android NDK do not have Execution policies implemented,
+// despite claiming c++17 support
+                  std::execution::par,
+#endif
+                  mList.begin(), mList.end(), [](MegaChatRoom* c) { delete c; });
 }
 
 MegaChatRoomListPrivate::MegaChatRoomListPrivate(const MegaChatRoomListPrivate *list)
@@ -10759,7 +10766,7 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
     bool ownChange = (userid == chatApi.getMyUserHandle());
 
     // avoid to notify if own user doesn't participate or isn't online and it's a public chat (for large chat-links, for performance)
-    if (!ownChange && mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT))
+    if (!ownChange && mRoom.publicChat() && (mRoom.chat().onlineState() != kChatStateOnline || mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_RM))
     {
         return;
     }
@@ -10779,7 +10786,7 @@ void MegaChatGroupListItemHandler::onUserJoin(uint64_t userid, Priv priv)
 
 void MegaChatGroupListItemHandler::onUserLeave(uint64_t )
 {
-    if (mRoom.publicChat() && mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_NOTPRESENT)
+    if (mRoom.publicChat() && mRoom.chat().getOwnprivilege() == chatd::Priv::PRIV_RM)
     {
         return;
     }
@@ -10911,7 +10918,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     edited = msg.updated && msg.size();
     deleted = msg.updated && !msg.size();
     mCode = 0;
-    priv = PRIV_UNKNOWN;
+    priv = MegaChatPeerList::PRIV_UNKNOWN;
     hAction = MEGACHAT_INVALID_HANDLE;
 
     switch (type)
