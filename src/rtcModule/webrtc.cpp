@@ -2585,10 +2585,6 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
     {
         muteMyClient(true/*audio*/, false/*video*/);
     }
-    else if (cmd == "MUTE")
-    {
-        RTCM_LOG_WARNING("Deny 'MUTE' received. %s", msg.c_str());
-    }
     else if (cmd == "JOIN")
     {
         if (mState != kStateJoining)
@@ -2599,12 +2595,8 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
         }
         orderedCallDisconnect(TermCode::kErrGeneral, msg);
     }
-    else
-    {
-        assert(false);
-        RTCM_LOG_ERROR("Deny cmd received for unexpected command: %s", msg.c_str());
-        return false;
-    }
+    // else => just send callback to apps to inform why their command didn't succeed
+
     return true;
 }
 
