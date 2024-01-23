@@ -2597,7 +2597,7 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
                            mState, kStateJoining, msg.c_str());
             return false;
         }
-        orderedCallDisconnect(TermCode::kErrorProtocolVersion, "Client doesn't supports waiting rooms");
+        orderedCallDisconnect(TermCode::kErrGeneral, msg);
     }
     else
     {
