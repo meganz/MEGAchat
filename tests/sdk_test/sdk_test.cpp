@@ -16,6 +16,7 @@ using namespace std;
 using CleanupFunction = MegaChatApiTest::MegaMrProper::CleanupFunction;
 
 const std::string MegaChatApiTest::DEFAULT_PATH = "./";
+// IMPORTANT: Ensure that your build system copies the FILE_IMAGE_NAME to the directory where the binary is located.
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
