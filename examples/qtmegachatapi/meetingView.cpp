@@ -89,6 +89,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mMuteAll, SIGNAL(clicked()), this, SLOT(onMuteAll()));
     mMuteAll->setVisible(true);
 
+    mSetLimits= new QPushButton("Set call limits", this);
+    connect(mSetLimits, SIGNAL(clicked()), this, SLOT(onSetLimits()));
+    mSetLimits->setVisible(true);
+
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -126,6 +130,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mPushWr);
     mButtonsLayout->addWidget(mKickWr);
     mButtonsLayout->addWidget(mMuteAll);
+    mButtonsLayout->addWidget(mSetLimits);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -854,6 +859,15 @@ void MeetingView::onKickWr()
 void MeetingView::onMuteAll()
 {
     mMegaChatApi.mutePeers(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+}
+
+void MeetingView::onSetLimits()
+{
+    auto callDur = static_cast<unsigned int> (atoi(QInputDialog::getText(this, tr("Set call limits"), tr("Set call duration: ")).toStdString().c_str()));
+    auto numUsers = static_cast<unsigned int> (atoi(QInputDialog::getText(this, tr("Set call limits"), tr("Set max different users accounts: ")).toStdString().c_str()));
+    auto numClientsPerUser = static_cast<unsigned int> (atoi(QInputDialog::getText(this, tr("Set call limits"), tr("Set max clients per account (MAX 4): ")).toStdString().c_str()));
+    auto numClients = static_cast<unsigned int> (atoi(QInputDialog::getText(this, tr("Set call limits"), tr("Set max total clients in the call: ")).toStdString().c_str()));
+    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClients, numClientsPerUser);
 }
 
 void MeetingView::onJoinCallWithoutVideo()
