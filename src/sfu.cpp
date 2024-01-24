@@ -64,6 +64,8 @@ const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // C
 const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";        // Command sent to disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room
 const std::string SfuConnection::CSFU_MUTE              = "MUTE";           // Command sent to mute specific or all clients in a call
 const std::string SfuConnection::CSFU_SETLIMIT          = "SETLIM";         // Command sent to set limits to call (duration, max participants ...)
+                                                                            //      - SETLIM command is a temporal feature provided by SFU for testing purposes,
+                                                                            //        and it's availability depends on SFU's release plan management
 
 CommandsQueue::CommandsQueue():
     isSending(false)

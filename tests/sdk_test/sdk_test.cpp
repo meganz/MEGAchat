@@ -1013,6 +1013,9 @@ TEST_F(MegaChatApiTest, BasicTest)
  * + Test1: a1 set call duration
  * + Test2: a1 sets max num clients
  * + Test3: a1 sets max numUsers
+ *
+ * @note: SETLIM command is a temporal feature provided by SFU for testing purposes,
+ * and it's availability depends on SFU's release plan management
  */
 TEST_F(MegaChatApiTest, CallLimitsFreePlan)
 {
