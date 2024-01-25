@@ -10,12 +10,14 @@
 #include <direct.h>
 #endif
 
+#include <filesystem>
+
 using namespace mega;
 using namespace megachat;
 using namespace std;
 using CleanupFunction = MegaChatApiTest::MegaMrProper::CleanupFunction;
 
-const std::string MegaChatApiTest::DEFAULT_PATH = "./";
+std::string MegaChatApiTest::DEFAULT_PATH = "./";
 // IMPORTANT: Ensure that your build system copies the FILE_IMAGE_NAME to the directory where the binary is located.
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
@@ -23,6 +25,7 @@ const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 const std::string MegaChatApiTest::LOCAL_PATH = "./tmp"; // no ending slash
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
 const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
+std::string MegaChatApiTest::PROC_SPECIFIC_PATH;
 std::string USER_AGENT_DESCRIPTION = "MEGAChatTest";
 
 const string& getDefaultLogName()
@@ -102,9 +105,7 @@ int main(int argc, char **argv)
         // Password for all emails built from template will be taken from MEGA_PWD0 env var.
         // If it did not get an email template, it'll use 1 single subprocess with the existing env vars.
         GTestParallelRunner pr(std::move(argVals));
-        MegaChatApiTest::initFS();
         int rc = pr.run();
-        MegaChatApiTest::terminateFS();
         return rc;
     }
 
@@ -127,9 +128,9 @@ int main(int argc, char **argv)
         }
     }
 
-    if (argVals.isMainProcOnly())
+    if (!MegaChatApiTest::initFS())
     {
-        MegaChatApiTest::initFS();
+        return -1;
     }
     MegaChatApiTest::init(argVals.getLog()); // logger set here will also be enough for MegaChatApiUnitaryTest
 
@@ -139,10 +140,7 @@ int main(int argc, char **argv)
     int rc = RUN_ALL_TESTS(); // returns 0 (success) or 1 (failed tests)
 
     MegaChatApiTest::terminate();
-    if (argVals.isMainProcOnly())
-    {
-        MegaChatApiTest::terminateFS();
-    }
+    MegaChatApiTest::terminateFS();
 
     return rc;
 }
@@ -323,24 +321,47 @@ void MegaChatApiTest::logout(unsigned int accountIndex, bool closeSession)
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
 }
 
-void MegaChatApiTest::initFS()
+bool MegaChatApiTest::initFS()
 {
-    struct stat st = {}; // init all members to default values (0)
-    if (stat(LOCAL_PATH.c_str(), &st) == -1)
-    {
-#ifdef _WIN32
-        _mkdir(LOCAL_PATH.c_str());
+    auto pid =  // TODO: turn this into a function in SDK's gtest_common, and reuse it everywhere
+#ifdef WIN32
+        GetCurrentProcessId();
 #else
-        mkdir(LOCAL_PATH.c_str(), 0700);
+        getpid();
 #endif
+
+    PROC_SPECIFIC_PATH = "./test_pid_" + std::to_string(pid);
+
+    if (!filesystem::create_directory(PROC_SPECIFIC_PATH))
+    {
+        std::cout << "FATAL ERROR: Failed to create directory " << PROC_SPECIFIC_PATH << endl;
+        return false;
     }
+
+    std::error_code ec;
+    filesystem::current_path(PROC_SPECIFIC_PATH, ec);
+    if (ec)
+    {
+        std::cout << "FATAL ERROR: Failed to change work directory to " << PROC_SPECIFIC_PATH << ": " << ec.message() << endl;
+        return false;
+    }
+
+    if (!filesystem::create_directory(LOCAL_PATH))
+    {
+        std::cout << "FATAL ERROR: Failed to create directory " << LOCAL_PATH << endl;
+        return false;
+    }
+
+    DEFAULT_PATH = "../"; // set it up 1 level after changing work directory
+
+    return true;
 }
 
 void MegaChatApiTest::init(const std::string& log)
 {
     std::cout << "[========] Global test environment initialization" << endl;
 
-    getEnv().setLogFile(log);
+    getEnv().setLogFile((PROC_SPECIFIC_PATH.empty() ? "./" : "../") + log); // keep all logs together
     MegaApi::addLoggerObject(logger());
     MegaApi::setLogToConsole(false);    // already disabled by default
     MegaChatApi::setLoggerObject(logger());
@@ -392,7 +413,20 @@ void MegaChatApiTest::terminate()
 
 void MegaChatApiTest::terminateFS()
 {
-    purgeLocalTree(LOCAL_PATH);
+    if (!PROC_SPECIFIC_PATH.empty())
+    {
+        std::error_code ec;
+        filesystem::current_path("../", ec);
+        if (ec)
+        {
+            std::cout << "ERROR: Failed to change work directory to " << PROC_SPECIFIC_PATH << "/.. : " << ec.message() << endl;
+        }
+        purgeLocalTree(PROC_SPECIFIC_PATH);
+    }
+    else
+    {
+        purgeLocalTree(LOCAL_PATH);
+    }
 }
 
 void MegaChatApiTest::SetUp()

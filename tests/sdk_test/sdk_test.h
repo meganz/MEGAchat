@@ -532,7 +532,7 @@ public:
     ~MegaChatApiTest() override;
 
     // Global test environment initialization
-    static void initFS();
+    static bool initFS();
     static void init(const std::string& log);
     // Global test environment clear up
     static void terminate();
@@ -866,13 +866,14 @@ protected:
     bool mLoggedInAllChats[NUM_ACCOUNTS];
     std::vector <megachat::MegaChatHandle>mChatListUpdated[NUM_ACCOUNTS];
     bool mChatsUpdated[NUM_ACCOUNTS];
-    static const std::string DEFAULT_PATH;
+    static std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
     static const std::string FILE_IMAGE_NAME;
 
     static const std::string LOCAL_PATH;
     static const std::string REMOTE_PATH;
     static const std::string DOWNLOAD_PATH;
+    static std::string PROC_SPECIFIC_PATH;
 
     // implementation for MegaListener
     void onRequestStart(::mega::MegaApi *, ::mega::MegaRequest *) override {}
