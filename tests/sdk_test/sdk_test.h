@@ -716,7 +716,7 @@ protected:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param enableVideo if true call will be started with video flags enabled (if permissions allow it)
      * @param enableAudio if true call will be started with audio flags enabled (if permissions allow it)
-     * @param notRinging
+     * @param notRinging if true call won't ring (Note that Waiting room is bypased if notRinging is false and feature is enabled in chatroom)
      */
     void startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
                          const bool enableVideo, const bool enableAudio, const bool notRinging);

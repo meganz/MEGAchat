@@ -1186,21 +1186,6 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
  */
 TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 {
-    /** Checks that callid for account i has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS) **/
-    auto checkCallIdInProgress = [this](unsigned i) -> void
-    {
-        std::unique_ptr<MegaChatCall> call(megaChatApi[i]->getChatCall(mData.mChatid));
-        ASSERT_TRUE(call) << "Can't get call for a1. Callid: " << getChatIdStrB64(mData.mChatid);
-
-        MegaChatHandle* callId = handleVars().getVar(i, "CallIdInProgress");
-        ASSERT_TRUE(callId) << "Can't get CallInProgress var for a1";
-        ASSERT_NE(*callId, MEGACHAT_INVALID_HANDLE) << "Invalid callid received at onChatCallUpdate for a1";
-        ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "Invalid callid in MegaChatCall for a1";
-        ASSERT_TRUE(*callId == call->getCallId()) << "Callids doesn't match "
-                                                  << getChatIdStrB64(mData.mChatid)
-                                                  << " " << getChatIdStrB64(*callId);
-    };
-
     CleanupFunction testCleanup = [this] () -> void
     {
         ExitBoolFlags eF;
@@ -1292,7 +1277,7 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     addBoolVarAndExitFlag(a1, eF, "CallInProgress", false);                     // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     startWaitingRoomCall(a1, eF, mData.mChatid, schedId,
                          false /*audio*/, false /*video*/);
-    checkCallIdInProgress(a1);  // check received callid for caller(a1)
+    checkCallIdInProgress(a1, mData.mChatid);  // check received callid for caller(a1)
 
     clearTemporalVars();  // important: this prevents conflicts in following test cases of this integration test
 
@@ -1333,21 +1318,6 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
  */
 TEST_F(MegaChatApiTest, RejectCall)
 {
-    /** Checks that callId for account i has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS) **/
-    auto checkCallIdInProgress = [this](unsigned i) -> void
-    {
-        std::unique_ptr<MegaChatCall> call(megaChatApi[i]->getChatCall(mData.mChatid));
-        ASSERT_TRUE(call) << "Can't get call for " << std::to_string(i) <<". CallId: " << getChatIdStrB64(mData.mChatid);
-
-        MegaChatHandle* callId = handleVars().getVar(i, "CallIdInProgress");
-        ASSERT_TRUE(callId) << "Can't get CallInProgress var for " << std::to_string(i);
-        ASSERT_NE(*callId, MEGACHAT_INVALID_HANDLE) << "Invalid callId received at onChatCallUpdate for: " << std::to_string(i);
-        ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "Invalid callId in MegaChatCall for: " << std::to_string(i);
-        ASSERT_TRUE(*callId == call->getCallId()) << "CallId's don't match "
-                                                  << getChatIdStrB64(mData.mChatid)
-                                                  << " " << getChatIdStrB64(*callId);
-    };
-
     CleanupFunction testCleanup = [this]() -> void
     {
         ExitBoolFlags eF;
@@ -1414,7 +1384,7 @@ TEST_F(MegaChatApiTest, RejectCall)
     addBoolVarAndExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
     startCallInChat(a1, eF, mData.mChatid, false /*audio*/,
                     false /*video*/, false /*notRinging*/);
-    checkCallIdInProgress(a1); // check received callId for caller(a1)
+    checkCallIdInProgress(a1, mData.mChatid); // check received callId for caller(a1)
 
     clearTemporalVars();  // clean-up for next test cases
 
