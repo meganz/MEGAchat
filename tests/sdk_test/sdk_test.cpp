@@ -1036,7 +1036,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     MegaMrProper p (testCleanup);
 
     // set call duration and wait until call has finished for all participants
-    auto setCallduration = [this, a1, a2, a3](const MegaChatHandle chatid, const unsigned callDur)
+    auto setCallduration = [this](const MegaChatHandle chatid, const unsigned callDur)
     {
         clearTemporalVars();
         const auto expTermcode = MegaChatCall::TERM_CODE_CALL_DUR_LIMIT;
@@ -1060,7 +1060,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                           true /* wait for all exit flags */,
                           true /* reset flags */,
                           maxTimeout,
-                          [this, &a1, &chatid, &callDur]()
+                          [this, &chatid, &callDur]()
                           {
                               ChatRequestTracker crtCallLimit(megaChatApi[a1]);
                               megaChatApi[a1]->setLimitsInCall(chatid, callDur, MegaChatCall::CALL_NO_LIMIT, MegaChatCall::CALL_NO_LIMIT,
