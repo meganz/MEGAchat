@@ -1956,7 +1956,7 @@ bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
     {
         RTCM_LOG_WARNING("SPEAKER_ADD/DEL command should not be received for own user with moderator role");
         assert(false);
-        return true;
+        return false;
     }
 
     if (!updateSpeakersList(uh, add))
@@ -1997,7 +1997,7 @@ bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
     {
         RTCM_LOG_WARNING("handle %s command. Speak request option is disabled for call", add ? "SPEAKRQ" : "SPEAKRQ_DEL");
         assert(false);
-        return true;
+        return false;
     }
 
     // userid must be always valid for SPEAKRQ and SPEAKRQ_DEL

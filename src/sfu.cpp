@@ -1712,7 +1712,12 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
 
                 SFU_LOG_DEBUG("Received Command: %s, Bytes: %lu", command.c_str(), len);
                 bool processCommandResult = mCommands[command]->processCommand(jsonDoc);
-                if (processCommandResult && command == AnswerCommand::COMMAND_NAME)
+
+                if (!processCommandResult)
+                {
+                    SFU_LOG_WARNING("Error processing command: %s");
+                }
+                else if (command == AnswerCommand::COMMAND_NAME)
                 {
                     setConnState(SfuConnection::kJoined);
                 }
