@@ -863,11 +863,23 @@ void MeetingView::onMuteAll()
 
 void MeetingView::onSetLimits()
 {
-    auto callDur = static_cast<unsigned int> (atoi(QInputDialog::getText(this, tr("Set call limits"), tr("Set call duration: ")).toStdString().c_str()));
-    auto numUsers = static_cast<unsigned int> (atoi(QInputDialog::getText(this, tr("Set call limits"), tr("Set max different users accounts: ")).toStdString().c_str()));
-    auto numClientsPerUser = static_cast<unsigned int> (atoi(QInputDialog::getText(this, tr("Set call limits"), tr("Set max clients per account (MAX 4): ")).toStdString().c_str()));
-    auto numClients = static_cast<unsigned int> (atoi(QInputDialog::getText(this, tr("Set call limits"), tr("Set max total clients in the call: ")).toStdString().c_str()));
-    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClients, numClientsPerUser);
+    auto getNumLimit = [this](const std::string& msg) -> unsigned int
+    {
+        try
+        {
+            return static_cast<unsigned int> (stoi(QInputDialog::getText(this, tr("Set call limits"), tr(msg.c_str())).toStdString()));
+        }
+        catch (const std::exception& e)
+        {
+            return megachat::MegaChatCall::CALL_NO_LIMIT;
+        }
+    };
+
+    auto callDur = getNumLimit("Set call duration: ");
+    auto numUsers = getNumLimit("Set max different users accounts: ");
+    auto numClientsPerUser = getNumLimit("Set max clients per user");
+    auto numClients = getNumLimit("Set max total clients in the call: ");
+    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClientsPerUser, numClients);
 }
 
 void MeetingView::onJoinCallWithoutVideo()
