@@ -65,6 +65,7 @@ using m::logError;
 using m::logWarning;
 using m::logInfo;
 using m::logDebug;
+using m::logMax;
 
 #ifndef WIN32
 // avoid warning C4996 : 'strdup' : The POSIX name for this item is deprecated.Instead, use the ISO Cand C++ conformant name : _strdup.See online help for details.
@@ -338,6 +339,91 @@ std::string timeToLocalTimeString(const int64_t time)
     return std::string{buffer};
 }
 
+class DebugOutputOptions
+{
+public:
+    void writeOutput(const std::basic_string<char>& msg, int logLevel)
+    {
+        std::lock_guard<std::mutex>lock{logFileWriteMutex};
+        if (logLevel > maxLogLevel)
+        {
+            return;
+        }
+        if (logFile.is_open())
+        {
+            logFile << msg;
+        }
+        if (logToConsole)
+        {
+            std::cout << msg;
+        }
+    }
+
+    void disableLogToConsole() { setLogToConsole(false); }
+
+    void enableLogToConsole() { setLogToConsole(true); }
+
+    void disableLogToFile()
+    {
+        std::lock_guard<std::mutex>lock{logFileWriteMutex};
+        logFile.close();
+    }
+
+    void enableLogToFile(const std::string& fname)
+    {
+        std::lock_guard<std::mutex>lock{logFileWriteMutex};
+        logFile.close();
+        if (fname.length() == 0)
+        {
+            conlock(cout) << "Error: Provided an empty file name" << endl;
+            return;
+        }
+            logFile.open(fname.c_str());
+            if (logFile.is_open())
+            {
+                logFileName = fname;
+            }
+            else
+            {
+                conlock(cout) << "Error: Unable to open output file: " << fname << endl;
+            }
+    }
+
+    bool isLoggingToFile() const 
+    {
+        std::lock_guard<std::mutex>lock{logFileWriteMutex};
+        return logFile.is_open();
+    }
+
+    bool isLoggingToConsole() const 
+    {
+        std::lock_guard<std::mutex>lock{logFileWriteMutex};
+        return logToConsole;
+    }
+
+    std::string getLogFileName() const
+    {
+        std::lock_guard<std::mutex>lock{logFileWriteMutex};
+        return logFileName;
+    }
+
+private:
+
+    void setLogToConsole(bool state)
+    {
+        std::lock_guard<std::mutex>lock{logFileWriteMutex};
+        logToConsole = state;
+    }
+
+    std::ofstream logFile;
+    std::string logFileName;
+    mutable std::mutex logFileWriteMutex;
+    int maxLogLevel = 1;
+    bool logToConsole = false;
+};
+
+DebugOutputOptions g_reviewPublicChatOutOptions;
+
 class MegaCLLogger : public m::Logger {
 public:
     void logMsg(const int loglevel, const std::string& message)
@@ -359,15 +445,16 @@ private:
         std::ostringstream os;
         os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
         const auto msg = os.str();
-        if (loglevel <= m::logError)
-        {
-            conlock(cout) << msg << flush;
-        }
-        if (g_reviewPublicChatOutFileLogs)
-        {
-            std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
-            *g_reviewPublicChatOutFileLogs << msg << flush;
-        }
+        g_reviewPublicChatOutOptions.writeOutput(msg, loglevel);
+        // if (loglevel <= g_reviewPublicChatOutOptions.logLevel)
+        // {
+        //     conlock(cout) << msg << flush;
+        // }
+        // if (g_reviewPublicChatOutFileLogs)
+        // {
+        //     std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
+        //     *g_reviewPublicChatOutFileLogs << msg << flush;
+        // }
     }
 };
 
@@ -400,15 +487,16 @@ private:
             os << endl;
         }
         const auto msg = os.str();
-        if (loglevel <= c::MegaChatApi::LOG_LEVEL_ERROR)
-        {
-            conlock(cout) << msg << flush;
-        }
-        if (g_reviewPublicChatOutFileLogs)
-        {
-            std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
-            *g_reviewPublicChatOutFileLogs << msg << flush;
-        }
+        g_reviewPublicChatOutOptions.writeOutput(msg, loglevel);
+        // if (loglevel <= c::MegaChatApi::LOG_LEVEL_ERROR)
+        // {
+        //     conlock(cout) << msg << flush;
+        // }
+        // if (g_reviewPublicChatOutFileLogs)
+        // {
+        //     std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
+        //     *g_reviewPublicChatOutFileLogs << msg << flush;
+        // }
     }
 };
 
@@ -1533,6 +1621,47 @@ void exec_session(ac::ACState& s)
     }
 }
 
+void exec_debug(ac::ACState& s)
+{
+    if (s.extractflag("-off"))
+    {
+        SimpleLogger::setLogLevel(logWarning);
+        g_reviewPublicChatOutOptions.disableLogToConsole();
+        g_reviewPublicChatOutOptions.disableLogToFile();
+    }
+    if (s.extractflag("-on"))
+    {
+        SimpleLogger::setLogLevel(logDebug);
+    }
+    if (s.extractflag("-verbose"))
+    {
+        SimpleLogger::setLogLevel(logMax);
+    }
+    if (s.extractflag("-console"))
+    {
+        g_reviewPublicChatOutOptions.enableLogToConsole();
+
+    }
+    if (s.extractflag("-noconsole"))
+    {
+        g_reviewPublicChatOutOptions.disableLogToConsole();
+    }
+    if (s.extractflag("-nofile"))
+    {
+        g_reviewPublicChatOutOptions.disableLogToFile();
+    }
+    string filename;
+    if (s.extractflagparam("-file", filename))
+    {
+        g_reviewPublicChatOutOptions.enableLogToFile(filename);
+    }
+
+    cout << "Debug level set to " << SimpleLogger::getLogLevel() << endl;
+    cout << "Log to console: " << (g_reviewPublicChatOutOptions.isLoggingToConsole() ? "on" : "off") << endl;
+    cout << "Log to file: " << (g_reviewPublicChatOutOptions.isLoggingToFile() ? g_reviewPublicChatOutOptions.getLogFileName() : "<off>") << endl;
+}
+
+
 void exec_setonlinestatus(ac::ACState& s)
 {
     assert(s.words.size() == 2);
@@ -2209,12 +2338,12 @@ void exec_dumpchathistory(ac::ACState& s)
         return;
     }
 
-    if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
-    {
-        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
-        g_dumpingChatHistory = false;
-        return;
-    }
+    // if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
+    // {
+    //     g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
+    //     g_dumpingChatHistory = false;
+    //     return;
+    // }
 
     std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(g_dumpHistoryChatid));
     unique_ptr<m::MegaHandleList> peerList = unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
@@ -2276,13 +2405,13 @@ void exec_reviewpublicchat(ac::ACState& s)
     {
         return;
     }
-    if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
-    {
-        return;
-    }
+    // if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
+    // {
+    //     return;
+    // }
     *g_reviewPublicChatOutFile << chat_link << endl;
     *g_reviewPublicChatOutFileLinks << chat_link << endl;
-    *g_reviewPublicChatOutFileLogs << chat_link << endl;
+    // *g_reviewPublicChatOutFileLogs << chat_link << endl;
 
     auto check_chat_preview_listener = new OneShotChatRequestListener;
     check_chat_preview_listener->onRequestFinishFunc =
@@ -4680,6 +4809,11 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
     p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
+    p->Add(exec_debug, sequence(text("debug"),
+            opt(either(flag("-on"), flag("-off"), flag("-verbose"))),
+            opt(either(flag("-console"), flag("-noconsole"))),
+            opt(either(flag("-nofile"), sequence(flag("-file"), localFSFile())))
+            ));
 
     p->Add(exec_setonlinestatus,    sequence(text("setonlinestatus"), either(text("offline"), text("away"), text("online"), text("busy"))));
     p->Add(exec_setpresenceautoaway, sequence(text("setpresenceautoaway"), either(text("on"), text("off")), wholenumber(30)));
