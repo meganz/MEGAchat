@@ -1157,7 +1157,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2, a3}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a3, mData.mChatid, false /*audio*/, false /*video*/));
-    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 6 /*callDur*/));
+    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 7 /*callDur*/));
 
     LOG_debug << "#### Test2: a1 sets max num clients ####";
     // a2 can join but a3 will received SFU error
