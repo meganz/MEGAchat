@@ -218,8 +218,8 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 // termcode is only valid at state CALL_STATUS_TERMINATING_USER_PARTICIPATION
                 int termCode = call->getTermCode();
 
-                if (call->getTermCode() == megachat::MegaChatCall::TERM_CODE_CALL_DUR_LIMIT
-                    || call->getTermCode() == megachat::MegaChatCall::TERM_CODE_CALL_USERS_LIMIT)
+                if (termCode == megachat::MegaChatCall::TERM_CODE_CALL_DUR_LIMIT
+                    || termCode == megachat::MegaChatCall::TERM_CODE_CALL_USERS_LIMIT)
                 {
                     QMessageBox msgBox;
                     msgBox.setText("Please upgrade your MEGA account into a PRO plan.");
