@@ -2405,13 +2405,9 @@ void exec_reviewpublicchat(ac::ACState& s)
     {
         return;
     }
-    // if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
-    // {
-    //     return;
-    // }
     *g_reviewPublicChatOutFile << chat_link << endl;
     *g_reviewPublicChatOutFileLinks << chat_link << endl;
-    // *g_reviewPublicChatOutFileLogs << chat_link << endl;
+    g_reviewPublicChatOutOptions.writeOutput(chat_link + "\n", logInfo);
 
     auto check_chat_preview_listener = new OneShotChatRequestListener;
     check_chat_preview_listener->onRequestFinishFunc =
