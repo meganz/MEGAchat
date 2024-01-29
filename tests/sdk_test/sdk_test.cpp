@@ -361,7 +361,8 @@ void MegaChatApiTest::init(const std::string& log)
 {
     std::cout << "[========] Global test environment initialization" << endl;
 
-    getEnv().setLogFile((PROC_SPECIFIC_PATH.empty() ? "./" : "../") + log); // keep all logs together
+    assert(!PROC_SPECIFIC_PATH.empty());
+    getEnv().setLogFile("../" + log); // keep all logs together
     MegaApi::addLoggerObject(logger());
     MegaApi::setLogToConsole(false);    // already disabled by default
     MegaChatApi::setLoggerObject(logger());
@@ -413,20 +414,7 @@ void MegaChatApiTest::terminate()
 
 void MegaChatApiTest::terminateFS()
 {
-    if (!PROC_SPECIFIC_PATH.empty())
-    {
-        std::error_code ec;
-        filesystem::current_path("../", ec);
-        if (ec)
-        {
-            std::cout << "ERROR: Failed to change work directory to " << PROC_SPECIFIC_PATH << "/.. : " << ec.message() << endl;
-        }
-        purgeLocalTree(PROC_SPECIFIC_PATH);
-    }
-    else
-    {
-        purgeLocalTree(LOCAL_PATH);
-    }
+    purgeLocalTree(LOCAL_PATH);
 }
 
 void MegaChatApiTest::SetUp()
