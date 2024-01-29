@@ -60,7 +60,6 @@ namespace c = ::megachat;
 namespace k = ::karere;
 
 using m::SimpleLogger;
-using m::logFatal;
 using m::logError;
 using m::logWarning;
 using m::logInfo;
@@ -345,7 +344,7 @@ public:
     void writeOutput(const std::basic_string<char>& msg, int logLevel)
     {
         std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        if (logLevel > maxLogLevel)
+        if (logLevel > currentLogLevel)
         {
             return;
         }
@@ -353,7 +352,8 @@ public:
         {
             logFile << msg;
         }
-        if (logToConsole)
+        // To avoid cout saturation only errors are printed.
+        if (logToConsole && logLevel <= logError)
         {
             std::cout << msg;
         }
@@ -407,6 +407,12 @@ public:
         return logFileName;
     }
 
+    void setLogLevel(int newLogLevel)
+    {
+        std::lock_guard<std::mutex>lock{logFileWriteMutex};
+        currentLogLevel = newLogLevel;
+    }
+
 private:
 
     void setLogToConsole(bool state)
@@ -418,7 +424,7 @@ private:
     std::ofstream logFile;
     std::string logFileName;
     mutable std::mutex logFileWriteMutex;
-    int maxLogLevel = 1;
+    int currentLogLevel = 1;
     bool logToConsole = false;
 };
 
@@ -1614,10 +1620,12 @@ void exec_debug(ac::ACState& s)
     if (s.extractflag("-on"))
     {
         SimpleLogger::setLogLevel(logDebug);
+        g_reviewPublicChatOutOptions.setLogLevel(logDebug);
     }
     if (s.extractflag("-verbose"))
     {
         SimpleLogger::setLogLevel(logMax);
+        g_reviewPublicChatOutOptions.setLogLevel(logMax);
     }
     if (s.extractflag("-console"))
     {
