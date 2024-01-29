@@ -461,7 +461,7 @@ private:
     bool logToConsole = false;
 };
 
-DebugOutputWriter g_reviewPublicChatOutOptions;
+DebugOutputWriter g_debugOutpuWriter;
 
 class MegaCLLogger : public m::Logger
 {
@@ -485,7 +485,7 @@ private:
         std::ostringstream os;
         os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
         const auto msg = os.str();
-        g_reviewPublicChatOutOptions.writeOutput(msg, loglevel);
+        g_debugOutpuWriter.writeOutput(msg, loglevel);
     }
 };
 
@@ -518,7 +518,7 @@ private:
             os << endl;
         }
         const auto msg = os.str();
-        g_reviewPublicChatOutOptions.writeOutput(msg, loglevel);
+        g_debugOutpuWriter.writeOutput(msg, loglevel);
     }
 };
 
@@ -1648,41 +1648,41 @@ void exec_debug(ac::ACState& s)
     if (s.extractflag("-off"))
     {
         SimpleLogger::setLogLevel(logWarning);
-        g_reviewPublicChatOutOptions.disableLogToConsole();
-        g_reviewPublicChatOutOptions.disableLogToFile();
+        g_debugOutpuWriter.disableLogToConsole();
+        g_debugOutpuWriter.disableLogToFile();
     }
     if (s.extractflag("-on"))
     {
         SimpleLogger::setLogLevel(logDebug);
-        g_reviewPublicChatOutOptions.setLogLevel(logDebug);
+        g_debugOutpuWriter.setLogLevel(logDebug);
     }
     if (s.extractflag("-verbose"))
     {
         SimpleLogger::setLogLevel(logMax);
-        g_reviewPublicChatOutOptions.setLogLevel(logMax);
+        g_debugOutpuWriter.setLogLevel(logMax);
     }
     if (s.extractflag("-console"))
     {
-        g_reviewPublicChatOutOptions.enableLogToConsole();
+        g_debugOutpuWriter.enableLogToConsole();
 
     }
     if (s.extractflag("-noconsole"))
     {
-        g_reviewPublicChatOutOptions.disableLogToConsole();
+        g_debugOutpuWriter.disableLogToConsole();
     }
     if (s.extractflag("-nofile"))
     {
-        g_reviewPublicChatOutOptions.disableLogToFile();
+        g_debugOutpuWriter.disableLogToFile();
     }
     string filename;
     if (s.extractflagparam("-file", filename))
     {
-        g_reviewPublicChatOutOptions.enableLogToFile(filename);
+        g_debugOutpuWriter.enableLogToFile(filename);
     }
 
     cout << "Debug level set to " << SimpleLogger::getLogLevel() << endl;
-    cout << "Log to console: " << (g_reviewPublicChatOutOptions.isLoggingToConsole() ? "on" : "off") << endl;
-    cout << "Log to file: " << (g_reviewPublicChatOutOptions.isLoggingToFile() ? g_reviewPublicChatOutOptions.getLogFileName() : "<off>") << endl;
+    cout << "Log to console: " << (g_debugOutpuWriter.isLoggingToConsole() ? "on" : "off") << endl;
+    cout << "Log to file: " << (g_debugOutpuWriter.isLoggingToFile() ? g_debugOutpuWriter.getLogFileName() : "<off>") << endl;
 }
 
 
@@ -2424,7 +2424,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
     *g_reviewPublicChatOutFile << chat_link << endl;
     *g_reviewPublicChatOutFileLinks << chat_link << endl;
-    g_reviewPublicChatOutOptions.writeOutput(chat_link + "\n", logInfo);
+    g_debugOutpuWriter.writeOutput(chat_link + "\n", logInfo);
 
     auto check_chat_preview_listener = new OneShotChatRequestListener;
     check_chat_preview_listener->onRequestFinishFunc =
