@@ -1,5 +1,6 @@
 #include "gtest_common.h"
 #include "sdk_test.h"
+#include "integration/sdk_test_utils.h"
 
 #include <mega.h>
 #include <megaapi.h>
@@ -14,7 +15,8 @@ using namespace megachat;
 using namespace std;
 using CleanupFunction = MegaChatApiTest::MegaMrProper::CleanupFunction;
 
-const std::string MegaChatApiTest::DEFAULT_PATH = "../../tests/sdk_test/";
+const std::string MegaChatApiTest::DEFAULT_PATH = "./";
+// IMPORTANT: Ensure that your build system copies the FILE_IMAGE_NAME to the directory where the binary is located.
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
@@ -66,6 +68,8 @@ public:
 
 int main(int argc, char **argv)
 {
+    sdk_test::setTestDataDir(fs::absolute(fs::path(argv[0]).parent_path()));
+
     vector<pair<string, string>> accEnvVars{{"MEGA_EMAIL0", "MEGA_PWD0"},
                                             {"MEGA_EMAIL1", "MEGA_PWD1"},
                                             {"MEGA_EMAIL2", "MEGA_PWD2"}};
@@ -2942,6 +2946,8 @@ TEST_F(MegaChatApiTest, Attachment)
     {
         path = getenv(PATH_IMAGE.c_str());
     }
+    // Ensure the image is in the path (it is copied from the binary directory)
+    sdk_test::copyFileFromTestData(FILE_IMAGE_NAME, path);
     nodeSent = uploadFile(a1, FILE_IMAGE_NAME, path, REMOTE_PATH);
     ASSERT_TRUE(nodeSent);
     msgSent = attachNode(a1, a2, chatid, nodeSent, chatroomListener);
