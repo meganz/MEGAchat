@@ -463,7 +463,8 @@ private:
 
 DebugOutputWriter g_reviewPublicChatOutOptions;
 
-class MegaCLLogger : public m::Logger {
+class MegaCLLogger : public m::Logger
+{
 public:
     void logMsg(const int loglevel, const std::string& message)
     {
