@@ -378,15 +378,15 @@ public:
             conlock(cout) << "Error: Provided an empty file name" << endl;
             return;
         }
-            logFile.open(fname.c_str());
-            if (logFile.is_open())
-            {
-                logFileName = fname;
-            }
-            else
-            {
-                conlock(cout) << "Error: Unable to open output file: " << fname << endl;
-            }
+        logFile.open(fname.c_str());
+        if (logFile.is_open())
+        {
+            logFileName = fname;
+        }
+        else
+        {
+            conlock(cout) << "Error: Unable to open output file: " << fname << endl;
+        }
     }
 
     bool isLoggingToFile() const 
