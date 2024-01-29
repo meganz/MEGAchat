@@ -446,15 +446,6 @@ private:
         os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
         const auto msg = os.str();
         g_reviewPublicChatOutOptions.writeOutput(msg, loglevel);
-        // if (loglevel <= g_reviewPublicChatOutOptions.logLevel)
-        // {
-        //     conlock(cout) << msg << flush;
-        // }
-        // if (g_reviewPublicChatOutFileLogs)
-        // {
-        //     std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
-        //     *g_reviewPublicChatOutFileLogs << msg << flush;
-        // }
     }
 };
 
@@ -488,15 +479,6 @@ private:
         }
         const auto msg = os.str();
         g_reviewPublicChatOutOptions.writeOutput(msg, loglevel);
-        // if (loglevel <= c::MegaChatApi::LOG_LEVEL_ERROR)
-        // {
-        //     conlock(cout) << msg << flush;
-        // }
-        // if (g_reviewPublicChatOutFileLogs)
-        // {
-        //     std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
-        //     *g_reviewPublicChatOutFileLogs << msg << flush;
-        // }
     }
 };
 
@@ -2337,13 +2319,6 @@ void exec_dumpchathistory(ac::ACState& s)
         g_dumpingChatHistory = false;
         return;
     }
-
-    // if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
-    // {
-    //     g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
-    //     g_dumpingChatHistory = false;
-    //     return;
-    // }
 
     std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(g_dumpHistoryChatid));
     unique_ptr<m::MegaHandleList> peerList = unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
