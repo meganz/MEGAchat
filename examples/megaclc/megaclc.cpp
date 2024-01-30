@@ -5323,6 +5323,10 @@ void CLCRoomListener::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaCh
 void CLCRoomListener::onMessageLoaded(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
     reportMessage(room, msg, "loaded");
+    if (!msg && !g_chatApi->isFullHistoryLoaded(room))
+    {
+        reviewPublicChatLoadMessages(room);
+    }
 }
 
 void CLCRoomListener::onMessageReceived(megachat::MegaChatApi *, megachat::MegaChatMessage *) {}
