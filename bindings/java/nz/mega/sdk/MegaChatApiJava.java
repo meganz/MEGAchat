@@ -4007,6 +4007,47 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Mute a specific client or all of them in a call
+     * This method can be called only by users with moderator role
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_MUTE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the user handle for the user we want to mute, or MEGACHAT_INVALID_HANDLE
+     * in case we want to mute all peers
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom, or there's no session with provided clientId
+     * - MegaChatError::ERROR_ACCESS - if Call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatId MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies the client we want to mute, or MEGACHAT_INVALID_HANDLE to mute all participants
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void mutePeers(long chatId, long clientId, MegaChatRequestListenerInterface listener){
+        megaChatApi.mutePeers(chatId, clientId, createDelegateRequestListener(listener));
+    }
+
+    /** Rejects a call for all client of our user account
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REJECT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the callId
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS - if webrtc is not initialized
+     * - MegaChatError::ERROR_ARGS   - if specified callId is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's not a call in the specified chatroom, or chatroom cannot be found
+     *
+     * @param callId MegaChatHandle that identifies the call
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void rejectCall(long callId, MegaChatRequestListenerInterface listener){
+        megaChatApi.rejectCall(callId, createDelegateRequestListener(listener));
+    }
+
+    /**
      * Allow a list of users in the waiting room to join the call.
      *
      * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
@@ -4129,20 +4170,19 @@ public class MegaChatApiJava {
      * @param callId MegaChatHandle that identifies the call
      * @return MegaChatCall object for the specified \c callId. NULL if call doesn't exist
      */
-    public MegaChatCall getChatCallByCallId(long callId){
+    public MegaChatCall getChatCallByCallId(long callId) {
         return megaChatApi.getChatCallByCallId(callId);
-
     }
 
     /**
      * Returns number of calls that are currently active
      * You may not participate in all those calls.
+     *
      * @return number of calls in the system
      */
-    public int getNumCalls(){
+    public int getNumCalls() {
         return megaChatApi.getNumCalls();
     }
-
 
     /**
      * Get a list with the ids of chatrooms where there are active calls
@@ -4339,6 +4379,30 @@ public class MegaChatApiJava {
      */
     public void requestHiResVideo(long chatid, long clientId, MegaChatRequestListenerInterface listener) {
         megaChatApi.requestHiResVideo(chatid, clientId, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Request high resolution video from a client with a specified resolution quality level
+     *
+     * Valid values for quality param are:
+     *  + MegaChatCall::CALL_QUALITY_HIGH_DEF = 0,     // Default hi-res quality
+     *  + MegaChatCall::CALL_QUALITY_HIGH_MEDIUM = 1,  // 2x lower resolution
+     *  + MegaChatCall::CALL_QUALITY_HIGH_LOW = 2,     // 4x lower resolution
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicate that request high resolution video
+     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
+     * - MegaChatRequest::getPrivilege - Returns the resolution quality level for received video
+     *
+     * @param chatId MegaChatHandle that identifies the chat room
+     * @param clientId MegaChatHandle that identifies client
+     * @param quality resolution quality level for received video
+     * @param listener MegaChatRequestListener to track this request
+     */
+    public void requestHiResVideoWithQuality(long chatId, long clientId, int quality, MegaChatRequestListenerInterface listener) {
+        megaChatApi.requestHiResVideoWithQuality(chatId, clientId, quality, createDelegateRequestListener(listener));
     }
 
     /**
