@@ -38,6 +38,8 @@
 #include <sstream>
 #include <thread>
 #include <regex>
+#include <utility>
+#include <map>
 
 #define USE_VARARGS
 #define PREFER_STDARG
@@ -52,6 +54,7 @@
 #include <megachatapi.h>
 #include <karereId.h>
 #include <mega/autocomplete.h>
+#include "async_utils.h"
 
 using namespace std;
 namespace m = ::mega;
@@ -101,6 +104,29 @@ std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLinks;
 std::mutex g_reviewPublicChatOutFileLogsMutex;
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLogs;
 class ReviewPublicChat_GetUserEmail_Listener;
+
+struct StateChange
+{
+    std::atomic<int> state {};
+    std::atomic<bool> stateHasChanged {false};
+
+    StateChange() = default;
+    StateChange(const StateChange& o): state{o.state.load()}, stateHasChanged{o.stateHasChanged.load()} {}
+
+    StateChange(int s, bool sChange): state{s}, stateHasChanged{sChange} {}
+
+    // StateChange& operator=(const StateChange& o)
+    // {
+    //     this->state = o.state.load();
+    //     this->stateHasChanged = o.stateHasChanged.load();
+    //     return *this;
+    // }
+};
+
+std::map<megachat::MegaChatHandle, StateChange> g_callStateMap;
+
+unique_ptr<m::MegaApi> g_megaApi;
+unique_ptr<c::MegaChatApi> g_chatApi;
 
 static const int MAX_NUMBER_MESSAGES = 100; // chatd doesn't allow more than 256
 
@@ -827,6 +853,115 @@ struct CLCListener : public c::MegaChatListener
     }
 };
 
+class CLCCallListener : public c::MegaChatCallListener
+{
+
+    void onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaChatCall *call) override
+    {
+        if (!call)
+        {
+            g_chatLogger.logMsg(logError, "NULL call");
+            return;
+        }
+        megachat::MegaChatHandle chatid = call->getChatid();
+
+        if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_STATUS))
+        {
+            int status = call->getStatus();
+            auto findIt = g_callStateMap.find(chatid);
+            if (status == megachat::MegaChatCall::CALL_STATUS_INITIAL)
+            {
+                if (findIt != g_callStateMap.end())
+                {
+                    // TODO: Check if we have to return here
+                    // In case the call is hang up and started more than once during megaclc exec_joinCallViaMeetingLink
+                    // execution we assume that something went wrong in test and we can abort.
+                    g_chatLogger.logMsg(logError, "The call is already registered");
+                    assert(false);
+                }
+                else
+                {
+                    g_callStateMap.emplace(std::make_pair(chatid, StateChange{megachat::MegaChatCall::CALL_STATUS_INITIAL, true}));
+                }
+            }
+            else if (status == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+            {
+                if (findIt == g_callStateMap.end())
+                {
+                    g_chatLogger.logMsg(logError, "Call must exists in the map at this point");
+                    assert(false);
+                    // TODO create a logic to exit properly the application.
+                    return; // temporary
+                }
+                findIt->second.state = megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS;
+                findIt->second.stateHasChanged = true;
+            }
+            else if (status == megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION)
+            {
+                if (findIt == g_callStateMap.end())
+                {
+                    g_chatLogger.logMsg(logError, "Call must exists in the map at this point");
+                    assert(false);
+                    // TODO create a logic to exit properly the application.
+                    return; // temporary
+                }
+                findIt->second.state = megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
+                findIt->second.stateHasChanged = true;
+
+            }
+            else if (status == megachat::MegaChatCall::CALL_STATUS_DESTROYED)
+            {
+                g_callStateMap.erase(chatid); // remove if exists
+            }
+            else
+            {
+                // No special logic
+            }
+        }
+        else if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
+        {
+        }
+        else if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_RINGING_STATUS))
+        {
+        }
+        else if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS))
+        {
+        }
+        else if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION))
+        {
+        }
+    }
+
+    void onChatSessionUpdate(megachat::MegaChatApi *, megachat::MegaChatHandle chatid, megachat::MegaChatHandle callid, megachat::MegaChatSession *session) override
+    {
+        if (!session)
+        {
+            g_chatLogger.logMsg(logError, "NULL session");
+            return;
+        }
+        g_chatLogger.logMsg(logInfo, std::string("onChangeSessionUpdate with chatid ") + std::to_string(chatid) + " and callid " + std::to_string(callid));
+        if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_STATUS))
+        {
+        }
+        else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS))
+        {
+        }
+        else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES))
+        {
+        }
+        else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES))
+        {
+        }
+        else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
+        {
+        }
+        else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_PERMISSIONS))
+        {
+        }
+    }
+
+};
+
 struct finishInfo
 {
     c::MegaChatApi* api;
@@ -1071,11 +1206,10 @@ public:
 };
 
 CLCListener g_clcListener;
+CLCCallListener g_clcCallListener;
 MegaclcListener g_megaclcListener;
 MegaclChatListener g_chatListener;
 ClcMegaGlobalListener g_globalListener;
-unique_ptr<m::MegaApi> g_megaApi;
-unique_ptr<c::MegaChatApi> g_chatApi;
 
 
 void MegaclcListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
@@ -2271,6 +2405,201 @@ void exec_closechatpreview(ac::ACState& s)
 {
     c::MegaChatHandle room = s_ch(s.words[1].s);
     g_chatApi->closeChatPreview(room);
+}
+
+class CLCChatRequestTracker : public MegaclChatListener, public megachat::async::ResultHandler
+{
+public:
+    CLCChatRequestTracker(megachat::MegaChatApi* megaChatApi)
+        : mMegaChatApi(megaChatApi)
+    {
+    }
+
+    ~CLCChatRequestTracker()
+    {
+        if (!resultReceived)
+        {
+            mMegaChatApi->removeChatRequestListener(this);
+        }
+    }
+
+    void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
+                         ::megachat::MegaChatError* e) override
+    {
+        request.reset(req ? req->copy() : nullptr);
+        finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+    }
+
+    ::megachat::MegaChatRequest* getMegaChatRequestPtr() const
+    {
+        return request.get();
+    }
+
+private:
+    std::unique_ptr<::megachat::MegaChatRequest> request;
+    megachat::MegaChatApi* mMegaChatApi;
+};
+
+void exec_joinCallViaMeetingLink(ac::ACState& s)
+{
+    auto currentState = g_chatApi->getInitState();
+    if (currentState != megachat::MegaChatApi::INIT_ONLINE_SESSION && currentState != megachat::MegaChatApi::INIT_ANONYMOUS)
+    {
+        g_apiLogger.logMsg(logError, "Your init state in MegaChat is not appropiate to open a chat link");
+    }
+
+
+    CLCChatRequestTracker openPreviewListener(g_chatApi.get());
+    g_chatApi->openChatPreview(s.words[1].s.c_str(), &openPreviewListener);
+    int errCode = openPreviewListener.waitForResult();
+    if (errCode != megachat::MegaChatError::ERROR_EXIST && errCode != megachat::MegaChatError::ERROR_OK)
+    {
+        g_chatLogger.logMsg(logError, std::string("ERROR CODE ") + std::to_string(errCode) + ": Failed to open chat link. AutoJoin will not be executed");
+        return;
+    }
+
+    auto chatId = openPreviewListener.getMegaChatRequestPtr()->getChatHandle();
+    auto chatRoom = g_chatApi->getChatRoom(chatId);
+    if (!chatRoom)
+    {
+        g_chatLogger.logMsg(logError, "We are not able to get the chat room although it should exist");
+        return;
+    }
+
+    auto checkError = [](CLCChatRequestTracker& l, const char* msg) -> bool {
+        auto errCode = l.waitForResult();
+        if (errCode != megachat::MegaChatError::ERROR_OK)
+        {
+            g_chatLogger.logMsg(logError, std::string("ERROR CODE ") + std::to_string(errCode) + ": " + msg);
+            return true;
+        }
+        return false;
+    };
+    if (chatRoom->isPreview() || errCode == megachat::MegaChatError::ERROR_OK)
+    {
+        CLCChatRequestTracker autoJoinListener(g_chatApi.get());
+        g_chatApi->autojoinPublicChat(openPreviewListener.getMegaChatRequestPtr()->getChatHandle(), &autoJoinListener);
+        if (checkError(autoJoinListener, "Failed autoJoin the chat"))
+        {
+            return;
+        }
+    }
+    else if (chatRoom->getOwnPrivilege() == megachat::MegaChatRoom::PRIV_RM)
+    {
+        CLCChatRequestTracker autoReJoinListener(g_chatApi.get());
+        g_chatApi->autorejoinPublicChat(openPreviewListener.getMegaChatRequestPtr()->getChatHandle(), chatRoom->getChatId(), &autoReJoinListener);
+        if (checkError(autoReJoinListener, "Failed autoReJoin the chat"))
+        {
+            return;
+        }
+    }
+    else if (chatRoom->getOwnPrivilege() > megachat::MegaChatRoom::PRIV_RM)
+    {
+        g_chatLogger.logMsg(logInfo, "You are trying to join a chat that you were already joined");
+    }
+    else
+    {
+        assert(false);
+    }
+    // We assume that there is an ongoing call in the chat
+    // TODO wait for the call and answer it.
+    auto getStatePtr = [&chatId]() -> StateChange* {
+        auto it = g_callStateMap.find(chatId);
+        if (it == g_callStateMap.end())
+        {
+            return nullptr;
+        }
+        return &(it->second);
+    };
+    auto state = getStatePtr();
+
+    auto hasCallStateChanged = [chatId]() -> bool
+    {
+        auto it = g_callStateMap.find(chatId);
+        if (it == g_callStateMap.end())
+        {
+            return false;
+        }
+        return it->second.stateHasChanged;
+    };
+
+    if (!megachat::async::waitForResponse(hasCallStateChanged, 60))
+    {
+        g_chatLogger.logMsg(logError, "Timeout expired for received call");
+    }
+    std::unique_ptr <megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    if (!call)
+    {
+        if (state->state != megachat::MegaChatCall::CALL_STATUS_INITIAL)
+        {
+            g_chatLogger.logMsg(logError, "Unexpected call state");
+            return;
+        }
+    }
+    else
+    {
+        g_chatLogger.logMsg(logDebug, "Call already exists");
+        if ((call->getStatus() > megachat::MegaChatCall::CALL_STATUS_USER_NO_PRESENT
+                && call->getStatus() <= megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+            || call->getStatus() == megachat::MegaChatCall::CALL_STATUS_DESTROYED)
+        {
+            g_chatLogger.logMsg(logDebug, "Call is in unexpected state: expected (CALL_STATUS_USER_NO_PRESENT)");
+            return;
+        }
+    }
+    state->stateHasChanged = false;
+
+    CLCChatRequestTracker answerChatCallListener(g_chatApi.get());
+    bool video = !s.extractflag("-novideo");
+    bool audio = !s.extractflag("-noaudio");
+    g_chatApi->answerChatCall(chatRoom->getChatId(), video, audio, &answerChatCallListener);
+    if (checkError(answerChatCallListener, "Failed to answer the call"))
+    {
+        return;
+    }
+    if (!megachat::async::waitForResponse(hasCallStateChanged, 60))
+    {
+        g_chatLogger.logMsg(logError, "Timeout expired answering the call");
+    }
+    if (state->state != megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+    {
+        g_chatLogger.logMsg(logError, "Unexpected call state after answering");
+        return;
+    }
+    state->stateHasChanged = false;
+    // Wait some time and hang up
+    // TODO Pass this time from command line
+
+    // TODO Check all the logMsg and error codes
+    g_chatLogger.logMsg(logError, "In the call...");
+    std::this_thread::sleep_for(std::chrono::microseconds(40 * 1000000));
+    g_chatLogger.logMsg(logError, "Finishing the call");
+
+    CLCChatRequestTracker hangUpListener(g_chatApi.get());
+    call.reset(g_chatApi->getChatCall(chatId));
+    if (!call)
+    {
+        g_chatLogger.logMsg(logError, "No call when it should.");
+    }
+    g_chatApi->hangChatCall(call->getCallId(), &hangUpListener);
+    if (checkError(hangUpListener, "Failed to answer hang up the call"))
+    {
+        return;
+    }
+    if (!megachat::async::waitForResponse(hasCallStateChanged, 60))
+    {
+        g_chatLogger.logMsg(logError, "Timeout expired hanging up the call");
+    }
+    if (state->state != megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION)
+    {
+        g_chatLogger.logMsg(logError, "Unexpected call state after hanging up");
+        return;
+    }
+    // wait for CALL_STATUS_USER_NO_PRESENT status
+    // state->stateHasChanged = false;
+    g_chatLogger.logMsg(logError, "Call finished properly");
+    //g_chatLogger.logMsg(logError, "Call finished properly");
+    //g_callStateMap.erase(chatId);
 }
 
 void exec_loadmessages(ac::ACState& s)
@@ -4889,6 +5218,8 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_openchatpreview,    sequence(text("openchatpreview"), param("chatlink")));
     p->Add(exec_closechatpreview,   sequence(text("closechatpreview"), param("chatid")));
 
+    p->Add(exec_joinCallViaMeetingLink, sequence(text("joinCallViaMeetingLink"), opt(flag("-novideo")), opt(flag("-noaudio")), param("meetingLink")));
+
     p->Add(exec_dumpchathistory,   sequence(text("dumpchathistory"), param("roomid"), param("fileName")));
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -5295,6 +5626,7 @@ int main()
     g_chatApi->setLogWithColors(false);
     g_chatApi->setLogToConsole(false);
     g_chatApi->addChatListener(&g_clcListener);
+    g_chatApi->addChatCallListener(&g_clcCallListener);
 
     console.reset(new m::CONSOLE_CLASS);
 
@@ -5308,6 +5640,7 @@ int main()
     g_megaApi->removeListener(&g_megaclcListener);
     g_megaApi->removeGlobalListener(&g_globalListener);
     g_chatApi->removeChatListener(&g_clcListener);
+    g_chatApi->removeChatCallListener(&g_clcCallListener);
 
     g_chatApi.reset();
     g_megaApi.reset();

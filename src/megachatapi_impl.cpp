@@ -1060,6 +1060,15 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
 
                 uint64_t chatId = result->getParentHandle();
 
+                const ChatRoom* chatRoom = findChatRoom(chatId);
+                if (chatRoom)
+                {
+                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
+                    request->setChatHandle(chatId);
+                    fireOnChatRequestFinish(request, megaChatError);
+                    return;
+                }
+
                 mClient->decryptChatTitle(chatId, unifiedKey, encTitle, ph)
                 .then([request, this, unifiedKey, result, chatId, wptr](std::string decryptedTitle)
                 {
