@@ -367,17 +367,17 @@ public:
      */
     void writeOutput(const std::basic_string<char>& msg, int logLevel)
     {
-        std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        if (logLevel > currentLogLevel)
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        if (logLevel > mCurrentLogLevel)
         {
             return;
         }
-        if (logFile.is_open())
+        if (mLogFile.is_open())
         {
-            logFile << msg;
+            mLogFile << msg;
         }
         // To avoid cout saturation only errors are printed.
-        if (logToConsole && logLevel <= logError)
+        if (mLogToConsole && logLevel <= logError)
         {
             std::cout << msg;
         }
@@ -389,8 +389,8 @@ public:
 
     void disableLogToFile()
     {
-        std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        logFile.close();
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogFile.close();
     }
 
     /**
@@ -404,17 +404,17 @@ public:
      */
     void enableLogToFile(const std::string& fname)
     {
-        std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        logFile.close();
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogFile.close();
         if (fname.length() == 0)
         {
             conlock(cout) << "Error: Provided an empty file name" << endl;
             return;
         }
-        logFile.open(fname.c_str());
-        if (logFile.is_open())
+        mLogFile.open(fname.c_str());
+        if (mLogFile.is_open())
         {
-            logFileName = fname;
+            mLogFileName = fname;
         }
         else
         {
@@ -424,41 +424,41 @@ public:
 
     bool isLoggingToFile() const
     {
-        std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        return logFile.is_open();
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogFile.is_open();
     }
 
     bool isLoggingToConsole() const 
     {
-        std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        return logToConsole;
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogToConsole;
     }
 
     std::string getLogFileName() const
     {
-        std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        return logFileName;
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogFileName;
     }
 
     void setLogLevel(int newLogLevel)
     {
-        std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        currentLogLevel = newLogLevel;
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mCurrentLogLevel = newLogLevel;
     }
 
 private:
 
     void setLogToConsole(bool state)
     {
-        std::lock_guard<std::mutex>lock{logFileWriteMutex};
-        logToConsole = state;
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogToConsole = state;
     }
 
-    std::ofstream logFile;
-    std::string logFileName;
-    mutable std::mutex logFileWriteMutex;
-    int currentLogLevel = 1;
-    bool logToConsole = false;
+    std::ofstream mLogFile;
+    std::string mLogFileName;
+    mutable std::mutex mLogFileWriteMutex;
+    int mCurrentLogLevel = 1;
+    bool mLogToConsole = false;
 };
 
 DebugOutputWriter g_debugOutpuWriter;
