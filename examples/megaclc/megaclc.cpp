@@ -408,7 +408,7 @@ public:
         mLogFile.close();
         if (fname.length() == 0)
         {
-            conlock(cout) << "Error: Provided an empty file name" << endl;
+            conlock(cout) << "Error: Provided an empty file name\n";
             return;
         }
         mLogFile.open(fname.c_str());
@@ -418,7 +418,7 @@ public:
         }
         else
         {
-            conlock(cout) << "Error: Unable to open output file: " << fname << endl;
+            conlock(cout) << "Error: Unable to open output file: " << fname << "\n";
         }
     }
 
@@ -1664,7 +1664,6 @@ void exec_debug(ac::ACState& s)
     if (s.extractflag("-console"))
     {
         g_debugOutpuWriter.enableLogToConsole();
-
     }
     if (s.extractflag("-noconsole"))
     {
@@ -4823,10 +4822,10 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
     p->Add(exec_debug, sequence(text("debug"),
-            opt(either(flag("-on"), flag("-off"), flag("-verbose"))),
-            opt(either(flag("-console"), flag("-noconsole"))),
-            opt(either(flag("-nofile"), sequence(flag("-file"), localFSFile())))
-            ));
+                opt(either(flag("-on"), flag("-off"), flag("-verbose"))),
+                opt(either(flag("-console"), flag("-noconsole"))),
+                opt(either(flag("-nofile"), sequence(flag("-file"), localFSFile())))
+                ));
 
     p->Add(exec_setonlinestatus,    sequence(text("setonlinestatus"), either(text("offline"), text("away"), text("online"), text("busy"))));
     p->Add(exec_setpresenceautoaway, sequence(text("setpresenceautoaway"), either(text("on"), text("off")), wholenumber(30)));
@@ -5323,6 +5322,10 @@ void CLCRoomListener::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaCh
 void CLCRoomListener::onMessageLoaded(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
     reportMessage(room, msg, "loaded");
+    if (!msg && !g_chatApi->isFullHistoryLoaded(room))
+    {
+        reviewPublicChatLoadMessages(room);
+    }
 }
 
 void CLCRoomListener::onMessageReceived(megachat::MegaChatApi *, megachat::MegaChatMessage *) {}
