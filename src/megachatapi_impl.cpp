@@ -56,7 +56,9 @@
 #include <signal.h>
 #endif
 
+#if __cpp_lib_execution
 #include <execution>
+#endif
 
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
 
