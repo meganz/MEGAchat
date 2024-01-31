@@ -230,6 +230,14 @@ pipeline {
                 }
             }
         }
+        stage('Download prebuilt third-party-sources'){
+            steps {
+                dir("sdk/src/main/jni"){
+                    sh "jf rt download third-party-sources-sdk/3rdparty-sdk.tar.gz ."
+                    sh "tar -xvf 3rdparty-sdk.tar.gz --skip-old-files"
+                }
+            }
+        }
         stage('Build MEGACHAT SDK and Android App'){
             environment{
                 BUILD_ARCHS = "arm64-v8a"
@@ -249,14 +257,24 @@ pipeline {
                         ln -sfrT ${ANDROID_WEBRTC} megachat/webrtc
                         sed -i 's#JOBS=.*#JOBS=1#' build.sh
                         sed -i 's#LOG_FILE=/dev/null#LOG_FILE=/dev/stdout#g' build.sh
-                        ./build.sh clean
                         ./build.sh all
                     """
                 }
-                sh """
-                    cp -r ${DEFAULT_GOOGLE_MAPS_API_PATH}/* app/src/
-                    ./gradlew --no-daemon --max-workers=1 assembleGms
-                """
+                sh "cp -r ${DEFAULT_GOOGLE_MAPS_API_PATH}/* app/src/"
+                script {
+                    withCredentials([
+                            string(credentialsId: 'ARTIFACTORY_USER', variable: 'ARTIFACTORY_USER'),
+                            string(credentialsId: 'ARTIFACTORY_ACCESS_TOKEN', variable: 'ARTIFACTORY_ACCESS_TOKEN'),
+                    ]){
+                        withEnv([
+                            "ARTIFACTORY_USER=${ARTIFACTORY_USER}",
+                            "ARTIFACTORY_ACCESS_TOKEN=${ARTIFACTORY_ACCESS_TOKEN}"
+                        ]){
+                            sh "./gradlew --no-daemon --max-workers=1 assembleGmsDebug"
+                            sh "./gradlew --no-daemon --max-workers=1 assembleGmsQa"
+                        }
+                    }
+                }
             }
             post{
                 success{
