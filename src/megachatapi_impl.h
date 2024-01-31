@@ -126,7 +126,6 @@ public:
     void setMegaHandleList(const mega::MegaHandleList* handlelist);
     void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
-    void setStringMap(mega::MegaStringMap* stringMap);
 
 private:
     mega::MegaHandleList *doGetMegaHandleListByChat(MegaChatHandle chatid);

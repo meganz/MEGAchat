@@ -6670,6 +6670,7 @@ public:
      *      + MegaHandleList::get(1) - returns numUsers param
      *      + MegaHandleList::get(2) - returns numClientsPerUser param
      *      + MegaHandleList::get(3) - returns numClients param
+     *   Note: The indexes above, represents the same order in which params are added to MegaHandleList, at MegaChatApiImpl::setLimitsInCall.
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
