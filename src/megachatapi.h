@@ -6661,6 +6661,7 @@ public:
     /**
      * @brief Set limitations for a chat call in progress (like duration or max participants).
      *
+     * Note: this method should be only used for test purpose
      * The associated request type with this request is MegaChatRequest::TYPE_SET_LIMIT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
