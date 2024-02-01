@@ -234,7 +234,7 @@ pipeline {
             steps {
                 dir("sdk/src/main/jni"){
                     sh "jf rt download third-party-sources-sdk/3rdparty-sdk.tar.gz ."
-                    sh "tar -xvf 3rdparty-sdk.tar.gz --skip-old-files"
+                    sh "tar -xf 3rdparty-sdk.tar.gz --skip-old-files"
                 }
             }
         }
