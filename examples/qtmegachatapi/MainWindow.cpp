@@ -217,7 +217,16 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 itemController->getMeetingView()->setNotParticipating();
                 // termcode is only valid at state CALL_STATUS_TERMINATING_USER_PARTICIPATION
                 int termCode = call->getTermCode();
-                if (termCode != megachat::MegaChatCall::TERM_CODE_HANGUP)
+
+                if (termCode == megachat::MegaChatCall::TERM_CODE_CALL_DUR_LIMIT
+                    || termCode == megachat::MegaChatCall::TERM_CODE_CALL_USERS_LIMIT)
+                {
+                    QMessageBox msgBox;
+                    msgBox.setText("Please upgrade your MEGA account into a PRO plan.");
+                    msgBox.setStandardButtons(QMessageBox::Ok);
+                    msgBox.exec();
+                }
+                else if (termCode != megachat::MegaChatCall::TERM_CODE_HANGUP)
                 {
                     std::string message("Termination Code: ");
                     message.append(std::to_string(termCode));
