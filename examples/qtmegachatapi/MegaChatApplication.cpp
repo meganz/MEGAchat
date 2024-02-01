@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include "signal.h"
 #include <QClipboard>
+#include <mega/utils.h>
 
 using namespace std;
 using namespace mega;
