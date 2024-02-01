@@ -181,11 +181,16 @@ void ChatListItemController::fetchScheduledMeetingEvents()
 
 void ChatListItemController::endCall()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi->getChatCall(mItemId));
     if (call)
     {
         mMegaChatApi->endChatCall(call->getCallId());
     }
+
+#else
+    mMainWindow->mApp->noFeatureErr();
+#endif
 }
 
 void ChatListItemController::setTitle()
@@ -265,6 +270,7 @@ void ChatListItemController::onSetWaitingRoom(bool enable)
 
 void ChatListItemController::onWaitingRoomCall()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     /* schedId:
      * - If valid, redirect users to waiting room and don't ring
      * - If not valid, bypass waiting room and ring
@@ -272,13 +278,16 @@ void ChatListItemController::onWaitingRoomCall()
     std::string schedIdStr = mMainWindow->mApp->getText("Get schedId (valid: redirect wr and don't ring | invalid: bypass wr and ring)");
     MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
     mMegaChatApi->startMeetingInWaitingRoomChat(mItemId, schedId, false, false);
+#endif
 }
 
 void ChatListItemController::onAudioCallNoRingBtn()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     std::string schedIdStr = mMainWindow->mApp->getText("Get scheduled meeting id");
     MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
     mMegaChatApi->startChatCallNoRinging(mItemId, schedId, false, false);
+#endif
 }
 
 void ChatListItemController::queryChatLink()

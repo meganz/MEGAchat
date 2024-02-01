@@ -458,8 +458,11 @@ void MegaChatApiTest::SetUp()
         {
             LOG_err << "Login failed, clearing resources";
 
-            // destroy MegaChatApi instance
+#ifndef KARERE_DISABLE_WEBRTC
             megaChatApi[i]->removeChatCallListener(this);
+#endif
+
+            // destroy MegaChatApi instance
             delete megaChatApi[i];
             megaChatApi[i] = nullptr;
 
@@ -7621,16 +7624,13 @@ void MegaChatApiTest::closeOpenedChatrooms()
     });
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 bool MegaChatApiTest::removeChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid, TestChatVideoListener& vl)
 {
-#ifndef KARERE_DISABLE_WEBRTC
     megaChatApi[idx]->removeChatLocalVideoListener(chatid, &vl);
     return true;
-#else
-    LOG_debug << "removeChatVideoListener: KARERE_DISABLE_WEBRTC is defined so you cannot use TestChatVideoListener";
-    return false;
-#endif
 }
+#endif
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom()
 {

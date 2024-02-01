@@ -119,6 +119,14 @@ void MegaChatApplication::login()
    mLoginDialog->show();
 }
 
+void MegaChatApplication::noFeatureErr() const
+{
+   QMessageBox msg;
+   msg.setIcon(QMessageBox::Information);
+   msg.setText("Feature not available");
+   msg.exec();
+}
+
 std::string MegaChatApplication::getText(std::string title, bool allowEmpty)
 {
     bool ok;

@@ -1067,6 +1067,7 @@ void ChatWindow::onMemberRemove()
 
 void ChatWindow::onRingUser() const
 {
+#ifndef KARERE_DISABLE_WEBRTC
     const QAction* action = qobject_cast<QAction *>(sender());
     if (!action) { return; }
 
@@ -1075,6 +1076,7 @@ void ChatWindow::onRingUser() const
 
     const QVariant uHandle = action->property("userHandle");
     mMegaChatApi->ringIndividualInACall(mChatRoom->getChatId(), static_cast<MegaChatHandle>(uHandle.toLongLong()), atoi(auxTimeout.c_str()));
+#endif
 }
 
 void ChatWindow::onMemberSetPriv()

@@ -1594,8 +1594,13 @@ void MainWindow::onCatchUp()
 
 void MainWindow::onSetSFUId()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     int sfuid = atoi(mApp->getText("Set SFU id").c_str());
     mMegaChatApi->setSFUid(sfuid);
+
+#else
+    mApp->noFeatureErr();
+#endif
 }
 
 void MainWindow::onlastGreenVisibleClicked()
