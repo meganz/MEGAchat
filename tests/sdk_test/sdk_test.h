@@ -37,7 +37,6 @@
 #endif
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
-static const std::string USER_AGENT_DESCRIPTION  = "MEGAChatTest";
 static constexpr unsigned int MAX_ATTEMPTS = 3;
 static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
@@ -530,12 +529,14 @@ public:
     };
 
     MegaChatApiTest();
-    ~MegaChatApiTest();
+    ~MegaChatApiTest() override;
 
     // Global test environment initialization
-    static void init();
+    static void initFS();
+    static void init(const std::string& log);
     // Global test environment clear up
     static void terminate();
+    static void terminateFS();
 
     using AuxVarsBool     = AuxVars<bool>;
     using AuxVarsMCHandle = AuxVars<megachat::MegaChatHandle>;
@@ -554,6 +555,9 @@ protected:
 
     // email and password parameter is used if you don't want to use default values for accountIndex
     char *login(unsigned int accountIndex, const char *session = NULL, const char *email = NULL, const char *password = NULL);
+    bool chatApiInit(unsigned accountIndex, const char *session = nullptr);
+    bool chatApiLogin(unsigned accountIndex, const char *session = nullptr, const char *email = nullptr, const char *password = nullptr);
+    bool chatApiJoinAll(unsigned accountIndex, const char *email = nullptr);
     void logout(unsigned int accountIndex, bool closeSession = false);
 
 public:
@@ -600,7 +604,7 @@ protected:
      * @deprecated replace current usages of this method by prototype above
      */
     void waitForAction(int maxAttempts, std::vector<bool*> exitFlags, const std::vector<std::string>& flagsStr, const std::string& actionMsg, bool waitForAll, bool resetFlags, unsigned int timeout, std::function<void()>action);
-    void initChat(unsigned int a1, unsigned int a2, mega::MegaUser*& user, megachat::MegaChatHandle& chatid, char*& primarySession, char*& secondarySession, TestChatRoomListener*& chatroomListener);
+    void initChat(unsigned int a1, unsigned int a2, std::unique_ptr<mega::MegaUser>& user, megachat::MegaChatHandle& chatid, std::unique_ptr<char[]>& primarySession, std::unique_ptr<char[]>& secondarySession, std::unique_ptr<TestChatRoomListener>& chatroomListener);
 
     /**
      * @brief Loads history for the specified chatroom.
@@ -735,7 +739,7 @@ protected:
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
-    int purgeLocalTree(const std::string& path);
+    static int purgeLocalTree(const std::string& path);
     void purgeCloudTree(unsigned int accountIndex, ::mega::MegaNode* node);
     void clearAndLeaveChats(unsigned accountIndex, const std::vector<megachat::MegaChatHandle>& skipChats);
     void removePendingContactRequest(unsigned int accountIndex);
@@ -956,6 +960,8 @@ public:
     bool msgDelivered[NUM_ACCOUNTS];
     bool msgReceived[NUM_ACCOUNTS];
     bool msgEdited[NUM_ACCOUNTS];
+    bool msgDeleted[NUM_ACCOUNTS];
+    bool msgSeen[NUM_ACCOUNTS] = {};
     bool msgRejected[NUM_ACCOUNTS];
     bool msgAttachmentReceived[NUM_ACCOUNTS];
     bool msgContactReceived[NUM_ACCOUNTS];
@@ -1107,6 +1113,11 @@ public:
         return (finished() && request && request->getText()) ? request->getText() : std::string();
     }
 
+    long long getNumber() const
+    {
+        return (finished() && request) ? request->getNumber() : 0;
+    }
+
     bool getFlag() const
     {
         return (finished() && request) ? request->getFlag() : false;
@@ -1202,7 +1213,7 @@ public:
     bool handleWrDeny(const std::set<karere::Id>& mods) override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
-    bool handleMutedCommand(const unsigned av) override;
+    bool handleMutedCommand(const unsigned av, const Cid_t /*cidPerf*/) override;
 };
 #endif
 #endif // CHATTEST_H

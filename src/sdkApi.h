@@ -193,7 +193,7 @@ public:
         return listener->mPromise;
     }
 
-    ~MyMegaApi()
+    ~MyMegaApi() override
     {
         if (logging)
         {

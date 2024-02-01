@@ -271,6 +271,7 @@ public:
     int getEndCallReason() const override;
     bool isSpeakRequestEnabled() const override;
     int getNotificationType() const override;
+    MegaChatHandle getAuxHandle() const override;
     virtual bool isRinging() const override;
     virtual bool isOwnModerator() const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
@@ -308,6 +309,7 @@ public:
     void setHandleList(const mega::MegaHandleList* handleList);
     const mega::MegaHandleList* getHandleList() const override;
     void setNotificationType(int notificationType);
+    void setAuxHandle(const MegaChatHandle h);
     void setTermCode(int termCode);
     void setMessage(const std::string &errMsg);
     void setOnHold(bool onHold);
@@ -345,6 +347,7 @@ protected:
     bool mSpeakRequest = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
+    MegaChatHandle mAuxHandle = MEGACHAT_INVALID_HANDLE;
 };
 
 class MegaChatWaitingRoomPrivate: public MegaChatWaitingRoom
@@ -708,7 +711,7 @@ public:
     void onCallRinging(rtcModule::ICall &call) override;
     void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) override;
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
-    void onLocalFlagsChanged(const rtcModule::ICall& call) override;
+    void onLocalFlagsChanged(const rtcModule::ICall& call, const Cid_t cidPerf = K_INVALID_CID) override;
     void onOnHold(const rtcModule::ICall& call) override;
     void onAddPeer(const rtcModule::ICall &call, karere::Id peer) override;
     void onRemovePeer(const rtcModule::ICall &call,  karere::Id peer) override;
@@ -927,7 +930,7 @@ class MegaChatRoomListPrivate :  public MegaChatRoomList
 {
 public:
     MegaChatRoomListPrivate();
-    virtual ~MegaChatRoomListPrivate() {}
+    virtual ~MegaChatRoomListPrivate();
     virtual MegaChatRoomList *copy() const;
     virtual const MegaChatRoom *get(unsigned int i) const;
     virtual unsigned int size() const;

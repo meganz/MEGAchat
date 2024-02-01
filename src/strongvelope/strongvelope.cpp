@@ -285,7 +285,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                     assert(managementInfo);
                     if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
                         throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
-                    managementInfo->privilege = chatd::PRIV_NOCHANGE;
+                    managementInfo->privilege = chatd::PRIV_UNKNOWN;
                     managementInfo->target = record.read<uint64_t>();
                 }
                 else
@@ -301,7 +301,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                     assert(managementInfo);
                     if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
                         throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
-                    managementInfo->privilege = chatd::PRIV_NOTPRESENT;
+                    managementInfo->privilege = chatd::PRIV_RM;
                     managementInfo->target = record.read<uint64_t>();
                 }
                 else
@@ -1793,7 +1793,7 @@ std::string Message::managementInfoToString() const
     {
         auto& info = mgmtInfo();
         ret.append("User ").append(userid.toString())
-           .append((info.privilege == chatd::PRIV_NOTPRESENT) ? " removed" : " added")
+           .append((info.privilege == chatd::PRIV_RM) ? " removed" : " added")
            .append(" user ").append(info.target.toString());
         return ret;
     }

@@ -157,7 +157,7 @@ public:
     virtual void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) = 0;
     virtual void onCallRinging(ICall& call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
-    virtual void onLocalFlagsChanged(const ICall& call) = 0;
+    virtual void onLocalFlagsChanged(const ICall& call, const Cid_t cidPerf = K_INVALID_CID) = 0;
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
@@ -352,8 +352,6 @@ static bool isValidInputVideoTracksLimit(const unsigned int numSimVideoTracks)
     return numSimVideoTracks >= kMinCallVideoSenders
            && numSimVideoTracks <= getMaxSupportedVideoCallParticipants();
 }
-
-void globalCleanup();
 
 typedef enum
 {

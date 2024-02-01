@@ -687,8 +687,11 @@ public:
      * - MegaChatCall::CHANGE_TYPE_STATUS   = 0x01
      * Check if the status of the call changed
      *
-     * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
+     * - MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS  = 0x02
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     * In case we have been muted by another participant, check MegaChatCall::getAuxHandle()
+     * To retrieve the clientid of the participant that performed the action. Otherwise
+     * MegaChatCall::getAuxHandle() will return MEGACHAT_INVALID_HANDLE
      *
      * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x04
      * Check MegaChatCall::isRinging() value
@@ -768,8 +771,11 @@ public:
      * - MegaChatCall::CHANGE_TYPE_STATUS   = 0x01
      * Check if the status of the call changed
      *
-     * - MegaChatCall::CHANGE_TYPE_AVFLAGS  = 0x02
+     * - MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS  = 0x02
      * Check MegaChatCall::hasAudio() and MegaChatCall::hasVideo() value
+     * In case we have been muted by another participant, check MegaChatCall::getAuxHandle()
+     * To retrieve the clientid of the participant that performed the action. Otherwise
+     * MegaChatCall::getAuxHandle() will return MEGACHAT_INVALID_HANDLE
      *
      * - MegaChatCall::CHANGE_TYPE_RINGING_STATUS = 0x04
      * Check MegaChatCall::isRinging() value
@@ -966,6 +972,19 @@ public:
      * @return the notification type, when a call notification is forwarded to the apps
      */
     virtual int getNotificationType() const;
+
+    /**
+     * @brief Returns a MegaChatHandle that can be used for multiple purposes
+     *
+     * This function only returns a valid value in the following cases:
+     *  - MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION is notified via MegaChatCallListener::CHANGE_TYPE_LOCAL_AVFLAGS.
+     *    The returned value represents the clientid of the user that MUTED our own client
+     *
+     * In any other case, it will be MEGACHAT_INVALID_HANDLE
+     *
+     * @return MegaChatHandle that can be used for multiple purposes
+     */
+    virtual MegaChatHandle getAuxHandle() const;
 
     /**
      * @brief Returns the status of the remote call
@@ -5168,6 +5187,9 @@ public:
      * the list of chats by calling MegaChatApi::closeChatPreview.
      * @note If the previewer doesn't explicitely close the preview, it will be lost if the
      * app is closed. A preview of a chat is not persisted in cache.
+     *
+     * @note if the onRequestFinish error is MegaChatError::ERROR_EXIST, chatroom may have changed,
+     * so you should retrieve it again by calling MegaChatApi::getChatRoom
      *
      * The associated request type with this request is MegaChatRequest::TYPE_LOAD_PREVIEW
      * Valid data in the MegaChatRequest object received on callbacks:

@@ -84,7 +84,7 @@ public:
 
     /**
      * @brief A user has joined, or their privilege has changed
-     * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
+     * @param privilege - the new privilege, if it is PRIV_RM, then the user
      * left the chat
      */
     virtual void onUserJoin(karere::Id /*userid*/){}

@@ -52,6 +52,7 @@ struct megaMessage
      */
      #ifdef __cplusplus
          megaMessage(megaMessageFunc aFunc): func(aFunc){}
+         virtual ~megaMessage() = default;
      #endif
 };
 //enum {kMegaMsgMagic = 0x3e9a3591};

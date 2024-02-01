@@ -141,7 +141,6 @@ HEADERS  += asyncTest-framework.h \
             rtcModule/rtcmPrivate.h \
             rtcModule/webrtc.h \
             rtcModule/webrtcAdapter.h \
-            rtcModule/webrtcAsyncWaiter.h \
             rtcModule/webrtcPrivate.h \
             rtcModule/rtcStats.h \
             sfu.h \

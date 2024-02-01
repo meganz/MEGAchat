@@ -1644,7 +1644,7 @@ void Chat::join()
     //Reset handshake state, as we may be reconnecting
     mServerFetchState = kHistNotFetching;
     CHATID_LOG_DEBUG("Sending JOIN");
-    sendCommand(Command(OP_JOIN) + mChatId + mChatdClient.mMyHandle + (int8_t)PRIV_NOCHANGE);
+    sendCommand(Command(OP_JOIN) + mChatId + mChatdClient.mMyHandle + (int8_t)PRIV_UNKNOWN);
     requestHistoryFromServer(-static_cast<int32_t>(initialHistoryFetchCount));
 }
 
@@ -1661,7 +1661,7 @@ void Chat::handlejoin()
     uint64_t ph = getPublicHandle();
     Command comm (OP_HANDLEJOIN);
     comm.append((const char*) &ph, Id::CHATLINKHANDLE);
-    sendCommand(comm + mChatdClient.mMyHandle + (uint8_t)PRIV_RDONLY);
+    sendCommand(comm + mChatdClient.mMyHandle + (uint8_t)PRIV_RO);
     requestHistoryFromServer(-static_cast<int32_t>(initialHistoryFetchCount));
 }
 
@@ -1686,7 +1686,7 @@ void Chat::onHandleJoinRejected()
     CHATID_LOG_WARNING("HANDLEJOIN was rejected, setting chat offline and disabling it");
     disable(true);
 
-    // public-handle is not valid anymore --> notify the app: privilege is now PRIV_NOTPRESENT
+    // public-handle is not valid anymore --> notify the app: privilege is now PRIV_RM
     CALL_LISTENER(onUserLeave, Id::null());
 }
 
@@ -1826,7 +1826,7 @@ HistSource Chat::getHistoryFromDbOrServer(unsigned count)
             return kHistSourceNone;
         }
 
-        if (previewMode() && mOwnPrivilege == PRIV_NOTPRESENT)
+        if (previewMode() && mOwnPrivilege == PRIV_RM)
         {
             CHATID_LOG_DEBUG("getHistoryFromDbOrServer: no more history available for invalid chat-link");
             return kHistSourceNotLoggedIn;
@@ -2167,7 +2167,7 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
 
                 auto& chat =  mChatdClient.chats(chatid);
-                if (priv == PRIV_NOTPRESENT)
+                if (priv == PRIV_RM)
                     chat.onUserLeave(userid);
                 else
                     chat.onUserJoin(userid, priv);
@@ -3500,7 +3500,7 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
         return NULL;
     }
 
-    if (mOwnPrivilege == PRIV_NOTPRESENT)
+    if (mOwnPrivilege == PRIV_RM)
     {
         CHATID_LOG_WARNING("msgSubmit: Denying sending message because we don't participate in the chat");
         return NULL;
@@ -4004,7 +4004,7 @@ void Chat::setPublicHandle(uint64_t ph)
 
     if (Id(ph).isValid())
     {
-        mOwnPrivilege = PRIV_RDONLY;
+        mOwnPrivilege = PRIV_RO;
     }
 }
 
@@ -4340,7 +4340,7 @@ Message* Chat::msgRemoveFromSending(const Id& msgxid, const Id& msgid)
 
     if (!msgid) // message was rejected by chatd
     {
-        moveItemToManualSending(mSending.begin(), (mOwnPrivilege < PRIV_FULL)
+        moveItemToManualSending(mSending.begin(), (mOwnPrivilege < PRIV_STANDARD)
             ? kManualSendNoWriteAccess
             : kManualSendGeneralReject); //deletes item
         return nullptr;
@@ -5544,11 +5544,6 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);
-        if (checkRetentionHist)
-        {
-            // Call after add message to history
-            handleRetentionTime();
-        }
 
         if (mChatdClient.isMessageReceivedConfirmationActive() && !isGroup() &&
                 (msg.userid != mChatdClient.mMyHandle) && // message is not ours
@@ -5632,6 +5627,16 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
           //onLastTextMessageUpdated() with it
             notifyLastTextMsg();
         }
+    }
+
+    if (checkRetentionHist && !isLocal)
+    {
+        // Deleting messages according to Retention time is done from mBackwardList and mForwardList.
+        // If done earlier in this function, it will lead to a CRASH in case the received msg
+        // originated from there, or is owned by them by now.
+        //
+        // I suspect this is not the perfect place for it though. But at least moving it here avoided crashes.
+        handleRetentionTime();
     }
 }
 
@@ -5792,13 +5797,13 @@ void Chat::onUserLeave(const Id& userid)
             return;
         }
 
-        mOwnPrivilege = PRIV_NOTPRESENT;
+        mOwnPrivilege = PRIV_RM;
         disable(isPreviewerIdRecv);    // the ph is invalid -> do not keep trying to login into chatd anymore
         onPreviewersUpdate(0);
 
         if (isPreviewerIdRecv)
         {
-            // notify that our own user permission (in preview mode) has been updated to PRIV_NOTPRESENT
+            // notify that our own user permission (in preview mode) has been updated to PRIV_RM
             // probably chat-link has been invalidated, so chatd send us a JOIN command with priv -1
             CHATID_LOG_DEBUG("our own user permission (in preview mode) has been updated to not present (-1)");
             CALL_LISTENER(onUserLeave, userid);
