@@ -630,7 +630,9 @@ protected:
     void cleanChatVideoListeners();
     void logoutTestAccounts();
     void closeOpenedChatrooms();
+#ifndef KARERE_DISABLE_WEBRTC
     bool removeChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid, TestChatVideoListener &vl);
+#endif
 
     /* select a group chat room, by default with PRIV_MODERATOR for primary account
      * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param
@@ -896,10 +898,13 @@ protected:
 
     std::unique_ptr<::mega::MegaContactRequest> mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
+    bool mSchedMeetingUpdated[NUM_ACCOUNTS];
+    bool mSchedOccurrUpdated[NUM_ACCOUNTS];
     bool mUsersUpdate[NUM_ACCOUNTS];
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mSchedIdUpdated[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallWithIdReceived[NUM_ACCOUNTS];
@@ -922,7 +927,6 @@ protected:
     megachat::MegaChatHandle mCallIdStopRingIn[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mSchedIdUpdated[NUM_ACCOUNTS];
     megachat::MegaChatHandle mSchedIdRemoved[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
@@ -933,8 +937,6 @@ protected:
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
-    bool mSchedMeetingUpdated[NUM_ACCOUNTS];
-    bool mSchedOccurrUpdated[NUM_ACCOUNTS];
     bool mSessSpeakPermChanged[NUM_ACCOUNTS];
     bool mOwnFlagsChanged[NUM_ACCOUNTS];
     bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
