@@ -77,7 +77,15 @@ public:
     virtual ~IRetryController(){};
 };
 template <typename CB> inline static void callFuncIfNotNull(const CB& cb) { cb(); }
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+//disable the warning for GCC and Clang in compilation units that do not use the function
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 inline static void callFuncIfNotNull(std::nullptr_t){}
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
 /** @brief
  * This is a simple class that retries a promise-returning function call, until the
@@ -172,7 +180,7 @@ public:
         mCurrentAttemptNo = 1; //mCurrentAttempt increments immediately before the wait delay (if any)
         if (delay)
         {
-            RETRY_LOG("Starting retry after the initial delay (%ds)", delay);
+            RETRY_LOG("Starting retry after the initial delay (%us)", delay);
             mState = kStateRetryWait;
             auto wptr = weakHandle();
             mTimer = setTimeout([wptr, this]()
@@ -273,14 +281,14 @@ protected:
         else
             return mMaxAttemptTimeout;
     }
-    unsigned calcWaitTime()
+    size_t calcWaitTime()
     {
-        unsigned t = calcWaitTimeNoRandomness();
-        unsigned randRange = (t * mDelayRandPct) / 100;
+        size_t t = calcWaitTimeNoRandomness();
+        size_t randRange = (t * mDelayRandPct) / 100;
         t = t - randRange + (rand() % 1000) * (randRange * 2) / 1000;
         return t;
     }
-    unsigned calcWaitTimeNoRandomness()
+    size_t calcWaitTimeNoRandomness()
     {
         if (mCurrentAttemptNo > kBitness)
         {
@@ -289,7 +297,7 @@ protected:
             else
                 return mMaxSingleWaitTime;
         }
-        unsigned t = (1 << (mCurrentAttemptNo-1)) * mInitialWaitTime;
+        size_t t = (1 << (mCurrentAttemptNo-1)) * mInitialWaitTime;
         if (t <= mMaxSingleWaitTime)
             return t;
         else
@@ -311,7 +319,7 @@ protected:
             track.throwIfDeleted();
             if (attempt != mCurrentAttemptId)
             {
-                RETRY_LOG("A previous timed-out/aborted attempt returned success previous(%d) current(%d)", attempt, mCurrentAttemptId);
+                RETRY_LOG("A previous timed-out/aborted attempt returned success previous(%lu) current(%lu)", attempt, mCurrentAttemptId);
                 mPromise.reject("Retry controller previous attempt succeeded", promise::kErrAbort, promise::kErrorAlreadyExist);
                 return;
             }
@@ -397,10 +405,10 @@ protected:
         }
         mCurrentAttemptNo++; //always increment, to mark the end of the previous attempt
         mCurrentAttemptId++;
-        RETRY_LOG("Incrementing mCurrentAttemptId(%d) at schedNextRetry", mCurrentAttemptId);
+        RETRY_LOG("Incrementing mCurrentAttemptId(%lu) at schedNextRetry", mCurrentAttemptId);
         if (mMaxAttemptCount && (mCurrentAttemptNo > mMaxAttemptCount)) //give up
         {
-            RETRY_LOG("Maximum number of attempts (%u) has been reached. RetryController will give up now.");
+            RETRY_LOG("Maximum number of attempts (%llu) has been reached. RetryController will give up now.", mMaxAttemptCount);
             mState = kStateFinished;
             mPromise.reject(err);
             mPromise = promise::Promise<RetType>();
@@ -426,7 +434,15 @@ protected:
 };
 //g++ < 4.9 has a bug where one can't specify a lambda as default function parameter,
 //so we define that default func parameter for retry() here
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+//disable the warning for GCC and Clang in compilation units that do not use the function
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 static inline void _emptyCancelFunc(){}
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 } //end namespace rh
 
 

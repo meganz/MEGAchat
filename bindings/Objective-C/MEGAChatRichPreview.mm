@@ -31,10 +31,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatRichPreview ? [[MEGAChatRichPreview alloc] initWithMegaChatRichPreview:self.megaChatRichPreview cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatRichPreview *)getCPtr {
     return self.megaChatRichPreview;
 }

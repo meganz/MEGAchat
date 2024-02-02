@@ -7,6 +7,7 @@
 #include <memory>
 #include <map>
 #include "karereId.h"
+#include <megaapi.h>
 #include <rapidjson/document.h>
 #include <rapidjson/stringbuffer.h>
 #include <karereCommon.h>
@@ -144,6 +145,8 @@ enum Opcode
       *    of OLDMSGs, followed by a HISTDONE. Note that count is always negative.
       * Send: <chatid> <count>
       *
+      * @note count is limited to 256
+      *
       * This command is sent at the following situations:
       *  1. After a JOIN command to load last messages, when no local history.
       *  2. When the app requests to load more old messages and there's no more history
@@ -212,7 +215,8 @@ enum Opcode
       * S->C: Receive as result of HIST command, it notifies the end of history fetch.
       * Receive: <chatid>
       *
-      * @note There may be more history in server, but the HIST <count> is already satisfied.
+      * @note If we received less messages from chatd than requested <count>, we can assume that we have all history.
+      * Otherwise If HIST <count> is already satisfied, there may be more history in server.
       */
     OP_HISTDONE = 13,
 
@@ -545,6 +549,23 @@ enum Opcode
       */
     OP_DELCALLREASON = 55,
 
+    /**
+      * @brief
+      * C->S: command sent to chatd, to stop ringing a call
+      * for all clients of our user account
+      *
+      * Send: <chatId.8>, <callId.8>
+      */
+    OP_CALLREJECT = 58,
+
+    /**
+      * @brief
+      * C->S: Call again user who didn't pick up the call
+      *
+      * Receive: <chatid.8> <userid.8> <callid.8> <callstate.1> <timeout.2>
+      */
+    OP_RINGUSER = 59,
+
     OP_INVALIDCODE = 0xFF
 };
 
@@ -552,11 +573,11 @@ enum Opcode
 enum Priv: signed char
 {
     PRIV_INVALID = -10,
-    PRIV_NOCHANGE = -2,
-    PRIV_NOTPRESENT = -1,
-    PRIV_RDONLY = 0,
-    PRIV_FULL = 2,
-    PRIV_OPER = 3
+    PRIV_UNKNOWN = -2,
+    PRIV_RM = -1,
+    PRIV_RO = 0,
+    PRIV_STANDARD = 2,
+    PRIV_MODERATOR = 3
 };
 
 class Message: public Buffer
@@ -648,8 +669,8 @@ public:
          * \c kMsgPrivChange - the new privilege of the user whose handle is in \c target
          * \c kMsgAlterParticipants - this is used as a flag to specify whether the user
          * was:
-         * - removed - the value is \c PRIV_NOTPRESENT
-         * - added - the value of \c PRIV_NOCHANGE
+         * - removed - the value is \c PRIV_RM
+         * - added - the value of \c PRIV_UNKNOWN
          */
         Priv privilege = PRIV_INVALID;
     };
@@ -667,7 +688,7 @@ public:
         }
 
          /** @brief Returns the userId index in case that exists. Otherwise returns -1 **/
-        int userIndex(karere::Id userId) const
+        int userIndex(const karere::Id& userId) const
         {
             int i = 0;
             for (auto &it : mUsers)
@@ -680,7 +701,7 @@ public:
             }
             return -1;
         }
-        bool hasReacted(karere::Id userId) const
+        bool hasReacted(const karere::Id& userId) const
         {
             return userIndex(userId) != -1;
         }
@@ -695,8 +716,11 @@ public:
             // bitmask with the changed fields
             unsigned long mSchedChanged;
 
+            // Recurring rules
+            std::unique_ptr<mega::MegaScheduledRules> mScheduledRules;
+
             // maps a field id to a pair of strings <old value, new value>
-            std::unique_ptr<std::map<unsigned int, std::pair<std::string, std::string>>> mSchedInfo;
+            std::unique_ptr<std::map<unsigned int, std::vector<std::string>>> mSchedInfo;
 
             static SchedMeetingInfo* fromBuffer(const char* buffer, size_t len)
             {
@@ -708,8 +732,9 @@ public:
                 // read schedId
                 unsigned int position = 0;
                 karere::Id schedId;
+                void* voidmem = &schedId;
                 unsigned int idDataSize = sizeof(karere::Id);
-                memcpy(&schedId, &buffer[position], idDataSize);
+                memcpy(voidmem, &buffer[position], idDataSize);
                 position += idDataSize;
 
                 // read json length
@@ -732,35 +757,267 @@ public:
                 rapidjson::StringStream stringStream(changedJson.get());
                 rapidjson::Document document;
                 document.ParseStream(stringStream);
-                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                const auto er = document.GetParseError();
+                const bool isDocEmpty = er == rapidjson::ParseErrorCode::kParseErrorDocumentEmpty;
+                if (!isDocEmpty && er != rapidjson::ParseErrorCode::kParseErrorNone)
                 {
                    return NULL;
                 }
 
                 SchedMeetingInfo* info = new SchedMeetingInfo;
                 karere::karere_sched_bs_t bs = 0;
-                if (document.FindMember("tz") != document.MemberEnd())  { bs[karere::SC_TZONE] = 1; }
-                if (document.FindMember("s") != document.MemberEnd())   { bs[karere::SC_START] = 1; }
-                if (document.FindMember("e") != document.MemberEnd())   { bs[karere::SC_END] = 1; }
-                if (document.FindMember("d") != document.MemberEnd())   { bs[karere::SC_DESC] = 1; }
-                if (document.FindMember("p") != document.MemberEnd())   { bs[karere::SC_PARENT] = 1; }
-                if (document.FindMember("c") != document.MemberEnd())   { bs[karere::SC_CANC] = 1; }
-                if (document.FindMember("o") != document.MemberEnd())   { bs[karere::SC_OVERR] = 1; }
-                if (document.FindMember("f") != document.MemberEnd())   { bs[karere::SC_FLAGS] = 1; }
-                if (document.FindMember("r") != document.MemberEnd())   { bs[karere::SC_RULES] = 1; }
-                if (document.FindMember("at") != document.MemberEnd())  { bs[karere::SC_ATTR] = 1; }
 
-                rapidjson::Value::ConstMemberIterator itTitle = document.FindMember("t");
-                if (itTitle != document.MemberEnd())
+                // auxiliar lambdas to help with changeset parsing process
+                auto getFieldFromString = [](const std::string fieldStr) -> unsigned int
                 {
-                    bs[karere::SC_TITLE] = 1;
-                    if (itTitle->value.IsArray() && itTitle->value.Size() == 2)
+                    if (!fieldStr.compare("p"))  { return karere::SC_PARENT; }
+                    if (!fieldStr.compare("tz")) { return karere::SC_TZONE; }
+                    if (!fieldStr.compare("s"))  { return karere::SC_START; }
+                    if (!fieldStr.compare("e"))  { return karere::SC_END; }
+                    if (!fieldStr.compare("t"))  { return karere::SC_TITLE; }
+                    if (!fieldStr.compare("d"))  { return karere::SC_DESC; }
+                    if (!fieldStr.compare("at")) { return karere::SC_ATTR; }
+                    if (!fieldStr.compare("c"))  { return karere::SC_CANC; }
+                    if (!fieldStr.compare("f"))  { return karere::SC_FLAGS; }
+                    if (!fieldStr.compare("r"))  { return karere::SC_RULES; }
+
+                    return karere::SC_FLAGS_SIZE;
+                };
+
+                auto checkNonArrFieldChanged = [&info] (rapidjson::Value::ConstMemberIterator& it, const unsigned int field, const std::string& fieldStr) -> bool
+                {
+                    if (it->value.IsNumber())
                     {
-                        info->mSchedInfo.reset(new std::map<unsigned int, std::pair<std::string, std::string>>());
-                        info->mSchedInfo->emplace(karere::SC_TITLE,
-                                    std::pair<std::string, std::string>(itTitle->value[0].GetString(), itTitle->value[1].GetString()));
+                        assert(field == karere::SC_DESC); // currently only description can be received with this format
+                        // long field changes comes with a single digit (1) indicating it has changed, but is not provided for size reasons
+                        int v = static_cast<int>(it->value.GetInt());
+                        if (v != 1)
+                        {
+                            KR_LOG_ERROR("checkNonArrFieldChanged: Invalid value: %d in changeset for field %s.",v, fieldStr.c_str());
+                            assert(false);
+                            return false;
+                        }
+                        return true;
                     }
+
+                    if (it->value.IsString())
+                    {
+                        assert(field == karere::SC_PARENT); // currently only parent sched id can be received with this format
+                        std::string stdVal = it->value.GetString();
+                        if (stdVal.empty()) { return false; }
+
+                        std::vector<std::string> auxVals;
+                        auxVals.emplace_back(stdVal);
+                        info->mSchedInfo->emplace(field, auxVals);
+                        return false; // for some fields, current value is included for rendering purposes,
+                                      // but it doesn't mean that field has changed.
+                    }
+
+                    KR_LOG_ERROR("checkNonArrFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
+                    assert(false);
+                    return false;
+                };
+
+                auto getRulesValue = [](rapidjson::Value::ConstMemberIterator& it,
+                                        const size_t arrSize, const unsigned int field,
+                                        const unsigned int index) -> mega::MegaScheduledRules*
+                {
+                    if (field != karere::SC_RULES)
+                    {
+                        assert(false);
+                        return nullptr;
+                    }
+
+                    if (index >= arrSize)             { return nullptr; } // out of bounds
+                    if (it->value[index].IsString())  { return nullptr; } // empty rules => r:[""]
+
+                    if (!it->value[index].IsObject())
+                    {
+                        KR_LOG_ERROR("getRulesValue: Invalid value type for field: %d. Expected object", field);
+                        assert(false);
+                        return nullptr;
+                    }
+
+                    std::string freq;
+                    rapidjson::Value::ConstMemberIterator itFreq = it->value[index].FindMember("f");
+                    if (itFreq != it->value[index].MemberEnd() && itFreq->value.IsString())
+                    {
+                        freq = itFreq->value.GetString();
+                    }
+
+                    int interval = 0;
+                    rapidjson::Value::ConstMemberIterator itInterval = it->value[index].FindMember("i");
+                    if (itInterval != it->value[index].MemberEnd() && itInterval->value.GetInt())
+                    {
+                        interval = itInterval->value.GetInt();
+                    }
+
+                    mega::MegaTimeStamp until = 0;
+                    rapidjson::Value::ConstMemberIterator itUntil = it->value[index].FindMember("u");
+                    if (itUntil != it->value[index].MemberEnd() && itUntil->value.IsInt64())
+                    {
+                        until = itUntil->value.GetInt64();
+                    }
+
+                    std::unique_ptr<mega::MegaIntegerList> byWeekDay;
+                    rapidjson::Value::ConstMemberIterator itWd = it->value[index].FindMember("wd");
+                    if (itWd != it->value[index].MemberEnd() && itWd->value.IsArray() && itWd->value.Capacity())
+                    {
+                        byWeekDay.reset(mega::MegaIntegerList::createInstance());
+                        for (unsigned int i = 0; i < itWd->value.Capacity(); ++i)
+                        {
+                            if (!itWd->value[i].IsInt()) { continue; }
+                            byWeekDay->add(itWd->value[i].GetInt());
+                        }
+                    }
+
+                    std::unique_ptr<mega::MegaIntegerList> byMonthDay;
+                    rapidjson::Value::ConstMemberIterator itMd = it->value[index].FindMember("md");
+                    if (itMd != it->value[index].MemberEnd() && itMd->value.IsArray() && itMd->value.Capacity())
+                    {
+                        byMonthDay.reset(mega::MegaIntegerList::createInstance());
+                        for (unsigned int i = 0; i < itMd->value.Capacity(); ++i)
+                        {
+                            if (!itMd->value[i].IsInt()) { continue; }
+                            byMonthDay->add(itMd->value[i].GetInt());
+                        }
+                    }
+
+                    std::unique_ptr<::mega::MegaIntegerMap> byMonthWeekDay;
+                    rapidjson::Value::ConstMemberIterator itMwd = it->value[index].FindMember("mwd");
+                    if (itMwd != it->value[index].MemberEnd() && itMwd->value.IsArray() && itMwd->value.Capacity())
+                    {
+                        byMonthWeekDay.reset(mega::MegaIntegerMap::createInstance());
+                        for (unsigned int i = 0; i < itMwd->value.Capacity(); ++i)
+                        {
+                              if (itMwd->value[i].IsArray() && itMwd->value[i].GetArray().Capacity() == 2)
+                              {
+                                  auto subArr = itMwd->value[i].GetArray();
+                                  if (!subArr[0].IsInt() || !subArr[1].IsInt()) { continue; }
+                                  byMonthWeekDay->set(subArr[0].GetInt(),subArr[1].GetInt());
+                              }
+                        }
+                    }
+
+                    auto getFreqVal = [](std::string freq) -> int
+                    {
+                        if (freq.compare("d")) { return mega::MegaScheduledRules::FREQ_DAILY;   }
+                        if (freq.compare("w")) { return mega::MegaScheduledRules::FREQ_WEEKLY;  }
+                        if (freq.compare("m")) { return mega::MegaScheduledRules::FREQ_MONTHLY; }
+
+                        return mega::MegaScheduledRules::FREQ_INVALID;
+                    };
+
+                    return mega::MegaScheduledRules::createInstance(getFreqVal(freq), interval, until, byWeekDay.get(), byMonthDay.get(), byMonthWeekDay.get());
+                };
+
+                auto getValue = [](rapidjson::Value::ConstMemberIterator& it, const size_t arrSize, const unsigned int field, const unsigned int index) -> std::string
+                {
+                    if (index >= arrSize) { return std::string(); }
+
+                    if (field == karere::SC_RULES)
+                    {
+                        assert(false);
+                        return std::string();
+                    }
+
+                    if (field == karere::SC_START
+                        || field == karere::SC_END
+                        || field == karere::SC_CANC
+                        || field == karere::SC_FLAGS) // fields with numeric format
+                    {
+                        if (!it->value[index].IsUint())
+                        {
+                            KR_LOG_ERROR("getValue: Invalid value type for field: %d. Expected unsigned int value", field);
+                            assert(false);
+                            return std::string();
+                        }
+                        return std::to_string(it->value[index].GetUint());
+                    }
+                    else // fields with string format
+                    {
+                        if (!it->value[index].IsString())
+                        {
+                            KR_LOG_ERROR("getValue: Invalid value type for field: %d. Expected string value", field);
+                            assert(false);
+                            return std::string();;
+                        }
+                        return it->value[index].GetString();
+                    }
+                };
+
+                auto checkArrFieldChanged = [&getValue, &getRulesValue, &info]
+                    (rapidjson::Value::ConstMemberIterator& it, const unsigned int field, const std::string& fieldStr) -> bool
+                {
+                    if (!it->value.IsArray() || it->value.Empty() || it->value.Size() > 2)
+                    {
+                        KR_LOG_ERROR("checkArrFieldChanged: Unexpected format in changeset for field %s.", fieldStr.c_str());
+                        assert(false);
+                        return false;
+                    }
+
+                    const bool rulesField = field == karere::SC_RULES;
+                    const size_t arrSize = it->value.Size();
+                    const bool hasChanged = arrSize == 2;  // if array has 2 elements, we can assume that field has changed
+
+                    if (!rulesField)
+                    {
+                        std::vector<std::string> auxVals;
+                        auxVals.emplace_back(getValue(it, arrSize, field, 0)); // read old value
+                        if (hasChanged)
+                        {
+                            auxVals.emplace_back(getValue(it, arrSize, field, 1)); // read new value
+                        }
+                        info->mSchedInfo->emplace(field, auxVals);
+                    }
+                    else if (hasChanged) // parse rules field changes
+                    {
+                        info->mScheduledRules.reset(getRulesValue(it, arrSize, field, 1));
+                    }
+
+                    return hasChanged;
+                };
+
+                auto checkChanges = [&document, &getFieldFromString, &checkArrFieldChanged, &checkNonArrFieldChanged, &bs](const std::string fieldStr) -> void
+                {
+                    // if field is not present in json changeset, it has not changed
+                    rapidjson::Value::ConstMemberIterator it = document.FindMember(fieldStr.c_str());
+                    if (it == document.MemberEnd()) { return; }
+
+                    auto field = getFieldFromString(fieldStr);
+                    if (field == karere::SC_FLAGS_SIZE)
+                    {
+                        KR_LOG_ERROR("checkChanges: Invalid fieldStr provided: %s", fieldStr.c_str());
+                        assert(false);
+                        return;
+                    }
+
+                    bool hasChanged = !it->value.IsArray()
+                                          ? checkNonArrFieldChanged(it, field, fieldStr)    // non array received for field changes
+                                          : checkArrFieldChanged(it, field, fieldStr);      // array received for field changes
+
+                    if (hasChanged) { bs[field] = 1; } // mark field as changed in bitset
+                };
+
+                if (!isDocEmpty)
+                {
+                    info->mSchedInfo.reset(new std::map<unsigned int, std::vector<std::string>>());
+                    checkChanges("tz");
+                    checkChanges("s");
+                    checkChanges("e");
+                    checkChanges("d");
+                    checkChanges("p");
+                    checkChanges("c");
+                    checkChanges("f");
+                    checkChanges("r");
+                    checkChanges("at");
+                    checkChanges("t");
                 }
+                else
+                {
+                    bs[karere::SC_NEW_SCHED] = 1;
+                }
+
                 info->mSchedId = schedId;
                 info->mSchedChanged = bs.to_ulong();
                 return info;
@@ -792,7 +1049,8 @@ public:
             }
 
             unsigned int position = 0;
-            memcpy(&info->callid, &buffer[position], lenCallid);
+            void* voidmem = &info->callid;
+            memcpy(voidmem, &buffer[position], lenCallid);
             position += lenCallid;
             memcpy(&info->duration, &buffer[position], lenDuration);
             position += lenDuration;
@@ -810,7 +1068,8 @@ public:
             for (size_t i = 0; i < numParticipants; i++)
             {
                 karere::Id id;
-                memcpy(&id, &buffer[position], lenId);
+                void* voidmem = &id;
+                memcpy(voidmem, &buffer[position], lenId);
                 position += lenId;
                 info->participants.push_back(id);
             }
@@ -843,8 +1102,8 @@ public:
     mutable uint8_t userFlags = 0;
     bool richLinkRemoved = 0;
 
-    karere::Id id() const { return mId; }
-    void setId(karere::Id aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
+    const karere::Id& id() const { return mId; }
+    void setId(const karere::Id& aId, bool isXid) { mId = aId; mIdIsXid = isXid; }
     bool isSending() const { return mIdIsXid; }
 
     bool isLocalKeyid() const { return isLocalKeyId(keyid); }
@@ -855,13 +1114,13 @@ public:
     bool isUndecryptable() const { return (mIsEncrypted == kEncryptedMalformed || mIsEncrypted == kEncryptedSignature); }
     void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
 
-    explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
+    explicit Message(const karere::Id& aMsgid, const karere::Id& aUserid, uint32_t aTs, uint16_t aUpdated,
           Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
           unsigned char aType=kMsgNormal, void* aUserp=nullptr)
       :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
           ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
 
-    explicit Message(karere::Id aMsgid, karere::Id aUserid, uint32_t aTs, uint16_t aUpdated,
+    explicit Message(const karere::Id& aMsgid, const karere::Id& aUserid, uint32_t aTs, uint16_t aUpdated,
             const char* msg, size_t msglen, bool aIsSending=false,
             KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr,
             BackRefId aBackRefId = 0, std::vector<BackRefId> aBackRefs = std::vector<BackRefId>())
@@ -945,7 +1204,7 @@ public:
         return (type >= Message::kMsgManagementLowest
                 && type <= Message::kMsgManagementHighest);
     }
-    bool isOwnMessage(karere::Id myHandle) const { return (userid == myHandle); }
+    bool isOwnMessage(const karere::Id& myHandle) const { return (userid == myHandle); }
     bool isDeleted() const { return (updated && !size() && type != kMsgTruncate); } // returns false for truncate
     bool isValidLastMessage() const
     {
@@ -957,7 +1216,7 @@ public:
     }
     // conditions to consider unread messages should match the
     // ones in ChatdSqliteDb::getUnreadMsgCountAfterIdx()
-    bool isValidUnread(karere::Id myHandle) const
+    bool isValidUnread(const karere::Id& myHandle) const
     {
         return (!isOwnMessage(myHandle)             // exclude own messages
                 && !isDeleted()                     // exclude deleted messages
@@ -980,7 +1239,7 @@ public:
         return (type == kMsgContainsMeta && dataSize() > 3) ? std::string(buf()+3, dataSize() - 3) : "";
     }
 
-    bool isMissingCall(karere::Id myHandle) const
+    bool isMissingCall(const karere::Id& myHandle) const
     {
         if (type != kMsgCallEnd || isOwnMessage(myHandle))
         {
@@ -1215,7 +1474,7 @@ public:
         append(val);
         return std::move(*this);
     }
-    Command&& operator+(karere::Id id)
+    Command&& operator+(const karere::Id& id)
     {
         append(id.val);
         return std::move(*this);
@@ -1262,7 +1521,7 @@ private:
     KeyId mLocalKeyid;
 
 public:
-    explicit KeyCommand(karere::Id chatid, KeyId aLocalkeyid, size_t reserve=128)
+    explicit KeyCommand(const karere::Id& chatid, KeyId aLocalkeyid, size_t reserve=128)
     : Command(OP_NEWKEY, reserve), mLocalKeyid(aLocalkeyid)
     {
         assert(isValidKeyxId(mLocalKeyid) || mLocalKeyid == CHATD_KEYID_INVALID);
@@ -1271,9 +1530,9 @@ public:
 
     KeyId localKeyid() const { return mLocalKeyid; }
     KeyId keyId() const { return read<KeyId>(9); }
-    void setChatId(karere::Id aChatId) { write<uint64_t>(1, aChatId.val); }
+    void setChatId(const karere::Id& aChatId) { write<uint64_t>(1, aChatId.val); }
     void setKeyId(KeyId keyid) { write(9, keyid); }
-    void addKey(karere::Id userid, void* keydata, uint16_t keylen)
+    void addKey(const karere::Id& userid, void* keydata, uint16_t keylen)
     {
         assert(keydata && (keylen != 0));
         uint32_t& payloadSize = mapRef<uint32_t>(13);
@@ -1282,7 +1541,7 @@ public:
         append(keydata, keylen);
     }
 
-    std::shared_ptr<Buffer> getKeyByUserId (karere::Id userId)
+    std::shared_ptr<Buffer> getKeyByUserId (const karere::Id& userId) const
     {
         karere::Id receiver;
         const char *pos = buf() + 17;
@@ -1334,8 +1593,8 @@ public:
 class MsgCommand: public Command
 {
 public:
-    explicit MsgCommand(uint8_t opcode, karere::Id chatid, karere::Id userid,
-        karere::Id msgid, uint32_t ts, uint16_t updated, KeyId keyid=CHATD_KEYID_INVALID)
+    explicit MsgCommand(uint8_t opcode, const karere::Id& chatid, const karere::Id& userid,
+        const karere::Id& msgid, uint32_t ts, uint16_t updated, KeyId keyid=CHATD_KEYID_INVALID)
     :Command(opcode)
     {
         write(1, chatid.val);write(9, userid.val);write(17, msgid.val);write(25, ts);
@@ -1344,7 +1603,7 @@ public:
     MsgCommand(size_t reserve): Command(OP_INVALIDCODE, reserve) {} //for loading the buffer
     karere::Id msgid() const { return read<uint64_t>(17); }
     karere::Id userId() const { return read<uint64_t>(9); }
-    void setId(karere::Id aMsgid) { write(17, aMsgid.val); }
+    void setId(const karere::Id& aMsgid) { write(17, aMsgid.val); }
     KeyId keyId() const { return read<KeyId>(31); }
     void setKeyId(KeyId aKeyid) { write(31, aKeyid); }
     StaticBuffer msg() const
@@ -1372,19 +1631,6 @@ public:
     }
 };
 
-//for exception message purposes
-static inline std::string operator+(const char* str, karere::Id id)
-{
-    std::string result(str);
-    result.append(id.toString());
-    return result;
-}
-static inline std::string& operator+(std::string&& str, karere::Id id)
-{
-    str.append(id.toString());
-    return str;
-}
-
 enum ChatState
 {
     kChatStateOffline = 0,
@@ -1393,6 +1639,11 @@ enum ChatState
     kChatStateOnline            // login completed (HISTDONE received for JOIN/JOINRANGEHIST)
 };
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+//disable the warning for GCC and Clang in compilation units that do not use these functions
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
 static inline const char* chatStateToStr(unsigned state)
 {
     static const char* chatStates[] =
@@ -1408,19 +1659,22 @@ static inline const char* privToString(Priv priv)
 {
     switch (priv)
     {
-    case PRIV_NOCHANGE:
+    case PRIV_UNKNOWN:
         return "No change";
-    case PRIV_NOTPRESENT:
-        return "Not present";
-    case PRIV_RDONLY:
-        return "READONLY";
-    case PRIV_FULL:
-        return "READ_WRITE";
-    case PRIV_OPER:
-        return "OPERATOR";
+    case PRIV_RM:
+        return "removed";
+    case PRIV_RO:
+        return "read-only";
+    case PRIV_STANDARD:
+        return "standard";
+    case PRIV_MODERATOR:
+        return "moderator";
     default:
-        return "(unknown privilege)";
+        return "unknown privilege";
     }
 }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 }
 #endif

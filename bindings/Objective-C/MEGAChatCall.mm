@@ -4,6 +4,7 @@
 #import "MEGASdk.h"
 #import "MEGAHandleList+init.h"
 #import "MEGAChatSession+init.h"
+#import "MEGAChatWaitingRoom+init.h"
 
 using namespace megachat;
 
@@ -128,6 +129,10 @@ using namespace megachat;
     return (MEGAChatCallNetworkQuality) (self.megaChatCall ? self.megaChatCall->getNetworkQuality() : 0);
 }
 
+- (uint64_t)auxHandle {
+    return self.megaChatCall ? self.megaChatCall->getAuxHandle() : MEGACHAT_INVALID_HANDLE;
+}
+
 - (NSUUID *)uuid {
     unsigned char tempUuid[128];
     uint64_t tempChatId = self.chatId;
@@ -139,8 +144,40 @@ using namespace megachat;
     return uuid;
 }
 
+- (MEGAChatWaitingRoomStatus)waitingRoomJoiningStatus {
+    return self.megaChatCall ? MEGAChatWaitingRoomStatus(self.megaChatCall->getWrJoiningState()) : MEGAChatWaitingRoomStatusUnknown;
+}
+
+- (MEGAChatWaitingRoom *)waitingRoom {
+    return self.megaChatCall->getWaitingRoom() ? [[MEGAChatWaitingRoom alloc] initWithMegaChatWaitingRoom:self.megaChatCall->getWaitingRoom()->copy() cMemoryOwn:YES] : nil;
+}
+
+- (MEGAHandleList *)waitingRoomHandleList {
+    return self.megaChatCall->getHandleList() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getHandleList()->copy() cMemoryOwn: YES] : nil;
+}
+
 - (nullable MEGAChatSession *)sessionForClientId:(uint64_t)clientId {
     return self.megaChatCall ? [[MEGAChatSession alloc] initWithMegaChatSession:self.megaChatCall->getMegaChatSession(clientId) cMemoryOwn:NO] : nil;
+}
+
+- (NSInteger)notificationType {
+    return self.megaChatCall ? self.megaChatCall->getNumParticipants() : 0;
+}
+
+- (NSString *)termcodeString:(MEGAChatCallTermCode)termcode {
+    if (!self.megaChatCall) return @"";
+
+    const char *val = self.megaChatCall->termcodeToString((int)termcode);
+    if (!val) return @"";
+    return @(val);
+}
+
+- (NSString *)genericMessage {
+    if (!self.megaChatCall) return @"";
+
+    const char *val = self.megaChatCall->getGenericMessage();
+    if (!val) return @"";
+    return @(val);
 }
 
 + (NSString *)stringForStatus:(MEGAChatCallStatus)status {
@@ -194,6 +231,18 @@ using namespace megachat;
             break;
         case MEGAChatCallTermCodeNoParticipate:
             result = @"Removed from chatroom";
+            break;
+        case MEGAChatCallTermCodeTooManyClients:
+            result = @"Too many clients";
+            break;
+        case MEGAChatCallTermCodeProtocolVersion:
+            result = @"Protocol version";
+            break;
+        case MEGAChatCallTermCodeKicked:
+            result = @"Kicked";
+            break;
+        case MEGAChatCallTermCodeWaitingRoomTimeout:
+            result = @"Waiting room timeout";
             break;
     }
     return result;

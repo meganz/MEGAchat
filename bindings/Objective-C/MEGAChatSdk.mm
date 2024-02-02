@@ -24,6 +24,8 @@
 #import "DelegateMEGAChatNotificationListener.h"
 #import "DelegateMEGAChatNodeHistoryListener.h"
 #import "DelegateMEGAChatScheduledMeetingListener.h"
+#import "MEGAChatScheduledRules+init.h"
+#import "MEGAChatScheduledFlags+init.h"
 
 #import <set>
 #import <pthread.h>
@@ -315,6 +317,12 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)addChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate queueType:(ListenerQueueType)queueType {
+    if (self.megaChatApi) {
+        self.megaChatApi->addChatRequestListener([self createDelegateMEGAChatRequestListener:delegate singleListener:NO queueType:queueType]);
+    }
+}
+
 - (void)removeChatRequestDelegate:(id<MEGAChatRequestDelegate>)delegate {
     std::vector<DelegateMEGAChatRequestListener *> listenersToRemove;
     
@@ -349,11 +357,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)addChatDelegate:(id<MEGAChatDelegate>)delegate queueType:(ListenerQueueType)queueType {
     if (self.megaChatApi) {
-        self.megaChatApi->addChatListener([self createDelegateMEGAChatListener:delegate singleListener:NO queueType:ListenerQueueTypeGlobalBackground]);
+        self.megaChatApi->addChatListener([self createDelegateMEGAChatListener:delegate singleListener:NO queueType:queueType]);
     }
 }
 
 - (void)removeChatDelegate:(id<MEGAChatDelegate>)delegate {
+    if (delegate == nil) return;
+    
     std::vector<DelegateMEGAChatListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
@@ -459,7 +469,15 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)addChatCallDelegate:(id<MEGAChatCallDelegate>)delegate queueType:(ListenerQueueType)queueType {
+    if (self.megaChatApi) {
+        self.megaChatApi->addChatCallListener([self createDelegateMEGAChatCallListener:delegate singleListener:NO queueType:queueType]);
+    }
+}
+
 - (void)removeChatCallDelegate:(id<MEGAChatCallDelegate>)delegate {
+    if (delegate == nil) return;
+    
     std::vector<DelegateMEGAChatCallListener *> listenersToRemove;
     
     pthread_mutex_lock(&listenerMutex);
@@ -605,7 +623,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatRoomList *)chatRoomsByType:(MEGAChatType)type {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatRoomList alloc] initWithMegaChatRoomList:self.megaChatApi->getChatRoomsByType(type) cMemoryOwn:YES];
+    return [[MEGAChatRoomList alloc] initWithMegaChatRoomList:self.megaChatApi->getChatRoomsByType((int)type) cMemoryOwn:YES];
 }
 
 - (MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId {
@@ -620,14 +638,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return chatRoom ? [[MEGAChatRoom alloc] initWithMegaChatRoom:chatRoom cMemoryOwn:YES] : nil;
 }
 
-- (MEGAChatListItemList *)chatListItemsByType:(MEGAChatType)type {
-    if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItemsByType(type) cMemoryOwn:YES];
-}
-
 - (MEGAChatListItemList *)chatListItems {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems() cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskNone, MEGAChatListFilterNone) cMemoryOwn:YES];
 }
 
 - (NSInteger)unreadChats {
@@ -637,23 +650,28 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (MEGAChatListItemList *)activeChatListItems {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getActiveChatListItems() cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskActiveOrNonActive, MEGAChatListFilterActive) cMemoryOwn:YES];
 }
 
 - (MEGAChatListItemList *)archivedChatListItems {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getArchivedChatListItems() cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskArchivedOrNonArchived, MEGAChatListFilterArchived) cMemoryOwn:YES];
 }
 
 - (MEGAChatListItemList *)inactiveChatListItems {
     if (self.megaChatApi == nil) return nil;
-    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getInactiveChatListItems() cMemoryOwn:YES];
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems(MEGAChatListMaskActiveOrNonActive, MEGAChatListFilterNonActive) cMemoryOwn:YES];
 }
 
 - (MEGAChatListItem *)chatListItemForChatId:(uint64_t)chatId {
     if (self.megaChatApi == nil) return nil;
     MegaChatListItem *item = self.megaChatApi->getChatListItem(chatId);
     return item ? [[MEGAChatListItem alloc] initWithMegaChatListItem:item cMemoryOwn:YES] : nil;
+}
+
+- (MEGAChatListItemList *)chatListItemsByMask:(MEGAChatListMask)mask filter:(MEGAChatListFilter)filter {
+    if (self.megaChatApi == nil) return nil;
+    return [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatApi->getChatListItems((int)mask, (int)filter) cMemoryOwn:YES];
 }
 
 - (uint64_t)chatIdByUserHandle:(uint64_t)userHandle {
@@ -884,6 +902,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                   speakRequest:(BOOL)speakRequest
                    waitingRoom:(BOOL)waitingRoom
                     openInvite:(BOOL)openInvite
+                     queueType:(ListenerQueueType)queueType
                       delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->createMeeting(title.UTF8String,
@@ -892,7 +911,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
                                         openInvite,
                                         [self createDelegateMEGAChatRequestListener:delegate
                                                                      singleListener:YES
-                                                                          queueType:ListenerQueueTypeGlobalBackground]);
+                                                                          queueType:queueType]);
     }
 }
 
@@ -936,6 +955,72 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 - (void)inviteToChat:(uint64_t)chatId user:(uint64_t)userHandle privilege:(NSInteger)privilege {
     if (self.megaChatApi) {
         self.megaChatApi->inviteToChat(chatId, userHandle, (int)privilege);
+    }
+}
+
+- (void)allowUsersJoinCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->allowUsersJoinCall(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)allowUsersJoinCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->allowUsersJoinCall(chatId, users.getCPtr);
+    }
+}
+
+- (void)kickUsersFromCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->kickUsersFromCall(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)kickUsersFromCall:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->kickUsersFromCall(chatId, users.getCPtr);
+    }
+}
+
+- (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->pushUsersIntoWaitingRoom(chatId, users.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles {
+    if (self.megaChatApi) {
+        MEGAHandleList *users = [MEGAHandleList.alloc initWithMemoryOwn:YES];
+        for (NSNumber *handle in usersHandles) {
+            [users addMegaHandle:handle.unsignedLongLongValue];
+        }
+        self.megaChatApi->pushUsersIntoWaitingRoom(chatId, users.getCPtr);
+    }
+}
+
+- (void)mutePeers:(uint64_t)chatId client:(uint64_t)clientId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->mutePeers(chatId, clientId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
@@ -1373,31 +1458,133 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (BOOL)hasChatOptionEnabledForChatOption:(MEGAChatOption)option chatOptionsBitMask:(NSInteger)chatOptionsBitMask {
     if (self.megaChatApi) {
-        return self.megaChatApi->hasChatOptionEnabled(option, chatOptionsBitMask);
+        return self.megaChatApi->hasChatOptionEnabled((int)option, (int)chatOptionsBitMask);
     }
     return NO;
 }
 
 #pragma mark - Scheduled meetings
 
-- (void)createChatAndScheduledMeeting:(BOOL)isMeeting publicChat:(BOOL)publicChat speakRequest:(BOOL)speakRequest waitingRoom:(BOOL)waitingRoom openInvite:(BOOL)openInvite timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
-    if (!self.megaChatApi) { return; }
-    self.megaChatApi -> createChatAndScheduledMeeting(isMeeting, publicChat, speakRequest, waitingRoom, openInvite, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency), attributes.UTF8String);
+- (void)createChatroomAndSchedMeetingWithPeers:(MEGAChatPeerList *)peers
+                                     isMeeting:(BOOL)isMeeting
+                                  isPublicChat:(BOOL)isPublicChat
+                                         title:(NSString *)title
+                                  speakRequest:(BOOL)speakRequest
+                                   waitingRoom:(BOOL)waitingRoom
+                                    openInvite:(BOOL)openInvite
+                                      timezone:(NSString *)timezone
+                                     startDate:(NSInteger)startDate
+                                       endDate:(NSInteger)endDate
+                                   description:(NSString *)description
+                                         flags:(MEGAChatScheduledFlags *)flags
+                                         rules:(MEGAChatScheduledRules *)rules
+                                    attributes:(NSString *)attributes {
+    if (self.megaChatApi) {
+        self.megaChatApi->createChatroomAndSchedMeeting(peers.getCPtr,
+                                                        isMeeting,
+                                                        isPublicChat,
+                                                        title.UTF8String,
+                                                        speakRequest,
+                                                        waitingRoom,
+                                                        openInvite,
+                                                        timezone.UTF8String,
+                                                        (int)startDate,
+                                                        (int)endDate,
+                                                        description.UTF8String,
+                                                        flags.getCPtr,
+                                                        rules.getCPtr,
+                                                        attributes.UTF8String);
+    }
+
 }
 
-- (void)createChatAndScheduledMeeting:(BOOL)isMeeting publicChat:(BOOL)publicChat speakRequest:(BOOL)speakRequest waitingRoom:(BOOL)waitingRoom openInvite:(BOOL)openInvite timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (!self.megaChatApi) { return; }
-    self.megaChatApi -> createChatAndScheduledMeeting(isMeeting, publicChat, speakRequest, waitingRoom, openInvite, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency), attributes.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+- (void)createChatroomAndSchedMeetingWithPeers:(MEGAChatPeerList *)peers
+                                     isMeeting:(BOOL)isMeeting
+                                  isPublicChat:(BOOL)isPublicChat
+                                         title:(NSString *)title
+                                  speakRequest:(BOOL)speakRequest
+                                   waitingRoom:(BOOL)waitingRoom
+                                    openInvite:(BOOL)openInvite
+                                      timezone:(NSString *)timezone
+                                     startDate:(NSInteger)startDate
+                                       endDate:(NSInteger)endDate
+                                   description:(NSString *)description
+                                         flags:(MEGAChatScheduledFlags *)flags
+                                         rules:(MEGAChatScheduledRules *)rules
+                                    attributes:(NSString *)attributes
+                                      delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->createChatroomAndSchedMeeting(peers.getCPtr,
+                                                        isMeeting,
+                                                        isPublicChat,
+                                                        title.UTF8String,
+                                                        speakRequest,
+                                                        waitingRoom,
+                                                        openInvite,
+                                                        timezone.UTF8String,
+                                                        (int)startDate,
+                                                        (int)endDate,
+                                                        description.UTF8String,
+                                                        flags.getCPtr,
+                                                        rules.getCPtr,
+                                                        attributes.UTF8String,
+                                                        [self createDelegateMEGAChatRequestListener:delegate
+                                                                                     singleListener:YES
+                                                                                          queueType:ListenerQueueTypeGlobalBackground]);
+    }
+
 }
 
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes {
+- (void)updateScheduledMeeting:(uint64_t)chatId
+                   scheduledId:(uint64_t)scheduledId
+                      timezone:(NSString *)timezone
+                     startDate:(uint64_t)startDate
+                       endDate:(uint64_t)endDate
+                         title:(NSString *)title
+                   description:(NSString *)description
+                     cancelled:(BOOL)cancelled
+                         flags:(MEGAChatScheduledFlags *)flags
+                         rules:(MEGAChatScheduledRules *)rules
+               updateChatTitle:(BOOL)updateChatTitle {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency));
+    self.megaChatApi->updateScheduledMeeting(chatId,
+                                             scheduledId,
+                                             timezone.UTF8String,
+                                             startDate,
+                                             endDate,
+                                             title.UTF8String,
+                                             description.UTF8String,
+                                             cancelled,
+                                             flags.getCPtr,
+                                             rules.getCPtr,
+                                             updateChatTitle);
 }
 
-- (void)updateScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId timezone:(NSString *)timezone startDate:(uint64_t)startDate endDate:(uint64_t)endDate title:(NSString *)title description:(NSString *)description emailsDisabled:(BOOL)emailsDisabled frequency:(int)frequency attributes:(NSString *)attributes delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)updateScheduledMeeting:(uint64_t)chatId
+                   scheduledId:(uint64_t)scheduledId
+                      timezone:(NSString *)timezone
+                     startDate:(uint64_t)startDate
+                       endDate:(uint64_t)endDate
+                         title:(NSString *)title
+                   description:(NSString *)description
+                     cancelled:(BOOL)cancelled
+                         flags:(MEGAChatScheduledFlags *)flags
+                         rules:(MEGAChatScheduledRules *)rules
+               updateChatTitle:(BOOL)updateChatTitle
+                      delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeeting(chatId, scheduledId, timezone.UTF8String, startDate, endDate, title.UTF8String, description.UTF8String, MegaChatScheduledFlags::createInstance(), MegaChatScheduledRules::createInstance(frequency), [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->updateScheduledMeeting(chatId,
+                                             scheduledId,
+                                             timezone.UTF8String,
+                                             startDate,
+                                             endDate,
+                                             title.UTF8String,
+                                             description.UTF8String,
+                                             cancelled,
+                                             flags.getCPtr,
+                                             rules.getCPtr,
+                                             updateChatTitle,
+                                             [self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeGlobalUserInitiated]);
 }
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled {
@@ -1407,7 +1594,7 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
-    self.megaChatApi->updateScheduledMeetingOccurrence(chatId, scheduledId, overrides, newStartDate, newEndDate, newCancelled, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    self.megaChatApi->updateScheduledMeetingOccurrence(chatId, scheduledId, overrides, newStartDate, newEndDate, newCancelled, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeGlobalUserInitiated]);
 }
 
 - (void)removeScheduledMeeting:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId {
@@ -1470,6 +1657,32 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since {
+    if (!self.megaChatApi) { return; }
+    self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, since);
+}
+
+- (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId since:(uint64_t)since delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (!self.megaChatApi) { return; }
+    self.megaChatApi->fetchScheduledMeetingOccurrencesByChat(chatId, since, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setWaitingRoom:(BOOL)enabled chatId:(uint64_t)chatId {
+    if (self.megaChatApi) {
+        self.megaChatApi->setWaitingRoom(chatId, enabled);
+    }
+}
+
+- (void)setWaitingRoom:(BOOL)enabled chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->setWaitingRoom(chatId,
+                                         enabled,
+                                         [self createDelegateMEGAChatRequestListener:delegate
+                                                                      singleListener:YES
+                                                                           queueType:ListenerQueueTypeGlobalBackground]);
+    }
+}
+
 #pragma mark - Audio and video calls
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -1499,27 +1712,27 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return selectedVideoDeviceString;
 }
 
-- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)startCallInChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio notRinging:(BOOL)notRinging delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
-        self.megaChatApi->startChatCall(chatId, enableVideo, enableAudio ,[self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+        self.megaChatApi->startCallInChat(chatId, enableVideo, enableAudio, notRinging,[self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
-- (void)startChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
+- (void)startCallInChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio notRinging:(BOOL)notRinging {
     if (self.megaChatApi) {
-        self.megaChatApi->startChatCall(chatId, enableVideo, enableAudio);
+        self.megaChatApi->startCallInChat(chatId, enableVideo, enableAudio, notRinging);
     }
 }
 
-- (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)ringIndividualInACall:(uint64_t)chatId userId:(uint64_t)userId timeout:(NSInteger)timeout delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
-        self.megaChatApi->startChatCallNoRinging(chatId, scheduledId, enableVideo, enableAudio, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+        self.megaChatApi->ringIndividualInACall(chatId, userId, (int)timeout, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
-- (void)startChatCallNoRinging:(uint64_t)chatId scheduledId:(uint64_t)scheduledId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
+- (void)ringIndividualInACall:(uint64_t)chatId userId:(uint64_t)userId timeout:(NSInteger)timeout {
     if (self.megaChatApi) {
-        self.megaChatApi->startChatCallNoRinging(chatId, scheduledId, enableVideo, enableAudio);
+        self.megaChatApi->ringIndividualInACall(chatId, userId, (int)timeout);
     }
 }
 
@@ -1529,9 +1742,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
-- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo {
+- (void)answerChatCall:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio {
     if (self.megaChatApi) {
-        self.megaChatApi->answerChatCall(chatId, enableVideo);
+        self.megaChatApi->answerChatCall(chatId, enableVideo, enableAudio);
     }
 }
 
@@ -1668,8 +1881,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return self.megaChatApi ? self.megaChatApi->hasCallInChatRoom(chatId) : NO;
 }
 
-- (NSInteger)getMaxVideoCallParticipants {
-    return self.megaChatApi ? self.megaChatApi->getMaxVideoCallParticipants() : 0;
+- (NSInteger)getMaxSupportedVideoCallParticipants {
+    return self.megaChatApi ? self.megaChatApi->getMaxSupportedVideoCallParticipants() : 0;
 }
 
 - (NSInteger)getMaxCallParticipants {
@@ -1727,6 +1940,19 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
         [clientIdList addMegaHandle:handle.unsignedLongLongValue];
     }
     self.megaChatApi->stopLowResVideo(chatId, clientIdList.getCPtr, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)setSFU:(NSInteger)sfuId {
+    if (!self.megaChatApi) return;
+    self.megaChatApi->setSFUid((int)sfuId);
+}
+
+- (NSInteger)getCurrentInputVideoTracksLimit {
+    return self.megaChatApi ? self.megaChatApi->getCurrentInputVideoTracksLimit() : 0;
+}
+
+- (BOOL)setCurrentInputVideoTracksLimit:(NSInteger)inputVideoTracks {
+    return self.megaChatApi ? self.megaChatApi->setCurrentInputVideoTracksLimit((int)inputVideoTracks) : NO;
 }
 
 #endif
@@ -1824,9 +2050,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MegaChatCallListener *)createDelegateMEGAChatCallListener:(id<MEGAChatCallDelegate>)delegate singleListener:(BOOL)singleListener {
+    return [self createDelegateMEGAChatCallListener:delegate singleListener:singleListener queueType:ListenerQueueTypeMain];
+}
+
+- (MegaChatCallListener *)createDelegateMEGAChatCallListener:(id<MEGAChatCallDelegate>)delegate singleListener:(BOOL)singleListener queueType:(ListenerQueueType)queueType {
     if (delegate == nil) return nil;
     
-    DelegateMEGAChatCallListener *delegateListener = new DelegateMEGAChatCallListener(self, delegate, singleListener);
+    DelegateMEGAChatCallListener *delegateListener = new DelegateMEGAChatCallListener(self, delegate, singleListener, queueType);
     pthread_mutex_lock(&listenerMutex);
     _activeChatCallListeners.insert(delegateListener);
     pthread_mutex_unlock(&listenerMutex);

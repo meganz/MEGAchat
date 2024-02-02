@@ -13,6 +13,15 @@ using namespace megachat;
 
 @implementation MEGAChatScheduledFlags
 
+- (instancetype)initWithSendEmails:(BOOL)sendEmails {
+    self = [super init];
+    
+    MegaChatScheduledFlags *megaChatScheduledFlags = MegaChatScheduledFlags::createInstance();
+    megaChatScheduledFlags->setSendEmails(sendEmails);
+    
+    return [self initWithMegaChatScheduledFlags:megaChatScheduledFlags cMemoryOwn:YES];
+}
+
 - (instancetype)initWithMegaChatScheduledFlags:(MegaChatScheduledFlags *)megaChatScheduledFlags cMemoryOwn:(BOOL)cMemoryOwn {
     self = [super init];
     
@@ -35,7 +44,7 @@ using namespace megachat;
 }
 
 - (instancetype)clone {
-    return self.megaChatScheduledFlags ? [[MEGAChatScheduledFlags alloc] initWithMegaChatScheduledFlags:self.megaChatScheduledFlags cMemoryOwn:YES] : nil;
+    return self.megaChatScheduledFlags ? [[MEGAChatScheduledFlags alloc] initWithMegaChatScheduledFlags:self.megaChatScheduledFlags->copy() cMemoryOwn:YES] : nil;
 }
 
 - (BOOL)isEmpty {
@@ -43,14 +52,14 @@ using namespace megachat;
     return self.megaChatScheduledFlags->isEmpty();
 }
 
-- (BOOL)emailsDisabled {
+- (BOOL)emailsEnabled {
     if (!self.megaChatScheduledFlags) { return NO; };
-    return self.megaChatScheduledFlags->emailsDisabled();
+    return self.megaChatScheduledFlags->sendEmails();
 }
 
-- (void)setEmailsDisabled:(BOOL)disable {
+- (void)setEmailsEnabled:(BOOL)sendEmails {
     if (self.megaChatScheduledFlags) {
-        self.megaChatScheduledFlags->setEmailsDisabled(disable);
+        self.megaChatScheduledFlags->setSendEmails(sendEmails);
     };
 }
 

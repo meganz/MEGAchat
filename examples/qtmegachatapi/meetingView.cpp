@@ -3,6 +3,7 @@
 #include "MainWindow.h"
 #include <QMenu>
 #include <QApplication>
+#include <QInputDialog>
 
 MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent)
     : QDialog(parent)
@@ -30,10 +31,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mEndCall = new QPushButton("End call", this);
     connect(mEndCall, SIGNAL(released()), this, SLOT(onEndCall()));
     mEndCall->setVisible(false);
-    mRequestSpeaker = new QPushButton("ReqSpeaker", this);
+    mRequestSpeaker = new QPushButton("Send speak request", this);
     connect(mRequestSpeaker, &QAbstractButton::clicked, this, [=](){onRequestSpeak(true);});
     mRequestSpeaker->setVisible(false);
-    mRequestSpeakerCancel = new QPushButton("Cancel ReqSpeaker", this);
+    mRequestSpeakerCancel = new QPushButton("Cancel speak request", this);
     connect(mRequestSpeakerCancel, &QAbstractButton::clicked, this, [=](){onRequestSpeak(false);});
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio = new QPushButton("Audio-disable", this);
@@ -48,7 +49,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mAudioMonitor, SIGNAL(clicked(bool)), this, SLOT(onEnableAudioMonitor(bool)));
     mAudioMonitor->setVisible(false);
 
-    mRemOwnSpeaker = new QPushButton("Remove own speaker", this);
+    mRemOwnSpeaker = new QPushButton("Remove own user speaker", this);
     connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
     mRemOwnSpeaker->setVisible(false);
 
@@ -68,6 +69,30 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mOnHoldLabel->setContentsMargins(0, 0, 0, 0);
     mOnHoldLabel->setVisible(false);
     mSetOnHold->setVisible(false);
+
+    mWaitingRoomShow = new QPushButton("Show waiting room", this);
+    connect(mWaitingRoomShow, SIGNAL(clicked()), this, SLOT(onWrShow()));
+    mWaitingRoomShow->setVisible(true);
+
+    mAllowJoin= new QPushButton("Allow join user", this);
+    connect(mAllowJoin, SIGNAL(clicked()), this, SLOT(onAllowJoin()));
+    mAllowJoin->setVisible(true);
+
+    mPushWr= new QPushButton("Push user into Wr", this);
+    connect(mPushWr, SIGNAL(clicked()), this, SLOT(onPushWr()));
+    mPushWr->setVisible(true);
+
+    mKickWr= new QPushButton("Kick user from call", this);
+    connect(mKickWr, SIGNAL(clicked()), this, SLOT(onKickWr()));
+    mKickWr->setVisible(true);
+
+    mMuteAll= new QPushButton("Mute all users", this);
+    connect(mMuteAll, SIGNAL(clicked()), this, SLOT(onMuteAll()));
+    mMuteAll->setVisible(true);
+
+    mSetLimits= new QPushButton("Set call limits", this);
+    connect(mSetLimits, SIGNAL(clicked()), this, SLOT(onSetLimits()));
+    mSetLimits->setVisible(true);
 
     setLayout(mGridLayout);
 
@@ -101,6 +126,12 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mOnHoldLabel);
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
+    mButtonsLayout->addWidget(mWaitingRoomShow);
+    mButtonsLayout->addWidget(mAllowJoin);
+    mButtonsLayout->addWidget(mPushWr);
+    mButtonsLayout->addWidget(mKickWr);
+    mButtonsLayout->addWidget(mMuteAll);
+    mButtonsLayout->addWidget(mSetLimits);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -132,11 +163,40 @@ void MeetingView::updateAudioMonitor(bool enabled)
 
 void MeetingView::updateLabel(megachat::MegaChatCall *call)
 {
+    std::string on  = "<span style='font-weight:normal; color:#00AA00'>1</span>";
+    std::string off = "<span style='font-weight:normal; color:#AA0000'>0</span>";
     std::string txt = call->isOwnModerator() ? QString::fromUtf8("<span style='font-size:25px'>\xE2\x99\x9A</span>").toStdString() : std::string();
     txt.append (" Participants: ")
             .append(std::to_string(call->getNumParticipants()))
             .append("  State: ")
-            .append(callStateToString(*call));
+            .append(callStateToString(*call))
+            .append("<span style='font-weight:normal'>")
+            .append("<br /> Speak request is enabled: ")
+            .append(call->isSpeakRequestEnabled() ? on : off)
+            .append("<br /> Audio flag: ")
+            .append(call->hasLocalAudio() ? on : off)
+            .append("<br /> Video flag: ")
+            .append(call->hasLocalAudio() ? on : off)
+            .append("<br /> Has speak permission: ")
+            .append(call->hasSpeakPermission() ? on : off)
+            .append("<br /> Has speak request pending to be approved: ")
+            .append(call->hasPendingSpeakRequest() ? on : off)
+            .append("<br /> Moderator: ")
+            .append(call->isOwnModerator() ? on : off)
+            .append("</span>");
+
+    call->hasLocalAudio()
+        ? txt.append("<span style='color:#00AA00'> [A]</span>")
+        : txt.append("<span style='color:#AA0000'> [A]</span>");
+
+    call->hasLocalVideo()
+        ? txt.append("<span style='color:#00AA00'> [V]</span>")
+        : txt.append("<span style='color:#AA0000'> [V]</span>");
+
+    if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM)
+    {
+        txt.append("<br /><span style='color:#A30010'>WAITING ROOM</span>");
+    }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
     {
@@ -214,6 +274,9 @@ std::string MeetingView::callStateToString(const ::megachat::MegaChatCall &call)
         case ::megachat::MegaChatCall::CALL_STATUS_CONNECTING:
             return "Connecting";
         break;
+        case ::megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM:
+            return "Waiting room";
+        break;
         case ::megachat::MegaChatCall::CALL_STATUS_JOINING:
             return "Joining";
         break;
@@ -288,11 +351,14 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
         mRingingWindow = mega::make_unique<QMessageBox>(this);
         mRingingWindow->setText("New call");
         mRingingWindow->setInformativeText("Answer?");
-        mRingingWindow->setStandardButtons(QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore);
+        mRingingWindow->setStandardButtons(QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore|QMessageBox::Abort);
         int ringingWindowOption = mRingingWindow->exec();
         if (ringingWindowOption == QMessageBox::Yes)
         {
-            mMegaChatApi.answerChatCall(mChatid, true);
+            QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
+            if (audiostr != "0" && audiostr != "1") { return; }
+            int audio = atoi(audiostr.toStdString().c_str());
+            mMegaChatApi.answerChatCall(mChatid, true, audio);
         }
         else if (ringingWindowOption == QMessageBox::Cancel)
         {
@@ -301,6 +367,10 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
         else if (ringingWindowOption == QMessageBox::Ignore)
         {
             mMegaChatApi.setIgnoredCall(mChatid);
+        }
+        else if (ringingWindowOption == QMessageBox::Abort)
+        {
+            mMegaChatApi.rejectCall(callid);
         }
     }
 }
@@ -355,8 +425,11 @@ void MeetingView::addSession(const megachat::MegaChatSession &session)
     MeetingSession *widget = new MeetingSession(this, session);
     QListWidgetItem *item = new QListWidgetItem();
     item->setData(Qt::UserRole, data);
-    item->setSizeHint(QSize(item->sizeHint().height(), 35));
+
+    int itemHeight = 35; // Set the desired height of the item
+    item->setSizeHint(QSize(item->sizeHint().width(), itemHeight));
     widget->setWidgetItem(item);
+    widget->setFixedSize(QSize(widget->sizeHint().width(), itemHeight)); // Set the fixed size of the widget
     mListWidget->insertItem(static_cast<int>(mSessionWidgets.size()), item);
     mListWidget->setItemWidget(item, widget);
     assert(mSessionWidgets.find(static_cast<uint32_t>(session.getClientid())) == mSessionWidgets.end());
@@ -558,8 +631,11 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string requestHiRes("Request hiRes");
     std::string stopThumb("Stop vThumb");
     std::string stopHiRes("Stop hiRes");
-    std::string approveSpeak("Approve Speak");
-    std::string rejectSpeak("Reject Speak");
+    std::string approveSpeak("Approve Speak request");
+    std::string rejectSpeak("Reject Speak request");
+    std::string pushWr("Push waiting room");
+    std::string kickWr("Kick waiting room");
+    std::string mute("Mute");
     submenu.addAction(requestThumb.c_str());
 
     QMenu *hiResMenuQuality = submenu.addMenu("Request hiRes with quality");
@@ -597,6 +673,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     //submenu.addAction(requestHiRes.c_str());
     submenu.addAction(stopThumb.c_str());
     submenu.addAction(stopHiRes.c_str());
+    submenu.addAction(mute.c_str());
 
     std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
     std::unique_ptr<megachat::MegaChatRoom> chatRoom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi. getChatRoom(mChatid));
@@ -604,12 +681,12 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     if (call && moderator)
     {
        submenu.addAction(requestDelSpeaker.c_str());
-       megachat::MegaChatSession* session = call->getMegaChatSession(cid);
-       if (session->hasRequestSpeak())
-       {
-           submenu.addAction(approveSpeak.c_str());
-           submenu.addAction(rejectSpeak.c_str());
-       }
+       submenu.addAction(approveSpeak.c_str());
+       submenu.addAction(rejectSpeak.c_str());
+
+       QMenu* wrMenu = submenu.addMenu("Waiting Room management");
+       wrMenu->addAction(pushWr.c_str());
+       wrMenu->addAction(kickWr.c_str());
     }
 
     QAction* rightClickItem = submenu.exec(globalPoint);
@@ -648,6 +725,30 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
             std::unique_ptr<mega::MegaHandleList> handleList = std::unique_ptr<mega::MegaHandleList>(mega::MegaHandleList::createInstance());
             handleList->addMegaHandle(cid);
             mMegaChatApi.stopHiResVideo(mChatid, handleList.get());
+        }
+        else if (rightClickItem->text().contains(pushWr.c_str()))
+        {
+            megachat::MegaChatSession* sess = call->getMegaChatSession(cid);
+            if (sess)
+            {
+                std::unique_ptr<mega::MegaHandleList> l(mega::MegaHandleList::createInstance());
+                l->addMegaHandle(sess->getPeerid());
+                mMegaChatApi.pushUsersIntoWaitingRoom(call->getChatid(), l.get(), false);
+            }
+        }
+        else if (rightClickItem->text().contains(kickWr.c_str()))
+        {
+            megachat::MegaChatSession* sess = call->getMegaChatSession(cid);
+            if (sess)
+            {
+                std::unique_ptr<mega::MegaHandleList> l(mega::MegaHandleList::createInstance());
+                l->addMegaHandle(sess->getPeerid());
+                mMegaChatApi.kickUsersFromCall(call->getChatid(), l.get());
+            }
+        }
+        else if (rightClickItem->text().contains(mute.c_str()))
+        {
+            mMegaChatApi.mutePeers(mChatid, cid);
         }
     }
 }
@@ -704,12 +805,17 @@ void MeetingView::onEnableVideo()
     }
 }
 
-void MeetingView::onRemoveSpeaker(uint32_t cid)
+void MeetingView::onRemoveSpeaker(const megachat::MegaChatHandle cid)
+{
+    mMegaChatApi.removeSpeaker(mChatid, cid);
+}
+
+void MeetingView::onRemoveSpeaker()
 {
     mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
 
-void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
+void MeetingView::onEnableAudioMonitor(bool)
 {
     mMegaChatApi.isAudioLevelMonitorEnabled(mChatid)
            ? mMegaChatApi.enableAudioLevelMonitor(false, mChatid)
@@ -718,11 +824,100 @@ void MeetingView::onEnableAudioMonitor(bool audioMonitorEnable)
 
 void MeetingView::onJoinCallWithVideo()
 {
-    mMegaChatApi.startChatCall(mChatid);
+    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
+    if (audiostr != "0" && audiostr != "1") { return; }
+    int audio = atoi(audiostr.toStdString().c_str());
+    mMegaChatApi.startChatCall(mChatid, true /*video*/, audio);
+}
+
+void MeetingView::onWrShow()
+{
+    std::string wrText = "<br /><span style='color:#A30010'>NO WAITING ROOM</span>";
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (call && call->getWaitingRoom())
+    {
+        wrText.assign("<br /><span style='color:#A30010'>EMPTY WAITING ROOM</span>");
+        const megachat::MegaChatWaitingRoom* wr = call->getWaitingRoom();
+        std::unique_ptr<mega::MegaHandleList>wrPeers(wr->getUsers());
+        if (wrPeers && wrPeers->size())
+        {
+            wrText.clear();
+            for (size_t i= 0; i < wrPeers->size(); ++i)
+            {
+                ::mega::MegaHandle h = wrPeers->get(static_cast<unsigned int>(i));
+                mega::unique_ptr<const char[]>b64handle(::mega::MegaApi::userHandleToBase64(h));
+                wrText.append(b64handle.get());
+                wrText.append(" : ");
+                wrText.append(wr->getUserStatus(h) == megachat::MegaChatWaitingRoom::MWR_ALLOWED
+                                  ? "<span style='color:#00A310'>"
+                                  : "<span style='color:#A30010'>");
+                wrText.append(megachat::MegaChatWaitingRoom::userStatusToString(wr->getUserStatus(h)));
+                wrText.append("</span><br />");
+            }
+        }
+    }
+
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(wrText.c_str());
+    msg.exec();
+}
+
+void MeetingView::onAllowJoin()
+{
+    QString peerId = QInputDialog::getText(this, tr("Allow peer to Join"), tr("Enter peerId (B64)"));
+    std::unique_ptr<mega::MegaHandleList> handleList{mega::MegaHandleList::createInstance()};
+    handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
+    mMegaChatApi.allowUsersJoinCall(mChatid, handleList.get());
+}
+
+void MeetingView::onPushWr()
+{
+    QString peerId = QInputDialog::getText(this, tr("Push user into Wr"), tr("Enter peerId (B64)"));
+    std::unique_ptr<mega::MegaHandleList> handleList{mega::MegaHandleList::createInstance()};
+    handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
+    mMegaChatApi.pushUsersIntoWaitingRoom(mChatid, handleList.get(), false);
+}
+
+void MeetingView::onKickWr()
+{
+    QString peerId = QInputDialog::getText(this, tr("Kick user from call"), tr("Enter peerId (B64)"));
+    std::unique_ptr<mega::MegaHandleList> handleList{mega::MegaHandleList::createInstance()};
+    handleList->addMegaHandle(::mega::MegaApi::base64ToUserHandle(peerId.toStdString().c_str()));
+    mMegaChatApi.kickUsersFromCall(mChatid, handleList.get());
+}
+
+void MeetingView::onMuteAll()
+{
+    mMegaChatApi.mutePeers(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+}
+
+void MeetingView::onSetLimits()
+{
+    auto getNumLimit = [this](const std::string& msg) -> unsigned int
+    {
+        try
+        {
+            return static_cast<unsigned int> (stoi(QInputDialog::getText(this, tr("Set call limits"), tr(msg.c_str())).toStdString()));
+        }
+        catch (const std::exception& e)
+        {
+            return megachat::MegaChatCall::CALL_NO_LIMIT;
+        }
+    };
+
+    auto callDur = getNumLimit("Set call duration: ");
+    auto numUsers = getNumLimit("Set max different users accounts: ");
+    auto numClientsPerUser = getNumLimit("Set max clients per user");
+    auto numClients = getNumLimit("Set max total clients in the call: ");
+    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClientsPerUser, numClients);
 }
 
 void MeetingView::onJoinCallWithoutVideo()
 {
-    mMegaChatApi.startChatCall(mChatid, false);
+    QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
+    if (audiostr != "0" && audiostr != "1") { return; }
+    int audio = atoi(audiostr.toStdString().c_str());
+    mMegaChatApi.startChatCall(mChatid, false /*video*/, audio);
 }
 #endif

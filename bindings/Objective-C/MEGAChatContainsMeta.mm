@@ -19,7 +19,7 @@ using namespace megachat;
 @implementation MEGAChatContainsMeta
 
 - (instancetype)initWithMegaChatContainsMeta:(MegaChatContainsMeta *)megaChatContainsMeta cMemoryOwn:(BOOL)cMemoryOwn {
-    NSParameterAssert(megaChatMessage);
+    NSParameterAssert(megaChatContainsMeta);
     
     if (self = [super init]) {
         _megaChatContainsMeta = megaChatContainsMeta;
@@ -35,10 +35,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatContainsMeta ? [[MEGAChatContainsMeta alloc] initWithMegaChatContainsMeta:self.megaChatContainsMeta cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatContainsMeta *)getCPtr {
     return self.megaChatContainsMeta;
 }
@@ -47,21 +43,21 @@ using namespace megachat;
     return self.megaChatContainsMeta ? (MEGAChatContainsMetaType)self.megaChatContainsMeta->getType() : MEGAChatContainsMetaTypeInvalid;
 }
 
-- (NSString *)textMessage {
+- (nullable NSString *)textMessage {
     if (!self.megaChatContainsMeta) return nil;
     const char *ret = self.megaChatContainsMeta->getTextMessage();
     return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
 }
 
-- (MEGAChatRichPreview *)richPreview {
+- (nullable MEGAChatRichPreview *)richPreview {
     return self.megaChatContainsMeta->getRichPreview() ? [[MEGAChatRichPreview alloc] initWithMegaChatRichPreview:self.megaChatContainsMeta->getRichPreview()->copy() cMemoryOwn:YES] : nil;
 }
 
-- (MEGAChatGeolocation *)geolocation {
+- (nullable MEGAChatGeolocation *)geolocation {
     return self.megaChatContainsMeta->getGeolocation() ? [[MEGAChatGeolocation alloc] initWithMegaChatGeolocation:self.megaChatContainsMeta->getGeolocation()->copy() cMemoryOwn:YES] : nil;
 }
 
-- (MEGAChatGiphy *)giphy {
+- (nullable MEGAChatGiphy *)giphy {
     return self.megaChatContainsMeta->getGiphy() ? [[MEGAChatGiphy alloc] initWithMegaChatGiphy:self.megaChatContainsMeta->getGiphy()->copy() cMemoryOwn:YES] : nil;
 }
 

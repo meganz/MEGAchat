@@ -7,16 +7,17 @@
 #include <functional>
 
 #include "net/websocketsIO.h"
+#include <uv.h>
 
 // Websockets network layer implementation based on libwebsocket
 class LibwebsocketsIO : public WebsocketsIO
 {
-public:
     struct lws_context *wscontext;
     uv_loop_t* eventloop;
 
+public:
     LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
-    virtual ~LibwebsocketsIO();
+    ~LibwebsocketsIO() override;
     
     void addevents(::mega::Waiter*, int) override;
     
@@ -25,14 +26,13 @@ public:
     void restoreSessions(std::vector<CachedSession> &&sessions) override;
 #endif
 
-protected:
+private:
     bool wsResolveDNS(const char *hostname, std::function<void(int, const std::vector<std::string>&, const std::vector<std::string>&)> f) override;
     WebsocketsClientImpl *wsConnect(const char *ip, const char *host,
                                            int port, const char *path, bool ssl,
                                            WebsocketsClient *client) override;
     int wsGetNoNameErrorCode() override;
 
-private:
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     // Note: While theoretically a LWS context can have multiple vhosts, it's a
     //       feature applicable to servers, and they need to be explicitly created.
@@ -54,7 +54,7 @@ public:
 
     bool connectViaClientInfo(const char *ip, const char *host, int port, const char *path, bool ssl, lws_context *wscontext);
 
-protected:
+private:
     std::string recbuffer;
     std::string sendbuffer;
 
@@ -72,10 +72,11 @@ protected:
     bool wsIsConnected() override;
     
 public:
-    struct lws *wsi;
     static int wsCallback(struct lws *wsi, enum lws_callback_reasons reason, void *user, void *data, size_t len);
 
 private:
+    struct lws *wsi;
+    void doWsDisconnect(bool immediate);
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     void saveTlsSessionToPersistentStorage();
     CachedSession mTlsSession;

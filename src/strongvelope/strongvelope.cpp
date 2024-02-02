@@ -44,7 +44,7 @@ struct Context
     EcKey edKey;
 };
 
-chatd::KeyId ProtocolHandler::mCurrentLocalKeyId = CHATD_KEYID_MAX;
+chatd::KeyId ProtocolHandler::mCurrentLocalKeyId = static_cast<chatd::KeyId>(CHATD_KEYID_MAX);
 
 const std::string SVCRYPTO_PAIRWISE_KEY = "strongvelope pairwise key\x01";
 const std::string SVCRYPTO_SIG = "strongvelopesig";
@@ -285,7 +285,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                     assert(managementInfo);
                     if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
                         throw std::runtime_error("TLV_TYPE_INC_PARTICIPANT: Already parsed an incompatible TLV record");
-                    managementInfo->privilege = chatd::PRIV_NOCHANGE;
+                    managementInfo->privilege = chatd::PRIV_UNKNOWN;
                     managementInfo->target = record.read<uint64_t>();
                 }
                 else
@@ -301,7 +301,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                     assert(managementInfo);
                     if (managementInfo->target || managementInfo->privilege != PRIV_INVALID)
                         throw std::runtime_error("TLV_TYPE_EXC_PARTICIPANT: Already parsed an incompatible TLV record");
-                    managementInfo->privilege = chatd::PRIV_NOTPRESENT;
+                    managementInfo->privilege = chatd::PRIV_RM;
                     managementInfo->target = record.read<uint64_t>();
                 }
                 else
@@ -442,14 +442,14 @@ void ParsedMessage::parsePayloadWithUtfBackrefs(const StaticBuffer &data, Messag
         *(data8.buf()+i) = static_cast<char>(u16[i] & 0xff);
     }
     msg.backRefId = data8.read<uint64_t>(0);
-    uint16_t refsSize = data8.read<uint16_t>(8);
 
     //convert back to utf8 the binary part, only to determine its utf8 len
 #ifndef _MSC_VER
+    uint16_t refsSize = data8.read<uint16_t>(8);
     size_t binlen8 = convert.to_bytes(&u16[0], &u16[refsSize+10]).size();
 #else
     std::string result8;
-    ::mega::MegaApi::utf16ToUtf8((wchar_t*)u16.data(), u16.size(), &result8);
+    ::mega::MegaApi::utf16ToUtf8((wchar_t*)u16.data(), static_cast<int>(u16.size()), &result8);
     size_t binlen8 = result8.size();
 #endif
 
@@ -523,11 +523,11 @@ karere::UserAttrCache& ProtocolHandler::userAttrCache()
     return mUserAttrCache;
 }
 
-ProtocolHandler::ProtocolHandler(karere::Id ownHandle,
+ProtocolHandler::ProtocolHandler(const karere::Id& ownHandle,
     const StaticBuffer& privCu25519, const StaticBuffer& privEd25519,
     karere::UserAttrCache& userAttrCache,
-    SqliteDb &db, Id aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
-    int isUnifiedKeyEncrypted, karere::Id ph, void *ctx)
+    SqliteDb &db, const Id& aChatId, bool isPublic, std::shared_ptr<std::string> unifiedKey,
+    int isUnifiedKeyEncrypted, const karere::Id& ph, void *ctx)
 : chatd::ICrypto(ctx), mOwnHandle(ownHandle), myPrivCu25519(privCu25519),
   myPrivEd25519(privEd25519), mUserAttrCache(userAttrCache),
   mDb(db), chatid(aChatId), mPh(ph)
@@ -847,7 +847,7 @@ void ProtocolHandler::msgEncryptWithKey(const Message& src, MsgCommand& dest,
 }
 
 promise::Promise<std::shared_ptr<SendKey>>
-ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padString)
+ProtocolHandler::computeSymmetricKey(const karere::Id& userid, const std::string& padString)
 {
     auto it = mSymmKeyCache.find(userid);
     if (it != mSymmKeyCache.end())
@@ -879,10 +879,10 @@ ProtocolHandler::computeSymmetricKey(karere::Id userid, const std::string& padSt
 }
 
 promise::Promise<std::string>
-ProtocolHandler::encryptUnifiedKeyToUser(karere::Id user)
+ProtocolHandler::encryptUnifiedKeyToUser(const karere::Id& user)
 {
     return encryptKeyTo(mUnifiedKey, user)
-    .then([user](const std::shared_ptr<Buffer>& encryptedKey)
+    .then([](const std::shared_ptr<Buffer>& encryptedKey)
     {
         assert(encryptedKey && !encryptedKey->empty());
         std::string auxKey (encryptedKey->buf(), encryptedKey->dataSize());
@@ -891,7 +891,7 @@ ProtocolHandler::encryptUnifiedKeyToUser(karere::Id user)
 }
 
 Promise<std::shared_ptr<Buffer>>
-ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, karere::Id toUser)
+ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, const karere::Id& toUser)
 {
     auto wptr = weakHandle();
     return computeSymmetricKey(toUser)
@@ -917,7 +917,7 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
 {
     auto wptr = weakHandle();
     return decryptKey(key, sender, receiver)
-    .then([this, wptr](const std::shared_ptr<SendKey>& key)
+    .then([wptr](const std::shared_ptr<SendKey>& key)
     {
         wptr.throwIfDeleted();
         std::string keybuff(key->buf(), SVCRYPTO_KEY_SIZE);
@@ -926,7 +926,7 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
 }
 
 promise::Promise<std::shared_ptr<SendKey>>
-ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver)
+ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, const Id& sender, const Id& receiver)
 {
     if (key->dataSize() % AES::BLOCKSIZE)
         throw std::runtime_error("decryptKey: invalid aes-encrypted key size");
@@ -934,7 +934,7 @@ ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, Id sender, Id receiver
     Id otherParty = (sender == mOwnHandle) ? receiver : sender;
     auto wptr = weakHandle();
     return computeSymmetricKey(otherParty)
-    .then([this, wptr, key, receiver](const std::shared_ptr<SendKey>& symmKey)
+    .then([wptr, key](const std::shared_ptr<SendKey>& symmKey)
     {
         wptr.throwIfDeleted();
         // decrypt key
@@ -1694,7 +1694,17 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
         if (msgCanBeDeleted && cacheVersion != mProtoHandler.getCacheVersion())
         {
+#if defined(_WIN32) && defined(_MSC_VER)
+#pragma warning(push)
+// The following warnings are invalid for current code. They should be re-enabled if throwing promise::Error,
+// but catch expected shared_ptr<promise::ErrorShared> somewhere.
+#pragma warning(disable: 4673) // C4673: throwing 'promise::Error' the following types will not be considered at the catch site
+#pragma warning(disable: 4670) // C4670: 'shared_ptr<struct promise::ErrorShared>': this base class is inaccessible
+#endif
             throw ::promise::Error("decryptChatTitle: history was reloaded, ignore message",  EINVAL, SVCRYPTO_ENOMSG);
+#if defined(_WIN32) && defined(_MSC_VER)
+#pragma warning(pop)
+#endif
         }
 
         if (!openmode)
@@ -1764,7 +1774,7 @@ KeyId ProtocolHandler::getNextValidLocalKeyId()
     chatd::KeyId ret = mCurrentLocalKeyId;
     if (!isValidKeyxId(--mCurrentLocalKeyId))
     {
-        mCurrentLocalKeyId = CHATD_KEYID_MAX;
+        mCurrentLocalKeyId = static_cast<chatd::KeyId>(CHATD_KEYID_MAX);
     }
     return ret;
 }
@@ -1783,7 +1793,7 @@ std::string Message::managementInfoToString() const
     {
         auto& info = mgmtInfo();
         ret.append("User ").append(userid.toString())
-           .append((info.privilege == chatd::PRIV_NOTPRESENT) ? " removed" : " added")
+           .append((info.privilege == chatd::PRIV_RM) ? " removed" : " added")
            .append(" user ").append(info.target.toString());
         return ret;
     }

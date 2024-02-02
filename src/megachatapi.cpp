@@ -34,7 +34,8 @@ namespace karere
     APP_ALWAYS_EXPORT const std::string& getAppDir()
     {
         #ifdef __ANDROID__
-            return "/data/data/mega.privacy.android.app"; 
+            static std::string path("/data/data/mega.privacy.android.app");
+            return path;
         #else
             return karere::createAppDir();
         #endif
@@ -66,6 +67,11 @@ MegaChatHandle MegaChatSession::getPeerid() const
 MegaChatHandle MegaChatSession::getClientid() const
 {
     return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatSession::isSpeakAllowed() const
+{
+    return false;
 }
 
 bool MegaChatSession::hasAudio() const
@@ -134,12 +140,12 @@ int MegaChatSession::getTermCode() const
     return SESS_TERM_CODE_INVALID;
 }
 
-bool MegaChatSession::hasChanged(int changeType) const
+bool MegaChatSession::hasChanged(int) const
 {
     return false;
 }
 
-bool MegaChatSession::hasRequestSpeak() const
+bool MegaChatSession::hasPendingSpeakRequest() const
 {
     return false;
 }
@@ -164,6 +170,16 @@ bool MegaChatSession::isModerator() const
     return false;
 }
 
+bool MegaChatSession::isRecording() const
+{
+    return false;
+}
+
+bool MegaChatSession::hasSpeakPermission() const
+{
+    return false;
+}
+
 char* MegaChatSession::avFlagsToString() const
 {
     return NULL;
@@ -176,6 +192,26 @@ MegaChatCall::~MegaChatCall()
 MegaChatCall *MegaChatCall::copy()
 {
     return NULL;
+}
+
+const char* MegaChatCall::termcodeToString(int termcode)
+{
+    switch (termcode)
+    {
+        case TERM_CODE_INVALID:                   return "Invalid call termcode";
+        case TERM_CODE_HANGUP:                    return "Call has been finished by user";
+        case TERM_CODE_TOO_MANY_PARTICIPANTS:     return "It's not possible to join the call, there are too many participants";
+        case TERM_CODE_REJECT:                    return "Caller has hang up the call before nobody answered the call";
+        case TERM_CODE_ERROR:                     return "Call error has been received";
+        case TERM_CODE_NO_PARTICIPATE:            return "User has been removed from chatroom";
+        case TERM_CODE_TOO_MANY_CLIENTS:          return "Too many clients of same user connected";
+        case TERM_CODE_PROTOCOL_VERSION:          return "SFU protocol version error";
+        case TERM_CODE_KICKED:                    return "User has been kicked from call";
+        case TERM_CODE_WR_TIMEOUT:                return "Timed out waiting to be allowed from waiting room into call";
+        case TERM_CODE_CALL_DUR_LIMIT:            return "Free plan limitations. Call duration exceeded for call";
+        case TERM_CODE_CALL_USERS_LIMIT:          return "Free plan limitations. Call max different users exceeded for call";
+    }
+    return "Unknown call termcode";
 }
 
 int MegaChatCall::getStatus() const
@@ -218,6 +254,11 @@ bool MegaChatCall::hasChanged(int ) const
     return false;
 }
 
+bool MegaChatCall::hasSpeakPermission() const
+{
+    return false;
+}
+
 int64_t MegaChatCall::getDuration() const
 {
     return 0;
@@ -241,6 +282,21 @@ int MegaChatCall::getTermCode() const
 int MegaChatCall::getEndCallReason() const
 {
     return 0;
+}
+
+bool MegaChatCall::isSpeakRequestEnabled() const
+{
+    return false;
+}
+
+int MegaChatCall::getNotificationType() const
+{
+    return 0;
+}
+
+MegaChatHandle MegaChatCall::getAuxHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
 }
 
 bool MegaChatCall::isRinging() const
@@ -278,7 +334,7 @@ MegaHandleList *MegaChatCall::getPeeridParticipants() const
     return NULL;
 }
 
-MegaHandleList* MegaChatCall::getModerators() const
+const MegaHandleList* MegaChatCall::getModerators() const
 {
     return NULL;
 }
@@ -308,6 +364,11 @@ bool MegaChatCall::isOwnClientCaller() const
     return false;
 }
 
+unsigned int MegaChatCall::getSpeakerState() const
+{
+    return 0;
+}
+
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
@@ -318,7 +379,12 @@ bool MegaChatCall::isOnHold() const
     return false;
 }
 
-bool MegaChatCall::isSpeakAllow() const
+const char* MegaChatCall::getGenericMessage() const
+{
+    return NULL;
+}
+
+bool MegaChatCall::isSpeakAllowed() const
 {
     return false;
 }
@@ -328,9 +394,24 @@ int MegaChatCall::getNetworkQuality() const
     return 0;
 }
 
-bool MegaChatCall::hasRequestSpeak() const
+bool MegaChatCall::hasPendingSpeakRequest() const
 {
     return false;
+}
+
+int MegaChatCall::getWrJoiningState() const
+{
+    return 0;
+}
+
+const MegaChatWaitingRoom* MegaChatCall::getWaitingRoom() const
+{
+    return NULL;
+}
+
+const ::mega::MegaHandleList* MegaChatCall::getHandleList() const
+{
+    return NULL;
 }
 
 MegaChatApi::MegaChatApi(MegaApi *megaApi)
@@ -618,7 +699,12 @@ MegaChatListItemList* MegaChatApi::getChatListItemsByType(int type)
     return pImpl->getChatListItemsByType(type);
 }
 
-MegaChatListItemList *MegaChatApi::getChatListItems()
+MegaChatListItemList* MegaChatApi::getChatListItems(const int mask, const int filter) const
+{
+    return pImpl->getChatListItems(mask, filter);
+}
+
+MegaChatListItemList* MegaChatApi::getChatListItems()
 {
     return pImpl->getChatListItems();
 }
@@ -715,28 +801,24 @@ void MegaChatApi::createChatroomAndSchedMeeting(MegaChatPeerList* peerList, bool
                                            flags, rules, attributes, listener);
 }
 
-
-
-void MegaChatApi::createChatAndScheduledMeeting(bool isMeeting, bool publicChat, bool speakRequest, bool waitingRoom, bool openInvite,
-                                                 const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate, const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules, const char* attributes,
-                                                 MegaChatRequestListener* listener)
+void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
+                                         const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                         MegaChatRequestListener* listener)
 {
-    pImpl->createChatAndScheduledMeeting(MEGACHAT_INVALID_HANDLE /*chatid*/, MEGACHAT_INVALID_HANDLE /* schedId */, MEGACHAT_INVALID_HANDLE /*parentSchedId,*/,
-                                                 true /*createChat*/, isMeeting, publicChat, speakRequest, waitingRoom, openInvite,
-                                                 timezone, startDate, endDate, title, description, false /*cancelled*/, attributes, MEGACHAT_INVALID_TIMESTAMP /*overrides*/, flags, rules, listener);
+    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, cancelled, flags, rules, false /*updateChatTitle*/, listener);
 }
 
 void MegaChatApi::updateScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, const char* timezone, MegaChatTimeStamp startDate, MegaChatTimeStamp endDate,
-                                         const char* title, const char* description, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
-                                         MegaChatRequestListener* listener)
+                                         const char* title, const char* description, bool cancelled, const MegaChatScheduledFlags* flags, const MegaChatScheduledRules* rules,
+                                         const bool updateChatTitle, MegaChatRequestListener* listener)
 {
-    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description,flags, rules, listener);
+    pImpl->updateScheduledMeeting(chatid, schedId, timezone, startDate, endDate, title, description, cancelled, flags, rules, updateChatTitle, listener);
 }
 
 void MegaChatApi::updateScheduledMeetingOccurrence(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatTimeStamp overrides, MegaChatTimeStamp newStartDate,
-                                                   MegaChatTimeStamp newEndDate, bool newCancelled, MegaChatRequestListener* listener)
+                                                   MegaChatTimeStamp newEndDate, bool cancelled, MegaChatRequestListener* listener)
 {
-    pImpl->updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate,  newCancelled, listener);
+    pImpl->updateScheduledMeetingOccurrence(chatid, schedId, overrides, newStartDate, newEndDate,  cancelled, listener);
 }
 
 void MegaChatApi::removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener)
@@ -759,9 +841,14 @@ MegaChatScheduledMeetingList* MegaChatApi::getAllScheduledMeetings()
     return pImpl->getAllScheduledMeetings();
 }
 
+void MegaChatApi::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatTimeStamp since, MegaChatRequestListener* listener)
+{
+    pImpl->fetchScheduledMeetingOccurrencesByChat(chatid, since, MEGACHAT_INVALID_TIMESTAMP, listener);
+}
+
 void MegaChatApi::fetchScheduledMeetingOccurrencesByChat(MegaChatHandle chatid, MegaChatRequestListener* listener)
 {
-    pImpl->fetchScheduledMeetingOccurrencesByChat(chatid, MEGACHAT_INVALID_TIMESTAMP /*since*/, MEGACHAT_INVALID_TIMESTAMP /*until*/, 0 /*count*/, MegaChatScheduledMeeting::MIN_OCURRENCES, listener);
+    pImpl->fetchScheduledMeetingOccurrencesByChat(chatid, MEGACHAT_INVALID_TIMESTAMP /*since*/, MEGACHAT_INVALID_TIMESTAMP /*until*/, listener);
 }
 
 void MegaChatApi::createPublicChat(MegaChatPeerList *peers, const char *title, MegaChatRequestListener *listener)
@@ -1041,14 +1128,29 @@ char *MegaChatApi::getVideoDeviceSelected()
     return pImpl->getVideoDeviceSelected();
 }
 
+void MegaChatApi::startCallInChat(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, const bool notRinging, MegaChatRequestListener* listener)
+{
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, notRinging, listener);
+}
+
 void MegaChatApi::startChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-    pImpl->startChatCall(chatid, enableVideo, enableAudio, MEGACHAT_INVALID_HANDLE /*schedId*/, listener);
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, false/*notRinging*/, listener);
 }
 
 void MegaChatApi::startChatCallNoRinging(MegaChatHandle chatid, MegaChatHandle schedId, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
 {
-   pImpl->startChatCall(chatid, enableVideo, enableAudio, schedId, listener);
+   pImpl->startChatCall(chatid, enableVideo, enableAudio, schedId != MEGACHAT_INVALID_HANDLE, listener);
+}
+
+void MegaChatApi::startMeetingInWaitingRoomChat(const MegaChatHandle chatid, const MegaChatHandle schedIdWr, const bool enableVideo, const bool enableAudio, MegaChatRequestListener *listener)
+{
+    pImpl->startChatCall(chatid, enableVideo, enableAudio, schedIdWr != MEGACHAT_INVALID_HANDLE, listener);
+}
+
+void MegaChatApi::ringIndividualInACall(const MegaChatHandle chatId, const MegaChatHandle userId, const int ringTimeout, MegaChatRequestListener* listener)
+{
+    pImpl->ringIndividualInACall(chatId, userId, ringTimeout, listener);
 }
 
 void MegaChatApi::answerChatCall(MegaChatHandle chatid, bool enableVideo, bool enableAudio, MegaChatRequestListener *listener)
@@ -1094,6 +1196,36 @@ void MegaChatApi::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clie
 void MegaChatApi::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
 {
     pImpl->removeSpeaker(chatid, clientId, listener);
+}
+
+void MegaChatApi::pushUsersIntoWaitingRoom(MegaChatHandle chatid, MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    pImpl->pushUsersIntoWaitingRoom(chatid, users, all, listener);
+}
+
+void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users, MegaChatRequestListener* listener)
+{
+    pImpl->kickUsersFromCall(chatid, users, listener);
+}
+
+void MegaChatApi::setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener)
+{
+    pImpl->setLimitsInCall(chatid, callDur, numUsers, numClientsPerUser, numClients, listener);
+}
+
+void MegaChatApi::mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener)
+{
+    pImpl->mutePeers(chatid, clientId, listener);
+}
+
+void MegaChatApi::rejectCall(const MegaChatHandle callId, MegaChatRequestListener* listener)
+{
+    pImpl->rejectCall(callId, listener);
+}
+
+void MegaChatApi::allowUsersJoinCall(MegaChatHandle chatid, const MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
+{
+    pImpl->allowUsersJoinCall(chatid, users, all, listener);
 }
 
 void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener)
@@ -1151,9 +1283,9 @@ int MegaChatApi::getMaxCallParticipants()
     return pImpl->getMaxCallParticipants();
 }
 
-int MegaChatApi::getMaxVideoCallParticipants()
+int MegaChatApi::getMaxSupportedVideoCallParticipants() const
 {
-    return pImpl->getMaxVideoCallParticipants();
+    return pImpl->getMaxSupportedVideoCallParticipants();
 }
 
 bool MegaChatApi::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
@@ -1255,6 +1387,16 @@ void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatH
 void MegaChatApi::setSFUid(int sfuid)
 {
     pImpl->setSFUid(sfuid);
+}
+
+int MegaChatApi::getCurrentInputVideoTracksLimit() const
+{
+    return pImpl->getCurrentInputVideoTracksLimit();
+}
+
+bool MegaChatApi::setCurrentInputVideoTracksLimit(const int numInputVideoTracks)
+{
+    return pImpl->setCurrentInputVideoTracksLimit(numInputVideoTracks);
 }
 #endif
 
@@ -1727,7 +1869,7 @@ void MegaChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChatApi* /*a
 
 }
 
-void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle /*chatid*/)
+void MegaChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatHandle /*chatid*/, bool /*append*/)
 {
 
 }
@@ -2122,12 +2264,27 @@ int MegaChatMessage::getTermCode() const
     return 0;
 }
 
-bool MegaChatMessage::hasSchedMeetingChanged(unsigned int change) const
+bool MegaChatMessage::hasSchedMeetingChanged(unsigned int) const
 {
     return false;
 }
 
 const MegaStringList* MegaChatMessage::getStringList() const
+{
+    return NULL;
+}
+
+const MegaStringListMap* MegaChatMessage::getStringListMap() const
+{
+    return NULL;
+}
+
+const MegaStringList* MegaChatMessage::getScheduledMeetingChange(const unsigned int /*changeType*/) const
+{
+    return NULL;
+}
+
+const MegaChatScheduledRules* MegaChatMessage::getScheduledMeetingRules() const
 {
     return NULL;
 }
@@ -2320,8 +2477,8 @@ MegaChatScheduledFlags::~MegaChatScheduledFlags()
 }
 
 void MegaChatScheduledFlags::reset()                                {}
-void MegaChatScheduledFlags::setEmailsDisabled(bool /*enabled*/)    {}
-bool MegaChatScheduledFlags::emailsDisabled() const                 { return false; }
+void MegaChatScheduledFlags::setSendEmails(bool /*enabled*/)        {}
+bool MegaChatScheduledFlags::sendEmails() const                     { return false; }
 bool MegaChatScheduledFlags::isEmpty() const                        { return false; }
 
 /* Class MegaChatScheduledRules */
@@ -2334,15 +2491,21 @@ MegaChatScheduledRules* MegaChatScheduledRules::createInstance(int freq,
 {
     return new MegaChatScheduledRulesPrivate(freq, interval, until, byWeekDay, byMonthDay, byMonthWeekDay);
 }
-
-MegaChatScheduledRules::~MegaChatScheduledRules()                               {}
 MegaChatScheduledRules* MegaChatScheduledRules::copy() const                    { return NULL; }
+MegaChatScheduledRules::~MegaChatScheduledRules()                               {}
+void MegaChatScheduledRules::setFreq(int)                                       {}
+void MegaChatScheduledRules::setInterval(int)                                   {}
+void MegaChatScheduledRules::setUntil(MegaChatTimeStamp)                        {}
+void MegaChatScheduledRules::setByWeekDay(const ::mega::MegaIntegerList*)       {}
+void MegaChatScheduledRules::setByMonthDay(const ::mega::MegaIntegerList*)      {}
+void MegaChatScheduledRules::setByMonthWeekDay(const ::mega::MegaIntegerMap*)   {}
+
 int MegaChatScheduledRules::freq() const                                        { return 0; }
 int MegaChatScheduledRules::interval() const                                    { return 0; }
 MegaChatTimeStamp MegaChatScheduledRules::until() const                         { return MEGACHAT_INVALID_TIMESTAMP; }
-const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay() const          { return nullptr; }
-const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay() const         { return nullptr; }
-const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay() const      { return nullptr; }
+const mega::MegaIntegerList* MegaChatScheduledRules::byWeekDay() const          { return NULL; }
+const mega::MegaIntegerList* MegaChatScheduledRules::byMonthDay() const         { return NULL; }
+const mega::MegaIntegerMap* MegaChatScheduledRules::byMonthWeekDay() const      { return NULL; }
 bool MegaChatScheduledRules::isValidFreq(int freq)                              { return MegaChatScheduledRulesPrivate::isValidFreq(freq);}
 bool MegaChatScheduledRules::isValidInterval(int interval)                      { return MegaChatScheduledRulesPrivate::isValidInterval(interval);}
 
@@ -2377,14 +2540,26 @@ MegaChatTimeStamp MegaChatScheduledMeeting::overrides() const                   
 MegaChatScheduledRules* MegaChatScheduledMeeting::rules() const                 { return NULL; }
 MegaChatScheduledFlags* MegaChatScheduledMeeting::flags() const                 { return NULL; }
 
+int MegaChatScheduledMeeting::isValidTitleLength(const char* title)
+{
+    return title && strlen(title) > 0 && strlen(title) <= MegaChatScheduledMeeting::MAX_TITLE_LENGTH;
+}
+
+int MegaChatScheduledMeeting::isValidDescriptionLength(const char* desc)
+{
+    return !desc || strlen(desc) <= MegaChatScheduledMeeting::MAX_DESC_LENGTH;
+}
+
 /* Class MegaChatScheduledMeetingOccurr */
 MegaChatScheduledMeetingOccurr::~MegaChatScheduledMeetingOccurr()                     {}
 int MegaChatScheduledMeetingOccurr::cancelled() const                                 { return 0; }
 MegaChatHandle MegaChatScheduledMeetingOccurr::schedId() const                        { return MEGACHAT_INVALID_HANDLE; }
+MegaChatHandle MegaChatScheduledMeetingOccurr::parentSchedId() const                  { return MEGACHAT_INVALID_HANDLE; }
 MegaChatScheduledMeetingOccurr* MegaChatScheduledMeetingOccurr::copy() const          { return NULL; }
 const char* MegaChatScheduledMeetingOccurr::timezone() const                          { return NULL; }
 MegaChatTimeStamp MegaChatScheduledMeetingOccurr::startDateTime() const               { return MEGACHAT_INVALID_TIMESTAMP; }
 MegaChatTimeStamp MegaChatScheduledMeetingOccurr::endDateTime() const                 { return MEGACHAT_INVALID_TIMESTAMP; }
+MegaChatTimeStamp MegaChatScheduledMeetingOccurr::overrides() const                   { return MEGACHAT_INVALID_TIMESTAMP; }
 
 /* Class MegaChatScheduledMeetingList */
 MegaChatScheduledMeetingList* MegaChatScheduledMeetingList::createInstance()

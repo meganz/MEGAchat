@@ -133,12 +133,13 @@ void ChatListItemController::updateScheduledMeetingOccurrence()
                                                    overrides,
                                                    newStartDate,
                                                    newEndDate,
-                                                   cancelled == 1 ? true : false /*newCancelled*/);
+                                                   cancelled == 1 ? true : false /*cancelled*/);
 }
 
 void ChatListItemController::updateScheduledMeeting()
 {
     // this action won't generate a child scheduled meeting
+    const std::string updateChatTitle = mMainWindow->mApp->getText("Update chatroom title [y/n]: ", true);
     std::string schedB64 = mMainWindow->mApp->getText("Sched meeting Id we want to modify: ", true);
     MegaChatHandle schedId = mMegaApi->base64ToUserHandle(schedB64.c_str());
     std::unique_ptr<MegaChatScheduledMeeting> sm (mMegaChatApi->getScheduledMeeting(mItemId, schedId));
@@ -149,6 +150,7 @@ void ChatListItemController::updateScheduledMeeting()
     MegaChatTimeStamp newStartDate = atoi(mMainWindow->mApp->getText("New StartDate: ", true).c_str());
     MegaChatTimeStamp newEndDate = atoi(mMainWindow->mApp->getText("New EndDate: ", true).c_str());
     std::string newTz = mMainWindow->mApp->getText("New TimeZone: ", true);
+    int cancelled = atoi(mMainWindow->mApp->getText("Set scheduled meeting as cancelled? Y=1 | N =0", true).c_str());
 
     mMegaChatApi->updateScheduledMeeting(mItemId, schedId,
                                          newTz.empty() ? nullptr : newTz.c_str(),
@@ -156,7 +158,8 @@ void ChatListItemController::updateScheduledMeeting()
                                          newEndDate,
                                          newTitle.empty() ? nullptr : newTitle.c_str(),
                                          newDesc.empty() ? nullptr : newDesc.c_str(),
-                                         sm->flags(), sm->rules());
+                                         cancelled, sm->flags(), sm->rules(),
+                                         updateChatTitle == "y");
 }
 void ChatListItemController::removeScheduledMeeting()
 {
@@ -172,7 +175,21 @@ void ChatListItemController::fetchScheduledMeeting()
 
 void ChatListItemController::fetchScheduledMeetingEvents()
 {
-    mMegaApi->fetchScheduledMeetingEvents(mItemId, MEGACHAT_INVALID_TIMESTAMP, MEGACHAT_INVALID_TIMESTAMP, 0);
+    MegaChatTimeStamp since = atoi(mMainWindow->mApp->getText("Date from which we want to get occurrences (Unix timestamp)", true).c_str());
+    mMegaChatApi->fetchScheduledMeetingOccurrencesByChat(mItemId, since);
+}
+
+void ChatListItemController::endCall()
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi->getChatCall(mItemId));
+    if (call)
+    {
+        mMegaChatApi->endChatCall(call->getCallId());
+    }
+#else
+    mMainWindow->mApp->noFeatureErr();
+#endif
 }
 
 void ChatListItemController::setTitle()
@@ -248,6 +265,28 @@ void ChatListItemController::onSetSpeakRequest(bool enable)
 void ChatListItemController::onSetWaitingRoom(bool enable)
 {
     mMegaChatApi->setWaitingRoom(mItemId, enable);
+}
+
+void ChatListItemController::onWaitingRoomCall()
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    /* schedId:
+     * - If valid, redirect users to waiting room and don't ring
+     * - If not valid, bypass waiting room and ring
+     */
+    std::string schedIdStr = mMainWindow->mApp->getText("Get schedId (valid: redirect wr and don't ring | invalid: bypass wr and ring)");
+    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
+    mMegaChatApi->startMeetingInWaitingRoomChat(mItemId, schedId, false, false);
+#endif
+}
+
+void ChatListItemController::onAudioCallNoRingBtn()
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    std::string schedIdStr = mMainWindow->mApp->getText("Get scheduled meeting id");
+    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
+    mMegaChatApi->startChatCallNoRinging(mItemId, schedId, false, false);
+#endif
 }
 
 void ChatListItemController::queryChatLink()

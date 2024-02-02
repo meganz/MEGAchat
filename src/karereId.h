@@ -21,6 +21,7 @@ public:
     std::string toString(size_t len = sizeof(uint64_t)) const { return base64urlencode(&val, len); }
     bool isValid() const { return val != inval(); }
     bool isNull() const { return val == null(); }
+    Id(const Id& from) : val(from.val) {}
     Id(const uint64_t& from=0): val(from){}
     explicit Id(const char* b64, size_t b64len=0) { base64urldecode(b64, b64len ? b64len : strlen(b64), &val, sizeof(val)); }
     bool operator==(const Id& other) const { return val == other.val; }
@@ -40,19 +41,6 @@ public:
 };
 
 
-//for exception message purposes
-static inline std::string operator+(const char* str, const Id& id)
-{
-    std::string result(str);
-    result.append(id.toString());
-    return result;
-}
-static inline std::string& operator+(std::string&& str, const Id& id)
-{
-    str.append(id.toString());
-    return str;
-}
-
 struct SetOfIds: public std::set<karere::Id>
 {
     typedef std::set<karere::Id> Base;
@@ -62,7 +50,7 @@ struct SetOfIds: public std::set<karere::Id>
     SetOfIds(Base&& other): Base(std::move(other)){}
     void save(Buffer& buf)
     {
-        for (auto id: *this)
+        for (auto& id: *this)
             buf.append(id.val);
     }
     void load(const Buffer& buf)
@@ -75,7 +63,7 @@ struct SetOfIds: public std::set<karere::Id>
             emplace(Buffer::alignSafeRead<uint64_t>(pos));
         }
     }
-    bool has(Id id) { return find(id) != end(); }
+    bool has(const Id& id) { return find(id) != end(); }
 };
 }
 

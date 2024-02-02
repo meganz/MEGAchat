@@ -173,7 +173,7 @@ class MainWindow :
 
         // MegaChatScheduledMeetingListener callbacks
         void onChatSchedMeetingUpdate(megachat::MegaChatApi* api, megachat::MegaChatScheduledMeeting* sm);
-        void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid);
+        void onSchedMeetingOccurrencesUpdate(megachat::MegaChatApi* api, megachat::MegaChatHandle chatid, bool append);
 
 #endif
         MegaChatApplication* getApp() const;
@@ -224,6 +224,7 @@ class MainWindow :
         void onTwoFactorGetCode();
         void onTwoFactorDisable();
         void onTwoFactorCheck();
+        void onPrintUseralerts();
         void onPrintMyInfo();
         void on_mLogout_clicked();
         void onCatchUp();

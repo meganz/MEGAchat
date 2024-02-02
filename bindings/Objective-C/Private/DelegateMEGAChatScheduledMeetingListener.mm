@@ -26,12 +26,12 @@ void DelegateMEGAChatScheduledMeetingListener::onChatSchedMeetingUpdate(MegaChat
     }
 }
 
-void DelegateMEGAChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi *api, MegaChatHandle chatid) {
-    if (listener != nil && [listener respondsToSelector:@selector(onSchedMeetingOccurrencesUpdate:chatId:)]) {
+void DelegateMEGAChatScheduledMeetingListener::onSchedMeetingOccurrencesUpdate(MegaChatApi *api, MegaChatHandle chatid, bool append) {
+    if (listener != nil && [listener respondsToSelector:@selector(onSchedMeetingOccurrencesUpdate:chatId:append:)]) {
         MEGAChatSdk *tempMEGAChatSdk = this->megaChatSdk;
         id<MEGAChatScheduledMeetingDelegate>tempListener = this->listener;
         dispatch(this->queueType, ^{
-            [tempListener onSchedMeetingOccurrencesUpdate:tempMEGAChatSdk chatId:chatid];
+            [tempListener onSchedMeetingOccurrencesUpdate:tempMEGAChatSdk chatId:chatid append:append];
         });
     }
 }

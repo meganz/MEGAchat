@@ -24,6 +24,7 @@ CONFIG += USE_MEGAAPI
 CONFIG += USE_MEDIAINFO
 CONFIG += ENABLE_CHAT
 CONFIG += USE_WEBRTC
+CONFIG += ENABLE_WERROR_COMPILATION
 
 TEMPLATE = app
 
@@ -56,6 +57,9 @@ else {
 
 # include the configuration for MEGA SDK
 include(../../third-party/mega/bindings/qt/sdk.pri)
+contains(QMAKE_CXXFLAGS, -std=c++11) {
+    QMAKE_CXXFLAGS -= -std=c++11
+}
 
 MEGACHAT_BASE_PATH = $$PWD/../..
 
@@ -137,7 +141,6 @@ HEADERS  += asyncTest-framework.h \
             rtcModule/rtcmPrivate.h \
             rtcModule/webrtc.h \
             rtcModule/webrtcAdapter.h \
-            rtcModule/webrtcAsyncWaiter.h \
             rtcModule/webrtcPrivate.h \
             rtcModule/rtcStats.h \
             sfu.h \

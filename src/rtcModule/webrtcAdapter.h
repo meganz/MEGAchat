@@ -6,12 +6,22 @@
 #include "karereCommon.h" //only for std::string on android
 #include "rtcmPrivate.h"
 #include "rtcCrypto.h"
+// disable warnings in webrtc headers
+// the same pragma works with both GCC and Clang
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wconversion"
+#pragma GCC diagnostic ignored "-Wdeprecated-copy"
+#endif
 #include <api/peer_connection_interface.h>
 #include <pc/audio_track.h>
 #include <api/jsep_session_description.h>
 #include <media/base/video_broadcaster.h>
 #include <modules/video_capture/video_capture.h>
 #include <rtc_base/ref_counter.h>
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 #include "sfu.h"
 
 
@@ -26,12 +36,6 @@ typedef struct objc_object RTCCameraVideoCapturer;
 #ifdef __ANDROID__
 #include <sdk/android/native_api/video/video_source.h>
 #endif
-
-namespace std
-{
-    template< bool B, class T = void >
-    using enable_if_t = typename enable_if<B,T>::type;
-}
 
 namespace artc
 {
@@ -199,7 +203,7 @@ protected:
     struct Observer: public webrtc::PeerConnectionObserver,
                      public karere::DeleteTrackable    // required to use weakHandle() at RTCM_DO_CALLBACK()
     {
-        Observer(C& handler, void* appCtx):mHandler(handler), mAppCtx(appCtx){}
+        Observer(C& handler, void* appCtx) : mAppCtx(appCtx), mHandler(handler) {}
         void OnAddStream(scoped_refptr<webrtc::MediaStreamInterface> stream) override
         {
             tspMediaStream spStream(stream);
@@ -286,7 +290,7 @@ public:
       SdpSetLocalCallbacks::PromiseType promise;
       auto observer= rtc::scoped_refptr<SdpSetLocalCallbacks>(new SdpSetLocalCallbacks(promise, mObserver->mAppCtx));
       observer->AddRef();
-      get()->SetLocalDescription(move(desc), observer);
+      get()->SetLocalDescription(std::move(desc), observer);
       return promise;
   }
 
@@ -296,7 +300,7 @@ public:
       SdpSetRemoteCallbacks::PromiseType promise;
       auto observer = rtc::scoped_refptr<SdpSetRemoteCallbacks>(new SdpSetRemoteCallbacks(promise, mObserver->mAppCtx));
       observer->AddRef();
-      get()->SetRemoteDescription(move(desc), observer);
+      get()->SetRemoteDescription(std::move(desc), observer);
       return promise;
   }
 };
@@ -451,9 +455,9 @@ public:
     void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override;
     void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override;
 
-    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override {}
 
-    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>* sink) override {}
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override {}
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 

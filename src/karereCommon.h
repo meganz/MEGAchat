@@ -13,6 +13,24 @@ typedef uint32_t Cid_t;         // 24-bit client id (CID) for meetings (identifi
 typedef uint64_t IvStatic_t;    // IV static part (8 bytes)
 typedef uint32_t Ctr_t;         // packet Ctr (4 bytes)
 
+enum karereTracks: int8_t
+{
+    kUndefinedTrack = -1,
+    kVthumbTrack    = 0,
+    kHiResTrack     = 1,
+    kAudioTrack     = 2,
+};
+
+#ifndef KARERE_DISABLE_WEBRTC
+enum KarereRtcConstant
+{
+    kMinCallVideoSenders = 1,              // minimum number of simultaneous video tracks the call supports.
+    kMaxCallVideoSenders = 24,             // maximum number of simultaneous video tracks the call supports.
+};
+#endif
+
+constexpr unsigned int K_INVALID_CID = 0;
+
 /** @cond PRIVATE */
 
 #ifndef KARERE_SHARED
@@ -106,11 +124,13 @@ public:
 
                     // audio flags
                     kAudio          = 0x01,
+                    kMuteAudio      = kAudio,
 
                     // camera flags
                     kCameraLowRes   = 0x02,
                     kCameraHiRes    = 0x04,
                     kCamera         = kCameraLowRes | kCameraHiRes,
+                    kMuteVideo      = kCameraLowRes,
 
                     // screen share flags
                     kScreenLowRes   = 0x08,
@@ -121,6 +141,9 @@ public:
                     kLowResVideo    = kCameraLowRes | kScreenLowRes,
                     kHiResVideo     = kCameraHiRes  | kScreenHiRes,
                     kVideo          = kLowResVideo  | kHiResVideo,
+
+                    // Call recording flags
+                    kRecording      = 0x40,
 
                     // on hold flags
                     kOnHold         = 0x80,
@@ -135,6 +158,7 @@ public:
     void add(uint8_t val)       { mFlags = mFlags | val; }
     void remove(uint8_t val)    { mFlags = static_cast<uint8_t>(mFlags & ~val); }
     void setOnHold(bool enable) { enable ? add(kOnHold) : remove(kOnHold); }
+    void setRecording(bool enable)  { enable ? add(kRecording) : remove(kRecording); }
 
     // getters
     uint8_t value() const                   { return mFlags; }
@@ -157,8 +181,15 @@ public:
     bool videoHiRes() const                 { return mFlags & kHiResVideo; }
     bool videoLowRes() const                { return mFlags & kLowResVideo; }
 
+    // is recording call flags getters
+    bool isRecording() const                { return mFlags & kRecording; }
+
     // on hold flags getters
     bool isOnHold() const                   { return mFlags & kOnHold; }
+
+    // mute flags getters
+    bool audioMuted() const                 { return mFlags & kMuteAudio; }
+    bool videoMuted() const                 { return mFlags & kMuteVideo; }
 
     // check methods
     operator bool() const           { return mFlags != 0; }
@@ -180,6 +211,8 @@ public:
             result+= "sL";
         if (mFlags & kScreenHiRes)
             result+= "sH";
+        if (mFlags & kRecording)
+            result+= "r";
         if (mFlags & kOnHold)
             result+='h';
         if (result.empty())

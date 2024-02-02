@@ -20,8 +20,8 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
     ui->setupUi(this);
 
     int unreadCount = item->getUnreadCount();
-    onUnreadCountChanged(unreadCount);
-    onPreviewersCountChanged(item->getNumPreviewers());
+    doOnUnreadCountChanged(unreadCount);
+    doOnPreviewersCountChanged(item->getNumPreviewers());
 
     QString text = NULL;
     if (item->isArchived())
@@ -90,7 +90,7 @@ ChatItemWidget::ChatItemWidget(MainWindow *mainWindow, const megachat::MegaChatL
     }
 
     int status = mMegaChatApi->getChatConnectionState(mChatId);
-    this->onlineIndicatorUpdate(status);
+    doOnlineIndicatorUpdate(status);
 }
 
 void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const char *author)
@@ -255,6 +255,7 @@ void ChatItemWidget::updateToolTip(const megachat::MegaChatListItem *item, const
             lastMessage.append("User ").append(senderHandle)
                .append(" has started a call");
         }
+        // fallthrough
         default:
             lastMessage = item->getLastMessage();
             break;
@@ -348,7 +349,7 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
     if(msgUserId == mMegaChatApi->getMyUserHandle())
     {
         msgAuthor = new char[3];
-        strcpy(msgAuthor, "Me");
+        strncpy(msgAuthor, "Me", 3);
     }
     else
     {
@@ -356,7 +357,15 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
         if (chatRoom)
         {
             const char *msg =  mMegaChatApi->getUserFirstnameFromCache(msgUserId);
+
+// disable warnings in Release build
+#if defined(__GNUC__) && !defined(__APPLE__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
             size_t len = msg ? strlen(msg) : 0;
+
             if (len)
             {
                 msgAuthor = new char[len + 1];
@@ -364,13 +373,16 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
                 msgAuthor[len] = '\0';
                 delete [] msg;
             }
+#if defined(__GNUC__) && !defined(__APPLE__)
+#pragma GCC diagnostic pop
+#endif
             delete chatRoom;
         }
     }
     return msgAuthor;
 }
 
-void ChatItemWidget::onUnreadCountChanged(int count)
+void ChatItemWidget::doOnUnreadCountChanged(int count)
 {
     if(count < 0)
     {
@@ -387,7 +399,7 @@ void ChatItemWidget::onUnreadCountChanged(int count)
     ui->mUnreadIndicator->adjustSize();
 }
 
-void ChatItemWidget::onPreviewersCountChanged(int count)
+void ChatItemWidget::doOnPreviewersCountChanged(int count)
 {
     ui->mPreviewersIndicator->setText(QString::number(count));
     ui->mPreviewersIndicator->setVisible(count != 0);
@@ -419,7 +431,7 @@ void ChatItemWidget::setWidgetItem(QListWidgetItem *item)
     mListWidgetItem = item;
 }
 
-void ChatItemWidget::onlineIndicatorUpdate(int newState)
+void ChatItemWidget::doOnlineIndicatorUpdate(int newState)
 {
     ui->mOnlineIndicator->setStyleSheet(
         QString("background-color: ")+gOnlineIndColors[newState]+
@@ -441,6 +453,13 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     QMenu menu(this);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
 
+    QMenu* callsMenu = menu.addMenu("Call's management");
+    auto actAdhocCall = callsMenu->addAction(tr("Waiting Room Call"));
+    connect(actAdhocCall, SIGNAL(triggered()), mController, SLOT(onWaitingRoomCall()));
+
+    auto actschedCall = callsMenu->addAction(tr("Sched meeting Call"));
+    connect(actschedCall, SIGNAL(triggered()), mController, SLOT(onAudioCallNoRingBtn()));
+
     QMenu *roomMenu = menu.addMenu("Room's management");
 
     auto actLeave = roomMenu->addAction(tr("Leave chat"));
@@ -458,8 +477,8 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     auto actFetchSchedMeeting = roomMenu->addAction(tr("Fetch scheduled meetings"));
     connect(actFetchSchedMeeting, SIGNAL(triggered()), mController, SLOT(fetchScheduledMeeting()));
 
-    auto actFetchSchedMeetingEvents = roomMenu->addAction(tr("Fetch scheduled meetings occurrences"));
-    connect(actFetchSchedMeetingEvents, SIGNAL(triggered()), mController, SLOT(fetchScheduledMeetingEvents()));
+    auto actFetchSchedMeetingEventsAsync = roomMenu->addAction(tr("Fetch scheduled meetings occurrences (Async)"));
+    connect(actFetchSchedMeetingEventsAsync, &QAction::triggered, mController, [=](){mController->fetchScheduledMeetingEvents();});
 
     auto actTruncate = roomMenu->addAction(tr("Truncate chat"));
     connect(actTruncate, SIGNAL(triggered()), mController, SLOT(truncateChat()));
@@ -498,6 +517,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     auto actTopic = roomMenu->addAction(tr("Set title"));
     connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));
+
+    auto actEndCall = roomMenu->addAction(tr("End call for all"));
+    connect(actEndCall, SIGNAL(triggered()), mController, SLOT(endCall()));
 
     auto actArchive = roomMenu->addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), mController, SLOT(archiveChat(bool)));
@@ -620,7 +642,7 @@ void ChatItemWidget::onResquestMemberInfo()
     userList = mega::MegaHandleList::createInstance();
     megachat::MegaChatRoom* room = mMegaChatApi->getChatRoom(mChatId);
     int i = 0;
-    for (i = mIndexMemberRequested; i < (mIndexMemberRequested + MEMBERS_REQUESTED) && i < room->getPeerCount(); i++)
+    for (i = mIndexMemberRequested; i < (mIndexMemberRequested + MEMBERS_REQUESTED) && i < static_cast<int>(room->getPeerCount()); i++)
     {
         userList->addMegaHandle(room->getPeerHandle(i));
     }

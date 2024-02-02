@@ -157,7 +157,7 @@ public:
     using MutexGuard = std::lock_guard<Mutex>;
 
     WebsocketsIO(Mutex &mutex, ::mega::MegaApi *megaApi, void *ctx);
-    virtual ~WebsocketsIO();
+    ~WebsocketsIO() override;
 
     // apart from the lambda function to be executed, since it needs to be executed on a marshall call,
     // the appCtx is also required for some callbacks, so Msg wraps them both

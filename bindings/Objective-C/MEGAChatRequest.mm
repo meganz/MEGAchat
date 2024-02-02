@@ -6,6 +6,8 @@
 #import "MEGAChatPeerList+init.h"
 #import "MEGANodeList+init.h"
 #import "MEGAHandleList+init.h"
+#import "MEGAChatScheduledMeetingOccurrence+init.h"
+#import "MEGAChatScheduledMeeting+init.h"
 
 using namespace megachat;
 
@@ -112,8 +114,38 @@ using namespace megachat;
     return self.megaChatRequest->getMegaHandleList() ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleList()->copy() cMemoryOwn:YES] : nil;
 }
 
-- (MEGAHandleList *)megaHandleListForChat:(uint64_t)chatId {
-    return self.megaChatRequest->getMegaHandleListByChat(chatId) ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatRequest->getMegaHandleListByChat(chatId)->copy() cMemoryOwn:YES] : nil;
+- (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingList {
+    if (!self.megaChatRequest) return nil;
+    MegaChatScheduledMeetingList *chatScheduledMeetingList = self.megaChatRequest->getMegaChatScheduledMeetingList();
+    if (!chatScheduledMeetingList) return nil;
+    NSMutableArray<MEGAChatScheduledMeeting *> *scheduledMeetings = [NSMutableArray arrayWithCapacity:chatScheduledMeetingList->size()];
+
+    for (int i = 0; i < chatScheduledMeetingList->size(); i++)
+    {
+        MegaChatScheduledMeeting *megaChatScheduledMeeting = chatScheduledMeetingList->at(i)->copy();
+
+        MEGAChatScheduledMeeting *scheduledMeeting = [[MEGAChatScheduledMeeting alloc] initWithMegaChatScheduledMeeting:megaChatScheduledMeeting cMemoryOwn:YES];
+        [scheduledMeetings addObject:scheduledMeeting];
+    }
+    
+    return scheduledMeetings;
+}
+
+- (NSArray<MEGAChatScheduledMeetingOccurrence *> *)chatScheduledMeetingOccurrences {
+    if (!self.megaChatRequest) return [NSArray new];
+    MegaChatScheduledMeetingOccurrList *scheduledMeetingOccurrList = self.megaChatRequest->getMegaChatScheduledMeetingOccurrList();
+    if(!scheduledMeetingOccurrList) return [NSArray new];
+    NSMutableArray<MEGAChatScheduledMeetingOccurrence *> *scheduledMeetingsOccurrences = [NSMutableArray arrayWithCapacity:scheduledMeetingOccurrList->size()];
+
+    for (int i = 0; i < scheduledMeetingOccurrList->size(); i++)
+    {
+        MegaChatScheduledMeetingOccurr *megaChatScheduledMeetingOccurr = scheduledMeetingOccurrList->at(i)->copy();
+
+        MEGAChatScheduledMeetingOccurrence *scheduledMeetingOccurrence = [[MEGAChatScheduledMeetingOccurrence alloc] initWithMegaChatScheduledMeetingOccurrence: megaChatScheduledMeetingOccurr cMemoryOwn:YES];
+        [scheduledMeetingsOccurrences addObject:scheduledMeetingOccurrence];
+    }
+    
+    return scheduledMeetingsOccurrences;
 }
 
 @end

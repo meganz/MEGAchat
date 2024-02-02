@@ -1,6 +1,7 @@
 #ifndef TRACKDELETE_H
 #define TRACKDELETE_H
 #include <atomic>
+#include <stdexcept>
 namespace karere
 {
 /** @brief Used to keep track of deletion of a lambda-captured object
@@ -45,7 +46,7 @@ public:
     Handle getDelTracker() const { return Handle(mSharedDataHandle.mData); }
     Handle weakHandle() const { return getDelTracker(); }
     DeleteTrackable(): mSharedDataHandle(new SharedData()){}
-    ~DeleteTrackable() { mSharedDataHandle.mData->mDeleted = true; }
+    virtual ~DeleteTrackable() { mSharedDataHandle.mData->mDeleted = true; }
 };
 
 template <class T>

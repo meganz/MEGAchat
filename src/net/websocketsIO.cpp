@@ -52,14 +52,14 @@ void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preas
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
-    WEBSOCKETS_LOG_DEBUG("Received %d bytes", len);
+    WEBSOCKETS_LOG_DEBUG("Received %lu bytes", len);
     client->wsHandleMsgCb(data, len);
 }
 
 void WebsocketsClientImpl::wsSendMsgCb(const char *data, size_t len)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
-    WEBSOCKETS_LOG_DEBUG("Sent %d bytes", len);
+    WEBSOCKETS_LOG_DEBUG("Sent %lu bytes", len);
     client->wsSendMsgCb(data, len);
 }
 
@@ -102,7 +102,7 @@ bool WebsocketsClient::wsConnect(WebsocketsIO *websocketIO, const char *ip, cons
     if (ctx)
     {
         WEBSOCKETS_LOG_ERROR("Valid context at connect()");
-        websocketIO->mApi.sdk.sendEvent(99010, "A valid previous context existed upon new wsConnect");
+        websocketIO->mApi.sdk.sendEvent(99010, "A valid previous context existed upon new wsConnect", false, static_cast<const char*>(nullptr));
         delete ctx;
     }
 
@@ -131,7 +131,7 @@ bool WebsocketsClient::wsSendMessage(char *msg, size_t len)
 
     assert(thread_id == std::this_thread::get_id());    
     
-    WEBSOCKETS_LOG_DEBUG("Sending %d bytes", len);
+    WEBSOCKETS_LOG_DEBUG("Sending %lu bytes", len);
     bool result = ctx->wsSendMessage(msg, len);
     if (!result)
     {

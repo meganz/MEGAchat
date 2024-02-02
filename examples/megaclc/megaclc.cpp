@@ -60,11 +60,11 @@ namespace c = ::megachat;
 namespace k = ::karere;
 
 using m::SimpleLogger;
-using m::logFatal;
 using m::logError;
 using m::logWarning;
 using m::logInfo;
 using m::logDebug;
+using m::logMax;
 
 #ifndef WIN32
 // avoid warning C4996 : 'strdup' : The POSIX name for this item is deprecated.Instead, use the ISO Cand C++ conformant name : _strdup.See online help for details.
@@ -102,7 +102,7 @@ std::mutex g_reviewPublicChatOutFileLogsMutex;
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLogs;
 class ReviewPublicChat_GetUserEmail_Listener;
 
-static const int MAX_NUMBER_MESSAGES = 300;
+static const int MAX_NUMBER_MESSAGES = 100; // chatd doesn't allow more than 256
 
 struct ConsoleLock
 {
@@ -267,7 +267,7 @@ public:
     }
 
     bool loggedStart = false;
-    void onTransferStart(m::MegaApi* api, m::MegaTransfer *request) override
+    void onTransferStart(m::MegaApi*, m::MegaTransfer *request) override
     {
         if (!loggedStart)
         {
@@ -338,7 +338,133 @@ std::string timeToLocalTimeString(const int64_t time)
     return std::string{buffer};
 }
 
-class MegaCLLogger : public m::Logger {
+/**
+ * @brief This class is meant to manage the writing of the log/debug messages by the Loggers (MegaCLLogger and
+ * MegaclcChatChatLogger) into a file and/or the cout.
+ *
+ * As it is thought to be used by multiple loggers that may be running in different threads it uses a mutex to access
+ * the attributes.
+ *
+ * Usage: There is a variety of methods to enable/disable the writing to a file or to cout and also the minimum level of
+ * severity of the messages to write. However the main method to use this class is the `writeOutput`. You should call
+ * the method through an instance of this class in a global scope, accessible to all the Loggers you want to coordinate.
+ */
+class DebugOutputWriter
+{
+public:
+    /**
+     * @brief Writes the given message to the file if it was set and to the cout if it was enable.
+     *
+     * NOTE: The logLevel parameter is compared against an internal level that you can change with the `setLogLevel`
+     * method and which has the value of 1 by default (that matches with the `logError` value). If the input
+     * logLevel is larger than the internal one the message is not processed. Else, the message will always be written
+     * into the file if it was enable but it will be only written to the cout if the logLevel is associated to the error
+     * or fatal error level. This is done to avoid massive writing to the cout which could occasionally difficult the
+     * command input.
+     *
+     * @param msg The message to write
+     * @param logLevel The severity of the message. See the `LogLevel` enum in the `mega/logging.h` file.
+     */
+    void writeOutput(const std::basic_string<char>& msg, int logLevel)
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        if (logLevel > mCurrentLogLevel)
+        {
+            return;
+        }
+        if (mLogFile.is_open())
+        {
+            mLogFile << msg;
+        }
+        // To avoid cout saturation only errors are printed.
+        if (mLogToConsole && logLevel <= logError)
+        {
+            std::cout << msg;
+        }
+    }
+
+    void disableLogToConsole() { setLogToConsole(false); }
+
+    void enableLogToConsole() { setLogToConsole(true); }
+
+    void disableLogToFile()
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogFile.close();
+    }
+
+    /**
+     * @brief Enables the writing to a file.
+     *
+     * If a file was already opened, it will be closed before opening the new one.
+     *
+     * NOTE: If the file name to open matches the previously opened file, it will be overwritten.
+     *
+     * @param fname The path to the file to write the messages.
+     */
+    void enableLogToFile(const std::string& fname)
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogFile.close();
+        if (fname.length() == 0)
+        {
+            conlock(cout) << "Error: Provided an empty file name\n";
+            return;
+        }
+        mLogFile.open(fname.c_str());
+        if (mLogFile.is_open())
+        {
+            mLogFileName = fname;
+        }
+        else
+        {
+            conlock(cout) << "Error: Unable to open output file: " << fname << "\n";
+        }
+    }
+
+    bool isLoggingToFile() const
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogFile.is_open();
+    }
+
+    bool isLoggingToConsole() const 
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogToConsole;
+    }
+
+    std::string getLogFileName() const
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogFileName;
+    }
+
+    void setLogLevel(int newLogLevel)
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mCurrentLogLevel = newLogLevel;
+    }
+
+private:
+
+    void setLogToConsole(bool state)
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogToConsole = state;
+    }
+
+    std::ofstream mLogFile;
+    std::string mLogFileName;
+    mutable std::mutex mLogFileWriteMutex;
+    int mCurrentLogLevel = 1;
+    bool mLogToConsole = false;
+};
+
+DebugOutputWriter g_debugOutpuWriter;
+
+class MegaCLLogger : public m::Logger
+{
 public:
     void logMsg(const int loglevel, const std::string& message)
     {
@@ -359,15 +485,7 @@ private:
         std::ostringstream os;
         os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
         const auto msg = os.str();
-        if (loglevel <= m::logError)
-        {
-            conlock(cout) << msg << flush;
-        }
-        if (g_reviewPublicChatOutFileLogs)
-        {
-            std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
-            *g_reviewPublicChatOutFileLogs << msg << flush;
-        }
+        g_debugOutpuWriter.writeOutput(msg, loglevel);
     }
 };
 
@@ -400,15 +518,7 @@ private:
             os << endl;
         }
         const auto msg = os.str();
-        if (loglevel <= c::MegaChatApi::LOG_LEVEL_ERROR)
-        {
-            conlock(cout) << msg << flush;
-        }
-        if (g_reviewPublicChatOutFileLogs)
-        {
-            std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
-            *g_reviewPublicChatOutFileLogs << msg << flush;
-        }
+        g_debugOutpuWriter.writeOutput(msg, loglevel);
     }
 };
 
@@ -665,7 +775,7 @@ struct CLCListener : public c::MegaChatListener
 
             auto allEmailsReceived = new OneShotChatRequestListener;
             allEmailsReceived->onRequestFinishFunc =
-            [numParticipants, chatid](c::MegaChatApi* api, c::MegaChatRequest * , c::MegaChatError* e)
+            [numParticipants, chatid](c::MegaChatApi* api, c::MegaChatRequest * , c::MegaChatError*)
             {
                 std::unique_ptr<c::MegaChatRoom> chatRoom(api->getChatRoom(chatid));
                 std::ostringstream os;
@@ -879,10 +989,7 @@ public:
         }
     }
 
-    void onNodesUpdate(m::MegaApi* , m::MegaNodeList *nodes) override
-    {
-        //conlock(cout) << "Node list updated:  " << (nodes ? nodes->size() : -1) << endl;
-    }
+    void onNodesUpdate(m::MegaApi*, m::MegaNodeList*) override {}
 
     void onAccountUpdate(m::MegaApi *) override
     {
@@ -942,25 +1049,25 @@ public:
 class ClcMegaGlobalListener : public m::MegaGlobalListener
 {
 public:
-    void onUsersUpdate(m::MegaApi* api, m::MegaUserList *users) override {}
+    void onUsersUpdate(m::MegaApi*, m::MegaUserList*) override {}
 
-    void onUserAlertsUpdate(m::MegaApi* api, m::MegaUserAlertList *alerts) override {}
+    void onUserAlertsUpdate(m::MegaApi*, m::MegaUserAlertList*) override {}
 
-    void onNodesUpdate(m::MegaApi* api, m::MegaNodeList *nodes) override {}
+    void onNodesUpdate(m::MegaApi*, m::MegaNodeList*) override {}
 
-    void onAccountUpdate(m::MegaApi *api) override {}
+    void onAccountUpdate(m::MegaApi*) override {}
 
-    void onContactRequestsUpdate(m::MegaApi* api, m::MegaContactRequestList* requests) override {}
+    void onContactRequestsUpdate(m::MegaApi*, m::MegaContactRequestList*) override {}
 
-    void onReloadNeeded(m::MegaApi* api) override {}
+    void onReloadNeeded(m::MegaApi*) override {}
 
 #ifdef ENABLE_SYNC
-    void onGlobalSyncStateChanged(m::MegaApi* api) override {}
+    void onGlobalSyncStateChanged(m::MegaApi*) override {}
 #endif
 
-    void onChatsUpdate(m::MegaApi* api, m::MegaTextChatList *chats) override {}
+    void onChatsUpdate(m::MegaApi*, m::MegaTextChatList*) override {}
 
-    void onEvent(m::MegaApi* api, m::MegaEvent *event) override {}
+    void onEvent(m::MegaApi*, m::MegaEvent*) override {}
 };
 
 CLCListener g_clcListener;
@@ -1087,23 +1194,6 @@ std::string msgStatusToString(const int msgStatus)
 #endif
 }
 
-std::string callTermCodeToString(const int termCode)
-{
-    switch (termCode)
-    {
-        case c::MegaChatMessage::END_CALL_REASON_ENDED: return "END_CALL_REASON_ENDED";
-        case c::MegaChatMessage::END_CALL_REASON_REJECTED: return "END_CALL_REASON_REJECTED";
-        case c::MegaChatMessage::END_CALL_REASON_NO_ANSWER: return "END_CALL_REASON_NO_ANSWER";
-        case c::MegaChatMessage::END_CALL_REASON_FAILED: return "END_CALL_REASON_FAILED";
-        case c::MegaChatMessage::END_CALL_REASON_CANCELLED: return "END_CALL_REASON_CANCELLED";
-        case c::MegaChatMessage::END_CALL_REASON_BY_MODERATOR: return "END_CALL_REASON_BY_MODERATOR";
-        default: assert(false); return "Invalid Call Term Code (" + std::to_string(termCode) + ")";
-    }
-#ifndef WIN32
-    return {}; // warning C4702: unreachable code
-#endif
-}
-
 void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
 {
     if (!msg)
@@ -1202,7 +1292,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         {
             return std::string{"<Not an ending call>"};
         }
-        return "Call ended: " + callTermCodeToString(termCode) + " - " + std::to_string(duration);
+        return "Call ended: " + std::string(::megachat::MegaChatCall::termcodeToString(termCode)) + " - " + std::to_string(duration);
     };
 
     std::ostringstream os;
@@ -1433,7 +1523,7 @@ static bool quit_flag = false;
 static string login;
 static string password;
 
-void exec_initanonymous(ac::ACState& s)
+void exec_initanonymous(ac::ACState&)
 {
     if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
     {
@@ -1501,7 +1591,7 @@ void exec_login(ac::ACState& s)
     }
 }
 
-void exec_logout(ac::ACState& s)
+void exec_logout(ac::ACState&)
 {
     unique_ptr<const char[]>session(g_megaApi->dumpSession());
     if (g_chatApi->getInitState() == c::MegaChatApi::INIT_ANONYMOUS)
@@ -1552,6 +1642,48 @@ void exec_session(ac::ACState& s)
         conlock(cout) << "Not logged in." << endl;
     }
 }
+
+void exec_debug(ac::ACState& s)
+{
+    if (s.extractflag("-off"))
+    {
+        SimpleLogger::setLogLevel(logWarning);
+        g_debugOutpuWriter.disableLogToConsole();
+        g_debugOutpuWriter.disableLogToFile();
+    }
+    if (s.extractflag("-on"))
+    {
+        SimpleLogger::setLogLevel(logDebug);
+        g_debugOutpuWriter.setLogLevel(logDebug);
+    }
+    if (s.extractflag("-verbose"))
+    {
+        SimpleLogger::setLogLevel(logMax);
+        g_debugOutpuWriter.setLogLevel(logMax);
+    }
+    if (s.extractflag("-console"))
+    {
+        g_debugOutpuWriter.enableLogToConsole();
+    }
+    if (s.extractflag("-noconsole"))
+    {
+        g_debugOutpuWriter.disableLogToConsole();
+    }
+    if (s.extractflag("-nofile"))
+    {
+        g_debugOutpuWriter.disableLogToFile();
+    }
+    string filename;
+    if (s.extractflagparam("-file", filename))
+    {
+        g_debugOutpuWriter.enableLogToFile(filename);
+    }
+
+    cout << "Debug level set to " << SimpleLogger::getLogLevel() << endl;
+    cout << "Log to console: " << (g_debugOutpuWriter.isLoggingToConsole() ? "on" : "off") << endl;
+    cout << "Log to file: " << (g_debugOutpuWriter.isLoggingToFile() ? g_debugOutpuWriter.getLogFileName() : "<off>") << endl;
+}
+
 
 void exec_setonlinestatus(ac::ACState& s)
 {
@@ -1992,7 +2124,7 @@ void exec_chatinfo(ac::ACState& s)
     }
 
     if (g_remainingPrints && !g_cvChatInfoPrinted.wait_for(lk, std::chrono::milliseconds(500),
-                                      [&g_remainingPrints]{ return !g_remainingPrints; }))
+                                      []{ return !g_remainingPrints; }))
     {
         conlock(cout) << "Timeout on request to get chat information" << endl;
     }
@@ -2299,13 +2431,6 @@ void exec_dumpchathistory(ac::ACState& s)
         return;
     }
 
-    if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
-    {
-        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
-        g_dumpingChatHistory = false;
-        return;
-    }
-
     std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(g_dumpHistoryChatid));
     unique_ptr<m::MegaHandleList> peerList = unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
     for (unsigned int i = 0; i < chatRoom->getPeerCount(); i++)
@@ -2315,7 +2440,7 @@ void exec_dumpchathistory(ac::ACState& s)
 
     auto allEmailsReceived = new OneShotChatRequestListener;
     allEmailsReceived->onRequestFinishFunc =
-    [](c::MegaChatApi* api, c::MegaChatRequest * , c::MegaChatError* e)
+    [](c::MegaChatApi*, c::MegaChatRequest*, c::MegaChatError*)
     {
         std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(g_dumpHistoryChatid));
         reviewPublicChatLoadMessages(g_dumpHistoryChatid);
@@ -2366,13 +2491,9 @@ void exec_reviewpublicchat(ac::ACState& s)
     {
         return;
     }
-    if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
-    {
-        return;
-    }
     *g_reviewPublicChatOutFile << chat_link << endl;
     *g_reviewPublicChatOutFileLinks << chat_link << endl;
-    *g_reviewPublicChatOutFileLogs << chat_link << endl;
+    g_debugOutpuWriter.writeOutput(chat_link + "\n", logInfo);
 
     auto check_chat_preview_listener = new OneShotChatRequestListener;
     check_chat_preview_listener->onRequestFinishFunc =
@@ -2385,7 +2506,7 @@ void exec_reviewpublicchat(ac::ACState& s)
             return;
         }
 
-        const c::MegaChatHandle chatid = g_reviewPublicChatid = request->getChatHandle();
+        g_reviewPublicChatid = request->getChatHandle();
         std::ostringstream os1;
         os1 << "\nReviewPublicChat: chatlink loaded succesfully.\n\tChatid: " << k::Id(g_reviewPublicChatid).toString() << endl;
         const auto msg1 = os1.str();
@@ -2409,7 +2530,7 @@ void exec_reviewpublicchat(ac::ACState& s)
         // now we know the chatid, we register the listener
         auto open_chat_preview_listener = new OneShotChatRequestListener;
         open_chat_preview_listener->onRequestFinishFunc =
-        [chatid](c::MegaChatApi*, c::MegaChatRequest *request, c::MegaChatError* e)
+        [](c::MegaChatApi*, c::MegaChatRequest*, c::MegaChatError* e)
         {
             if (!check_err("openChatPreview", e))
             {
@@ -2659,7 +2780,7 @@ void exec_answerchatcall(ac::ACState& s)
     c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
     c::MegaChatHandle room = s_ch(s.words[1].s);
     bool enableVideo = s.words.size() < 2 || s.words[2].s == "true";
-    g_chatApi->answerChatCall(room, enableVideo, listener);
+    g_chatApi->answerChatCall(room, enableVideo, false, listener);
 }
 
 
@@ -2766,7 +2887,7 @@ void exec_smsverify(ac::ACState& s)
     if (s.words[1].s == "send")
     {
         auto listener = new OneShotRequestListener;
-        listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+        listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "SMS Verify Text Result: " << e->getErrorString() << endl;
             };
@@ -2775,7 +2896,7 @@ void exec_smsverify(ac::ACState& s)
     else if (s.words[1].s == "code")
     {
         auto listener = new OneShotRequestListener;
-        listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+        listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
         {
             conlock(cout) << "SMS Verify Text Result: " << e->getErrorString() << endl;
         };
@@ -2867,7 +2988,7 @@ string toHex(const string& binary)
 
 unsigned char toBinary(unsigned char c)
 {
-    if (c >= 0 && c <= '9')   return static_cast<unsigned char>(c - '0');
+    if (c >= '0' && c <= '9')   return static_cast<unsigned char>(c - '0');
     if (c >= 'a' && c <= 'z') return static_cast<unsigned char>(c - 'a' + 10);
     if (c >= 'A' && c <= 'Z') return static_cast<unsigned char>(c - 'A' + 10);
     return 0;
@@ -2878,12 +2999,11 @@ string toBinary(const string& hex)
     string bin;
     for (string::const_iterator i = hex.cbegin(); i != hex.cend(); ++i)
     {
-        unsigned char c = toBinary(static_cast<unsigned char>(*i));
-        c <<= 4; // note: upon update to GCC > 9 this warning should disappear
+        unsigned c = toBinary(static_cast<unsigned char>(*i));
+        c <<= 4;
         ++i;
         if (i != hex.cend())
         {
-            // note: upon update to GCC > 9 this warning should disappear
             c |= toBinary(static_cast<unsigned char>(*i));
         }
         bin.push_back(static_cast<char>(c));
@@ -3103,7 +3223,7 @@ void exec_backgroundupload(ac::ACState& s)
     else if (s.words[1].s == "geturl" && s.words.size() == 4 && getNamedBackgroundMediaUpload(s.words[2].s, mbmu))
     {
         auto ln = new OneShotRequestListener;
-        ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+        ln->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *request, m::MegaError* e)
         {
             if (check_err("Get upload URL", e))
             {
@@ -3168,7 +3288,7 @@ void exec_backgroundupload(ac::ACState& s)
         if (auto parent = GetNodeByPath(s.words[4].s))
         {
             auto ln = new OneShotRequestListener;
-            ln->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+            ln->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 check_err("Background upload completion", e);
             };
@@ -3208,7 +3328,7 @@ void exec_setpreviewbyhandle(ac::ACState& s)
     }
 }
 
-void exec_ensuremediainfo(ac::ACState& s)
+void exec_ensuremediainfo(ac::ACState&)
 {
     bool b = g_megaApi->ensureMediaInfo();
     if (b)
@@ -3711,7 +3831,7 @@ void exec_cancelbytoken(ac::ACState& s)
     {
         id = int(globalCancelTokens.size()) - 1;
     }
-    if (id < 0 || id >= globalCancelTokens.size())
+    if (id < 0 || id >= static_cast<int>(globalCancelTokens.size()))
     {
         conlock(cout) << "failed: cancel token id is out of range: " << id << endl;
     }
@@ -3780,10 +3900,12 @@ void exec_startdownload(ac::ACState& s)
     if (auto node = GetNodeByPath(s.words[1].s))
     {
         g_megaApi->startDownload(node.get(), s.words[2].s.c_str(), nullptr, nullptr, false, ct,
-            new OneShotTransferListener([](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
-                {
-                    check_err("startDownload", e, ReportResult);
-                }, logstage));
+                                 ::mega::MegaTransfer::COLLISION_CHECK_FINGERPRINT,
+                                 ::mega::MegaTransfer::COLLISION_RESOLUTION_OVERWRITE,
+                                 false,
+                                 new OneShotTransferListener(
+                                     [](m::MegaApi*, m::MegaTransfer*, m::MegaError* e) { check_err("startDownload", e, ReportResult); },
+                                     logstage));
     }
 }
 
@@ -3796,7 +3918,7 @@ void exec_pausetransfers(ac::ACState& s)
         int direction = atoi(s.words[2].s.c_str());
 
         g_megaApi->pauseTransfers(paused, direction,
-            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
                 {
                     check_err("pauseTransfers", e, ReportResult);
                 }));
@@ -3804,7 +3926,7 @@ void exec_pausetransfers(ac::ACState& s)
     else
     {
         g_megaApi->pauseTransfers(paused,
-            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
                 {
                     check_err("pauseTransfers", e, ReportResult);
                 }));
@@ -3817,7 +3939,7 @@ void exec_pausetransferbytag(ac::ACState& s)
     int pause = atoi(s.words[2].s.c_str());
 
     g_megaApi->pauseTransferByTag(tag, pause,
-        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 check_err("cancelTransferByTag", e, ReportResult);
             }));
@@ -3828,7 +3950,7 @@ void exec_canceltransfers(ac::ACState& s)
     auto direction = atoi(s.words[1].s.c_str());
 
     g_megaApi->cancelTransfers(direction,
-        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 check_err("cancelTransfers", e, ReportResult);
             }));
@@ -3839,7 +3961,7 @@ void exec_canceltransferbytag(ac::ACState& s)
     int tag = atoi(s.words[1].s.c_str());
 
     g_megaApi->cancelTransferByTag(tag,
-        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 check_err("cancelTransferByTag", e, ReportResult);
             }));
@@ -3941,7 +4063,7 @@ void exec_pushreceived(ac::ACState& s)
     }
 }
 
-void exec_getcloudstorageused(ac::ACState& s)
+void exec_getcloudstorageused(ac::ACState&)
 {
     g_megaApi->getCloudStorageUsed(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
     {
@@ -4029,7 +4151,7 @@ void PrintAchievements(m::MegaAchievementsDetails & ad)
                         m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_MOBILE_INSTALL,
                         m::MegaAchievementsDetails::MEGA_ACHIEVEMENT_ADD_PHONE };
 
-    for (int i = 0; i < sizeof(classes) / sizeof(*classes); ++i)
+    for (size_t i = 0; i < sizeof(classes) / sizeof(*classes); ++i)
     {
         cl << "class " << classes[i];
         cl << "  getClassStorage: " << ad.getClassStorage(classes[i]);
@@ -4064,10 +4186,10 @@ void PrintAchievements(m::MegaAchievementsDetails & ad)
     cl << "currentTransferReferrals: " << ad.currentTransferReferrals() << endl;
 };
 
-void exec_getaccountachievements(ac::ACState& s)
+void exec_getaccountachievements(ac::ACState&)
 {
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *request, m::MegaError* e)
     {
         conlock(cout) << "getAccountAchievements Result: " << e->getErrorString() << endl;
         if (!e->getErrorCode())
@@ -4084,10 +4206,10 @@ void exec_getaccountachievements(ac::ACState& s)
 }
 
 
-void exec_getmegaachievements(ac::ACState& s)
+void exec_getmegaachievements(ac::ACState&)
 {
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest *request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest *request, m::MegaError* e)
     {
         conlock(cout) << "getAccountAchievements Result: " << e->getErrorString() << endl;
         if (!e->getErrorCode())
@@ -4123,7 +4245,7 @@ void exec_setCameraUploadsFolder(ac::ACState& s)
 
 }
 
-void exec_getCameraUploadsFolder(ac::ACState& s)
+void exec_getCameraUploadsFolder(ac::ACState&)
 {
     g_megaApi->getCameraUploadsFolder(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
     {
@@ -4164,7 +4286,7 @@ void exec_setCameraUploadsFolderSecondary(ac::ACState& s)
 
 }
 
-void exec_getCameraUploadsFolderSecondary(ac::ACState& s)
+void exec_getCameraUploadsFolderSecondary(ac::ACState&)
 {
     g_megaApi->getCameraUploadsFolderSecondary(new OneShotRequestListener([](m::MegaApi*, m::MegaRequest *r, m::MegaError* e)
     {
@@ -4203,7 +4325,7 @@ void exec_getContact(ac::ACState& s)
 void exec_getDefaultTZ(ac::ACState& s)
 {
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest* request, m::MegaError* e)
     {
         auto cl = conlock(cout);
         cl << "Get Default Time Zone Result: " << e->getErrorString() << endl;
@@ -4237,7 +4359,7 @@ void exec_isGeolocOn(ac::ACState& s)
     }
 
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
     {
         const char* on = e->getErrorCode() ? "false" : "true";
         conlock(cout) << "Is Geolocation Enabled Result: " << on << endl;
@@ -4258,7 +4380,7 @@ void exec_setGeolocOn(ac::ACState& s)
     }
 
     auto listener = new OneShotRequestListener;
-    listener->onRequestFinishFunc = [](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+    listener->onRequestFinishFunc = [](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
     {
         const char* on = e->getErrorCode() ? "false" : "true";
         conlock(cout) << "Enable Geolocation Result: " << on << endl;
@@ -4455,7 +4577,7 @@ void exec_syncadd(ac::ACState& s)
         named ? name.c_str() : nullptr,
         targetNode->getHandle(),
         external ? drive.c_str() : nullptr,
-        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "syncFolder result: " << e->getErrorString() << endl;
             })
@@ -4466,7 +4588,7 @@ void exec_syncclosedrive(ac::ACState& s)
 {
     string drive = s.words[2].s;
     g_megaApi->closeExternalBackupSyncsFromExternalDrive(drive.c_str(),
-        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "closeExternalBackupSyncsFromExternalDrive result: " << e->getErrorString() << endl;
             }));
@@ -4559,13 +4681,13 @@ void exec_syncopendrive(ac::ACState& s)
 {
     string drive= s.words[2].s;
     g_megaApi->loadExternalBackupSyncsFromExternalDrive(drive.c_str(),
-        new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+        new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "loadExternalBackupSyncsFromExternalDrive result: " << e->getErrorString() << endl;
             }));
 }
 
-void exec_synclist(ac::ACState& s)
+void exec_synclist(ac::ACState&)
 {
     unique_ptr<m::MegaSyncList> syncs(g_megaApi->getSyncs());
 
@@ -4648,7 +4770,7 @@ void exec_syncremove(ac::ACState& s)
         m::MegaHandle backupId = sync ? sync->getBackupId() : m::INVALID_HANDLE;
 
         g_megaApi->removeSync(backupId,
-            new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
             {
                 conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
             }));
@@ -4656,7 +4778,7 @@ void exec_syncremove(ac::ACState& s)
     else if (byId)
     {
         g_megaApi->removeSync(g_megaApi->base64ToHandle(id.c_str()),
-            new OneShotRequestListener([](m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)
+            new OneShotRequestListener([](m::MegaApi*, m::MegaRequest*, m::MegaError* e)
                 {
                     conlock(cout) << "removeSync result: " << e->getErrorString() << endl;
                 }));
@@ -4760,61 +4882,6 @@ void exec_setmybackupsfolder(ac::ACState& s)
         }));
 }
 
-void exec_logFilenameAnomalies(ac::ACState& s)
-{
-    struct Reporter
-      : public m::MegaFilenameAnomalyReporter
-    {
-        void anomalyDetected(AnomalyType type,
-                             const char* localPath,
-                             const char* remotePath) override
-        {
-            string typeName;
-
-            switch (type)
-            {
-            case ANOMALY_NAME_MISMATCH:
-                typeName = "NAME_MISMATCH";
-                break;
-            case ANOMALY_NAME_RESERVED:
-                typeName = "NAME_RESERVED";
-                break;
-            default:
-                assert(false); // "Unknown anomaly type"
-                typeName = "UNKNOWN";
-                break;
-            }
-
-            cout << "Filename anomaly detected: type: "
-                 << typeName
-                 << ": local path: "
-                 << localPath
-                 << ": remote path: "
-                 << remotePath
-                 << endl;
-        }
-    }; // Receiver
-
-    static Reporter reporter;
-
-    // logfilenameanomalies on|off
-    auto on = s.words[1].s == "on";
-
-    if (on)
-    {
-        g_megaApi->setFilenameAnomalyReporter(&reporter);
-    }
-    else
-    {
-        g_megaApi->setFilenameAnomalyReporter(nullptr);
-    }
-
-    cout << "Logging of filename anomalies is "
-         << (on ? "enabled" : "disabled")
-         << "."
-         << endl;
-}
-
 ac::ACN autocompleteSyntax()
 {
     using namespace ac;
@@ -4824,6 +4891,11 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
     p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
+    p->Add(exec_debug, sequence(text("debug"),
+                opt(either(flag("-on"), flag("-off"), flag("-verbose"))),
+                opt(either(flag("-console"), flag("-noconsole"))),
+                opt(either(flag("-nofile"), sequence(flag("-file"), localFSFile())))
+                ));
 
     p->Add(exec_setonlinestatus,    sequence(text("setonlinestatus"), either(text("offline"), text("away"), text("online"), text("busy"))));
     p->Add(exec_setpresenceautoaway, sequence(text("setpresenceautoaway"), either(text("on"), text("off")), wholenumber(30)));
@@ -5054,9 +5126,6 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_setmybackupsfolder, sequence(text("setmybackupsfolder"), param("remotefolder")));
     p->Add(exec_getmybackupsfolder, sequence(text("getmybackupsfolder")));
-
-    p->Add(exec_logFilenameAnomalies,
-           sequence(text("logfilenameanomalies"), either(text("on"), text("off"))));
 
     return p;
 }
@@ -5323,12 +5392,16 @@ void CLCRoomListener::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaCh
 void CLCRoomListener::onMessageLoaded(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
     reportMessage(room, msg, "loaded");
+    if (!msg && !g_chatApi->isFullHistoryLoaded(room))
+    {
+        reviewPublicChatLoadMessages(room);
+    }
 }
 
 void CLCRoomListener::onMessageReceived(megachat::MegaChatApi *, megachat::MegaChatMessage *) {}
 
-void CLCRoomListener::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMessage *msg) {}
+void CLCRoomListener::onMessageUpdate(megachat::MegaChatApi *, megachat::MegaChatMessage *) {}
 
-void CLCRoomListener::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *chat) {}
+void CLCRoomListener::onHistoryReloaded(megachat::MegaChatApi *, megachat::MegaChatRoom *) {}
 
-void CLCRoomListener::onHistoryTruncatedByRetentionTime(c::MegaChatApi*, c::MegaChatMessage *msg) {}
+void CLCRoomListener::onHistoryTruncatedByRetentionTime(c::MegaChatApi*, c::MegaChatMessage *) {}

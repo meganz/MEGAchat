@@ -79,6 +79,12 @@ protected:
     QPushButton* mSetOnHold;
     QPushButton* mJoinCallWithVideo;
     QPushButton* mJoinCallWithoutVideo;
+    QPushButton* mWaitingRoomShow;
+    QPushButton* mAllowJoin;
+    QPushButton* mPushWr;
+    QPushButton* mKickWr;
+    QPushButton* mMuteAll;
+    QPushButton* mSetLimits;
     QLabel* mOnHoldLabel;
     QLabel* mLabel;
 
@@ -102,10 +108,17 @@ public slots:
     void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
-    void onRemoveSpeaker(uint32_t cid);
+    void onRemoveSpeaker(const megachat::MegaChatHandle cid);
+    void onRemoveSpeaker();
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();
+    void onMuteAll();
+    void onSetLimits();
+    void onWrShow();
+    void onAllowJoin();
+    void onPushWr();
+    void onKickWr();
 };
 
 #endif // MEETINGVIEW_H

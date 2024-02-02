@@ -111,11 +111,14 @@ target_include_directories(karere PUBLIC $<${USE_WEBRTC}:${KarereDir}/src/rtcMod
 target_compile_definitions(karere PUBLIC MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC> )
 target_link_libraries(karere PUBLIC Mega rapidjson websockets uv $<${USE_WEBRTC}:webrtc> )
 if (WIN32)
-target_link_libraries(karere PUBLIC Iphlpapi.lib Psapi.lib Userenv.lib Msdmo.lib Strmiids.lib Dmoguids.lib Winmm.dll wmcodecdspuuid.lib Wldap32.lib)
+    target_link_libraries(karere PUBLIC Iphlpapi.lib Psapi.lib Userenv.lib Msdmo.lib Strmiids.lib Dmoguids.lib Winmm.dll wmcodecdspuuid.lib Wldap32.lib)
+else()
+    target_link_libraries(websockets INTERFACE cap) # websockets depends on cap
 endif()
 
 #test apps
-add_executable(sdk_test ${KarereDir}/tests/sdk_test/sdk_test.cpp)
+add_executable(sdk_test ${KarereDir}/tests/sdk_test/sdk_test.cpp ${MegaSdkDir}/tests/gtest_common.cpp ${MegaSdkDir}/tests/gtest_common.h)
+target_include_directories(sdk_test PRIVATE ${MegaSdkDir}/tests)
 target_link_libraries(sdk_test PUBLIC karere)
 target_compile_definitions(sdk_test PRIVATE MEGA_FULL_STATIC $<$<NOT:${USE_WEBRTC}>:KARERE_DISABLE_WEBRTC>)
 
@@ -132,7 +135,8 @@ if (WIN32)
     set_property(TARGET sdk_test PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>$<${MEGA_LINK_DYNAMIC_CRT}:DLL>")
 
     target_compile_options(karere PRIVATE /WX-)  # tackling the sheer number of warnings in this project is a big job
-
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
 endif()
-
 

@@ -23,9 +23,9 @@ class DelegateMegaChatScheduledMeetingListener extends MegaChatScheduledMeetingL
     }
 
     @Override
-    public void onSchedMeetingOccurrencesUpdate(MegaChatApi api, long chatid) {
+    public void onSchedMeetingOccurrencesUpdate(MegaChatApi api, long chatid, boolean append) {
         if (listener != null) {
-            megaChatApi.runCallback(() -> listener.onSchedMeetingOccurrencesUpdate(megaChatApi, chatid));
+            megaChatApi.runCallback(() -> listener.onSchedMeetingOccurrencesUpdate(megaChatApi, chatid, append));
         }
     }
 }

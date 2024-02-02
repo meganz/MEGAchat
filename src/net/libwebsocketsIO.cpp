@@ -13,8 +13,9 @@ static struct lws_protocols protocols[] =
         LibwebsocketsClient::wsCallback,
         0,
         128 * 1024, // Rx buffer size
+        0, nullptr, 0,
     },
-    { NULL, NULL, 0, 0 } /* terminator */
+    {} /* terminator */
 };
 
 LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx) : WebsocketsIO(mutex, api, ctx)
@@ -36,12 +37,13 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
         WEBSOCKETS_LOG_DEBUG("Libwebsockets version: %s", lwsversion);        
     }
     
+    eventloop = libuvWaiter->eventloop();
     info.port = CONTEXT_PORT_NO_LISTEN;
     info.pcontext = &wscontext;
     info.protocols = protocols;
     info.gid = -1;
     info.uid = -1;
-    info.foreign_loops = (void**)&(libuvWaiter->eventloop);
+    info.foreign_loops = (void**)&(eventloop);
     info.options |= LWS_SERVER_OPTION_DO_SSL_GLOBAL_INIT;
     info.options |= LWS_SERVER_OPTION_DISABLE_OS_CA_CERTS;
     info.options |= LWS_SERVER_OPTION_LIBUV;
@@ -57,7 +59,6 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
     wscontext = lws_create_context(&info);
 
-    eventloop = libuvWaiter->eventloop;
     WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
 }
 
@@ -94,7 +95,7 @@ void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
 }
 #endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
-void LibwebsocketsIO::addevents(::mega::Waiter* waiter, int)
+void LibwebsocketsIO::addevents(::mega::Waiter*, int)
 {    
 
 }
@@ -178,7 +179,7 @@ LibwebsocketsClient::LibwebsocketsClient(WebsocketsIO::Mutex &mutex, WebsocketsC
 
 LibwebsocketsClient::~LibwebsocketsClient()
 {
-    wsDisconnect(true);
+    doWsDisconnect(true); // do not call wsDisconnect() virtual function during destruction
 }
 
 void LibwebsocketsClient::appendMessageFragment(char *data, size_t len, size_t remaining)
@@ -272,6 +273,11 @@ bool LibwebsocketsClient::connectViaClientInfo(const char *ip, const char *host,
 }
 
 void LibwebsocketsClient::wsDisconnect(bool immediate)
+{
+    doWsDisconnect(immediate);
+}
+
+void LibwebsocketsClient::doWsDisconnect(bool immediate)
 {
     if (!wsi)
     {

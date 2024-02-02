@@ -30,10 +30,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatListItemList ? [[MEGAChatListItemList alloc] initWithMegaChatListItemList:self.megaChatListItemList cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatListItemList *)getCPtr {
     return self.megaChatListItemList;
 }
@@ -47,7 +43,7 @@ using namespace megachat;
     return self.megaChatListItemList ? self.megaChatListItemList->size() : 0;
 }
 
-- (MEGAChatListItem *)chatListItemAtIndex:(NSUInteger)index {
+- (nullable MEGAChatListItem *)chatListItemAtIndex:(NSUInteger)index {
     return self.megaChatListItemList->get((unsigned int)index) ? [[MEGAChatListItem alloc] initWithMegaChatListItem:self.megaChatListItemList->get((unsigned int)index)->copy() cMemoryOwn:YES] : nil;
 }
 

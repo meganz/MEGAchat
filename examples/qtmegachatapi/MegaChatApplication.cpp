@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include "signal.h"
 #include <QClipboard>
+#include <mega/utils.h>
 
 using namespace std;
 using namespace mega;
@@ -91,7 +92,10 @@ void MegaChatApplication::init()
     }
     else
     {
-        int initState = mMegaChatApi->init(mSid);
+#ifndef NDEBUG
+        int initState =
+#endif
+        mMegaChatApi->init(mSid);
         assert(initState == MegaChatApi::INIT_OFFLINE_SESSION
                || initState == MegaChatApi::INIT_NO_CACHE);
 
@@ -114,6 +118,14 @@ void MegaChatApplication::login()
    connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
    connect(mLoginDialog, SIGNAL(onEphemeralAccountPlusPlus()), this, SLOT(onEphemeral()));
    mLoginDialog->show();
+}
+
+void MegaChatApplication::noFeatureErr() const
+{
+   QMessageBox msg;
+   msg.setIcon(QMessageBox::Information);
+   msg.setText("Feature not available");
+   msg.exec();
 }
 
 std::string MegaChatApplication::getText(std::string title, bool allowEmpty)
@@ -211,7 +223,10 @@ void MegaChatApplication::onLoginClicked()
     mLoginDialog->setState(LoginDialog::loggingIn);
     if (mMegaChatApi->getInitState() == MegaChatApi::INIT_NOT_DONE)
     {
-        int initState = mMegaChatApi->init(mSid);
+#ifndef NDEBUG
+        int initState =
+#endif
+        mMegaChatApi->init(mSid);
         assert(initState == MegaChatApi::INIT_WAITING_NEW_SESSION);
     }
     mMegaApi->login(email.toUtf8().constData(), password.toUtf8().constData());
@@ -293,7 +308,11 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
             ::mega::MegaUser *user = userList->get(i);
             if (user->getHandle() == mMegaApi->getMyUserHandleBinary())
             {
-                mMainWin->updateToolTipMyInfo();
+                if (mMainWin)
+                {
+                    mMainWin->updateToolTipMyInfo();
+                }
+
                 if (user->hasChanged(MegaUser::CHANGE_TYPE_PUSH_SETTINGS) && !user->isOwnChange())
                 {
                     mMegaApi->getPushNotificationSettings();
@@ -312,7 +331,7 @@ void MegaChatApplication::onUsersUpdate(::mega::MegaApi *, ::mega::MegaUserList 
                 }
             }
 
-            if (user->hasChanged(MegaUser::CHANGE_TYPE_EMAIL))
+            if (user->hasChanged(MegaUser::CHANGE_TYPE_EMAIL) && mMainWin)
             {
                 if (user->getHandle() == mMegaChatApi->getMyUserHandle())
                 {
@@ -996,6 +1015,20 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 MegaChatHandle chatid = request->getChatHandle();
                 bool checkChatLink = !request->getFlag();
 
+                std::string schedlistStr = "\nscheduled meetings list: ";
+                const MegaChatScheduledMeetingList* smlist (request->getMegaChatScheduledMeetingList());
+                if (smlist)
+                {
+                    for (size_t i = 0; i < smlist->size(); ++i)
+                    {
+                        std::unique_ptr<char[]> schedid_64(mMegaApi->userHandleToBase64(smlist->at(i)->schedId()));
+                        schedlistStr.append("\n\tSchedid: ")
+                            .append(schedid_64 ? schedid_64.get() : "")
+                            .append(" Title: ")
+                            .append(smlist->at(i)->title());
+                    }
+                }
+
                 //Check chat link
                 if (checkChatLink)
                 {
@@ -1004,12 +1037,22 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                         int numPeers = static_cast<int>(request->getNumber());
                         const char *title = request->getText();
                         const char *chatHandle_64 = mMegaApi->userHandleToBase64(chatid);
+                        const int chatOptions = request->getPrivilege();
+                        const bool wr = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions);
+                        const bool sr = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions);
+                        const bool oi = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions);
 
-                        QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n\n Do you want to preview it?")
+                        QString line = QString("%1: \n\n Chatid: %2 \n Title: %3 \n Participants: %4 \n Waiting Room: %5 "
+                                               "\n Speak request: %6 \n Open invite Room: %7 \n Scheduled meeting list: %8 "
+                                               "\n\n Do you want to preview it?")
                                 .arg(QString::fromStdString(request->getLink()))
                                 .arg(QString::fromStdString(chatHandle_64))
                                 .arg(QString(title))
-                                .arg(QString::fromStdString(std::to_string(numPeers)));
+                                .arg(QString::fromStdString(std::to_string(numPeers)))
+                                .arg(QString::fromStdString(std::to_string(wr)))
+                                .arg(QString::fromStdString(std::to_string(sr)))
+                                .arg(QString::fromStdString(std::to_string(oi)))
+                                .arg(QString::fromStdString(schedlistStr.c_str()));
 
                         QMessageBox msgBox;
                         msgBox.setWindowTitle("Check chat link");
@@ -1033,6 +1076,21 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
                 {
                     if (error == MegaChatError::ERROR_OK)
                     {
+                        const int chatOptions = request->getPrivilege();
+                        const bool wr = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_WAITING_ROOM, chatOptions);
+                        const bool sr = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_SPEAK_REQUEST, chatOptions);
+                        const bool oi = MegaChatApi::hasChatOptionEnabled(MegaChatApi::CHAT_OPTION_OPEN_INVITE, chatOptions);
+                        std::string res;
+                        res += wr ? "Waiting Room = 1 "  : "Waiting Room = 0 ";
+                        res += sr ? "Speak request = 1 " : "Speak request = 0 ";
+                        res += oi ? "Open invite = 1 "   : "Open invite = 0 ";
+                        res += schedlistStr;
+
+                        QMessageBox msgBox;
+                        msgBox.setText(res.c_str());
+                        msgBox.setWindowTitle("Check Chatlink");
+                        msgBox.exec();
+
                         const MegaChatListItem *chatListItem = mMegaChatApi->getChatListItem(chatid);
                         mMainWin->addOrUpdateChatControllerItem(chatListItem->copy());
                         mMainWin->reorderAppChatList();
@@ -1204,6 +1262,38 @@ void MegaChatApplication::onRequestFinish(MegaChatApi *, MegaChatRequest *reques
 #endif
         break;
     }
+
+    case MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES:
+      if (error == MegaChatError::ERROR_OK)
+      {
+          MegaChatScheduledMeetingOccurrList* occurrencesList = request->getMegaChatScheduledMeetingOccurrList();
+          if (!occurrencesList) { break; }
+
+          std::string text;
+          for (unsigned long i = 0; i < occurrencesList->size(); i++)
+          {
+              const MegaChatScheduledMeetingOccurr * occur = occurrencesList->at(i);
+              char buf[32];
+              struct tm tms;
+              struct tm* ptm = m_localtime(occur->startDateTime(), &tms);
+              sprintf(buf, "[%04d-%02d-%02d   %02d:%02d:%02d]",
+                      // avoid -Wformat-overflow warning
+                      (ptm->tm_year + 1900) % 10000, (ptm->tm_mon + 1) % 100, ptm->tm_mday % 100,
+                      ptm->tm_hour % 100, ptm->tm_min % 100, ptm->tm_sec % 100);
+              text.append("\t[").append(std::to_string(i+1)).append("]")
+                  .append("\t").append(buf)
+                  .append("\t\t").append(std::to_string(occur->startDateTime()))
+                  .append("\t").append(std::to_string(occur->endDateTime())).append("\n");
+          }
+
+          QMessageBox msg;
+          msg.setStyleSheet("width: 1000px");
+          msg.setIcon(QMessageBox::Information);
+          msg.setModal(false);
+          msg.setText(text.c_str());
+          msg.exec();
+      }
+      break;
 
     default:
         break;

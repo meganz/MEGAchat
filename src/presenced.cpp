@@ -135,7 +135,7 @@ void Client::wsConnectCb()
         if (++mConnSuceeded > kMaxConnSuceeded)
         {
             // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
-            PRESENCED_LOG_DEBUG("Limit of successful connection attempts (%d), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
+            PRESENCED_LOG_DEBUG("Limit of successful connection attempts (%u), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
             resetConnSuceededAttempts(now);
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
@@ -200,7 +200,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
         if (!mRetryCtrl)
         {
             PRESENCED_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
-            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state", false, static_cast<const char*>(nullptr));
             reconnect(); //start retry controller
         }
         return;
@@ -296,7 +296,7 @@ bool Client::setLastGreenVisible(bool enable)
     return sendPrefs();
 }
 
-bool Client::requestLastGreen(Id userid)
+bool Client::requestLastGreen(const Id& userid)
 {
     // Avoid send OP_LASTGREEN if user is ex-contact or has never been a contact
     if (isExContact(userid) || !isContact(userid))
@@ -310,7 +310,7 @@ bool Client::requestLastGreen(Id userid)
     return sendCommand(Command(OP_LASTGREEN) + userid);
 }
 
-time_t Client::getLastGreen(Id userid)
+time_t Client::getLastGreen(const Id& userid)
 {
     std::map<uint64_t, time_t>::iterator it = mPeersLastGreen.find(userid.val);
     if (it != mPeersLastGreen.end())
@@ -320,7 +320,7 @@ time_t Client::getLastGreen(Id userid)
     return 0;
 }
 
-bool Client::updateLastGreen(Id userid, time_t lastGreen)
+bool Client::updateLastGreen(const Id& userid, time_t lastGreen)
 {
     time_t &auxLastGreen = mPeersLastGreen[userid.val];
     if (lastGreen >= auxLastGreen)
@@ -529,7 +529,7 @@ Client::reconnect()
                 }
                 if (mRetryCtrl->currentAttemptNo() != attemptNo)
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %d, new: %d)",
+                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %lu, new: %lu)",
                                      attemptNo, mRetryCtrl->currentAttemptNo());
                     return;
                 }
@@ -850,7 +850,10 @@ void Client::disconnect()
 void Client::doConnect()
 {
     string ipv4, ipv6;
-    bool cachedIPs = mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
+#ifndef NDEBUG
+    bool cachedIPs =
+#endif
+    mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
     assert(cachedIPs);
     mTargetIp = (usingipv6 && ipv6.size()) ? ipv6 : ipv4;
 
@@ -1016,7 +1019,7 @@ void Command::toString(char* buf, size_t bufsize) const
         case OP_USERACTIVE:
         {
             auto code = read<uint8_t>(1);
-            snprintf(buf, bufsize, "USERACTIVE - %d", code);
+            snprintf(buf, bufsize, "USERACTIVE - %u", code);
             break;
         }
         case OP_PREFS:
@@ -1319,7 +1322,7 @@ void Client::handleMessage(const StaticBuffer& buf)
             {
                 READ_ID(userid, 0);
                 READ_16(lastGreen, 8);
-                PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %d", ID_CSTR(userid), lastGreen);
+                PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %u", ID_CSTR(userid), lastGreen);
 
                 // convert the received minutes into a UNIX timestamp
                 time_t lastGreenTs = time(NULL) - (lastGreen * 60);
@@ -1392,7 +1395,7 @@ void Client::setConnState(ConnState newState)
                 mConnectTimer = 0;
 
                 PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
-                mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)");
+                mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)", false, static_cast<const char*>(nullptr));
 
                 retryPendingConnection(true);
 
@@ -1440,8 +1443,10 @@ void Client::addPeers(const std::vector<karere::Id> &peers)
     cmd.append<uint32_t>(static_cast<uint32_t>(peers.size()));
     for (size_t i = 0; i < peers.size(); i++)
     {
+#ifndef NDEBUG
         auto it = mContacts.find(peers.at(i));
         assert (it != mContacts.end() && it->second == ::mega::MegaUser::VISIBILITY_VISIBLE);
+#endif
         cmd.append<uint64_t>(peers.at(i).val);
     }
     sendCommand(std::move(cmd));
@@ -1465,8 +1470,10 @@ void Client::removePeers(const std::vector<karere::Id> &peers)
     cmd.append<uint32_t>(static_cast<uint32_t>(peers.size()));
     for (size_t i = 0; i < peers.size(); i++)
     {
+#ifndef NDEBUG
         auto it = mContacts.find(peers.at(i));
         assert (it == mContacts.end() || it->second == ::mega::MegaUser::VISIBILITY_HIDDEN);
+#endif
         mPeersLastGreen.erase(peers.at(i).val); // Remove peer from mPeersLastGreen map if exists
         cmd.append<uint64_t>(peers.at(i).val);
         updatePeerPresence(peers.at(i), Presence::kUnknown);
@@ -1474,7 +1481,7 @@ void Client::removePeers(const std::vector<karere::Id> &peers)
     sendCommand(std::move(cmd));
 }
 
-void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
+void Client::updatePeerPresence(const karere::Id& peer, karere::Presence pres)
 {
     auto pair = mPeersPresence.emplace(peer, pres);
     if (!pair.second) // Element is already in the map (update value)
@@ -1501,7 +1508,7 @@ void Client::updatePeerPresence(karere::Id peer, karere::Presence pres)
     }
 }
 
-karere::Presence Client::peerPresence(karere::Id peer) const
+karere::Presence Client::peerPresence(const karere::Id& peer) const
 {
     auto it = mPeersPresence.find(peer);
     if (it == mPeersPresence.end())

@@ -15,7 +15,9 @@ void ConnStatsCallBack::removeStats()
 std::string Stats::getJson()
 {
     rapidjson::Document json(rapidjson::kObjectType);
-
+    rapidjson::Value sfuv(rapidjson::kNumberType);
+    sfuv.SetUint(static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+    json.AddMember("v", sfuv, json.GetAllocator());
     rapidjson::Value userid(rapidjson::kStringType);
     userid.SetString(mPeerId.toString().c_str(), json.GetAllocator());
     json.AddMember("userid", userid, json.GetAllocator());
@@ -247,7 +249,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             return;
         }
 
-        int64_t ts = 0;
         uint32_t packetLost = 0;
         mStats->mSamples.mRoundTripTime.push_back(0.0);
         mStats->mSamples.mOutGoingBitrate.push_back(0.0);
@@ -280,15 +281,14 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 int64_t bytesRecv = 0;
                 int64_t bytesSend = 0;
                 getConnStats(it, rtt, txBwe, bytesRecv, bytesSend);
-                mStats->mSamples.mRoundTripTime.back() += rtt;       // note: upon update to GCC > 9 this warning should disappear
-                mStats->mSamples.mOutGoingBitrate.back() += txBwe;   // note: upon update to GCC > 9 this warning should disappear
-                mStats->mSamples.mBytesReceived.back() += bytesRecv; // note: upon update to GCC > 9 this warning should disappear
-                mStats->mSamples.mBytesSend.back() += bytesSend;     // note: upon update to GCC > 9 this warning should disappear
+                mStats->mSamples.mRoundTripTime.back() += static_cast<int32_t>(std::lround(rtt));
+                mStats->mSamples.mOutGoingBitrate.back() += static_cast<int32_t>(std::lround(txBwe));
+                mStats->mSamples.mBytesReceived.back() += static_cast<int32_t>(bytesRecv);
+                mStats->mSamples.mBytesSend.back() += static_cast<int32_t>(bytesSend);
             }
             else if (strcmp(it->type(), "inbound-rtp") == 0)
             {
                 std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
-                ts = it->timestamp_us();
                 std::string kind;
                 int32_t audioJitter = 0;
                 for (const webrtc::RTCStatsMemberInterface* member : members)

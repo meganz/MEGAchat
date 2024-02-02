@@ -79,9 +79,12 @@ public:
     virtual void createDecryptor(Cid_t cid, IvStatic_t iv);
     virtual void release();
     Cid_t getCid() const { return mCid; }
+    Cid_t getAuxCid()const { return mAuxCid; }
+    void setAuxCid(const Cid_t cid) { mAuxCid = cid; }
 
 protected:
-    Cid_t mCid = 0;
+    Cid_t mCid = K_INVALID_CID;
+    Cid_t mAuxCid = K_INVALID_CID;
     void* mAppCtx;
     RemoteSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assign(Cid_t cid, IvStatic_t iv);
@@ -128,7 +131,7 @@ class RemoteAudioSlot : public RemoteSlot
 public:
     RemoteAudioSlot(Call& call, rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiver, void* appCtx);
     void assignAudioSlot(Cid_t cid, IvStatic_t iv);
-    void enableAudioMonitor(bool enable);
+    bool enableAudioMonitor(const bool enable);
     void createDecryptor(Cid_t cid, IvStatic_t iv) override;
     void release() override;
 
@@ -157,12 +160,13 @@ public:
     void setHiResSlot(RemoteVideoSlot* slot);
     void setAudioSlot(RemoteAudioSlot *slot);
     void addKey(Keyid_t keyid, const std::string& key);
-    void setAvFlags(karere::AvFlags flags);
+    void setRemoteAvFlags(karere::AvFlags flags);
 
     RemoteAudioSlot* getAudioSlot();
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
+    void setSpeakPermission(const bool hasSpeakPermission);
     void disableAudioSlot();
     void setSpeakRequested(bool requested);
     void setAudioDetected(bool audioDetected);    
@@ -172,7 +176,7 @@ public:
     void setModerator(bool isModerator);
 
     // ISession methods (called from intermediate layer, upon SessionHandler callbacks and others)
-    karere::Id getPeerid() const override;
+    const karere::Id& getPeerid() const override;
     Cid_t getClientid() const override;
     SessionState getState() const override;
     karere::AvFlags getAvFlags() const override;
@@ -186,6 +190,7 @@ public:
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
     bool isModerator() const override;
+    bool hasSpeakPermission() const override;
 
 private:
     // Data about the partipant in the call relative to this session
@@ -242,13 +247,14 @@ public:
     time_t mTsLastSwitch;
 };
 
+
 /**
 * @brief The Call class
 *
 * This object is created upon OP_JOINEDCALL (or OP_CALLSTATE).
 * It implements ICall interface for the intermediate layer.
 */
-class Call : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
+class Call final : public karere::DeleteTrackable, public sfu::SfuInterface, public ICall
 {
 public:
     enum SpeakerState
@@ -258,9 +264,11 @@ public:
         kActive = 2,
     };
 
+    static constexpr unsigned int kmax_bitrate_kbps = 100 *1024; // max bitrate in KBPS
+    static constexpr unsigned int kMediaKeyLen = 16; // length in Bytes of derived ephemeral key
     static constexpr unsigned int kConnectingTimeout = 30; /// Timeout to be joined to the call (kStateInProgress) after a re/connect attempt (kStateConnecting)
 
-    Call(karere::Id callid, karere::Id chatid, karere::Id callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
+    Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id& callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey = nullptr, karere::AvFlags avflags = 0, bool caller = false);
     virtual ~Call();
 
 
@@ -288,7 +296,7 @@ public:
     void addParticipant(const karere::Id &peer) override;
 
     // called upon reception of OP_LEFTCALL from chatd
-    void removeParticipant(karere::Id peer) override;
+    void removeParticipant(const karere::Id &peer) override;
     // check if our peer is participating in the call (called from chatd)
     bool alreadyParticipating() override;
 
@@ -301,7 +309,7 @@ public:
     promise::Promise<void> endCall() override;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants
     promise::Promise<void> join(karere::AvFlags avFlags) override;
 
-    void enableAudioLevelMonitor(bool enable) override;
+    std::set<Cid_t> enableAudioLevelMonitor(const bool enable) override;
     bool isAudioLevelMonitorEnabled() const override;
 
     // called when the user wants to "mute" an incoming call (the call is kept in ringing state)
@@ -316,12 +324,16 @@ public:
     void setOnHold() override;
     void releaseOnHold() override;
 
-    void setCallerId(karere::Id callerid) override;
+    void setCallerId(const karere::Id& callerid) override;
     karere::Id getCallid() const override;
+    bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
 
     // request to speak, or cancels a previous request (add = false)
-    void requestSpeaker(bool add = true) override;
-    bool hasRequestSpeak() const override;
+    void requestSpeak(const bool add = true) override;
+    bool hasPendingSpeakRequest() const override;
+    int getWrJoiningState() const override;
+    unsigned int getOwnSpeakerState() const override;
+    void setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
@@ -330,6 +342,10 @@ public:
     void approveSpeakRequest(Cid_t cid, bool allow) override;
     bool isSpeakAllow() const override; // true if request has been approved
     void stopSpeak(Cid_t cid = 0) override; // after been approved
+    void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
+    void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
+    void kickUsersFromCall(const std::set<karere::Id>& users) const override;
+    void mutePeers(const Cid_t& cid, const unsigned av) const override;
 
     void requestHighResolutionVideo(Cid_t cid, int quality) override;
     void stopHighResolutionVideo(std::vector<Cid_t> &cids) override;
@@ -347,12 +363,13 @@ public:
 
     bool isOutgoing() const override;   // true if your user started the call
 
-    int64_t getInitialTimeStamp() const override;
+    int64_t getCallInitialTimeStamp() const override;
     int64_t getFinalTimeStamp() const override;
-    int64_t getInitialOffsetinMs() const override;
 
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
+    const KarereWaitingRoom* getWaitingRoom() const override;
+    bool hasOwnUserSpeakPermission() const override;
 
     //
     // ------ end ICall methods -----
@@ -366,15 +383,24 @@ public:
     bool connectSfu(const std::string& sfuUrlStr);
     void joinSfu();
 
+    // generates an ephemeral ECDH X25519 keypair and a signature with format: sesskey|<callId>|<clientId>|<pubkey>
+    std::string generateSessionKeyPair();
+
+    // get ephemeral ECDH X25519 keypair for the current call session
+    const mega::ECDH* getMyEphemeralKeyPair() const;
+
     void createTransceivers(size_t &hiresTrackIndex);  // both, for sending your audio/video and for receiving from participants
     void getLocalStreams(); // update video and audio tracks based on AV flags and call state (on-hold)
-    void sfuDisconnect(const TermCode &termCode, bool hadParticipants);
+    void disconnectFromSfu(const TermCode &termCode, bool hadParticipants);
 
     // ordered call disconnect by sending BYE command before performing SFU and media channel disconnect
-    void orderedCallDisconnect(TermCode termCode, const std::string &msg);
+    void orderedCallDisconnect(TermCode termCode, const std::string &msg, const bool forceDisconnect = false);
 
     // immediate disconnect (without sending BYE command) from SFU and media channel, and also clear call resources
     void immediateCallDisconnect(const TermCode& termCode);
+
+    // delete call immediately
+    void removeCallImmediately(uint8_t reason, TermCode connectionTermCode);
 
     // clear call resources
     void clearResources(const TermCode& termCode);
@@ -385,6 +411,9 @@ public:
     // set temporal endCallReason (when call is not destroyed immediately)
     void setTempEndCallReason(uint8_t reason);
 
+    // set speakRequest flag
+    void setSpeakRequest(const bool enabled)    { mSpeakRequest = enabled; }
+
     // set definitive endCallReason
     void setEndCallReason(uint8_t reason);
     std::string endCallReasonToString(const EndCallReason &reason) const;
@@ -394,8 +423,38 @@ public:
     static EndCallReason getEndCallReasonFromTermcode(const TermCode& termCode);
 
     void clearParticipants();
-    std::string getKeyFromPeer(Cid_t cid, Keyid_t keyid);
     bool hasCallKey();
+    bool isValidWrJoiningState() const;
+    bool isConnectedToSfu() const;
+    bool isSendingBye() const;
+    void clearWrJoiningState();
+    void setWrJoiningState(const sfu::WrState status);
+    void setPrevCid(Cid_t prevcid);
+    Cid_t getPrevCid() const;
+    bool checkWrFlag() const;
+
+    void setWrFlag(bool enabled)            { mIsWaitingRoomEnabled = enabled; }
+    bool isWrFlagEnabled() const            { return mIsWaitingRoomEnabled;    }
+    void clearJoinOffset()                  { mJoinOffset = mega::mega_invalid_timestamp; }
+    void setJoinOffset(const int64_t t)     { mJoinOffset = t; }
+    int64_t getJoinOffset() const           { return mJoinOffset; }
+
+    // Connection initial timestamp related methods: mConnInitialTs is initialized every time we receive ANSWER command
+    // and must be reset when we start as new reconnection attempt
+    void clearConnInitialTs()               { mConnInitialTs = mega::mega_invalid_timestamp; }
+    void captureConnInitialTs()             { mConnInitialTs = ::mega::m_time(nullptr); }
+    int64_t getConnInitialTimeStamp() const { return mConnInitialTs; }
+
+    void captureCallInitialTs()
+    {
+        // this is captured only the first time we effectively join the call
+        // and will persists until the call is destroyed
+        if (!mega::isValidTimeStamp(mCallInitialTs))
+        {
+            mCallInitialTs = ::mega::m_time(nullptr);
+        }
+    }
+
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
@@ -409,11 +468,17 @@ public:
     void updateNetworkQuality(int networkQuality);
     void setDestroying(bool isDestroying);
     bool isDestroying();
+    bool isDisconnecting();
+    bool addWrUsers(const sfu::WrUserList& users, const bool clearCurrent);
+    void pushIntoWr(const TermCode& termCode);
+    bool dumpWrUsers(const sfu::WrUserList& wrUsers, const bool clearCurrent);
+    bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
+    bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
 
     // --- SfuInterface methods ---
-    bool handleAvCommand(Cid_t cid, unsigned av) override;
-    bool handleAnswerCommand(Cid_t cid, sfu::Sdp &spd, uint64_t ts, const std::vector<sfu::Peer>&peers, const std::map<Cid_t, sfu::TrackDescriptor> &vthumbs, const std::map<Cid_t, sfu::TrackDescriptor> &speakers, std::set<karere::Id>& moderators, bool ownMod) override;
-    bool handleKeyCommand(Keyid_t keyid, Cid_t cid, const std::string& key) override;
+    bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers) override;
+    bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
     bool handleVThumbsStopCommand() override;
@@ -422,18 +487,32 @@ public:
     bool handleHiResStopCommand() override;
     bool handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests) override;
     bool handleSpeakReqDelCommand(Cid_t cid) override;
-    bool handleSpeakOnCommand(Cid_t cid, sfu::TrackDescriptor speaker) override;
+    bool handleSpeakOnCommand(Cid_t cid) override;
     bool handleSpeakOffCommand(Cid_t cid) override;
-    bool handlePeerJoin(Cid_t cid, uint64_t userid, int av) override;
+    bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
-    bool handleBye(unsigned termcode) override;
-    void onSfuConnected() override;
+    bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     void onSfuDisconnected() override;
-    void onSendByeCommand() override;
+    void onByeCommandSent() override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
+    bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
+                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                      const bool speakRequest, const sfu::WrUserList& wrUsers) override;
+
+    // --- SfuInterface methods (waiting room related methods) ---
+    bool handleWrDump(const sfu::WrUserList& users) override;
+    bool handleWrEnter(const sfu::WrUserList& users) override;
+    bool handleWrLeave(const karere::Id& user) override;
+    bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
+    bool handleWrDeny(const std::set<karere::Id>& mods) override;
+    bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
+    bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
+
+    bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
+    bool processDeny(const std::string& cmd, const std::string& msg) override;
     void logError(const char* error) override;
 
     // PeerConnectionInterface events
@@ -458,19 +537,49 @@ protected:
     bool mIsOutgoingRinging = false;
     bool mIgnored = false;
     bool mIsOwnClientCaller = false; // flag to indicate if our client is the caller
-    bool mIsDestroying = false;
+
+    /* This var is set true, when are going to destroy the call due to any of the following reasons:
+      * - BYE command received with non retriable termcode
+      * - SFU error received
+      * - DELCALLREASON
+      * - Our own user doesn't participate in chatroom
+      * - We have completed reconnection into an empty chatroom
+      * - Reconnection attempt has not succeeded after max timeout
+      */
+    bool mIsDestroyingCall = false;
 
     // this flag indicates if we are reconnecting to chatd or not, in order to update mParticipants from chatd or SFU (in case we have lost chatd connectivity)
     bool mIsReconnectingToChatd = false;
 
-    // state of request to speak for own user in this call
-    SpeakerState mSpeakerState = SpeakerState::kPending;
-
-    int64_t mInitialTs = 0; // when we joined the call (seconds)
-    int64_t mOffset = 0;    // duration of call when we joined (millis)
-    int64_t mFinalTs = 0;   // end of the call (seconds)
-
+    // audio level monitor is enabled or not
     bool mAudioLevelMonitor = false;
+
+    // state of request to speak for own user in this call
+    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
+
+    // state of joining status for our own client, when waiting room is enabled
+    sfu::WrState mWrJoiningState = sfu::WrState::WR_UNKNOWN;
+
+    int64_t mJoinOffset = 0;    // offset ts when we join within the call respect the call start (millis)
+    int64_t mFinalTs = 0;       // end of the call (seconds)
+
+    // duration of call since the last time we effectively join call, until we start a new reconnection attempt or call finish (seconds)
+    int64_t mConnInitialTs = 0;
+
+    // duration of the call since the first time we effectively join call, until it finish (seconds)
+    int64_t mCallInitialTs = mega::mega_invalid_timestamp;
+
+    // Number of SFU->client audio tracks that the client must allocate. This is equal to the maximum number of simultaneous speakers the call supports.
+    uint32_t mNumInputAudioTracks = 0;
+
+    // Number of SFU->client video tracks that the client must allocate. This is equal to the maximum number of simultaneous video tracks the call supports.
+    uint32_t mNumInputVideoTracks = 0;
+
+    // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
+    megaHandle mVoiceDetectionTimer = 0;
+
+    // speak request flag
+    bool mSpeakRequest = false;
 
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     bool mIsGroup = false;
@@ -495,7 +604,31 @@ protected:
     std::map<uint32_t, std::unique_ptr<RemoteSlot>> mReceiverTracks;  // maps 'mid' to 'Slot'
     std::map<Cid_t, std::unique_ptr<Session>> mSessions;
     std::unique_ptr<sfu::Peer> mMyPeer;
+    Cid_t mPrevCid = K_INVALID_CID;
     uint8_t mMaxPeers = 0; // maximum number of peers (excluding yourself), seen throughout the call
+
+    /* Peer verification promises related methods */
+
+    // add peer to pending verification map upon ANSWER|PEERJOIN commands
+    bool addPendingPeer(const Cid_t cid);
+
+    // clear peers pending verification map
+    void clearPendingPeers();
+
+    // remove peer from pending verification map
+    bool removePendingPeer(const Cid_t cid);
+
+    // check if peer is pending to be verified
+    bool isPeerPendingToAdd(const Cid_t cid) const;
+
+    // check if peer has been received upon ANSWER | PEERJOIN command
+    bool peerExists(const Cid_t cid) const;
+
+    // complete peer verification resolving the promise associated to it
+    bool fullfilPeerPms(const Cid_t cid, const bool ephemKeyVerified);
+
+    // return peer verification promise
+    promise::Promise<void>* getPeerVerificationPms(const Cid_t cid);
 
     // call key for public chats (128-bit key)
     std::string mCallKey;
@@ -510,6 +643,17 @@ protected:
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
     Stats mStats;
     SvcDriver mSvcDriver;
+
+    /* maps peer cid to ephemeral key verification promise.
+     * when a new peer is received (ANSWER | PEERJOIN), we need to verify and derive it's ephemeral key
+     * this proccess could not be immediate as we may need to fetch it's public keys from API (ED25519 | CU25519)
+     *
+     * if during that verification proccess, we receive another command related to that peer Cid, we won't find session for that peer,
+     * as we add the new session once the peer ephemeral key has been verified (even if verification failed)
+     *
+     * with this workarround, we must wait for peer promise completion, before trying to retrieve peer session
+     */
+    std::map<Cid_t, promise::Promise<void>> mPeersVerification;
 
     /*
      * List of participants with moderator role
@@ -528,8 +672,24 @@ protected:
      */
     std::set<karere::Id> mModerators;
 
+    /*
+     * List of users in the waiting room, and it's permission to JOIN the call (0 = WR_NOT_ALLOWED | 1 = WR_ALLOWED)
+     *  - users with permission = WR_NOT_ALLOWED  must wait in the waiting room, until receive WR_ALLOW notification (then they can send JOIN command)
+     *  - users with permission = WR_ALLOWED can enter the call directly by sending JOIN command to SFU
+     */
+    std::unique_ptr<KarereWaitingRoom> mWaitingRoom;
+
+    // symetric cipher for media key encryption
+    mega::SymmCipher mSymCipher;
+
+    // ephemeral X25519 EC key pair for current session
+    std::unique_ptr<mega::ECDH> mEphemeralKeyPair;
+
+    // this flag indicates if waiting room is enabled or not for this call
+    bool mIsWaitingRoomEnabled = false;
+
     Keyid_t generateNextKeyId();
-    void generateAndSendNewkey(bool reset = false);
+    void generateAndSendNewMediakey(bool reset = false);
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)
@@ -538,7 +698,7 @@ protected:
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
-    void attachSlotToSession (Cid_t cid, RemoteSlot *slot, bool audio, VideoResolution hiRes);
+    void attachSlotToSession (Session& session, RemoteSlot* slot, const bool audio, const VideoResolution hiRes);
     void initStatsValues();
     void enableStats();
     void disableStats();
@@ -553,6 +713,24 @@ protected:
     Cid_t getOwnCid() const;
     void setSessionModByUserId(uint64_t userid, bool isMod);
     void setOwnModerator(bool isModerator);
+
+    // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
+    void muteMyClient(const bool audio, const bool video, const Cid_t cidPerf = K_INVALID_CID);
+
+    // initializes a new pair of keys x25519 (for session key)
+    void generateEphemeralKeyPair();
+
+    // generates salt with two of 8-Byte stream encryption iv of the peer and two of our 8-Byte stream encryption iv sorted alphabetically
+    std::vector<mega::byte> generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const;
+
+    // sets the ephemeral pub key for the peer, stores the peer in `mSessions` and calls back onNewSession()
+    void addPeer(sfu::Peer& peer, const std::string& ephemeralPubKeyDerived);
+
+    // parse received ephemeral public key string (publickey:signature)
+    std::pair<std::string, std::string>splitPubKey(const std::string &keyStr) const;
+
+    // verify signature for received ephemeral key
+    promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
@@ -561,16 +739,17 @@ public:
     RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
                  WebsocketsIO& websocketIO, void *appCtx,
                  rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
-    ICall* findCall(karere::Id callid) override;
-    ICall* findCallByChatid(const karere::Id &chatid) override;
+    ICall* findCall(const karere::Id &callid) const override;
+    ICall* findCallByChatid(const karere::Id &chatid) const override;
     bool isCallStartInProgress(const karere::Id &chatid) const override;
     bool selectVideoInDevice(const std::string& device) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    promise::Promise<void> startCall(karere::Id chatid, karere::AvFlags avFlags, bool isGroup, karere::Id schedId, std::shared_ptr<std::string> unifiedKey = nullptr) override;
+    promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const bool notRinging, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeDevice() override;
     void releaseDevice() override;
-    void addLocalVideoRenderer(karere::Id chatid, IVideoRenderer *videoRederer) override;
-    void removeLocalVideoRenderer(karere::Id chatid) override;
+    void addLocalVideoRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
+    void removeLocalVideoRenderer(const karere::Id& chatid) override;
+    void onMediaKeyDecryptionFailed(const std::string& err);
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
@@ -578,12 +757,13 @@ public:
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
-    void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
-    void immediateRemoveCall(Call* call, uint8_t reason, TermCode connectionTermCode);
+    void onDestroyCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) override;
+    void rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode) override;
+    void deleteCall(const karere::Id& callId);
 
-    void handleJoinedCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersJoined) override;
-    void handleLeftCall(karere::Id chatid, karere::Id callid, const std::set<karere::Id>& usersLeft) override;
-    void handleNewCall(karere::Id chatid, karere::Id callerid, karere::Id callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
+    void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) override;
+    void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) override;
+    void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
@@ -594,6 +774,8 @@ public:
 
     void* getAppCtx();
     std::string getDeviceInfo() const;
+    unsigned int getNumInputVideoTracks() const override;
+    void setNumInputVideoTracks(const unsigned int numInputVideoTracks) override;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
@@ -609,9 +791,10 @@ private:
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;
-};
 
-void globalCleanup();
+    // Current limit for simultaneous input video tracks that call supports. (kMaxCallVideoSenders by default)
+    unsigned int mRtcNumInputVideoTracks = getMaxSupportedVideoCallParticipants();
+};
 
 #endif
 }

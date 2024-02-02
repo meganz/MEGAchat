@@ -118,13 +118,13 @@ using namespace megachat;
 }
 
 - (MEGAChatScheduledFlags *)flags {
-    if (!self.megaChatScheduledMeeting) return nil;
-    return [MEGAChatScheduledFlags.alloc initWithMegaChatScheduledFlags:self.megaChatScheduledMeeting->flags() cMemoryOwn:YES];
+    if (!self.megaChatScheduledMeeting || !self.megaChatScheduledMeeting->flags()) return nil;
+    return [MEGAChatScheduledFlags.alloc initWithMegaChatScheduledFlags:self.megaChatScheduledMeeting->flags()->copy() cMemoryOwn:YES];
 }
 
 - (MEGAChatScheduledRules *)rules {
     if (!self.megaChatScheduledMeeting) return nil;
-    return [MEGAChatScheduledRules.alloc initWithMegaChatScheduledRules:self.megaChatScheduledMeeting->rules() cMemoryOwn:YES];
+    return [MEGAChatScheduledRules.alloc initWithMegaChatScheduledRules:self.megaChatScheduledMeeting->rules() cMemoryOwn:NO];
 }
 
 - (BOOL)hasChangedForType:(MEGAChatScheduledMeetingChangeType)changeType {

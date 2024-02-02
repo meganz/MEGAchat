@@ -84,7 +84,7 @@ public:
 
     /**
      * @brief A user has joined, or their privilege has changed
-     * @param privilege - the new privilege, if it is PRIV_NOTPRESENT, then the user
+     * @param privilege - the new privilege, if it is PRIV_RM, then the user
      * left the chat
      */
     virtual void onUserJoin(karere::Id /*userid*/){}
@@ -132,7 +132,7 @@ public:
     decryptChatTitleFromApi(const Buffer& data) = 0;
 
     virtual promise::Promise<std::string>
-    encryptUnifiedKeyToUser(karere::Id user) = 0;
+    encryptUnifiedKeyToUser(const karere::Id& user) = 0;
 
     virtual promise::Promise<std::string>
     decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender, uint64_t receiver) = 0;

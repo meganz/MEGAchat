@@ -227,7 +227,7 @@ void UserAttrCache::onUserAttrChange(::mega::MegaUser& user)
 {
     onUserAttrChange(user.getHandle(), user.getChanges());
 }
-void UserAttrCache::onUserAttrChange(uint64_t userid, int changed)
+void UserAttrCache::onUserAttrChange(uint64_t userid, uint64_t changed)
 {
     UserAttrDescMap::iterator it;
     for (it = gUserAttrDescsMap.begin(); it != gUserAttrDescsMap.end(); it++)
@@ -357,7 +357,7 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
         // the `ph` is passed here only to decide whether the email should be persisted
         // in DB or not (previews/valid-ph should not persist cached data)
         ::promise::Promise<Buffer*> promise = getAttr(user, USER_ATTR_EMAIL, ph)
-        .fail([](const ::promise::Error& err) -> ::promise::Promise<Buffer*>
+        .fail([](const ::promise::Error&) -> ::promise::Promise<Buffer*>
         {
             ::promise::Promise<Buffer*> p;
             p.resolve(nullptr);
@@ -474,14 +474,14 @@ void UserAttrCache::fetchStandardAttr(UserAttrPair key, std::shared_ptr<UserAttr
 
     mClient.api.call(&::mega::MegaApi::getChatUserAttribute,
         key.user.toString().c_str(), (int)key.attrType, ph)
-    .then([wptr, this, key, item](ReqResult result)
+    .then([wptr, key, item](ReqResult result)
     {
         wptr.throwIfDeleted();
         auto& desc = gUserAttrDescsMap.at(key.attrType);
         item->data.reset(desc.getData(*result));
         item->resolve(key);
     })
-    .fail([wptr, this, key, item](const ::promise::Error& err)
+    .fail([wptr, key, item](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         item->error(key, err.code());
@@ -494,14 +494,14 @@ void UserAttrCache::fetchEmail(UserAttrPair key, std::shared_ptr<UserAttrCacheIt
     auto wptr = weakHandle();
     mClient.api.call(&::mega::MegaApi::getUserEmail,
         key.user.val)
-    .then([wptr, this, key, item](ReqResult result)
+    .then([wptr, key, item](ReqResult result)
     {
         wptr.throwIfDeleted();
         auto email = result->getEmail();
         item->data.reset(new Buffer(email, strlen(email)));
         item->resolve(key);
     })
-    .fail([wptr, this, key, item](const ::promise::Error& err)
+    .fail([wptr, key, item](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
         item->error(key, err.code());
@@ -542,7 +542,7 @@ void UserAttrCache::fetchUserFullName(UserAttrPair key, std::shared_ptr<UserAttr
     });
 
     ::promise::when(pms1, pms2)
-    .then([wptr, this, ctx, key, item]()
+    .then([wptr, ctx, key, item]()
     {
         wptr.throwIfDeleted();
         item->data.reset(new Buffer(ctx->firstname.size()+ctx->lastname.size()+1));
