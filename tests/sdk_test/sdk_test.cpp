@@ -461,7 +461,6 @@ void MegaChatApiTest::SetUp()
 #ifndef KARERE_DISABLE_WEBRTC
             megaChatApi[i]->removeChatCallListener(this);
 #endif
-
             // destroy MegaChatApi instance
             delete megaChatApi[i];
             megaChatApi[i] = nullptr;

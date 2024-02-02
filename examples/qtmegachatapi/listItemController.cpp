@@ -187,7 +187,6 @@ void ChatListItemController::endCall()
     {
         mMegaChatApi->endChatCall(call->getCallId());
     }
-
 #else
     mMainWindow->mApp->noFeatureErr();
 #endif
