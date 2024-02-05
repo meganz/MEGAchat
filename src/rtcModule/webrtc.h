@@ -37,6 +37,8 @@ enum TermCode: uint8_t
     kKickedFromWaitingRoom      = 7,                    // < User has been kicked from call regardless of whether is in the call or in the waiting room
     kTooManyUserClients         = 8,                    // < Too many clients of same user connected
     kWaitingRoomAllowTimeout    = 9,                    // < Timed out waiting to be allowed from waiting room into call
+    kCallDurLimit               = 10,                   // < Max allowed call duration reached
+    kCallUserLimit              = 11,                   // < Too many different users in call
 
     //==============================================================================================
 
@@ -223,6 +225,7 @@ public:
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
+    virtual void setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const = 0;
     virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;

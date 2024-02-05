@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include "signal.h"
 #include <QClipboard>
+#include <mega/utils.h>
 
 using namespace std;
 using namespace mega;
@@ -117,6 +118,14 @@ void MegaChatApplication::login()
    connect(mLoginDialog, SIGNAL(onPreviewClicked()), this, SLOT(onPreviewClicked()));
    connect(mLoginDialog, SIGNAL(onEphemeralAccountPlusPlus()), this, SLOT(onEphemeral()));
    mLoginDialog->show();
+}
+
+void MegaChatApplication::noFeatureErr() const
+{
+   QMessageBox msg;
+   msg.setIcon(QMessageBox::Information);
+   msg.setText("Feature not available");
+   msg.exec();
 }
 
 std::string MegaChatApplication::getText(std::string title, bool allowEmpty)

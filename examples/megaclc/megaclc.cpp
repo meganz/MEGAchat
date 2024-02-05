@@ -60,11 +60,11 @@ namespace c = ::megachat;
 namespace k = ::karere;
 
 using m::SimpleLogger;
-using m::logFatal;
 using m::logError;
 using m::logWarning;
 using m::logInfo;
 using m::logDebug;
+using m::logMax;
 
 #ifndef WIN32
 // avoid warning C4996 : 'strdup' : The POSIX name for this item is deprecated.Instead, use the ISO Cand C++ conformant name : _strdup.See online help for details.
@@ -338,7 +338,133 @@ std::string timeToLocalTimeString(const int64_t time)
     return std::string{buffer};
 }
 
-class MegaCLLogger : public m::Logger {
+/**
+ * @brief This class is meant to manage the writing of the log/debug messages by the Loggers (MegaCLLogger and
+ * MegaclcChatChatLogger) into a file and/or the cout.
+ *
+ * As it is thought to be used by multiple loggers that may be running in different threads it uses a mutex to access
+ * the attributes.
+ *
+ * Usage: There is a variety of methods to enable/disable the writing to a file or to cout and also the minimum level of
+ * severity of the messages to write. However the main method to use this class is the `writeOutput`. You should call
+ * the method through an instance of this class in a global scope, accessible to all the Loggers you want to coordinate.
+ */
+class DebugOutputWriter
+{
+public:
+    /**
+     * @brief Writes the given message to the file if it was set and to the cout if it was enable.
+     *
+     * NOTE: The logLevel parameter is compared against an internal level that you can change with the `setLogLevel`
+     * method and which has the value of 1 by default (that matches with the `logError` value). If the input
+     * logLevel is larger than the internal one the message is not processed. Else, the message will always be written
+     * into the file if it was enable but it will be only written to the cout if the logLevel is associated to the error
+     * or fatal error level. This is done to avoid massive writing to the cout which could occasionally difficult the
+     * command input.
+     *
+     * @param msg The message to write
+     * @param logLevel The severity of the message. See the `LogLevel` enum in the `mega/logging.h` file.
+     */
+    void writeOutput(const std::basic_string<char>& msg, int logLevel)
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        if (logLevel > mCurrentLogLevel)
+        {
+            return;
+        }
+        if (mLogFile.is_open())
+        {
+            mLogFile << msg;
+        }
+        // To avoid cout saturation only errors are printed.
+        if (mLogToConsole && logLevel <= logError)
+        {
+            std::cout << msg;
+        }
+    }
+
+    void disableLogToConsole() { setLogToConsole(false); }
+
+    void enableLogToConsole() { setLogToConsole(true); }
+
+    void disableLogToFile()
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogFile.close();
+    }
+
+    /**
+     * @brief Enables the writing to a file.
+     *
+     * If a file was already opened, it will be closed before opening the new one.
+     *
+     * NOTE: If the file name to open matches the previously opened file, it will be overwritten.
+     *
+     * @param fname The path to the file to write the messages.
+     */
+    void enableLogToFile(const std::string& fname)
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogFile.close();
+        if (fname.length() == 0)
+        {
+            conlock(cout) << "Error: Provided an empty file name\n";
+            return;
+        }
+        mLogFile.open(fname.c_str());
+        if (mLogFile.is_open())
+        {
+            mLogFileName = fname;
+        }
+        else
+        {
+            conlock(cout) << "Error: Unable to open output file: " << fname << "\n";
+        }
+    }
+
+    bool isLoggingToFile() const
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogFile.is_open();
+    }
+
+    bool isLoggingToConsole() const 
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogToConsole;
+    }
+
+    std::string getLogFileName() const
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        return mLogFileName;
+    }
+
+    void setLogLevel(int newLogLevel)
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mCurrentLogLevel = newLogLevel;
+    }
+
+private:
+
+    void setLogToConsole(bool state)
+    {
+        std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+        mLogToConsole = state;
+    }
+
+    std::ofstream mLogFile;
+    std::string mLogFileName;
+    mutable std::mutex mLogFileWriteMutex;
+    int mCurrentLogLevel = 1;
+    bool mLogToConsole = false;
+};
+
+DebugOutputWriter g_debugOutpuWriter;
+
+class MegaCLLogger : public m::Logger
+{
 public:
     void logMsg(const int loglevel, const std::string& message)
     {
@@ -359,15 +485,7 @@ private:
         std::ostringstream os;
         os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << endl;
         const auto msg = os.str();
-        if (loglevel <= m::logError)
-        {
-            conlock(cout) << msg << flush;
-        }
-        if (g_reviewPublicChatOutFileLogs)
-        {
-            std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
-            *g_reviewPublicChatOutFileLogs << msg << flush;
-        }
+        g_debugOutpuWriter.writeOutput(msg, loglevel);
     }
 };
 
@@ -400,15 +518,7 @@ private:
             os << endl;
         }
         const auto msg = os.str();
-        if (loglevel <= c::MegaChatApi::LOG_LEVEL_ERROR)
-        {
-            conlock(cout) << msg << flush;
-        }
-        if (g_reviewPublicChatOutFileLogs)
-        {
-            std::lock_guard<std::mutex> lock{g_reviewPublicChatOutFileLogsMutex};
-            *g_reviewPublicChatOutFileLogs << msg << flush;
-        }
+        g_debugOutpuWriter.writeOutput(msg, loglevel);
     }
 };
 
@@ -1533,6 +1643,48 @@ void exec_session(ac::ACState& s)
     }
 }
 
+void exec_debug(ac::ACState& s)
+{
+    if (s.extractflag("-off"))
+    {
+        SimpleLogger::setLogLevel(logWarning);
+        g_debugOutpuWriter.disableLogToConsole();
+        g_debugOutpuWriter.disableLogToFile();
+    }
+    if (s.extractflag("-on"))
+    {
+        SimpleLogger::setLogLevel(logDebug);
+        g_debugOutpuWriter.setLogLevel(logDebug);
+    }
+    if (s.extractflag("-verbose"))
+    {
+        SimpleLogger::setLogLevel(logMax);
+        g_debugOutpuWriter.setLogLevel(logMax);
+    }
+    if (s.extractflag("-console"))
+    {
+        g_debugOutpuWriter.enableLogToConsole();
+    }
+    if (s.extractflag("-noconsole"))
+    {
+        g_debugOutpuWriter.disableLogToConsole();
+    }
+    if (s.extractflag("-nofile"))
+    {
+        g_debugOutpuWriter.disableLogToFile();
+    }
+    string filename;
+    if (s.extractflagparam("-file", filename))
+    {
+        g_debugOutpuWriter.enableLogToFile(filename);
+    }
+
+    cout << "Debug level set to " << SimpleLogger::getLogLevel() << endl;
+    cout << "Log to console: " << (g_debugOutpuWriter.isLoggingToConsole() ? "on" : "off") << endl;
+    cout << "Log to file: " << (g_debugOutpuWriter.isLoggingToFile() ? g_debugOutpuWriter.getLogFileName() : "<off>") << endl;
+}
+
+
 void exec_setonlinestatus(ac::ACState& s)
 {
     assert(s.words.size() == 2);
@@ -2209,13 +2361,6 @@ void exec_dumpchathistory(ac::ACState& s)
         return;
     }
 
-    if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
-    {
-        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
-        g_dumpingChatHistory = false;
-        return;
-    }
-
     std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(g_dumpHistoryChatid));
     unique_ptr<m::MegaHandleList> peerList = unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
     for (unsigned int i = 0; i < chatRoom->getPeerCount(); i++)
@@ -2276,13 +2421,9 @@ void exec_reviewpublicchat(ac::ACState& s)
     {
         return;
     }
-    if (!initFile(g_reviewPublicChatOutFileLogs, baseFilename + "_Logs.txt"))
-    {
-        return;
-    }
     *g_reviewPublicChatOutFile << chat_link << endl;
     *g_reviewPublicChatOutFileLinks << chat_link << endl;
-    *g_reviewPublicChatOutFileLogs << chat_link << endl;
+    g_debugOutpuWriter.writeOutput(chat_link + "\n", logInfo);
 
     auto check_chat_preview_listener = new OneShotChatRequestListener;
     check_chat_preview_listener->onRequestFinishFunc =
@@ -4680,6 +4821,11 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
     p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
+    p->Add(exec_debug, sequence(text("debug"),
+                opt(either(flag("-on"), flag("-off"), flag("-verbose"))),
+                opt(either(flag("-console"), flag("-noconsole"))),
+                opt(either(flag("-nofile"), sequence(flag("-file"), localFSFile())))
+                ));
 
     p->Add(exec_setonlinestatus,    sequence(text("setonlinestatus"), either(text("offline"), text("away"), text("online"), text("busy"))));
     p->Add(exec_setpresenceautoaway, sequence(text("setpresenceautoaway"), either(text("on"), text("off")), wholenumber(30)));
@@ -5176,6 +5322,10 @@ void CLCRoomListener::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaCh
 void CLCRoomListener::onMessageLoaded(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)
 {
     reportMessage(room, msg, "loaded");
+    if (!msg && !g_chatApi->isFullHistoryLoaded(room))
+    {
+        reviewPublicChatLoadMessages(room);
+    }
 }
 
 void CLCRoomListener::onMessageReceived(megachat::MegaChatApi *, megachat::MegaChatMessage *) {}

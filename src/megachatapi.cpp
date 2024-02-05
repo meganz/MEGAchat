@@ -193,6 +193,8 @@ const char* MegaChatCall::termcodeToString(int termcode)
         case TERM_CODE_PROTOCOL_VERSION:          return "SFU protocol version error";
         case TERM_CODE_KICKED:                    return "User has been kicked from call";
         case TERM_CODE_WR_TIMEOUT:                return "Timed out waiting to be allowed from waiting room into call";
+        case TERM_CODE_CALL_DUR_LIMIT:            return "Free plan limitations. Call duration exceeded for call";
+        case TERM_CODE_CALL_USERS_LIMIT:          return "Free plan limitations. Call max different users exceeded for call";
     }
     return "Unknown call termcode";
 }
@@ -1199,6 +1201,11 @@ void MegaChatApi::pushUsersIntoWaitingRoom(MegaChatHandle chatid, MegaHandleList
 void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users, MegaChatRequestListener* listener)
 {
     pImpl->kickUsersFromCall(chatid, users, listener);
+}
+
+void MegaChatApi::setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener)
+{
+    pImpl->setLimitsInCall(chatid, callDur, numUsers, numClientsPerUser, numClients, listener);
 }
 
 void MegaChatApi::mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener)

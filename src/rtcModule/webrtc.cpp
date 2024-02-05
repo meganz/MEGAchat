@@ -673,6 +673,11 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
+void Call::setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const
+{
+    mSfuConnection->sendSetLimit(callDur, numUsers, numClientsPerUser, numClients);
+}
+
 void Call::requestHighResolutionVideo(Cid_t cid, int quality)
 {
     // If we are requesting high resolution video for a peer, session must exists

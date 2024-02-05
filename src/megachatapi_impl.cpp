@@ -56,7 +56,9 @@
 #include <signal.h>
 #endif
 
+#if __cpp_lib_execution
 #include <execution>
+#endif
 
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
 
@@ -2795,6 +2797,59 @@ int MegaChatApiImpl::performRequest_kickUsersFromCall(MegaChatRequestPrivate* re
     }
 
     call->kickUsersFromCall(users);
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
+}
+
+int MegaChatApiImpl::performRequest_setLimitsInCall(MegaChatRequestPrivate* request)
+{
+    const MegaChatHandle chatid = request->getChatHandle();
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - Invalid chatid");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    MegaHandleList* handleList = request->getMegaHandleList();
+    if (!handleList || handleList->size() != 4)
+    {
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    rtcModule::ICall* call = findCall(chatid);
+    if (!call)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - There is not any call in that chatroom");
+        assert(call);
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    if (call->getState() != rtcModule::kStateInProgress)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - Call isn't in progress state");
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    if (!call->isOwnPrivModerator())
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - moderator role required to perform this action");
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    const unsigned callDurSecs = static_cast<unsigned>(handleList->get(0));
+    const unsigned numUsers = static_cast<unsigned>(handleList->get(1));
+    const unsigned numClientsPerUser = static_cast<unsigned>(handleList->get(2));
+    const unsigned numClients = static_cast<unsigned>(handleList->get(3));
+    const double callDurMin = callDurSecs ? static_cast<double>(callDurSecs) / 60.0 : 0.0;
+
+    if (numClientsPerUser > MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - invalid value for numClientsPerUser");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    call->setLimits(callDurMin, numUsers, numClientsPerUser, numClients);
     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
     fireOnChatRequestFinish(request, megaChatError);
     return MegaChatError::ERROR_OK;
@@ -6125,6 +6180,21 @@ void MegaChatApiImpl::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* u
     waiter->notify();
 }
 
+void MegaChatApiImpl::setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LIMIT_CALL, listener);
+    request->setChatHandle(chatid);
+    unique_ptr<MegaHandleList> limits = unique_ptr<MegaHandleList>(MegaHandleList::createInstance());
+    limits->addMegaHandle(static_cast<MegaHandle>(callDur));
+    limits->addMegaHandle(static_cast<MegaHandle>(numUsers));
+    limits->addMegaHandle(static_cast<MegaHandle>(numClientsPerUser));
+    limits->addMegaHandle(static_cast<MegaHandle>(numClients));
+    request->setMegaHandleList(limits.get());
+    request->setPerformRequest([this, request]() { return performRequest_setLimitsInCall(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_MUTE, listener);
@@ -7539,6 +7609,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SPEAKER_ADD_DEL: return "SPEAKER_ADD_DEL";
         case TYPE_SPEAKRQ_ADD_DEL: return "SPEAKRQ_ADD_DEL";
         case TYPE_REJECT_CALL: return "REJECT_CALL";
+        case TYPE_SET_LIMIT_CALL: return "SET_LIMIT_CALL";
     }
     return "UNKNOWN";
 }
@@ -8016,6 +8087,8 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kUnKnownTermCode:
         case rtcModule::TermCode::kWaitingRoomAllowTimeout:
+        case rtcModule::TermCode::kCallDurLimit:
+        case rtcModule::TermCode::kCallUserLimit:
             return SESS_TERM_CODE_NON_RECOVERABLE;
 
         case rtcModule::TermCode::kRtcDisconn:
@@ -8535,6 +8608,12 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kUnKnownTermCode:
         case rtcModule::TermCode::kErrorCrypto:
             return TERM_CODE_ERROR;
+
+        case rtcModule::TermCode::kCallDurLimit:
+            return TERM_CODE_CALL_DUR_LIMIT;
+
+        case rtcModule::TermCode::kCallUserLimit:
+            return TERM_CODE_CALL_USERS_LIMIT;
 
         case rtcModule::TermCode::kErrorProtocolVersion:
             return TERM_CODE_PROTOCOL_VERSION;

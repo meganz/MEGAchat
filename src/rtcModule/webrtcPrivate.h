@@ -324,6 +324,7 @@ public:
     bool hasUserPendingSpeakRequest(const karere::Id& uh) const override;
     int getWrJoiningState() const override;
     void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
+    void setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
     void kickUsersFromCall(const std::set<karere::Id>& users) const override;
