@@ -2659,9 +2659,10 @@ void Call::immediateCallDisconnect(const TermCode& termCode)
         return;
     }
 
+    const bool hadParticipants = !mSessions.empty(); // mSessions is cleared at clearResources
     mediaChannelDisconnect(true /*releaseDevices*/);
     clearResources(termCode);
-    disconnectFromSfu(termCode, !mSessions.empty() /*hadParticipants*/);
+    disconnectFromSfu(termCode, hadParticipants);
 }
 
 void Call::disconnectFromSfu(const TermCode& termCode, bool hadParticipants)
@@ -2682,6 +2683,7 @@ void Call::disconnectFromSfu(const TermCode& termCode, bool hadParticipants)
         mSfuConnection = nullptr;
     }
 
+    // avoid notifying kStateClientNoParticipating, as call will finally be destroyed
     bool skipNotification = (isDestroying())                    // we are destroying call
                             || (!hadParticipants && wasJoined); // no more participants but still joined to SFU
     if (!skipNotification)
