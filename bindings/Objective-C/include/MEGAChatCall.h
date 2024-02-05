@@ -59,6 +59,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeWaitingRoomUsersAllow = 0x10000,
     MEGAChatCallChangeTypeWaitingRoomUsersDeny = 0x20000,
     MEGAChatCallChangeTypeWaitingRoomPushedFromCall = 0x40000,
+    MEGAChatCallChangeTypeSpeakRequested = 0x80000,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
@@ -86,42 +87,60 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 
 @interface MEGAChatCall : NSObject
 
-@property (nonatomic, readonly) MEGAChatCallStatus status;
 @property (nonatomic, readonly) uint64_t chatId;
 @property (nonatomic, readonly) uint64_t callId;
+@property (nonatomic, readonly) NSUUID *uuid;
+
+@property (nonatomic, readonly) MEGAChatCallStatus status;
 @property (nonatomic, readonly) MEGAChatCallChangeType changes;
 @property (nonatomic, readonly) int64_t duration;
 @property (nonatomic, readonly) int64_t initialTimeStamp;
 @property (nonatomic, readonly) int64_t finalTimeStamp;
-@property (nonatomic, readonly, getter=hasLocalAudio) BOOL localAudio;
-@property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
 @property (nonatomic, readonly) MEGAChatCallTermCode termCode;
-@property (nonatomic, readonly, getter=isRinging) BOOL ringing;
+@property (nonatomic, readonly) MEGAChatCallNotificationType notificationType;
+@property (nonatomic, readonly) MEGAChatCallNetworkQuality networkQuality;
+@property (nonatomic, readonly) uint64_t caller;
+@property (nonatomic, readonly) uint64_t auxHandle;
+@property (nonatomic, readonly) uint64_t handleWithChange;
+
 @property (nonatomic, readonly) uint64_t peeridCallCompositionChange;
 @property (nonatomic, readonly) MEGAChatCallCompositionChange callCompositionChange;
-
 @property (nonatomic, readonly) NSInteger numParticipants;
-@property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
-@property (nonatomic, readonly) MEGAChatCallNetworkQuality networkQuality;
+@property (nonatomic, readonly) MEGAHandleList *participants;
 @property (nonatomic, readonly) MEGAHandleList *sessionsClientId;
 
-@property (nonatomic, readonly) MEGAHandleList *participants;
+@property (nonatomic, readonly, getter=hasLocalAudio) BOOL localAudio;
+@property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
+@property (nonatomic, readonly, getter=isOwnModerator) BOOL ownModerator;
+@property (nonatomic, readonly, getter=isAudioDetected) BOOL audioDetected;
+@property (nonatomic, readonly, getter=isRinging) BOOL ringing;
+@property (nonatomic, readonly, getter=isOnHold) BOOL onHold;
+@property (nonatomic, readonly, getter=isIgnored) BOOL ignored;
+@property (nonatomic, readonly, getter=isIncoming) BOOL incoming;
+@property (nonatomic, readonly, getter=isOutgoing) BOOL outgoing;
+@property (nonatomic, readonly, getter=isSpeakRequestEnabled) BOOL speakRequestEnabled;
+@property (nonatomic, readonly, getter=isOwnClientCaller) BOOL ownClientCaller;
+@property (nonatomic, readonly, getter=isSpeakPermissionFlagEnabled) BOOL speakPermissionFlagEnabled;
 
-@property (nonatomic, readonly) uint64_t auxHandle;
-
-@property (nonatomic, readonly) NSUUID *uuid;
+@property (nonatomic, readonly) MEGAHandleList *moderators;
 
 @property (nonatomic, readonly) MEGAChatWaitingRoomStatus waitingRoomJoiningStatus;
 @property (nonatomic, readonly) MEGAChatWaitingRoom *waitingRoom;
 @property (nonatomic, readonly) MEGAHandleList *waitingRoomHandleList;
 
+@property (nonatomic, readonly) MEGAHandleList *speakersList;
+@property (nonatomic, readonly) MEGAHandleList *speakRequestsList;
+
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
+
+- (MEGAHandleList *)sessionsClientIdByUserHandle:(uint64_t)userHandle;
+
+- (BOOL)hasUserSpeakPermission:(uint64_t)userHandle;
+- (BOOL)hasUserPendingSpeakRequest:(uint64_t)userHandle;
 
 - (nullable MEGAChatSession *)sessionForClientId:(uint64_t)clientId;
 
 - (instancetype)clone;
-
-- (NSInteger)notificationType;
 
 - (NSString *)termcodeString:(MEGAChatCallTermCode)termcode;
 
