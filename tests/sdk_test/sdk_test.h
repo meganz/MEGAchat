@@ -566,9 +566,8 @@ protected:
     bool chatApiLogin(unsigned accountIndex, const char *session = nullptr, const char *email = nullptr, const char *password = nullptr);
     bool chatApiJoinAll(unsigned accountIndex, const char *email = nullptr);
     void logout(unsigned int accountIndex, bool closeSession = false);
-
 public:
-    static const char* printChatRoomInfo(const megachat::MegaChatRoom *);
+    static const char* printChatRoomInfo(megachat::MegaChatApi*, const megachat::MegaChatRoom *);
     static const char* printMessageInfo(const megachat::MegaChatMessage *);
 protected:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);

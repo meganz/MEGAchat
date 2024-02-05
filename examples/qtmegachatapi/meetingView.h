@@ -3,6 +3,7 @@
 #define MEETINGVIEW_H
 
 #include "peerWidget.h"
+#include "megaLoggerApplication.h"
 #include <megachatapi.h>
 
 #include <QDialog>
@@ -16,7 +17,7 @@
 #include "meetingSession.h"
 
 class MeetingSession;
-class MeetingView : public QDialog
+class MeetingView : public QDialog, public megachat::MegaChatRequestListener
 {
     Q_OBJECT
 public:
@@ -32,7 +33,8 @@ public:
     void updateAudioButtonText(const megachat::MegaChatCall &call);
     void updateVideoButtonText(const megachat::MegaChatCall &call);
     void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
-    std::string sessionToString(const megachat::MegaChatSession& session);
+    std::string sessionToString(megachat::MegaChatHandle, megachat::MegaChatHandle,
+                                std::function<void()>);
     void updateAudioMonitor(bool enabled);
     void updateLabel(megachat::MegaChatCall *call);
     void setNotParticipating();
@@ -50,6 +52,10 @@ public:
     void removeHiResByCid(uint32_t cid);
     void createRingingWindow(megachat::MegaChatHandle callid);
     void destroyRingingWindow();
+
+    // megachat::MegaChatRequestListener
+    virtual void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request,
+                                 megachat::MegaChatError* e) override;
 
 protected:
     megachat::MegaChatApi& mMegaChatApi;
@@ -92,6 +98,9 @@ protected:
     std::map<uint32_t, MeetingSession*> mSessionWidgets;
 
     std::unique_ptr<QMessageBox> mRingingWindow;
+
+    std::function<void()> mUserDataReceivedFunc;
+    MegaLoggerApplication* mLogger;
 
 public slots:
     void onHangUp();
