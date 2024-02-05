@@ -254,6 +254,7 @@ class MainWindow :
      friend class CallAnswerGui;
      friend class ChatWindow;
      friend class ChatMessage;
+     friend class MeetingView;
 };
 
 #endif // MAINWINDOW_H

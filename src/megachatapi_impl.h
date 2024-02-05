@@ -843,17 +843,9 @@ public:
     int getOwnPrivilege() const override;
     unsigned int getNumPreviewers() const override;
     int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const override;
-    const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const override;
-    const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const override;
-    const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const override;
-    const char *getPeerEmailByHandle(MegaChatHandle userhandle) const override;
     int getPeerPrivilege(unsigned int i) const override;
     unsigned int getPeerCount() const override;
     MegaChatHandle getPeerHandle(unsigned int i) const override;
-    const char *getPeerFirstname(unsigned int i) const override;
-    const char *getPeerLastname(unsigned int i) const override;
-    const char *getPeerFullname(unsigned int i) const override;
-    const char *getPeerEmail(unsigned int i) const override;
     bool isGroup() const override;
     bool isPublic() const override;
     bool isPreview() const override;
@@ -896,9 +888,6 @@ private:
     MegaChatHandle mChatid;
     mega::privilege_t priv;
     mega::userpriv_vector mPeers;
-    std::vector<std::string> peerFirstnames;
-    std::vector<std::string> peerLastnames;
-    std::vector<std::string> peerEmails;
     bool group;
     bool mPublicChat;
     karere::Id mAuthToken;
