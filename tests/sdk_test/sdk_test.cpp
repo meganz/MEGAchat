@@ -5482,7 +5482,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
                           "A ends call for all participants",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
-                          maxTimeout,
+                          minTimeout*2, // 120 secs
                           [this, a1, callid = call->getCallId()]()
                           {
                               ChatRequestTracker crtEndCall(megaChatApi[a1]);
@@ -6043,7 +6043,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                           "A ends call for all participants",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
-                          maxTimeout,
+                          minTimeout*2, // 120 secs
                           [this, a1, callDestroyedA, callDestroyedB, callId]()
                           {
                               ChatRequestTracker crtEndCall(megaChatApi[a1]);
@@ -6098,7 +6098,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                           "A ends call for all participants",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
-                          maxTimeout,
+                          minTimeout*2, // 120 secs
                           [this, a1, callid = call->getCallId()]()
                           {
                               ChatRequestTracker crtEndCall(megaChatApi[a1]);
@@ -6670,7 +6670,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
                           "A ends call for all participants",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
-                          maxTimeout,
+                          minTimeout*2, // 120 secs
                           [this, &a1, callid = call->getCallId()]()
                           {
                               ChatRequestTracker crtEndCall(megaChatApi[a1]);
@@ -7887,7 +7887,7 @@ void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, 
                  errMsg,
                  true /* wait for all exit flags */,
                  true /* reset flags */,
-                 minTimeout,
+                 minTimeout*2, // 120 secs
                  [this, performerIdx, callid = call->getCallId()]()
                  {
                      ChatRequestTracker crtEndCall(megaChatApi[performerIdx]);
