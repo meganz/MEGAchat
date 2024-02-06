@@ -1058,6 +1058,8 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
 
     CleanupFunction testCleanup = [this] () -> void
     {
+        LOG_debug << "MegaChatApiTest.CallLimitsFreePlan: Cleanup";
+        clearTemporalVars();
         ExitBoolFlags eF;
         addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
@@ -1220,6 +1222,8 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 {
     CleanupFunction testCleanup = [this] () -> void
     {
+        LOG_debug << "MegaChatApiTest.WaitingRoomsJoiningOrder: Cleanup";
+        clearTemporalVars();
         ExitBoolFlags eF;
         addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
@@ -1352,6 +1356,8 @@ TEST_F(MegaChatApiTest, RejectCall)
 {
     CleanupFunction testCleanup = [this]() -> void
     {
+        LOG_debug << "MegaChatApiTest.RejectCall: Cleanup";
+        clearTemporalVars();
         ExitBoolFlags eF;
         addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
@@ -4858,6 +4864,8 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
     CleanupFunction testCleanup = [this]() -> void
     {
+        LOG_debug << "MegaChatApiTest.EstablishedCalls: Cleanup";
+        clearTemporalVars();
         ExitBoolFlags eF;
         addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
@@ -7865,25 +7873,29 @@ void MegaChatApiTest::addBoolVarAndExitFlag(const unsigned int i, ExitBoolFlags 
 void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId)
 {
     std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(chatId));
-    if (call)
+    if (!call)
     {
-       std::string errMsg = "ending call for all participants from account " + std::to_string(performerIdx);
-       LOG_debug << errMsg;
-       EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "endChatCall: Invalid callId";
-       waitForAction (1,  /* just one attempt */
-                     eF,
-                     errMsg,
-                     true /* wait for all exit flags */,
-                     true /* reset flags */,
-                     minTimeout,
-                     [this, performerIdx, callid = call->getCallId()]()
-                     {
-                         ChatRequestTracker crtEndCall(megaChatApi[performerIdx]);
-                         megaChatApi[performerIdx]->endChatCall(callid, &crtEndCall);
-                         EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
-                             << "endChatCall: Failed to end call. Error: " << crtEndCall.getErrorString();
-                     });
+        LOG_debug << "endChatCall:: Call doesn't exists for chatroom:" << getChatIdStrB64(chatId);
+        return;
     }
+
+    std::string errMsg = "ending call for all participants from account " + std::to_string(performerIdx);
+    LOG_debug << errMsg;
+    EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "endChatCall: Invalid callId";
+    waitForAction (1,  /* just one attempt */
+                 eF,
+                 errMsg,
+                 true /* wait for all exit flags */,
+                 true /* reset flags */,
+                 minTimeout,
+                 [this, performerIdx, callid = call->getCallId()]()
+                 {
+                     ChatRequestTracker crtEndCall(megaChatApi[performerIdx]);
+                     megaChatApi[performerIdx]->endChatCall(callid, &crtEndCall);
+                     EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                         << "endChatCall: Failed to end call. Error: " << crtEndCall.getErrorString();
+                 });
+
 }
 
 void MegaChatApiTest::checkCallIdInProgress(unsigned i, const MegaChatHandle chatid)
