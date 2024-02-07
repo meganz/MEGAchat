@@ -1078,6 +1078,9 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
         int* termCodeA2 = &mTerminationCode[a2]; *termCodeA2 = MegaChatCall::TERM_CODE_INVALID;
         int* termCodeA3 = &mTerminationCode[a3]; *termCodeA3 = MegaChatCall::TERM_CODE_INVALID;
         ExitBoolFlags eF;
+        addBoolVarAndExitFlag(a1, eF, "CallWillEnd", false);        // a1 - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
+        addBoolVarAndExitFlag(a2, eF, "CallWillEnd", false);        // a2 - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
+        addBoolVarAndExitFlag(a3, eF, "CallWillEnd", false);        // a3 - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
         addBoolVarAndExitFlag(a1, eF, "callLeft" , false);          // a1 - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
         addBoolVarAndExitFlag(a2, eF, "callLeft" , false);          // a2 - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
         addBoolVarAndExitFlag(a3, eF, "callLeft" , false);          // a3 - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
@@ -1093,7 +1096,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                           "setting chat call limits",
                           true /* wait for all exit flags */,
                           true /* reset flags */,
-                          maxTimeout,
+                          minTimeout * 2, // 2 min
                           [this, &chatid, &callDur]()
                           {
                               ChatRequestTracker crtCallLimit(megaChatApi[a1]);
@@ -1191,7 +1194,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2, a3}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a3, mData.mChatid, false /*audio*/, false /*video*/));
-    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 7 /*callDur*/));
+    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 30 /*callDur*/));
 
     LOG_debug << "#### Test2: a1 sets max num clients ####";
     // a2 can join but a3 will received SFU error
@@ -9478,6 +9481,12 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
             mUsersRejectJoin[apiIndex][usersAllowWr->get(i)] = true;
         }
     }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END))
+    {
+        boolVars().updateIfExists(apiIndex, "CallWillEnd", true);
+    }
+
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
     {
