@@ -106,12 +106,30 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_login,      sequence(text("login"), either(sequence(param("email"), opt(param("password"))), param("session"), sequence(text("autoresume"), opt(param("id"))) )));
     p->Add(exec_logout, sequence(text("logout")));
     p->Add(exec_session,    sequence(text("session"), opt(sequence(text("autoresume"), opt(param("id")))) ));
-    p->Add(exec_debug, sequence(text("debug"),
-            opt(either(flag("-on"), flag("-off"), flag("-verbose"))),
-            opt(either(flag("-console"), flag("-noconsole"))),
-            opt(either(flag("-nofile"), sequence(flag("-file"), localFSFile())))
-            ));
+    p->Add(exec_debug,
+            sequence(
+                text("debug"),
+                opt(either(
+                        flag("-noconsole"),
+                        sequence(
+                            flag("-console"),
+                            either(text("info"), text("debug"), text("warning"), text("error"), text("all"))
+                            )
+                        )
+                    ),
+                opt(either(
+                        flag("-nofile"),
+                        sequence(
+                            flag("-file"),
+                            either(text("info"), text("debug"), text("warning"), text("error"), text("all")),
+                            localFSFile("log_file_name")
+                            )
+                        )
+                    )
+                )
+            );
 
+    p->Add(exec_easy_debug, sequence(text("easy_debug"), localFSFile("log_file_name")));
     p->Add(exec_setonlinestatus,    sequence(text("setonlinestatus"), either(text("offline"), text("away"), text("online"), text("busy"))));
     p->Add(exec_setpresenceautoaway, sequence(text("setpresenceautoaway"), either(text("on"), text("off")), wholenumber(30)));
     p->Add(exec_setpresencepersist, sequence(text("setpresencepersist"), either(text("on"), text("off"))));

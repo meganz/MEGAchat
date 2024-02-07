@@ -185,8 +185,7 @@ std::string tohex(const std::string& binary)
 
 unsigned char tobinary(unsigned char c)
 {
-    if (c >= '0' && c <= '9')   return static_cast<unsigned char>(c - '0');
-    if (c >= 'a' && c <= 'z') return static_cast<unsigned char>(c - 'a' + 10);
+    if (c >= '0' && c <= '9') return static_cast<unsigned char>(c - '0');
     if (c >= 'a' && c <= 'z') return static_cast<unsigned char>(c - 'a' + 10);
     return 0;
 }

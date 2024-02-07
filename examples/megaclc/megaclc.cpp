@@ -1,7 +1,5 @@
 /**
  * @file examples/megaclc.cpp
- * @brief Sample application, interactive command line chat client
- *
  * (c) 2018-2018 by Mega Limited, Auckland, New Zealand
  *
  * This file is part of the MEGA SDK - Client Access Engine.
@@ -17,10 +15,13 @@
  *
  * You should have received a copy of the license along with this
  * program.
+ *
+ * @brief Sample application, interactive command line chat client
+ * This program is intended for exploring the chat API, performing testing and so on.
+ * It's not well tested and should be considered alpha at best.
+ *
  */
 
-// This program is intended for exploring the chat API, performing testing and so on.
-// It's not well tested and should be considered alpha at best.
 
 #include "mclc_globals.h"
 #include "mclc_autocompletion.h"
@@ -30,7 +31,9 @@
 namespace mclc
 {
 
-// main loop
+/**
+ * @brief Main loop of the application.
+ */
 void megaclc()
 {
 #ifndef NO_READLINE
@@ -144,7 +147,7 @@ int main()
 {
     using namespace mclc::clc_global;
 
-    m::SimpleLogger::setOutputClass(&mclc::clc_log::g_apiLogger);
+    mclc::clc_log::setLoggers();
 
     const std::string megaclc_path = "temp_MEGAclc";
 #ifdef WIN32
@@ -160,7 +163,6 @@ int main()
     g_megaApi->addListener(&g_megaclcListener);
     g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
-    g_chatApi->setLoggerObject(&mclc::clc_log::g_chatLogger);
     g_chatApi->setLogLevel(c::MegaChatApi::LOG_LEVEL_MAX);
     g_chatApi->setLogWithColors(false);
     g_chatApi->setLogToConsole(false);

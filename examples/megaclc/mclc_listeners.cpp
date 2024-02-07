@@ -79,31 +79,31 @@ void CLCListener::onChatInitStateUpdate(c::MegaChatApi*, int newState)
         case c::MegaChatApi::INIT_ERROR:
         {
             message += "INIT_ERROR";
-            clc_log::g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message);
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message, clc_log::ELogWriter::MEGA_CHAT);
             break;
         }
         case c::MegaChatApi::INIT_WAITING_NEW_SESSION:
         {
             message += "INIT_WAITING_NEW_SESSION";
-            clc_log::g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message, clc_log::ELogWriter::MEGA_CHAT);
             break;
         }
         case c::MegaChatApi::INIT_OFFLINE_SESSION:
         {
             message += "INIT_OFFLINE_SESSION";
-            clc_log::g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message, clc_log::ELogWriter::MEGA_CHAT);
             break;
         }
         case c::MegaChatApi::INIT_ONLINE_SESSION:
         {
             message += "INIT_ONLINE_SESSION";
-            clc_log::g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message, clc_log::ELogWriter::MEGA_CHAT);
             break;
         }
         default:
         {
             message += "INIT_ERROR";
-            clc_log::g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message);
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message, clc_log::ELogWriter::MEGA_CHAT);
             break;
         }
     }
@@ -154,7 +154,7 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api, c::MegaChatHa
             const auto msg = os.str();
             clc_console::conlock(std::cout) << msg;
             clc_console::conlock(*g_reviewPublicChatOutFile) << msg << std::flush;
-            clc_log::g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, msg);
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO, msg, clc_log::ELogWriter::MEGA_CHAT);
 
             // Access to g_roomListeners is safe because no other thread accesses this map
             // while the Mega Chat API thread is using it here.
@@ -162,7 +162,7 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api, c::MegaChatHa
             assert(!rec.open);
             if (!api->openChatRoom(chatid, rec.listener.get()))
             {
-                clc_log::g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, "Failed to open chat room");
+                clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, "Failed to open chat room", clc_log::ELogWriter::MEGA_CHAT);
                 g_roomListeners.erase(chatid);
                 *g_reviewPublicChatOutFile << "Error: Failed to open chat room." << std::endl;
             }
@@ -194,7 +194,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
     using namespace mclc::clc_global;
     if (!call)
     {
-        clc_log::g_chatLogger.logMsg(m::logError, "NULL call");
+        clc_log::logMsg(m::logError, "NULL call", clc_log::ELogWriter::MEGA_CHAT);
         return;
     }
     megachat::MegaChatHandle chatid = call->getChatid();
@@ -210,7 +210,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
                 // TODO: Check if we have to return here
                 // In case the call is hang up and started more than once during megaclc exec_joinCallViaMeetingLink
                 // execution we assume that something went wrong in test and we can abort.
-                clc_log::g_chatLogger.logMsg(m::logError, "The call is already registered");
+                clc_log::logMsg(m::logError, "The call is already registered", clc_log::ELogWriter::MEGA_CHAT);
                 assert(false);
             }
             else
@@ -222,7 +222,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         {
             if (findIt == g_callStateMap.end())
             {
-                clc_log::g_chatLogger.logMsg(m::logError, "Call must exists in the map at this point");
+                clc_log::logMsg(m::logError, "Call must exists in the map at this point", clc_log::ELogWriter::MEGA_CHAT);
                 assert(false);
                 // TODO create a logic to exit properly the application.
                 return; // temporary
@@ -234,7 +234,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         {
             if (findIt == g_callStateMap.end())
             {
-                clc_log::g_chatLogger.logMsg(m::logError, "Call must exists in the map at this point");
+                clc_log::logMsg(m::logError, "Call must exists in the map at this point", clc_log::ELogWriter::MEGA_CHAT);
                 assert(false);
                 // TODO create a logic to exit properly the application.
                 return; // temporary
@@ -270,10 +270,10 @@ void CLCCallListener::onChatSessionUpdate(megachat::MegaChatApi *, megachat::Meg
 {
     if (!session)
     {
-        clc_log::g_chatLogger.logMsg(m::logError, "NULL session");
+        clc_log::logMsg(m::logError, "NULL session", clc_log::ELogWriter::MEGA_CHAT);
         return;
     }
-    clc_log::g_chatLogger.logMsg(m::logInfo, std::string("onChangeSessionUpdate with chatid ") + std::to_string(chatid) + " and callid " + std::to_string(callid));
+    clc_log::logMsg(m::logInfo, std::string("onChangeSessionUpdate with chatid ") + std::to_string(chatid) + " and callid " + std::to_string(callid), clc_log::ELogWriter::MEGA_CHAT);
     if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_STATUS))
     {
     }
@@ -502,7 +502,7 @@ void CLCMegaListener::onRequestFinish(m::MegaApi* api, m::MegaRequest *request, 
 
 void CLCRoomListener::onChatRoomUpdate(megachat::MegaChatApi *, megachat::MegaChatRoom *chat)
 {
-    clc_log::g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, "Room " + str_utils::ch_s(chat->getChatId()) + " updated");
+    clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO, "Room " + str_utils::ch_s(chat->getChatId()) + " updated", clc_log::ELogWriter::MEGA_CHAT);
 }
 
 void CLCRoomListener::onMessageLoaded(megachat::MegaChatApi *, megachat::MegaChatMessage *msg)

@@ -1,3 +1,8 @@
+/**
+ * @file
+ * @brief Some utilities to process and store the state of the prompt during the megaclc execution.
+ */
+
 #pragma once
 
 #ifndef NO_READLINE
@@ -13,6 +18,9 @@ inline char* _strdup(char const* _Source) { return strdup(_Source); }
 namespace mclc::clc_prompt
 {
 
+/**
+ * @brief Different promts to show depending on the current state.
+ */
 static const char* const prompts[] =
 {
     "", "MEGAclc> ", "Password:", "Pin:"
@@ -24,6 +32,9 @@ enum prompttype
 };
 
 
+/**
+ * @brief Sets the global variables that stores the state of the prompt
+ */
 void setprompt(prompttype p);
 
 #if !defined(WIN32) || !defined(NO_READLINE)
@@ -31,7 +42,9 @@ void setprompt(prompttype p);
 void store_line(char* l);
 #endif
 
-// execute command
+/**
+ * @brief Executes the command specified in the input string
+ */
 void process_line(const char* l);
 
 }
