@@ -112,7 +112,7 @@ std::string loadfile(const std::string& filename);
 /**
  * @brief Joins all the strings listed in msl with a given separator in between the elements.
  */
-std::string joinStringList(m::MegaStringList& msl, const std::string& separator);
+std::string joinStringList(const m::MegaStringList& msl, const std::string& separator);
 
 }
 

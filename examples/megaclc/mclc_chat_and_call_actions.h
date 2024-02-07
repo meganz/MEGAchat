@@ -62,4 +62,12 @@ bool answerCall(const c::MegaChatHandle chatId, const bool audio, const bool vid
  */
 bool hangUpCall(const c::MegaChatHandle chatId);
 
+/**
+ * @brief Tries to set the video input device with the given one
+ *
+ * @param device The video device to set
+ * @return true if it was set properly false otherwise.
+ */
+bool setChatVideoInDevice(const std::string& device);
+
 }

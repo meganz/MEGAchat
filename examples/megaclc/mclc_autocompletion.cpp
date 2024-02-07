@@ -197,6 +197,7 @@ ac::ACN autocompleteSyntax()
                 opt(flag("-novideo")),
                 opt(flag("-noaudio")),
                 opt(sequence(flag("-wait"), param("timeSeconds"))),
+                opt(sequence(flag("-videoInputDevice"), param("videoDevice"))),
                 param("meetingLink"))
             );
 

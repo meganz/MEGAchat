@@ -218,13 +218,15 @@ std::string loadfile(const std::string& filename)
     return filedata;
 }
 
-std::string joinStringList(m::MegaStringList& msl, const std::string& separator)
+std::string joinStringList(const m::MegaStringList& msl, const std::string& separator)
 {
     std::string s;
-    for (int i = 0; i < msl.size(); ++i)
-    {
-        if (s.empty()) s += separator;
-        s += msl.get(i) ? msl.get(i) : "<null>";
+    if (msl.size() > 0) {
+        s += msl.get(0) ? msl.get(0) : "<null>"; // Añade el primer elemento sin separador delante
+        for (int i = 1; i < msl.size(); ++i) {
+            s += separator; // Añade el separador antes de los elementos siguientes
+            s += msl.get(i) ? msl.get(i) : "<null>";
+        }
     }
     return s;
 }

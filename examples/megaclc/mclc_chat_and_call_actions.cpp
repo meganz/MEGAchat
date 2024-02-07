@@ -232,4 +232,42 @@ bool hangUpCall(const c::MegaChatHandle chatId)
     return true;
 }
 
+bool setChatVideoInDevice(const std::string& device)
+{
+    clc_listen::CLCChatRequestTracker setInputListener(g_chatApi.get());
+    g_chatApi->setChatVideoInDevice(device.c_str(), &setInputListener);
+    auto errorCode = setInputListener.waitForResult();
+    if (errorCode == c::MegaChatError::ERROR_ARGS)
+    {
+        std::ostringstream msg;
+        msg << "setChatVideoInDevice: the input device (";
+        msg << device;
+        msg << ") is not a valid device. ";
+        auto availableDevices = g_chatApi->getChatVideoInDevices();
+        if (availableDevices->size() == 0)
+        {
+            msg << "There are no available input devices.";
+        }
+        else
+        {
+            msg << "The available ones are:\n";
+            msg << str_utils::joinStringList(*availableDevices, ", ");
+        }
+        msg << "\n";
+        logMsg(m::logError, msg.str(), ELogWriter::MEGA_CHAT);
+        return false;
+    }
+    if (errorCode == c::MegaChatError::ERROR_ACCESS)
+    {
+        logMsg(m::logError, "setChatVideoInDevice: WebRTC is not initialized. Initialize it before setting the input device.", ELogWriter::MEGA_CHAT);
+        return false;
+    }
+    if (errorCode != c::MegaChatError::ERROR_OK)
+    {
+        logMsg(m::logError, "setChatVideoInDevice: Unexpected error code (" + std::to_string(errorCode) + ")", ELogWriter::MEGA_CHAT);
+        return false;
+    }
+    return true;
+}
+
 }

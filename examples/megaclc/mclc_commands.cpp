@@ -816,6 +816,17 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     s.extractflagparam("-wait", waitTimeStr);
     unsigned int waitTimeSec = static_cast<unsigned int>(std::stoi(waitTimeStr));
 
+    std::string videoInputDevice;
+    s.extractflagparam("-videoInputDevice", videoInputDevice);
+    if (videoInputDevice.size() != 0)
+    {
+        logMsg(m::logInfo, "## Task0: Setting video input device ##", ELogWriter::MEGA_CHAT);
+        if (!clc_ccactions::setChatVideoInDevice(videoInputDevice))
+        {
+            return;
+        }
+    }
+
     auto link = s.words[1].s;
 
     logMsg(m::logInfo, "## Task1: open chat link ##", ELogWriter::MEGA_CHAT);

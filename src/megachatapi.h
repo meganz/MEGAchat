@@ -6084,6 +6084,12 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getText - Returns the device
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If input device does not exist.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     * - If WebRTC is not initialized
+     *
      * @param device Identifier of device to be selected
      * @param listener MegaChatRequestListener to track this request
      */
