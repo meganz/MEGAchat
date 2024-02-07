@@ -173,6 +173,10 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append("<span style='font-weight:normal'>")
             .append("<br /> Speak request is enabled: ")
             .append(call->isSpeakRequestEnabled() ? on : off)
+            .append("<br /> Call duration limit: ")
+            .append(call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED
+                    ? "<span style='font-weight:bold;'>Disabled</span>"
+                    : "<span style='color:#AA0000'>" + std::to_string(call->getCallDurationLimit()) +"</span>")
             .append("<br /> Audio flag: ")
             .append(call->hasLocalAudio() ? on : off)
             .append("<br /> Video flag: ")

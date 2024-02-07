@@ -10391,7 +10391,7 @@ void MockupCall::logError(const char *)
 
 bool MockupCall::handleHello(const Cid_t /*cid*/, const unsigned int /*nAudioTracks*/,
                              const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
-                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/)
+                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/, const int /*ldur*/)
 {
     return true;
 }
@@ -10432,6 +10432,11 @@ bool MockupCall::handleWrUsersDeny(const std::set<karere::Id>& /*users*/)
 }
 
 bool MockupCall::handleMutedCommand(const unsigned /*av*/, const Cid_t /*cidPerf*/)
+{
+    return true;
+}
+
+bool MockupCall::handleWillEndCommand(const int /*endsIn*/)
 {
     return true;
 }
