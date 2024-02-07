@@ -1,3 +1,12 @@
+/**
+ * @file
+ * @brief This file centralizes the declaration of all the global variables that are needed across the megaclc app.
+ *
+ * Some of the globals such as the g_megaApi or g_chatApi might make sense as they indeed represent a global state to be
+ * shared across the app.
+ * TODO: However, others should be reconsidered and moved to a more local scope.
+ */
+
 #pragma once
 
 #include <mclc_listeners.h>

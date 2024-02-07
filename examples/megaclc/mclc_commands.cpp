@@ -158,44 +158,71 @@ void exec_session(ac::ACState& s)
 
 void exec_debug(ac::ACState& s)
 {
-    if (s.extractflag("-off"))
-    {
-        SimpleLogger::setLogLevel(logWarning);
-        g_debugOutpuWriter.disableLogToConsole();
-        g_debugOutpuWriter.disableLogToFile();
-    }
-    if (s.extractflag("-on"))
-    {
-        SimpleLogger::setLogLevel(logDebug);
-        g_debugOutpuWriter.setLogLevel(logDebug);
-    }
-    if (s.extractflag("-verbose"))
-    {
-        SimpleLogger::setLogLevel(logMax);
-        g_debugOutpuWriter.setLogLevel(logMax);
-    }
-    if (s.extractflag("-console"))
-    {
-        g_debugOutpuWriter.enableLogToConsole();
+    // Defaults
+    SimpleLogger::setLogLevel(logWarning);
+    g_debugOutpuWriter.disableLogToConsole();
+    g_debugOutpuWriter.disableLogToFile();
 
-    }
+    std::string logLevelStr;
+
+    auto levelStrToInt = [](const std::string& s) -> m::LogLevel {
+        if (s == "all") return m::logMax;
+        if (s == "debug") return m::logDebug;
+        if (s == "info") return m::logInfo;
+        if (s == "warning") return m::logWarning;
+        if (s == "error") return m::logError;
+        return m::logFatal;
+    };
+
     if (s.extractflag("-noconsole"))
     {
         g_debugOutpuWriter.disableLogToConsole();
     }
+    if (s.extractflagparam("-console", logLevelStr))
+    {
+        auto logLevel = levelStrToInt(logLevelStr);
+        SimpleLogger::setLogLevel(logLevel);
+        g_debugOutpuWriter.enableLogToConsole();
+        g_debugOutpuWriter.setConsoleLogLevel(logLevel);
+    }
+
     if (s.extractflag("-nofile"))
     {
         g_debugOutpuWriter.disableLogToFile();
     }
-    std::string filename;
-    if (s.extractflagparam("-file", filename))
+    if (s.extractflagparam("-file", logLevelStr))
     {
+        auto logLevel = levelStrToInt(logLevelStr);
+        assert(s.words.size() == 2); // At this point only the filename should remain
+        std::string filename = s.words[1].s;
         g_debugOutpuWriter.enableLogToFile(filename);
+        g_debugOutpuWriter.setFileLogLevel(logLevel);
     }
 
-    std::cout << "Debug level set to " << SimpleLogger::getLogLevel() << std::endl;
-    std::cout << "Log to console: " << (g_debugOutpuWriter.isLoggingToConsole() ? "on" : "off") << std::endl;
-    std::cout << "Log to file: " << (g_debugOutpuWriter.isLoggingToFile() ? g_debugOutpuWriter.getLogFileName() : "<off>") << std::endl;
+    // Feedback
+    auto out = conlock(std::cout);
+    if (g_debugOutpuWriter.isLoggingToConsole())
+    {
+        out << "Logging to console with level: " << g_debugOutpuWriter.getConsoleLogLevel() << "\n";
+    }
+    else
+    {
+        out << "Not logging to console\n";
+    }
+    if (g_debugOutpuWriter.isLoggingToFile())
+    {
+        out << "Logging to file (" << g_debugOutpuWriter.getLogFileName() << ") with level: " << g_debugOutpuWriter.getFileLogLevel() << "\n";
+    }
+    else
+    {
+        out << "Not logging to file\n";
+    }
+}
+
+void exec_easy_debug(ac::ACState& s)
+{
+    std::string line = "debug -console warning -file all " + s.words[1].s;
+    process_line(line.c_str());
 }
 
 
@@ -791,41 +818,41 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
 
     auto link = s.words[1].s;
 
-    g_chatLogger.logMsg(m::logInfo, "## Task1: open chat link ##");
+    logMsg(m::logInfo, "## Task1: open chat link ##", ELogWriter::MEGA_CHAT);
     auto [chatId, errCode] = clc_ccactions::openChatLink(link);
     if (chatId == c::MEGACHAT_INVALID_HANDLE)
     {
         return;
     }
 
-    g_chatLogger.logMsg(m::logInfo, "## Task2: Join chat ##");
+    logMsg(m::logInfo, "## Task2: Join chat ##", ELogWriter::MEGA_CHAT);
     if (!clc_ccactions::joinChat(chatId, errCode))
     {
         return;
     }
 
     // We assume that there should be an ongoing call in the chat
-    g_chatLogger.logMsg(m::logInfo, "## Task3: Wait for call receiving call ##");
+    logMsg(m::logInfo, "## Task3: Wait for call receiving call ##", ELogWriter::MEGA_CHAT);
     if (!clc_ccactions::waitUntilCallIsReceived(chatId))
     {
         return;
     }
 
-    g_chatLogger.logMsg(m::logInfo, "## Task4: Answer chat call ##");
+    logMsg(m::logInfo, "## Task4: Answer chat call ##", ELogWriter::MEGA_CHAT);
     if (!clc_ccactions::answerCall(chatId, audio, video))
     {
         return;
     }
 
-    g_chatLogger.logMsg(m::logInfo, "## Task5: wait some time and hang up ##");
+    logMsg(m::logInfo, "## Task5: wait some time and hang up ##", ELogWriter::MEGA_CHAT);
     clc_time::WaitMillisec(waitTimeSec * 1000);
 
-    g_chatLogger.logMsg(m::logInfo, "## Task6: hang up call ##");
+    logMsg(m::logInfo, "## Task6: hang up call ##", ELogWriter::MEGA_CHAT);
     if (!clc_ccactions::hangUpCall(chatId))
     {
         return;
     }
-    g_chatLogger.logMsg(m::logError, "Call finished properly");
+    logMsg(m::logError, "Call finished properly", ELogWriter::MEGA_CHAT);
 }
 
 void exec_loadmessages(ac::ACState& s)

@@ -1,3 +1,8 @@
+/**
+ * @file
+ * @brief This file contains some generic utilities that are useful for other parts of the application.
+ */
+
 #pragma once
 
 #include <mega.h>
@@ -23,11 +28,28 @@ namespace path_utils
 // No std::fileystem before OSX10.15
 std::string getExeDirectory();
 #else
+/**
+ * @brief Returns the directory associated to the running process
+ */
 fs::path getExeDirectory();
 #endif
 
+/**
+ * @brief Finds the MegaNode corresponding to the input path
+ *
+ * @param path path to the file/directory
+ * @return An unique ptr to the node
+ */
 std::unique_ptr<m::MegaNode> GetNodeByPath(const std::string& path);
 
+/**
+ * @brief Builds a path object from a string. If it is empty the current working directory will be returned.
+ *
+ * @param s The string to convert
+ * @param mustexist If true, the output path must exists otherwise an error message will be written and the current
+ * working directory will be returned.
+ * @return The path object
+ */
 fs::path pathFromLocalPath(const std::string& s, bool mustexist);
 
 }
@@ -35,29 +57,61 @@ fs::path pathFromLocalPath(const std::string& s, bool mustexist);
 namespace str_utils
 {
 
-// Chat links look like this:
-// https://mega.nz/chat/E1foobar#EFa7vexblahJwjNglfooxg
-//                      ^handle  ^key
+/**
+ * @brief Extracts a link to a chat from an arbitrary message and returns it as a std::string
+ *
+ * Chat links look like this:
+ * https://mega.nz/chat/E1foobar#EFa7vexblahJwjNglfooxg
+ *                      ^handle  ^key
+ *
+ * @param message The message where the link is expected to be.
+ * @return A std::string with the link. If no link is found returns an empty string.
+ */
 std::string extractChatLink(const char* message);
 
-// convert string to handle
+/**
+ * @brief Convert a string into a chat handle
+ */
 c::MegaChatHandle s_ch(const std::string& s);
 
-// convert handle to string
+/**
+ * @brief Convert a chat handle into a string
+ */
 std::string ch_s(c::MegaChatHandle h);
 
+/**
+ * @brief Returns a std::string with the contents of s and deletes s
+ */
 std::string OwnStr(const char* s);
 
+/**
+ * @brief Returns a string with the base64 representation of a chat handle
+ */
 std::string base64NodeHandle(m::MegaHandle h);
 
+/**
+ * @brief Converts a string with a binary representation of a number into its hexadecimal representation.
+ */
 std::string tohex(const std::string& binary);
 
-unsigned char tobinary(unsigned char c);
-
+/**
+ * @brief The inverse of tohex
+ */
 std::string tobinary(const std::string& hex);
 
+/**
+ * @brief Maps characters [0-9a-z] to numbers sequentially starting from 0. If the char is not in the range, returns 0
+ */
+unsigned char tobinary(unsigned char c);
+
+/**
+ * @brief Reads a file and returns its contents as an string
+ */
 std::string loadfile(const std::string& filename);
 
+/**
+ * @brief Joins all the strings listed in msl with a given separator in between the elements.
+ */
 std::string joinStringList(m::MegaStringList& msl, const std::string& separator);
 
 }
@@ -65,6 +119,11 @@ std::string joinStringList(m::MegaStringList& msl, const std::string& separator)
 namespace clc_console
 {
 
+/**
+ * @class ConsoleLock
+ * @brief This struct allows you to lock an output so you can print messages to it without race conditions.
+ *
+ */
 struct ConsoleLock
 {
     static std::recursive_mutex outputlock;
@@ -82,11 +141,18 @@ struct ConsoleLock
     }
 };
 
-// Returns a temporary object that has locked a mutex.  The temporary's destructor will unlock the object.
-// So you can get multithreaded non-interleaved console output with just conlock(cout) << "some " << "strings " << endl;
-// (as the temporary's destructor will run at the end of the outermost enclosing expression).
-// Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
-// Be careful not to have cout locked across a g_megaApi member function call, as any callbacks that also log could then deadlock.
+/**
+ * @brief Returns a temporary object that has locked a mutex. The temporary's destructor will unlock the object.
+ *
+ * You can get multithreaded non-interleaved console output with just:
+ *     conlock(cout) << "some " << "strings " << endl;
+ * As the temporary's destructor will run at the end of the outermost enclosing expression.
+ *
+ * Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
+ * Be careful not to have cout locked across a g_megaApi member function call, as any callbacks that also log could then deadlock.
+ *
+ * @param o The objects that holds the output resource.
+ */
 ConsoleLock conlock(std::ostream& o);
 
 }
@@ -94,10 +160,19 @@ ConsoleLock conlock(std::ostream& o);
 namespace clc_time
 {
 
+/**
+ * @brief Blocks the current thread the given amount of milliseconds
+ */
 void WaitMillisec(unsigned n);
 
+/**
+ * @brief Converts the time into a string
+ */
 std::string timeToLocalTimeString(const int64_t time);
 
+/**
+ * @brief Converts the time into a string with the UTC format
+ */
 std::string timeToStringUTC(const int64_t time);
 
 

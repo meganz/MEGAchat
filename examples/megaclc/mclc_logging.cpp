@@ -1,4 +1,6 @@
 #include "mclc_logging.h"
+#include "mega/logging.h"
+#include "mclc_globals.h"
 
 namespace mclc::clc_log
 {
@@ -6,18 +8,13 @@ namespace mclc::clc_log
 void DebugOutputWriter::writeOutput(const std::basic_string<char>& msg, int logLevel)
 {
     std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
-    if (logLevel > mCurrentLogLevel)
-    {
-        return;
-    }
-    if (mLogFile.is_open())
+    if (logLevel <= mFileLogLevel && mLogFile.is_open())
     {
         mLogFile << msg;
     }
-    // To avoid cout saturation only errors are printed.
-    if (mLogToConsole && logLevel <= m::logError)
+    if (logLevel <= mConsoleLogLevel && mLogToConsole)
     {
-        std::cout << msg;
+        clc_console::conlock(std::cout) << msg;
     }
 }
 
@@ -42,7 +39,7 @@ void DebugOutputWriter::enableLogToFile(const std::string& fname)
     mLogFile.close();
     if (fname.length() == 0)
     {
-        clc_console::conlock(std::cout) << "Error: Provided an empty file name" << std::endl;
+        clc_console::conlock(std::cout) << "Error: Provided an empty file name\n";
         return;
     }
     mLogFile.open(fname.c_str());
@@ -52,7 +49,7 @@ void DebugOutputWriter::enableLogToFile(const std::string& fname)
     }
     else
     {
-        clc_console::conlock(std::cout) << "Error: Unable to open output file: " << fname << std::endl;
+        clc_console::conlock(std::cout) << "Error: Unable to open output file: " << fname << "\n";
     }
 }
 
@@ -74,10 +71,28 @@ std::string DebugOutputWriter::getLogFileName() const
     return mLogFileName;
 }
 
-void DebugOutputWriter::setLogLevel(int newLogLevel)
+void DebugOutputWriter::setConsoleLogLevel(int newLogLevel)
 {
     std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
-    mCurrentLogLevel = newLogLevel;
+    mConsoleLogLevel = newLogLevel;
+}
+
+int DebugOutputWriter::getConsoleLogLevel() const
+{
+    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    return mConsoleLogLevel;
+}
+
+void DebugOutputWriter::setFileLogLevel(int newLogLevel)
+{
+    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    mFileLogLevel = newLogLevel;
+}
+
+int DebugOutputWriter::getFileLogLevel() const
+{
+    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    return mFileLogLevel;
 }
 
 void DebugOutputWriter::setLogToConsole(bool state)
@@ -105,9 +120,8 @@ void MegaCLLogger::log(const char* time, int loglevel, const char*, const char *
     OutputDebugStringA("\r\n");
 #endif
     std::ostringstream os;
-    os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << std::endl;
-    const auto msg = os.str();
-    g_debugOutpuWriter.writeOutput(msg, loglevel);
+    os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << "\n";
+    g_debugOutpuWriter.writeOutput(os.str(), loglevel);
 }
 
 void MegaclcChatChatLogger::logMsg(const int loglevel, const std::string& message)
@@ -132,19 +146,31 @@ void MegaclcChatChatLogger::log(int loglevel, const char *message)
     {
         os << std::endl;
     }
-    const auto msg = os.str();
-    g_debugOutpuWriter.writeOutput(msg, loglevel);
+    g_debugOutpuWriter.writeOutput(os.str(), loglevel);
 }
 
 MegaCLLogger g_apiLogger;
 MegaclcChatChatLogger g_chatLogger;
 
-bool check_err(const std::string& opName, m::MegaError* e, ReportOnConsole report)
+void logMsg(const int logLevel, const std::string& message, const ELogWriter outputWriter)
 {
-    if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
+    switch (outputWriter) {
+        case ELogWriter::SDK:
+            g_apiLogger.logMsg(logLevel, message);
+            return;
+        case ELogWriter::MEGA_CHAT:
+            g_chatLogger.logMsg(logLevel, message);
+            return;
+    }
+}
+
+static bool check_err_aux(const std::string& opName, int errCode, const char* errorString, ReportOnConsole report,
+        ELogWriter outputWriter)
+{
+    if (errCode == c::MegaChatError::ERROR_OK)
     {
         const std::string message = opName + " succeeded.";
-        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_INFO, message);
+        logMsg(m::logInfo, message, outputWriter);
         if (report == ReportResult)
         {
             clc_console::conlock(std::cout) << message << std::endl;
@@ -153,48 +179,40 @@ bool check_err(const std::string& opName, m::MegaError* e, ReportOnConsole repor
     }
     else
     {
-        const std::string message = opName + " failed. Error: " + std::string{e->getErrorString()};
-        g_apiLogger.logMsg(m::MegaApi::LOG_LEVEL_ERROR, message);
+        const std::string message = opName + " failed. Error: " + std::string{errorString};
+        logMsg(m::logError, message, ELogWriter::SDK);
         if (report != NoConsoleReport)
         {
             clc_console::conlock(std::cout) << message << std::endl;
         }
         return false;
     }
+}
+
+bool check_err(const std::string& opName, m::MegaError* e, ReportOnConsole report)
+{
+    return check_err_aux(opName, e->getErrorCode(), e->getErrorString(), report, ELogWriter::SDK);
 }
 
 bool check_err(const std::string& opName, c::MegaChatError* e, ReportOnConsole report)
 {
-    if (e->getErrorCode() == c::MegaChatError::ERROR_OK)
-    {
-        const std::string message = opName + " succeeded.";
-        g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_INFO, message);
-        if (report == ReportResult)
-        {
-            clc_console::conlock(std::cout) << message << std::endl;
-        }
-        return true;
-    }
-    else
-    {
-        const std::string message = opName + " failed. Error: " + std::string{e->getErrorString()};
-        g_chatLogger.logMsg(c::MegaChatApi::LOG_LEVEL_ERROR, message);
-        if (report != NoConsoleReport)
-        {
-            clc_console::conlock(std::cout) << message << std::endl;
-        }
-        return false;
-    }
+    return check_err_aux(opName, e->getErrorCode(), e->getErrorString(), report, ELogWriter::MEGA_CHAT);
 }
 
-bool isUnexpectedErr(const int errCode, const int expectedErrCode, const char* msg)
+bool isUnexpectedErr(const int errCode, const int expectedErrCode, const char* msg, const ELogWriter outWriter)
 {
     if (errCode != expectedErrCode)
     {
-        g_chatLogger.logMsg(m::logError, std::string("ERROR CODE ") + std::to_string(errCode) + ": " + msg);
+        logMsg(m::logError, std::string("ERROR CODE ") + std::to_string(errCode) + ": " + msg, outWriter);
         return true;
     }
     return false;
 };
+
+void setLoggers()
+{
+    m::SimpleLogger::setOutputClass(&g_apiLogger);
+    clc_global::g_chatApi->setLoggerObject(&g_chatLogger);
+}
 
 }

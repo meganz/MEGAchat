@@ -1,3 +1,23 @@
+/**
+ * @file
+ * @brief This file defines the utilities to log messages to the console or to a file as well as some error handling
+ * functions that make use of the logging methods.
+ *
+ * API
+ * ---
+ * There is one global instance of the DebugOutputWriter class (g_debugOutpuWriter) that is responsible of knowing where
+ * the log messages must be written and also apply a filter according to the severity of the notifications. Yo can
+ * interact with this object to modify this parameters.
+ *
+ * Then there are internally two loggers (for now), one for logging messages related to the sdk api and another one to
+ * log messages related to the mega chat api. They differ basically in the label the put at the beginning of the
+ * message. They are also used to set the loggers in the internals of both APIs using the setLoggers function.
+ *
+ * To call the logging methods of these loggers you should call the logMsg function that will be responsible of
+ * dispatching the messages to the corresponding logger.
+ *
+ */
+
 #pragma once
 
 #include "mclc_general_utils.h"
@@ -60,7 +80,11 @@ public:
 
     std::string getLogFileName() const;
 
-    void setLogLevel(int newLogLevel);
+    void setConsoleLogLevel(int newLogLevel);
+    int getConsoleLogLevel() const;
+
+    void setFileLogLevel(int newLogLevel);
+    int getFileLogLevel() const;
 
 private:
 
@@ -69,10 +93,15 @@ private:
     std::ofstream mLogFile;
     std::string mLogFileName;
     mutable std::mutex mLogFileWriteMutex;
-    int mCurrentLogLevel = 1;
+    int mConsoleLogLevel = 1;
+    int mFileLogLevel = 1;
     bool mLogToConsole = false;
 };
 
+/**
+ * @class MegaCLLogger
+ * @brief Defines the logger that will be attached to the sdk api.
+ */
 class MegaCLLogger : public m::Logger
 {
 public:
@@ -86,6 +115,10 @@ private:
     ) override;
 };
 
+/**
+ * @class MegaclcChatChatLogger
+ * @brief Defines the logger that will be attached to the mega chat api.
+ */
 struct MegaclcChatChatLogger : public c::MegaChatLogger
 {
 public:
@@ -97,14 +130,68 @@ private:
 
 enum ReportOnConsole { NoConsoleReport, ReportFailure, ReportResult };
 
+// An enum to specify the logging writer
+enum class ELogWriter
+{
+    SDK,
+    MEGA_CHAT,
+};
+
+/**
+ * @brief A wrapper function around the logging methods of the loggers. Depending on the outputWriter, the message is
+ * dispatched to the right logger.
+ *
+ * NOTE: Where the messages are written to is controlled by the g_debugOutpuWriter global object.
+ *
+ * @param logLevel The severity level of the message
+ * @param message The message to write
+ * @param outputWriter An enum specifying the output
+ */
+void logMsg(const int logLevel, const std::string& message, const ELogWriter outputWriter);
+
+/**
+ * @brief Checks if the error code in the given error is ERROR_OK. In that case an info message will be pass to the
+ * corresponding logger. Otherwise an error message will be pass. This function also allows you to control if the
+ * messages are also display in the standard output through the report argument.
+ *
+ * This overload version calls the SDK logger under the hood.
+ *
+ * @param opName A name associated to the process that generates the error.
+ * @param e The generated error object.
+ * @param report An enum that allows you to control when the message should be displayed in the cout. Cases:
+ *     - ReportResult: Report both info and error messages.
+ *     - NoConsoleReport: Never report.
+ *     - ReportFailure: Only report errors.
+ * @return e->getErrorCode() == ERROR_OK (0)
+ */
 bool check_err(const std::string& opName, m::MegaError* e, ReportOnConsole report = NoConsoleReport);
 
+/**
+ * @brief Overloaded version that calls the mega chat logger under the hood.
+ */
 bool check_err(const std::string& opName, c::MegaChatError* e, ReportOnConsole report = NoConsoleReport);
 
-bool isUnexpectedErr(const int errCode, const int expectedErrCode, const char* msg);
+/**
+ * @brief Compares the given errors and if they are different, call the corresponding logger to write an error message
+ * and returns true. If they are the same returns false and nothing else.
+ *
+ * @param errCode The error code to check
+ * @param expectedErrCode The expected error code
+ * @param msg The message to log in case of different error. Note that "ERROR CODE errCode:" will be prefixed.
+ * @param outWriter The enum to specify the logger class you want to use.
+ * @return errCode != expectedErrCode
+ */
+bool isUnexpectedErr(const int errCode, const int expectedErrCode, const char* msg, const ELogWriter outWriter);
 
+/**
+ * @brief Sets the sdk logger as the output class for the m::SimpleLogger and the mega chat logger to the g_chatApi
+ * object.
+ */
+void setLoggers();
+
+/**
+ * @brief This global variable acts like a singleton to control the state of the loggers.
+ */
 extern DebugOutputWriter g_debugOutpuWriter;
-extern MegaCLLogger g_apiLogger;
-extern MegaclcChatChatLogger g_chatLogger;
 
 }

@@ -1,3 +1,11 @@
+/**
+ * @file
+ * @brief File with all the definitions of the commands that are exposed to the cli.
+ *
+ * NOTE: Remember to attach the function you define here to a command in the body of the autocompleteSyntax function
+ * defined in mclc_autocompletion.cpp
+ */
+
 #pragma once
 
 #include <mega/autocomplete.h>
@@ -11,6 +19,7 @@ void exec_login(ac::ACState& s);
 void exec_logout(ac::ACState&);
 void exec_session(ac::ACState& s);
 void exec_debug(ac::ACState& s);
+void exec_easy_debug(ac::ACState& s);
 void exec_setonlinestatus(ac::ACState& s);
 void exec_setpresenceautoaway(ac::ACState& s);
 void exec_setpresencepersist(ac::ACState& s);
