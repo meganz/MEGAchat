@@ -8239,6 +8239,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     mRinging = call.isRinging();
     mOwnModerator = call.isOwnPrivModerator();
     mCallDurationLimit = call.getCallDurationLimit();
+    mNum = 0;
 
     std::vector<Cid_t> sessionCids = call.getSessionsCids();
     for (Cid_t cid : sessionCids)
@@ -8277,8 +8278,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mHandleList.reset(call.getHandleList() ? call.getHandleList()->copy() : nullptr);
     mSpeakRequest = call.isSpeakRequestEnabled();
     mAuxHandle = call.getAuxHandle();
-    mNum = call.getNum();
     mCallDurationLimit = call.getCallDurationLimit();
+    mNum = call.getNum();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {

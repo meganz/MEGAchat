@@ -761,8 +761,11 @@ public:
      * (check MegaChatCall::getHandleList to get users that have been denied to enter the call.
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
-     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x80000
+     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x40000
      * We have been pushed into a waiting room
+     *
+     * - MegaChatCall:: CHANGE_TYPE_CALL_WILL_END = 0x80000
+     * Notify that call will be end due to duration restrictions associated to MEGA account plan
      *
      * @return a bit field with the changes of the call
      */
@@ -845,8 +848,11 @@ public:
      * (check MegaChatCall::getHandleList to get users that have been denied to enter the call.
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
-     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x80000
+     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x40000
      * We have been pushed into a waiting room
+     *
+     * - MegaChatCall:: CHANGE_TYPE_CALL_WILL_END = 0x80000
+     * Notify that call will be end due to duration restrictions associated to MEGA account plan
      *
      * @return true if this call has an specific change
      */

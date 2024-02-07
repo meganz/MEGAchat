@@ -300,8 +300,17 @@ public:
     void setStatus(int status);
     void removeChanges();
     void setChange(int changed);
-    void setNum(const int n);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
+
+    /**
+     * @brief Set generic numeric value that can be used for multiple purposes
+     *
+     * @note if this method is called more than once for the same MegaChatCallPrivate instance,
+     * the value stored at mNum will be overwritten,
+     *
+     * It's recommended to check under which circumstances is used, to avoid conflicts.
+     */
+    void setNum(const int n);
 
     int availableAudioSlots();
     int availableVideoSlots();
@@ -351,8 +360,8 @@ protected:
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
     MegaChatHandle mAuxHandle = MEGACHAT_INVALID_HANDLE;
-    int64_t mNum = 0;
     int mCallDurationLimit = CALL_LIMIT_DURATION_DISABLED; // in seconds
+    int64_t mNum = 0; // generic numeric value that can be used for multiple purposes
 };
 
 class MegaChatWaitingRoomPrivate: public MegaChatWaitingRoom
