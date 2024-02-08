@@ -22,10 +22,9 @@
  *
  */
 
-
-#include "mclc_globals.h"
 #include "mclc_autocompletion.h"
 #include "mclc_general_utils.h"
+#include "mclc_globals.h"
 #include "mclc_logging.h"
 
 namespace mclc
@@ -37,19 +36,20 @@ namespace mclc
 void megaclc()
 {
 #ifndef NO_READLINE
-    char *saved_line = NULL;
+    char* saved_line = NULL;
     int saved_point = 0;
     rl_attempted_completion_function = clc_ac::my_rl_completion;
 
     rl_save_prompt();
 #elif defined(WIN32) && defined(NO_READLINE)
-    static_cast<m::WinConsole*>(clc_global::console.get())->setShellConsole(CP_UTF8, GetConsoleOutputCP());
+    static_cast<m::WinConsole*>(clc_global::console.get())
+        ->setShellConsole(CP_UTF8, GetConsoleOutputCP());
 #else
-    #error non-windows platforms must use the readline library
+#error non-windows platforms must use the readline library
 #endif
 
 #if defined(WIN32) && defined(NO_READLINE)
-    char pw_buf[512];  // double space for unicode
+    char pw_buf[512]; // double space for unicode
 #else
     char pw_buf[256];
 #endif
@@ -58,11 +58,12 @@ void megaclc()
     {
         if (clc_global::g_prompt == clc_prompt::COMMAND)
         {
-
 #if defined(WIN32) && defined(NO_READLINE)
-            static_cast<m::WinConsole*>(clc_global::console.get())->updateInputPrompt(clc_prompt::prompts[clc_prompt::COMMAND]);
+            static_cast<m::WinConsole*>(clc_global::console.get())
+                ->updateInputPrompt(clc_prompt::prompts[clc_prompt::COMMAND]);
 #else
-            rl_callback_handler_install(clc_prompt::prompts[clc_prompt::COMMAND], clc_prompt::store_line);
+            rl_callback_handler_install(clc_prompt::prompts[clc_prompt::COMMAND],
+                                        clc_prompt::store_line);
 
             // display prompt
             if (saved_line)
@@ -87,7 +88,8 @@ void megaclc()
                 static_cast<m::WinConsole*>(clc_global::console.get())->consolePeek();
                 if (clc_global::prompt >= clc_prompt::COMMAND && !clc_global::line)
                 {
-                    clc_global::line = static_cast<m::WinConsole*>(clc_global::console.get())->checkForCompletedInputLine();
+                    clc_global::line = static_cast<m::WinConsole*>(clc_global::console.get())
+                                           ->checkForCompletedInputLine();
                 }
             }
 #else
@@ -97,22 +99,27 @@ void megaclc()
             }
             else if (clc_global::g_prompt > clc_prompt::COMMAND)
             {
-                clc_global::g_console->readpwchar(pw_buf, sizeof pw_buf, &clc_global::g_promptPwBufPos, &clc_global::g_promptLine);
+                clc_global::g_console->readpwchar(pw_buf,
+                                                  sizeof pw_buf,
+                                                  &clc_global::g_promptPwBufPos,
+                                                  &clc_global::g_promptLine);
             }
 #endif
 
-            if (clc_global::g_signalPresencePeriod > 0 && clc_global::g_signalPresenceLastSent + clc_global::g_signalPresencePeriod < std::time(NULL))
+            if (clc_global::g_signalPresencePeriod > 0 &&
+                clc_global::g_signalPresenceLastSent + clc_global::g_signalPresencePeriod <
+                    std::time(NULL))
             {
                 clc_global::g_chatApi->signalPresenceActivity(&clc_global::g_chatListener);
                 clc_global::g_signalPresenceLastSent = std::time(NULL);
             }
 
-            if (clc_global::g_repeatPeriod > 0 && !clc_global::g_repeatCommand.empty() && clc_global::g_repeatLastSent + clc_global::g_repeatPeriod < std::time(NULL))
+            if (clc_global::g_repeatPeriod > 0 && !clc_global::g_repeatCommand.empty() &&
+                clc_global::g_repeatLastSent + clc_global::g_repeatPeriod < std::time(NULL))
             {
                 clc_global::g_repeatLastSent = std::time(NULL);
                 clc_prompt::process_line(clc_global::g_repeatCommand.c_str());
             }
-
         }
 
 #ifndef NO_READLINE
@@ -186,4 +193,3 @@ int main()
     g_chatApi.reset();
     g_megaApi.reset();
 }
-

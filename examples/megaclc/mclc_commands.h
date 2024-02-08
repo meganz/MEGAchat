@@ -2,8 +2,8 @@
  * @file
  * @brief File with all the definitions of the commands that are exposed to the cli.
  *
- * NOTE: Remember to attach the function you define here to a command in the body of the autocompleteSyntax function
- * defined in mclc_autocompletion.cpp
+ * NOTE: Remember to attach the function you define here to a command in the body of the
+ * autocompleteSyntax function defined in mclc_autocompletion.cpp
  */
 
 #pragma once
@@ -163,5 +163,3 @@ void exec_syncxable(ac::ACState& s);
 void exec_getmybackupsfolder(ac::ACState&);
 void exec_setmybackupsfolder(ac::ACState& s);
 }
-
-

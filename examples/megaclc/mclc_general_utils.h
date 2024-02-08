@@ -1,6 +1,7 @@
 /**
  * @file
- * @brief This file contains some generic utilities that are useful for other parts of the application.
+ * @brief This file contains some generic utilities that are useful for other parts of the
+ * application.
  */
 
 #pragma once
@@ -11,12 +12,9 @@ namespace m = ::mega;
 #include <megachatapi.h>
 namespace c = ::megachat;
 
-#include <karereId.h>
-
-
-#include <string>
-
 #include <filesystem>
+#include <karereId.h>
+#include <string>
 namespace fs = std::filesystem;
 
 namespace mclc
@@ -43,11 +41,12 @@ fs::path getExeDirectory();
 std::unique_ptr<m::MegaNode> GetNodeByPath(const std::string& path);
 
 /**
- * @brief Builds a path object from a string. If it is empty the current working directory will be returned.
+ * @brief Builds a path object from a string. If it is empty the current working directory will be
+ * returned.
  *
  * @param s The string to convert
- * @param mustexist If true, the output path must exists otherwise an error message will be written and the current
- * working directory will be returned.
+ * @param mustexist If true, the output path must exists otherwise an error message will be written
+ * and the current working directory will be returned.
  * @return The path object
  */
 fs::path pathFromLocalPath(const std::string& s, bool mustexist);
@@ -90,7 +89,8 @@ std::string OwnStr(const char* s);
 std::string base64NodeHandle(m::MegaHandle h);
 
 /**
- * @brief Converts a string with a binary representation of a number into its hexadecimal representation.
+ * @brief Converts a string with a binary representation of a number into its hexadecimal
+ * representation.
  */
 std::string tohex(const std::string& binary);
 
@@ -100,7 +100,8 @@ std::string tohex(const std::string& binary);
 std::string tobinary(const std::string& hex);
 
 /**
- * @brief Maps characters [0-9a-z] to numbers sequentially starting from 0. If the char is not in the range, returns 0
+ * @brief Maps characters [0-9a-z] to numbers sequentially starting from 0. If the char is not in
+ * the range, returns 0
  */
 unsigned char tobinary(unsigned char c);
 
@@ -121,7 +122,8 @@ namespace clc_console
 
 /**
  * @class ConsoleLock
- * @brief This struct allows you to lock an output so you can print messages to it without race conditions.
+ * @brief This struct allows you to lock an output so you can print messages to it without race
+ * conditions.
  *
  */
 struct ConsoleLock
@@ -142,14 +144,16 @@ struct ConsoleLock
 };
 
 /**
- * @brief Returns a temporary object that has locked a mutex. The temporary's destructor will unlock the object.
+ * @brief Returns a temporary object that has locked a mutex. The temporary's destructor will unlock
+ * the object.
  *
  * You can get multithreaded non-interleaved console output with just:
  *     conlock(cout) << "some " << "strings " << endl;
  * As the temporary's destructor will run at the end of the outermost enclosing expression.
  *
- * Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output over several statements).
- * Be careful not to have cout locked across a g_megaApi member function call, as any callbacks that also log could then deadlock.
+ * Or, move-assign the temporary to an lvalue to control when the destructor runs (to lock output
+ * over several statements). Be careful not to have cout locked across a g_megaApi member function
+ * call, as any callbacks that also log could then deadlock.
  *
  * @param o The objects that holds the output resource.
  */
@@ -174,7 +178,6 @@ std::string timeToLocalTimeString(const int64_t time);
  * @brief Converts the time into a string with the UTC format
  */
 std::string timeToStringUTC(const int64_t time);
-
 
 }
 }

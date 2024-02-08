@@ -53,7 +53,7 @@ fs::path getExeDirectory()
         std::cout << "Error: Unable to retrieve exe path" << std::endl;
         exit(1);
     }
-     path[static_cast<size_t>(count)] = '\0';
+    path[static_cast<size_t>(count)] = '\0';
     return fs::path{path.data()}.parent_path();
 #endif
 }
@@ -67,7 +67,8 @@ std::unique_ptr<m::MegaNode> GetNodeByPath(const std::string& path)
         std::unique_ptr<m::MegaNode> node(clc_global::g_megaApi->getNodeByHandle(h));
         if (!node)
         {
-            clc_console::conlock(std::cout) << "No node found by looking up handle: '" << (path.c_str() + 9) << "'" << std::endl;
+            clc_console::conlock(std::cout) << "No node found by looking up handle: '"
+                                            << (path.c_str() + 9) << "'" << std::endl;
         }
         return node;
     }
@@ -132,7 +133,8 @@ std::string extractChatLink(const char* message)
     {
         return {};
     }
-    return "https://mega.nz/" + std::string(chatPtr, chatPtr + base.size() + handleSize + 1 + keySize);
+    return "https://mega.nz/" +
+           std::string(chatPtr, chatPtr + base.size() + handleSize + 1 + keySize);
 }
 
 // convert string to handle
@@ -166,7 +168,8 @@ std::string OwnStr(const char* s)
 
 std::string base64NodeHandle(m::MegaHandle h)
 {
-    if (h == m::INVALID_HANDLE) return "INVALID_HANDLE";
+    if (h == m::INVALID_HANDLE)
+        return "INVALID_HANDLE";
     return OwnStr(m::MegaApi::handleToBase64(h));
 }
 
@@ -175,7 +178,7 @@ std::string tohex(const std::string& binary)
     std::ostringstream s;
     s << std::hex;
 
-    for (const char c : binary)
+    for (const char c: binary)
     {
         s << std::setw(2) << std::setfill('0') << (unsigned)c;
     }
@@ -185,8 +188,10 @@ std::string tohex(const std::string& binary)
 
 unsigned char tobinary(unsigned char c)
 {
-    if (c >= '0' && c <= '9') return static_cast<unsigned char>(c - '0');
-    if (c >= 'a' && c <= 'z') return static_cast<unsigned char>(c - 'a' + 10);
+    if (c >= '0' && c <= '9')
+        return static_cast<unsigned char>(c - '0');
+    if (c >= 'a' && c <= 'z')
+        return static_cast<unsigned char>(c - 'a' + 10);
     return 0;
 }
 
@@ -221,9 +226,11 @@ std::string loadfile(const std::string& filename)
 std::string joinStringList(const m::MegaStringList& msl, const std::string& separator)
 {
     std::string s;
-    if (msl.size() > 0) {
+    if (msl.size() > 0)
+    {
         s += msl.get(0) ? msl.get(0) : "<null>"; // Añade el primer elemento sin separador delante
-        for (int i = 1; i < msl.size(); ++i) {
+        for (int i = 1; i < msl.size(); ++i)
+        {
             s += separator; // Añade el separador antes de los elementos siguientes
             s += msl.get(i) ? msl.get(i) : "<null>";
         }
@@ -232,19 +239,24 @@ std::string joinStringList(const m::MegaStringList& msl, const std::string& sepa
 }
 
 }
+
 namespace clc_console
 {
 
-ConsoleLock::ConsoleLock(std::ostream& o)
-    : os(o), locking(true)
+ConsoleLock::ConsoleLock(std::ostream& o):
+    os(o),
+    locking(true)
 {
     outputlock.lock();
 }
-ConsoleLock::ConsoleLock(ConsoleLock&& o)
-    : os(o.os), locking(o.locking)
+
+ConsoleLock::ConsoleLock(ConsoleLock&& o):
+    os(o.os),
+    locking(o.locking)
 {
     o.locking = false;
 }
+
 ConsoleLock::~ConsoleLock()
 {
     if (locking)

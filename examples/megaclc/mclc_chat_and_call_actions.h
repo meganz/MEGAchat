@@ -1,16 +1,16 @@
 /**
  * @file
- * @brief This file is supposed to hold a set of high level functions that perform different actions related to chats
- * and calls.
+ * @brief This file is supposed to hold a set of high level functions that perform different actions
+ * related to chats and calls.
  */
 
 #pragma once
 
 #include "megachatapi.h"
+
 #include <set>
 #include <string_view>
 namespace c = ::megachat;
-
 
 namespace mclc::clc_ccactions
 {
@@ -21,9 +21,10 @@ namespace mclc::clc_ccactions
  * NOTE: You need to be logged in to call this function
  *
  * @param link url to the public chat.
- * @return A std::pair with the chat handle as the first value and the error code associated to the openChatPreview chat
- * api request (to be compare for example with megachat::MegaChatError::ERROR_OK) as second. If something went wrong,
- * the chat handle will hold the MEGACHAT_INVALID_HANDLE value.
+ * @return A std::pair with the chat handle as the first value and the error code associated to the
+ * openChatPreview chat api request (to be compare for example with
+ * megachat::MegaChatError::ERROR_OK) as second. If something went wrong, the chat handle will hold
+ * the MEGACHAT_INVALID_HANDLE value.
  */
 std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link);
 
@@ -31,14 +32,15 @@ std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link);
  * @brief Joins your account to a chat that was previously opened as preview.
  *
  * @param chatId Chat handle
- * @param errCode The error code returned by the openChatPreview request (the one that returns the openChatLink
- * function).
+ * @param errCode The error code returned by the openChatPreview request (the one that returns the
+ * openChatLink function).
  * @return true if everything went OK, false otherwise.
  */
 bool joinChat(const c::MegaChatHandle chatId, const int errCode);
 
 /**
- * @brief Blocks the execution until a call is received. This function assumes you are joined to a chat.
+ * @brief Blocks the execution until a call is received. This function assumes you are joined to a
+ * chat.
  *
  * @param chatId The chat handle
  * @return true if everything went OK, false otherwise.
@@ -51,11 +53,14 @@ bool waitUntilCallIsReceived(const c::MegaChatHandle chatId);
  * @param chatId Chat handle
  * @param audio Enable audio
  * @param video Enable video
- * @param notRinging If call rings for the invited people. If the call rings and you take it you go directly to the
- * call. Otherwise you will be taken to the waiting room.
+ * @param notRinging If call rings for the invited people. If the call rings and you take it you go
+ * directly to the call. Otherwise you will be taken to the waiting room.
  * @return true if everything went OK, false otherwise.
  */
-bool startChatCall(const c::MegaChatHandle chatId, const bool audio, const bool video, const bool notRinging);
+bool startChatCall(const c::MegaChatHandle chatId,
+                   const bool audio,
+                   const bool video,
+                   const bool notRinging);
 
 /**
  * @brief Answers the ongoing call.
@@ -65,7 +70,10 @@ bool startChatCall(const c::MegaChatHandle chatId, const bool audio, const bool 
  * @param video  If true the video is activated for the call.
  * @return true if everything went OK, false otherwise.
  */
-bool answerCall(const c::MegaChatHandle chatId, const bool audio, const bool video, const std::set<int>& expectedStatus);
+bool answerCall(const c::MegaChatHandle chatId,
+                const bool audio,
+                const bool video,
+                const std::set<int>& expectedStatus);
 
 /**
  * @brief Hangs up the ongoing call you are in.

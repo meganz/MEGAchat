@@ -3,7 +3,7 @@
 namespace mclc::clc_global
 {
 
-bool g_detailHigh {false};
+bool g_detailHigh{false};
 
 std::atomic<bool> g_reportMessagesDeveloper{false};
 
@@ -36,11 +36,11 @@ clc_listen::CLCMegaGlobalListener g_globalListener;
 std::mutex g_outputMutex;
 
 // Prompt
-clc_prompt::prompttype g_prompt {clc_prompt::prompttype::COMMAND};
+clc_prompt::prompttype g_prompt{clc_prompt::prompttype::COMMAND};
 char* g_promptLine = nullptr;
 int g_promptPwBufPos;
 std::unique_ptr<m::Console> g_console;
-bool g_promptQuitFlag {false};
+bool g_promptQuitFlag{false};
 
 // Autocomplete
 mega::autocomplete::ACN g_autocompleteTemplate;

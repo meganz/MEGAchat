@@ -1,25 +1,25 @@
 /**
  * @file
- * @brief This file centralizes the declaration of all the global variables that are needed across the megaclc app.
+ * @brief This file centralizes the declaration of all the global variables that are needed across
+ * the megaclc app.
  *
- * Some of the globals such as the g_megaApi or g_chatApi might make sense as they indeed represent a global state to be
- * shared across the app.
+ * Some of the globals such as the g_megaApi or g_chatApi might make sense as they indeed represent
+ * a global state to be shared across the app.
  * TODO: However, others should be reconsidered and moved to a more local scope.
  */
 
 #pragma once
 
-#include <mclc_listeners.h>
-#include <mclc_prompt.h>
-
 #include <mega/autocomplete.h>
-#include <megaapi.h>
-#include <megachatapi.h>
 
 #include <atomic>
+#include <map>
+#include <mclc_listeners.h>
+#include <mclc_prompt.h>
+#include <megaapi.h>
+#include <megachatapi.h>
 #include <memory>
 #include <mutex>
-#include <map>
 
 namespace mclc::clc_global
 {
@@ -58,7 +58,7 @@ extern std::mutex g_outputMutex; // lock this for output since we are using cout
 
 // Prompt
 extern clc_prompt::prompttype g_prompt; // The state of the prompt
-extern char* g_promptLine;                // The input line in the command line
+extern char* g_promptLine; // The input line in the command line
 extern int g_promptPwBufPos;
 extern std::unique_ptr<m::Console> g_console;
 extern bool g_promptQuitFlag;

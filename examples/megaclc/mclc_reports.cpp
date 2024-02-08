@@ -1,8 +1,8 @@
 #include "mclc_reports.h"
 
-#include "mclc_globals.h"
-#include "mclc_general_utils.h"
 #include "mclc_enums_to_string.h"
+#include "mclc_general_utils.h"
+#include "mclc_globals.h"
 #include "mclc_listeners.h"
 
 #include <iostream>
@@ -31,7 +31,9 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
     }
     else
     {
-        int numberOfMessages = g_reviewChatMsgCountRemaining.load() > 0 ? g_reviewChatMsgCountRemaining.load() : MAX_NUMBER_MESSAGES;
+        int numberOfMessages = g_reviewChatMsgCountRemaining.load() > 0 ?
+                                   g_reviewChatMsgCountRemaining.load() :
+                                   MAX_NUMBER_MESSAGES;
         source = g_chatApi->loadMessages(chatid, numberOfMessages);
     }
 
@@ -45,7 +47,8 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
         }
         case c::MegaChatApi::SOURCE_NONE:
         {
-            std::string message = "No more messages. Message loaded: " + std::to_string(g_reviewChatMsgCount);
+            std::string message =
+                "No more messages. Message loaded: " + std::to_string(g_reviewChatMsgCount);
             clc_console::conlock(std::cout) << message << std::flush;
             if (g_reviewPublicChatOutFile)
             {
@@ -60,22 +63,27 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
             g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
             return;
         }
-        default: return;
+        default:
+            return;
     }
 }
 
-void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
+void reportMessageHuman(c::MegaChatHandle chatid,
+                        c::MegaChatMessage* msg,
+                        const char* loadorreceive)
 {
     if (!msg)
     {
-        std::cout << "Room " << str_utils::ch_s(chatid) << " - end of " << loadorreceive << " messages" << std::endl;
+        std::cout << "Room " << str_utils::ch_s(chatid) << " - end of " << loadorreceive
+                  << " messages" << std::endl;
         if ((g_reviewingPublicChat || g_dumpingChatHistory) && g_reviewChatMsgCountRemaining)
         {
             reviewPublicChatLoadMessages(chatid);
         }
         else
         {
-            std::string message = "Loaded all messages requested: " + std::to_string(g_reviewChatMsgCount);
+            std::string message =
+                "Loaded all messages requested: " + std::to_string(g_reviewChatMsgCount);
             clc_console::conlock(std::cout) << message << std::flush;
             if (g_reviewPublicChatOutFile)
             {
@@ -90,14 +98,15 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         --g_reviewChatMsgCountRemaining;
     }
 
-    g_reviewChatMsgCount ++;
+    g_reviewChatMsgCount++;
 
     const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
     const std::string room_title = room ? room->getTitle() : "<No Title>";
 
     auto firstname = [room](const c::MegaChatHandle handle) -> std::string
     {
-        std::unique_ptr<const char []> firstnamePtr(room ? g_chatApi->getUserFirstnameFromCache(handle) : nullptr);
+        std::unique_ptr<const char[]> firstnamePtr(
+            room ? g_chatApi->getUserFirstnameFromCache(handle) : nullptr);
         if (firstnamePtr)
         {
             return firstnamePtr.get();
@@ -108,7 +117,8 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
 
     auto lastname = [room](const c::MegaChatHandle handle) -> std::string
     {
-        std::unique_ptr<const char []> lastnamePtr(room ? g_chatApi->getUserLastnameFromCache(handle) : nullptr);
+        std::unique_ptr<const char[]> lastnamePtr(
+            room ? g_chatApi->getUserLastnameFromCache(handle) : nullptr);
         if (lastnamePtr)
         {
             return lastnamePtr.get();
@@ -119,7 +129,8 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
 
     auto email = [room](const c::MegaChatHandle handle) -> std::string
     {
-        std::unique_ptr<const char []> emailPtr(room ? g_chatApi->getUserEmailFromCache(handle) : nullptr);
+        std::unique_ptr<const char[]> emailPtr(room ? g_chatApi->getUserEmailFromCache(handle) :
+                                                      nullptr);
         if (emailPtr)
         {
             return emailPtr.get();
@@ -162,27 +173,23 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
         {
             return std::string{"<Not an ending call>"};
         }
-        return "Call ended: " + std::string(::megachat::MegaChatCall::termcodeToString(termCode)) + " - " + std::to_string(duration);
+        return "Call ended: " + std::string(::megachat::MegaChatCall::termcodeToString(termCode)) +
+               " - " + std::to_string(duration);
     };
 
     std::ostringstream os;
-    os << room_title
-       << " | " << clc_time::timeToStringUTC(msg->getTimestamp()) << " UTC"
-       << " | " << clc_etos::msgTypeToString(msg->getType())
-       << " | " << str_utils::ch_s(msg->getMsgId())
-       << " | " << str_utils::ch_s(msg->getHandleOfAction())
-       << " | " << str_utils::ch_s(msg->getUserHandle())
-       << " | " << (msg->hasConfirmedReactions() ? "reacted to" : "not reacted to")
-       << " | " << (msg->isEdited() ? "edited" : "not edited")
-       << " | " << (msg->isDeleted() ? "deleted" : "not deleted")
-       << " | " << nodeinfo(msg->getMegaNodeList())
-       << " | " << metainfo(msg->getContainsMeta())
-       << " | " << callinfo(msg->getType(), msg->getDuration(), msg->getTermCode())
-       << " | " << firstname(msg->getUserHandle())
-       << " | " << lastname(msg->getUserHandle())
-       << " | " << email(msg->getUserHandle())
-       << " | " << (msg->getContent() ? msg->getContent() : "<No Content>")
-       << std::endl;
+    os << room_title << " | " << clc_time::timeToStringUTC(msg->getTimestamp()) << " UTC"
+       << " | " << clc_etos::msgTypeToString(msg->getType()) << " | "
+       << str_utils::ch_s(msg->getMsgId()) << " | " << str_utils::ch_s(msg->getHandleOfAction())
+       << " | " << str_utils::ch_s(msg->getUserHandle()) << " | "
+       << (msg->hasConfirmedReactions() ? "reacted to" : "not reacted to") << " | "
+       << (msg->isEdited() ? "edited" : "not edited") << " | "
+       << (msg->isDeleted() ? "deleted" : "not deleted") << " | "
+       << nodeinfo(msg->getMegaNodeList()) << " | " << metainfo(msg->getContainsMeta()) << " | "
+       << callinfo(msg->getType(), msg->getDuration(), msg->getTermCode()) << " | "
+       << firstname(msg->getUserHandle()) << " | " << lastname(msg->getUserHandle()) << " | "
+       << email(msg->getUserHandle()) << " | "
+       << (msg->getContent() ? msg->getContent() : "<No Content>") << std::endl;
     const auto outMsg = os.str();
 
     if (g_reviewPublicChatOutFileLinks && msg->getContent())
@@ -201,7 +208,7 @@ void reportMessageHuman(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const
     }
 }
 
-void reportMessage(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char* loadorreceive)
+void reportMessage(c::MegaChatHandle chatid, c::MegaChatMessage* msg, const char* loadorreceive)
 {
     if (!g_reportMessagesDeveloper)
     {
@@ -213,7 +220,8 @@ void reportMessage(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char
 
     if (!msg)
     {
-        std::cout << "Room " << str_utils::ch_s(chatid) << " - end of " << loadorreceive << " messages" << std::endl;
+        std::cout << "Room " << str_utils::ch_s(chatid) << " - end of " << loadorreceive
+                  << " messages" << std::endl;
         return;
     }
 
@@ -228,7 +236,9 @@ void reportMessage(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char
         return;
     }
 
-    std::cout << "Room " << str_utils::ch_s(chatid) << " " << loadorreceive << " message " << msg->getMsgIndex() << " from " << str_utils::ch_s(msg->getUserHandle()) << " type: ";
+    std::cout << "Room " << str_utils::ch_s(chatid) << " " << loadorreceive << " message "
+              << msg->getMsgIndex() << " from " << str_utils::ch_s(msg->getUserHandle())
+              << " type: ";
 
     std::cout << clc_etos::msgTypeToString(msg->getType());
 
@@ -249,22 +259,23 @@ void reportMessage(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char
     if (msg->getChanges() != 0)
     {
         std::cout << " (change flags: " << msg->getChanges()
-            << (msg->hasChanged(c::MegaChatMessage::CHANGE_TYPE_STATUS) ? " status" : "")
-            << (msg->hasChanged(c::MegaChatMessage::CHANGE_TYPE_CONTENT) ? " content" : "")
-            << (msg->hasChanged(c::MegaChatMessage::CHANGE_TYPE_ACCESS) ? " access" : "")
-            << ")";
+                  << (msg->hasChanged(c::MegaChatMessage::CHANGE_TYPE_STATUS) ? " status" : "")
+                  << (msg->hasChanged(c::MegaChatMessage::CHANGE_TYPE_CONTENT) ? " content" : "")
+                  << (msg->hasChanged(c::MegaChatMessage::CHANGE_TYPE_ACCESS) ? " access" : "")
+                  << ")";
     }
 
-    std::cout << std::endl << "content: '" << (msg->getContent() ? msg->getContent() : "<Null>")
-        << "' status: " << msg->getStatus() << " timestamp " << msg->getTimestamp()
-        << (msg->isEdited() ? " (edited)" : "")
-        << (msg->isDeleted() ? " (deleted)" : "")
-        << (msg->isEditable() ? " (editable)" : "")
-        << (msg->isDeletable() ? " (deletable)" : "");
+    std::cout << std::endl
+              << "content: '" << (msg->getContent() ? msg->getContent() : "<Null>")
+              << "' status: " << msg->getStatus() << " timestamp " << msg->getTimestamp()
+              << (msg->isEdited() ? " (edited)" : "") << (msg->isDeleted() ? " (deleted)" : "")
+              << (msg->isEditable() ? " (editable)" : "")
+              << (msg->isDeletable() ? " (deletable)" : "");
 
     if (msg->isManagementMessage())
     {
-        std::cout << " (management, user " << str_utils::ch_s(msg->getHandleOfAction()) << " privilege " << c::MegaChatRoom::privToString(msg->getPrivilege()) << ")";
+        std::cout << " (management, user " << str_utils::ch_s(msg->getHandleOfAction())
+                  << " privilege " << c::MegaChatRoom::privToString(msg->getPrivilege()) << ")";
     }
 
     if (msg->getCode() != 0)
@@ -272,12 +283,23 @@ void reportMessage(c::MegaChatHandle chatid, c::MegaChatMessage *msg, const char
         std::cout << " (reason: ";
         switch (msg->getCode())
         {
-            case c::MegaChatMessage::REASON_PEERS_CHANGED: std::cout << "REASON_PEERS_CHANGED"; break;
-            case c::MegaChatMessage::REASON_TOO_OLD: std::cout << "REASON_TOO_OLD"; break;
-            case c::MegaChatMessage::REASON_GENERAL_REJECT: std::cout << "REASON_GENERAL_REJECT"; break;
-            case c::MegaChatMessage::REASON_NO_WRITE_ACCESS: std::cout << "REASON_NO_WRITE_ACCESS"; break;
-            case c::MegaChatMessage::REASON_NO_CHANGES: std::cout << "REASON_NO_CHANGES"; break;
-            default: std::cout << msg->getCode();
+            case c::MegaChatMessage::REASON_PEERS_CHANGED:
+                std::cout << "REASON_PEERS_CHANGED";
+                break;
+            case c::MegaChatMessage::REASON_TOO_OLD:
+                std::cout << "REASON_TOO_OLD";
+                break;
+            case c::MegaChatMessage::REASON_GENERAL_REJECT:
+                std::cout << "REASON_GENERAL_REJECT";
+                break;
+            case c::MegaChatMessage::REASON_NO_WRITE_ACCESS:
+                std::cout << "REASON_NO_WRITE_ACCESS";
+                break;
+            case c::MegaChatMessage::REASON_NO_CHANGES:
+                std::cout << "REASON_NO_CHANGES";
+                break;
+            default:
+                std::cout << msg->getCode();
         }
         std::cout << ")";
     }

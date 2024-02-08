@@ -1,13 +1,14 @@
 #include "mclc_logging.h"
-#include "mega/logging.h"
+
 #include "mclc_globals.h"
+#include "mega/logging.h"
 
 namespace mclc::clc_log
 {
 
 void DebugOutputWriter::writeOutput(const std::basic_string<char>& msg, int logLevel)
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     if (logLevel <= mFileLogLevel && mLogFile.is_open())
     {
         mLogFile << msg;
@@ -20,7 +21,7 @@ void DebugOutputWriter::writeOutput(const std::basic_string<char>& msg, int logL
 
 void DebugOutputWriter::disableLogToFile()
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     mLogFile.close();
 }
 
@@ -35,7 +36,7 @@ void DebugOutputWriter::disableLogToFile()
  */
 void DebugOutputWriter::enableLogToFile(const std::string& fname)
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     mLogFile.close();
     if (fname.length() == 0)
     {
@@ -55,63 +56,68 @@ void DebugOutputWriter::enableLogToFile(const std::string& fname)
 
 bool DebugOutputWriter::isLoggingToFile() const
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     return mLogFile.is_open();
 }
 
-bool DebugOutputWriter::isLoggingToConsole() const 
+bool DebugOutputWriter::isLoggingToConsole() const
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     return mLogToConsole;
 }
 
 std::string DebugOutputWriter::getLogFileName() const
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     return mLogFileName;
 }
 
 void DebugOutputWriter::setConsoleLogLevel(int newLogLevel)
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     mConsoleLogLevel = newLogLevel;
 }
 
 int DebugOutputWriter::getConsoleLogLevel() const
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     return mConsoleLogLevel;
 }
 
 void DebugOutputWriter::setFileLogLevel(int newLogLevel)
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     mFileLogLevel = newLogLevel;
 }
 
 int DebugOutputWriter::getFileLogLevel() const
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     return mFileLogLevel;
 }
 
 void DebugOutputWriter::setLogToConsole(bool state)
 {
-    std::lock_guard<std::mutex>lock{mLogFileWriteMutex};
+    std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     mLogToConsole = state;
 }
 
 DebugOutputWriter g_debugOutpuWriter;
-
 
 void MegaCLLogger::logMsg(const int loglevel, const std::string& message)
 {
     log(clc_time::timeToLocalTimeString(std::time(0)).c_str(), loglevel, nullptr, message.c_str());
 }
 
-void MegaCLLogger::log(const char* time, int loglevel, const char*, const char *message
+void MegaCLLogger::log(const char* time,
+                       int loglevel,
+                       const char*,
+                       const char* message
 #ifdef ENABLE_LOG_PERFORMANCE
-    , const char** directMessages = nullptr, size_t* directMessagesSizes = nullptr, unsigned numberMessages = 0
+                       ,
+                       const char** directMessages = nullptr,
+                       size_t* directMessagesSizes = nullptr,
+                       unsigned numberMessages = 0
 #endif
 )
 {
@@ -120,23 +126,25 @@ void MegaCLLogger::log(const char* time, int loglevel, const char*, const char *
     OutputDebugStringA("\r\n");
 #endif
     std::ostringstream os;
-    os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel)) << ": " << message << "\n";
+    os << "API [" << time << "] " << m::SimpleLogger::toStr(static_cast<m::LogLevel>(loglevel))
+       << ": " << message << "\n";
     g_debugOutpuWriter.writeOutput(os.str(), loglevel);
 }
 
 void MegaclcChatChatLogger::logMsg(const int loglevel, const std::string& message)
 {
-    const std::string msg = "[" + clc_time::timeToLocalTimeString(std::time(0)) + "] Level(" + std::to_string(loglevel) + "): " + message;
+    const std::string msg = "[" + clc_time::timeToLocalTimeString(std::time(0)) + "] Level(" +
+                            std::to_string(loglevel) + "): " + message;
     log(loglevel, msg.c_str());
 }
 
-void MegaclcChatChatLogger::log(int loglevel, const char *message)
+void MegaclcChatChatLogger::log(int loglevel, const char* message)
 {
 #ifdef _WIN32
     if (message && *message)
     {
         OutputDebugStringA(message);
-        if (message[strlen(message)-1] != '\n')
+        if (message[strlen(message) - 1] != '\n')
             OutputDebugStringA("\r\n");
     }
 #endif
@@ -154,7 +162,8 @@ MegaclcChatChatLogger g_chatLogger;
 
 void logMsg(const int logLevel, const std::string& message, const ELogWriter outputWriter)
 {
-    switch (outputWriter) {
+    switch (outputWriter)
+    {
         case ELogWriter::SDK:
             g_apiLogger.logMsg(logLevel, message);
             return;
@@ -164,8 +173,11 @@ void logMsg(const int logLevel, const std::string& message, const ELogWriter out
     }
 }
 
-static bool check_err_aux(const std::string& opName, int errCode, const char* errorString, ReportOnConsole report,
-        ELogWriter outputWriter)
+static bool check_err_aux(const std::string& opName,
+                          int errCode,
+                          const char* errorString,
+                          ReportOnConsole report,
+                          ELogWriter outputWriter)
 {
     if (errCode == c::MegaChatError::ERROR_OK)
     {
@@ -196,14 +208,23 @@ bool check_err(const std::string& opName, m::MegaError* e, ReportOnConsole repor
 
 bool check_err(const std::string& opName, c::MegaChatError* e, ReportOnConsole report)
 {
-    return check_err_aux(opName, e->getErrorCode(), e->getErrorString(), report, ELogWriter::MEGA_CHAT);
+    return check_err_aux(opName,
+                         e->getErrorCode(),
+                         e->getErrorString(),
+                         report,
+                         ELogWriter::MEGA_CHAT);
 }
 
-bool isUnexpectedErr(const int errCode, const int expectedErrCode, const char* msg, const ELogWriter outWriter)
+bool isUnexpectedErr(const int errCode,
+                     const int expectedErrCode,
+                     const char* msg,
+                     const ELogWriter outWriter)
 {
     if (errCode != expectedErrCode)
     {
-        logMsg(m::logError, std::string("ERROR CODE ") + std::to_string(errCode) + ": " + msg, outWriter);
+        logMsg(m::logError,
+               std::string("ERROR CODE ") + std::to_string(errCode) + ": " + msg,
+               outWriter);
         return true;
     }
     return false;

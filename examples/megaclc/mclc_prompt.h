@@ -6,13 +6,17 @@
 #pragma once
 
 #ifndef NO_READLINE
-#include <readline/readline.h>
 #include <readline/history.h>
+#include <readline/readline.h>
 #endif
 
 #ifndef WIN32
-// avoid warning C4996 : 'strdup' : The POSIX name for this item is deprecated.Instead, use the ISO Cand C++ conformant name : _strdup.See online help for details.
-inline char* _strdup(char const* _Source) { return strdup(_Source); }
+// avoid warning C4996 : 'strdup' : The POSIX name for this item is deprecated.Instead, use the ISO
+// Cand C++ conformant name : _strdup.See online help for details.
+inline char* _strdup(const char* _Source)
+{
+    return strdup(_Source);
+}
 #endif
 
 namespace mclc::clc_prompt
@@ -21,16 +25,15 @@ namespace mclc::clc_prompt
 /**
  * @brief Different promts to show depending on the current state.
  */
-static const char* const prompts[] =
-{
-    "", "MEGAclc> ", "Password:", "Pin:"
-};
+static const char* const prompts[] = {"", "MEGAclc> ", "Password:", "Pin:"};
 
 enum prompttype
 {
-    NOPROMPT, COMMAND, LOGINPASSWORD, PIN
+    NOPROMPT,
+    COMMAND,
+    LOGINPASSWORD,
+    PIN
 };
-
 
 /**
  * @brief Sets the global variables that stores the state of the prompt
