@@ -110,6 +110,9 @@ target_compile_definitions(CHATlib
 
 ## Load and link needed libraries for the CHATlib target ##
 
+# Load 3rd parties
+include(chatlib_libraries) # Include a macro to load the library dependencies
+load_chatlib_libraries()
 
 # Link with the SDK library
 target_link_libraries(CHATlib PRIVATE MEGA::SDKlib)
