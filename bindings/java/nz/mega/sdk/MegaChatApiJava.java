@@ -30,9 +30,6 @@ public class MegaChatApiJava {
     public final static int LOG_LEVEL_DEBUG = MegaChatApi.LOG_LEVEL_DEBUG;
     public final static int LOG_LEVEL_MAX = MegaChatApi.LOG_LEVEL_MAX;
 
-    public final static int CALL_NO_LIMIT = MegaChatApi.CALL_NO_LIMIT;
-    public final static int CALL_LIMIT_USERS_PER_CLIENT = MegaChatApi.CALL_LIMIT_USERS_PER_CLIENT;
-
     static Set<DelegateMegaChatRequestListener> activeRequestListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatRequestListener>());
     static Set<DelegateMegaChatListener> activeChatListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatListener>());
     static Set<DelegateMegaChatRoomListener> activeChatRoomListeners = Collections.synchronizedSet(new LinkedHashSet<DelegateMegaChatRoomListener>());
