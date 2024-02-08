@@ -89,6 +89,8 @@ target_include_directories(CHATlib
         ${CMAKE_CURRENT_SOURCE_DIR}/../third-party # rapidjson, header-only lib
 )
 
+# Include modules in subdirectories with sources for CHAtlib
+include(base/base.cmake)
 
 set_target_properties(CHATlib PROPERTIES
     VERSION ${PROJECT_VERSION}
