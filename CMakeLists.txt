@@ -65,5 +65,10 @@ endif()
 
 message(STATUS "Building CHATlib v${PROJECT_VERSION}")
 
-# Load mandatory CMakeFiles.txt with the MEGA::SDKlib target
+include(target_sources_conditional) # function to add files to the project without building them
+
+# Load SDK project
 add_subdirectory(third-party/mega)
+
+# Load the MEGAchat library target
+add_subdirectory(src)
