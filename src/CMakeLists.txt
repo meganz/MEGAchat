@@ -94,6 +94,7 @@ include(base/base.cmake)
 include(net/net.cmake)
 include(rtcModule/rtcModule.cmake)
 include(strongvelope/strongvelope.cmake)
+include(waiter/waiter.cmake)
 
 set_target_properties(CHATlib PROPERTIES
     VERSION ${PROJECT_VERSION}
