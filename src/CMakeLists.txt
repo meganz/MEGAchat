@@ -91,6 +91,7 @@ target_include_directories(CHATlib
 
 # Include modules in subdirectories with sources for CHAtlib
 include(base/base.cmake)
+include(net/net.cmake)
 
 set_target_properties(CHATlib PROPERTIES
     VERSION ${PROJECT_VERSION}
