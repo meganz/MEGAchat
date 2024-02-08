@@ -93,6 +93,7 @@ target_include_directories(CHATlib
 include(base/base.cmake)
 include(net/net.cmake)
 include(rtcModule/rtcModule.cmake)
+include(strongvelope/strongvelope.cmake)
 
 set_target_properties(CHATlib PROPERTIES
     VERSION ${PROJECT_VERSION}
