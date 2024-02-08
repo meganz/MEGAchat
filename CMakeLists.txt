@@ -1,4 +1,4 @@
-# CMakeLists.txt file to build the MEGAchat library.
+# CMakeLists.txt file to build the MEGAchat library, tests and utilities.
 #
 # It can be used to build a standalone library or to be included via add_subdirectory.
 #
@@ -18,13 +18,7 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/contrib
 
 ## Configurable options ##
 set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
-option(USE_LIBUV "Includes the library and turns on internal web and ftp server functionality" ON)
-option(USE_WEBRTC "Support for voice and/or video calls" OFF)
-
-# MEGAsdk options
-# Configure MEGAsdk specific options for MEGAchat and then load the rest of MEGAsdk configuration
-set(ENABLE_CHAT ON) # Chat management functionality. Mandatory configuration for the MEGAsdk library to be used for MEGAchat.
-include(sdklib_options)
+include(chatlib_options)
 
 # If PROJECT_NAME is not set before project() we are the main project.
 if(NOT PROJECT_NAME)
