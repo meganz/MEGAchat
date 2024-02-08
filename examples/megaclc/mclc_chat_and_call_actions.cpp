@@ -168,9 +168,24 @@ bool waitUntilCallIsReceived(const c::MegaChatHandle chatId)
     return true;
 }
 
-bool answerCall(const c::MegaChatHandle chatId, const bool audio, const bool video)
+bool startChatCall(const c::MegaChatHandle chatId, const bool audio, const bool video, const bool notRinging)
 {
-    std::set<int> expStatus = { megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS };
+    clc_listen::CLCChatRequestTracker startChatCallListener(g_chatApi.get());
+    g_chatApi->startCallInChat(chatId, video, audio, notRinging, &startChatCallListener);
+    if (clc_log::isUnexpectedErr(startChatCallListener.waitForResult(), megachat::MegaChatError::ERROR_OK, "Failed to start the call", ELogWriter::MEGA_CHAT))
+    {
+        return false;
+    }
+    if (!waitForReceivingCallStatus(chatId, { megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS }))
+    {
+        logMsg(m::logError, "Unexpected call status", ELogWriter::MEGA_CHAT);
+        return false;
+    }
+    return true;
+}
+
+bool answerCall(const c::MegaChatHandle chatId, const bool audio, const bool video, const std::set<int>& expectedStatus)
+{
     if (!resetCallStateChangeRecv(chatId, false))
     {
         logMsg(m::logError, "Cannot update stateHasChanged for ...", ELogWriter::MEGA_CHAT); // complete
@@ -189,9 +204,9 @@ bool answerCall(const c::MegaChatHandle chatId, const bool audio, const bool vid
         return false;
     }
 
-    if (!waitForReceivingCallStatus(chatId, expStatus))
+    if (!waitForReceivingCallStatus(chatId, expectedStatus))
     {
-        logMsg(m::logError, "CALL_STATUS_IN_PROGRESS not received", ELogWriter::MEGA_CHAT);
+        logMsg(m::logError, "Unexpected call status", ELogWriter::MEGA_CHAT);
         return false;
     }
     return true;

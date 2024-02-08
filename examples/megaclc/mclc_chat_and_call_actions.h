@@ -7,6 +7,7 @@
 #pragma once
 
 #include "megachatapi.h"
+#include <set>
 #include <string_view>
 namespace c = ::megachat;
 
@@ -45,6 +46,18 @@ bool joinChat(const c::MegaChatHandle chatId, const int errCode);
 bool waitUntilCallIsReceived(const c::MegaChatHandle chatId);
 
 /**
+ * @brief Starts a call in the chat room with the given handle.
+ *
+ * @param chatId Chat handle
+ * @param audio Enable audio
+ * @param video Enable video
+ * @param notRinging If call rings for the invited people. If the call rings and you take it you go directly to the
+ * call. Otherwise you will be taken to the waiting room.
+ * @return true if everything went OK, false otherwise.
+ */
+bool startChatCall(const c::MegaChatHandle chatId, const bool audio, const bool video, const bool notRinging);
+
+/**
  * @brief Answers the ongoing call.
  *
  * @param chatId The chat handle
@@ -52,7 +65,7 @@ bool waitUntilCallIsReceived(const c::MegaChatHandle chatId);
  * @param video  If true the video is activated for the call.
  * @return true if everything went OK, false otherwise.
  */
-bool answerCall(const c::MegaChatHandle chatId, const bool audio, const bool video);
+bool answerCall(const c::MegaChatHandle chatId, const bool audio, const bool video, const std::set<int>& expectedStatus);
 
 /**
  * @brief Hangs up the ongoing call you are in.

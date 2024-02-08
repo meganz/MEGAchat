@@ -823,7 +823,7 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
         logMsg(m::logInfo, "## Task0: Setting video input device ##", ELogWriter::MEGA_CHAT);
         if (!clc_ccactions::setChatVideoInDevice(videoInputDevice))
         {
-            return;
+            logMsg(m::logError, "Invalid input video device, selecting the default one.", ELogWriter::MEGA_CHAT);
         }
     }
 
@@ -850,7 +850,7 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     }
 
     logMsg(m::logInfo, "## Task4: Answer chat call ##", ELogWriter::MEGA_CHAT);
-    if (!clc_ccactions::answerCall(chatId, audio, video))
+    if (!clc_ccactions::answerCall(chatId, audio, video, { megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS }))
     {
         return;
     }
@@ -1291,18 +1291,32 @@ void exec_setchatvideoindevice(ac::ACState& s)
 
 void exec_startchatcall(ac::ACState& s)
 {
-    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
-    c::MegaChatHandle room = s_ch(s.words[1].s);
-    bool enableVideo = s.words.size() > 2 && s.words[2].s == "true";
-    g_chatApi->startChatCall(room, enableVideo, listener);
+    bool video = !s.extractflag("-novideo");
+    bool audio = !s.extractflag("-noaudio");
+    c::MegaChatHandle chatId = s_ch(s.words[1].s);
+
+    std::unique_ptr<c::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    if (call)
+    {
+        logMsg(logError, "The call already exists", ELogWriter::MEGA_CHAT);
+        return;
+    }
+    clc_ccactions::startChatCall(chatId, audio, video, false);
 }
 
 void exec_answerchatcall(ac::ACState& s)
 {
-    c::MegaChatRequestListener *listener = new c::MegaChatRequestListener; // todo
-    c::MegaChatHandle room = s_ch(s.words[1].s);
-    bool enableVideo = s.words.size() < 2 || s.words[2].s == "true";
-    g_chatApi->answerChatCall(room, enableVideo, false, listener);
+    bool video = !s.extractflag("-novideo");
+    bool audio = !s.extractflag("-noaudio");
+    c::MegaChatHandle chatId = s_ch(s.words[1].s);
+
+    std::unique_ptr<c::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    if (!call)
+    {
+        logMsg(logError, "The call you are trying to anwer does not exist", ELogWriter::MEGA_CHAT);
+        return;
+    }
+    clc_ccactions::answerCall(chatId, audio, video, { megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS });
 }
 
 

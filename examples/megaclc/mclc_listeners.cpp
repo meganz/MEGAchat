@@ -207,11 +207,12 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         {
             if (findIt != g_callStateMap.end())
             {
-                // TODO: Check if we have to return here
-                // In case the call is hang up and started more than once during megaclc exec_joinCallViaMeetingLink
-                // execution we assume that something went wrong in test and we can abort.
-                clc_log::logMsg(m::logError, "The call is already registered", clc_log::ELogWriter::MEGA_CHAT);
+                // This should not happen, the call should be destroyed before creating it again.
+                int previousStatus = findIt->second.state;
+                clc_log::logMsg(m::logError, "The call is already registered. Previous state: " + std::to_string(previousStatus), clc_log::ELogWriter::MEGA_CHAT);
                 assert(false);
+                findIt->second.state = megachat::MegaChatCall::CALL_STATUS_INITIAL;
+                findIt->second.stateHasChanged = true;
             }
             else
             {
@@ -222,10 +223,11 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         {
             if (findIt == g_callStateMap.end())
             {
-                clc_log::logMsg(m::logError, "Call must exists in the map at this point", clc_log::ELogWriter::MEGA_CHAT);
+                // This should be imposible, the call must start with CALL_STATUS_INITIAL so it must be in the map
+                clc_log::logMsg(m::logError, "Chat must exists in the map at this point", clc_log::ELogWriter::MEGA_CHAT);
                 assert(false);
-                // TODO create a logic to exit properly the application.
-                return; // temporary
+                findIt->second.stateHasChanged = false; // force a time out
+                return;
             }
             findIt->second.state = megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS;
             findIt->second.stateHasChanged = true;
@@ -236,8 +238,8 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
             {
                 clc_log::logMsg(m::logError, "Call must exists in the map at this point", clc_log::ELogWriter::MEGA_CHAT);
                 assert(false);
-                // TODO create a logic to exit properly the application.
-                return; // temporary
+                findIt->second.stateHasChanged = false; // force a time out
+                return;
             }
             findIt->second.state = megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION;
             findIt->second.stateHasChanged = true;
@@ -249,7 +251,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         }
         else
         {
-            // No special logic
+            clc_log::logMsg(m::logWarning, "Unmanaged call status " + std::to_string(status), clc_log::ELogWriter::MEGA_CHAT);
         }
     }
     else if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS))
