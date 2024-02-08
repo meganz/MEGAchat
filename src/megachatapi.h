@@ -533,7 +533,7 @@ public:
         CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted to enter the call. (just for moderators)
         CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied to enter the call. (just for moderators)
         CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X40000,  /// We have been pushed into a waiting room
-        CHANGE_TYPE_CALL_WILL_END = 0X80000,        /// Notify that call will be end due to duration restrictions associated to MEGA account plan
+        CHANGE_TYPE_CALL_WILL_END = 0X80000,        /// Notify that call will end due to duration restrictions associated to MEGA account plan
     };
 
     enum
@@ -765,7 +765,8 @@ public:
      * We have been pushed into a waiting room
      *
      * - MegaChatCall:: CHANGE_TYPE_CALL_WILL_END = 0x80000
-     * Notify that call will be end due to duration restrictions associated to MEGA account plan
+     * Notify that call will end due to duration restrictions associated to MEGA account plan
+     * (check MegaChatCall::getNum to get time, in seconds, after which the call will be ended)
      *
      * @return a bit field with the changes of the call
      */
@@ -852,7 +853,8 @@ public:
      * We have been pushed into a waiting room
      *
      * - MegaChatCall:: CHANGE_TYPE_CALL_WILL_END = 0x80000
-     * Notify that call will be end due to duration restrictions associated to MEGA account plan
+     * Notify that call will end due to duration restrictions associated to MEGA account plan
+     * (check MegaChatCall::getNum to get time, in seconds, after which the call will be ended)
      *
      * @return true if this call has an specific change
      */

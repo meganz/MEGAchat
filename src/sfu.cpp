@@ -44,7 +44,7 @@ const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";        // N
 const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted to enter the call.
 const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied to enter the call
 const std::string MutedCommand::COMMAND_NAME            = "MUTED";          // Notifies that our audio has been muted remotely by a host user
-const std::string WillEndCommand::COMMAND_NAME          = "WILL_END";       // Notify that call will be end due to duration restrictions
+const std::string WillEndCommand::COMMAND_NAME          = "WILL_END";       // Notify that call will end due to duration restrictions
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
