@@ -63,6 +63,9 @@ const std::string SfuConnection::CSFU_WR_PUSH           = "WR_PUSH";        // C
 const std::string SfuConnection::CSFU_WR_ALLOW          = "WR_ALLOW";       // Command sent to grant the specified users the permission to enter the call from the waiting room
 const std::string SfuConnection::CSFU_WR_KICK           = "WR_KICK";        // Command sent to disconnects all clients of the specified users, regardless of whether they are in the call or in the waiting room
 const std::string SfuConnection::CSFU_MUTE              = "MUTE";           // Command sent to mute specific or all clients in a call
+const std::string SfuConnection::CSFU_SETLIMIT          = "SETLIM";         // Command sent to set limits to call (duration, max participants ...)
+                                                                            //      - SETLIM command is a temporal feature provided by SFU for testing purposes,
+                                                                            //        and it's availability depends on SFU's release plan management
 
 CommandsQueue::CommandsQueue():
     isSending(false)
@@ -2128,6 +2131,48 @@ bool SfuConnection::sendWrAllow(const std::set<karere::Id>& users, const bool al
 bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
 {
     return sendWrCommand(SfuConnection::CSFU_WR_KICK, users);
+}
+
+bool SfuConnection::sendSetLimit(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients)
+{
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    cmdValue.SetString(SfuConnection::CSFU_SETLIMIT.c_str(), json.GetAllocator());
+    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
+
+    if (std::abs(callDur) >= 0.1)
+    {
+        rapidjson::Value durVal(rapidjson::kNumberType);
+        durVal.SetDouble(callDur);
+        json.AddMember(rapidjson::Value("dur"), durVal, json.GetAllocator());
+    }
+
+    if (numUsers)
+    {
+        rapidjson::Value numUsersVal(rapidjson::kNumberType);
+        numUsersVal.SetUint(numUsers);
+        json.AddMember(rapidjson::Value("usr"), numUsersVal, json.GetAllocator());
+    }
+
+    if (numClients)
+    {
+        rapidjson::Value numClientsVal(rapidjson::kNumberType);
+        numClientsVal.SetUint(numClients);
+        json.AddMember(rapidjson::Value("clnt"), numClientsVal, json.GetAllocator());
+    }
+
+    if (numClientsPerUser && numClientsPerUser <= callLimitUsersPerClient)
+    {
+        rapidjson::Value numClientsPerUserVal(rapidjson::kNumberType);
+        numClientsPerUserVal.SetUint(numClientsPerUser);
+        json.AddMember(rapidjson::Value("uclnt"), numClientsPerUserVal, json.GetAllocator());
+    }
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
 }
 
 bool SfuConnection::sendMute(const Cid_t& cid, const unsigned av)

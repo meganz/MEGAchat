@@ -126,7 +126,6 @@ public:
     void setMegaHandleList(const mega::MegaHandleList* handlelist);
     void setMegaHandleListByChat(MegaChatHandle chatid, mega::MegaHandleList *handlelist);
     void setParamType(int paramType);
-    void setStringMap(mega::MegaStringMap* stringMap);
 
 private:
     mega::MegaHandleList *doGetMegaHandleListByChat(MegaChatHandle chatid);
@@ -844,17 +843,9 @@ public:
     int getOwnPrivilege() const override;
     unsigned int getNumPreviewers() const override;
     int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const override;
-    const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const override;
-    const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const override;
-    const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const override;
-    const char *getPeerEmailByHandle(MegaChatHandle userhandle) const override;
     int getPeerPrivilege(unsigned int i) const override;
     unsigned int getPeerCount() const override;
     MegaChatHandle getPeerHandle(unsigned int i) const override;
-    const char *getPeerFirstname(unsigned int i) const override;
-    const char *getPeerLastname(unsigned int i) const override;
-    const char *getPeerFullname(unsigned int i) const override;
-    const char *getPeerEmail(unsigned int i) const override;
     bool isGroup() const override;
     bool isPublic() const override;
     bool isPreview() const override;
@@ -897,9 +888,6 @@ private:
     MegaChatHandle mChatid;
     mega::privilege_t priv;
     mega::userpriv_vector mPeers;
-    std::vector<std::string> peerFirstnames;
-    std::vector<std::string> peerLastnames;
-    std::vector<std::string> peerEmails;
     bool group;
     bool mPublicChat;
     karere::Id mAuthToken;
@@ -1414,6 +1402,7 @@ private:
     int performRequest_rejectCall(MegaChatRequestPrivate* request);
     int performRequest_sendRingIndividualInACall(MegaChatRequestPrivate* request);
     int performRequest_mutePeersInCall(MegaChatRequestPrivate* request);
+    int performRequest_setLimitsInCall(MegaChatRequestPrivate* request);
 #endif
     int performRequest_removeScheduledMeeting(MegaChatRequestPrivate* request);
     int performRequest_fetchScheduledMeetingOccurrences(MegaChatRequestPrivate* request);
@@ -1689,6 +1678,7 @@ public:
     void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
+    void setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener = nullptr);
     void mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener = nullptr);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);

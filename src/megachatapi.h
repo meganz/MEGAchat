@@ -578,6 +578,8 @@ public:
         TERM_CODE_PROTOCOL_VERSION          = 6,    // SFU protocol version error
         TERM_CODE_KICKED                    = 7,    // User has been kicked from call
         TERM_CODE_WR_TIMEOUT                = 8,    // Timed out waiting to be allowed from waiting room into call
+        TERM_CODE_CALL_DUR_LIMIT            = 9,    // Free plan limitations. Call duration exceeded for call
+        TERM_CODE_CALL_USERS_LIMIT          = 10,   // Free plan limitations. Call max different users exceeded for call
     };
 
     enum
@@ -604,6 +606,12 @@ public:
         SPEAKER_STATUS_PENDING  = 1,
         SPEAKER_STATUS_ACTIVE   = 2,
     };
+
+    // Maximum number of clients with which a single user can join a call
+    static constexpr unsigned int CALL_LIMIT_USERS_PER_CLIENT = 4;
+
+    // No limit set for a call option like (duration, max clients per call...)
+    static constexpr unsigned int CALL_NO_LIMIT = 0;
 
     virtual ~MegaChatCall();
 
@@ -910,6 +918,8 @@ public:
      *      - TERM_CODE_NO_PARTICIPATE
      *      - TERM_CODE_TOO_MANY_CLIENTS
      *      - TERM_CODE_PROTOCOL_VERSION
+     *      - TERM_CODE_CALL_DUR_LIMIT
+     *      - TERM_CODE_CALL_USERS_LIMIT
      *
      * If MegaChatCall::hasChanged(MegaChatCall::CHANGE_TYPE_STATUS) is true and MegaChatCall::getStatus() ==
      * MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION, this method returns the termination code for this call
@@ -922,6 +932,8 @@ public:
      *      - TERM_CODE_NO_PARTICIPATE
      *      - TERM_CODE_KICKED
      *      - TERM_CODE_WR_TIMEOUT
+     *      - TERM_CODE_CALL_DUR_LIMIT
+     *      - TERM_CODE_CALL_USERS_LIMIT
      *
      * @return error or warning code for this call
      */
@@ -2525,7 +2537,8 @@ public:
         TYPE_RING_INDIVIDUAL_IN_CALL                            = 62,
         TYPE_MUTE                                               = 63,
         TYPE_REJECT_CALL                                        = 64,
-        TOTAL_OF_REQUEST_TYPES                                  = 65,
+        TYPE_SET_LIMIT_CALL                                     = 65,
+        TOTAL_OF_REQUEST_TYPES                                  = 66,
     };
 
     enum {
@@ -6651,6 +6664,35 @@ public:
      */
     void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = NULL);
 
+    /**
+     * @brief Set limitations for a chat call in progress (like duration or max participants).
+     *
+     * Note: this method should be only used for test purpose
+     * The associated request type with this request is MegaChatRequest::TYPE_SET_LIMIT_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getMegaHandleList - Returns a MegaHandleList with 4 elements:
+     *      + MegaHandleList::get(0) - returns callDur param
+     *      + MegaHandleList::get(1) - returns numUsers param
+     *      + MegaHandleList::get(2) - returns numClientsPerUser param
+     *      + MegaHandleList::get(3) - returns numClients param
+     *   Note: The indexes above, represents the same order in which params are added to MegaHandleList, at MegaChatApiImpl::setLimitsInCall.
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_ARGS   - if numClientsPerUser is greater than MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT
+     * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, or there's no a call in the specified chatroom
+     * - MegaChatError::ERROR_ACCESS - if call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param callDur Maximum call duration, in seconds
+     * @param numUsers Maximum number of participants (users, not clients - one user may join with several clients), allowed to join the call
+     * @param numClientsPerUser Maximum number of clients with which a single user can join a call.
+     * @param numClients Maximum total number of clients allowed to be in the call at the same time. This doesn't include the clients in the waiting room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur = MegaChatCall::CALL_NO_LIMIT, const unsigned numUsers = MegaChatCall::CALL_NO_LIMIT, const unsigned numClients = MegaChatCall::CALL_NO_LIMIT, const unsigned numClientsPerUser = MegaChatCall::CALL_NO_LIMIT, MegaChatRequestListener* listener = NULL);
+
     /** @brief Mute a specific client or all of them in a call
      * This method can be called only by users with moderator role
      *
@@ -7799,76 +7841,6 @@ public:
     virtual int getPeerPrivilegeByHandle(MegaChatHandle userhandle) const;
 
     /**
-     * @brief Returns the current firstname of the peer
-     *
-     * NULL can be returned in public link if number of particpants is greater
-     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
-     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
-     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
-     * with a package of users. When request is finished you can get the firstname with
-     * MegaChatApi::getUserFirstnameFromCache.
-     *
-     * @deprecated Use MegaChatApi::getUserFirstnameFromCache
-     *
-     * @param userhandle Handle of the peer whose name is requested.
-     * @return Firstname of the chat peer with the handle specified.
-     */
-    virtual const char *getPeerFirstnameByHandle(MegaChatHandle userhandle) const;
-
-    /**
-     * @brief Returns the current lastname of the peer
-     *
-     * NULL can be returned in public link if number of particpants is greater
-     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
-     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
-     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
-     * with a package of users. When request is finished you can get the lastname with
-     * MegaChatApi::getUserLastnameFromCache.
-     *
-     * @deprecated Use MegaChatApi::getUserLastnameFromCache
-     *
-     * @param userhandle Handle of the peer whose name is requested.
-     * @return Lastname of the chat peer with the handle specified.
-     */
-    virtual const char *getPeerLastnameByHandle(MegaChatHandle userhandle) const;
-
-    /**
-     * @brief Returns the current fullname of the peer
-     *
-     * NULL can be returned in public link if number of particpants is greater
-     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
-     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
-     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
-     * with a package of users. When request is finished you can get the full name  with
-     * MegaChatApi::getUserFullnameFromCache
-     *
-     * You take the ownership of the returned value. Use delete [] value
-     *
-     * @deprecated Use MegaChatApi::getUserFullnameFromCache
-     *
-     * @param userhandle Handle of the peer whose name is requested.
-     * @return Fullname of the chat peer with the handle specified.
-     */
-    virtual const char *getPeerFullnameByHandle(MegaChatHandle userhandle) const;
-
-    /**
-     * @brief Returns the email address of the peer
-     *
-     * NULL can be returned in public link if number of particpants is greater
-     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
-     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
-     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
-     * with a package of users. When request is finished you can get the email with
-     * MegaChatApi::getUserEmailFromCache.
-     *
-     * @deprecated Use MegaChatApi::getUserEmailFromCache
-     *
-     * @param userhandle Handle of the peer whose email is requested.
-     * @return Email address of the chat peer with the handle specified.
-     */
-    virtual const char *getPeerEmailByHandle(MegaChatHandle userhandle) const;
-
-    /**
      * @brief Returns the number of participants in the chat
      * @return Number of participants in the chat
      */
@@ -7901,88 +7873,6 @@ public:
      * - MegaChatPeerList::PRIV_MODERATOR = 3
      */
     virtual int getPeerPrivilege(unsigned int i) const;
-
-    /**
-     * @brief Returns the current firstname of the peer
-     *
-     * If the index is >= the number of participants in this chat, this function
-     * will return NULL.
-     *
-     * NULL can be returned in public link if number of particpants is greater
-     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
-     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
-     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
-     * with a package of users. When request is finished you can get the firstname with
-     * MegaChatApi::getUserFirstnameFromCache.
-     *
-     * @deprecated Use MegaChatApi::getUserFirstnameFromCache
-     *
-     * @param i Position of the peer whose name is requested
-     * @return Firstname of the peer in the position \c i.
-     */
-    virtual const char *getPeerFirstname(unsigned int i) const;
-
-    /**
-     * @brief Returns the current lastname of the peer
-     *
-     * If the index is >= the number of participants in this chat, this function
-     * will return NULL.
-     *
-     * NULL can be returned in public link if number of particpants is greater
-     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
-     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
-     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
-     * with a package of users. When request is finished you can get the lastname with
-     * MegaChatApi::getUserLastnameFromCache.
-     *
-     * @deprecated Use MegaChatApi::getUserLastnameFromCache
-     *
-     * @param i Position of the peer whose name is requested
-     * @return Lastname of the peer in the position \c i.
-     */
-    virtual const char *getPeerLastname(unsigned int i) const;
-
-    /**
-     * @brief Returns the current fullname of the peer
-     *
-     * If the index is >= the number of participants in this chat, this function
-     * will return NULL.
-     *
-     * NULL can be returned in public link if number of particpants is greater
-     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
-     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
-     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
-     * with a package of users. When request is finished you can get the fullname with
-     * MegaChatApi::getUserFullnameFromCache.
-     *
-     * You take the ownership of the returned value. Use delete [] value
-     *
-     * @deprecated Use MegaChatApi::getUserFullnameFromCache
-     *
-     * @param i Position of the peer whose name is requested
-     * @return Fullname of the peer in the position \c i.
-     */
-    virtual const char *getPeerFullname(unsigned int i) const;
-
-    /**
-     * @brief Returns the email address of the peer
-     *
-     * If the index is >= the number of participants in this chat, this function
-     * will return NULL.
-     *
-     * NULL can be returned in public link if number of particpants is greater
-     * than MegaChatApi::getMaxParticipantsWithAttributes. In this case, you have to
-     * request the user attributes with MegaChatApi::loadUserAttributes. To improve
-     * the performance, if several users has to be request, call MegaChatApi::loadUserAttributes
-     * with a package of users. When request is finished you can get the email with
-     * MegaChatApi::getUserEmailFromCache.
-     *
-     * @deprecated Use MegaChatApi::getUserEmailFromCache
-     *
-     * @param i Position of the peer whose email is requested
-     * @return Email address of the peer in the position \c i.
-     */
-    virtual const char *getPeerEmail(unsigned int i) const;
 
     /**
      * @brief Returns whether this chat is a group chat or not

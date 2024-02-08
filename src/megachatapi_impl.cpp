@@ -56,7 +56,9 @@
 #include <signal.h>
 #endif
 
+#if __cpp_lib_execution
 #include <execution>
+#endif
 
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
 
@@ -1783,15 +1785,6 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             }
 
             bool enableAudio = request->getParamType();
-            if (enableAudio
-                && chatroom->isSpeakRequest()
-                && chatroom->ownPriv() != Priv::PRIV_MODERATOR)
-            {
-                API_LOG_ERROR("Start call - can't start a call with audio enabled "
-                              "if speak request is enabled for chatroom and we are non-host");
-                return MegaChatError::ERROR_ARGS;
-            }
-
             bool enableVideo = request->getFlag();
             karere::AvFlags avFlags(enableAudio, enableVideo);
             rtcModule::ICall* call = findCall(chatid);
@@ -1922,15 +1915,6 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             }
 
             bool enableAudio = request->getParamType();
-            if (enableAudio
-                && chatroom->isSpeakRequest()
-                && chatroom->ownPriv() != Priv::PRIV_MODERATOR)
-            {
-                API_LOG_ERROR("Answer call - can't answer a call with audio enabled "
-                              "if speak request is enabled for chatroom and we are non-host");
-                return MegaChatError::ERROR_ARGS;
-            }
-
             bool enableVideo = request->getFlag();
             karere::AvFlags avFlags(enableAudio, enableVideo);
             call->join(avFlags)
@@ -2881,6 +2865,59 @@ int MegaChatApiImpl::performRequest_kickUsersFromCall(MegaChatRequestPrivate* re
     }
 
     call->kickUsersFromCall(users);
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
+}
+
+int MegaChatApiImpl::performRequest_setLimitsInCall(MegaChatRequestPrivate* request)
+{
+    const MegaChatHandle chatid = request->getChatHandle();
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - Invalid chatid");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    MegaHandleList* handleList = request->getMegaHandleList();
+    if (!handleList || handleList->size() != 4)
+    {
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    rtcModule::ICall* call = findCall(chatid);
+    if (!call)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - There is not any call in that chatroom");
+        assert(call);
+        return MegaChatError::ERROR_NOENT;
+    }
+
+    if (call->getState() != rtcModule::kStateInProgress)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - Call isn't in progress state");
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    if (!call->isOwnPrivModerator())
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - moderator role required to perform this action");
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    const unsigned callDurSecs = static_cast<unsigned>(handleList->get(0));
+    const unsigned numUsers = static_cast<unsigned>(handleList->get(1));
+    const unsigned numClientsPerUser = static_cast<unsigned>(handleList->get(2));
+    const unsigned numClients = static_cast<unsigned>(handleList->get(3));
+    const double callDurMin = callDurSecs ? static_cast<double>(callDurSecs) / 60.0 : 0.0;
+
+    if (numClientsPerUser > MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - invalid value for numClientsPerUser");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    call->setLimits(callDurMin, numUsers, numClientsPerUser, numClients);
     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
     fireOnChatRequestFinish(request, megaChatError);
     return MegaChatError::ERROR_OK;
@@ -6221,6 +6258,21 @@ void MegaChatApiImpl::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* u
     waiter->notify();
 }
 
+void MegaChatApiImpl::setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LIMIT_CALL, listener);
+    request->setChatHandle(chatid);
+    unique_ptr<MegaHandleList> limits = unique_ptr<MegaHandleList>(MegaHandleList::createInstance());
+    limits->addMegaHandle(static_cast<MegaHandle>(callDur));
+    limits->addMegaHandle(static_cast<MegaHandle>(numUsers));
+    limits->addMegaHandle(static_cast<MegaHandle>(numClientsPerUser));
+    limits->addMegaHandle(static_cast<MegaHandle>(numClients));
+    request->setMegaHandleList(limits.get());
+    request->setPerformRequest([this, request]() { return performRequest_setLimitsInCall(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_MUTE, listener);
@@ -7642,6 +7694,7 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_WR_KICK: return "WR_KICK";
         case TYPE_MUTE: return "MUTE";
         case TYPE_REJECT_CALL: return "REJECT_CALL";
+        case TYPE_SET_LIMIT_CALL: return "SET_LIMIT_CALL";
     }
     return "UNKNOWN";
 }
@@ -8138,6 +8191,8 @@ int MegaChatSessionPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kErrGeneral:
         case rtcModule::TermCode::kUnKnownTermCode:
         case rtcModule::TermCode::kWaitingRoomAllowTimeout:
+        case rtcModule::TermCode::kCallDurLimit:
+        case rtcModule::TermCode::kCallUserLimit:
             return SESS_TERM_CODE_NON_RECOVERABLE;
 
         case rtcModule::TermCode::kRtcDisconn:
@@ -8574,6 +8629,12 @@ int MegaChatCallPrivate::convertTermCode(rtcModule::TermCode termCode)
         case rtcModule::TermCode::kUnKnownTermCode:
         case rtcModule::TermCode::kErrorCrypto:
             return TERM_CODE_ERROR;
+
+        case rtcModule::TermCode::kCallDurLimit:
+            return TERM_CODE_CALL_DUR_LIMIT;
+
+        case rtcModule::TermCode::kCallUserLimit:
+            return TERM_CODE_CALL_USERS_LIMIT;
 
         case rtcModule::TermCode::kErrorProtocolVersion:
             return TERM_CODE_PROTOCOL_VERSION;
@@ -9841,16 +9902,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const MegaChatRoom *chat)
     {
         MegaChatHandle uh = chat->getPeerHandle(i);
         mPeers.push_back(userpriv_pair(uh, (privilege_t) chat->getPeerPrivilege(i)));
-        if (chat->getPeerFirstname(i) && chat->getPeerLastname(i) && chat->getPeerEmail(i))
-        {
-            peerFirstnames.push_back(chat->getPeerFirstname(i));
-            peerLastnames.push_back(chat->getPeerLastname(i));
-            peerEmails.push_back(chat->getPeerEmail(i));
-        }
-        else
-        {
-            assert(!chat->getPeerEmail(i) && !chat->getPeerLastname(i) && !chat->getPeerEmail(i));
-        }
     }
     group = chat->isGroup();
     mPublicChat = chat->isPublic();
@@ -9904,19 +9955,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         for (it = peers.begin(); it != peers.end(); it++)
         {
             mPeers.push_back(userpriv_pair(it->first, (privilege_t) it->second->priv()));
-
-            if (!chat.publicChat() || chat.numMembers() < PRELOAD_CHATLINK_PARTICIPANTS)
-            {
-                const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(it->second->name());
-                peerFirstnames.push_back(buffer ? buffer : "");
-                delete [] buffer;
-
-                buffer = MegaChatRoomPrivate::lastnameFromBuffer(it->second->name());
-                peerLastnames.push_back(buffer ? buffer : "");
-                delete [] buffer;
-
-                peerEmails.push_back(it->second->email());
-            }
         }
 
         // these flags are not available for 1on1 chats
@@ -9930,28 +9968,6 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         privilege_t priv = (privilege_t) peerchat.peerPrivilege();
         handle uh = peerchat.peer();
         mPeers.push_back(userpriv_pair(uh, priv));
-
-        Contact *contact = peerchat.contact();
-        if (contact)
-        {
-            string name = contact->getContactName(true);
-
-            const char *buffer = MegaChatRoomPrivate::firstnameFromBuffer(name);
-            peerFirstnames.push_back(buffer ? buffer : "");
-            delete [] buffer;
-
-            buffer = MegaChatRoomPrivate::lastnameFromBuffer(name);
-            peerLastnames.push_back(buffer ? buffer : "");
-            delete [] buffer;
-        }
-        else    // we don't have firstname and lastname individually
-        {
-            peerFirstnames.push_back(mTitle);
-            peerLastnames.push_back("");
-        }
-
-
-        peerEmails.push_back(peerchat.email());
     }
 }
 
@@ -9988,69 +10004,6 @@ int MegaChatRoomPrivate::getPeerPrivilegeByHandle(MegaChatHandle userhandle) con
     return PRIV_UNKNOWN;
 }
 
-const char *MegaChatRoomPrivate::getPeerFirstnameByHandle(MegaChatHandle userhandle) const
-{
-    for (unsigned int i = 0; i < peerFirstnames.size(); i++)
-    {
-        assert(i < mPeers.size());
-        if (mPeers.at(i).first == userhandle)
-        {
-            return (!peerFirstnames.at(i).empty()) ? peerFirstnames.at(i).c_str() : nullptr;
-        }
-    }
-
-    return nullptr;
-}
-
-const char *MegaChatRoomPrivate::getPeerLastnameByHandle(MegaChatHandle userhandle) const
-{
-    for (unsigned int i = 0; i < peerLastnames.size(); i++)
-    {
-        assert(i < mPeers.size());
-        if (mPeers.at(i).first == userhandle)
-        {
-            return (!peerLastnames.at(i).empty()) ? peerLastnames.at(i).c_str() : nullptr;
-        }
-    }
-
-    return nullptr;
-}
-
-const char *MegaChatRoomPrivate::getPeerFullnameByHandle(MegaChatHandle userhandle) const
-{
-    for (unsigned int i = 0; i < peerFirstnames.size(); i++)
-    {
-        assert(i < mPeers.size());
-        if (mPeers.at(i).first == userhandle)
-        {
-            string ret = peerFirstnames.at(i);
-            if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
-            {
-                ret.append(" ");
-            }
-            ret.append(peerLastnames.at(i));
-
-            return (!ret.empty()) ? MegaApi::strdup(ret.c_str()) : nullptr;
-        }
-    }
-
-    return nullptr;
-}
-
-const char *MegaChatRoomPrivate::getPeerEmailByHandle(MegaChatHandle userhandle) const
-{
-    for (unsigned int i = 0; i < peerEmails.size(); i++)
-    {
-        assert(i < mPeers.size());
-        if (mPeers.at(i).first == userhandle)
-        {
-            return (!peerEmails.at(i).empty()) ? peerEmails.at(i).c_str() : nullptr;
-        }
-    }
-
-    return nullptr;
-}
-
 int MegaChatRoomPrivate::getPeerPrivilege(unsigned int i) const
 {
     if (i >= mPeers.size())
@@ -10074,53 +10027,6 @@ MegaChatHandle MegaChatRoomPrivate::getPeerHandle(unsigned int i) const
     }
 
     return mPeers.at(i).first;
-}
-
-const char *MegaChatRoomPrivate::getPeerFirstname(unsigned int i) const
-{
-    if (i >= peerFirstnames.size())
-    {
-        return NULL;
-    }
-
-    return peerFirstnames.at(i).c_str();
-}
-
-const char *MegaChatRoomPrivate::getPeerLastname(unsigned int i) const
-{
-    if (i >= peerLastnames.size())
-    {
-        return NULL;
-    }
-
-    return peerLastnames.at(i).c_str();
-}
-
-const char *MegaChatRoomPrivate::getPeerFullname(unsigned int i) const
-{
-    if (i >= peerLastnames.size() || i >= peerFirstnames.size())
-    {
-        return NULL;
-    }
-
-    string ret = peerFirstnames.at(i);
-    if (!peerFirstnames.at(i).empty() && !peerLastnames.at(i).empty())
-    {
-        ret.append(" ");
-    }
-    ret.append(peerLastnames.at(i));
-
-    return MegaApi::strdup(ret.c_str());
-}
-
-const char *MegaChatRoomPrivate::getPeerEmail(unsigned int i) const
-{
-    if (i >= peerEmails.size())
-    {
-        return NULL;
-    }
-
-    return peerEmails.at(i).c_str();
 }
 
 bool MegaChatRoomPrivate::isGroup() const

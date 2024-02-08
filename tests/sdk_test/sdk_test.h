@@ -39,6 +39,7 @@
 
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static constexpr unsigned int MAX_ATTEMPTS = 3;
+static const unsigned int minTimeout = 60;     // (seconds)
 static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 3;
@@ -560,9 +561,8 @@ protected:
     bool chatApiLogin(unsigned accountIndex, const char *session = nullptr, const char *email = nullptr, const char *password = nullptr);
     bool chatApiJoinAll(unsigned accountIndex, const char *email = nullptr);
     void logout(unsigned int accountIndex, bool closeSession = false);
-
 public:
-    static const char* printChatRoomInfo(const megachat::MegaChatRoom *);
+    static const char* printChatRoomInfo(megachat::MegaChatApi*, const megachat::MegaChatRoom *);
     static const char* printMessageInfo(const megachat::MegaChatMessage *);
 protected:
     static const char* printChatListItemInfo(const megachat::MegaChatListItem *);
@@ -630,7 +630,9 @@ protected:
     void cleanChatVideoListeners();
     void logoutTestAccounts();
     void closeOpenedChatrooms();
+#ifndef KARERE_DISABLE_WEBRTC
     bool removeChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid, TestChatVideoListener &vl);
+#endif
 
     /* select a group chat room, by default with PRIV_MODERATOR for primary account
      * in case chat privileges for primary account doesn't matter, provide PRIV_UNKNOWN in priv param
@@ -677,23 +679,94 @@ protected:
     void addBoolVarAndExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val);
 
 #ifndef KARERE_DISABLE_WEBRTC
+    /**
+     * @brief checks that callid for account i has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+     *
+     * @param chatid MegaChatHandle that identifies the chat room where we want to check that call is in progress
+     * @param i index of user account where we want to check if call id matches with expected one
+     */
+    void checkCallIdInProgress(unsigned i, const megachat::MegaChatHandle chatid);
 
-    // starts a call in a chatroom
+    /**
+     * @brief answers call and check if participant is in progress status in call
+     *
+     * @param callerIdx index of user account that started the call
+     * @param receiverIdx index of user account that is going to answer the call
+     * @param chatId MegaChatHandle that identifies the chat room
+     * @param enableVideo if true call will be answered with video flags enabled (if permissions allow it)
+     * @param enableAudio if true call will be answered with audio flags enabled (if permissions allow it)
+     */
+    void answerCallAndCheckInProgress(const unsigned int callerIdx, const unsigned int receiverIdx, const megachat::MegaChatHandle chatId, const bool enableVideo, const bool enableAudio);
+
+    /**
+     * @brief starts a chat call and checks that have been received by a set of participants provided
+     *
+     * @param performerIdx index of user account that is going to start the call
+     * @param recvsIdxs set of indexes of users accounts that must receive the call
+     * @param chatId MegaChatHandle that identifies the chat room
+     * @param enableVideo if true call will be started with video flags enabled (if permissions allow it)
+     * @param enableAudio if true call will be started with audio flags enabled (if permissions allow it)
+     * @param notRinging if true call won't ring (Note that Waiting room is bypased if notRinging is false and feature is enabled in chatroom)
+     */
+    void startCallAndCheckReceived(const unsigned int performerIdx, const std::set<unsigned int> recvsIdxs, const megachat::MegaChatHandle chatId, const bool enableVideo, const bool enableAudio, const bool notRinging);
+
+    /**
+     * @brief starts a call in a chatroom
+     *
+     * @param callerIdx index of user account that is going to start the call
+     * @param eF exit flags that determine when action is considered as finished
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo if true call will be started with video flags enabled (if permissions allow it)
+     * @param enableAudio if true call will be started with audio flags enabled (if permissions allow it)
+     * @param notRinging if true call won't ring (Note that Waiting room is bypased if notRinging is false and feature is enabled in chatroom)
+     */
     void startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
                          const bool enableVideo, const bool enableAudio, const bool notRinging);
 
-    // rejects a call
+    /**
+     * @brief rejects a call
+     *
+     * @param performerIdx index of user account that is going to reject the call
+     * @param eF exit flags that determine when action is considered as finished
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
     void rejectCall(const unsigned int performerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid);
 
-    // starts a call in a chatroom with waiting room option enabled
+    /**
+     * @brief starts a call in a chatroom with waiting room option enabled
+     *
+     * @deprecated this method is obsolete and must be replaced by startCallInChat
+     *
+     * @param callerIdx index of user account that is going to start the call
+     * @param eF exit flags that determine when action is considered as finished
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param schedIdWr MegaChatHandle scheduled meeting id, that identifies the scheduled meeting context in which we will start the call.
+     * @param enableVideo if true call will be started with video flags enabled (if permissions allow it)
+     * @param enableAudio if true call will be started with audio flags enabled (if permissions allow it)
+     */
     void startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid, const ::megachat::MegaChatHandle schedIdWr,
                               const bool enableVideo, const bool enableAudio);
 
-    // answers a call in a chatroom
+    /**
+     * @brief answers a call in a chatroom
+     *
+     * @param calleeIdx index of user account that is going to answer the call
+     * @param eF exit flags that determine when action is considered as finished
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo if true call will be answered with video flags enabled (if permissions allow it)
+     * @param enableAudio if true call will be answered with audio flags enabled (if permissions allow it)
+     */
     void answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
                         const bool enableVideo, const bool enableAudio);
 
-    void endChatCallTestCleanup(unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatid);
+    /**
+     * @brief ends a chat call
+     *
+     * @param performerIdx index of user account that is going to reject the call
+     * @param eF exit flags that determine when action is considered as finished
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    void endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatid);
 #endif
 
     /**
@@ -747,6 +820,16 @@ protected:
     void changeLastName(unsigned int accountIndex, std::string lastName);
 
     // chatrooms auxiliar methods
+
+    /**
+     * @brief invites a user to a chatroom
+     *
+     * @param performerIdx index of user account that is going to perform invitation
+     * @param invitedIdx index of user account that is going to be invited to the chat
+     * @param invitedUh user handle of user account that is going to be invited to the chat
+     * @param crl TestChatRoomListener to track this request
+     */
+    void inviteToChat(const unsigned int performerIdx, const unsigned int invitedIdx, const megachat::MegaChatHandle invitedUh, TestChatRoomListener* crl);
 
     void inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                        std::shared_ptr<TestChatRoomListener>chatroomListener);
@@ -815,10 +898,13 @@ protected:
 
     std::unique_ptr<::mega::MegaContactRequest> mContactRequest[NUM_ACCOUNTS];
     bool mContactRequestUpdated[NUM_ACCOUNTS];
+    bool mSchedMeetingUpdated[NUM_ACCOUNTS];
+    bool mSchedOccurrUpdated[NUM_ACCOUNTS];
     bool mUsersUpdate[NUM_ACCOUNTS];
     std::map <unsigned int, bool> mUsersChanged[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersAllowJoin[NUM_ACCOUNTS];
     std::map <::megachat::MegaChatHandle, bool> mUsersRejectJoin[NUM_ACCOUNTS];
+    megachat::MegaChatHandle mSchedIdUpdated[NUM_ACCOUNTS];
 
 #ifndef KARERE_DISABLE_WEBRTC
     bool mCallWithIdReceived[NUM_ACCOUNTS];
@@ -841,7 +927,6 @@ protected:
     megachat::MegaChatHandle mCallIdStopRingIn[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdExpectedReceived[NUM_ACCOUNTS];
     megachat::MegaChatHandle mCallIdJoining[NUM_ACCOUNTS];
-    megachat::MegaChatHandle mSchedIdUpdated[NUM_ACCOUNTS];
     megachat::MegaChatHandle mSchedIdRemoved[NUM_ACCOUNTS];
     TestChatVideoListener *mLocalVideoListener[NUM_ACCOUNTS];
     TestChatVideoListener *mRemoteVideoListener[NUM_ACCOUNTS];
@@ -852,8 +937,6 @@ protected:
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
-    bool mSchedMeetingUpdated[NUM_ACCOUNTS];
-    bool mSchedOccurrUpdated[NUM_ACCOUNTS];
     bool mSessSpeakPermChanged[NUM_ACCOUNTS];
     bool mOwnFlagsChanged[NUM_ACCOUNTS];
     bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];

@@ -713,6 +713,11 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
+void Call::setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const
+{
+    mSfuConnection->sendSetLimit(callDur, numUsers, numClientsPerUser, numClients);
+}
+
 std::vector<Cid_t> Call::getSpeakerRequested()
 {
     std::vector<Cid_t> speakerRequested;
@@ -1510,12 +1515,6 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
 {
-    if (isSpeakRequestEnabled())
-    {
-        RTCM_LOG_WARNING("handleAnswerCommand: speak request option not available for this protocol version");
-        assert(false); // theoretically, it should not happen
-    }
-
     if (mState != kStateJoining)
     {
         RTCM_LOG_WARNING("handleAnswerCommand: get unexpected state change");
@@ -2654,9 +2653,10 @@ void Call::immediateCallDisconnect(const TermCode& termCode)
         return;
     }
 
+    const bool hadParticipants = !mSessions.empty(); // mSessions is cleared at clearResources
     mediaChannelDisconnect(true /*releaseDevices*/);
     clearResources(termCode);
-    disconnectFromSfu(termCode, !mSessions.empty() /*hadParticipants*/);
+    disconnectFromSfu(termCode, hadParticipants);
 }
 
 void Call::disconnectFromSfu(const TermCode& termCode, bool hadParticipants)
@@ -2677,6 +2677,7 @@ void Call::disconnectFromSfu(const TermCode& termCode, bool hadParticipants)
         mSfuConnection = nullptr;
     }
 
+    // avoid notifying kStateClientNoParticipating, as call will finally be destroyed
     bool skipNotification = (isDestroying())                    // we are destroying call
                             || (!hadParticipants && wasJoined); // no more participants but still joined to SFU
     if (!skipNotification)

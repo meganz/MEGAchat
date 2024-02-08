@@ -547,6 +547,39 @@ void exec_getunreadchatlistitems(ac::ACState&)
     }
 }
 
+static void printChatInfoFromCache(const c::MegaChatRoom* room)
+{
+    conlock(std::cout) << "Chat ID: " << ch_s(room->getChatId()) << std::endl;
+    conlock(std::cout) << "\tTitle: " << room->getTitle() << std::endl;
+    conlock(std::cout) << "\tGroup chat: " << ((room->isGroup()) ? "yes" : "no") << std::endl;
+    conlock(std::cout) << "\tPublic chat: " << ((room->isPublic()) ? "yes" : "no") << std::endl;
+    conlock(std::cout) << "\tPreview mode: " << ((room->isPreview()) ? "yes" : "no") << std::endl;
+    conlock(std::cout) << "\tOwn privilege: "
+                  << c::MegaChatRoom::privToString(room->getOwnPrivilege()) << std::endl;
+    conlock(std::cout) << "\tCreation ts: " << room->getCreationTs() << std::endl;
+    conlock(std::cout) << "\tArchived: " << ((room->isArchived()) ? "yes" : "no") << std::endl;
+    conlock(std::cout) << "\t" << room->getPeerCount() << " participants in chat:" << std::endl;
+    for (unsigned i = 0; i < room->getPeerCount(); i++)
+    {
+        c::MegaChatHandle uh = room->getPeerHandle(i);
+        conlock(std::cout) << "\t\t" << ch_s(uh) << "\t"
+                      << g_chatApi->getUserFullnameFromCache(uh);
+        auto userEmailFromCache =
+            std::unique_ptr<const char[]>(g_chatApi->getUserEmailFromCache(uh));
+        if (userEmailFromCache)
+        {
+            conlock(std::cout) << " (" << userEmailFromCache.get() << ")";
+        }
+        conlock(std::cout) << "\tPriv: "
+                      << c::MegaChatRoom::privToString(room->getPeerPrivilege(i))
+                      << std::endl;
+    }
+}
+
+unsigned int g_remainingPrints;
+std::mutex g_mutexPrintChatInfo;
+std::condition_variable g_cvChatInfoPrinted;
+
 static void printChatInfo(const c::MegaChatRoom *room)
 {
     if (!room)
@@ -555,42 +588,79 @@ static void printChatInfo(const c::MegaChatRoom *room)
     }
     else
     {
-        conlock(std::cout) << "Chat ID: " << ch_s(room->getChatId()) << std::endl;
-        conlock(std::cout) << "\tTitle: " << room->getTitle() << std::endl;
-        conlock(std::cout) << "\tGroup chat: " << ((room->isGroup()) ? "yes" : "no") << std::endl;
-        conlock(std::cout) << "\tPublic chat: " << ((room->isPublic()) ? "yes" : "no") << std::endl;
-        conlock(std::cout) << "\tPreview mode: " << ((room->isPreview()) ? "yes" : "no") << std::endl;
-        conlock(std::cout) << "\tOwn privilege: " << c::MegaChatRoom::privToString(room->getOwnPrivilege()) << std::endl;
-        conlock(std::cout) << "\tCreation ts: " << room->getCreationTs() << std::endl;
-        conlock(std::cout) << "\tArchived: " << ((room->isArchived()) ? "yes" : "no") << std::endl;
-        conlock(std::cout) << "\t" << room->getPeerCount() << " participants in chat:" << std::endl;
-        for (unsigned i = 0; i < room->getPeerCount(); i++)
+        // for the sake of keeping the order there are two iterations over the peers in the chat
+        auto missingPeersList =
+            std::unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
+        unsigned int totalPeers = room->getPeerCount();
+        for (unsigned int peerIdx = 0; peerIdx < totalPeers; ++peerIdx)
         {
-            conlock(std::cout) << "\t\t" << ch_s(room->getPeerHandle(i)) << "\t" << room->getPeerFullname(i);
-            if (room->getPeerEmail(i))
+            auto uh = room->getPeerHandle(peerIdx);
+            auto userCached =
+                std::unique_ptr<const char[]>(g_chatApi->getUserFirstnameFromCache(uh));
+            if (!userCached)
             {
-                conlock(std::cout) << " (" << room->getPeerEmail(i) << ")";
+                missingPeersList->addMegaHandle(uh);
             }
-            conlock(std::cout) << "\tPriv: " << c::MegaChatRoom::privToString(room->getPeerPrivilege(i)) << std::endl;
+        }
+
+        if (missingPeersList->size())
+        {
+            // lk it's already locked in exec_chatinfo
+            ++g_remainingPrints;
+
+            auto allUserDataReceivedListener = new OneShotChatRequestListener(
+                [room](c::MegaChatApi*, c::MegaChatRequest*, c::MegaChatError* e)
+                {
+                    std::unique_lock<std::mutex> lk(g_mutexPrintChatInfo);
+                    if (check_err("checkLoadUAForChatInfo", e))
+                    {
+                        printChatInfoFromCache(room);
+                    }
+                    --g_remainingPrints;
+                    lk.unlock();
+                    g_cvChatInfoPrinted.notify_one();
+                });
+            g_chatApi->loadUserAttributes(room->getChatId(), missingPeersList.get(),
+                                          allUserDataReceivedListener);
+        }
+        else
+        {
+            printChatInfoFromCache(room);
         }
     }
 }
 
 void exec_chatinfo(ac::ACState& s)
 {
+    std::unique_ptr<c::MegaChatRoomList> chats;
+    std::unique_ptr<c::MegaChatRoom> room;
+
+    std::unique_lock<std::mutex> lk(g_mutexPrintChatInfo);
+    g_remainingPrints = 0;
     if (s.words.size() == 1)    // print all chats
     {
-        std::unique_ptr<c::MegaChatRoomList> chats = std::unique_ptr<c::MegaChatRoomList>(g_chatApi->getChatRooms());
+        chats.reset(g_chatApi->getChatRooms());
         for (unsigned int i = 0; i < chats->size(); i++)
         {
             printChatInfo(chats->get(i));
         }
     }
-    if (s.words.size() == 2)
+    else if (s.words.size() == 2)
     {
         c::MegaChatHandle chatid = s_ch(s.words[1].s);
-        std::unique_ptr<c::MegaChatRoom> room = std::unique_ptr<c::MegaChatRoom>(g_chatApi->getChatRoom(chatid));
+        room.reset(g_chatApi->getChatRoom(chatid));
         printChatInfo(room.get());
+    }
+    else // just in case the parameter precon check changes at some point
+    {
+        conlock(std::cout) << "Incorrect number of parameters. Check help." << std::endl;
+        return;
+    }
+
+    if (g_remainingPrints && !g_cvChatInfoPrinted.wait_for(lk, std::chrono::milliseconds(500),
+                                      []{ return !g_remainingPrints; }))
+    {
+        conlock(std::cout) << "Timeout on request to get chat information" << std::endl;
     }
 }
 
