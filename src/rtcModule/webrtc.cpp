@@ -718,9 +718,9 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
-void Call::setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const
+void Call::setLimits(const uint64_t callDurSecs, const uint64_t numUsers, const uint64_t numClientsPerUser, const uint64_t numClients) const
 {
-    mSfuConnection->sendSetLimit(callDur, numUsers, numClientsPerUser, numClients);
+    mSfuConnection->sendSetLimit(callDurSecs, numUsers, numClientsPerUser, numClients);
 }
 
 std::vector<Cid_t> Call::getSpeakerRequested()

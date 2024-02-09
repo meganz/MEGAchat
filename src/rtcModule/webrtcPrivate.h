@@ -334,7 +334,7 @@ public:
     bool hasPendingSpeakRequest() const override;
     int getWrJoiningState() const override;
     unsigned int getOwnSpeakerState() const override;
-    void setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const override;
+    void setLimits(const uint64_t callDurSecs, const uint64_t numUsers, const uint64_t numClientsPerUser, const uint64_t numClients) const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;

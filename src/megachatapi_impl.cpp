@@ -2896,19 +2896,27 @@ int MegaChatApiImpl::performRequest_setLimitsInCall(MegaChatRequestPrivate* requ
         return MegaChatError::ERROR_ACCESS;
     }
 
-    const unsigned callDurSecs = static_cast<unsigned>(handleList->get(0));
-    const unsigned numUsers = static_cast<unsigned>(handleList->get(1));
-    const unsigned numClientsPerUser = static_cast<unsigned>(handleList->get(2));
-    const unsigned numClients = static_cast<unsigned>(handleList->get(3));
-    const double callDurMin = callDurSecs ? static_cast<double>(callDurSecs) / 60.0 : 0.0;
+    const uint64_t callDurSecs = handleList->get(0);
+    const uint64_t numUsers = handleList->get(1);
+    const uint64_t numClientsPerUser = handleList->get(2);
+    const uint64_t numClients = handleList->get(3);
 
-    if (numClientsPerUser > MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT)
+    if (callDurSecs == MegaChatCall::CALL_LIMIT_NO_PRESENT
+        && numUsers == MegaChatCall::CALL_LIMIT_NO_PRESENT
+        && numClientsPerUser == MegaChatCall::CALL_LIMIT_NO_PRESENT
+        && numClients == MegaChatCall::CALL_LIMIT_NO_PRESENT)
+    {
+        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - invalid value for provided params");
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    if (numClientsPerUser > MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT && numClientsPerUser != MegaChatCall::CALL_LIMIT_NO_PRESENT)
     {
         API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - invalid value for numClientsPerUser");
         return MegaChatError::ERROR_ARGS;
     }
 
-    call->setLimits(callDurMin, numUsers, numClientsPerUser, numClients);
+    call->setLimits(callDurSecs, numUsers, numClientsPerUser, numClients);
     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
     fireOnChatRequestFinish(request, megaChatError);
     return MegaChatError::ERROR_OK;
@@ -6249,7 +6257,7 @@ void MegaChatApiImpl::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* u
     waiter->notify();
 }
 
-void MegaChatApiImpl::setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener)
+void MegaChatApiImpl::setLimitsInCall(const MegaChatHandle chatid, const MegaChatHandle callDur, const MegaChatHandle numUsers, const MegaChatHandle numClientsPerUser, const MegaChatHandle numClients, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LIMIT_CALL, listener);
     request->setChatHandle(chatid);

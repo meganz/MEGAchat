@@ -1694,7 +1694,7 @@ public:
     void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
-    void setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener = nullptr);
+    void setLimitsInCall(const MegaChatHandle chatid, const MegaChatHandle callDur, const MegaChatHandle numUsers, const MegaChatHandle numClientsPerUser, const MegaChatHandle numClients, MegaChatRequestListener* listener = nullptr);
     void mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener = nullptr);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);

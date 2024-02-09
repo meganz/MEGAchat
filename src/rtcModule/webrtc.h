@@ -234,7 +234,7 @@ public:
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
-    virtual void setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const = 0;
+    virtual void setLimits(const uint64_t callDurSecs, const uint64_t numUsers, const uint64_t numClientsPerUser, const uint64_t numClients) const = 0;
     virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;

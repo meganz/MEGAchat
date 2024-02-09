@@ -297,11 +297,22 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END))
     {
-        QString myString = QString("Call will end in ")
-                           + QString(std::to_string(call->getNum()).c_str())
-                           + QString(" (seconds) due to MEGA account restrictions");
-
         QMessageBox msgBox;
+        QString myString;
+        const auto endsIn = call->getNum();
+        if (endsIn == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED)
+        {
+            msgBox.setIcon(QMessageBox::Information);
+            myString.append("Call duration is now unlimited. Call duration restriction has been removed");
+        }
+        else
+        {
+            msgBox.setIcon(QMessageBox::Warning);
+            myString = QString("Call will end in ")
+                           + QString(std::to_string(endsIn).c_str())
+                           + QString(" (seconds) due to MEGA account restrictions");
+        }
+
         msgBox.setText(myString);
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.exec();

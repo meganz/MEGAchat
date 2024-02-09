@@ -611,11 +611,14 @@ public:
     // Call duration restriction disabled
     static constexpr int CALL_LIMIT_DURATION_DISABLED = -1;
 
+    // Call limit restriction no present (Call limit won't be modified)
+    static constexpr MegaChatHandle CALL_LIMIT_NO_PRESENT = MEGACHAT_INVALID_HANDLE;
+
     // Maximum number of clients with which a single user can join a call
-    static constexpr unsigned int CALL_LIMIT_USERS_PER_CLIENT = 4;
+    static constexpr MegaChatHandle CALL_LIMIT_USERS_PER_CLIENT = 4;
 
     // No limit set for a call option like (duration, max clients per call...)
-    static constexpr unsigned int CALL_NO_LIMIT = 0;
+    static constexpr MegaChatHandle CALL_NO_LIMIT = 0;
 
     virtual ~MegaChatCall();
 
@@ -956,7 +959,7 @@ public:
       * @note this value only will be valid in the following scenarios:
       *     - MegaChatCall::CHANGE_TYPE_CALL_WILL_END is notified via MegaChatCallListener::onChatCallUpdate
       *       In this case this method returns the time, in seconds, after which the call will be ended
-      *       with TERM_CODE_CALL_DUR_LIMIT, or -1 if the duration limit has been removed.
+      *       with TERM_CODE_CALL_DUR_LIMIT, or MegaChatCall::CALL_LIMIT_DURATION_DISABLED if the duration limit has been removed.
       */
     virtual int getNum() const;
 
@@ -6691,6 +6694,9 @@ public:
     /**
      * @brief Set limitations for a chat call in progress (like duration or max participants).
      *
+     * - If you don't want to modify any of the limits, set param to MegaChatCall::CALL_LIMIT_NO_PRESENT
+     * - If you want to reset any of the limits to unlimited value, set param to MegaChatCall::CALL_NO_LIMIT
+     *
      * Note: this method should be only used for test purpose
      * The associated request type with this request is MegaChatRequest::TYPE_SET_LIMIT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
@@ -6704,18 +6710,21 @@ public:
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_ARGS   - if all provided params are equal to MegaChatCall::CALL_LIMIT_NO_PRESENT
      * - MegaChatError::ERROR_ARGS   - if numClientsPerUser is greater than MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT
      * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, or there's no a call in the specified chatroom
      * - MegaChatError::ERROR_ACCESS - if call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
      *
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param callDur Maximum call duration, in seconds
+     * @param callDur Maximum call duration, in seconds (call duration starts counting when call is answered)
      * @param numUsers Maximum number of participants (users, not clients - one user may join with several clients), allowed to join the call
      * @param numClientsPerUser Maximum number of clients with which a single user can join a call.
      * @param numClients Maximum total number of clients allowed to be in the call at the same time. This doesn't include the clients in the waiting room
      * @param listener MegaChatRequestListener to track this request
      */
-    void setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur = MegaChatCall::CALL_NO_LIMIT, const unsigned numUsers = MegaChatCall::CALL_NO_LIMIT, const unsigned numClients = MegaChatCall::CALL_NO_LIMIT, const unsigned numClientsPerUser = MegaChatCall::CALL_NO_LIMIT, MegaChatRequestListener* listener = NULL);
+    void setLimitsInCall(const MegaChatHandle chatid, const MegaChatHandle callDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         const MegaChatHandle numUsers = MegaChatCall::CALL_LIMIT_NO_PRESENT, const MegaChatHandle numClients = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         const MegaChatHandle numClientsPerUser = MegaChatCall::CALL_LIMIT_NO_PRESENT, MegaChatRequestListener* listener = NULL);
 
     /** @brief Mute a specific client or all of them in a call
      * This method can be called only by users with moderator role
