@@ -5,7 +5,7 @@ macro(process_chatlib_vcpkg_libraries)
     endif()
 
     if (ENABLE_CHATLIB_TESTS)
-        list(APPEND VCPKG_MANIFEST_FEATURES "chat-tests")
+        list(APPEND VCPKG_MANIFEST_FEATURES "sdk-tests")
     endif()
 
 endmacro()

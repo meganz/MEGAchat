@@ -45,7 +45,6 @@ if(NOT PROJECT_NAME)
         include(vcpkg_management)
         include(chatlib_vcpkg_management) # For specific MEGAchat configurations
         list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/contrib/cmake) # MEGAsdk overlays
-        merge_subprj_vcpkg_manifest(${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/third-party/mega) # Includes MEGAsdk manifest in the current one.
         process_vcpkg_libraries("${vcpkg_overlay}") # Choose and build libraries depending on the configured options.
     else()
         # For packages with no pkg-config in the system.
@@ -58,11 +57,6 @@ project(CHATlib
     VERSION 0.0.1
     DESCRIPTION "MEGAchat Library"
     )
-
-if(VCPKG_ROOT AND PROJECT_NAME STREQUAL CMAKE_PROJECT_NAME)
-    # Restore vcpkg manifest if we are the main project.
-    restore_vcpkg_manifest(${CMAKE_CURRENT_LIST_DIR})
-endif()
 
 # In-source build not allowed
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
