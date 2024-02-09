@@ -34,23 +34,23 @@ void DebugOutputWriter::disableLogToFile()
  *
  * @param fname The path to the file to write the messages.
  */
-void DebugOutputWriter::enableLogToFile(const std::string& fname)
+void DebugOutputWriter::enableLogToFile(const fs::path& filePath)
 {
     std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
     mLogFile.close();
-    if (fname.length() == 0)
+    if (filePath.empty())
     {
         clc_console::conlock(std::cout) << "Error: Provided an empty file name\n";
         return;
     }
-    mLogFile.open(fname.c_str());
+    mLogFile.open(filePath);
     if (mLogFile.is_open())
     {
-        mLogFileName = fname;
+        mLogFilePath = filePath;
     }
     else
     {
-        clc_console::conlock(std::cout) << "Error: Unable to open output file: " << fname << "\n";
+        clc_console::conlock(std::cout) << "Error: Unable to open output file: " << filePath << "\n";
     }
 }
 
@@ -69,7 +69,7 @@ bool DebugOutputWriter::isLoggingToConsole() const
 std::string DebugOutputWriter::getLogFileName() const
 {
     std::lock_guard<std::mutex> lock{mLogFileWriteMutex};
-    return mLogFileName;
+    return mLogFilePath.filename().string();
 }
 
 void DebugOutputWriter::setConsoleLogLevel(int newLogLevel)

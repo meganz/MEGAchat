@@ -167,8 +167,6 @@ void exec_debug(ac::ACState& s)
     g_debugOutpuWriter.disableLogToConsole();
     g_debugOutpuWriter.disableLogToFile();
 
-    std::string logLevelStr;
-
     auto levelStrToInt = [](const std::string& s) -> m::LogLevel
     {
         if (s == "all")
@@ -184,10 +182,12 @@ void exec_debug(ac::ACState& s)
         return m::logFatal;
     };
 
+    bool createPidDir = s.extractflag("-pid");
     if (s.extractflag("-noconsole"))
     {
         g_debugOutpuWriter.disableLogToConsole();
     }
+    std::string logLevelStr;
     if (s.extractflagparam("-console", logLevelStr))
     {
         auto logLevel = levelStrToInt(logLevelStr);
@@ -204,8 +204,18 @@ void exec_debug(ac::ACState& s)
     {
         auto logLevel = levelStrToInt(logLevelStr);
         assert(s.words.size() == 2); // At this point only the filename should remain
-        std::string filename = s.words[1].s;
-        g_debugOutpuWriter.enableLogToFile(filename);
+        fs::path filePath(s.words[1].s);
+        if (createPidDir)
+        {
+            fs::path auxPath = filePath.parent_path() / std::to_string(path_utils::getProcessId());
+
+            if (!fs::exists(auxPath))
+            {
+                fs::create_directories(auxPath);
+            }
+            filePath = auxPath / filePath.filename();
+        }
+        g_debugOutpuWriter.enableLogToFile(filePath);
         g_debugOutpuWriter.setFileLogLevel(logLevel);
     }
 
@@ -1002,11 +1012,25 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     {
         return;
     }
+    // Log number of participants
+    std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    if (!call)
+    {
+        // The call must exists as it existed in answerCall function
+        logMsg(m::logError, "Call cannot be retrieved for chatid", ELogWriter::MEGA_CHAT);
+        assert(false);
+        return;
+    }
+    logMsg(m::logInfo,
+           "## Task4.1: You have joined a call with " + std::to_string(call->getNumParticipants()) +
+               " ##",
+           ELogWriter::MEGA_CHAT);
 
-    logMsg(m::logInfo, "## Task5: wait some time and hang up ##", ELogWriter::MEGA_CHAT);
+    logMsg(m::logInfo, "## Task5: waiting some time before hanging up ##", ELogWriter::MEGA_CHAT);
     clc_time::WaitMillisec(waitTimeSec * 1000);
+    logMsg(m::logInfo, "## Task5.1: wait time finished ##", ELogWriter::MEGA_CHAT);
 
-    logMsg(m::logInfo, "## Task6: hang up call ##", ELogWriter::MEGA_CHAT);
+    logMsg(m::logInfo, "## Task6: hanging up the call ##", ELogWriter::MEGA_CHAT);
     if (!clc_ccactions::hangUpCall(chatId))
     {
         return;
