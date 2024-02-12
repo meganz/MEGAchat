@@ -115,5 +115,5 @@ include(chatlib_libraries) # Include a macro to load the library dependencies
 load_chatlib_libraries()
 
 # Link with the SDK library
-target_link_libraries(CHATlib PRIVATE MEGA::SDKlib)
+target_link_libraries(CHATlib PUBLIC MEGA::SDKlib)
 
