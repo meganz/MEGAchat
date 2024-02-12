@@ -618,7 +618,7 @@ public:
     static constexpr MegaChatHandle CALL_LIMIT_USERS_PER_CLIENT = 4;
 
     // No limit set for a call option like (duration, max clients per call...)
-    static constexpr MegaChatHandle CALL_NO_LIMIT = 0;
+    static constexpr MegaChatHandle CALL_LIMIT_RESET = 0;
 
     virtual ~MegaChatCall();
 
@@ -6695,7 +6695,7 @@ public:
      * @brief Set limitations for a chat call in progress (like duration or max participants).
      *
      * - If you don't want to modify any of the limits, set param to MegaChatCall::CALL_LIMIT_NO_PRESENT
-     * - If you want to reset any of the limits to unlimited value, set param to MegaChatCall::CALL_NO_LIMIT
+     * - If you want to reset any of the limits to unlimited value, set param to MegaChatCall::CALL_LIMIT_RESET
      *
      * Note: this method should be only used for test purpose
      * The associated request type with this request is MegaChatRequest::TYPE_SET_LIMIT_CALL
