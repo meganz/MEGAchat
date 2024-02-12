@@ -36,6 +36,11 @@ enum prompttype
 };
 
 /**
+ * @brief Intercept and process a system signal
+ */
+void signal_handler(int signal);
+
+/**
  * @brief Sets the global variables that stores the state of the prompt
  */
 void setprompt(prompttype p);
