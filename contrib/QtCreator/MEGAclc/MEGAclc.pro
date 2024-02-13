@@ -27,3 +27,4 @@ SOURCES +=  ../../../examples/megaclc/mclc_listeners.cpp
 SOURCES +=  ../../../examples/megaclc/mclc_general_utils.cpp
 SOURCES +=  ../../../examples/megaclc/mclc_prompt.cpp
 SOURCES +=  ../../../examples/megaclc/mclc_reports.cpp
+SOURCES +=  ../../../examples/megaclc/mclc_resources.cpp
