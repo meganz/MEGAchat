@@ -18,8 +18,7 @@
  *
  * @brief Sample application, interactive command line chat client
  * This program is intended for exploring the chat API, performing testing and so on.
- * It's not well tested and should be considered alpha at best.
- *
+ * Use this application just for testing purposes.
  */
 
 #include "mclc_autocompletion.h"

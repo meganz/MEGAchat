@@ -100,7 +100,7 @@ void reportMessageHuman(c::MegaChatHandle chatid,
 
     g_reviewChatMsgCount++;
 
-    const c::MegaChatRoom* room = g_chatApi->getChatRoom(chatid);
+    const std::shared_ptr<c::MegaChatRoom> room(g_chatApi->getChatRoom(chatid));
     const std::string room_title = room ? room->getTitle() : "<No Title>";
 
     auto firstname = [room](const c::MegaChatHandle handle) -> std::string
