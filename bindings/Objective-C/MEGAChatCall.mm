@@ -308,6 +308,12 @@ using namespace megachat;
         case MEGAChatCallTermCodeWaitingRoomTimeout:
             result = @"Waiting room timeout";
             break;
+        case MEGAChatCallTermCodeCallDurationLimit:
+            result = @"Call duration limit";
+            break;
+        case MEGAChatCallTermCodeCallUsersLimit:
+            result = @"Call users limit";
+            break;
     }
     return result;
 }

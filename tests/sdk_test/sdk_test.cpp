@@ -1058,6 +1058,8 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
 
     CleanupFunction testCleanup = [this] () -> void
     {
+        LOG_debug << "MegaChatApiTest.CallLimitsFreePlan: Cleanup";
+        clearTemporalVars();
         ExitBoolFlags eF;
         addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
@@ -1139,7 +1141,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     const MegaChatHandle a3Uh = megaChatApi[a3]->getMyUserHandle();
     mData.mAccounts.emplace(a1, a1Uh);
 
-    LOG_debug << "\tSwitching to staging (TEMPORARY)";
+    LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test SETLIM command";
     megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
     megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
 
@@ -1220,6 +1222,8 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
 {
     CleanupFunction testCleanup = [this] () -> void
     {
+        LOG_debug << "MegaChatApiTest.WaitingRoomsJoiningOrder: Cleanup";
+        clearTemporalVars();
         ExitBoolFlags eF;
         addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
@@ -1352,6 +1356,8 @@ TEST_F(MegaChatApiTest, RejectCall)
 {
     CleanupFunction testCleanup = [this]() -> void
     {
+        LOG_debug << "MegaChatApiTest.RejectCall: Cleanup";
+        clearTemporalVars();
         ExitBoolFlags eF;
         addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
@@ -4858,6 +4864,8 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
     CleanupFunction testCleanup = [this]() -> void
     {
+        LOG_debug << "MegaChatApiTest.EstablishedCalls: Cleanup";
+        clearTemporalVars();
         ExitBoolFlags eF;
         addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
@@ -4937,10 +4945,6 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
 
     ASSERT_EQ(megaChatApi[a2]->getCurrentInputVideoTracksLimit(), limitInputVideoTracks)
         << "Default limit for simultaneous input video tracks that call supports has not been updated for secondary account";
-
-    LOG_debug << "\tSwitching to staging (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
 
     LOG_debug << "#### Test1: A starts a groupal Meeting in chat1 (without audio nor video) ####";
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
@@ -5040,8 +5044,6 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
         ASSERT_EQ(*mutePerformerCid, a1Cid) << "Unexpected MutePerformer Cid for account: " << std::to_string(a2);
     });
     ASSERT_TRUE(waitForResponse(remoteAvFlagsChanged)) << "Timeout expired for Primary account receiving AvFlags update for Secondary account";
-    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 
     LOG_debug << "#### Test4: B puts call in hold on ####";
     exitFlag = &mChatCallOnHold[a1]; *exitFlag = false;  // from receiver account
@@ -5740,9 +5742,6 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
     ASSERT_TRUE(primarySession);
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     ASSERT_TRUE(secondarySession);
-    LOG_debug << "\tSwitching to staging (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
 
     if (!areContact(a1, a2))
     {
@@ -5982,7 +5981,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
                           "A ends call for all participants",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
-                          maxTimeout,
+                          minTimeout*2, // 120 secs
                           [this, a1, callid = call->getCallId()]()
                           {
                               ChatRequestTracker crtEndCall(megaChatApi[a1]);
@@ -6026,9 +6025,6 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
 
     LOG_debug << "#### Test5: Remove B as speaker ####";
     ASSERT_NO_FATAL_FAILURE({ removeSpeaker(a1, a2, secondaryUh, chatid); });
-
-    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 }
 
 /**
@@ -6302,9 +6298,6 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     ASSERT_TRUE(secondarySession);
 
-    LOG_debug << "\tSwitching to staging (Shard 2) for group creation (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
@@ -6543,7 +6536,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                           "A ends call for all participants",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
-                          maxTimeout,
+                          minTimeout*2, // 120 secs
                           [this, a1, callDestroyedA, callDestroyedB, callId]()
                           {
                               ChatRequestTracker crtEndCall(megaChatApi[a1]);
@@ -6598,7 +6591,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                           "A ends call for all participants",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
-                          maxTimeout,
+                          minTimeout*2, // 120 secs
                           [this, a1, callid = call->getCallId()]()
                           {
                               ChatRequestTracker crtEndCall(megaChatApi[a1]);
@@ -6836,9 +6829,6 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     ASSERT_TRUE(auxCall) << "Cannot get call for chatid: " << getChatIdStrB64(mChatIdInProgressCall[a1]);
     endCallPrimaryAccount(auxCall->getCallId());
-
-    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 }
 
 /**
@@ -7170,7 +7160,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
                           "A ends call for all participants",
                           true /* wait for all exit flags*/,
                           true /*reset flags*/,
-                          maxTimeout,
+                          minTimeout*2, // 120 secs
                           [this, &a1, callid = call->getCallId()]()
                           {
                               ChatRequestTracker crtEndCall(megaChatApi[a1]);
@@ -7251,9 +7241,6 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 {
     unsigned a1 = 0;
     unsigned a2 = 1;
-
-    LOG_debug << "\tSwitching to staging (Shard 2) for group creation (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
 
     // aux data structure to handle lambdas' arguments
     SchedMeetingData smDataTests1, smDataTests2;
@@ -7821,10 +7808,6 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smData.chatId = chatid;
     smData.schedId = schedId;
     ASSERT_NO_FATAL_FAILURE({ deleteSchedMeeting(a1, MegaChatError::ERROR_OK, smData); });
-
-    LOG_debug << "\tSwitching back from staging (Shard 2) for group creation (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
-
 }
 #endif
 
@@ -8381,25 +8364,29 @@ void MegaChatApiTest::addBoolVarAndExitFlag(const unsigned int i, ExitBoolFlags 
 void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId)
 {
     std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(chatId));
-    if (call)
+    if (!call)
     {
-       std::string errMsg = "ending call for all participants from account " + std::to_string(performerIdx);
-       LOG_debug << errMsg;
-       EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "endChatCall: Invalid callId";
-       waitForAction (1,  /* just one attempt */
-                     eF,
-                     errMsg,
-                     true /* wait for all exit flags */,
-                     true /* reset flags */,
-                     minTimeout,
-                     [this, performerIdx, callid = call->getCallId()]()
-                     {
-                         ChatRequestTracker crtEndCall(megaChatApi[performerIdx]);
-                         megaChatApi[performerIdx]->endChatCall(callid, &crtEndCall);
-                         EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
-                             << "endChatCall: Failed to end call. Error: " << crtEndCall.getErrorString();
-                     });
+        LOG_debug << "endChatCall:: Call doesn't exists for chatroom:" << getChatIdStrB64(chatId);
+        return;
     }
+
+    std::string errMsg = "ending call for all participants from account " + std::to_string(performerIdx);
+    LOG_debug << errMsg;
+    EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "endChatCall: Invalid callId";
+    waitForAction (1,  /* just one attempt */
+                 eF,
+                 errMsg,
+                 true /* wait for all exit flags */,
+                 true /* reset flags */,
+                 minTimeout*2, // 120 secs
+                 [this, performerIdx, callid = call->getCallId()]()
+                 {
+                     ChatRequestTracker crtEndCall(megaChatApi[performerIdx]);
+                     megaChatApi[performerIdx]->endChatCall(callid, &crtEndCall);
+                     EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                         << "endChatCall: Failed to end call. Error: " << crtEndCall.getErrorString();
+                 });
+
 }
 
 void MegaChatApiTest::checkCallIdInProgress(unsigned i, const MegaChatHandle chatid)
