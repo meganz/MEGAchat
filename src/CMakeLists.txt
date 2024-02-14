@@ -117,3 +117,16 @@ load_chatlib_libraries()
 # Link with the SDK library
 target_link_libraries(CHATlib PUBLIC MEGA::SDKlib)
 
+## Adjust compilation flags for warnings and errors ##
+target_platform_compile_options(
+    TARGET CHATlib
+    UNIX $<$<CONFIG:Debug>:-ggdb3> -Wall -Wextra -Wconversion -Wno-unused-parameter
+)
+
+if(ENABLE_CHATLIB_WERROR)
+    target_platform_compile_options(
+        TARGET CHATlib
+        UNIX  $<$<CONFIG:Debug>: -Werror
+                                 -Wno-error=deprecated-declarations> # Kept as a warning, do not promote to error.
+    )
+endif()

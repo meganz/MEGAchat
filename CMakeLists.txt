@@ -26,11 +26,13 @@ if(NOT PROJECT_NAME)
     set(CHATLIB_STANDALONE 1)
     option(ENABLE_CHATLIB_EXAMPLES "Example applications are built if enabled" ON)
     option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" ON)
+    option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" ON)
 else()
     message(STATUS "[CHATlib] is building under project [${PROJECT_NAME}] Install target, examples and tests will not be enabled by default.")
     set(SDKLIB_STANDALONE 0)
     option(ENABLE_CHATLIB_EXAMPLES "Example application is built if enabled" ON)
     option(ENABLE_CHATLIB_TESTS "Integration and unit tests are built if enabled" ON)
+    option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" OFF)
 endif()
 
 if(NOT PROJECT_NAME)
@@ -60,6 +62,7 @@ endif()
 message(STATUS "Building CHATlib v${PROJECT_VERSION}")
 
 include(target_sources_conditional) # function to add files to the project without building them
+include(target_platform_compile_options) # To add compile options depeding on the platform
 
 # Load SDK project
 add_subdirectory(third-party/mega)
