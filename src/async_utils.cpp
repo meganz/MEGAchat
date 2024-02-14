@@ -22,7 +22,7 @@ void ResultHandler::finish(int errCode, std::string&& errStr)
     promiseResult.set_value(errCode);
 }
 
-bool waitForResponse(std::function<bool()> mustExit, unsigned int timeout_secs)
+bool waitForResponse(const std::function<bool()>& mustExit, unsigned int timeout_secs)
 {
     if (!mustExit)
     {

@@ -18,15 +18,6 @@ namespace // Private utilities
 
 struct CallStateChangeTracker
 {
-    CallStateChangeTracker() = default;
-
-    ~CallStateChangeTracker() = default;
-    CallStateChangeTracker(const CallStateChangeTracker&) = default;
-    CallStateChangeTracker& operator=(const CallStateChangeTracker&) = default;
-
-    CallStateChangeTracker(CallStateChangeTracker&&) = delete;
-    CallStateChangeTracker& operator=(CallStateChangeTracker&&) = delete;
-
     c::MegaChatHandle chatId{c::MEGACHAT_INVALID_HANDLE};
 
     bool operator()()
