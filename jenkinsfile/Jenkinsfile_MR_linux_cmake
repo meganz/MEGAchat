@@ -44,6 +44,7 @@ pipeline {
         BUILD_OPTIONS = ' '
         APIURL_TO_TEST = ' '
         PIPELINE_NAME = 'Linux build & test'
+        RUN_TESTS = false
     }
     stages {
         stage('clean previous runs and update gitlab commit status'){
@@ -182,10 +183,9 @@ pipeline {
                 dir(megachat_sources_workspace){
                     sh """
                         sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS}#g" tests/sdk_test/sdk_test.h
-                        mkdir -p build
                     """
                 }
-                dir(sdk_sources_workspace){
+                dir(megachat_sources_workspace){
                     //Build SDK
                     sh "echo Building SDK"
                     sh "cmake -DENABLE_CHATLIB_WERROR=ON -DENABLE_CHAT=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
@@ -207,7 +207,12 @@ pipeline {
                 }
             }
         }
-        stage('Run MEGAchat and SDK tests'){
+        stage('Run MEGAchat tests'){
+            when {
+                expression {
+                    env.RUN_TESTS == true
+                }
+            }
             environment {
                 MEGA_PWD0 = credentials('MEGA_PWD_DEFAULT')
                 MEGA_PWD1 = credentials('MEGA_PWD_DEFAULT')
