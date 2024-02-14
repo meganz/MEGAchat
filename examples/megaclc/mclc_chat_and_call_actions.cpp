@@ -61,7 +61,7 @@ bool waitForReceivingCallStatus(const c::MegaChatHandle chatId,
     if (!call)
     {
         // if no call no sense to continue with command processing
-        logMsg(m::logError, "Call cannot be retrieved for chatid", ELogWriter::MEGA_CHAT);
+        logMsg(m::logError, "Call cannot be retrieved for chatid: " + std::to_string(chatId), ELogWriter::MEGA_CHAT);
         return false;
     }
 
@@ -84,6 +84,27 @@ bool resetCallStateChangeRecv(const c::MegaChatHandle chatId, const bool v)
     return true;
 };
 
+}
+
+bool login(const char* email, const char* password)
+{
+    clc_global::g_chatApi->init(NULL);
+    clc_global::g_login = email;
+    clc_global::g_password = password;
+
+    clc_listen::OneShotRequestTracker loginTracker(clc_global::g_megaApi.get());
+    clc_global::g_megaApi->login(email, password, &loginTracker);
+    if (int errCode = loginTracker.waitForResult(); errCode)
+    {
+        logMsg(m::logError,
+               std::string("ERROR CODE ") + std::to_string(errCode) + ": Failed to log in",
+               ELogWriter::SDK);
+        return false;
+    }
+    c::async::waitForResponse([](){
+            return clc_global::g_prompt == clc_prompt::COMMAND;
+            }, 30);
+    return true;
 }
 
 std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link)

@@ -19,6 +19,22 @@ void OneShotRequestListener::onRequestFinish(m::MegaApi* api,
     delete this; // one-shot is done so auto-delete
 }
 
+OneShotRequestTracker::~OneShotRequestTracker()
+{
+    if (!resultReceived)
+    {
+        mMegaApi->removeRequestListener(this);
+    }
+}
+
+void OneShotRequestTracker::onRequestFinish(m::MegaApi*,
+                                            m::MegaRequest* request,
+                                            m::MegaError* e)
+{
+    mRequest.reset(request ? request->copy() : nullptr);
+    finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+}
+
 void OneShotTransferListener::onTransferFinish(m::MegaApi* api,
                                                m::MegaTransfer* request,
                                                m::MegaError* e)

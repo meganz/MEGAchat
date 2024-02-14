@@ -16,6 +16,15 @@ namespace mclc::clc_ccactions
 {
 
 /**
+ * @brief Ensure the chat api is initialized and logs into the given account
+ *
+ * @param email The account email
+ * @param password The account password
+ * @return true if everything went OK, false otherwise.
+ */
+bool login(const char* email, const char* password);
+
+/**
  * @brief Given a link to a public chat, this function opens it.
  *
  * NOTE: You need to be logged in to call this function

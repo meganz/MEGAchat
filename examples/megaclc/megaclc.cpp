@@ -1,4 +1,4 @@
-/**
+/*
  * @file examples/megaclc.cpp
  * (c) 2018-2018 by Mega Limited, Auckland, New Zealand
  *
@@ -27,6 +27,7 @@
 #include "mclc_globals.h"
 #include "mclc_logging.h"
 #include "mclc_resources.h"
+#include "mclc_no_interactive.h"
 
 #include <csignal>
 
@@ -154,12 +155,26 @@ void megaclc()
 
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     std::signal(SIGINT, mclc::clc_prompt::signal_handler);
     std::signal(SIGTERM, mclc::clc_prompt::signal_handler);
 
     mclc::clc_resources::appAllocate();
-    mclc::megaclc();
+
+    int exitCode = 0;
+
+    if (argc < 2)
+    {
+        // Interactive loop
+        mclc::megaclc();
+    }
+    else
+    {
+        exitCode = mclc::noInteractiveCommand(argc - 1, argv + 1);
+    }
+
+
     mclc::clc_resources::appClean();
+    return exitCode;
 }

@@ -32,6 +32,27 @@ public:
     void onRequestFinish(m::MegaApi* api, m::MegaRequest* request, m::MegaError* e) override;
 };
 
+class OneShotRequestTracker: public m::MegaRequestListener, public megachat::async::ResultHandler
+{
+public:
+    OneShotRequestTracker(m::MegaApi* megaApi):
+        mMegaApi(megaApi)
+    {}
+
+    ~OneShotRequestTracker();
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest* request, m::MegaError* e) override;
+
+    m::MegaRequest* getMegaChatRequestPtr() const
+    {
+        return mRequest.get();
+    }
+
+private:
+    std::unique_ptr<m::MegaRequest> mRequest;
+    m::MegaApi* mMegaApi;
+};
+
 class OneShotTransferListener: public m::MegaTransferListener
 {
 public:
