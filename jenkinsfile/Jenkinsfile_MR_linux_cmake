@@ -1,0 +1,283 @@
+def setCommitStatus(String pStatus, String errorHint = '') {
+    switch (pStatus) {
+        case 'running':
+            pState = 'running'
+            pMessage = ""
+            break
+        case 'success':
+            pState = 'success'
+            pMessage = ":white_check_mark: ${env.JOB_NAME} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'aborted':
+            pState = 'canceled'
+            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'failure':
+            pState = 'failed'
+            pMessage = ":red_circle: ${env.JOB_NAME} :penguin: <b>Linux</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'unstable':
+            pState = 'failed'
+            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        default:
+            pState = 'failed'
+            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+    }
+    if (pMessage) {
+        if (errorHint) {
+            pMessage += '<br/> ' + errorHint
+        }
+        addGitLabMRComment(comment: pMessage)
+    }
+    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: pState)
+}
+
+pipeline {
+    agent { label 'linux && amd64 && webrtc' }
+    options {
+        timeout(time: 300, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
+        gitLabConnection('GitLabConnectionJenkins')
+    }
+    environment {
+        BUILD_OPTIONS = ' '
+        APIURL_TO_TEST = ' '
+        PIPELINE_NAME = 'Linux build & test'
+    }
+    stages {
+        stage('clean previous runs and update gitlab commit status'){
+            steps{
+                deleteDir()
+                setCommitStatus('running')
+            }
+        }
+        stage('Get current build description'){
+            steps{
+                script{
+                    println "${env.gitlabMergeRequestDescription}"
+                    env.currentBuildDescription = currentBuild.description
+                }
+            }
+        }
+        stage('Get build options'){
+            steps {
+                script{
+                    BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\\"" -f2 || :', returnStdout: true).trim()
+                    TESTS_PARALLEL = sh(script: 'echo "$gitlabTriggerPhrase" | grep "\\-\\-sequence" >/dev/null 2>&1 && echo "" || echo "--INSTANCES:10"', returnStdout: true).trim()
+                    GTEST_REPEAT = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-gtest_repeat=[^ ]*" | awk -F "gtest_repeat="  \'{print "--gtest_repeat="\$2}\'|| :', returnStdout: true).trim()
+                    GTEST_FILTER = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-gtest_filter=[^ ]*" | awk -F "gtest_filter="  \'{print "--gtest_filter="\$2}\'|| :', returnStdout: true).trim()
+                    println BUILD_OPTIONS
+                    println TESTS_PARALLEL
+                    println GTEST_REPEAT
+                    println GTEST_FILTER                
+                    }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Get SDK branch'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('SDK_BRANCH_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_BRANCH_TO_TEST | awk -F "SDK_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    println SDK_BRANCH
+                    if (SDK_BRANCH == ""){
+                        echo "SDK_BRANCH was not found on description so develop will be used by default"
+                    }
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Get API URL'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('USE_APIURL_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    APIURL_TO_TEST = sh(script: 'echo "$gitlabMergeRequestDescription" | grep USE_APIURL_TO_TEST | awk -F "USE_APIURL_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                        println APIURL_TO_TEST
+                    if (APIURL_TO_TEST == ""){
+                        APIURL_TO_TEST = "https://g.api.mega.co.nz/"
+                        echo "APIURL_TO_TEST was not found on description so ${APIURL_TO_TEST} will be used by default"
+                    }
+                    echo "APIURL_TO_TEST will be ${APIURL_TO_TEST}"
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting API URL. Is `APIURL_TO_TEST` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Checkout SDK and MEGAchat'){
+            when{
+                anyOf {
+                    expression {
+                        env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'trigger compilation' || env.gitlabTriggerPhrase.startsWith('trigger compilation cmake'))
+                    }
+                    allOf{
+                        expression { env.gitlabTriggerPhrase == null }
+                        triggeredBy "GitlabWebhookCause"
+                    }
+                }
+            }
+            steps {
+                deleteDir()
+                checkout scm
+                updateGitlabCommitStatus(name: 'Linux build & test', state: 'running')
+                dir('third-party/mega'){
+                    sh "echo Cloning SDK branch ${SDK_BRANCH}"
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${SDK_BRANCH}"]],
+                        userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:sdk/sdk.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                        ]
+                    ])
+                }
+                script{
+                    megachat_sources_workspace = WORKSPACE
+                    sdk_sources_workspace = "${megachat_sources_workspace}/third-party/mega"
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Build MEGAchat'){
+            environment{
+                VCPKGPATH = "/opt/vcpkg"
+                BUILD_DIR = "build_dir"
+            }
+            steps{
+                dir(megachat_sources_workspace){
+                    sh """
+                        sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS}#g" tests/sdk_test/sdk_test.h
+                        mkdir -p build
+                    """
+                }
+                dir(sdk_sources_workspace){
+                    //Build SDK
+                    sh "echo Building SDK"
+                    sh "cmake -DENABLE_SDKLIB_WERROR=ON -DENABLE_CHAT=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    -S ${sdk_sources_workspace} -B ${sdk_sources_workspace}/${BUILD_DIR}"
+                    sh "cmake --build ${sdk_sources_workspace}/${BUILD_DIR} -j1"
+
+                }
+
+            }
+            post{
+                failure {
+                    setCommitStatus('failure')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+        stage('Run MEGAchat and SDK tests'){
+            environment {
+                MEGA_PWD0 = credentials('MEGA_PWD_DEFAULT')
+                MEGA_PWD1 = credentials('MEGA_PWD_DEFAULT')
+                MEGA_PWD2 = credentials('MEGA_PWD_DEFAULT')
+            }
+            steps{
+                lock(label: 'SDK_Concurrent_Test_Accounts', variable: 'ACCOUNTS_COMBINATION', quantity: 1, resource: null){
+                    dir("${megachat_sources_workspace}/build/subfolder"){
+                        script{
+                            env.MEGA_EMAIL0 = "${env.ACCOUNTS_COMBINATION}"
+                            echo "${env.ACCOUNTS_COMBINATION}"
+
+                        }
+                        sh """#!/bin/bash
+                            ulimit -c unlimited
+                            if [ -z \"${TESTS_PARALLEL}\" ]; then
+                                ${megachat_sources_workspace}/build/MEGAchatTests/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} || FAILED=1
+                            else
+                                # Parallel run
+                                ${megachat_sources_workspace}/build/MEGAchatTests/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} ${TESTS_PARALLEL} 2>&1 | tee tests.stdout
+                                [ \"\${PIPESTATUS[0]}\" != \"0\" ] && FAILED=1
+                            fi
+
+                            if [ -n "\$FAILED" ]; then
+                                echo "Test failed with status \$FAILED"
+                                maxTime=10
+                                startTime=`date +%s`
+
+                                # Only a single core file can be handled, for either sequential or parallel run
+                                while [ \$( expr `date +%s` - \$startTime ) -lt \$maxTime ]; do
+                                    if [ -e \"core\" ]; then
+                                        echo "Processing core dump..."
+                                        echo thread apply all bt > backtrace
+                                        echo quit >> backtrace
+                                        gdb -q ${megachat_sources_workspace}/build/MEGAchatTests/megachat_tests core -x ${megachat_sources_workspace}/build/subfolder/backtrace                                        
+                                        tar chvzf core.tar.gz core megachat_tests
+                                        break
+                                    fi
+                                    sleep 1
+                                done
+                            fi
+
+                            gzip -c test.log > test_${BUILD_ID}.log.gz || :
+                            rm test.log || :
+                            if [ ! -z "\$FAILED" ]; then
+                                false
+                            fi
+                        """
+                    }
+                }
+            }
+            post {
+                always{
+                    archiveArtifacts artifacts: 'build/subfolder/test*.log*, build/subfolder/core.tar.gz', fingerprint: true
+                    deleteDir()
+                }
+                success {
+                    setCommitStatus('success')
+                }
+                failure {
+                    setCommitStatus('failure')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+    }
+}
+// vim: syntax=groovy tabstop=4 shiftwidth=4
