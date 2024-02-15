@@ -100,7 +100,16 @@ target_link_libraries(QtApp
     MEGA::CHATlib # MEGAchat library (And MEGAsdk library)
 )
 
+## Adjust compilation flags for warnings and errors ##
+target_platform_compile_options(
+    TARGET QtApp
+    UNIX $<$<CONFIG:Debug>:-ggdb3> -Wall -Wextra -Wconversion -Wno-unused-parameter
 )
 
+if(ENABLE_CHATLIB_WERROR)
+    target_platform_compile_options(
+        TARGET QtApp
+        UNIX  $<$<CONFIG:Debug>: -Werror
+                                 -Wno-error=deprecated-declarations> # Kept as a warning, do not promote to error.
     )
 endif()
