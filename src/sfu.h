@@ -617,6 +617,7 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_WR_ALLOW;
     static const std::string CSFU_WR_KICK;
     static const std::string CSFU_MUTE;
+    static const std::string CSFU_SETLIMIT;
 
 public:
     struct SfuData
@@ -648,9 +649,10 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    static constexpr unsigned int maxInitialBackoff = 100;   // (in milliseconds) max initial backoff for SFU connection attempt
-    static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
-    static constexpr uint8_t kNoMediaPathTimeout = 6;        // (in seconds) disconnect call upon no UDP connectivity after this period
+    static constexpr unsigned int callLimitUsersPerClient = 4;  // Maximum number of clients with which a single user can join a call
+    static constexpr unsigned int maxInitialBackoff = 100;      // (in milliseconds) max initial backoff for SFU connection attempt
+    static constexpr uint8_t kConnectTimeout = 30;              // (in seconds) timeout reconnection to succeeed
+    static constexpr uint8_t kNoMediaPathTimeout = 6;           // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     void setIsSendingBye(bool sending);
@@ -700,6 +702,7 @@ public:
     bool sendWrPush(const std::set<karere::Id>& users, const bool all);
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
+    bool sendSetLimit(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients);
     bool sendMute(const Cid_t& cid, const unsigned av);
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
     bool avoidReconnect() const;

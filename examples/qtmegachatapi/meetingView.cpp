@@ -1,5 +1,6 @@
 #ifndef KARERE_DISABLE_WEBRTC
 #include "meetingView.h"
+#include "MainWindow.h"
 #include <QMenu>
 #include <QApplication>
 #include <QInputDialog>
@@ -89,6 +90,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mMuteAll, SIGNAL(clicked()), this, SLOT(onMuteAll()));
     mMuteAll->setVisible(true);
 
+    mSetLimits= new QPushButton("Set call limits", this);
+    connect(mSetLimits, SIGNAL(clicked()), this, SLOT(onSetLimits()));
+    mSetLimits->setVisible(true);
+
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -126,6 +131,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mPushWr);
     mButtonsLayout->addWidget(mKickWr);
     mButtonsLayout->addWidget(mMuteAll);
+    mButtonsLayout->addWidget(mSetLimits);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -141,6 +147,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     std::unique_ptr<megachat::MegaChatRoom> chatroom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi.getChatRoom(chatid));
     assert(chatroom);
     setWindowTitle(chatroom->getTitle());
+
+    mLogger = ((MainWindow *)parent)->mLogger;
 }
 
 MeetingView::~MeetingView()
@@ -518,32 +526,60 @@ void MeetingView::setOnHold(bool isOnHold, megachat::MegaChatHandle cid)
     }
 }
 
-std::string MeetingView::sessionToString(const megachat::MegaChatSession &session)
+void MeetingView::onRequestFinish(megachat::MegaChatApi*, megachat::MegaChatRequest*,
+                                  megachat::MegaChatError* e)
+{
+    if (e->getErrorCode() == megachat::MegaChatError::ERROR_OK)
+    {
+        mUserDataReceivedFunc();
+    }
+    else
+    {
+        assert(mLogger);
+        mLogger->postLog("Couldn't retrieve user data for user pariticipating in the session.");
+    }
+}
+
+std::string MeetingView::sessionToString(megachat::MegaChatHandle sessionPeerId,
+                                         megachat::MegaChatHandle sessionClientId,
+                                         std::function<void()> userDataReceived)
 {
     std::string returnedString;
     std::unique_ptr<megachat::MegaChatRoom> chatRoom(mMegaChatApi.getChatRoom(mChatid));
     for (size_t i = 0; i < chatRoom->getPeerCount(); i++)
     {
-        if (chatRoom->getPeerHandle(static_cast<unsigned int>(i)) == session.getPeerid())
+        megachat::MegaChatHandle userHandle = chatRoom->getPeerHandle(static_cast<unsigned int>(i));
+        if (userHandle == sessionPeerId)
         {
-            const char *firstName = chatRoom->getPeerFirstname(static_cast<unsigned int>(i));
+            auto firstName =
+                std::unique_ptr<const char[]>(mMegaChatApi.getUserFirstnameFromCache(userHandle));
             if (firstName)
             {
-                returnedString.append(firstName);
+                returnedString.append(firstName.get());
+            }
+            else
+            {
+                returnedString.append("Retrieving data...");
+                mUserDataReceivedFunc = userDataReceived;
+                auto peersList = std::unique_ptr<::mega::MegaHandleList>(
+                    ::mega::MegaHandleList::createInstance());
+                peersList->addMegaHandle(userHandle);
+                mMegaChatApi.loadUserAttributes(mChatid, peersList.get(), this);
             }
 
-            const char *email = chatRoom->getPeerEmail(static_cast<unsigned int>(i));
+            auto email =
+                std::unique_ptr<const char[]>(mMegaChatApi.getUserEmailFromCache(userHandle));
             if (email)
             {
                 returnedString.append(" (");
-                returnedString.append(email);
+                returnedString.append(email.get());
                 returnedString.append(" )");
             }
         }
     }
 
     returnedString.append(" [ClientId: ");
-    returnedString.append(std::to_string(session.getClientid())).append("]");
+    returnedString.append(std::to_string(sessionClientId)).append("]");
     return returnedString;
 }
 
@@ -854,6 +890,27 @@ void MeetingView::onKickWr()
 void MeetingView::onMuteAll()
 {
     mMegaChatApi.mutePeers(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+}
+
+void MeetingView::onSetLimits()
+{
+    auto getNumLimit = [this](const std::string& msg) -> unsigned int
+    {
+        try
+        {
+            return static_cast<unsigned int> (stoi(QInputDialog::getText(this, tr("Set call limits"), tr(msg.c_str())).toStdString()));
+        }
+        catch (const std::exception& e)
+        {
+            return megachat::MegaChatCall::CALL_NO_LIMIT;
+        }
+    };
+
+    auto callDur = getNumLimit("Set call duration: ");
+    auto numUsers = getNumLimit("Set max different users accounts: ");
+    auto numClientsPerUser = getNumLimit("Set max clients per user");
+    auto numClients = getNumLimit("Set max total clients in the call: ");
+    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClientsPerUser, numClients);
 }
 
 void MeetingView::onJoinCallWithoutVideo()

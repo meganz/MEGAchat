@@ -6,8 +6,10 @@ TARGET = megachat_tests
 DEPENDPATH += ../../../tests/sdk_test
 INCLUDEPATH += ../../../tests/sdk_test $$MEGASDK_BASE_PATH/tests
 SOURCES +=  ../../../tests/sdk_test/sdk_test.cpp \
+            $$MEGASDK_BASE_PATH/tests/integration/sdk_test_utils.cpp \
             $$MEGASDK_BASE_PATH/tests/gtest_common.cpp
 HEADERS +=  ../../../tests/sdk_test/sdk_test.h \
+            $$MEGASDK_BASE_PATH/tests/integration/sdk_test_utils.h \
             $$MEGASDK_BASE_PATH/tests/gtest_common.h
 
 macx {
@@ -30,3 +32,8 @@ else {
 
     LIBS += -lgmock -lgtest
 }
+
+# Copy the logo.png file to the test build dir needed for one test
+MEGACHAT_ROOT_DIR = $$PWD/../../..
+QMAKE_POST_LINK += $$QMAKE_COPY $$quote($$MEGACHAT_ROOT_DIR/tests/sdk_test/logo.png) $$quote($$OUT_PWD) $$escape_expand(\\n\\t)
+

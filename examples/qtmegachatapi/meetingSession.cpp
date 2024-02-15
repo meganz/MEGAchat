@@ -58,19 +58,20 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     }
 
     // title lbl
-    std::string title = mMeetingView->sessionToString(session);
-    if (session.isAudioDetected())
-    {
-        title.append("  Speaking");
-    }
-    else
-    {
-        title.append( "No Speaking");
-    }
-
-    mTitleLabel.reset(new QLabel(title.c_str()));
-    layout()->addWidget(mTitleLabel.get());
-    setToolTip(title.c_str());
+    std::function<void()> setTitle;
+    auto sPeerId = session.getPeerid();
+    auto sClientId = session.getClientid();
+    std::string sTitlePreffix = session.isAudioDetected() ? " Speaking" : "No Speaking";
+    setTitle = std::function<void()>(
+        [this, sPeerId, sClientId, sTitlePreffix, setTitle]()
+        {
+            std::string title = sTitlePreffix
+                                + mMeetingView->sessionToString(sPeerId, sClientId, setTitle);
+            mTitleLabel.reset(new QLabel(title.c_str()));
+            layout()->addWidget(mTitleLabel.get());
+            setToolTip(title.c_str());
+        });
+    setTitle();
 
     // audio lbl
     mAudio = session.hasAudio();
