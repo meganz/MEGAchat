@@ -67,5 +67,8 @@ include(target_platform_compile_options) # To add compile options depeding on th
 # Load SDK project
 add_subdirectory(third-party/mega)
 
+# Load global CMake configuration for the project
+include(chatlib_configuration)
+
 # Load the MEGAchat library target
 add_subdirectory(src)
