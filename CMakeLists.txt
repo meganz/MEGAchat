@@ -18,22 +18,23 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/contrib
 
 ## Configurable options ##
 set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
-include(chatlib_options)
 
 # If PROJECT_NAME is not set before project() we are the main project.
 if(NOT PROJECT_NAME)
     message(STATUS "[CHATlib] is a top-level project. Install target, examples and tests will be enabled by default.")
     set(CHATLIB_STANDALONE 1)
-    option(ENABLE_CHATLIB_EXAMPLES "Example applications are built if enabled" ON)
+    option(ENABLE_CHATLIB_QTAPP "Qt App example application is built if enabled" ON)
     option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" ON)
     option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" ON)
 else()
     message(STATUS "[CHATlib] is building under project [${PROJECT_NAME}] Install target, examples and tests will not be enabled by default.")
     set(SDKLIB_STANDALONE 0)
-    option(ENABLE_CHATLIB_EXAMPLES "Example application is built if enabled" ON)
-    option(ENABLE_CHATLIB_TESTS "Integration and unit tests are built if enabled" ON)
+    option(ENABLE_CHATLIB_QTAPP "Example application is built if enabled" OFF)
+    option(ENABLE_CHATLIB_TESTS "Integration and unit tests are built if enabled" OFF)
     option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" OFF)
 endif()
+
+include(chatlib_options)
 
 if(NOT PROJECT_NAME)
     if(VCPKG_ROOT)
@@ -59,10 +60,16 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "In-source build is not allowed. Remove CMakeCache.txt and the CMakeFiles directory and set a new binary directory different than the source tree.")
 endif()
 
+if(ENABLE_CHATLIB_QTAPP AND NOT ENABLE_QT_BINDINGS)
+    message(FATAL_ERROR "Qt App example requires Qt bindings to work. Turn on ENABLE_QT_BINDINGS option or turn off ENABLE_CHATLIB_QTAPP.")
+endif()
+
 message(STATUS "Building CHATlib v${PROJECT_VERSION}")
 
 include(target_sources_conditional) # function to add files to the project without building them
 include(target_platform_compile_options) # To add compile options depeding on the platform
+
+## Load targets
 
 # Load SDK project
 add_subdirectory(third-party/mega)
@@ -76,4 +83,9 @@ add_subdirectory(src)
 # Load Qt bindings for MEGAchat
 if(ENABLE_QT_BINDINGS)
     add_subdirectory(bindings/qt)
+endif()
+
+# Load Qt App example.
+if(ENABLE_CHATLIB_QTAPP)
+    add_subdirectory(examples/qtmegachatapi)
 endif()

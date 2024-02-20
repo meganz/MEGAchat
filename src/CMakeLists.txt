@@ -105,6 +105,7 @@ set_target_properties(CHATlib PROPERTIES
 target_compile_definitions(CHATlib
     PRIVATE
     $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
+    PUBLIC
     $<$<NOT:$<BOOL:${USE_WEBRTC}>>:KARERE_DISABLE_WEBRTC>
 )
 
