@@ -18,7 +18,6 @@ list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/contrib
 
 ## Configurable options ##
 set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
-include(chatlib_options)
 
 # If PROJECT_NAME is not set before project() we are the main project.
 if(NOT PROJECT_NAME)
@@ -34,6 +33,8 @@ else()
     option(ENABLE_CHATLIB_TESTS "Integration and unit tests are built if enabled" OFF)
     option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" OFF)
 endif()
+
+include(chatlib_options)
 
 if(NOT PROJECT_NAME)
     if(VCPKG_ROOT)
