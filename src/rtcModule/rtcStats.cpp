@@ -7,6 +7,31 @@
 namespace  rtcModule
 {
 
+size_t StatSamples::qualityLimitationReasonToIndex(const std::string& reason)
+{
+    if (reason == "none")
+    {
+        return 0;
+    }
+    else if (reason == "cpu")
+    {
+        return 1;
+    }
+    else if (reason == "bandwidth")
+    {
+        return 2;
+    }
+    else if (reason == "other")
+    {
+        return 3;
+    }
+    else
+    {
+        assert(false); // Value not mentioned in the docs
+        return 0;
+    }
+}
+
 void ConnStatsCallBack::removeStats()
 {
     mStats = nullptr;
@@ -103,6 +128,12 @@ std::string Stats::getJson()
         parseSamples(mSamples.mAudioJitter, audioJitter, json, false);
         samples.AddMember("jtr", audioJitter, json.GetAllocator());
 
+        rapidjson::Value qualityLimitationReason(rapidjson::kArrayType);
+        parseSamplesQualityLimitations(mSamples.mQualityLimitationReasons,
+                                       qualityLimitationReason,
+                                       json);
+        samples.AddMember("f", qualityLimitationReason, json.GetAllocator());
+
         json.AddMember("samples", samples, json.GetAllocator());
     }
 
@@ -153,6 +184,7 @@ void Stats::clear()
     mSamples.mVtxHiResfps.clear();
     mSamples.mVtxHiResw.clear();
     mSamples.mVtxHiResh.clear();
+    mSamples.mQualityLimitationReasons.fill(0);
 }
 
 bool Stats::isEmptyStats()
@@ -223,6 +255,21 @@ void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &
 
         lastIndex = i;
         lastValue = datas[i];
+    }
+}
+
+void Stats::parseSamplesQualityLimitations(const std::array<uint32_t, 4>& limitationReasons,
+                                           rapidjson::Value& value,
+                                           rapidjson::Document& json)
+{
+    for (size_t i = 0; i < limitationReasons.size(); ++i)
+    {
+        rapidjson::Value pair(rapidjson::kArrayType);
+
+        pair.PushBack(rapidjson::Value(i).Move(), json.GetAllocator());
+        pair.PushBack(rapidjson::Value(limitationReasons[i]).Move(), json.GetAllocator());
+
+        value.PushBack(pair.Move(), json.GetAllocator());
     }
 }
 
@@ -350,6 +397,12 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                     {
                         double totalPacketSendDelay = *member->cast_to<const webrtc::RTCStatsMember<double>>();
                         mStats->mSamples.mTotalPacketSendDelay.back() = totalPacketSendDelay;
+                    }
+                    else if (strcmp(member->name(), "qualityLimitationReason") == 0)
+                    {
+                        std::string limitationReason = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
+                        size_t index = StatSamples::qualityLimitationReasonToIndex(limitationReason);
+                        ++mStats->mSamples.mQualityLimitationReasons[index];
                     }
                 }
 

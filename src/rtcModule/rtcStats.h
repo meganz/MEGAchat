@@ -51,6 +51,20 @@ public:
     std::vector<int32_t> mVtxHiResw;
     // height high res video
     std::vector<int32_t> mVtxHiResh;
+    // Number of quality limitation per reason
+    std::array<uint32_t, 4> mQualityLimitationReasons {};
+
+    /**
+     * @brief Auxiliary method to convert a quality limitation reason into an index to access the
+     * right element of the mQualityLimitationReasons member.
+     *
+     * Check the allowed values here:
+     * https://developer.mozilla.org/en-US/docs/Web/API/RTCOutboundRtpStreamStats/qualityLimitationReason
+     *
+     * @param reason The reason to map
+     * @return The index to access the mQualityLimitationReasons array.
+     */
+    static size_t qualityLimitationReasonToIndex(const std::string& reason);
 };
 
 class Stats
@@ -79,6 +93,17 @@ public:
 protected:
     static constexpr int kUnassignedCid = -1; // default value for unassigned CID (still not JOINED to SFU)
     void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<float> *periods = nullptr);
+
+    /**
+     * @brief Converts the mQualityLimitationReason member of a Stats instance into json.
+     * 
+     * Example:
+     * - Input: [1, 3, 2, 5]
+     * - Json Output: [[0, 1], [1, 3], [2, 2], [3, 5]]
+     */
+    void parseSamplesQualityLimitations(const std::array<uint32_t, 4>& limitationReasons,
+                                        rapidjson::Value& value,
+                                        rapidjson::Document& json);
 };
 
 class ConnStatsCallBack : public rtc::RefCountedObject<webrtc::RTCStatsCollectorCallback>, public karere::DeleteTrackable
