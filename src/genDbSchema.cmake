@@ -1,4 +1,3 @@
-cmake_minimum_required(VERSION 2.8)
 
 file(READ "${CMAKE_CURRENT_LIST_DIR}/dbSchema.sql" dbschema_raw)
 string(REGEX REPLACE "([^\r\n]*)[\r\n]+" "\"\\1\"\n" dbschema "${dbschema_raw}")
