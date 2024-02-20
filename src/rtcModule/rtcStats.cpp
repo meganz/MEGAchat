@@ -262,12 +262,12 @@ void Stats::parseSamplesQualityLimitations(const std::array<uint32_t, 4>& limita
                                            rapidjson::Value& value,
                                            rapidjson::Document& json)
 {
-    for (size_t i = 0; i < limitationReasons.size(); ++i)
+    for (uint32_t i = 0; i < limitationReasons.size(); ++i)
     {
         rapidjson::Value pair(rapidjson::kArrayType);
 
-        pair.PushBack(rapidjson::Value(i).Move(), json.GetAllocator());
-        pair.PushBack(rapidjson::Value(limitationReasons[i]).Move(), json.GetAllocator());
+        pair.PushBack(i, json.GetAllocator());
+        pair.PushBack(limitationReasons[i], json.GetAllocator());
 
         value.PushBack(pair.Move(), json.GetAllocator());
     }

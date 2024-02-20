@@ -52,7 +52,7 @@ public:
     // height high res video
     std::vector<int32_t> mVtxHiResh;
     // Number of quality limitation per reason
-    std::array<uint32_t, 4> mQualityLimitationReasons {};
+    std::array<uint32_t, 4> mQualityLimitationReasons{ {0u, 0u, 0u, 0u} };
 
     /**
      * @brief Auxiliary method to convert a quality limitation reason into an index to access the
