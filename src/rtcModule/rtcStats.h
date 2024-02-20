@@ -14,6 +14,7 @@
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
 #include <base/trackDelete.h>
+#include <array>
 
 namespace rtcModule
 {
