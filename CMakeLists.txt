@@ -59,6 +59,10 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "In-source build is not allowed. Remove CMakeCache.txt and the CMakeFiles directory and set a new binary directory different than the source tree.")
 endif()
 
+if(ENABLE_CHATLIB_QTAPP AND NOT ENABLE_QT_BINDINGS)
+    message(FATAL_ERROR "Qt App example requires Qt bindings to work. Turn on ENABLE_QT_BINDINGS option or turn off ENABLE_CHATLIB_QTAPP.")
+endif()
+
 message(STATUS "Building CHATlib v${PROJECT_VERSION}")
 
 include(target_sources_conditional) # function to add files to the project without building them

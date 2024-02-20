@@ -94,10 +94,14 @@ target_include_directories(QtApp
 
 # Load and link needed libraries for the CHATlib target
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
+message(STATUS "Building the MEGAchat Qt Example App with Qt v${Qt5_VERSION} from ${Qt5_DIR}")
+
 target_link_libraries(QtApp
     PRIVATE
     Qt5::Widgets
     MEGA::CHATlib # MEGAchat library (And MEGAsdk library)
+    MEGA::CHATQtBindings # MEGAchat bindings for Qt.
+    MEGA::SDKQtBindings # MEGAsdk bindings for Qt.
 )
 
 ## Adjust compilation flags for warnings and errors ##
