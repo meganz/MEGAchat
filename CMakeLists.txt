@@ -72,3 +72,8 @@ include(chatlib_configuration)
 
 # Load the MEGAchat library target
 add_subdirectory(src)
+
+# Load Qt bindings for MEGAchat
+if(ENABLE_QT_BINDINGS)
+    add_subdirectory(bindings/qt)
+endif()
