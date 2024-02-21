@@ -4033,7 +4033,7 @@ public class MegaChatApiJava {
      * @param numClientsPerUser Maximum number of clients with which a single user can join a call.
      * @param listener MegaChatRequestListener to track this request
      */
-    public void setLimitsInCall(long chatId, long callDur, long numUsers,long numClients, long numClientsPerUser, MegaChatRequestListenerInterface listener){
+    public void setLimitsInCall(long chatId, BigInteger callDur, BigInteger numUsers, BigInteger numClients, BigInteger numClientsPerUser, MegaChatRequestListenerInterface listener){
         megaChatApi.setLimitsInCall(chatId, callDur, numUsers, numClients, numClientsPerUser, createDelegateRequestListener(listener));
     }
 
