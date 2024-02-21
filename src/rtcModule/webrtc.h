@@ -158,6 +158,7 @@ public:
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) = 0;
     virtual void onCallRinging(ICall& call) = 0;
+    virtual void onCallWillEndr(rtcModule::ICall &call, const int endsIn) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call, const Cid_t cidPerf = K_INVALID_CID) = 0;
     virtual void onOnHold(const ICall& call) = 0;
@@ -190,6 +191,7 @@ public:
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
     virtual bool isOwnPrivModerator() const = 0;
+    virtual int getCallDurationLimit() const = 0;
 
     virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;

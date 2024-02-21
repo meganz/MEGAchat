@@ -231,7 +231,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
     using namespace mclc::clc_global;
     if (!call)
     {
-        clc_log::logMsg(m::logError, "NULL call", clc_log::ELogWriter::MEGA_CHAT);
+        clc_log::logMsg(m::logError, "onChatCallUpdate: NULL call", clc_log::ELogWriter::MEGA_CHAT);
         return;
     }
     megachat::MegaChatHandle chatid = call->getChatid();

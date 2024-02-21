@@ -44,6 +44,7 @@ const std::string WrDenyCommand::COMMAND_NAME           = "WR_DENY";        // N
 const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // Notifies moderators that the specified user(s) were granted to enter the call.
 const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied to enter the call
 const std::string MutedCommand::COMMAND_NAME            = "MUTED";          // Notifies that our audio has been muted remotely by a host user
+const std::string WillEndCommand::COMMAND_NAME          = "WILL_END";       // Notify that call will end due to duration restrictions
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
@@ -1601,7 +1602,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
     commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
-    commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7), call);
+    commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8), call);
     commands[WrDumpCommand::COMMAND_NAME] = mega::make_unique<WrDumpCommand>(std::bind(&sfu::SfuInterface::handleWrDump, &call, std::placeholders::_1), call);
     commands[WrEnterCommand::COMMAND_NAME] = mega::make_unique<WrEnterCommand>(std::bind(&sfu::SfuInterface::handleWrEnter, &call, std::placeholders::_1), call);
     commands[WrLeaveCommand::COMMAND_NAME] = mega::make_unique<WrLeaveCommand>(std::bind(&sfu::SfuInterface::handleWrLeave, &call, std::placeholders::_1), call);
@@ -1610,6 +1611,7 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[WrUsersAllowCommand::COMMAND_NAME] = mega::make_unique<WrUsersAllowCommand>(std::bind(&sfu::SfuInterface::handleWrUsersAllow, &call, std::placeholders::_1), call);
     commands[WrUsersDenyCommand::COMMAND_NAME] = mega::make_unique<WrUsersDenyCommand>(std::bind(&sfu::SfuInterface::handleWrUsersDeny, &call, std::placeholders::_1), call);
     commands[MutedCommand::COMMAND_NAME] = mega::make_unique<MutedCommand>(std::bind(&sfu::SfuInterface::handleMutedCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[WillEndCommand::COMMAND_NAME] = mega::make_unique<WillEndCommand>(std::bind(&sfu::SfuInterface::handleWillEndCommand, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
@@ -2744,6 +2746,25 @@ bool MutedCommand::processCommand(const rapidjson::Document& command)
     return mComplete(av, cidPerf);
 }
 
+
+WillEndCommand::WillEndCommand(const WillEndCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool WillEndCommand::processCommand(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator inIterator = command.FindMember("in");
+    if (inIterator == command.MemberEnd() || !inIterator->value.IsInt())
+    {
+        SFU_LOG_ERROR("Received data doesn't have 'in' field");
+        return false;
+    }
+    int in = inIterator->value.GetInt();
+    return mComplete(in);
+}
+
 ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)
     : Command(call)
     , mComplete(complete)
@@ -2806,6 +2827,25 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         speakRequest = cidIterator->value.GetUint();
     }
 
+    int ldur = kCallLimitDurationDisabled; // if not received we assume that is disabled (kCallLimitDurationDisabled)
+    rapidjson::Value::ConstMemberIterator ldurIterator = command.FindMember("ldur");
+    if (ldurIterator != command.MemberEnd())
+    {
+        if (ldurIterator->value.IsDouble())
+        {
+            ldur = static_cast<int>(ldurIterator->value.GetDouble() * 60); // convert from minutes into seconds
+        }
+        else if (ldurIterator->value.IsUint())
+        {
+            ldur = static_cast<int>(ldurIterator->value.GetUint() * 60); // convert from minutes into seconds
+        }
+        else
+        {
+            SFU_LOG_ERROR("HelloCommand: Received param 'ldur' has an unexpected format");
+            assert(false);
+        }
+    }
+
     unsigned int nAudioTracks = 0;
     rapidjson::Value::ConstMemberIterator naIterator = command.FindMember("na");
     if (naIterator != command.MemberEnd() && cidIterator->value.IsUint())
@@ -2857,7 +2897,7 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
             return false;
         }
     }
-    return mComplete(cid, nAudioTracks, moderators, wr, allowed, speakRequest, wrUserList);
+    return mComplete(cid, nAudioTracks, moderators, wr, allowed, speakRequest, wrUserList, ldur);
 }
 
 WrDumpCommand::WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call)

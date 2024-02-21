@@ -23,7 +23,8 @@ constexpr unsigned int callIsAliveMillis = 2000;
 /**
  * @brief Given a link to a public chat, this function opens it.
  *
- * NOTE: You need to be logged in to call this function
+ * NOTE: To call this function the initial state (g_chatApi->getInitState()) must be one of
+ * INIT_ONLINE_SESSION or INIT_ANONYMOUS.
  *
  * @param link url to the public chat.
  * @return A std::pair with the chat handle as the first value and the error code associated to the
@@ -37,15 +38,15 @@ std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link);
  * @brief Joins your account to a chat that was previously opened as preview.
  *
  * @param chatId Chat handle
- * @param errCode The error code returned by the openChatPreview request (the one that returns the
- * openChatLink function).
+ * @param openPreviewErrCode The error code returned by the openChatPreview request (the one that
+ * returns the openChatLink function).
  * @return true if everything went OK, false otherwise.
  */
-bool joinChat(const c::MegaChatHandle chatId, const int errCode);
+bool joinChat(const c::MegaChatHandle chatId, const int openPreviewErrCode);
 
 /**
- * @brief Blocks the execution until a call is received. This function assumes you are joined to a
- * chat.
+ * @brief Blocks the execution until a call is received. This function assumes you participate in
+ * chat whose chatId is provided as param.
  *
  * @param chatId The chat handle
  * @return true if everything went OK, false otherwise.
@@ -84,8 +85,10 @@ int waitInCallFor(const c::MegaChatHandle chatId, const unsigned int waitTimeSec
  * @brief Answers the ongoing call.
  *
  * @param chatId The chat handle
- * @param audio  If true the audio is activated for the call.
- * @param video  If true the video is activated for the call.
+ * @param audio  If true we want to answer call with audio enabled (Check
+ * MegaChatCall::hasPermissionToSpeak)
+ * @param video  If true we want to answer call with video enabled (Check
+ * MegaChatCall::hasPermissionToSpeak)
  * @return true if everything went OK, false otherwise.
  */
 bool answerCall(const c::MegaChatHandle chatId,

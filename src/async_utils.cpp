@@ -16,13 +16,13 @@ int ResultHandler::waitForResult(int seconds)
 
 void ResultHandler::finish(int errCode, std::string&& errStr)
 {
-    assert(!resultReceived); // call this function only once!
+    assert(!resultReceived); // call this function only once! (per instance)
     errorStr.swap(errStr);
     resultReceived = true;
     promiseResult.set_value(errCode);
 }
 
-bool waitForResponse(std::function<bool()> mustExit, unsigned int timeout_secs)
+bool waitForResponse(const std::function<bool()>& mustExit, unsigned int timeout_secs)
 {
     if (!mustExit)
     {

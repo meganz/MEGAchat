@@ -596,7 +596,9 @@ static void printChatInfoFromCache(const c::MegaChatRoom* room)
     for (unsigned i = 0; i < room->getPeerCount(); i++)
     {
         c::MegaChatHandle uh = room->getPeerHandle(i);
-        conlock(std::cout) << "\t\t" << ch_s(uh) << "\t" << g_chatApi->getUserFullnameFromCache(uh);
+        conlock(std::cout)
+            << "\t\t" << ch_s(uh) << "\t"
+            << std::unique_ptr<const char[]>(g_chatApi->getUserFullnameFromCache(uh)).get();
         auto userEmailFromCache =
             std::unique_ptr<const char[]>(g_chatApi->getUserEmailFromCache(uh));
         if (userEmailFromCache)
@@ -962,8 +964,8 @@ void exec_closechatpreview(ac::ACState& s)
 void exec_joinCallViaMeetingLink(ac::ACState& s)
 {
     // Requirement at this point account must be logged out, this will simplify this method
-    bool video = !s.extractflag("-novideo");
-    bool audio = !s.extractflag("-noaudio");
+    const bool video = !s.extractflag("-novideo");
+    const bool audio = !s.extractflag("-noaudio");
 
     std::string waitTimeStr{"40"};
     s.extractflagparam("-wait", waitTimeStr);
@@ -977,7 +979,9 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     s.extractflagparam("-videoInputDevice", videoInputDevice);
     if (videoInputDevice.size() != 0)
     {
-        logMsg(m::logInfo, "## Task0: Setting video input device ##", ELogWriter::MEGA_CHAT);
+        logMsg(m::logInfo,
+               "## Task0: Setting video input device (optional) ##",
+               ELogWriter::MEGA_CHAT);
         if (!clc_ccactions::setChatVideoInDevice(videoInputDevice))
         {
             logMsg(m::logError,
@@ -1002,6 +1006,8 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     }
 
     // We assume that there should be an ongoing call in the chat
+    // If we haven't received yet we'll wait a small period to receive it
+    // If we still don't receive it we consider as an error.
     logMsg(m::logInfo, "## Task3: Wait for call receiving call ##", ELogWriter::MEGA_CHAT);
     if (!clc_ccactions::waitUntilCallIsReceived(chatId))
     {
@@ -1494,8 +1500,8 @@ void exec_setchatvideoindevice(ac::ACState& s)
 
 void exec_startchatcall(ac::ACState& s)
 {
-    bool video = !s.extractflag("-novideo");
-    bool audio = !s.extractflag("-noaudio");
+    const bool video = !s.extractflag("-novideo");
+    const bool audio = !s.extractflag("-noaudio");
     c::MegaChatHandle chatId = s_ch(s.words[1].s);
 
     std::unique_ptr<c::MegaChatCall> call(g_chatApi->getChatCall(chatId));
@@ -1509,8 +1515,8 @@ void exec_startchatcall(ac::ACState& s)
 
 void exec_answerchatcall(ac::ACState& s)
 {
-    bool video = !s.extractflag("-novideo");
-    bool audio = !s.extractflag("-noaudio");
+    const bool video = !s.extractflag("-novideo");
+    const bool audio = !s.extractflag("-noaudio");
     c::MegaChatHandle chatId = s_ch(s.words[1].s);
 
     std::unique_ptr<c::MegaChatCall> call(g_chatApi->getChatCall(chatId));
