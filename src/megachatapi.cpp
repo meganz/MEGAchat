@@ -279,6 +279,16 @@ int MegaChatCall::getTermCode() const
     return 0;
 }
 
+int MegaChatCall::getNum() const
+{
+    return 0;
+}
+
+int MegaChatCall::getCallDurationLimit() const
+{
+    return 0;
+}
+
 int MegaChatCall::getEndCallReason() const
 {
     return 0;
