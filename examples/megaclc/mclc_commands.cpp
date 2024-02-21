@@ -968,6 +968,10 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     std::string waitTimeStr{"40"};
     s.extractflagparam("-wait", waitTimeStr);
     unsigned int waitTimeSec = static_cast<unsigned int>(std::stoi(waitTimeStr));
+    if (waitTimeSec == 0)
+    {
+        waitTimeSec = clc_ccactions::callUnlimitedDuration;
+    }
 
     std::string videoInputDevice;
     s.extractflagparam("-videoInputDevice", videoInputDevice);
