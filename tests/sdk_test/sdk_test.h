@@ -23,6 +23,7 @@
 #define CHATTEST_H
 
 #include "megachatapi.h"
+#include "async_utils.h"
 #include <chatClient.h>
 #include <future>
 #include <fstream> // Win build requires it
@@ -1086,40 +1087,7 @@ class MegaChatApiUnitaryTest: public ::testing::Test
 {
 };
 
-class ResultHandler
-{
-public:
-    int waitForResult(int seconds = maxTimeout)
-    {
-        if (std::future_status::ready != futureResult.wait_for(std::chrono::seconds(seconds)))
-        {
-            errorStr = "Timeout";
-            return -999; // local timeout
-        }
-        return futureResult.get();
-    }
-
-    const std::string& getErrorString() const { return errorStr; }
-
-protected:
-    void finish(int errCode, std::string&& errStr)
-    {
-        assert(!resultReceived); // call this function only once!
-        errorStr.swap(errStr);
-        resultReceived = true;
-        promiseResult.set_value(errCode);
-    }
-
-    bool finished() const { return resultReceived; }
-
-protected:
-    std::promise<int> promiseResult;
-    std::future<int> futureResult = promiseResult.get_future();
-    std::atomic<bool> resultReceived = false;
-    std::string errorStr;
-};
-
-class RequestTracker : public ::mega::MegaRequestListener, public ResultHandler
+class RequestTracker : public ::mega::MegaRequestListener, public megachat::async::ResultHandler
 {
 public:
     RequestTracker(mega::MegaApi *megaApi)
@@ -1169,7 +1137,7 @@ private:
     mega::MegaApi* mApi;
 };
 
-class ChatRequestTracker : public megachat::MegaChatRequestListener, public ResultHandler
+class ChatRequestTracker : public megachat::MegaChatRequestListener, public megachat::async::ResultHandler
 {
 public:
     ChatRequestTracker(megachat::MegaChatApi* megaChatApi)
@@ -1246,7 +1214,7 @@ private:
     megachat::MegaChatApi* mMegaChatApi;
 };
 
-class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public ResultHandler
+class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public megachat::async::ResultHandler
 {
 public:
     void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
