@@ -1027,7 +1027,7 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
            ELogWriter::MEGA_CHAT);
 
     logMsg(m::logInfo, "## Task5: waiting some time before hanging up ##", ELogWriter::MEGA_CHAT);
-    clc_time::WaitMillisec(waitTimeSec * 1000);
+    clc_ccactions::waitInCallFor(chatId, waitTimeSec);
     logMsg(m::logInfo, "## Task5.1: wait time finished ##", ELogWriter::MEGA_CHAT);
 
     logMsg(m::logInfo, "## Task6: hanging up the call ##", ELogWriter::MEGA_CHAT);

@@ -14,6 +14,11 @@ namespace c = ::megachat;
 
 namespace mclc::clc_ccactions
 {
+// Call duration is unlimited
+constexpr unsigned int callUnlimitedDuration = 0;
+
+// period in milliseconds after which we'll check if call is still alive
+constexpr unsigned int callIsAliveMillis = 2000;
 
 /**
  * @brief Given a link to a public chat, this function opens it.
@@ -61,6 +66,19 @@ bool startChatCall(const c::MegaChatHandle chatId,
                    const bool audio,
                    const bool video,
                    const bool notRinging);
+
+/**
+ * @brief Waits in call for a period of waitTimeSec seconds (or unlimited if waitTimeSec is callUnlimitedDuration)
+ *
+ * - This method will return megachat::MegaChatError::ERROR_OK in case waitTimeSec is greater than
+ * callUnlimitedDuration, and waitTimeSec timeout has expired
+ * - This method will return megachat::MegaChatError::ERROR_NOENT in case clc_ccactions::isCallAlive
+ * returns false
+ *
+ * @param chatId The chat handle that identifies chatroom
+ * @param waitTimeSec timeout in seconds we need to wait in call or callUnlimitedDuration if unlimited
+ */
+int waitInCallFor(const c::MegaChatHandle chatId, const unsigned int waitTimeSec);
 
 /**
  * @brief Answers the ongoing call.

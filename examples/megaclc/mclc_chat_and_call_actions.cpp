@@ -34,6 +34,35 @@ struct CallStateChangeTracker
         }
         return it->second.stateHasChanged;
     }
+
+    /**
+     * @brief Return current call status received at onChatCallUpdate
+     *
+     * @return This method will return a pair with <errorCode, callStatus>:
+     * - <ERROR_ARGS, CALL_STATUS_INITIAL> if chatId is invalid
+     * - <ERROR_NOENT, CALL_STATUS_INITIAL> if chatId is not found at g_callStateMap
+     * - <ERROR_OK, callStatus at g_callStateMap> if stateHasChanged is true
+     * - <ERROR_EXIST, callStatus at g_callStateMap> if stateHasChanged is false
+     */
+    std::pair<int, int> getCurrentCallstatus()
+    {
+        if (chatId == megachat::MEGACHAT_INVALID_HANDLE)
+        {
+            return std::make_pair(megachat::MegaChatError::ERROR_ARGS, megachat::MegaChatCall::CALL_STATUS_INITIAL);
+        }
+
+        auto it = clc_global::g_callStateMap.find(chatId);
+        if (it == clc_global::g_callStateMap.end())
+        {
+            return std::make_pair(megachat::MegaChatError::ERROR_NOENT, megachat::MegaChatCall::CALL_STATUS_INITIAL);
+        }
+
+        int errCode = it->second.stateHasChanged
+                          ? megachat::MegaChatError::ERROR_OK
+                          : megachat::MegaChatError::ERROR_EXIST;
+
+        return std::make_pair(errCode, it->second.state.load());
+    }
 };
 
 bool waitForReceivingCallStatus(const c::MegaChatHandle chatId,
@@ -82,9 +111,49 @@ bool resetCallStateChangeRecv(const c::MegaChatHandle chatId, const bool v)
     }
     it->second.stateHasChanged = v;
     return true;
-};
-
 }
+
+/**
+ * @brief This method returns true if call in chatroom represented by chatId is still alive (CALL_STATUS_IN_PROGRESS)
+ *
+ * @param chatId The chat handle that identifies chatroom
+ * @return true if call in chatroom represented by chatId is still alive, otherwise false
+ */
+bool isCallAlive(const c::MegaChatHandle chatId)
+{
+    // TODO: add mechanism to exit in case Ctrl+c Ctrl+d are detected
+    const bool sdkLoggedIn = clc_global::g_megaApi->isLoggedIn();
+    if (!sdkLoggedIn)
+    {
+        logMsg(m::logError, "Sdk is not logged in", ELogWriter::MEGA_CHAT);
+        return false;
+    }
+
+    auto expStatus = c::MegaChatCall::CALL_STATUS_IN_PROGRESS;
+    std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    if (!call || call->getStatus() != expStatus)
+    {
+        logMsg(m::logError,
+               "Cannot get call or it's status is unexpected" + std::to_string(expStatus),
+               ELogWriter::MEGA_CHAT);
+        return false;
+    }
+
+    CallStateChangeTracker callChanged{chatId};
+    auto p = callChanged.getCurrentCallstatus();
+    if (p.first != megachat::MegaChatError::ERROR_OK ||
+        p.second != c::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+    {
+        logMsg(m::logError,
+               "Unexpected call state received at onChatCallUpdate",
+               ELogWriter::MEGA_CHAT);
+        return false;
+    }
+
+    logMsg(m::logWarning, "Call is still alive", ELogWriter::MEGA_CHAT);
+    return true;
+}
+} // end of namespace // Private utilities
 
 std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link)
 {
@@ -226,6 +295,27 @@ bool startChatCall(const c::MegaChatHandle chatId,
     return true;
 }
 
+int waitInCallFor(const c::MegaChatHandle chatId, const unsigned int waitTimeSec)
+{
+    auto endAt = ::mega::m_time(nullptr) + waitTimeSec;
+    do
+    {
+        auto now = ::mega::m_time(nullptr);
+        auto timeoutExpired = waitTimeSec != callUnlimitedDuration && now >= endAt;
+        if (timeoutExpired)
+        {
+            return megachat::MegaChatError::ERROR_OK;
+        }
+
+        if (!isCallAlive(chatId))
+        {
+            return megachat::MegaChatError::ERROR_NOENT;
+        }
+        clc_time::WaitMillisec(callIsAliveMillis);
+    }
+    while (true);
+}
+
 bool answerCall(const c::MegaChatHandle chatId,
                 const bool audio,
                 const bool video,
@@ -347,4 +437,4 @@ bool setChatVideoInDevice(const std::string& device)
     return true;
 }
 
-}
+} // end of namespace mclc::clc_ccactions
