@@ -298,7 +298,7 @@ bool startChatCall(const c::MegaChatHandle chatId,
 int waitInCallFor(const c::MegaChatHandle chatId, const unsigned int waitTimeSec)
 {
     auto endAt = ::mega::m_time(nullptr) + waitTimeSec;
-    do
+    while (true)
     {
         auto now = ::mega::m_time(nullptr);
         auto timeoutExpired = waitTimeSec != callUnlimitedDuration && now >= endAt;
@@ -313,7 +313,6 @@ int waitInCallFor(const c::MegaChatHandle chatId, const unsigned int waitTimeSec
         }
         clc_time::WaitMillisec(callIsAliveMillis);
     }
-    while (true);
 }
 
 bool answerCall(const c::MegaChatHandle chatId,
