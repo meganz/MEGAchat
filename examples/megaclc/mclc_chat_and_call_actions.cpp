@@ -150,7 +150,7 @@ bool isCallAlive(const c::MegaChatHandle chatId)
         return false;
     }
 
-    logMsg(m::logWarning, "Call is still alive", ELogWriter::MEGA_CHAT);
+    logMsg(m::logDebug, "Call is still alive", ELogWriter::MEGA_CHAT);
     return true;
 }
 } // end of namespace // Private utilities
