@@ -615,10 +615,10 @@ public:
     static constexpr unsigned long long CALL_LIMIT_NO_PRESENT = MEGACHAT_INVALID_HANDLE;
 
     // Maximum number of clients with which a single user can join a call
-    static constexpr MegaChatHandle CALL_LIMIT_USERS_PER_CLIENT = 4;
+    static constexpr unsigned long long CALL_LIMIT_USERS_PER_CLIENT = 4;
 
     // No limit set for a call option like (duration, max clients per call...)
-    static constexpr MegaChatHandle CALL_LIMIT_RESET = 0;
+    static constexpr unsigned long long CALL_LIMIT_RESET = 0;
 
     virtual ~MegaChatCall();
 
