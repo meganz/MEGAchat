@@ -612,7 +612,7 @@ public:
     static constexpr int CALL_LIMIT_DURATION_DISABLED = -1;
 
     // Call limit restriction no present (Call limit won't be modified)
-    static constexpr MegaChatHandle CALL_LIMIT_NO_PRESENT = MEGACHAT_INVALID_HANDLE;
+    static constexpr unsigned long long CALL_LIMIT_NO_PRESENT = MEGACHAT_INVALID_HANDLE;
 
     // Maximum number of clients with which a single user can join a call
     static constexpr MegaChatHandle CALL_LIMIT_USERS_PER_CLIENT = 4;
@@ -6722,9 +6722,9 @@ public:
      * @param numClients Maximum total number of clients allowed to be in the call at the same time. This doesn't include the clients in the waiting room
      * @param listener MegaChatRequestListener to track this request
      */
-    void setLimitsInCall(const MegaChatHandle chatid, const MegaChatHandle callDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
-                         const MegaChatHandle numUsers = MegaChatCall::CALL_LIMIT_NO_PRESENT, const MegaChatHandle numClients = MegaChatCall::CALL_LIMIT_NO_PRESENT,
-                         const MegaChatHandle numClientsPerUser = MegaChatCall::CALL_LIMIT_NO_PRESENT, MegaChatRequestListener* listener = NULL);
+    void setLimitsInCall(const MegaChatHandle chatid, const unsigned long long callDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         const unsigned long long numUsers = MegaChatCall::CALL_LIMIT_NO_PRESENT, const unsigned long long numClients = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         const unsigned long long numClientsPerUser = MegaChatCall::CALL_LIMIT_NO_PRESENT, MegaChatRequestListener* listener = NULL);
 
     /** @brief Mute a specific client or all of them in a call
      * This method can be called only by users with moderator role

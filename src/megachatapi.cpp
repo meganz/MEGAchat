@@ -1218,7 +1218,7 @@ void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users
     pImpl->kickUsersFromCall(chatid, users, listener);
 }
 
-void MegaChatApi::setLimitsInCall(const MegaChatHandle chatid, const MegaChatHandle callDur, const MegaChatHandle numUsers, const MegaChatHandle numClientsPerUser, const MegaChatHandle numClients, MegaChatRequestListener* listener)
+void MegaChatApi::setLimitsInCall(const MegaChatHandle chatid, const unsigned long long callDur, const unsigned long long numUsers, const unsigned long long numClientsPerUser, const unsigned long long numClients, MegaChatRequestListener* listener)
 {
     pImpl->setLimitsInCall(chatid, callDur, numUsers, numClientsPerUser, numClients, listener);
 }

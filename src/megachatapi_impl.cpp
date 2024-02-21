@@ -6257,7 +6257,7 @@ void MegaChatApiImpl::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* u
     waiter->notify();
 }
 
-void MegaChatApiImpl::setLimitsInCall(const MegaChatHandle chatid, const MegaChatHandle callDur, const MegaChatHandle numUsers, const MegaChatHandle numClientsPerUser, const MegaChatHandle numClients, MegaChatRequestListener* listener)
+void MegaChatApiImpl::setLimitsInCall(const MegaChatHandle chatid, const unsigned long long callDur, const unsigned long long numUsers, const unsigned long long numClientsPerUser, const unsigned long long numClients, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LIMIT_CALL, listener);
     request->setChatHandle(chatid);
