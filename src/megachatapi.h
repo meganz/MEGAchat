@@ -506,6 +506,7 @@ public:
         CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied to enter the call. (just for moderators)
         CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X40000,  /// We have been pushed into a waiting room
         CHANGE_TYPE_SPEAK_REQUESTED = 0X80000,      /// Speak request added/removed for a call participant
+        CHANGE_TYPE_CALL_WILL_END = 0x100000,       /// Notify that call will end due to duration restrictions associated to MEGA account plan
     };
 
     enum
@@ -579,6 +580,9 @@ public:
         SPEAKER_STATUS_PENDING  = 1,
         SPEAKER_STATUS_ACTIVE   = 2,
     };
+
+    // Call duration restriction disabled
+    static constexpr int CALL_LIMIT_DURATION_DISABLED = -1;
 
     // Maximum number of clients with which a single user can join a call
     static constexpr unsigned int CALL_LIMIT_USERS_PER_CLIENT = 4;
@@ -730,8 +734,12 @@ public:
      * (check MegaChatCall::getHandleList to get users that have been denied to enter the call.
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
-     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x80000
+     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x40000
      * We have been pushed into a waiting room
+     *
+     * - MegaChatCall:: CHANGE_TYPE_CALL_WILL_END = 0x80000
+     * Notify that call will end due to duration restrictions associated to MEGA account plan
+     * (check MegaChatCall::getNum to get time, in seconds, after which the call will be ended)
      *
      * @return a bit field with the changes of the call
      */
@@ -814,8 +822,12 @@ public:
      * (check MegaChatCall::getHandleList to get users that have been denied to enter the call.
      * (check MegaChatCall::getModerators to get the updated moderators list)
      *
-     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x80000
+     * - MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0x40000
      * We have been pushed into a waiting room
+     *
+     * - MegaChatCall:: CHANGE_TYPE_CALL_WILL_END = 0x80000
+     * Notify that call will end due to duration restrictions associated to MEGA account plan
+     * (check MegaChatCall::getNum to get time, in seconds, after which the call will be ended)
      *
      * @return true if this call has an specific change
      */
@@ -913,6 +925,24 @@ public:
      * @return error or warning code for this call
      */
     virtual int getTermCode() const;
+
+     /* @brief Returns a numeric value that can be used for multiple purposes
+      *
+      * @note this value only will be valid in the following scenarios:
+      *     - MegaChatCall::CHANGE_TYPE_CALL_WILL_END is notified via MegaChatCallListener::onChatCallUpdate
+      *       In this case this method returns the time, in seconds, after which the call will be ended
+      *       with TERM_CODE_CALL_DUR_LIMIT, or -1 if the duration limit has been removed.
+      */
+    virtual int getNum() const;
+
+    /**
+     * @brief Returns the call duration limit, specified in seconds
+     *
+     * Calls started from MEGA accounts with free plans, have a limited duration
+     *
+     * @return The call duration limit, specified in seconds, or MegaChatCall::CALL_LIMIT_DURATION_DISABLED if it's disabled
+     */
+    virtual int getCallDurationLimit() const;
 
     /**
      * @brief Returns the remote endcall reason for this call

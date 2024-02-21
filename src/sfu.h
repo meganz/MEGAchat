@@ -71,6 +71,10 @@ public:
 // SFU provides Waiting room participants list in order they joined to the call
 typedef std::vector<WrRoomUser> WrUserList;
 
+
+// Call duration restriction disabled
+static constexpr int kCallLimitDurationDisabled = -1;
+
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
@@ -243,7 +247,7 @@ public:
     virtual bool handleModDel(uint64_t userid) = 0;
     virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                             bool speakRequest, const sfu::WrUserList& wrUsers) = 0;
+                             bool speakRequest, const sfu::WrUserList& wrUsers, const int ldur) = 0;
 
     virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
     virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;
@@ -253,6 +257,7 @@ public:
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
     virtual bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) = 0;
+    virtual bool handleWillEndCommand(const int endsIn) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -470,6 +475,16 @@ public:
     MutedCommandFunction mComplete;
 };
 
+class WillEndCommand : public Command
+{
+public:
+    typedef std::function<bool(int64_t endsIn)> WillEndCommandFunction;
+    WillEndCommand(const WillEndCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WillEndCommandFunction mComplete;
+};
+
 class ModAddCommand : public Command
 {   // "MOD_ADD"
 public:
@@ -499,7 +514,8 @@ public:
                                const bool wr,
                                const bool speakRequest,
                                const bool allowed,
-                               const sfu::WrUserList& wrUsers)>HelloCommandFunction;
+                               const sfu::WrUserList& wrUsers,
+                               const int ldur)>HelloCommandFunction;
 
     HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;

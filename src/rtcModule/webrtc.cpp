@@ -173,6 +173,11 @@ CallState Call::getState() const
     return mState;
 }
 
+int Call::getCallDurationLimit() const
+{
+    return mCallDurationLimit;
+}
+
 bool Call::isOwnClientCaller() const
 {
     return mIsOwnClientCaller;
@@ -2275,7 +2280,7 @@ bool Call::handleModDel(uint64_t userid)
 }
 
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
-                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
+                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldur)
 {
     #ifndef NDEBUG
     // ensures that our sfu protocol version is the latest one defined in karere
@@ -2294,6 +2299,9 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
     mNumInputVideoTracks = numInputVideoTracks; // Set the maximum number of simultaneous video tracks the call supports
 
     setSpeakRequest(speakRequest);
+
+    // set call duration limit if any (in seconds)
+    mCallDurationLimit = ldur;
 
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
@@ -2443,6 +2451,18 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
+}
+
+bool Call::handleWillEndCommand(const int endsIn)
+{
+    SFU_LOG_DEBUG("%d",endsIn);
+    if (endsIn == sfu::kCallLimitDurationDisabled)
+    {
+        SFU_LOG_DEBUG("handleWillEndCommand: Call duration limit disabled for this call");
+        mCallDurationLimit = endsIn;
+    }
+    mCallHandler.onCallWillEndr(*this, endsIn);
+    return true;
 }
 
 bool Call::handleMutedCommand(const unsigned av, const Cid_t cidPerf)

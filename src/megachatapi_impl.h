@@ -291,10 +291,23 @@ public:
     void setHandle(const MegaChatHandle h);
     bool getFlag() const override;
     void setFlag(const bool f);
+    int getNum() const override;
+    int getCallDurationLimit() const override;
+    void setCallDurationLimit(const int lim);
     void setStatus(int status);
     void removeChanges();
     void setChange(int changed);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
+
+    /**
+     * @brief Set generic numeric value that can be used for multiple purposes
+     *
+     * @note if this method is called more than once for the same MegaChatCallPrivate instance,
+     * the value stored at mNum will be overwritten,
+     *
+     * It's recommended to check under which circumstances is used, to avoid conflicts.
+     */
+    void setNum(const int n);
 
     int availableAudioSlots();
     int availableVideoSlots();
@@ -350,6 +363,8 @@ protected:
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
     MegaChatHandle mAuxHandle = MEGACHAT_INVALID_HANDLE;
+    int mCallDurationLimit = CALL_LIMIT_DURATION_DISABLED; // in seconds
+    int64_t mNum = 0; // generic numeric value that can be used for multiple purposes
 };
 
 class MegaChatWaitingRoomPrivate: public MegaChatWaitingRoom
@@ -711,6 +726,7 @@ public:
     ~MegaChatCallHandler();
     void onCallStateChange(rtcModule::ICall& call) override;
     void onCallRinging(rtcModule::ICall &call) override;
+    void onCallWillEndr(rtcModule::ICall &call, const int endsIn) override;
     void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) override;
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call, const Cid_t cidPerf = K_INVALID_CID) override;
