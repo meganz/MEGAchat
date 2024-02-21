@@ -2835,6 +2835,10 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         {
             ldur = static_cast<int>(ldurIterator->value.GetDouble() * 60); // convert from minutes into seconds
         }
+        else if (ldurIterator->value.IsUint())
+        {
+            ldur = static_cast<int>(ldurIterator->value.GetUint() * 60); // convert from minutes into seconds
+        }
         else
         {
             SFU_LOG_ERROR("HelloCommand: Received param 'ldur' has an unexpected format");
