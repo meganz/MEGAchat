@@ -211,7 +211,20 @@ void exec_debug(ac::ACState& s)
 
             if (!fs::exists(auxPath))
             {
-                fs::create_directories(auxPath);
+                try
+                {
+                    fs::create_directories(auxPath);
+                }
+                catch (const std::filesystem::filesystem_error& e)
+                {
+                    conlock(std::cerr) << "Unable to create the directory: " << e.what() << "\n";
+                    exit(1);
+                }
+                catch (...)
+                {
+                    conlock(std::cerr) << "Unknown error\n";
+                    exit(1);
+                }
             }
             filePath = auxPath / filePath.filename();
         }
