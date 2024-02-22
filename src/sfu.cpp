@@ -2135,7 +2135,7 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
     return sendWrCommand(SfuConnection::CSFU_WR_KICK, users);
 }
 
-bool SfuConnection::sendSetLimit(const uint64_t callDurSecs, const uint64_t numUsers, const uint64_t numClientsPerUser, const uint64_t numClients)
+bool SfuConnection::sendSetLimit(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
@@ -2828,17 +2828,17 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         speakRequest = cidIterator->value.GetUint();
     }
 
-    int ldur = kCallLimitDurationDisabled; // if not received we assume that is disabled (kCallLimitDurationDisabled)
+    int ldurSecs = kCallLimitDurationDisabled; // if not received we assume that is disabled (kCallLimitDurationDisabled)
     rapidjson::Value::ConstMemberIterator ldurIterator = command.FindMember("ldur");
     if (ldurIterator != command.MemberEnd())
     {
         if (ldurIterator->value.IsDouble())
         {
-            ldur = static_cast<int>(ldurIterator->value.GetDouble() * 60); // convert from minutes into seconds
+            ldurSecs = static_cast<int>(ldurIterator->value.GetDouble() * 60); // convert from minutes into seconds
         }
         else if (ldurIterator->value.IsUint())
         {
-            ldur = static_cast<int>(ldurIterator->value.GetUint() * 60); // convert from minutes into seconds
+            ldurSecs = static_cast<int>(ldurIterator->value.GetUint() * 60); // convert from minutes into seconds
         }
         else
         {
@@ -2898,7 +2898,7 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
             return false;
         }
     }
-    return mComplete(cid, nAudioTracks, moderators, wr, allowed, speakRequest, wrUserList, ldur);
+    return mComplete(cid, nAudioTracks, moderators, wr, allowed, speakRequest, wrUserList, ldurSecs);
 }
 
 WrDumpCommand::WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call)

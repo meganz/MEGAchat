@@ -2896,10 +2896,10 @@ int MegaChatApiImpl::performRequest_setLimitsInCall(MegaChatRequestPrivate* requ
         return MegaChatError::ERROR_ACCESS;
     }
 
-    const uint64_t callDurSecs = handleList->get(0);
-    const uint64_t numUsers = handleList->get(1);
-    const uint64_t numClientsPerUser = handleList->get(2);
-    const uint64_t numClients = handleList->get(3);
+    const uint32_t callDurSecs = static_cast<uint32_t>(handleList->get(0));
+    const uint32_t numUsers = static_cast<uint32_t>(handleList->get(1));
+    const uint32_t numClientsPerUser = static_cast<uint32_t>(handleList->get(2));
+    const uint32_t numClients = static_cast<uint32_t>(handleList->get(3));
 
     if (callDurSecs == MegaChatCall::CALL_LIMIT_NO_PRESENT
         && numUsers == MegaChatCall::CALL_LIMIT_NO_PRESENT
@@ -6257,7 +6257,7 @@ void MegaChatApiImpl::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* u
     waiter->notify();
 }
 
-void MegaChatApiImpl::setLimitsInCall(const MegaChatHandle chatid, const unsigned long long callDur, const unsigned long long numUsers, const unsigned long long numClientsPerUser, const unsigned long long numClients, MegaChatRequestListener* listener)
+void MegaChatApiImpl::setLimitsInCall(const MegaChatHandle chatid, const unsigned long callDur, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_SET_LIMIT_CALL, listener);
     request->setChatHandle(chatid);
@@ -8246,7 +8246,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 
     mRinging = call.isRinging();
     mOwnModerator = call.isOwnPrivModerator();
-    mCallDurationLimit = call.getCallDurationLimit();
+    mCallDurationLimit = call.getCallDurationLimitInSecs();
     mNum = 0;
 
     std::vector<Cid_t> sessionCids = call.getSessionsCids();

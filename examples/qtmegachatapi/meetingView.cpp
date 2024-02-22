@@ -898,7 +898,7 @@ void MeetingView::onMuteAll()
 
 void MeetingView::onSetLimits()
 {
-    auto getNumLimit = [this](const std::string& msg) -> unsigned long long
+    auto getNumLimit = [this](const std::string& msg) -> unsigned long
     {
         try
         {

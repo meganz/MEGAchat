@@ -1071,7 +1071,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     MegaMrProper p (testCleanup);
 
     // set call duration and wait until call has finished for all participants
-    auto setCallduration = [this](const MegaChatHandle chatid, const unsigned callDur, const bool waitForEndCall)
+    auto setCallduration = [this](const MegaChatHandle chatid, const unsigned long callDur, const bool waitForEndCall)
     {
         auto resetDuration = callDur == MegaChatCall::CALL_LIMIT_RESET;
         ASSERT_TRUE(!resetDuration || !waitForEndCall) << "Provided reset value for call duration and waitForEndCall is also true";
@@ -1154,7 +1154,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     };
 
     // set call limits
-    auto setCallLimits = [this](const unsigned int performedIdx, const MegaChatHandle chatid, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients)
+    auto setCallLimits = [this](const unsigned int performedIdx, const MegaChatHandle chatid, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients)
     {
         clearTemporalVars();
         ChatRequestTracker crtCallLimit(megaChatApi[performedIdx]);
@@ -10434,7 +10434,7 @@ void MockupCall::logError(const char *)
 
 bool MockupCall::handleHello(const Cid_t /*cid*/, const unsigned int /*nAudioTracks*/,
                              const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
-                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/, const int /*ldur*/)
+                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/, const int /*ldurSecs*/)
 {
     return true;
 }
