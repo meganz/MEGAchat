@@ -18,6 +18,16 @@
 
 namespace rtcModule
 {
+
+enum class EQualityLimitationReason: unsigned int
+{
+    NONE = 0,
+    CPU = 1,
+    BANDWIDTH = 2,
+    OTHER = 4,
+};
+static constexpr unsigned int NUMBER_OF_QUALITY_LIMITATION_REASONS = 4u;
+
 class StatSamples
 {
 public:
@@ -53,7 +63,7 @@ public:
     // height high res video
     std::vector<int32_t> mVtxHiResh;
     // Number of quality limitation per reason
-    std::array<uint32_t, 4> mQualityLimitationReasons{ {0u, 0u, 0u, 0u} };
+    std::array<uint32_t, NUMBER_OF_QUALITY_LIMITATION_REASONS> mQualityLimitationReasons{};
 
     /**
      * @brief Auxiliary method to convert a quality limitation reason into an index to access the
@@ -65,7 +75,19 @@ public:
      * @param reason The reason to map
      * @return The index to access the mQualityLimitationReasons array.
      */
-    static size_t qualityLimitationReasonToIndex(const std::string& reason);
+    static EQualityLimitationReason parseQualityLimitReason(const std::string& reason);
+
+    /**
+     * @brief Converts an instance of EQualityLimitationReason to an index to access the
+     * corresponding value in the mQualityLimitationReasons array.
+     */
+    static size_t qualityLimitationReasonToIndex(const EQualityLimitationReason limitReason);
+
+    /**
+     * @brief Converts an index to access the value in the mQualityLimitationReasons array to the
+     * corresponding EQualityLimitationReason.
+     */
+    static EQualityLimitationReason indexToQualityLimitationReason(const size_t index);
 };
 
 class Stats

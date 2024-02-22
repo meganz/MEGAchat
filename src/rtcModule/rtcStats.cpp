@@ -7,31 +7,64 @@
 namespace  rtcModule
 {
 
-size_t StatSamples::qualityLimitationReasonToIndex(const std::string& reason)
+EQualityLimitationReason StatSamples::parseQualityLimitReason(const std::string& reason)
 {
-    if (reason == "none")
+    if (reason == "" || reason == "none")
     {
-        return 0;
+        return EQualityLimitationReason::NONE;
     }
     else if (reason == "cpu")
     {
-        return 1;
+        return EQualityLimitationReason::CPU;
     }
     else if (reason == "bandwidth")
     {
-        return 2;
+        return EQualityLimitationReason::BANDWIDTH;
     }
     else if (reason == "other")
     {
-        return 3;
+        return EQualityLimitationReason::OTHER;
     }
     else
     {
         assert(false); // Value not mentioned in the docs
-        return 0;
+        return EQualityLimitationReason::NONE;
     }
 }
 
+size_t StatSamples::qualityLimitationReasonToIndex(const EQualityLimitationReason limitReason)
+{
+    switch (limitReason)
+    {
+        case EQualityLimitationReason::NONE:
+            return 0;
+        case EQualityLimitationReason::CPU:
+            return 1;
+        case EQualityLimitationReason::BANDWIDTH:
+            return 2;
+        case EQualityLimitationReason::OTHER:
+            return 3;
+    }
+    assert(false); // There is an unhandled case.
+    return 0;
+}
+
+EQualityLimitationReason StatSamples::indexToQualityLimitationReason(const size_t index)
+{
+    switch (index)
+    {
+        case 0:
+            return EQualityLimitationReason::NONE;
+        case 1:
+            return EQualityLimitationReason::CPU;
+        case 2:
+            return EQualityLimitationReason::BANDWIDTH;
+        case 3:
+            return EQualityLimitationReason::OTHER;
+    }
+    assert(false); // There is an unhandled case.
+    return EQualityLimitationReason::NONE;
+}
 void ConnStatsCallBack::removeStats()
 {
     mStats = nullptr;
@@ -266,7 +299,7 @@ void Stats::parseSamplesQualityLimitations(const std::array<uint32_t, 4>& limita
     {
         rapidjson::Value pair(rapidjson::kArrayType);
 
-        pair.PushBack(i, json.GetAllocator());
+        pair.PushBack(static_cast<uint32_t>(StatSamples::indexToQualityLimitationReason(i)), json.GetAllocator());
         pair.PushBack(limitationReasons[i], json.GetAllocator());
 
         value.PushBack(pair.Move(), json.GetAllocator());
@@ -401,7 +434,8 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                     else if (strcmp(member->name(), "qualityLimitationReason") == 0)
                     {
                         std::string limitationReason = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
-                        size_t index = StatSamples::qualityLimitationReasonToIndex(limitationReason);
+                        EQualityLimitationReason limitReasonEnum = StatSamples::parseQualityLimitReason(limitationReason);
+                        size_t index = StatSamples::qualityLimitationReasonToIndex(limitReasonEnum);
                         ++mStats->mSamples.mQualityLimitationReasons[index];
                     }
                 }
