@@ -612,7 +612,7 @@ public:
     static constexpr int CALL_LIMIT_DURATION_DISABLED = -1;
 
     // Call limit restriction no present (Call limit won't be modified)
-    static constexpr unsigned long CALL_LIMIT_NO_PRESENT = UINT32_MAX;
+    static constexpr unsigned long CALL_LIMIT_NO_PRESENT = 0xFFFFFFFF;
 
     // Maximum number of clients with which a single user can join a call
     static constexpr unsigned long CALL_LIMIT_USERS_PER_CLIENT = 4;

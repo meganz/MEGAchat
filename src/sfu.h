@@ -666,7 +666,7 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    static constexpr uint32_t callLimitNotPresent = UINT32_MAX;   // No limit present (the param won't be modified)
+    static constexpr uint32_t callLimitNotPresent = 0xFFFFFFFF;     // No limit present (the param won't be modified)
     static constexpr uint32_t callLimitReset = 0;                   // Value used for reset call limit like duration or max participants
     static constexpr unsigned int callLimitUsersPerClient = 4;      // Maximum number of clients with which a single user can join a call
     static constexpr unsigned int maxInitialBackoff = 100;          // (in milliseconds) max initial backoff for SFU connection attempt
