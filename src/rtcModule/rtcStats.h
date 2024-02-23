@@ -11,22 +11,64 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
+#include <base/trackDelete.h>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
-#include <base/trackDelete.h>
+
 #include <array>
 
 namespace rtcModule
 {
 
-enum class EQualityLimitationReason: unsigned int
+class QualityLimitationReport
 {
-    NONE = 0,
-    CPU = 1,
-    BANDWIDTH = 2,
-    OTHER = 4,
+public:
+    enum class EReason : unsigned int 
+    {
+        NONE = 0,
+        CPU = 1,
+        BANDWIDTH = 2,
+        OTHER = 4,
+    };
+    static constexpr unsigned int NUMBER_OF_REASONS = 4u;
+
+    using StrToReasonMap = std::array<std::pair<std::string, EReason>, NUMBER_OF_REASONS>;
+    const StrToReasonMap mStrReasonMap{
+        std::make_pair("none", QualityLimitationReport::EReason::NONE),
+        std::make_pair("cpu", QualityLimitationReport::EReason::CPU),
+        std::make_pair("bandwidth", QualityLimitationReport::EReason::BANDWIDTH),
+        std::make_pair("other", QualityLimitationReport::EReason::OTHER),
+    };
+
+    /**
+     * @brief Restarts all the incidents counters.
+     */
+    void clear()
+    {
+        mIncidentCounter.fill(0u);
+    }
+
+    /**
+     * @brief Increments in one the internal counter of incidents matching the given type
+     *
+     * @param reason The string indicating the quality limitation reason. Should be contained in
+     * mStrReasonMap or be empty (interpreted as "none")
+     */
+    void addIncident(const std::string& reason);
+
+    /**
+     * @brief Writes the incidents counts in json format:
+     *
+     * - Json Output: [[0, 1], [1, 3], [2, 2], [3, 5]]
+     *
+     *   The first element of each pair is the numeric value associated to each type (see EReason)
+     *   and the second is the number of reported incidents for that type.
+     */
+    void toJson(rapidjson::Value& value, rapidjson::Document& json);
+
+private:
+    std::array<uint32_t, NUMBER_OF_REASONS> mIncidentCounter{};
 };
-static constexpr unsigned int NUMBER_OF_QUALITY_LIMITATION_REASONS = 4u;
 
 class StatSamples
 {
@@ -63,31 +105,7 @@ public:
     // height high res video
     std::vector<int32_t> mVtxHiResh;
     // Number of quality limitation per reason
-    std::array<uint32_t, NUMBER_OF_QUALITY_LIMITATION_REASONS> mQualityLimitationReasons{};
-
-    /**
-     * @brief Auxiliary method to convert a quality limitation reason into an index to access the
-     * right element of the mQualityLimitationReasons member.
-     *
-     * Check the allowed values here:
-     * https://developer.mozilla.org/en-US/docs/Web/API/RTCOutboundRtpStreamStats/qualityLimitationReason
-     *
-     * @param reason The reason to map
-     * @return The index to access the mQualityLimitationReasons array.
-     */
-    static EQualityLimitationReason parseQualityLimitReason(const std::string& reason);
-
-    /**
-     * @brief Converts an instance of EQualityLimitationReason to an index to access the
-     * corresponding value in the mQualityLimitationReasons array.
-     */
-    static size_t qualityLimitationReasonToIndex(const EQualityLimitationReason limitReason);
-
-    /**
-     * @brief Converts an index to access the value in the mQualityLimitationReasons array to the
-     * corresponding EQualityLimitationReason.
-     */
-    static EQualityLimitationReason indexToQualityLimitationReason(const size_t index);
+    QualityLimitationReport mQualityLimitations;
 };
 
 class Stats
@@ -114,22 +132,18 @@ public:
     std::string mSfuHost;
 
 protected:
-    static constexpr int kUnassignedCid = -1; // default value for unassigned CID (still not JOINED to SFU)
-    void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<float> *periods = nullptr);
-
-    /**
-     * @brief Converts the mQualityLimitationReason member of a Stats instance into json.
-     * 
-     * Example:
-     * - Input: [1, 3, 2, 5]
-     * - Json Output: [[0, 1], [1, 3], [2, 2], [3, 5]]
-     */
-    void parseSamplesQualityLimitations(const std::array<uint32_t, 4>& limitationReasons,
-                                        rapidjson::Value& value,
-                                        rapidjson::Document& json);
+    static constexpr int kUnassignedCid =
+        -1; // default value for unassigned CID (still not JOINED to SFU)
+    void parseSamples(const std::vector<int32_t>& samples,
+                      rapidjson::Value& value,
+                      rapidjson::Document& json,
+                      bool diff,
+                      const std::vector<float>* periods = nullptr);
 };
 
-class ConnStatsCallBack : public rtc::RefCountedObject<webrtc::RTCStatsCollectorCallback>, public karere::DeleteTrackable
+class ConnStatsCallBack:
+    public rtc::RefCountedObject<webrtc::RTCStatsCollectorCallback>,
+    public karere::DeleteTrackable
 {
 public:
     ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId, void* appCtx);
@@ -137,8 +151,13 @@ public:
     void removeStats();
 
     void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
+
 protected:
-    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend);
+    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it,
+                      double& rtt,
+                      double& txBwe,
+                      int64_t& bytesRecv,
+                      int64_t& bytesSend);
 
     Stats* mStats = nullptr; // Doesn't take ownership (Belongs to Call)
     uint32_t mHiResId;
