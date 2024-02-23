@@ -905,7 +905,7 @@ void MeetingView::onSetLimits()
             std::string valstr = QInputDialog::getText(this, tr("Set call limits: (0 to disable) (empty to not modify)"), tr(msg.c_str())).toStdString();
             return valstr.empty()
                        ? megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT
-                       : static_cast<unsigned long long> (stoi(valstr));
+                       : static_cast<unsigned long> (stoi(valstr));
         }
         catch (const std::exception& e)
         {
