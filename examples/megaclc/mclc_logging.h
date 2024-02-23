@@ -82,7 +82,7 @@ public:
      *
      * @param fname The path to the file to write the messages.
      */
-    void enableLogToFile(const std::string& fname);
+    void enableLogToFile(const fs::path& fname);
 
     bool isLoggingToFile() const;
 
@@ -100,7 +100,7 @@ private:
     void setLogToConsole(bool state);
 
     std::ofstream mLogFile;
-    std::string mLogFileName;
+    fs::path mLogFilePath;
     mutable std::mutex mLogFileWriteMutex;
     int mConsoleLogLevel = 1;
     int mFileLogLevel = 1;

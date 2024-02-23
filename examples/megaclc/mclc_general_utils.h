@@ -22,6 +22,11 @@ namespace mclc
 namespace path_utils
 {
 
+/**
+ * @brief Cross platform getid()
+ */
+unsigned long getProcessId();
+
 #ifdef __APPLE__
 // No std::fileystem before OSX10.15
 std::string getExeDirectory();
