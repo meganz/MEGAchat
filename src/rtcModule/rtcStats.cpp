@@ -9,26 +9,38 @@ namespace  rtcModule
 
 void QualityLimitationReport::addIncident(const std::string& reason)
 {
-    size_t index;
-    if (reason == "")
+    const std::pair<std::string, EReason>* it;
+    if (reason == "") // empty reason is treated as EReason::NONE ("none")
     {
-        index = 0;
+        it = std::find_if(mStrReasonMap.begin(),
+                          mStrReasonMap.end(),
+                          [](const auto& p)
+                          {
+                              return p.second == EReason::NONE;
+                          });
+        if (it == mStrReasonMap.end())
+        {
+            std::cerr << "qualityLimitationReason: EReason::NONE is not in the mStrReasonMap\n";
+            assert(false); // Fatal: NONE must be in mStrReasonMap
+            return;
+        }
     }
     else
     {
-        auto it = std::find_if(mStrReasonMap.begin(),
-                               mStrReasonMap.end(),
-                               [&reason](const auto& p)
-                               {
-                                   return p.first == reason;
-                               });
+        it = std::find_if(mStrReasonMap.begin(),
+                          mStrReasonMap.end(),
+                          [&reason](const auto& p)
+                          {
+                              return p.first == reason;
+                          });
         if (it == mStrReasonMap.end())
         {
+            std::cerr << "qualityLimitationReason: unexpected reason: " << reason << "\n";
             assert(false); // Not contemplated reason
             return;
         }
-        index = static_cast<size_t>(it - mStrReasonMap.begin());
     }
+    size_t index = static_cast<size_t>(it - mStrReasonMap.begin());
     ++mIncidentCounter[index];
 }
 
