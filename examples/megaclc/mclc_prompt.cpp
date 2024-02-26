@@ -14,7 +14,6 @@ namespace ac = ::mega::autocomplete;
 namespace mclc::clc_prompt
 {
 
-volatile std::sig_atomic_t g_signalStatus;
 
 void signal_handler(int)
 {
