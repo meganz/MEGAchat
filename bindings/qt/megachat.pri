@@ -84,13 +84,10 @@ SOURCES += megachatapi.cpp \
             kareredb.cpp \
             chatclientDb.cpp
 
-HEADERS  += asyncTest-framework.h \
-            buffer.h \
+HEADERS  += buffer.h \
             chatd.h \
             karereCommon.h \
-            messageBus.h \
             videoRenderer_objc.h \
-            asyncTest.h \
             chatClient.h \
             chatdICrypto.h \
             db.h \

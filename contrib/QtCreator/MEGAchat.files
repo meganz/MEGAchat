@@ -1,4 +1,3 @@
-../../examples/qt/asyncTest-framework.h
 ../../examples/qt/callGui.cpp
 ../../examples/qt/callGui.h
 ../../examples/qt/callGui.ui
@@ -16,8 +15,6 @@
 ../../examples/qt/manualSendMsg.ui
 ../../examples/qt/settings.ui
 ../../examples/qt/widgetSubclass.h
-../../src/asyncTest.h
-../../src/asyncTest-framework.h
 ../../src/autoHandle.h
 ../../src/base64.cpp
 ../../src/base64.h
@@ -31,8 +28,6 @@
 ../../src/chatdICrypto.h
 ../../src/chatdMsg.h
 ../../src/db.h
-../../src/dummyCrypto.cpp
-../../src/dummyCrypto.h
 ../../src/iEncHandler.h
 ../../src/iMember.h
 ../../src/karereCommon.cpp
@@ -41,7 +36,6 @@
 ../../src/karereId.h
 ../../src/megaCryptoFunctions.cpp
 ../../src/megaCryptoFunctions.h
-../../src/messageBus.h
 ../../src/sdkApi.h
 ../../src/stringUtils.h
 ../../src/userAttrCache.h
@@ -63,14 +57,12 @@
 ../../src/base/loggerConsole.h
 ../../src/base/loggerFile.h
 ../../src/base/promise.h
-../../src/base/promise-test.cpp
 ../../src/base/retryHandler.h
 ../../src/base/services.h
 ../../src/base/timers.hpp
 ../../src/rtcModule/ICryptoFunctions.h
 ../../src/rtcModule/IDeviceListImpl.h
 ../../src/rtcModule/IRtcModule.h
-../../src/rtcModule/IRtcStats.h
 ../../src/rtcModule/ITypes.h
 ../../src/rtcModule/ITypesImpl.h
 ../../src/rtcModule/IVideoRenderer.h
@@ -80,7 +72,6 @@
 ../../src/rtcModule/rtcmPrivate.h
 ../../src/rtcModule/rtcStats.cpp
 ../../src/rtcModule/rtcStats.h
-../../src/rtcModule/streamPlayer.h
 ../../src/rtcModule/strophe.jingle.cpp
 ../../src/rtcModule/strophe.jingle.h
 ../../src/rtcModule/strophe.jingle.sdp.cpp
