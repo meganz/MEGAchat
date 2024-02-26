@@ -191,7 +191,7 @@ public:
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
     virtual bool isOwnPrivModerator() const = 0;
-    virtual int getCallDurationLimit() const = 0;
+    virtual int getCallDurationLimitInSecs() const = 0;
 
     virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
@@ -234,7 +234,7 @@ public:
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
-    virtual void setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const = 0;
+    virtual void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const = 0;
     virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
     virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;

@@ -2135,38 +2135,39 @@ bool SfuConnection::sendWrKick(const std::set<karere::Id>& users)
     return sendWrCommand(SfuConnection::CSFU_WR_KICK, users);
 }
 
-bool SfuConnection::sendSetLimit(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients)
+bool SfuConnection::sendSetLimit(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
     cmdValue.SetString(SfuConnection::CSFU_SETLIMIT.c_str(), json.GetAllocator());
     json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
 
-    if (std::abs(callDur) >= 0.1)
+    if (callDurSecs != callLimitNotPresent)
     {
+        const double callDurMin = callDurSecs != callLimitReset ? static_cast<double>(callDurSecs) / 60.0 : static_cast<double>(callLimitReset);
         rapidjson::Value durVal(rapidjson::kNumberType);
-        durVal.SetDouble(callDur);
+        durVal.SetDouble(callDurMin);
         json.AddMember(rapidjson::Value("dur"), durVal, json.GetAllocator());
     }
 
-    if (numUsers)
+    if (numUsers != callLimitNotPresent)
     {
         rapidjson::Value numUsersVal(rapidjson::kNumberType);
-        numUsersVal.SetUint(numUsers);
+        numUsersVal.SetUint(static_cast<unsigned int>(numUsers));
         json.AddMember(rapidjson::Value("usr"), numUsersVal, json.GetAllocator());
     }
 
-    if (numClients)
+    if (numClients != callLimitNotPresent)
     {
         rapidjson::Value numClientsVal(rapidjson::kNumberType);
-        numClientsVal.SetUint(numClients);
+        numClientsVal.SetUint(static_cast<unsigned int>(numClients));
         json.AddMember(rapidjson::Value("clnt"), numClientsVal, json.GetAllocator());
     }
 
-    if (numClientsPerUser && numClientsPerUser <= callLimitUsersPerClient)
+    if (numClientsPerUser != callLimitNotPresent && numClientsPerUser <= callLimitUsersPerClient)
     {
         rapidjson::Value numClientsPerUserVal(rapidjson::kNumberType);
-        numClientsPerUserVal.SetUint(numClientsPerUser);
+        numClientsPerUserVal.SetUint(static_cast<unsigned int>(numClientsPerUser));
         json.AddMember(rapidjson::Value("uclnt"), numClientsPerUserVal, json.GetAllocator());
     }
 
@@ -2827,17 +2828,17 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
         speakRequest = cidIterator->value.GetUint();
     }
 
-    int ldur = kCallLimitDurationDisabled; // if not received we assume that is disabled (kCallLimitDurationDisabled)
+    int ldurSecs = kCallLimitDurationDisabled; // if not received we assume that is disabled (kCallLimitDurationDisabled)
     rapidjson::Value::ConstMemberIterator ldurIterator = command.FindMember("ldur");
     if (ldurIterator != command.MemberEnd())
     {
         if (ldurIterator->value.IsDouble())
         {
-            ldur = static_cast<int>(ldurIterator->value.GetDouble() * 60); // convert from minutes into seconds
+            ldurSecs = static_cast<int>(ldurIterator->value.GetDouble() * 60); // convert from minutes into seconds
         }
         else if (ldurIterator->value.IsUint())
         {
-            ldur = static_cast<int>(ldurIterator->value.GetUint() * 60); // convert from minutes into seconds
+            ldurSecs = static_cast<int>(ldurIterator->value.GetUint() * 60); // convert from minutes into seconds
         }
         else
         {
@@ -2897,7 +2898,7 @@ bool HelloCommand::processCommand(const rapidjson::Document& command)
             return false;
         }
     }
-    return mComplete(cid, nAudioTracks, moderators, wr, allowed, speakRequest, wrUserList, ldur);
+    return mComplete(cid, nAudioTracks, moderators, wr, allowed, speakRequest, wrUserList, ldurSecs);
 }
 
 WrDumpCommand::WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call)
