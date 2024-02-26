@@ -898,15 +898,18 @@ void MeetingView::onMuteAll()
 
 void MeetingView::onSetLimits()
 {
-    auto getNumLimit = [this](const std::string& msg) -> unsigned int
+    auto getNumLimit = [this](const std::string& msg) -> unsigned long
     {
         try
         {
-            return static_cast<unsigned int> (stoi(QInputDialog::getText(this, tr("Set call limits"), tr(msg.c_str())).toStdString()));
+            std::string valstr = QInputDialog::getText(this, tr("Set call limits: (0 to disable) (empty to not modify)"), tr(msg.c_str())).toStdString();
+            return valstr.empty()
+                       ? megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT
+                       : static_cast<unsigned long> (stoi(valstr));
         }
         catch (const std::exception& e)
         {
-            return megachat::MegaChatCall::CALL_NO_LIMIT;
+            return megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT;
         }
     };
 
