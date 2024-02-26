@@ -2,14 +2,24 @@
 
 #include "mclc_general_utils.h"
 #include "mclc_globals.h"
+#include "mclc_resources.h"
 
 #include <mega/autocomplete.h>
 namespace ac = ::mega::autocomplete;
 
 #include <iostream>
+#include <csignal>
+
 
 namespace mclc::clc_prompt
 {
+
+
+void signal_handler(int)
+{
+    clc_resources::appClean();
+    exit(0);
+}
 
 void setprompt(prompttype p)
 {
@@ -40,8 +50,13 @@ void store_line(char* l)
 {
     if (!l)
     {
-        clc_global::g_console.reset();
-        exit(0);
+        const char* temp = "quit";
+        if (!clc_global::g_promptLine)
+        {
+            clc_global::g_promptLine = new char[strlen(temp) + 1];
+        }
+        strcpy(clc_global::g_promptLine, temp);
+        return;
     }
 
 #ifndef NO_READLINE
