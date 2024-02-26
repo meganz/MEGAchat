@@ -247,7 +247,7 @@ public:
     virtual bool handleModDel(uint64_t userid) = 0;
     virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                             bool speakRequest, const sfu::WrUserList& wrUsers, const int ldur) = 0;
+                             bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs) = 0;
 
     virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
     virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;
@@ -662,10 +662,12 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    static constexpr unsigned int callLimitUsersPerClient = 4;  // Maximum number of clients with which a single user can join a call
-    static constexpr unsigned int maxInitialBackoff = 100;      // (in milliseconds) max initial backoff for SFU connection attempt
-    static constexpr uint8_t kConnectTimeout = 30;              // (in seconds) timeout reconnection to succeeed
-    static constexpr uint8_t kNoMediaPathTimeout = 6;           // (in seconds) disconnect call upon no UDP connectivity after this period
+    static constexpr uint32_t callLimitNotPresent = 0xFFFFFFFF;     // No limit present (the param won't be modified)
+    static constexpr uint32_t callLimitReset = 0;                   // Value used for reset call limit like duration or max participants
+    static constexpr unsigned int callLimitUsersPerClient = 4;      // Maximum number of clients with which a single user can join a call
+    static constexpr unsigned int maxInitialBackoff = 100;          // (in milliseconds) max initial backoff for SFU connection attempt
+    static constexpr uint8_t kConnectTimeout = 30;                  // (in seconds) timeout reconnection to succeeed
+    static constexpr uint8_t kNoMediaPathTimeout = 6;               // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     void setIsSendingBye(bool sending);
@@ -714,7 +716,7 @@ public:
     bool sendWrPush(const std::set<karere::Id>& users, const bool all);
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
-    bool sendSetLimit(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients);
+    bool sendSetLimit(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients);
     bool sendMute(const Cid_t& cid, const unsigned av);
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
     bool avoidReconnect() const;

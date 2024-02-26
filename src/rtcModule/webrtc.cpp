@@ -173,9 +173,9 @@ CallState Call::getState() const
     return mState;
 }
 
-int Call::getCallDurationLimit() const
+int Call::getCallDurationLimitInSecs() const
 {
-    return mCallDurationLimit;
+    return mCallDurLimitInSecs;
 }
 
 bool Call::isOwnClientCaller() const
@@ -678,9 +678,9 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
-void Call::setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const
+void Call::setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const
 {
-    mSfuConnection->sendSetLimit(callDur, numUsers, numClientsPerUser, numClients);
+    mSfuConnection->sendSetLimit(callDurSecs, numUsers, numClientsPerUser, numClients);
 }
 
 void Call::requestHighResolutionVideo(Cid_t cid, int quality)
@@ -2280,7 +2280,7 @@ bool Call::handleModDel(uint64_t userid)
 }
 
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
-                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldur)
+                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs)
 {
     #ifndef NDEBUG
     // ensures that our sfu protocol version is the latest one defined in karere
@@ -2301,7 +2301,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
     setSpeakRequest(speakRequest);
 
     // set call duration limit if any (in seconds)
-    mCallDurationLimit = ldur;
+    mCallDurLimitInSecs = ldurSecs;
 
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
@@ -2459,7 +2459,7 @@ bool Call::handleWillEndCommand(const int endsIn)
     if (endsIn == sfu::kCallLimitDurationDisabled)
     {
         SFU_LOG_DEBUG("handleWillEndCommand: Call duration limit disabled for this call");
-        mCallDurationLimit = endsIn;
+        mCallDurLimitInSecs = endsIn;
     }
     mCallHandler.onCallWillEndr(*this, endsIn);
     return true;
