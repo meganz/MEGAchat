@@ -245,6 +245,7 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api,
 void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaChatCall* call)
 {
     using namespace mclc::clc_global;
+    clc_log::logMsg(m::logInfo, "Receiving a call update", clc_log::ELogWriter::MEGA_CHAT);
     if (!call)
     {
         clc_log::logMsg(m::logError, "NULL call", clc_log::ELogWriter::MEGA_CHAT);
@@ -254,6 +255,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_STATUS))
     {
+        clc_log::logMsg(m::logInfo, "Call update: CHANGE_TYPE_STATUS", clc_log::ELogWriter::MEGA_CHAT);
         int status = call->getStatus();
         auto findIt = g_callStateMap.find(chatid);
         if (status == megachat::MegaChatCall::CALL_STATUS_INITIAL)
@@ -279,6 +281,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         }
         else if (status == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
         {
+            clc_log::logMsg(m::logInfo, "Call update: CALL_STATUS_IN_PROGRESS", clc_log::ELogWriter::MEGA_CHAT);
             if (findIt == g_callStateMap.end())
             {
                 // This should be imposible, the call must start with CALL_STATUS_INITIAL so it must
@@ -295,6 +298,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         }
         else if (status == megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION)
         {
+            clc_log::logMsg(m::logInfo, "Call update: CALL_STATUS_TERMINATING_USER_PARTICIPATION", clc_log::ELogWriter::MEGA_CHAT);
             if (findIt == g_callStateMap.end())
             {
                 clc_log::logMsg(m::logError,
@@ -310,6 +314,7 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         }
         else if (status == megachat::MegaChatCall::CALL_STATUS_DESTROYED)
         {
+            clc_log::logMsg(m::logInfo, "Call update: CALL_STATUS_DESTROYED", clc_log::ELogWriter::MEGA_CHAT);
             g_callStateMap.erase(chatid); // remove if exists
         }
         else

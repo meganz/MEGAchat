@@ -57,11 +57,52 @@ JoinCallViaMeetingLink::JoinCallViaMeetingLink():
         (OPT_AUDIO, po::value<std::string>()->default_value("no"), "[yes|no] If yes, tries to call with audio")
         (OPT_VIDEO_DEV, po::value<std::string>(), "The input video device name to use in the call")
         (OPT_WAIT, po::value<std::string>()->default_value("40"), "Time to stay in the call. 0 means never hang up.")
-        ((OPT_EMAIL + std::string(",e")).c_str(), po::value<std::string>()->required(), "User's email to login")
-        ((OPT_PASS + std::string(",p")).c_str(), po::value<std::string>()->required(), "User's password to login")
-        ((OPT_URL + std::string(",l")).c_str(), po::value<std::string>()->required(), "Link to the chat to join and receive the call")
+        ((OPT_EMAIL + std::string(",e")).c_str(), po::value<std::string>(), "User's email to login")
+        ((OPT_PASS + std::string(",p")).c_str(), po::value<std::string>(), "User's password to login")
+        ((OPT_URL + std::string(",l")).c_str(), po::value<std::string>(), "Link to the chat to join and receive the call")
         ;
     // clang-format on
+    mHelpMessage = R"(
+The JoinCallViaMeetingLink command performs the following steps:
+    1. Logs in with the given credentials
+    2. Opens a chat romm link in preview mode
+    3. Joins the chat
+    4. Waits for the incoming call
+    5. Answers the call with or without video/audio enables depending on the
+       given options
+    6. Stays in the call for the given amount of time
+    7. Hangs up the call
+
+)";
+}
+
+int JoinCallViaMeetingLink::operator()(int argc, char* argv[])
+{
+    po::variables_map variablesMap;
+    try
+    {
+        po::store(po::parse_command_line(argc, argv, mDesc), variablesMap);
+        po::notify(variablesMap);
+
+        if (variablesMap.count("help"))
+        {
+            std::cout << mHelpMessage << mDesc << "\n";
+            return 0;
+        }
+        validateInput(variablesMap);
+        runCommand(variablesMap);
+    }
+    catch (std::exception& e)
+    {
+        std::cerr << "Error: " << e.what() << "\n";
+        return 1;
+    }
+    catch (...)
+    {
+        std::cerr << "Unknown error.\n";
+        return 1;
+    }
+    return 0;
 }
 
 void JoinCallViaMeetingLink::validateInput(const po::variables_map& variablesMap)
@@ -120,34 +161,6 @@ void JoinCallViaMeetingLink::runCommand(const po::variables_map& variablesMap)
     return;
 }
 
-int JoinCallViaMeetingLink::operator()(int argc, char* argv[])
-{
-    po::variables_map variablesMap;
-    try
-    {
-        po::store(po::parse_command_line(argc, argv, mDesc), variablesMap);
-        po::notify(variablesMap);
-
-        if (variablesMap.count("help"))
-        {
-            std::cout << mDesc << "\n";
-            return 0;
-        }
-        validateInput(variablesMap);
-        runCommand(variablesMap);
-    }
-    catch (std::exception& e)
-    {
-        std::cerr << "Error: " << e.what() << "\n";
-        return 1;
-    }
-    catch (...)
-    {
-        std::cerr << "Unknown error.\n";
-        return 1;
-    }
-    return 0;
-}
 
 Help::Help()
 {
@@ -185,25 +198,6 @@ int Help::operator()(int argc, char*[])
         return 1;
     }
     std::cout << mHelpMsg;
-    return 0;
-}
-
-int Test::operator()(int argc, char* argv[])
-{
-    po::options_description desc("Test command for debugging purposes");
-    desc.add_options()
-        ("url,l", po::value<std::string>()->required(), "Link to the chat to join and receive the call")
-        ;
-    po::variables_map variablesMap;
-    try{
-        po::store(po::parse_command_line(argc, argv, desc), variablesMap);
-        po::notify(variablesMap);
-        std::cout << variablesMap["url"].as<std::string>() << "\n";
-    }
-    catch (...)
-    {
-        return 1;
-    }
     return 0;
 }
 

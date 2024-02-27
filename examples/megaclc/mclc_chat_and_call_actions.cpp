@@ -101,9 +101,19 @@ bool login(const char* email, const char* password)
                ELogWriter::SDK);
         return false;
     }
-    c::async::waitForResponse([](){
+    bool loginHasFullyFinished = c::async::waitForResponse(
+        []()
+        {
             return clc_global::g_prompt == clc_prompt::COMMAND;
-            }, 30);
+        },
+        60);
+    if (!loginHasFullyFinished)
+    {
+        logMsg(m::logError,
+               "Time limit exceed to complete the login process, maybe too many nodes to fetch.",
+               ELogWriter::SDK);
+        return false;
+    }
     return true;
 }
 

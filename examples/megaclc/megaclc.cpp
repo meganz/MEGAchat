@@ -166,14 +166,12 @@ int main(int argc, char *argv[])
 
     if (argc < 2)
     {
-        // Interactive loop
-        mclc::megaclc();
+        mclc::megaclc(); // Interactive loop
     }
     else
     {
         exitCode = mclc::noInteractiveCommand(argc - 1, argv + 1);
     }
-
 
     mclc::clc_resources::appClean();
     return exitCode;
