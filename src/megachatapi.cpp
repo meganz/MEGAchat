@@ -279,6 +279,16 @@ int MegaChatCall::getTermCode() const
     return 0;
 }
 
+int MegaChatCall::getNum() const
+{
+    return 0;
+}
+
+int MegaChatCall::getCallDurationLimit() const
+{
+    return 0;
+}
+
 int MegaChatCall::getEndCallReason() const
 {
     return 0;
@@ -1208,7 +1218,7 @@ void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users
     pImpl->kickUsersFromCall(chatid, users, listener);
 }
 
-void MegaChatApi::setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener)
+void MegaChatApi::setLimitsInCall(const MegaChatHandle chatid, const unsigned long callDur, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients, MegaChatRequestListener* listener)
 {
     pImpl->setLimitsInCall(chatid, callDur, numUsers, numClientsPerUser, numClients, listener);
 }

@@ -173,6 +173,10 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append("<span style='font-weight:normal'>")
             .append("<br /> Speak request is enabled: ")
             .append(call->isSpeakRequestEnabled() ? on : off)
+            .append("<br /> Call duration limit: ")
+            .append(call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED
+                    ? "<span style='font-weight:bold;'>Disabled</span>"
+                    : "<span style='color:#AA0000'>" + std::to_string(call->getCallDurationLimit()) +"</span>")
             .append("<br /> Audio flag: ")
             .append(call->hasLocalAudio() ? on : off)
             .append("<br /> Video flag: ")
@@ -894,15 +898,18 @@ void MeetingView::onMuteAll()
 
 void MeetingView::onSetLimits()
 {
-    auto getNumLimit = [this](const std::string& msg) -> unsigned int
+    auto getNumLimit = [this](const std::string& msg) -> unsigned long
     {
         try
         {
-            return static_cast<unsigned int> (stoi(QInputDialog::getText(this, tr("Set call limits"), tr(msg.c_str())).toStdString()));
+            std::string valstr = QInputDialog::getText(this, tr("Set call limits: (0 to disable) (empty to not modify)"), tr(msg.c_str())).toStdString();
+            return valstr.empty()
+                       ? megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT
+                       : static_cast<unsigned long> (stoi(valstr));
         }
         catch (const std::exception& e)
         {
-            return megachat::MegaChatCall::CALL_NO_LIMIT;
+            return megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT;
         }
     };
 

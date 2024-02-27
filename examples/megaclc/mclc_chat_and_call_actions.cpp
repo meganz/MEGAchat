@@ -34,6 +34,35 @@ struct CallStateChangeTracker
         }
         return it->second.stateHasChanged;
     }
+
+    /**
+     * @brief Return current call status received at onChatCallUpdate
+     *
+     * @return This method will return a pair with <errorCode, callStatus>:
+     * - <ERROR_ARGS, CALL_STATUS_INITIAL> if chatId is invalid
+     * - <ERROR_NOENT, CALL_STATUS_INITIAL> if chatId is not found at g_callStateMap
+     * - <ERROR_OK, callStatus at g_callStateMap> if stateHasChanged is true
+     * - <ERROR_EXIST, callStatus at g_callStateMap> if stateHasChanged is false
+     */
+    std::pair<int, int> getCurrentCallstatus()
+    {
+        if (chatId == megachat::MEGACHAT_INVALID_HANDLE)
+        {
+            return std::make_pair(megachat::MegaChatError::ERROR_ARGS, megachat::MegaChatCall::CALL_STATUS_INITIAL);
+        }
+
+        auto it = clc_global::g_callStateMap.find(chatId);
+        if (it == clc_global::g_callStateMap.end())
+        {
+            return std::make_pair(megachat::MegaChatError::ERROR_NOENT, megachat::MegaChatCall::CALL_STATUS_INITIAL);
+        }
+
+        int errCode = it->second.stateHasChanged
+                          ? megachat::MegaChatError::ERROR_OK
+                          : megachat::MegaChatError::ERROR_EXIST;
+
+        return std::make_pair(errCode, it->second.state.load());
+    }
 };
 
 bool waitForReceivingCallStatus(const c::MegaChatHandle chatId,
@@ -82,9 +111,49 @@ bool resetCallStateChangeRecv(const c::MegaChatHandle chatId, const bool v)
     }
     it->second.stateHasChanged = v;
     return true;
-};
-
 }
+
+/**
+ * @brief This method returns true if call in chatroom represented by chatId is still alive (CALL_STATUS_IN_PROGRESS)
+ *
+ * @param chatId The chat handle that identifies chatroom
+ * @return true if call in chatroom represented by chatId is still alive, otherwise false
+ */
+bool isCallAlive(const c::MegaChatHandle chatId)
+{
+    // TODO: add mechanism to exit in case Ctrl+c Ctrl+d are detected
+    const bool sdkLoggedIn = clc_global::g_megaApi->isLoggedIn();
+    if (!sdkLoggedIn)
+    {
+        logMsg(m::logError, "Sdk is not logged in", ELogWriter::MEGA_CHAT);
+        return false;
+    }
+
+    auto expStatus = c::MegaChatCall::CALL_STATUS_IN_PROGRESS;
+    std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    if (!call || call->getStatus() != expStatus)
+    {
+        logMsg(m::logError,
+               "Cannot get call or it's status is unexpected" + std::to_string(expStatus),
+               ELogWriter::MEGA_CHAT);
+        return false;
+    }
+
+    CallStateChangeTracker callChanged{chatId};
+    auto p = callChanged.getCurrentCallstatus();
+    if (p.first != megachat::MegaChatError::ERROR_OK ||
+        p.second != c::MegaChatCall::CALL_STATUS_IN_PROGRESS)
+    {
+        logMsg(m::logError,
+               "Unexpected call state received at onChatCallUpdate",
+               ELogWriter::MEGA_CHAT);
+        return false;
+    }
+
+    logMsg(m::logDebug, "Call is still alive", ELogWriter::MEGA_CHAT);
+    return true;
+}
+} // end of namespace // Private utilities
 
 bool login(const char* email, const char* password)
 {
@@ -143,7 +212,7 @@ std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link)
         return {c::MEGACHAT_INVALID_HANDLE, errCode};
     }
     c::MegaChatHandle chatId = openPreviewListener.getMegaChatRequestPtr()->getChatHandle();
-    auto chatRoom = g_chatApi->getChatRoom(chatId);
+    std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(chatId));
     if (!chatRoom)
     {
         logMsg(m::logError,
@@ -154,9 +223,9 @@ std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link)
     return {chatId, errCode};
 }
 
-bool joinChat(const c::MegaChatHandle chatId, const int errCode)
+bool joinChat(const c::MegaChatHandle chatId, const int openPreviewErrCode)
 {
-    auto chatRoom = g_chatApi->getChatRoom(chatId);
+    std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(chatId));
     if (!chatRoom)
     {
         logMsg(m::logError,
@@ -164,8 +233,8 @@ bool joinChat(const c::MegaChatHandle chatId, const int errCode)
                ELogWriter::MEGA_CHAT);
         return false;
     }
-    auto continueWithAutoJoin =
-        chatRoom->isPreview() || errCode == megachat::MegaChatError::ERROR_OK;
+    bool continueWithAutoJoin =
+        chatRoom->isPreview() || openPreviewErrCode == megachat::MegaChatError::ERROR_OK;
     if (continueWithAutoJoin)
     {
         logMsg(m::logInfo, "### Autojoin chat ###", ELogWriter::MEGA_CHAT);
@@ -201,7 +270,7 @@ bool joinChat(const c::MegaChatHandle chatId, const int errCode)
     }
     else
     {
-        logMsg(m::logInfo, "### Unexpected use case ###", ELogWriter::MEGA_CHAT);
+        logMsg(m::logError, "### Unexpected use case ###", ELogWriter::MEGA_CHAT);
         assert(false);
         return false;
     }
@@ -221,9 +290,7 @@ bool waitUntilCallIsReceived(const c::MegaChatHandle chatId)
     std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
     if (call && expStatus.find(call->getStatus()) == expStatus.end())
     {
-        logMsg(m::logDebug,
-               "Call is in unexpected state: expected (CALL_STATUS_USER_NO_PRESENT)",
-               ELogWriter::MEGA_CHAT);
+        logMsg(m::logDebug, "Call is in unexpected state", ELogWriter::MEGA_CHAT);
         return false;
     }
 
@@ -257,6 +324,26 @@ bool startChatCall(const c::MegaChatHandle chatId,
     return true;
 }
 
+int waitInCallFor(const c::MegaChatHandle chatId, const unsigned int waitTimeSec)
+{
+    auto endAt = ::mega::m_time(nullptr) + waitTimeSec;
+    while (true)
+    {
+        auto now = ::mega::m_time(nullptr);
+        auto timeoutExpired = waitTimeSec != callUnlimitedDuration && now >= endAt;
+        if (timeoutExpired)
+        {
+            return megachat::MegaChatError::ERROR_OK;
+        }
+
+        if (!isCallAlive(chatId))
+        {
+            return megachat::MegaChatError::ERROR_NOENT;
+        }
+        clc_time::WaitMillisec(callIsAliveMillis);
+    }
+}
+
 bool answerCall(const c::MegaChatHandle chatId,
                 const bool audio,
                 const bool video,
@@ -264,12 +351,10 @@ bool answerCall(const c::MegaChatHandle chatId,
 {
     if (!resetCallStateChangeRecv(chatId, false))
     {
-        logMsg(m::logError,
-               "Cannot update stateHasChanged for ...",
-               ELogWriter::MEGA_CHAT); // complete
+        logMsg(m::logError, "Cannot update stateHasChanged for ...", ELogWriter::MEGA_CHAT);
         return false;
     }
-    auto chatRoom = g_chatApi->getChatRoom(chatId);
+    std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(chatId));
     if (!chatRoom)
     {
         logMsg(m::logError,
@@ -346,7 +431,7 @@ bool setChatVideoInDevice(const std::string& device)
         msg << "setChatVideoInDevice: the input device (";
         msg << device;
         msg << ") is not a valid device. ";
-        auto availableDevices = g_chatApi->getChatVideoInDevices();
+        std::unique_ptr<m::MegaStringList> availableDevices(g_chatApi->getChatVideoInDevices());
         if (availableDevices->size() == 0)
         {
             msg << "There are no available input devices.";
@@ -378,4 +463,4 @@ bool setChatVideoInDevice(const std::string& device)
     return true;
 }
 
-}
+} // end of namespace mclc::clc_ccactions

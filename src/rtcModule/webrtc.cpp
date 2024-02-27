@@ -173,6 +173,11 @@ CallState Call::getState() const
     return mState;
 }
 
+int Call::getCallDurationLimitInSecs() const
+{
+    return mCallDurLimitInSecs;
+}
+
 bool Call::isOwnClientCaller() const
 {
     return mIsOwnClientCaller;
@@ -713,9 +718,9 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
-void Call::setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const
+void Call::setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const
 {
-    mSfuConnection->sendSetLimit(callDur, numUsers, numClientsPerUser, numClients);
+    mSfuConnection->sendSetLimit(callDurSecs, numUsers, numClientsPerUser, numClients);
 }
 
 std::vector<Cid_t> Call::getSpeakerRequested()
@@ -2428,7 +2433,7 @@ bool Call::handleModDel(uint64_t userid)
 }
 
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
-                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
+                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs)
 {
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
@@ -2440,6 +2445,9 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
     mNumInputVideoTracks = numInputVideoTracks; // Set the maximum number of simultaneous video tracks the call supports
 
     setSpeakRequest(speakRequest);
+
+    // set call duration limit if any (in seconds)
+    mCallDurLimitInSecs = ldurSecs;
 
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
@@ -2591,6 +2599,18 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
+}
+
+bool Call::handleWillEndCommand(const int endsIn)
+{
+    SFU_LOG_DEBUG("%d",endsIn);
+    if (endsIn == sfu::kCallLimitDurationDisabled)
+    {
+        SFU_LOG_DEBUG("handleWillEndCommand: Call duration limit disabled for this call");
+        mCallDurLimitInSecs = endsIn;
+    }
+    mCallHandler.onCallWillEndr(*this, endsIn);
+    return true;
 }
 
 bool Call::handleMutedCommand(const unsigned av, const Cid_t cidPerf)

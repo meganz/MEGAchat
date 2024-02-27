@@ -1,142 +1,119 @@
-#We need cmake 3.0 or later because of the autouic, autorcc reatures for Qt
-cmake_minimum_required(VERSION 3.0)
-project(rtctestapp)
+# 
+# MEGAchat Qt App example
+# 
 
-FIND_PACKAGE(Qt5Widgets REQUIRED)
+add_executable(QtApp)
 
-set(CMAKE_MACOSX_RPATH 1)
-#set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-set(BINDING_INCLUDE_DIRS ${BINDING_QT_INCLUDE_DIR})
-set_property(GLOBAL PROPERTY BINDING_INCLUDE_DIRS ${BINDING_INCLUDE_DIRS})
-
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
-
-add_subdirectory(../../src karere)
-
-set (SRCS
-     mainwindow.cpp
-     chatWindow.cpp
-     main.cpp
-     megachatapplication.cpp
-#need to include also headers with Q_OBJECTs so that automoc knows to parse them
-     widgetSubclass.h
-#==
-     res/resources.qrc
+set(QTAPP_HEADERS
+    chatGroupDialog.h
+    chatItemWidget.h
+    chatMessage.h
+    chatSettings.h
+    chatWindow.h
+    confirmAccount.h
+    contactItemWidget.h
+    listItemController.h
+    LoginDialog.h
+    MainWindow.h
+    MegaChatApplication.h
+    megaLoggerApplication.h
+    reaction.h
+    SettingWindow.h
+    uiSettings.h
+    widgetSubclass.h
 )
-if (NOT optKarereDisableWebrtc)
-    list(APPEND SRCS callGui.cpp ../../src/videoRenderer_Qt.cpp)
-endif()
 
+set(QTAPP_SOURCES
+    chatGroupDialog.cpp
+    chatItemWidget.cpp
+    chatMessage.cpp
+    chatSettings.cpp
+    chatWindow.cpp
+    confirmAccount.cpp
+    contactItemWidget.cpp
+    listItemController.cpp
+    LoginDialog.cpp
+    MainWindow.cpp
+    MegaChatApplication.cpp
+    megaLoggerApplication.cpp
+    reaction.cpp
+    SettingWindow.cpp
+    uiSettings.cpp
+)
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
-    add_definitions(-D_DEBUG -fvisibility=hidden -Wall -Wno-unused-local-typedef)
-    if (optAsanMode AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")) # defined by Karere
-        add_definitions(-fsanitize=${optAsanMode} -fno-omit-frame-pointer) #enable ASAN
-        set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=${optAsanMode}")
-    endif()
-#    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
-endif()
+set(QTAPP_UI
+    callGui.ui
+    chatGroupDialog.ui
+    chatMessageWidget.ui
+    chatWindow.ui
+    confirmAccount.ui
+    listItemWidget.ui
+    LoginDialog.ui
+    MainWindow.ui
+    reaction.ui
+    settingsDialog.ui
+    SettingWindow.ui
+)
 
-get_property(KARERE_INCLUDE_DIRS GLOBAL PROPERTY KARERE_INCLUDE_DIRS)
+set(QTAPP_RESOURCES
+    res/resources.qrc
+)
 
+target_sources(QtApp
+    PRIVATE
+    ${QTAPP_UI}
+    ${QTAPP_HEADERS}
+    ${QTAPP_SOURCES}
+    ${QTAPP_RESOURCES}
+)
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${KARERE_INCLUDE_DIRS} ${BINDING_INCLUDE_DIRS})
+target_sources_conditional(QtApp
+    FLAG USE_WEBRTC
+    PRIVATE
+    peerWidget.h
+    meetingSession.h
+    meetingView.h
+    
+    peerWidget.cpp
+    meetingSession.cpp    
+    meetingView.cpp
+)
 
+# Activate properties for Qt code
+set_target_properties(QtApp
+    PROPERTIES
+    AUTOMOC ON # Activates the meta-object code generator for Qt.
+    AUTOUIC ON # Activates the User Interface Compiler generator for Qt.
+)
 
-get_property(KARERE_DEFINES GLOBAL PROPERTY KARERE_DEFINES)
-add_definitions(${KARERE_DEFINES})
+# Required for the Qt generated files, to be able to include other headers in the current path
+target_include_directories(QtApp
+    PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}
+)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-set(SYSLIBS)
-if (CLANG_STDLIB)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=lib${CLANG_STDLIB}")
-    set(SYSLIBS ${CLANG_STDLIB})
-endif()
+# Load and link needed libraries for the CHATlib target
+find_package(Qt5 REQUIRED COMPONENTS Widgets)
+message(STATUS "Building the MEGAchat Qt Example App with Qt v${Qt5_VERSION} from ${Qt5_DIR}")
 
-add_executable(rtctestapp MACOSX_BUNDLE ${SRCS})
-set_target_properties(rtctestapp PROPERTIES AUTOMOC TRUE AUTOUIC TRUE AUTORCC TRUE)
-target_link_libraries(rtctestapp
+target_link_libraries(QtApp
+    PRIVATE
     Qt5::Widgets
-    karere
-    ${SYSLIBS}
+    MEGA::CHATlib # MEGAchat library (And MEGAsdk library)
+    MEGA::CHATQtBindings # MEGAchat bindings for Qt.
+    MEGA::SDKQtBindings # MEGAsdk bindings for Qt.
 )
 
-get_target_property(QMAKE_EXECUTABLE Qt5::qmake LOCATION)
-execute_process(COMMAND ${QMAKE_EXECUTABLE} -query QT_INSTALL_PLUGINS
-    OUTPUT_VARIABLE QT_PLUGINS_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
+## Adjust compilation flags for warnings and errors ##
+target_platform_compile_options(
+    TARGET QtApp
+    UNIX $<$<CONFIG:Debug>:-ggdb3> -Wall -Wextra -Wconversion -Wno-unused-parameter
 )
 
-if (APPLE) # AND ("${CMAKE_BUILD_TYPE}" STREQUAL "Release"))
-    set_target_properties(rtctestapp PROPERTIES
-        MACOSX_RPATH ON
-        INSTALL_RPATH "@executable_path")
-
-    set_target_properties(rtctestapp PROPERTIES
-        MACOSX_BUNDLE_INFO_STRING "${PROJECT_NAME}, Copyright 2016 Mega LTD."
-        MACOSX_BUNDLE_ICON_FILE ""
-        MACOSX_BUNDLE_GUI_IDENTIFIER "${megachat-test}"
-        MACOSX_BUNDLE_LONG_VERSION_STRING "${MACOSX_BUNDLE_INFO_STRING}"
-        MACOSX_BUNDLE_BUNDLE_NAME "${megachat-test}"
-        MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_STRING}"
-        MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_STRING}"
-        MACOSX_BUNDLE_COPYRIGHT "Copyright 2016, MEGA Ltd. All Rights Reserved."
-        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/MacOSXBundleInfo.plist.in"
+if(ENABLE_CHATLIB_WERROR)
+    target_platform_compile_options(
+        TARGET QtApp
+        UNIX  $<$<CONFIG:Debug>: -Werror
+                                 -Wno-error=deprecated-declarations> # Kept as a warning, do not promote to error.
     )
-
-    INSTALL(FILES
-       "${QT_PLUGINS_DIR}/platforms/libqcocoa.dylib"
-       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/platforms
-       COMPONENT Runtime)
-
-    INSTALL(FILES
-       "${QT_PLUGINS_DIR}/imageformats/libqsvg.dylib"
-       "${QT_PLUGINS_DIR}/imageformats/libqicns.dylib"
-       DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats
-       COMPONENT Runtime)
-
-    INSTALL(CODE "
-       include(BundleUtilities)
-       set(BU_CHMOD_BUNDLE_ITEMS ON)
-       set(plugins
-           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/platforms/libqcocoa.dylib
-           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats/libqsvg.dylib
-           ${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app/Contents/Plugins/imageformats/libqicns.dylib
-       )
-
-    fixup_bundle(
-           \"${CMAKE_CURRENT_BINARY_DIR}/rtctestapp.app\" \"\${plugins}\" \"\")"
-           COMPONENT Runtime)
-
-    INSTALL(TARGETS rtctestapp BUNDLE DESTINATION . COMPONENT Runtime)
-
-    set(CPACK_BINARY_DRAGNDROP ON)
-    set(CPACK_OSX_PACKAGE_VERSION 10.10)
-    include(CPack)
-elseif(UNIX)
-    set(CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}/dist")
-    INSTALL(TARGETS rtctestapp DESTINATION "${CMAKE_INSTALL_PREFIX}" COMPONENT Runtime)
-    INSTALL(FILES
-       "${QT_PLUGINS_DIR}/platforms/libqxcb.so"
-       DESTINATION ${CMAKE_INSTALL_PREFIX}/QtPlugins/platforms
-       COMPONENT Runtime)
-
-    INSTALL(FILES
-       "${QT_PLUGINS_DIR}/imageformats/libqsvg.so"
-       DESTINATION ${CMAKE_INSTALL_PREFIX}/QtPlugins/imageformats
-       COMPONENT Runtime)
-#    INSTALL(CODE
-#    "
-#        include(BundleUtilities)
-#        set(BU_CHMOD_BUNDLE_ITEMS ON)
-#        set(plugins
-#            ${CMAKE_INSTALL_PREFIX}/QtPlugins/platforms/libqxcb.so
-#            ${CMAKE_INSTALL_PREFIX}/QtPlugins/imageformats/libqsvg.so
-#        )
-#        fixup_bundle(\"\${CMAKE_INSTALL_PREFIX}/rtctestapp\" \"\${plugins}\" \"\")
-#    "
-#    COMPONENT Runtime)
-
-    include(CPack)
 endif()

@@ -66,6 +66,10 @@ public:
 // SFU provides Waiting room participants list in order they joined to the call
 typedef std::vector<WrRoomUser> WrUserList;
 
+
+// Call duration restriction disabled
+static constexpr int kCallLimitDurationDisabled = -1;
+
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
 // In case we need to access to it from another thread, we would need to implement
@@ -249,7 +253,7 @@ public:
     virtual bool handleModDel(uint64_t userid) = 0;
     virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                             bool speakRequest, const sfu::WrUserList& wrUsers) = 0;
+                             bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs) = 0;
 
     virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
     virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;
@@ -259,6 +263,7 @@ public:
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
     virtual bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) = 0;
+    virtual bool handleWillEndCommand(const int endsIn) = 0;
 
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
@@ -313,7 +318,8 @@ public:
 class AnswerCommand : public Command
 {
 public:
-    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap,
+                               std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -474,6 +480,16 @@ public:
     MutedCommandFunction mComplete;
 };
 
+class WillEndCommand : public Command
+{
+public:
+    typedef std::function<bool(int64_t endsIn)> WillEndCommandFunction;
+    WillEndCommand(const WillEndCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WillEndCommandFunction mComplete;
+};
+
 class ModAddCommand : public Command
 {
 public:
@@ -503,7 +519,8 @@ public:
                                const bool wr,
                                const bool speakRequest,
                                const bool allowed,
-                               const sfu::WrUserList& wrUsers)>HelloCommandFunction;
+                               const sfu::WrUserList& wrUsers,
+                               const int ldur)>HelloCommandFunction;
 
     HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
@@ -649,10 +666,12 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    static constexpr unsigned int callLimitUsersPerClient = 4;  // Maximum number of clients with which a single user can join a call
-    static constexpr unsigned int maxInitialBackoff = 100;      // (in milliseconds) max initial backoff for SFU connection attempt
-    static constexpr uint8_t kConnectTimeout = 30;              // (in seconds) timeout reconnection to succeeed
-    static constexpr uint8_t kNoMediaPathTimeout = 6;           // (in seconds) disconnect call upon no UDP connectivity after this period
+    static constexpr uint32_t callLimitNotPresent = 0xFFFFFFFF;     // No limit present (the param won't be modified)
+    static constexpr uint32_t callLimitReset = 0;                   // Value used for reset call limit like duration or max participants
+    static constexpr unsigned int callLimitUsersPerClient = 4;      // Maximum number of clients with which a single user can join a call
+    static constexpr unsigned int maxInitialBackoff = 100;          // (in milliseconds) max initial backoff for SFU connection attempt
+    static constexpr uint8_t kConnectTimeout = 30;                  // (in seconds) timeout reconnection to succeeed
+    static constexpr uint8_t kNoMediaPathTimeout = 6;               // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     void setIsSendingBye(bool sending);
@@ -702,7 +721,7 @@ public:
     bool sendWrPush(const std::set<karere::Id>& users, const bool all);
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
-    bool sendSetLimit(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients);
+    bool sendSetLimit(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients);
     bool sendMute(const Cid_t& cid, const unsigned av);
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
     bool avoidReconnect() const;

@@ -295,7 +295,28 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         std::cerr << "onChatCallUpdate: outgoing ringing stop received but our client is not the caller";
         return;
     }
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END))
+    {
+        QMessageBox msgBox;
+        QString myString;
+        const auto endsIn = call->getNum();
+        if (endsIn == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED)
+        {
+            msgBox.setIcon(QMessageBox::Information);
+            myString.append("Call duration is now unlimited. Call duration restriction has been removed");
+        }
+        else
+        {
+            msgBox.setIcon(QMessageBox::Warning);
+            myString = QString("Call will end in ")
+                           + QString(std::to_string(endsIn).c_str())
+                           + QString(" (seconds) due to MEGA account restrictions");
+        }
 
+        msgBox.setText(myString);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.exec();
+    }
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS)
         || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP)
@@ -307,7 +328,9 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW)
-        || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY))
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY)
+        || (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END)
+                && call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED))
     {
         if (itemController->getMeetingView()) { itemController->getMeetingView()->updateLabel(call); }
     }

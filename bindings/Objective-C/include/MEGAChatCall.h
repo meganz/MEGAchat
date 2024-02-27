@@ -36,6 +36,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallTermCode) {
     MEGAChatCallTermCodeProtocolVersion = 6,
     MEGAChatCallTermCodeKicked = 7,
     MEGAChatCallTermCodeWaitingRoomTimeout = 8,
+    MEGAChatCallTermCodeCallDurationLimit = 9,
+    MEGAChatCallTermCodeCallUsersLimit = 10
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {

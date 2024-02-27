@@ -277,6 +277,7 @@ public:
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
     CallState getState() const override;
+    int getCallDurationLimitInSecs() const override;
     bool isOwnClientCaller() const override;
     bool isJoined()  const override;
     bool isOwnPrivModerator() const override;
@@ -333,7 +334,7 @@ public:
     bool hasPendingSpeakRequest() const override;
     int getWrJoiningState() const override;
     unsigned int getOwnSpeakerState() const override;
-    void setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const override;
+    void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const override;
 
     // get the list of users that have requested to speak
     std::vector<Cid_t> getSpeakerRequested() override;
@@ -498,7 +499,7 @@ public:
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                      const bool speakRequest, const sfu::WrUserList& wrUsers) override;
+                      const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs) override;
 
     // --- SfuInterface methods (waiting room related methods) ---
     bool handleWrDump(const sfu::WrUserList& users) override;
@@ -509,6 +510,7 @@ public:
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
 
+    bool handleWillEndCommand(const int endsIn) override;
     bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
@@ -577,6 +579,9 @@ protected:
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
+
+    // Call duration limit in seconds (kCallLimitDurationDisabled => disabled)
+    int mCallDurLimitInSecs = ::sfu::kCallLimitDurationDisabled;
 
     // speak request flag
     bool mSpeakRequest = false;
