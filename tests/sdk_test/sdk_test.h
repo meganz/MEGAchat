@@ -786,8 +786,8 @@ protected:
      * @param privilege new privilege
      * @param crl TestChatRoomListener that tracks the changes related to chatroom
      */
-    void updateChatPermissions(unsigned int performerIdx,
-                                                unsigned int userIdx,
+    void updateChatPermissions(const unsigned int performerIdx,
+                                                const unsigned int userIdx,
                                                 const megachat::MegaChatHandle uh,
                                                 const megachat::MegaChatHandle chatId,
                                                 const int privilege,

@@ -8000,8 +8000,8 @@ void MegaChatApiTest::answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, 
 }
 #endif
 
-void MegaChatApiTest::updateChatPermissions(unsigned int performerIdx,
-                                            unsigned int userIdx,
+void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
+                                            const unsigned int userIdx,
                                             const megachat::MegaChatHandle uh,
                                             const megachat::MegaChatHandle chatId,
                                             const int privilege,
@@ -8032,13 +8032,13 @@ void MegaChatApiTest::updateChatPermissions(unsigned int performerIdx,
     *uhAction = MEGACHAT_INVALID_HANDLE;
     int* priv = &crl->priv[performerIdx];
     *priv = MegaChatRoom::PRIV_UNKNOWN;
-    ChatRequestTracker crtMakeReadonly(megaChatApi[performerIdx]);
-    megaChatApi[performerIdx]->updateChatPermissions(chatId, uh, privilege, &crtMakeReadonly);
+    ChatRequestTracker crtChangePermissions(megaChatApi[performerIdx]);
+    megaChatApi[performerIdx]->updateChatPermissions(chatId, uh, privilege, &crtChangePermissions);
 
-    ASSERT_EQ(crtMakeReadonly.waitForResult(), MegaChatError::ERROR_OK)
-        << "Failed to set peer readonly. Error: " << crtMakeReadonly.getErrorString();
+    ASSERT_EQ(crtChangePermissions.waitForResult(), MegaChatError::ERROR_OK)
+        << "Failed to update peer permissions to " << privilege << ". Error: " << crtChangePermissions.getErrorString();
 
-    // wait for expected changes from onChatListItemUpdate
+    // wait for expected changes at onChatListItemUpdate
     auto permChangeRecva1 = waitForResponse(peerUpdated0, minTimeout * 2);
     if (!permChangeRecva1)
     {
@@ -8061,7 +8061,7 @@ void MegaChatApiTest::updateChatPermissions(unsigned int performerIdx,
             << "updateChatPermissions: Unexpected permission for own user: " << getUserIdStrB64(uh);
     }
 
-    // wait for expected changes from onMessageReceived
+    // wait for expected changes at onMessageReceived
     ASSERT_TRUE(waitForResponse(mngMsgRecv))
         << "updateChatPermissions: Timeout expired for receiving management message";
     ASSERT_EQ(*uhAction, uh) << "updateChatPermissions: User handle from message doesn't match";
