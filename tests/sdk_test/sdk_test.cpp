@@ -8042,9 +8042,8 @@ void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
     auto permChangeRecva1 = waitForResponse(peerUpdated0, minTimeout * 2);
     if (!permChangeRecva1)
     {
-        LOG_warn << "updateChatPermissions: onChatListItemUpdate(CHANGE_TYPE_PARTICIPANTS) not "
-                    "received. Posible race condition (between API and Chatd) where "
-                    "onChatListItemUpdate is not received";
+        std::cout << "[   WARN   ] Posible race condition (between API and Chatd) where "
+                    "onChatListItemUpdate (CHANGE_TYPE_PARTICIPANTS) is not received" << endl;
 
         ASSERT_TRUE(checkPriv(performerIdx, chatId, privilege, uh))
             << "updateChatPermissions: Unexpected permission for user: " << getUserIdStrB64(uh);
@@ -8053,9 +8052,8 @@ void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
     auto permChangeRecva2 = waitForResponse(peerUpdated1, minTimeout * 2);
     if (!permChangeRecva2)
     {
-        LOG_warn << "updateChatPermissions: onChatListItemUpdate(CHANGE_TYPE_OWN_PRIV) not "
-                    "received. Posible race condition (between API and Chatd) where "
-                    "onChatListItemUpdate is not received";
+        std::cout << "[   WARN   ] Posible race condition (between API and Chatd) where "
+                    "onChatListItemUpdate (CHANGE_TYPE_OWN_PRIV) is not received" << endl;
 
         ASSERT_TRUE(checkPriv(performerIdx, chatId, privilege, uh))
             << "updateChatPermissions: Unexpected permission for own user: " << getUserIdStrB64(uh);
