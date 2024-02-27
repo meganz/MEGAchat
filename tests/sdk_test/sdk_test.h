@@ -512,22 +512,30 @@ public:
         std::map<std::string, bool*> mVars;
     };
 
-    static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
+    static std::string getIdStrB64(const megachat::MegaChatHandle h, const std::string &msg)
     {
         const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID callid";
+        return idB64 ? idB64.get() : msg;
+    }
+
+    static std::string getUserIdStrB64(const megachat::MegaChatHandle h)
+    {
+        return getIdStrB64(h, "INVALID userId");
+    };
+
+    static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
+    {
+        return getIdStrB64(h, "INVALID callId");
     };
 
     static std::string getChatIdStrB64(const megachat::MegaChatHandle h)
     {
-        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID chatId";
+        return getIdStrB64(h, "INVALID chatId");
     };
 
     static std::string getSchedIdStrB64(const megachat::MegaChatHandle h)
     {
-        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID schedId";
+        return getIdStrB64(h, "INVALID schedId");
     };
 
     MegaChatApiTest();
@@ -770,6 +778,22 @@ protected:
 #endif
 
     /**
+     * @brief Allows to adjust the chatroom permissions for a participant (moderator role required)
+     *
+     * @param performerIdx index of user account that is going to perform the action
+     * @param userIdx index of user account whose chat permission is going to be modified
+     * @param uh MegaChatHandle that identifies the user account whose chat permission is going to be modified
+     * @param privilege new privilege
+     * @param crl TestChatRoomListener that tracks the changes related to chatroom
+     */
+    void updateChatPermissions(unsigned int performerIdx,
+                                                unsigned int userIdx,
+                                                const megachat::MegaChatHandle uh,
+                                                const megachat::MegaChatHandle chatId,
+                                                const int privilege,
+                                                TestChatRoomListener* crl);
+
+    /**
      * @brief Allows to set the title of a group chat
      *
      * The account idx that will perform this operation will be the idx
@@ -833,10 +857,6 @@ protected:
 
     void inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                        std::shared_ptr<TestChatRoomListener>chatroomListener);
-
-
-    void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
-                               std::shared_ptr<TestChatRoomListener>chatroomListener);
 
     // updates an existing scheduled meeting
     void updateSchedMeeting(const unsigned int a1, const unsigned int a2, const int expectedError, const SchedMeetingData& smData, const bool updateChatTitle);
