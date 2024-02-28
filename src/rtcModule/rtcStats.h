@@ -11,12 +11,65 @@
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
+#include <base/trackDelete.h>
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
-#include <base/trackDelete.h>
+
+#include <array>
 
 namespace rtcModule
 {
+
+class QualityLimitationReport
+{
+public:
+    enum class EReason : unsigned int 
+    {
+        NONE = 0,
+        CPU = 1,
+        BANDWIDTH = 2,
+        OTHER = 4,
+    };
+    static constexpr unsigned int NUMBER_OF_REASONS = 4u;
+
+    using StrToReasonMap = std::array<std::pair<std::string, EReason>, NUMBER_OF_REASONS>;
+    const StrToReasonMap mStrReasonMap{
+        std::make_pair("none", QualityLimitationReport::EReason::NONE),
+        std::make_pair("cpu", QualityLimitationReport::EReason::CPU),
+        std::make_pair("bandwidth", QualityLimitationReport::EReason::BANDWIDTH),
+        std::make_pair("other", QualityLimitationReport::EReason::OTHER),
+    };
+
+    /**
+     * @brief Restarts all the incidents counters.
+     */
+    void clear()
+    {
+        mIncidentCounter.fill(0u);
+    }
+
+    /**
+     * @brief Increments in one the internal counter of incidents matching the given type
+     *
+     * @param reason The string indicating the quality limitation reason. Should be contained in
+     * mStrReasonMap or be empty (interpreted as "none")
+     */
+    void addIncident(const std::string& reason);
+
+    /**
+     * @brief Writes the incidents counts in json format:
+     *
+     * - Json Output: [[0, 1], [1, 3], [2, 2], [3, 5]]
+     *
+     *   The first element of each pair is the numeric value associated to each type (see EReason)
+     *   and the second is the number of reported incidents for that type.
+     */
+    void toJson(rapidjson::Value& value, rapidjson::Document& json);
+
+private:
+    std::array<uint32_t, NUMBER_OF_REASONS> mIncidentCounter{};
+};
+
 class StatSamples
 {
 public:
@@ -51,6 +104,8 @@ public:
     std::vector<int32_t> mVtxHiResw;
     // height high res video
     std::vector<int32_t> mVtxHiResh;
+    // Number of quality limitation per reason
+    QualityLimitationReport mQualityLimitations;
 };
 
 class Stats
@@ -62,6 +117,7 @@ public:
 
     karere::Id mPeerId;
     uint32_t mCid = 0;
+    uint32_t mSfuProtoVersion = UINT32_MAX;
     karere::Id mCallid;
     // Duration of the call before our connection to sfu
     uint64_t mTimeOffset = 0;
@@ -77,11 +133,18 @@ public:
     std::string mSfuHost;
 
 protected:
-    static constexpr int kUnassignedCid = -1; // default value for unassigned CID (still not JOINED to SFU)
-    void parseSamples(const std::vector<int32_t>& samples, rapidjson::Value& value, rapidjson::Document &json, bool diff, const std::vector<float> *periods = nullptr);
+    static constexpr int kUnassignedCid =
+        -1; // default value for unassigned CID (still not JOINED to SFU)
+    void parseSamples(const std::vector<int32_t>& samples,
+                      rapidjson::Value& value,
+                      rapidjson::Document& json,
+                      bool diff,
+                      const std::vector<float>* periods = nullptr);
 };
 
-class ConnStatsCallBack : public rtc::RefCountedObject<webrtc::RTCStatsCollectorCallback>, public karere::DeleteTrackable
+class ConnStatsCallBack:
+    public rtc::RefCountedObject<webrtc::RTCStatsCollectorCallback>,
+    public karere::DeleteTrackable
 {
 public:
     ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId, void* appCtx);
@@ -89,8 +152,13 @@ public:
     void removeStats();
 
     void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
+
 protected:
-    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend);
+    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it,
+                      double& rtt,
+                      double& txBwe,
+                      int64_t& bytesRecv,
+                      int64_t& bytesSend);
 
     Stats* mStats = nullptr; // Doesn't take ownership (Belongs to Call)
     uint32_t mHiResId;

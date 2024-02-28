@@ -285,6 +285,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)mutePeers:(uint64_t)chatId client:(uint64_t)clientId delegate:(id<MEGAChatRequestDelegate>)delegate;
 
+- (void)rejectCall:(uint64_t)callId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)rejectCall:(uint64_t)callId;
+
 - (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles;
 
@@ -502,6 +505,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)releaseVideoDeviceWithDelegate:(id<MEGAChatRequestDelegate>)delegate;
 - (nullable MEGAChatCall *)chatCallForCallId:(uint64_t)callId;
 - (nullable MEGAChatCall *)chatCallForChatId:(uint64_t)chatId;
+- (BOOL)ignoredCall:(uint64_t)chatId;
 - (nullable MEGAHandleList *)chatCallsWithState:(MEGAChatCallStatus)callState;
 - (nullable MEGAHandleList *)chatCallsIds;
 - (BOOL)hasCallInChatRoom:(uint64_t)chatId;
@@ -511,6 +515,15 @@ NS_ASSUME_NONNULL_BEGIN
 - (BOOL)isAudioLevelMonitorEnabledForChatId:(uint64_t)chatId;
 - (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId;
+- (void)grantSpeakPermission:(uint64_t)chatId userHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)grantSpeakPermission:(uint64_t)chatId userHandle:(uint64_t)userHandle;
+- (void)revokeSpeakPermission:(uint64_t)chatId userHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)revokeSpeakPermission:(uint64_t)chatId userHandle:(uint64_t)userHandle;
+- (void)enableSpeakRequestSupportForCalls:(BOOL)enable;
+- (void)sendSpeakRequest:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)sendSpeakRequest:(uint64_t)chatId;
+- (void)removeSpeakRequest:(uint64_t)chatId userHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)removeSpeakRequest:(uint64_t)chatId userHandle:(uint64_t)userHandle;
 - (void)requestHiResVideoForChatId:(uint64_t)chatId clientId:(uint64_t)clientId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)stopHiResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)requestLowResVideoForChatId:(uint64_t)chatId clientIds:(NSArray<NSNumber *> *)clientIds delegate:(id<MEGAChatRequestDelegate>)delegate;

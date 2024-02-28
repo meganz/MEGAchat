@@ -117,7 +117,6 @@ class SessionHandler
 {
 public:
     virtual ~SessionHandler(){}
-    virtual void onSpeakRequest(ISession& session) = 0;
     virtual void onVThumbReceived(ISession& session) = 0;
     virtual void onHiResReceived(ISession& session) = 0;
     virtual void onDestroySession(ISession& session) = 0;
@@ -126,7 +125,6 @@ public:
     virtual void onRemoteAudioDetected(ISession& session) = 0;
     virtual void onPermissionsChanged(ISession& session) = 0;
     virtual void onRecordingChanged(ISession& session) = 0;
-    virtual void onSpeakStatusUpdate(rtcModule::ISession& session) = 0;
 };
 
 class ISession
@@ -138,7 +136,6 @@ public:
     virtual karere::AvFlags getAvFlags() const = 0;
     virtual SessionState getState() const = 0;
     virtual bool isAudioDetected() const = 0;
-    virtual bool hasRequestSpeak() const = 0;
     virtual TermCode getTermcode() const = 0;
     virtual void setTermcode(TermCode termcode) = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
@@ -147,7 +144,6 @@ public:
     virtual bool hasHighResolutionTrack() const = 0;
     virtual bool hasLowResolutionTrack() const = 0;
     virtual bool isModerator() const = 0;
-    virtual bool hasSpeakPermission() const = 0;
 };
 
 class ICall;
@@ -176,7 +172,8 @@ public:
     virtual void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
     virtual void onWrPushedFromCall(const rtcModule::ICall& call) = 0;
     virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
-    virtual void onSpeakStatusUpdate(const rtcModule::ICall& call) = 0;
+    virtual void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
+    virtual void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
 };
 
 class KarereWaitingRoom;
@@ -219,30 +216,27 @@ public:
     virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
-    virtual bool hasPendingSpeakRequest() const = 0;
-    virtual unsigned int getOwnSpeakerState() const = 0;
+    virtual bool hasUserPendingSpeakRequest(const karere::Id& uh) const = 0;
     virtual int getWrJoiningState() const = 0;
     virtual TermCode getTermCode() const = 0;
     virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(const karere::Id &callerid) = 0;
     virtual bool alreadyParticipating() = 0;
-    virtual void requestSpeak(const bool add = true) = 0;
-    virtual bool isSpeakAllow() const = 0;
-    virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
-    virtual void stopSpeak(Cid_t cid = 0) = 0;
+    virtual void addOrRemoveSpeaker(const karere::Id& user, const bool add) = 0;
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
     virtual void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const = 0;
     virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
-    virtual std::vector<Cid_t> getSpeakerRequested() = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 
+    virtual std::set<karere::Id> getSpeakRequestsList() const = 0;
+    virtual std::set<karere::Id> getSpeakersList() const = 0;
     virtual std::set<karere::Id> getParticipants() const = 0;
     virtual std::set<karere::Id> getModerators() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
@@ -253,7 +247,8 @@ public:
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
     virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
-    virtual bool hasOwnUserSpeakPermission() const = 0;
+    virtual bool hasUserSpeakPermission(const uint64_t userid) const = 0;
+    virtual bool addDelSpeakRequest(const karere::Id& user, const bool add) = 0;
 };
 
 class RtcModule
@@ -272,6 +267,9 @@ public:
     virtual void removeLocalVideoRenderer(const karere::Id &chatid) = 0;
     virtual unsigned int getNumInputVideoTracks() const = 0;
     virtual void setNumInputVideoTracks(const unsigned int numInputVideoTracks) = 0;
+    virtual void enableSpeakRequestSupportForCalls(const bool enable) = 0;
+    virtual bool isSpeakRequestSupportEnabled() const = 0;
+    virtual sfu::SfuProtocol getMySfuProtoVersion() const = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;

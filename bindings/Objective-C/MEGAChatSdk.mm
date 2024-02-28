@@ -1024,6 +1024,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)rejectCall:(uint64_t)callId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->rejectCall(callId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)rejectCall:(uint64_t)callId {
+    if (self.megaChatApi) {
+        self.megaChatApi->rejectCall(callId);
+    }
+}
+
 - (void)autojoinPublicChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->autojoinPublicChat(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
@@ -1865,6 +1877,11 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return nil;
 }
 
+- (BOOL)ignoredCall:(uint64_t)chatId {
+    if (self.megaChatApi == nil) return NO;
+    return self.megaChatApi->setIgnoredCall(chatId);
+}
+
 - (NSInteger)numCalls {
     return self.megaChatApi ? self.megaChatApi->getNumCalls() : 0;
 }
@@ -1906,6 +1923,60 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 - (void)enableAudioMonitor:(BOOL)enable chatId:(uint64_t)chatId {
     if (self.megaChatApi) {
         self.megaChatApi->enableAudioLevelMonitor(enable, chatId);
+    }
+}
+
+- (void)grantSpeakPermission:(uint64_t)chatId userHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->grantSpeakPermission(chatId, userHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)grantSpeakPermission:(uint64_t)chatId userHandle:(uint64_t)userHandle {
+    if (self.megaChatApi) {
+        self.megaChatApi->grantSpeakPermission(chatId, userHandle);
+    }
+}
+
+- (void)revokeSpeakPermission:(uint64_t)chatId userHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->revokeSpeakPermission(chatId, userHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)revokeSpeakPermission:(uint64_t)chatId userHandle:(uint64_t)userHandle {
+    if (self.megaChatApi) {
+        self.megaChatApi->revokeSpeakPermission(chatId, userHandle);
+    }
+}
+
+- (void)enableSpeakRequestSupportForCalls:(BOOL)enable {
+    if (self.megaChatApi) {
+        self.megaChatApi->enableSpeakRequestSupportForCalls(enable);
+    }
+}
+
+- (void)sendSpeakRequest:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->sendSpeakRequest(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)sendSpeakRequest:(uint64_t)chatId {
+    if (self.megaChatApi) {
+        self.megaChatApi->sendSpeakRequest(chatId);
+    }
+}
+
+- (void)removeSpeakRequest:(uint64_t)chatId userHandle:(uint64_t)userHandle delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->removeSpeakRequest(chatId, userHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)removeSpeakRequest:(uint64_t)chatId userHandle:(uint64_t)userHandle {
+    if (self.megaChatApi) {
+        self.megaChatApi->removeSpeakRequest(chatId, userHandle);
     }
 }
 
