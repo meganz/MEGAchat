@@ -788,11 +788,11 @@ protected:
      * @param crl TestChatRoomListener that tracks the changes related to chatroom
      */
     void updateChatPermissions(const unsigned int performerIdx,
-                                                const unsigned int userIdx,
-                                                const megachat::MegaChatHandle uh,
-                                                const megachat::MegaChatHandle chatId,
-                                                const int privilege,
-                                                TestChatRoomListener* crl);
+                               const unsigned int userIdx,
+                               const megachat::MegaChatHandle uh,
+                               const megachat::MegaChatHandle chatId,
+                               const int privilege,
+                               TestChatRoomListener* crl);
 
     /**
      * @brief Allows to set the title of a group chat
