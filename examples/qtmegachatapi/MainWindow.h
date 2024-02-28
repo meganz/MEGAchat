@@ -229,6 +229,7 @@ class MainWindow :
         void on_mLogout_clicked();
         void onCatchUp();
         void onSetSFUId();
+        void onSpeakReqFeature();
         void onlastGreenVisibleClicked();
         void onChatsSettingsClicked();
         void onChatCheckPushNotificationRestrictionClicked();

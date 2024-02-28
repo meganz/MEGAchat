@@ -859,6 +859,16 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             auto actRing = entry->addAction(tr("Ring user"));
             actRing->setProperty("userHandle", userhandle);
             connect(actRing, SIGNAL(triggered()), this, SLOT(onRingUser()));
+
+            auto actAddSpeaker = entry->addAction(tr("Grants speak permission"));
+            actAddSpeaker->setProperty("userHandle", userhandle);
+            actAddSpeaker->setProperty("add", true);
+            connect(actAddSpeaker, SIGNAL(triggered()), this, SLOT(onAddSpeaker()));
+
+            auto actDelSpeaker = entry->addAction(tr("Revokes speak permission"));
+            actDelSpeaker->setProperty("userHandle", userhandle);
+            actDelSpeaker->setProperty("add", false);
+            connect(actDelSpeaker, SIGNAL(triggered()), this, SLOT(onAddSpeaker()));
         }
 
         if (privilege != megachat::MegaChatRoom::PRIV_RM)
@@ -1077,6 +1087,18 @@ void ChatWindow::onRingUser() const
     const QVariant uHandle = action->property("userHandle");
     mMegaChatApi->ringIndividualInACall(mChatRoom->getChatId(), static_cast<MegaChatHandle>(uHandle.toLongLong()), atoi(auxTimeout.c_str()));
 #endif
+}
+
+void ChatWindow::onAddSpeaker() const
+{
+    const QAction* action = qobject_cast<QAction *>(sender());
+    if (!action) { return; }
+
+    const MegaChatHandle uHandle = static_cast<MegaChatHandle>(action->property("userHandle").toULongLong());
+    const bool add = static_cast<bool>(action->property("add").toBool());
+    add
+        ? mMegaChatApi->grantSpeakPermission(mChatRoom->getChatId(), uHandle)
+        : mMegaChatApi->revokeSpeakPermission(mChatRoom->getChatId(), uHandle);
 }
 
 void ChatWindow::onMemberSetPriv()

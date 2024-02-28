@@ -251,6 +251,38 @@ typedef enum
 } karere_scheduled_changed_flags_t;
 typedef std::bitset<SC_FLAGS_SIZE> karere_sched_bs_t;
 
+struct MTristate
+{
+public:
+    enum
+    {
+        kTsUndef  = -1,
+        kTsFalse  = 0,
+        kTsTrue   = 1,
+    };
+
+    MTristate(const bool v)             { mStatus = v; }
+    ~MTristate()                        = default;
+    MTristate()                         = default;
+    MTristate(MTristate&)               = default;
+    MTristate(MTristate&&)              = default;
+    MTristate& operator=(MTristate&)    = default;
+    MTristate& operator=(MTristate&&)   = default;
+
+    static bool isValid(int v)          { return v >= kTsUndef && v <= kTsTrue; }
+    bool isUndef() const                { return mStatus == kTsUndef; }
+    bool get () const                   { return mStatus; }
+    void reset ()                       { mStatus = kTsUndef;}
+    bool set (int v)
+    {
+        if (!isValid(v)) { return false; }
+        mStatus = v;
+        return true;
+    }
+private:
+    int mStatus = kTsUndef;
+};
+
 // These are located in the generated karereDbSchema.cpp, generated from dbSchema.sql
 extern const char* gDbSchema;
 extern const char* gDbSchemaHash;

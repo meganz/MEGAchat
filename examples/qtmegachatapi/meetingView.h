@@ -40,6 +40,8 @@ public:
     void setNotParticipating();
     void setConnecting();
     static std::string callStateToString(const megachat::MegaChatCall& call);
+    megachat::MegaChatHandle getChatid();
+    megachat::MegaChatApi& megachatApi();
 
     // methods to add/remove video widgets
     bool hasLowResByCid(uint32_t cid);
@@ -56,7 +58,7 @@ public:
                                  megachat::MegaChatError* e) override;
 
 protected:
-    megachat::MegaChatApi &mMegaChatApi;
+    megachat::MegaChatApi& mMegaChatApi;
     mega::MegaHandle mChatid;
     int mNetworkQuality = ::megachat::MegaChatCall::NETWORK_QUALITY_GOOD;
 
@@ -108,8 +110,7 @@ public slots:
     void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
-    void onRemoveSpeaker(const megachat::MegaChatHandle cid);
-    void onRemoveSpeaker();
+    void onRemoveOwnSpeaker();
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();

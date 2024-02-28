@@ -22,6 +22,7 @@ public:
     void setWidgetItem(QListWidgetItem *listWidgetItem);
     QListWidgetItem *getWidgetItem() const;
     void setOnHold(bool isOnhold);
+    megachat::MegaChatHandle getUserId() { return mUserid; }
     void updateWidget(const megachat::MegaChatSession &session);
 
 private:
@@ -29,6 +30,7 @@ private:
     bool mAudio;
     bool mVideo;
     bool mRequestSpeak;
+    megachat::MegaChatHandle mUserid = megachat::MEGACHAT_INVALID_HANDLE;
     MeetingView *mMeetingView;
     QListWidgetItem *mListWidgetItem;
     std::unique_ptr <QHBoxLayout> mLayout;
@@ -36,6 +38,7 @@ private:
     std::unique_ptr <QLabel> mStatusLabel;
     std::unique_ptr <QLabel> mTitleLabel;
     std::unique_ptr <QLabel> mAudioLabel;
+    std::unique_ptr <QLabel> mSpkPermLabel;
     std::unique_ptr <QLabel> mVideoLabel;
     std::unique_ptr <QLabel> mReqSpealLabel;
     std::unique_ptr <QLabel> mRecordingLabel;

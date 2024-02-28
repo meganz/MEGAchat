@@ -69,11 +69,6 @@ MegaChatHandle MegaChatSession::getClientid() const
     return MEGACHAT_INVALID_HANDLE;
 }
 
-bool MegaChatSession::isSpeakAllowed() const
-{
-    return false;
-}
-
 bool MegaChatSession::hasAudio() const
 {
     return false;
@@ -145,11 +140,6 @@ bool MegaChatSession::hasChanged(int) const
     return false;
 }
 
-bool MegaChatSession::hasPendingSpeakRequest() const
-{
-    return false;
-}
-
 bool MegaChatSession::isAudioDetected() const
 {
     return false;
@@ -171,11 +161,6 @@ bool MegaChatSession::isModerator() const
 }
 
 bool MegaChatSession::isRecording() const
-{
-    return false;
-}
-
-bool MegaChatSession::hasSpeakPermission() const
 {
     return false;
 }
@@ -254,7 +239,7 @@ bool MegaChatCall::hasChanged(int ) const
     return false;
 }
 
-bool MegaChatCall::hasSpeakPermission() const
+bool MegaChatCall::hasUserSpeakPermission(const MegaChatHandle /*uh*/) const
 {
     return false;
 }
@@ -319,6 +304,11 @@ bool MegaChatCall::isOwnModerator() const
     return false;
 }
 
+mega::MegaHandleList* MegaChatCall::getSessionsClientidByUserHandle(const MegaChatHandle /*uh*/) const
+{
+    return NULL;
+}
+
 MegaHandleList *MegaChatCall::getSessionsClientid() const
 {
     return NULL;
@@ -337,6 +327,16 @@ MegaChatHandle MegaChatCall::getPeeridCallCompositionChange() const
 int MegaChatCall::getCallCompositionChange() const
 {
     return NO_COMPOSITION_CHANGE;
+}
+
+MegaChatHandle MegaChatCall::getHandle() const
+{
+    return MEGACHAT_INVALID_HANDLE;
+}
+
+bool MegaChatCall::getFlag() const
+{
+    return false;
 }
 
 MegaHandleList *MegaChatCall::getPeeridParticipants() const
@@ -374,11 +374,6 @@ bool MegaChatCall::isOwnClientCaller() const
     return false;
 }
 
-unsigned int MegaChatCall::getSpeakerState() const
-{
-    return 0;
-}
-
 MegaChatHandle MegaChatCall::getCaller() const
 {
     return MEGACHAT_INVALID_HANDLE;
@@ -394,17 +389,12 @@ const char* MegaChatCall::getGenericMessage() const
     return NULL;
 }
 
-bool MegaChatCall::isSpeakAllowed() const
-{
-    return false;
-}
-
 int MegaChatCall::getNetworkQuality() const
 {
     return 0;
 }
 
-bool MegaChatCall::hasPendingSpeakRequest() const
+bool MegaChatCall::hasUserPendingSpeakRequest(const MegaChatHandle /*uh*/) const
 {
     return false;
 }
@@ -420,6 +410,16 @@ const MegaChatWaitingRoom* MegaChatCall::getWaitingRoom() const
 }
 
 const ::mega::MegaHandleList* MegaChatCall::getHandleList() const
+{
+    return NULL;
+}
+
+const mega::MegaHandleList* MegaChatCall::getSpeakersList() const
+{
+    return NULL;
+}
+
+const ::mega::MegaHandleList* MegaChatCall::getSpeakRequestsList() const
 {
     return NULL;
 }
@@ -1203,11 +1203,6 @@ void MegaChatApi::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clie
     pImpl->requestHiResQuality(chatid, clientId, quality, listener);
 }
 
-void MegaChatApi::removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
-{
-    pImpl->removeSpeaker(chatid, clientId, listener);
-}
-
 void MegaChatApi::pushUsersIntoWaitingRoom(MegaChatHandle chatid, MegaHandleList* users, const bool all, MegaChatRequestListener* listener)
 {
     pImpl->pushUsersIntoWaitingRoom(chatid, users, all, listener);
@@ -1303,29 +1298,34 @@ bool MegaChatApi::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
     return pImpl->isAudioLevelMonitorEnabled(chatid);
 }
 
+void MegaChatApi::grantSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener)
+{
+    pImpl->addRevokeSpeakPermission(chatid, userid, true/*add*/, listener);
+}
+
+void MegaChatApi::revokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener)
+{
+    pImpl->addRevokeSpeakPermission(chatid, userid, false/*add*/, listener);
+}
+
+void MegaChatApi::enableSpeakRequestSupportForCalls(bool enable)
+{
+    pImpl->enableSpeakRequestSupportForCalls(enable);
+}
+
+void MegaChatApi::sendSpeakRequest(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->addDelSpeakRequest(chatid, MEGACHAT_INVALID_HANDLE, true/*add*/, listener);
+}
+
+void MegaChatApi::removeSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener)
+{
+    pImpl->addDelSpeakRequest(chatid, userid, false/*add*/, listener);
+}
+
 void MegaChatApi::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->enableAudioLevelMonitor(enable, chatid, listener);
-}
-
-void MegaChatApi::requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
-{
-    pImpl->requestSpeak(chatid, listener);
-}
-
-void MegaChatApi::removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener)
-{
-    pImpl->removeRequestSpeak(chatid, listener);
-}
-
-void MegaChatApi::approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
-{
-    pImpl->approveSpeakRequest(chatid, clientId, listener);
-}
-
-void MegaChatApi::rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)
-{
-    pImpl->rejectSpeakRequest(chatid, clientId, listener);
 }
 
 void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)

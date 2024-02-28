@@ -117,6 +117,7 @@ public:
 
     karere::Id mPeerId;
     uint32_t mCid = 0;
+    uint32_t mSfuProtoVersion = UINT32_MAX;
     karere::Id mCallid;
     // Duration of the call before our connection to sfu
     uint64_t mTimeOffset = 0;

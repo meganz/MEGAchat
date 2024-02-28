@@ -98,13 +98,13 @@ public:
         CHANGE_TYPE_NO_CHANGES = 0x00,              /// Session doesn't have any change
         CHANGE_TYPE_STATUS = 0x01,                  /// Session status has changed
         CHANGE_TYPE_REMOTE_AVFLAGS = 0x02,          /// Remote audio/video flags has changed
-        CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04, /// Session speak requested
+        CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04, /// Deprecated - Session speak requested
         CHANGE_TYPE_SESSION_ON_LOWRES = 0x08,       /// Low-Res video received
         CHANGE_TYPE_SESSION_ON_HIRES = 0x10,        /// Hi-Res video received
         CHANGE_TYPE_SESSION_ON_HOLD = 0x20,         /// Session is on hold
         CHANGE_TYPE_AUDIO_LEVEL = 0x40,             /// Indicates if peer is speaking
         CHANGE_TYPE_PERMISSIONS = 0x80,             /// Indicates that peer moderator role status has changed
-        CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Speak permission has changed for peer
+        CHANGE_TYPE_SPEAK_PERMISSION = 0x100,       /// Deprecated - Speak permission has changed for peer
         CHANGE_TYPE_SESSION_ON_RECORDING = 0x200,   /// Call has been started/stopped recording by the peer associated to this Session
     };
 
@@ -154,21 +154,10 @@ public:
     virtual MegaChatHandle getClientid() const;
 
     /**
-     * @brief Returns if peer associated to this session is allowed to speak in the call
-     *
-     * The hability to speak in a call depends on two factors:
-     *	1) Peer must have speak permission      (Check MegaChatSession::hasSpeakPermission for more information)
-     *  2) Peer must have audio av flag enabled (unmuted) (Check MegaChatSession::hasAudio for more information)
-     *
-     * @return True if peer associated to this session is allowed to speak in the call
-     */
-    virtual bool isSpeakAllowed() const;
-
-    /**
      * @brief Returns if audio flags are enabled for the session (peer is muted or not)
      *
      * A peer with audio flag enabled, is not necessarily allowed to speak, it also must have speak permission
-     * Check MegaChatSession::isSpeakAllowed() to know if peer is allowed to speak
+     * Check MegaChatCall::hasUserSpeakPermission to know if peer is allowed to speak
      *
      * @return true if audio flags are enabled for the session (peer is muted or not)
      */
@@ -319,8 +308,7 @@ public:
      *  - MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
-     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
-     * Check MegaChatSession::hasRequestSpeak
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04 - Deprecated
      *
      *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES = 0x08
      * Check MegaChatSession::canRecvVideoLowRes
@@ -336,6 +324,8 @@ public:
      *
      * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
      * Check MegaChatSession::isModerator
+     *
+     * - MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION = 0x100 - Deprecated
      *
      * - MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING = 0x200
      * Check MegaChatSession::isRecording
@@ -380,8 +370,7 @@ public:
      *  - MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS = 0x02
      * Check MegaChatSession::hasAudio() and MegaChatSession::hasVideo() value
      *
-     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04
-     * Check MegaChatSession::hasRequestSpeak
+     *  - MegaChatSession::CHANGE_TYPE_SESSION_SPEAK_REQUESTED = 0x04  - Deprecated
      *
      *  - MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES = 0x08
      * Check MegaChatSession::canRecvVideoLowRes
@@ -398,19 +387,14 @@ public:
      * - MegaChatSession::CHANGE_TYPE_PERMISSIONS = 0x80
      * Check MegaChatSession::isModerator
      *
+     * - MegaChatSession::CHANGE_TYPE_SPEAK_PERMISSION = 0x100 - Deprecated
+     *
      * - MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING = 0x200
      * Check MegaChatSession::isRecording
      *
      * @return true if this session has an specific change
      */
     virtual bool hasChanged(int changeType) const;
-
-    /**
-     * @brief Returns if peer has a speak request pending to be approved by a host
-     *
-     * @return true if peer has a speak request pending to be approved by a host
-     */
-    virtual bool hasPendingSpeakRequest() const;
 
     /**
      * @brief Returns if audio is detected for this session
@@ -456,18 +440,6 @@ public:
      * @return True if peer associated to the session is recording the call, otherwise returns false
      */
     virtual bool isRecording() const;
-
-    /**
-     * @brief Returns if peer associated to the session, has speak permission
-     *
-     * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
-     *
-     * A peer with speak permission, is not necessarily allowed to speak, it also must have audio flag enabled (unmuted)
-     * Check MegaChatSession::isSpeakAllowed() to know if peer has audio flag enabled
-     *
-     * @return True if peer associated to the session, has permission to speak
-     */
-    virtual bool hasSpeakPermission() const;
 
     /**
      * @brief Returns session av flags in a readable format
@@ -533,7 +505,8 @@ public:
         CHANGE_TYPE_WR_USERS_ALLOW = 0x10000,       /// Notify about users that have been granted to enter the call. (just for moderators)
         CHANGE_TYPE_WR_USERS_DENY = 0x20000,        /// Notify about users that have been denied to enter the call. (just for moderators)
         CHANGE_TYPE_WR_PUSHED_FROM_CALL = 0X40000,  /// We have been pushed into a waiting room
-        CHANGE_TYPE_CALL_WILL_END = 0X80000,        /// Notify that call will end due to duration restrictions associated to MEGA account plan
+        CHANGE_TYPE_SPEAK_REQUESTED = 0X80000,      /// Speak request added/removed for a call participant
+        CHANGE_TYPE_CALL_WILL_END = 0x100000,       /// Notify that call will end due to duration restrictions associated to MEGA account plan
     };
 
     enum
@@ -676,7 +649,7 @@ public:
      * @brief Return if local audio flags are enabled (own peer is muted or not)
      *
      * An user with local audio flags enabled, is not necessarily allowed to speak, it also must have speak permission
-     * Check MegaChatCall::isSpeakAllowed to know if own peer is allowed to speak.
+     * Check MegaChatCall::hasUserSpeakPermission to know if own peer is allowed to speak.
      *
      * @return true if local audio flags are enabled (own peer is muted or not)
      */
@@ -864,18 +837,6 @@ public:
     virtual bool hasChanged(int changeType) const;
 
     /**
-     * @brief Returns if our own peer, has speak permission
-     *
-     * This method only returns a valid value if MegaChatCall::isSpeakRequestEnabled() returns true.
-     *
-     * An user with speak permission, is not necessarily allowed to speak, it also must have audio av flag enabled (unmuted).
-     * Check MegaChatCall::isSpeakAllowed
-     *
-     * @return True if our own peer, has speak permission
-     */
-    virtual bool hasSpeakPermission() const;
-
-    /**
      * @brief Returns if local audio is detected
      *
      * @deprecated
@@ -883,6 +844,20 @@ public:
      * @return true if audio is detected
      */
     virtual bool isAudioDetected() const;
+
+    /**
+     * @brief Returns if all clients for the same user account have permission to speak in this call
+     *
+     * The hability to speak in a call, not only depends on having permission to speak,
+     * but also audio av flags must be enabled for that user (unmuted), so you need to
+     * call MegaChatSession::hasAudio to check if a specific participant has audio av flags enabled.
+     *
+     * @note: If this method returns true, it means that all clients for the same user account has permission to speak
+     * in this call
+     *
+     * @return true if all clients for the same user account have permission to speak in this call, otherwise returns false
+     */
+    virtual bool hasUserSpeakPermission(const MegaChatHandle /*uh*/) const;
 
     /**
      * @brief Return call duration
@@ -994,10 +969,10 @@ public:
      * @brief Returns if speak request option is enabled for this call
      *
      * If speak request option is enabled, users with non-host role, must request permission to speak.
-     * Check MegaChatApi::requestSpeak documentation.
+     * Check MegaChatApi::sendSpeakRequest and MegaChatApi::removeSpeakRequest documentation.
      *
-     * An user with speak permission, is not necessarily allowed to speak, it also must have audio av flag enabled.
-     * Check MegaChatCall::isSpeakAllowed
+     * An user with speak permission, is not necessarily abled to speak, it also must have audio av flag enabled (unmuted).
+     * MegaChatCall::hasUserSpeakPermission
      *
      * @return if speak request option is enabled for this call
      */
@@ -1054,6 +1029,17 @@ public:
      * @return True if our own user has moderator role in the call
      */
     virtual bool isOwnModerator() const;
+
+    /**
+     * @brief Get a list with the ids of client that have a session with me, and whose user handle matches with uh param
+     *
+     * If no elements found, an empty MegaHandleList will be returned.
+     *
+     * You take the ownership of the returned value.
+     *
+     * @return A list of handles with the ids of clients whose user handle matches with uh param
+     */
+    virtual mega::MegaHandleList* getSessionsClientidByUserHandle(const MegaChatHandle /*uh*/) const;
 
     /**
      * @brief Get a list with the ids of client that have a session with me
@@ -1123,6 +1109,29 @@ public:
     virtual mega::MegaHandleList *getPeeridParticipants() const;
 
     /**
+     * @brief Get a MegaChatHandle used to notify multiple events
+     *
+     * This function only returns a valid MegaChatHandle in the following scenarios:
+     * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK is notified via MegaChatCallListener::onChatCallUpdate
+     *   to indicate that speak permission for a call participant has changed
+     *
+     * @return a MegaChatHandle used to notify multiple events
+     */
+    virtual MegaChatHandle getHandle() const;
+
+    /**
+     * @brief Get a boolean used to notify multiple events
+     *
+     * This function only returns a valid value in the following scenarios:
+     * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK is notified via MegaChatCallListener::onChatCallUpdate
+     *   + this method returns true to indicate that speak permission for a call participant has been granted
+     *   + this method returns false to indicate that speak permission for a call participant has been revoked
+     *
+     * @return a boolean used to notify multiple events
+     */
+    virtual bool getFlag() const;
+
+    /**
      * @brief Get a MegaHandleList with the ids of peers that have moderator role in the call
      *
      * Participants with moderator role can:
@@ -1183,21 +1192,6 @@ public:
     virtual bool isOwnClientCaller() const;
 
     /**
-     * @brief Returns the current speak status for our own client
-     *
-     * The value returned by this method is valid just if MegaChatCall::isSpeakRequestEnabled()
-     * returns true.
-     *
-     * This method can return the following values:
-     * - MegaChatCall::SPEAKER_STATUS_DISABLED = 0 => we don't have speak permission
-     * - MegaChatCall::SPEAKER_STATUS_PENDING  = 1 => we are pending to be granted to speak
-     * - MegaChatCall::SPEAKER_STATUS_ACTIVE   = 2 => we have speak permission
-     *
-     * @return the current speak status for our own client
-     */
-    virtual unsigned int getSpeakerState() const;
-
-    /**
      * @brief Returns the handle from user that has started the call
      *
      * This function only returns a valid value when call is or has gone through CALL_STATUS_RING_IN state.
@@ -1227,19 +1221,6 @@ public:
     virtual const char* getGenericMessage() const;
 
     /**
-     * @brief Returns if our own user is allowed to speak in the call
-     *
-     * The hability to speak in a call depends on two factors:
-     *	1) User must have speak permission      (Check MegaChatCall::hasPermissionToSpeak for more information)
-     *  2) User must have audio av flag enabled (unmuted) (Check MegaChatCall::hasLocalAudio for more information)
-     *
-     * @note If there isn't a call in that chatroom, this method returns false
-     *
-     * @return True if our own user is allowed to speak in the call
-     */
-    virtual bool isSpeakAllowed() const;
-
-    /**
      * @brief Returns network quality
      *
      * The valid network quality values are:
@@ -1257,11 +1238,14 @@ public:
     virtual int getNetworkQuality() const;
 
     /**
-     * @brief Returns if our own peer has a speak request pending to be approved by a host
+     * @brief Returns if a user account that participates in a call has a pending speak request in flight
      *
-     * @return true if our own peer has a speak request pending to be approved by a host
+     * @note: speak permission affects to all clients for the same account, so when a speak request is
+     * accepted or rejected, it affects to all clients for the same account.
+     *
+     * @return true if a user account that participates in a call has a pending speak request in flight
      */
-    virtual bool hasPendingSpeakRequest() const;
+    virtual bool hasUserPendingSpeakRequest(const MegaChatHandle /*uh*/) const;
 
     /**
      * @brief Returns our current permission to join the call (just valid if we are in a waiting room)
@@ -1309,6 +1293,32 @@ public:
      * @return a MegaHandleList that can be used for multiple purposes, or NULL in case it doesn't exists
      */
     virtual const mega::MegaHandleList* getHandleList() const;
+
+    /**
+     * @brief Returns a MegaHandleList that contains the user handles of all non-moderator users that have
+     * been given speak permission.
+     *
+     * This method will return a valid MegaHandleList instance even if speakers list doesn't contain any element
+     *
+     * The MegaChatCall retains the ownership of returned value
+     *
+     * @return a MegaHandleList that contains the user handles of all non-moderator users that have
+     * been given speak permission.
+     */
+    virtual const mega::MegaHandleList* getSpeakersList() const;
+
+    /**
+     * @brief Returns a MegaHandleList that contains the user handles of all non-moderator users that have
+     * a pending speak request in flight
+     *
+     * This method will return a valid MegaHandleList instance even if speak requests list doesn't contain any element
+     *
+     * The MegaChatCall retains the ownership of returned value
+     *
+     * @return a MegaHandleList that contains the user handles of all non-moderator users that have
+     * a pending speak request in flight
+     */
+    virtual const ::mega::MegaHandleList* getSpeakRequestsList() const;
 };
 
 /**
@@ -2504,74 +2514,76 @@ public:
 class MegaChatRequest
 {
 public:
-    enum {
-        TYPE_INITIALIZE                                         = 0, // (obsolete)
-        TYPE_CONNECT                                            = 1, // (obsolete) connect to chatd (call it after login+fetchnodes with MegaApi)
-        TYPE_DELETE                                             = 2, // delete MegaChatApi instance
-        TYPE_LOGOUT                                             = 3, // delete existing Client and creates a new one
-        TYPE_SET_ONLINE_STATUS                                  = 4,
-        TYPE_START_CHAT_CALL                                    = 5,
-        TYPE_ANSWER_CHAT_CALL                                   = 6,
-        TYPE_DISABLE_AUDIO_VIDEO_CALL                           = 7,
-        TYPE_HANG_CHAT_CALL                                     = 8,
-        TYPE_CREATE_CHATROOM                                    = 9,
-        TYPE_REMOVE_FROM_CHATROOM                               = 10,
-        TYPE_INVITE_TO_CHATROOM                                 = 11,
-        TYPE_UPDATE_PEER_PERMISSIONS                            = 12,
-        TYPE_EDIT_CHATROOM_NAME                                 = 13,
-        TYPE_EDIT_CHATROOM_PIC                                  = 14,
-        TYPE_TRUNCATE_HISTORY                                   = 15,
-        TYPE_SHARE_CONTACT                                      = 16,
-        TYPE_GET_FIRSTNAME                                      = 17,
-        TYPE_GET_LASTNAME                                       = 18,
-        TYPE_DISCONNECT                                         = 19,
-        TYPE_GET_EMAIL                                          = 20,
-        TYPE_ATTACH_NODE_MESSAGE                                = 21,
-        TYPE_REVOKE_NODE_MESSAGE                                = 22,
-        TYPE_SET_BACKGROUND_STATUS                              = 23,
-        TYPE_RETRY_PENDING_CONNECTIONS                          = 24,
-        TYPE_SEND_TYPING_NOTIF                                  = 25,
-        TYPE_SIGNAL_ACTIVITY                                    = 26,
-        TYPE_SET_PRESENCE_PERSIST                               = 27,
-        TYPE_SET_PRESENCE_AUTOAWAY                              = 28,
-        TYPE_LOAD_AUDIO_VIDEO_DEVICES                           = 29, // Deprecated
-        TYPE_ARCHIVE_CHATROOM                                   = 30,
-        TYPE_PUSH_RECEIVED                                      = 31,
-        TYPE_SET_LAST_GREEN_VISIBLE                             = 32,
-        TYPE_LAST_GREEN                                         = 33,
-        TYPE_LOAD_PREVIEW                                       = 34,
-        TYPE_CHAT_LINK_HANDLE                                   = 35,
-        TYPE_SET_PRIVATE_MODE                                   = 36,
-        TYPE_AUTOJOIN_PUBLIC_CHAT                               = 37,
-        TYPE_CHANGE_VIDEO_STREAM                                = 38,
-        TYPE_IMPORT_MESSAGES                                    = 39,
-        TYPE_SET_RETENTION_TIME                                 = 40,
-        TYPE_SET_CALL_ON_HOLD                                   = 41,
-        TYPE_ENABLE_AUDIO_LEVEL_MONITOR                         = 42,
-        TYPE_MANAGE_REACTION                                    = 43,
-        TYPE_GET_PEER_ATTRIBUTES                                = 44,
-        TYPE_REQUEST_SPEAK                                      = 45,
-        TYPE_APPROVE_SPEAK                                      = 46,
-        TYPE_REQUEST_HIGH_RES_VIDEO                             = 47,
-        TYPE_REQUEST_LOW_RES_VIDEO                              = 48,
-        TYPE_OPEN_VIDEO_DEVICE                                  = 49,
-        TYPE_REQUEST_HIRES_QUALITY                              = 50,
-        TYPE_DEL_SPEAKER                                        = 51,
-        TYPE_REQUEST_SVC_LAYERS                                 = 52,
-        TYPE_SET_CHATROOM_OPTIONS                               = 53,
-        TYPE_CREATE_SCHEDULED_MEETING                           = 54, // Deprecated
-        TYPE_DELETE_SCHEDULED_MEETING                           = 55,
-        TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES                = 56,
-        TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE                = 57,
-        TYPE_UPDATE_SCHEDULED_MEETING                           = 58,
-        TYPE_WR_PUSH                                            = 59,
-        TYPE_WR_ALLOW                                           = 60,
-        TYPE_WR_KICK                                            = 61,
-        TYPE_RING_INDIVIDUAL_IN_CALL                            = 62,
-        TYPE_MUTE                                               = 63,
-        TYPE_REJECT_CALL                                        = 64,
-        TYPE_SET_LIMIT_CALL                                     = 65,
-        TOTAL_OF_REQUEST_TYPES                                  = 66,
+    enum{
+        TYPE_INITIALIZE                             = 0, // (obsolete)
+        TYPE_CONNECT                                = 1, // (obsolete) connect to chatd (call it after login+fetchnodes with MegaApi)
+        TYPE_DELETE                                 = 2, // delete MegaChatApi instance
+        TYPE_LOGOUT                                 = 3, // delete existing Client and create a new one
+        TYPE_SET_ONLINE_STATUS                      = 4,
+        TYPE_START_CHAT_CALL                        = 5,
+        TYPE_ANSWER_CHAT_CALL                       = 6,
+        TYPE_DISABLE_AUDIO_VIDEO_CALL               = 7,
+        TYPE_HANG_CHAT_CALL                         = 8,
+        TYPE_CREATE_CHATROOM                        = 9,
+        TYPE_REMOVE_FROM_CHATROOM                   = 10,
+        TYPE_INVITE_TO_CHATROOM                     = 11,
+        TYPE_UPDATE_PEER_PERMISSIONS                = 12,
+        TYPE_EDIT_CHATROOM_NAME                     = 13,
+        TYPE_EDIT_CHATROOM_PIC                      = 14,
+        TYPE_TRUNCATE_HISTORY                       = 15,
+        TYPE_SHARE_CONTACT                          = 16,
+        TYPE_GET_FIRSTNAME                          = 17,
+        TYPE_GET_LASTNAME                           = 18,
+        TYPE_DISCONNECT                             = 19,
+        TYPE_GET_EMAIL                              = 20,
+        TYPE_ATTACH_NODE_MESSAGE                    = 21,
+        TYPE_REVOKE_NODE_MESSAGE                    = 22,
+        TYPE_SET_BACKGROUND_STATUS                  = 23,
+        TYPE_RETRY_PENDING_CONNECTIONS              = 24,
+        TYPE_SEND_TYPING_NOTIF                      = 25,
+        TYPE_SIGNAL_ACTIVITY                        = 26,
+        TYPE_SET_PRESENCE_PERSIST                   = 27,
+        TYPE_SET_PRESENCE_AUTOAWAY                  = 28,
+        TYPE_LOAD_AUDIO_VIDEO_DEVICES               = 29, // Deprecated
+        TYPE_ARCHIVE_CHATROOM                       = 30,
+        TYPE_PUSH_RECEIVED                          = 31,
+        TYPE_SET_LAST_GREEN_VISIBLE                 = 32,
+        TYPE_LAST_GREEN                             = 33,
+        TYPE_LOAD_PREVIEW                           = 34,
+        TYPE_CHAT_LINK_HANDLE                       = 35,
+        TYPE_SET_PRIVATE_MODE                       = 36,
+        TYPE_AUTOJOIN_PUBLIC_CHAT                   = 37,
+        TYPE_CHANGE_VIDEO_STREAM                    = 38,
+        TYPE_IMPORT_MESSAGES                        = 39,
+        TYPE_SET_RETENTION_TIME                     = 40,
+        TYPE_SET_CALL_ON_HOLD                       = 41,
+        TYPE_ENABLE_AUDIO_LEVEL_MONITOR             = 42,
+        TYPE_MANAGE_REACTION                        = 43,
+        TYPE_GET_PEER_ATTRIBUTES                    = 44,
+        TYPE_REQUEST_SPEAK                          = 45, // Deprecated
+        TYPE_APPROVE_SPEAK                          = 46, // Deprecated
+        TYPE_REQUEST_HIGH_RES_VIDEO                 = 47,
+        TYPE_REQUEST_LOW_RES_VIDEO                  = 48,
+        TYPE_OPEN_VIDEO_DEVICE                      = 49,
+        TYPE_REQUEST_HIRES_QUALITY                  = 50,
+        TYPE_DEL_SPEAKER                            = 51, // Deprecated
+        TYPE_REQUEST_SVC_LAYERS                     = 52,
+        TYPE_SET_CHATROOM_OPTIONS                   = 53,
+        TYPE_CREATE_SCHEDULED_MEETING               = 54, // Deprecated
+        TYPE_DELETE_SCHEDULED_MEETING               = 55,
+        TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES    = 56,
+        TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE    = 57,
+        TYPE_UPDATE_SCHEDULED_MEETING               = 58,
+        TYPE_WR_PUSH                                = 59,
+        TYPE_WR_ALLOW                               = 60,
+        TYPE_WR_KICK                                = 61,
+        TYPE_RING_INDIVIDUAL_IN_CALL                = 62,
+        TYPE_MUTE                                   = 63,
+        TYPE_SPEAKER_ADD_DEL                        = 64,
+        TYPE_SPEAKRQ_ADD_DEL                        = 65,
+        TYPE_REJECT_CALL                            = 66,
+        TYPE_SET_LIMIT_CALL                         = 67,
+        TOTAL_OF_REQUEST_TYPES                      = 68,
     };
 
     enum {
@@ -6609,28 +6621,6 @@ public:
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief Remove an active speaker from the call
-     *
-     * This method can be called by the speaker itself (voluntary action) or by any moderator of the groupchat.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_DEL_SPEAKER
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
-     *
-     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
-     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
-     * - MegaChatError::ERROR_ACCESS - if clientId is not MEGACHAT_INVALID_HANDLE (own user),
-     * and our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientId MegaChatHandle that identifies the client, or MEGACHAT_INVALID_HANDLE for own user
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
-
-    /**
      * @brief Push a list of users (for all it's connected clients) into the waiting room.
      *
      * This method is valid only for chatrooms that have waiting room option enabled (check MegaChatRoom::isWaitingRoom)
@@ -6949,6 +6939,109 @@ public:
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
 
     /**
+     * @brief Grants speak permission for a chat participant in active call (if any), even if user has not joined call yet
+     *
+     * This method has to be called only by an user with moderator role
+     *
+     * Note: An user with speak permission granted, is not necessarily abled to speak, it also must have audio av flag enabled (unmuted).
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SPEAKER_ADD_DEL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getFlag - Returns true to indicate that we want to add a speaker
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_ARGS   - if specified userid is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
+     * - MegaChatError::ERROR_ACCESS - if call is not in progress state, or our own privilege is different
+     *   than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param userid MegaChatHandle that identifies userid
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void grantSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener =  NULL);
+
+    /**
+     * @brief Revokes speak permission for a chat participant in active call (even if user has not joined call yet)
+     *
+     * This method can be called by the speaker itself (voluntary action) or by any moderator of the groupchat.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SPEAKER_ADD_DEL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getFlag - Returns false to indicate that we want to remove a speaker
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT  - if there's no a call in the specified chatroom
+     * - MegaChatError::ERROR_ACCESS - if call is not in progress state, or our own privilege is different
+     *   than MegaChatPeerList::PRIV_MODERATOR, and userid is not MEGACHAT_INVALID_HANDLE
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param userid MegaChatHandle that identifies userid, or MEGACHAT_INVALID_HANDLE for own user
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void revokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Enables or disables support for speak request feature in calls
+     *
+     * In order to start/answer a call with speak request feature, we need to call this method with enable param (true).
+     * This feature is only available for those chats that MegaChatRoom::isSpeakRequest returns true. Check 
+     * MegaChatApi::setSpeakRequest to enable or disable option in chatroom.
+     * @note Do not call this method if there's any call in progress, as it could generate side effects
+     * 
+     * @param enable set true if we want to enable support for speak request feature in calls, otherwise set false
+     */
+    void enableSpeakRequestSupportForCalls(bool enable);
+
+    /**
+     * @brief Send speak request
+     *
+     * Moderator approval is required to have speak permission granted
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SPEAKRQ_ADD_DEL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - true -> indicate that we have sent a speak request
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS    - if specified chatid or userid are invalid
+     * - MegaChatError::ERROR_NOENT   - if there's not a call in the specified chatid
+     * - MegaChatError::ERROR_ACCESS  - if we don't participate in the call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void sendSpeakRequest(MegaChatHandle chatid, MegaChatRequestListener* listener = NULL);
+
+    /**
+     * @brief Removes a pending speak request
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_SPEAKRQ_ADD_DEL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getUserHandle - Returns the handle of the user
+     * - MegaChatRequest::getFlag - false -> indicate that we want to remove a pending speak request
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS    - if specified chatid or userid are invalid
+     * - MegaChatError::ERROR_NOENT   - if there's not a call in the specified chatid
+     * - MegaChatError::ERROR_ACCESS  - if we don't participate in the call
+     * - MegaChatError::ERROR_ACCESS  - if we want to remove another user speak request, and
+     *   our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param userid MegaChatHandle that identifies the user
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void removeSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid = MEGACHAT_INVALID_HANDLE, MegaChatRequestListener* listener = NULL);
+
+    /**
      * @brief Enable or disable audio level monitor.
      *
      * Audio level monitor detects when a peer starts or stops speaking, and triggers a callback
@@ -6979,66 +7072,6 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief Request become a speaker
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - true -> indicate that it is a enable request operation
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief Remove a request to become a speaker
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_SPEAK
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - false -> indicate that it is a remove request operation
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief Approve speak request
-     *
-     * This method has to be called only by a user with moderator role
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - true -> indicate that approve the request
-     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientId MegaChatHandle that identifies client
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief Reject speak request
-     *
-     * This method has to be called only by a user with moderator role
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_APPROVE_SPEAK
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getFlag - false -> indicate that reject the request
-     * - MegaChatRequest::getUserHandle - Returns the clientId of the user
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param clientId MegaChatHandle that identifies client
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Request high resolution video from a client

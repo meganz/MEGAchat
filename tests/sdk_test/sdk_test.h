@@ -512,6 +512,12 @@ public:
         std::map<std::string, bool*> mVars;
     };
 
+    static std::string getUserIdStrB64(const megachat::MegaChatHandle h)
+    {
+        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
+        return idB64 ? idB64.get() : "INVALID userid";
+    };
+
     static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
     {
         const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
@@ -625,6 +631,7 @@ protected:
     void makeContact(const unsigned int a1, const unsigned int a2);
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
+    megachat::MegaChatHandle getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, megachat::MegaChatPeerList* peers);
     megachat::MegaChatHandle getGroupChatRoom();
     bool addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid);
     void cleanChatVideoListeners();
@@ -848,8 +855,19 @@ protected:
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
 
-    void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
+    /** Checks that callid for account idx has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS) **/
+    void checkCallIdInProgress(const unsigned idx);
+
+    // deprecated - replace all usages of this method by answerChatCall prototype above
     void answerChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
+
+
+    // starts a call in a chatroom with waiting room option enabled
+    void startChatCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
+                       const bool enableVideo, const bool enableAudio, const bool notRinging, const unsigned int timeout);
+
+    // deprecated - replace all usages of this method by startChatCall prototype above
+    void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
 
     // gets a pointer to the local flag that indicates if we have reached an specific callstate
     bool* getChatCallStateFlag (unsigned int index, int state);
@@ -937,14 +955,14 @@ protected:
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
+    bool mUserSpeakPermChanged[NUM_ACCOUNTS];
     bool mSessSpeakPermChanged[NUM_ACCOUNTS];
     bool mOwnFlagsChanged[NUM_ACCOUNTS];
     bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
     bool mOwnCallPermissionsChanged[NUM_ACCOUNTS];
-    bool mSessSpeakReqRecv[NUM_ACCOUNTS];
-    unsigned mOwnSpeakStatus[NUM_ACCOUNTS];
-    std::map<::megachat::MegaChatHandle, bool> mSessSpeakPerm[NUM_ACCOUNTS];
-    std::map<::megachat::MegaChatHandle, bool> mSessSpeakRequests[NUM_ACCOUNTS];
+    bool mSpeakReqRecv[NUM_ACCOUNTS];
+    std::map<::megachat::MegaChatHandle, bool> mUserSpeakPerm[NUM_ACCOUNTS];
+    std::map<::megachat::MegaChatHandle, bool> mSpeakRequests[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -1232,7 +1250,9 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) override;
-    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::set<karere::Id>& speakers,
+                             const std::set<karere::Id>& speakReqs,
+                             const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
@@ -1240,10 +1260,8 @@ public:
     bool handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleHiResStartCommand() override;
     bool handleHiResStopCommand() override;
-    bool handleSpeakReqsCommand(const std::vector<Cid_t>&) override;
-    bool handleSpeakReqDelCommand(Cid_t cid) override;
-    bool handleSpeakOnCommand(Cid_t cid) override;
-    bool handleSpeakOffCommand(Cid_t cid) override;
+    bool handleSpeakerAddDelCommand(const uint64_t userid, const bool add) override;
+    bool handleSpeakReqAddDelCommand(const uint64_t userid, const bool add) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
@@ -1261,8 +1279,8 @@ public:
     bool handleWrDump(const sfu::WrUserList& wrUsers) override;
     bool handleWrEnter(const sfu::WrUserList& wrUsers) override;
     bool handleWrLeave(const karere::Id& user) override;
-    bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
-    bool handleWrDeny(const std::set<karere::Id>& mods) override;
+    bool handleWrAllow(const Cid_t& cid) override;
+    bool handleWrDeny() override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
     bool handleMutedCommand(const unsigned av, const Cid_t /*cidPerf*/) override;

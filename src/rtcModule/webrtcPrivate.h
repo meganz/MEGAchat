@@ -166,9 +166,7 @@ public:
     RemoteVideoSlot* getVthumSlot();
     RemoteVideoSlot* getHiResSlot();
 
-    void setSpeakPermission(const bool hasSpeakPermission);
     void disableAudioSlot();
-    void setSpeakRequested(bool requested);
     void setAudioDetected(bool audioDetected);    
     void notifyHiResReceived();
     void notifyLowResReceived();
@@ -181,7 +179,6 @@ public:
     SessionState getState() const override;
     karere::AvFlags getAvFlags() const override;
     bool isAudioDetected() const override;
-    bool hasRequestSpeak() const override;
     TermCode getTermcode() const override;
     void setTermcode(TermCode termcode) override;
     void setSessionHandler(SessionHandler* sessionHandler) override;
@@ -190,7 +187,6 @@ public:
     bool hasHighResolutionTrack() const override;
     bool hasLowResolutionTrack() const override;
     bool isModerator() const override;
-    bool hasSpeakPermission() const override;
 
 private:
     // Data about the partipant in the call relative to this session
@@ -205,8 +201,6 @@ private:
 
     // To notify events about the session to the app (intermediate layer)
     std::unique_ptr<SessionHandler> mSessionHandler = nullptr;
-
-    bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
 
     // Session starts directly in progress: the SFU sends the tracks immediately from new peer
@@ -328,21 +322,10 @@ public:
     void setCallerId(const karere::Id& callerid) override;
     karere::Id getCallid() const override;
     bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
-
-    // request to speak, or cancels a previous request (add = false)
-    void requestSpeak(const bool add = true) override;
-    bool hasPendingSpeakRequest() const override;
+    bool hasUserPendingSpeakRequest(const karere::Id& uh) const override;
     int getWrJoiningState() const override;
-    unsigned int getOwnSpeakerState() const override;
     void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const override;
-
-    // get the list of users that have requested to speak
-    std::vector<Cid_t> getSpeakerRequested() override;
-
-    // allows to approve/deny requests to speak from other users (only allowed for moderators)
-    void approveSpeakRequest(Cid_t cid, bool allow) override;
-    bool isSpeakAllow() const override; // true if request has been approved
-    void stopSpeak(Cid_t cid = 0) override; // after been approved
+    void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
     void kickUsersFromCall(const std::set<karere::Id>& users) const override;
@@ -357,6 +340,8 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
+    std::set<karere::Id> getSpeakRequestsList() const override;
+    std::set<karere::Id> getSpeakersList () const override;
     std::set<karere::Id> getModerators() const override;
     std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
@@ -370,7 +355,8 @@ public:
     karere::AvFlags getLocalAvFlags() const override;
     void updateAndSendLocalAvFlags(karere::AvFlags flags) override;
     const KarereWaitingRoom* getWaitingRoom() const override;
-    bool hasOwnUserSpeakPermission() const override;
+    bool hasUserSpeakPermission(const uint64_t userid) const override;
+    bool addDelSpeakRequest(const karere::Id& user, const bool add) override;
 
     //
     // ------ end ICall methods -----
@@ -475,10 +461,17 @@ public:
     bool dumpWrUsers(const sfu::WrUserList& wrUsers, const bool clearCurrent);
     bool checkWrCommandReqs(std::string && commandStr, bool mustBeModerator);
     bool manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool allow, std::string && commandStr);
+    bool updateUserModeratorStatus(const karere::Id& userid, const bool enable);
+    bool updateSpeakersList(const karere::Id& userid, const bool add);
+    bool updateSpeakRequestsList(const karere::Id& userid, const bool add);
 
     // --- SfuInterface methods ---
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid) override;
-    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
+                             const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
+                             const std::set<karere::Id>& speakers,
+                             const std::set<karere::Id>& speakReqs,
+                             const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleVThumbsStartCommand() override;
@@ -486,10 +479,8 @@ public:
     bool handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
     bool handleHiResStartCommand() override;
     bool handleHiResStopCommand() override;
-    bool handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests) override;
-    bool handleSpeakReqDelCommand(Cid_t cid) override;
-    bool handleSpeakOnCommand(Cid_t cid) override;
-    bool handleSpeakOffCommand(Cid_t cid) override;
+    bool handleSpeakerAddDelCommand(const uint64_t userid, const bool add) override;
+    bool handleSpeakReqAddDelCommand(const uint64_t userid, const bool add) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
@@ -505,8 +496,8 @@ public:
     bool handleWrDump(const sfu::WrUserList& users) override;
     bool handleWrEnter(const sfu::WrUserList& users) override;
     bool handleWrLeave(const karere::Id& user) override;
-    bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
-    bool handleWrDeny(const std::set<karere::Id>& mods) override;
+    bool handleWrAllow(const Cid_t& cid) override;
+    bool handleWrDeny() override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
 
@@ -534,6 +525,12 @@ protected:
     CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
 
+    // list of user handles of all users that have been given speak permission (moderators not included)
+    std::set<karere::Id> mSpeakers;
+
+    // list of speak requests
+    std::set<karere::Id> mSpeakRequests;
+
     // (just for 1on1 calls) flag to indicate that outgoing ringing sound is reproducing
     // no need to reset this flag as 1on1 calls, are destroyed when any of the participants hangs up
     bool mIsOutgoingRinging = false;
@@ -555,9 +552,6 @@ protected:
 
     // audio level monitor is enabled or not
     bool mAudioLevelMonitor = false;
-
-    // state of request to speak for own user in this call
-    SpeakerState mSpeakerState = SpeakerState::kNoSpeaker;
 
     // state of joining status for our own client, when waiting room is enabled
     sfu::WrState mWrJoiningState = sfu::WrState::WR_UNKNOWN;
@@ -698,8 +692,7 @@ protected:
     // associate slots with their corresponding sessions (video)
     void handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &videotrackDescriptors, VideoResolution videoResolution);
     // associate slots with their corresponding sessions (audio)
-    void addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker);
-    void removeSpeaker(Cid_t cid);
+    void addSpeaker(const Cid_t cid, const uint32_t amid);
     const std::string &getCallKey() const;
     // enable/disable audio track depending on the audio's flag, the speaker is allowed and the call on-hold
     void updateAudioTracks();
@@ -716,7 +709,7 @@ protected:
     bool isTermCodeRetriable(const TermCode& termCode) const;
     bool isDisconnectionTermcode(const TermCode& termCode) const;
     Cid_t getOwnCid() const;
-    void setSessionModByUserId(uint64_t userid, bool isMod);
+    const karere::Id& getOwnPeerId() const;
     void setOwnModerator(bool isModerator);
 
     // an external event from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
@@ -736,6 +729,24 @@ protected:
 
     // verify signature for received ephemeral key
     promise::Promise<bool> verifySignature(const Cid_t cid, const uint64_t userid, const std::string& pubkey, const std::string& signature);
+
+    // --- speakers list methods ---
+    bool addToSpeakersList (const uint64_t userid)              { return mSpeakers.emplace(userid).second; }
+    bool removeFromSpeakersList (const uint64_t userid)         { return mSpeakers.erase(userid); }
+    bool isOnSpeakersList (const uint64_t userid) const         { return isSpeakRequestEnabled() && mSpeakers.find(userid) != mSpeakers.end(); }
+    void clearSpeakersList()                                    { mSpeakers.clear(); }
+
+    // --- speak requests list methods ---
+    bool addToSpeakRequestsList (const uint64_t userid)         { return mSpeakRequests.emplace(userid).second; }
+    bool removeFromSpeakRequestsList (const uint64_t userid)    { return mSpeakRequests.erase(userid); }
+    bool isOnSpeakRequestsList (const uint64_t userid) const    { return isSpeakRequestEnabled() && mSpeakRequests.find(userid) != mSpeakRequests.end(); }
+    void clearSpeakRequestsList()                               { mSpeakRequests.clear(); }
+
+    // --- moderators list methods ---
+    bool addToModeratorsList (const uint64_t userid)            { return mModerators.emplace(userid).second; }
+    bool removeFromModeratorsList (const uint64_t userid)       { return mModerators.erase(userid); }
+    bool isOnModeratorsList (const uint64_t userid) const       { return mModerators.find(userid) != mModerators.end(); }
+    void clearModeratorsList()                                  { mModerators.clear(); }
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink
@@ -781,6 +792,9 @@ public:
     std::string getDeviceInfo() const;
     unsigned int getNumInputVideoTracks() const override;
     void setNumInputVideoTracks(const unsigned int numInputVideoTracks) override;
+    void enableSpeakRequestSupportForCalls(const bool enable) override;
+    bool isSpeakRequestSupportEnabled() const override;
+    sfu::SfuProtocol getMySfuProtoVersion() const override;
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
@@ -796,6 +810,8 @@ private:
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;
+    bool mIsSpeakRequestEnabled = false;
+    sfu::SfuProtocol mMySfuProtoVersion = sfu::SfuProtocol::SFU_PROTO_PROD; // own client SFU protocol version
 
     // Current limit for simultaneous input video tracks that call supports. (kMaxCallVideoSenders by default)
     unsigned int mRtcNumInputVideoTracks = getMaxSupportedVideoCallParticipants();

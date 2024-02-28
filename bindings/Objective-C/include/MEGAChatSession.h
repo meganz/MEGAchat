@@ -59,10 +59,6 @@ typedef NS_ENUM (NSInteger, MEGAChatSessionTermCode) {
 @property (nonatomic, readonly, getter=isAudioDetected) BOOL audioDetected;
 @property (nonatomic, readonly, getter=isRecording) BOOL recording;
 
-@property (nonatomic, readonly, getter=isSpeakAllowed) BOOL speakAllowed;
-@property (nonatomic, readonly, getter=hasSpeakPermission) BOOL speakPermission;
-@property (nonatomic, readonly, getter=hasPendingSpeakRequest) BOOL pendingSpeakRequest;
-
 - (BOOL)hasChanged:(MEGAChatSessionChange)change;
 
 @end
