@@ -2126,34 +2126,10 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     delete chatroom;    chatroom = NULL;
 
     LOG_debug << "#### Test6: Change privileges to Moderator ####";
-    bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
-    bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
-    mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-    uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    ChatRequestTracker crtMakeMod(megaChatApi[a1]);
-    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_MODERATOR, &crtMakeMod);
-    ASSERT_EQ(crtMakeMod.waitForResult(), MegaChatError::ERROR_OK) << "Failed to make peer moderator. Error: " << crtMakeMod.getErrorString();
-    ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
-    ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
-    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
-    ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
-    ASSERT_EQ(*priv, MegaChatRoom::PRIV_MODERATOR) << "Privilege is incorrect";
+    ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, uh, chatid, PRIV_MODERATOR, chatroomListener));
 
     LOG_debug << "#### Test7: Change peer privileges to Read-only ####";
-    peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
-    peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
-    mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-    uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    ChatRequestTracker crtMakeReadonly(megaChatApi[a1]);
-    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO, &crtMakeReadonly);
-    ASSERT_EQ(crtMakeReadonly.waitForResult(), MegaChatError::ERROR_OK) << "Failed to set peer readonly. Error: " << crtMakeMod.getErrorString();
-    ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
-    ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
-    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
-    ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
-    ASSERT_EQ(*priv, MegaChatRoom::PRIV_RO) << "Privilege is incorrect";
+    ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, uh, chatid, PRIV_RO, chatroomListener));
 
     LOG_debug << "#### Test8: Try to send a message without the right privilege (error) ####";
     string msg1 = "HI " + account(a1).getEmail()+ " - This message can't be send because I'm read-only";
@@ -2626,20 +2602,7 @@ TEST_F(MegaChatApiTest, Reactions)
     if (chatroom->getPeerPrivilegeByHandle(uh) != PRIV_RO)
     {
         // Change peer privileges to Read-only
-        bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
-        bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
-        bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-        MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
-        int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-        TestMegaChatRequestListener auxrequestListener(nullptr, megaChatApi[a1]);
-        megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO, &auxrequestListener);
-        ASSERT_TRUE(auxrequestListener.waitForResponse()) << "Timeout expired for update privilege of peer";
-        ASSERT_TRUE(!auxrequestListener.getErrorCode()) << "Failed to update privilege of peer Error: " << auxrequestListener.getErrorCode();
-        ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
-        ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
-        ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
-        ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
-        ASSERT_EQ(*priv, MegaChatRoom::PRIV_RO) << "Privilege is incorrect";
+        ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, uh, chatid, PRIV_RO, chatroomListener));
     }
 
     LOG_debug << "#### Test3: Send message and wait for reception by target user ####";
@@ -3995,19 +3958,7 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     if (chatroom->getPeerPrivilegeByHandle(uh) != PRIV_RO)
     {
         // Change peer privileges to Read-only
-        bool *peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
-        bool *peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
-        bool *mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-        MegaChatHandle *uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
-        int *priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-        ChatRequestTracker crtSetReadonly(megaChatApi[a1]);
-        megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_RO, &crtSetReadonly);
-        ASSERT_EQ(crtSetReadonly.waitForResult(), MegaChatError::ERROR_OK) << "Failed to update privilege of peer. Error: " << crtSetReadonly.getErrorString();
-        ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
-        ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
-        ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
-        ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
-        ASSERT_EQ(*priv, MegaChatRoom::PRIV_RO) << "Privilege is incorrect";
+        ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, uh, chatid, PRIV_RO, chatroomListener));
     }
 
     LOG_debug << "#### Test1: Set retention time for an invalid handle. ####";
@@ -5830,7 +5781,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
     }
     else if (secondaryPriv != megachat::MegaChatPeerList::PRIV_STANDARD)
     {
-        ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, secondaryUh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
+        ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, secondaryUh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener.get()));
     }
 
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
@@ -6417,7 +6368,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     }
     else if (chatRoom->getPeerPrivilegeByHandle(user->getHandle()) != megachat::MegaChatPeerList::PRIV_STANDARD)
     {
-        ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
+        ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener.get()));
     }
 
     chatRoom.reset(megaChatApi[a1]->getChatRoom(chatid));
@@ -6846,15 +6797,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_NO_FATAL_FAILURE({answerCallSecondaryAccount(true /*waitingRoom*/);});
 
     // A grants chat room host permissions to B
-    int* priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    bool* peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
-    bool* peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
-    ChatRequestTracker crtUpdateToHost(megaChatApi[a1]);
-    megaChatApi[a1]->updateChatPermissions(chatid, uh, MegaChatRoom::PRIV_MODERATOR, &crtUpdateToHost);
-    ASSERT_EQ(crtUpdateToHost.waitForResult(), MegaChatError::ERROR_OK) << "Failed to update privilege of peer. Error: " << crtUpdateToHost.getErrorString();
-    ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
-    ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
-    ASSERT_EQ(*priv, MegaChatRoom::PRIV_MODERATOR) << "Privilege is incorrect";
+    ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, uh, chatid, PRIV_MODERATOR, chatroomListener.get()));
 
     // B waits to receive MOD_ADD and autojoins call automatically
     ASSERT_TRUE(waitForResponse(a2CallPermChanged)) << "Timeout expired for receiving MOD_ADD command from SFU";
@@ -6869,7 +6812,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     ASSERT_TRUE(chatRoom) << "Cannot get chatroom for id " << getChatIdStrB64(chatid);
     if (chatRoom->getPeerPrivilegeByHandle(uh) != megachat::MegaChatPeerList::PRIV_STANDARD)
     {
-        ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
+        ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener.get()));
     }
     mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
     ASSERT_NO_FATAL_FAILURE({startWaitingRoomCallPrimaryAccount(MEGACHAT_INVALID_HANDLE /*schedId*/, true /*notRinging*/);});
@@ -7046,7 +6989,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     }
     else if (chatRoom->getPeerPrivilegeByHandle(user->getHandle()) != megachat::MegaChatPeerList::PRIV_STANDARD)
     {
-        ASSERT_NO_FATAL_FAILURE(updateChatPermission(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener));
+        ASSERT_NO_FATAL_FAILURE(updateChatPermissions(a1, a2, uh, chatid, megachat::MegaChatPeerList::PRIV_STANDARD, chatroomListener.get()));
     }
 
     // Create chat link
@@ -8566,6 +8509,76 @@ void MegaChatApiTest::answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, 
 }
 #endif
 
+void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
+                                            const unsigned int userIdx,
+                                            const megachat::MegaChatHandle uh,
+                                            const megachat::MegaChatHandle chatId,
+                                            const int privilege,
+                                            TestChatRoomListener* crl)
+{
+    auto checkPriv = [this](const unsigned int performerIdx,
+                            const megachat::MegaChatHandle chatId,
+                            const int expPriv,
+                            const megachat::MegaChatHandle uh)
+    {
+        std::unique_ptr<MegaChatRoom> room(megaChatApi[performerIdx]->getChatRoom(chatId));
+        if (room)
+        {
+            return room->getPeerPrivilegeByHandle(uh) == expPriv;
+        }
+        return false;
+    };
+
+    ASSERT_TRUE(crl) << "updateChatPermissions: Invalid chatroom listener provided";
+
+    bool* peerUpdated0 = &peersUpdated[performerIdx];
+    *peerUpdated0 = false;
+    bool* peerUpdated1 = &peersUpdated[userIdx];
+    *peerUpdated1 = false;
+    bool* mngMsgRecv = &crl->msgReceived[performerIdx];
+    *mngMsgRecv = false;
+    MegaChatHandle* uhAction = &crl->uhAction[performerIdx];
+    *uhAction = MEGACHAT_INVALID_HANDLE;
+    int* priv = &crl->priv[performerIdx];
+    *priv = MegaChatRoom::PRIV_UNKNOWN;
+    ChatRequestTracker crtChangePermissions(megaChatApi[performerIdx]);
+    megaChatApi[performerIdx]->updateChatPermissions(chatId, uh, privilege, &crtChangePermissions);
+
+    ASSERT_EQ(crtChangePermissions.waitForResult(), MegaChatError::ERROR_OK)
+        << "Failed to update peer permissions to " << privilege << ". Error: " << crtChangePermissions.getErrorString();
+
+    // wait for expected changes at onChatListItemUpdate
+    auto permChangeRecva1 = waitForResponse(peerUpdated0, minTimeout * 2);
+    if (!permChangeRecva1)
+    {
+        std::string msg = "Posible race condition (between API and Chatd) where  "
+                          "onChatListItemUpdate (CHANGE_TYPE_PARTICIPANTS) is not received";
+        LOG_warn << msg.c_str();
+        std::cout << "[   WARN   ] " << msg << endl;
+
+        ASSERT_TRUE(checkPriv(performerIdx, chatId, privilege, uh))
+            << "updateChatPermissions: Unexpected permission for user: " << getUserIdStrB64(uh);
+    }
+
+    auto permChangeRecva2 = waitForResponse(peerUpdated1, minTimeout * 2);
+    if (!permChangeRecva2)
+    {
+        std::string msg = "Posible race condition (between API and Chatd) where "
+                    "onChatListItemUpdate (CHANGE_TYPE_OWN_PRIV) is not received";
+        LOG_warn << msg.c_str();
+        std::cout << "[   WARN   ] "  << msg << endl;
+
+        ASSERT_TRUE(checkPriv(performerIdx, chatId, privilege, uh))
+            << "updateChatPermissions: Unexpected permission for own user: " << getUserIdStrB64(uh);
+    }
+
+    // wait for expected changes at onMessageReceived
+    ASSERT_TRUE(waitForResponse(mngMsgRecv))
+        << "updateChatPermissions: Timeout expired for receiving management message";
+    ASSERT_EQ(*uhAction, uh) << "updateChatPermissions: User handle from message doesn't match";
+    ASSERT_EQ(*priv, privilege) << "updateChatPermissions: Privilege is incorrect";
+}
+
 void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int waitSecs)
 {
     auto& crlisteners = mData.mChatroomListeners;
@@ -9727,26 +9740,6 @@ void MegaChatApiTest::waitForCallAction (unsigned int pIdx, int maxAttempts, boo
     }
 }
 #endif
-
-void MegaChatApiTest::updateChatPermission (const unsigned int& a1, const unsigned int& a2, const MegaChatHandle& uh, const MegaChatHandle& chatid,
-                                           const int privilege, std::shared_ptr<TestChatRoomListener>chatroomListener)
-{
-    // --> Change peer privileges to Moderator
-    bool* peerUpdated0 = &peersUpdated[a1]; *peerUpdated0 = false;
-    bool* peerUpdated1 = &peersUpdated[a2]; *peerUpdated1 = false;
-    bool* mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
-    MegaChatHandle* uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
-    int* priv = &chatroomListener->priv[a1]; *priv = MegaChatRoom::PRIV_UNKNOWN;
-    ChatRequestTracker crtPerm(megaChatApi[a1]);
-    megaChatApi[a1]->updateChatPermissions(chatid, uh, privilege, &crtPerm);
-    ASSERT_EQ(crtPerm.waitForResult(), MegaChatError::ERROR_OK)
-        << "Failed to update user permissions. Error: " << crtPerm.getErrorString();
-    ASSERT_TRUE(waitForResponse(peerUpdated0)) << "Timeout expired for receiving peer update";
-    ASSERT_TRUE(waitForResponse(peerUpdated1)) << "Timeout expired for receiving peer update";
-    ASSERT_TRUE(waitForResponse(mngMsgRecv)) << "Timeout expired for receiving management message";
-    ASSERT_EQ(*uhAction, uh) << "User handle from message doesn't match";
-    ASSERT_EQ(*priv, privilege) << "Privilege is incorrect";
-}
 
 void MegaChatApiTest::updateSchedMeeting(const unsigned int a1, const unsigned int a2, const int expectedError, const SchedMeetingData& smData, const bool updateChatTitle)
 {
