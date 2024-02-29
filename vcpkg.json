@@ -4,10 +4,20 @@
     "homepage" : "https://github.com/meganz/megachat",
     "features" :
     {
-        "use-openssl":
+        "use-webrtc":
         {
-            "description": "OpenSSL library",
-            "dependencies": [ "openssl" ]
+            "description" : "Enable support for voice and/or video calls",
+            "dependencies": [
+            ]
+        },
+        "no-webrtc":
+        {
+            "description" : "Disable support for voice and/or video calls",
+            "dependencies": [
+                "openssl",
+                "curl",
+                "libwebsockets"
+            ]
         },
         "use-mediainfo": {
             "description": "MediaInfo library",
@@ -51,20 +61,13 @@
         "sdk-tests": {
             "description": "gtests library for the integration and unit tests",
             "dependencies": [ "gtest" ]
-        },
-        "use-webrtc":
-        {
-            "description" : "WebRTC library",
-            "dependencies": [ ]
         }
     },
     "dependencies": [
       { "name": "cryptopp", "version>=": "8.9.0" },
       "libsodium",
       "sqlite3",
-      { "name": "curl", "version>=": "8.4.0" },
-      "icu",
-      "libwebsockets"
+      "icu"
     ],
     "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae"
 }
