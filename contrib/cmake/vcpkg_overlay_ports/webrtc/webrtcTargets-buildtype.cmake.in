@@ -1,0 +1,16 @@
+
+set_property(TARGET @cmake_target_name@ APPEND PROPERTY IMPORTED_CONFIGURATIONS "@cmake_build_type@")
+
+find_library(_LIB_PATH REQUIRED
+    NAMES @cmake_target_name@
+    NO_DEFAULT_PATH
+    HINTS "${_IMPORTED_PREFIX}/@cmake_install_dir@"
+)
+
+string(TOUPPER "@cmake_build_type@" cmake_build_type_upper)
+
+set_target_properties(@cmake_target_name@ PROPERTIES
+    IMPORTED_LOCATION_${cmake_build_type_upper} "${_LIB_PATH}"
+)
+
+unset(_LIB_PATH)
