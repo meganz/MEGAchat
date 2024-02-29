@@ -106,6 +106,18 @@ public:
                                  c::MegaChatError* error) override;
 };
 
+/**
+ * @class CLCChatRequestListener
+ * @brief A class to define a global request listener to add to the g_chatApi and define custom
+ * checks for the non-interactive mode.
+ */
+class CLCChatRequestListener: public c::MegaChatRequestListener
+{
+    void onRequestFinish(c::MegaChatApi* api,
+                         c::MegaChatRequest* request,
+                         c::MegaChatError* e) override;
+};
+
 struct CLCRoomListener: public c::MegaChatRoomListener
 {
     c::MegaChatHandle room = c::MEGACHAT_INVALID_HANDLE;

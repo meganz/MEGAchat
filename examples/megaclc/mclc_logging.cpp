@@ -50,7 +50,8 @@ void DebugOutputWriter::enableLogToFile(const fs::path& filePath)
     }
     else
     {
-        clc_console::conlock(std::cout) << "Error: Unable to open output file: " << filePath << "\n";
+        clc_console::conlock(std::cout)
+            << "Error: Unable to open output file: " << filePath << "\n";
     }
 }
 

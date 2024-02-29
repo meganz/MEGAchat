@@ -25,8 +25,8 @@
 #include "mclc_general_utils.h"
 #include "mclc_globals.h"
 #include "mclc_logging.h"
-#include "mclc_resources.h"
 #include "mclc_no_interactive.h"
+#include "mclc_resources.h"
 
 #include <csignal>
 
@@ -154,7 +154,7 @@ void megaclc()
 
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
     std::signal(SIGINT, mclc::clc_prompt::signal_handler);
     std::signal(SIGTERM, mclc::clc_prompt::signal_handler);

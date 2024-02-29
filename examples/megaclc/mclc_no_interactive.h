@@ -81,7 +81,7 @@ public:
 
 private:
     po::options_description mDesc; // Description of the command with the options
-    std::string mHelpMessage;      // Help message with the specifications of the command.
+    std::string mHelpMessage; // Help message with the specifications of the command.
 
     /**
      * @brief Validates the input variables checking for missing parameters or wrong values.
@@ -96,6 +96,14 @@ private:
      * @param variablesMap Parsed program_options variables
      */
     void runCommand(const po::variables_map& variablesMap);
+
+    /**
+     * @brief Builds the command to call the joinCallViaMeetingLink function using the input
+     * arguments.
+     *
+     * @param variablesMap Parsed program_options variables
+     */
+    std::string buildJoinCallCommand(const po::variables_map& variablesMap);
 };
 
 /**

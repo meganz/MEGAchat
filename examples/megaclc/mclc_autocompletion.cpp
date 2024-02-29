@@ -131,9 +131,7 @@ ac::ACN autocompleteSyntax()
                                                text("warning"),
                                                text("error"),
                                                text("all")),
-                                        localFSFile("log_file_name"))))
-                    )
-           );
+                                        localFSFile("log_file_name"))))));
 
     p->Add(exec_easy_debug, sequence(text("easy_debug"), localFSFile("log_file_name")));
     p->Add(exec_setonlinestatus,

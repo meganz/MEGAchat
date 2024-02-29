@@ -7,6 +7,9 @@ bool g_detailHigh{false};
 
 std::atomic<bool> g_reportMessagesDeveloper{false};
 
+std::atomic<bool> g_allChatsLoggedIn{false};
+std::atomic<bool> g_chatFinishedLogout{false};
+
 std::atomic<bool> g_reviewingPublicChat{false};
 std::atomic<bool> g_dumpingChatHistory{false};
 std::atomic<bool> g_startedPublicChatReview{false};
@@ -31,6 +34,7 @@ clc_listen::CLCCallListener g_clcCallListener;
 clc_listen::CLCMegaListener g_megaclcListener;
 clc_listen::CLCChatListener g_chatListener;
 clc_listen::CLCMegaGlobalListener g_globalListener;
+clc_listen::CLCChatRequestListener g_chatRequestListener;
 
 // output
 std::mutex g_outputMutex;

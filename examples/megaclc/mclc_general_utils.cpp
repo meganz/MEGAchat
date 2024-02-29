@@ -21,11 +21,11 @@ namespace path_utils
 
 unsigned long getProcessId()
 {
-    #if defined(_WIN32) || defined(_WIN64)
-        return static_cast<unsigned long>(GetCurrentProcessId());
-    #else
-        return static_cast<unsigned long>(getpid());
-    #endif
+#if defined(_WIN32) || defined(_WIN64)
+    return static_cast<unsigned long>(GetCurrentProcessId());
+#else
+    return static_cast<unsigned long>(getpid());
+#endif
 }
 
 #ifdef __APPLE__

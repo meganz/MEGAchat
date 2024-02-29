@@ -1,9 +1,8 @@
 #include "mclc_resources.h"
 
+#include "mclc_autocompletion.h"
 #include "mclc_globals.h"
 #include "mclc_logging.h"
-#include "mclc_autocompletion.h"
-
 
 namespace mclc::clc_resources
 {
@@ -33,6 +32,7 @@ void appAllocate()
     g_chatApi->setLogToConsole(false);
     g_chatApi->addChatListener(&g_clcListener);
     g_chatApi->addChatCallListener(&g_clcCallListener);
+    g_chatApi->addChatRequestListener(&g_chatRequestListener);
 
     g_console.reset(new m::CONSOLE_CLASS);
 
@@ -40,7 +40,6 @@ void appAllocate()
 #ifdef WIN32
     static_cast<m::WinConsole*>(console.get())->setAutocompleteSyntax(autocompleteTemplate);
 #endif
-
 }
 
 void appClean()
@@ -51,6 +50,7 @@ void appClean()
     g_megaApi->removeGlobalListener(&g_globalListener);
     g_chatApi->removeChatListener(&g_clcListener);
     g_chatApi->removeChatCallListener(&g_clcCallListener);
+    g_chatApi->removeChatRequestListener(&g_chatRequestListener);
 
     g_chatApi.reset();
     g_megaApi.reset();
