@@ -8516,7 +8516,7 @@ void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
                                             const int privilege,
                                             TestChatRoomListener* crl)
 {
-    auto checkPriv = [this](unsigned int performerIdx,
+    auto checkPriv = [this](const unsigned int performerIdx,
                             const megachat::MegaChatHandle chatId,
                             const int expPriv,
                             const megachat::MegaChatHandle uh)
@@ -8551,8 +8551,10 @@ void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
     auto permChangeRecva1 = waitForResponse(peerUpdated0, minTimeout * 2);
     if (!permChangeRecva1)
     {
-        std::cout << "[   WARN   ] Posible race condition (between API and Chatd) where "
-                    "onChatListItemUpdate (CHANGE_TYPE_PARTICIPANTS) is not received" << endl;
+        std::string msg = "Posible race condition (between API and Chatd) where  "
+                          "onChatListItemUpdate (CHANGE_TYPE_PARTICIPANTS) is not received";
+        LOG_warn << msg.c_str();
+        std::cout << "[   WARN   ] " << msg << endl;
 
         ASSERT_TRUE(checkPriv(performerIdx, chatId, privilege, uh))
             << "updateChatPermissions: Unexpected permission for user: " << getUserIdStrB64(uh);
@@ -8561,8 +8563,10 @@ void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
     auto permChangeRecva2 = waitForResponse(peerUpdated1, minTimeout * 2);
     if (!permChangeRecva2)
     {
-        std::cout << "[   WARN   ] Posible race condition (between API and Chatd) where "
-                    "onChatListItemUpdate (CHANGE_TYPE_OWN_PRIV) is not received" << endl;
+        std::string msg = "Posible race condition (between API and Chatd) where "
+                    "onChatListItemUpdate (CHANGE_TYPE_OWN_PRIV) is not received";
+        LOG_warn << msg.c_str();
+        std::cout << "[   WARN   ] "  << msg << endl;
 
         ASSERT_TRUE(checkPriv(performerIdx, chatId, privilege, uh))
             << "updateChatPermissions: Unexpected permission for own user: " << getUserIdStrB64(uh);
