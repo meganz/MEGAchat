@@ -2845,29 +2845,40 @@ chatd::Priv PeerChatRoom::getSdkRoomPeerPriv(const mega::MegaTextChat &chat)
     return (chatd::Priv) peers->getPeerPrivilege(0);
 }
 
-bool ChatRoom::syncOwnPriv(chatd::Priv priv)
+bool ChatRoom::syncOwnPriv(chatd::Priv newPriv)
 {
-    if (mOwnPriv == priv)
+    if (mOwnPriv == newPriv)
     {
         return false;
     }
 
-    if(previewMode())
+    if (previewMode())
     {
-        assert(mOwnPriv == chatd::PRIV_RO
-               || mOwnPriv == chatd::PRIV_RM);  // still in preview, but ph is invalid
+        const bool validPrivInPreviewMode =
+            mOwnPriv == chatd::PRIV_RO ||
+            mOwnPriv == chatd::PRIV_RM; // still in preview, but ph is invalid
 
-        if (priv >= chatd::PRIV_RO)
+        if (!validPrivInPreviewMode)
         {
-            //Join
+            KR_LOG_ERROR("syncOwnPriv: invalid current privilege in preview mode for chat: ",
+                         karere::Id(chatid()).toString().c_str());
+            assert(false);
+        }
+
+        if (newPriv >= chatd::PRIV_RO)
+        {
+            KR_LOG_DEBUG("syncOwnPriv: invalidating ph as we are not in preview mode for chat: ",
+                         karere::Id(chatid()).toString().c_str());
+
+            // Join
             mChat->setPublicHandle(Id::inval());
 
-            //Remove preview mode flag from DB
+            // Remove preview mode flag from DB
             parent.mKarereClient.db.query("update chats set mode = '1' where chatid = ?", mChatid);
         }
     }
 
-    mOwnPriv = priv;
+    mOwnPriv = newPriv;
     parent.mKarereClient.db.query("update chats set own_priv = ? where chatid = ?", mOwnPriv, mChatid);
     return true;
 }

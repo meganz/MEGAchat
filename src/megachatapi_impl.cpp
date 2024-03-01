@@ -1135,41 +1135,51 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
 
                         if (room) // chatroom already exists
                         {
-                            if (hasChanged)
+                            if (room->previewMode() &&
+                                hasChanged) // update existing chat in preview mode
                             {
                                 // if mcphurl information is different respect GroupChatRoom in ram
                                 // we need to remove preview and recreate again, this is simplier than update
                                 // groupchatroom field by field
-                                API_LOG_DEBUG("Chat (%s) has changed", karere::Id(chatId).toString().c_str());
+                                API_LOG_DEBUG("performRequest_loadPreview: Chat (%s) has changed",
+                                              karere::Id(chatId).toString().c_str());
                                 mClient->chats->removeRoomPreview(chatId);
                                 mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
                                 room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
                                 if (!room)
                                 {
-                                    API_LOG_DEBUG("Cannot re-create chat (%s) preview", karere::Id(chatId).toString().c_str());
+                                    API_LOG_DEBUG("performRequest_loadPreview: Cannot re-create chat (%s) preview", karere::Id(chatId).toString().c_str());
                                     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN);
                                     fireOnChatRequestFinish(request, megaChatError);
                                     return;
                                 }
                             }
-                            else if (!room->isActive() && room->previewMode()) // re-enable preview
+                            else if (room->previewMode() && !room->isActive() ) // re-enable preview
                             {
-                                API_LOG_DEBUG("Re-enable chat (%s) preview", karere::Id(chatId).toString().c_str());
+                                API_LOG_DEBUG(
+                                    "performRequest_loadPreview: Re-enable chat (%s) preview",
+                                    karere::Id(chatId).toString().c_str());
                                 room->enablePreview(ph);
+                            }
+                            else
+                            {
+                                API_LOG_ERROR(
+                                    "performRequest_loadPreview: Chat (%s) already exists",
+                                    karere::Id(chatId).toString().c_str());
                             }
 
                             // update sched meetings if necessary and notify app
-                            API_LOG_ERROR("Chatid (%s) already exists", karere::Id(chatId).toString().c_str());
                             room->updateSchedMeetingsWithList(smList);
                             MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
                             fireOnChatRequestFinish(request, megaChatError);
                             return;
                         }
-
-                        // create public chat room from info received from API
-                        mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
-                        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                        fireOnChatRequestFinish(request, megaChatError);
+                        else // create public chat room from info received from API
+                        {
+                            mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
+                            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                            fireOnChatRequestFinish(request, megaChatError);
+                        }
                    }
                 })
                 .fail([request, this](const ::promise::Error& err)
