@@ -18,7 +18,7 @@ Requires: libssl libcrypto
 install_pc_file(libssl [[
 Name: BoringSSL-libssl-webrtc
 Description: Secure Sockets Layer and cryptography libraries
-Libs: -L"${libdir}" -lwebrtc
+Libs: -L"${libdir}" -lssl
 Requires: libcrypto
 Cflags: -I"${includedir}"
 ]])
@@ -26,7 +26,7 @@ Cflags: -I"${includedir}"
 install_pc_file(libcrypto [[
 Name: BoringSSL-libcrypto-webrt
 Description: OpenSSL cryptography library
-Libs: -L"${libdir}" -lwebrtc
+Libs: -L"${libdir}" -lcrypto
 Cflags: -I"${includedir}"
 ]])
 

@@ -10,6 +10,8 @@ if(EXISTS "${CURRENT_INSTALLED_DIR}/include/openssl/ssl.h")
 	message(FATAL_ERROR "Can't build WebRTC if BoringSSL or OpenSSL is installed. Please remove BoringSSL or OpenSSL, and try to install WebRTC again. WebRTC will install headers and a .pc file to be found as OpenSSL.")
 endif()
 
+vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
+
 # Checkout and move to DESTINATION. SOURCE_PATH is the base folder for DESTINATION
 function(vcpkg_sub_from_git)
     set(oneValueArgs DESTINATION URL REF)
@@ -145,8 +147,6 @@ vcpkg_sub_from_git(
     REF dd77c67217b10ffeaf766e25eb8b46d2d59de4ff
 )
 
-vcpkg_check_linkage(ONLY_STATIC_LIBRARY)
-
 # Parameters for "gn gen" command.
 # Parameters can be listed with "gn args <out/directory> --list" command in a local build
 set(is_component_build false) # Links dynamically if set to true
@@ -172,6 +172,16 @@ vcpkg_gn_install(
     SOURCE_PATH "${SOURCE_PATH}"
     TARGETS :webrtc
 )
+
+# Add symbolic links to impersonate OpenSSL with the internal BoringSSL.
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
+    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/lib/libssl.a COPY_ON_ERROR SYMBOLIC)
+    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/lib/libcrypto.a COPY_ON_ERROR SYMBOLIC)
+endif()
+if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
+    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/debug/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/debug/lib/libssl.a COPY_ON_ERROR SYMBOLIC)
+    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/debug/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/debug/lib/libcrypto.a COPY_ON_ERROR SYMBOLIC)
+endif()
 
 # Install headers. Using COPY instead of INSTALL to reduce verbosity
 message(STATUS " * Installing public headers...")
@@ -250,6 +260,7 @@ if(VCPKG_TARGET_IS_LINUX)
         WEBRTC_POSIX
         WEBRTC_LINUX
     )
+    set(cmake_target_libs "-lX11")
 endif()
 
 list(JOIN cmake_target_definitions " " cmake_target_definitions) # INTERFACE_COMPILE_DEFINITIONS in the targets file requires a space separated list

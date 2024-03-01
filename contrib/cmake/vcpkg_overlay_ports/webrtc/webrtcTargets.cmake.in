@@ -7,7 +7,7 @@ if(NOT TARGET @cmake_target_name@)
     add_library(@cmake_target_alias@ ALIAS @cmake_target_name@)
     set_target_properties(@cmake_target_name@ PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${_IMPORTED_PREFIX}/include/@cmake_target_name@"
-        INTERFACE_LINK_LIBRARIES ""
+        INTERFACE_LINK_LIBRARIES @cmake_target_libs@
     )
 
     set_property(TARGET @cmake_target_name@ APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
