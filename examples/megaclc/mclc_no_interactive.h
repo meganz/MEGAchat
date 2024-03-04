@@ -4,7 +4,7 @@
  * mode.
  *
  * The entry point for running non interactive commands is the `noInteractiveCommand` function that
- * receives the input cli arguments without the firs element (the name of the megaclc binary). This
+ * receives the input cli arguments without the first element (the name of the megaclc binary). This
  * function will process the input and depending on the requested utility, run the appropriate
  * command.
  *
@@ -75,6 +75,7 @@ public:
     static inline const char* OPT_AUDIO = "audio";
     static inline const char* OPT_VIDEO_DEV = "video-in-device";
     static inline const char* OPT_WAIT = "wait";
+    static inline const char* OPT_DEFAULT_WAIT = "40";
     static inline const char* OPT_EMAIL = "email";
     static inline const char* OPT_PASS = "password";
     static inline const char* OPT_URL = "url";

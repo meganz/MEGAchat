@@ -52,7 +52,7 @@ JoinCallViaMeetingLink::JoinCallViaMeetingLink():
         (OPT_VIDEO, po::value<std::string>()->default_value("no"), "[yes|no] If yes, tries to call with video")
         (OPT_AUDIO, po::value<std::string>()->default_value("no"), "[yes|no] If yes, tries to call with audio")
         (OPT_VIDEO_DEV, po::value<std::string>(), "The input video device name to use in the call")
-        (OPT_WAIT, po::value<std::string>()->default_value("40"), "Time to stay in the call. 0 means never hang up.")
+        (OPT_WAIT, po::value<std::string>()->default_value(OPT_DEFAULT_WAIT), "Time to stay in the call. 0 means never hang up.")
         ((OPT_EMAIL + std::string(",e")).c_str(), po::value<std::string>(), "User's email to login")
         ((OPT_PASS + std::string(",p")).c_str(), po::value<std::string>(), "User's password to login")
         ((OPT_URL + std::string(",l")).c_str(), po::value<std::string>(), "Link to the chat to join and receive the call")
@@ -176,7 +176,8 @@ std::string JoinCallViaMeetingLink::buildJoinCallCommand(const po::variables_map
     joinCommand << " -wait " << variablesMap[OPT_WAIT].as<std::string>();
     if (variablesMap.count("video-in-device") != 0)
     {
-        joinCommand << " -videoInputDevice \"" << variablesMap[OPT_VIDEO_DEV].as<std::string>() << "\"";
+        joinCommand << " -videoInputDevice \"" << variablesMap[OPT_VIDEO_DEV].as<std::string>()
+                    << "\"";
     }
     joinCommand << " " << variablesMap[OPT_URL].as<std::string>();
     return joinCommand.str();

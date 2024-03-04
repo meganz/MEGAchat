@@ -16,6 +16,9 @@ using mclc::clc_log::logMsg;
 namespace // Private utilities
 {
 
+constexpr unsigned int ONE_MINUTE_SECS = 60;
+constexpr unsigned int TEN_SECS = 10;
+
 struct CallStateChangeTracker
 {
     c::MegaChatHandle chatId{c::MEGACHAT_INVALID_HANDLE};
@@ -76,7 +79,8 @@ bool waitForReceivingCallStatus(const c::MegaChatHandle chatId,
 
     // wait for receiving (CHANGE_TYPE_STATUS)
     CallStateChangeTracker hasCallStateChanged{chatId};
-    auto callNotificationRecv = megachat::async::waitForResponse(hasCallStateChanged, 60);
+    auto callNotificationRecv =
+        megachat::async::waitForResponse(hasCallStateChanged, ONE_MINUTE_SECS);
     if (!callNotificationRecv)
     {
         // if call already exists at this point this notification won't be received (i.e this
@@ -157,10 +161,19 @@ bool isCallAlive(const c::MegaChatHandle chatId)
     return true;
 }
 
+bool hasMegaChatBeenInit()
+{
+    return clc_global::g_chatApi->getInitState() != c::MegaChatApi::INIT_NOT_DONE;
+}
+
+bool areWeLoggedInSdk()
+{
+    return clc_global::g_megaApi->isLoggedIn();
+}
+
 bool areWeLoggedIn()
 {
-    return clc_global::g_megaApi->isLoggedIn() ||
-           clc_global::g_chatApi->getInitState() != c::MegaChatApi::INIT_NOT_DONE;
+    return areWeLoggedInSdk() || hasMegaChatBeenInit();
 }
 
 bool areWeInAnonymousMode()
@@ -194,7 +207,7 @@ bool logoutFromAnonymousMode()
         {
             return clc_global::g_chatFinishedLogout.load();
         },
-        60);
+        ONE_MINUTE_SECS);
     if (!logoutSucess)
     {
         logMsg(m::logError,
@@ -204,7 +217,7 @@ bool logoutFromAnonymousMode()
     return logoutSucess;
 }
 
-bool logoutFromApi()
+bool sdkLogout()
 {
     clc_global::g_chatFinishedLogout = false;
     setprompt(clc_prompt::NOPROMPT);
@@ -216,22 +229,22 @@ bool logoutFromApi()
     clc_global::g_megaApi->logout(&logoutTracker);
 #endif
 
-    bool isChatDisabled = c::async::waitForResponse(
+    bool isMegaChatLoggedOut = c::async::waitForResponse(
         []()
         {
             return clc_global::g_chatFinishedLogout.load();
         },
-        10);
-    if (!isChatDisabled)
+        TEN_SECS);
+    if (!isMegaChatLoggedOut)
     {
         logMsg(m::logError, "Unable to log out chat api", ELogWriter::MEGA_CHAT);
     }
-    bool logoutSucess = logoutTracker.waitForResult(10) == megachat::MegaChatError::ERROR_OK;
-    if (!logoutSucess)
+    bool chatLogoutSucess = logoutTracker.waitForResult(10) == megachat::MegaChatError::ERROR_OK;
+    if (!chatLogoutSucess)
     {
-        logMsg(m::logError, "Unable to log out", ELogWriter::SDK);
+        logMsg(m::logError, "Unable to log out from MEGAChat", ELogWriter::SDK);
     }
-    return logoutSucess && isChatDisabled;
+    return chatLogoutSucess && isMegaChatLoggedOut;
 }
 
 bool logout()
@@ -246,7 +259,7 @@ bool logout()
         logMsg(m::logError, "You are trying to logout without being logged in", ELogWriter::SDK);
         return false;
     }
-    return logoutFromApi();
+    return sdkLogout();
 }
 
 bool ensureLogout()
@@ -276,7 +289,7 @@ bool login(const char* email, const char* password)
     // Login request
     clc_listen::OneShotRequestTracker loginTracker(clc_global::g_megaApi.get());
     clc_global::g_megaApi->login(email, password, &loginTracker);
-    if (int errCode = loginTracker.waitForResult(); errCode)
+    if (int errCode = loginTracker.waitForResult(); errCode != m::API_OK)
     {
         logMsg(m::logError,
                std::string("ERROR CODE ") + std::to_string(errCode) + ": Failed to log in",
@@ -290,7 +303,7 @@ bool login(const char* email, const char* password)
             // While fetching nodes g_prompt == NOPROMPT. Once it finishes COMMAND
             return clc_global::g_prompt == clc_prompt::COMMAND;
         },
-        60);
+        ONE_MINUTE_SECS);
     if (!hasFetchNodesFinished)
     {
         logMsg(m::logError,
@@ -304,7 +317,7 @@ bool login(const char* email, const char* password)
         {
             return clc_global::g_allChatsLoggedIn.load();
         },
-        60);
+        ONE_MINUTE_SECS);
     if (!hasAllChatsBeenLoggedIn)
     {
         logMsg(m::logError,

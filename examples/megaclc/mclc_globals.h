@@ -30,8 +30,8 @@ extern std::atomic<bool> g_reportMessagesDeveloper;
 
 
 /**
- * @brief A flag to check weather all the chats are ready so we can confirm the login is finished
- * properly. It is set to true in the CLCListener::onChatConnectionStateUpdate  method.
+ * @brief A flag to check weather we are connected to all active chats, so we can confirm the login
+ * is finished properly. It is set to true in the CLCListener::onChatConnectionStateUpdate  method.
  */
 extern std::atomic<bool> g_allChatsLoggedIn;
 
