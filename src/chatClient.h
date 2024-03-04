@@ -110,6 +110,12 @@ protected:
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     bool isChatdChatInitialized();
 
+    // Returns true if own privilege is different than newPriv, otherwise returns false
+    bool hasOwnPrivChanged(const chatd::Priv newPriv)
+    {
+        return mOwnPriv != newPriv;
+    }
+
 public:
     virtual bool previewMode() const { return false; }
     virtual bool publicChat() const { return false; }
@@ -395,7 +401,16 @@ protected:
     void notifyPreviewClosed();
     void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
     void notifySchedMeetingOccurrencesUpdated(bool append);
-    void setRemoved();
+
+    // Sync own priv to PRIV_RM and notify change to apps
+    void setOwnUserRemoved();
+
+    // Manage own user re/join to chat
+    void rejoinChatOwnUser();
+
+    // Notify apps about own priv change
+    void notifyOwnUserPrivChange();
+
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
