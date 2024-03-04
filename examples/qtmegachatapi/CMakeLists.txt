@@ -73,10 +73,12 @@ target_sources_conditional(QtApp
     peerWidget.h
     meetingSession.h
     meetingView.h
+    ../../src/videoRenderer_Qt.h
     
     peerWidget.cpp
     meetingSession.cpp    
     meetingView.cpp
+    ../../src/videoRenderer_Qt.cpp
 )
 
 # Activate properties for Qt code
