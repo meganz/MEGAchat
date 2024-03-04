@@ -9,6 +9,7 @@ vcpkg_from_github(
         fix-build-error.patch
         export-include-path.patch
         fix-find-openssl.patch
+        fix-find-boringssl.patch
 )
 
 string(COMPARE EQUAL "${VCPKG_LIBRARY_LINKAGE}" "static" LWS_WITH_STATIC)
@@ -136,20 +137,29 @@ if(NOT VCPKG_TARGET_ARCHITECTURE STREQUAL "wasm32")
     set(EXTRA_ARGS "-DLWS_WITH_LIBUV=ON")
 endif()
 
+vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
+	FEATURES
+        boringssl   LWS_WITH_BORINGSSL
+        gencrypto   LWS_WITH_GENCRYPTO
+        ipv6        LWS_IPV6
+    INVERTED_FEATURES
+        non-http2   LWS_WITH_HTTP2
+)
+
 vcpkg_cmake_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS
         ${EXTRA_ARGS}
         -DLWS_WITH_STATIC=${LWS_WITH_STATIC}
         -DLWS_WITH_SHARED=${LWS_WITH_SHARED}
-        -DLWS_WITH_GENCRYPTO=ON
-        -DLWS_WITH_TLS=ON
+        -DLWS_WITH_GENCRYPTO=${LWS_WITH_GENCRYPTO}
         -DLWS_WITH_BUNDLED_ZLIB=OFF
         -DLWS_WITHOUT_TESTAPPS=ON
-        -DLWS_IPV6=ON
-        -DLWS_WITH_HTTP2=ON
+        -DLWS_IPV6=${LWS_IPV6}
+        -DLWS_WITH_HTTP2=${LWS_WITH_HTTP2}
         -DLWS_WITH_HTTP_STREAM_COMPRESSION=ON # Since zlib is already a dependency
         -DLWS_WITH_EXTERNAL_POLL=ON
+        -DLWS_WITH_BORINGSSL=${LWS_WITH_BORINGSSL}
     # OPTIONS_RELEASE -DOPTIMIZE=1
     # OPTIONS_DEBUG -DDEBUGGABLE=1
 )
