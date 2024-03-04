@@ -200,6 +200,12 @@
         "wolfssl"
       ]
     },
+    "boringssl": {
+      "description": "SSL support (BoringSSL)",
+      "dependencies": [
+        "boringssl"
+      ]
+    },
     "zstd": {
       "description": "ZStandard support (zstd)",
       "dependencies": [
