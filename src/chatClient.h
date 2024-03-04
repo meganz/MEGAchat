@@ -101,7 +101,7 @@ protected:
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
             std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id& = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
-    void notifyExcludedFromChat();
+    void notifyOwnExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv newPriv);
     bool syncArchive(bool aIsArchived);

@@ -3178,7 +3178,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     return room;
 }
 
-void ChatRoom::notifyExcludedFromChat()
+void ChatRoom::notifyOwnExcludedFromChat()
 {
     if (mAppChatHandler)
         mAppChatHandler->onExcludedFromChat();
@@ -3301,7 +3301,7 @@ void GroupChatRoom::setOwnUserRemoved()
 {
     if (syncOwnPriv(chatd::PRIV_RM))
     {
-        notifyExcludedFromChat();
+        notifyOwnExcludedFromChat();
     }
 }
 
@@ -4249,111 +4249,146 @@ void GroupChatRoom::clearTitle()
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
 {
-    // Mode changed
-    if (!chat.isPublicChat() && publicChat())
+    auto syncChatMode = [&chat, this]()
     {
-        KR_LOG_DEBUG("Chatroom[%s]: API event: mode changed to private", ID_CSTR(mChatid));
-        setChatPrivateMode();
-        // in case of previewMode, it's also updated in cache
-    }
-
-    if (!mChatOptions.areEqual(chat.getChatOptions()))
-    {
-        KR_LOG_DEBUG("Chatroom[%s]: API event: chat options have changed", ID_CSTR(mChatid));
-        updateChatOptions(chat.getChatOptions());
-    }
-
-    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_MEETING))
-    {
-        updateSchedMeetings(chat);
-    }
-    else if (chat.getScheduledMeetingList()
-             && chat.getScheduledMeetingList()->size()
-             && mScheduledMeetings.empty())
-    {
-        // if chat from API have scheduled meetings, but we don't have those meetings stored in karere
-        addSchedMeetings(chat.getScheduledMeetingList());
-    }
-
-    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
-            || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
-    {
-        addSchedMeetingsOccurrences(chat);
-    }
-    else if (chat.getUpdatedOccurrencesList() && chat.getUpdatedOccurrencesList()->size())
-    {
-        assert(false);
-        KR_LOG_WARNING("syncWithApi: Chat received from SDK contains updated occurrences, but no related change is set");
-    }
-
-    auto oldPriv = mOwnPriv;
-    auto newPriv = static_cast<chatd::Priv>(chat.getOwnPrivilege());
-    auto ownPrivChanged = oldPriv != newPriv;
-    if (ownPrivChanged) // Manage own user privilege change
-    {
-        auto ownPrivUpdated = syncOwnPriv(newPriv);
-        if (!ownPrivUpdated)
+        // Mode changed
+        if (!chat.isPublicChat() && publicChat())
         {
-            KR_LOG_ERROR("Chatroom[%s]: API event: couldn't update own priv for chat: ", ID_CSTR(mChatid));
-            assert(false);
+            KR_LOG_DEBUG("Chatroom[%s]: API event: mode changed to private", ID_CSTR(mChatid));
+            setChatPrivateMode();
+            // in case of previewMode, it's also updated in cache
         }
-        else
+    };
+
+    auto syncChatOptions = [&chat, this]()
+    {
+        if (!mChatOptions.areEqual(chat.getChatOptions()))
         {
-            if (newPriv == chatd::PRIV_RM)
+            KR_LOG_DEBUG("Chatroom[%s]: API event: chat options have changed", ID_CSTR(mChatid));
+            updateChatOptions(chat.getChatOptions());
+        }
+    };
+
+    auto syncSchedMeetings = [&chat, this]()
+    {
+        if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_MEETING))
+        {
+            updateSchedMeetings(chat);
+        }
+        else if (chat.getScheduledMeetingList()
+                && chat.getScheduledMeetingList()->size()
+                && mScheduledMeetings.empty())
+        {
+            // if chat from API have scheduled meetings, but we don't have those meetings stored in karere
+            addSchedMeetings(chat.getScheduledMeetingList());
+        }
+
+        if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
+                || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
+        {
+            addSchedMeetingsOccurrences(chat);
+        }
+        else if (chat.getUpdatedOccurrencesList() && chat.getUpdatedOccurrencesList()->size())
+        {
+            assert(false);
+            KR_LOG_WARNING("syncWithApi: Chat received from SDK contains updated occurrences, but no related change is set");
+        }
+    };
+
+    auto syncOwnPrivilege = [&chat, this]() -> bool
+    {
+        auto oldPriv = mOwnPriv;
+        auto newPriv = static_cast<chatd::Priv>(chat.getOwnPrivilege());
+        auto ownPrivChanged = oldPriv != newPriv;
+        if (ownPrivChanged) // Manage own user privilege change
+        {
+            auto ownPrivUpdated = syncOwnPriv(newPriv);
+            if (!ownPrivUpdated)
             {
-                KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed from chat: ", ID_CSTR(mChatid));
-                notifyExcludedFromChat();
-                return true;
-            }
-            else if (oldPriv == chatd::PRIV_RM && newPriv != chatd::PRIV_RM)
-            {
-                KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited or re/joined to chat: ",
-                             ID_CSTR(mChatid));
-                rejoinChatOwnUser();
-                notifyRejoinedChat();
+                KR_LOG_ERROR("Chatroom[%s]: API event: couldn't update own priv for chat: ", ID_CSTR(mChatid));
+                assert(false);
             }
             else
             {
-                KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed for chat: ",
-                             ID_CSTR(mChatid));
-                notifyOwnUserPrivChange();
+                if (newPriv == chatd::PRIV_RM)
+                {
+                    KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed from chat: ", ID_CSTR(mChatid));
+                    notifyOwnExcludedFromChat();
+                    return true;
+                }
+                else if (oldPriv == chatd::PRIV_RM && newPriv != chatd::PRIV_RM)
+                {
+                    KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited or re/joined to chat: ",
+                                ID_CSTR(mChatid));
+                    rejoinChatOwnUser();
+                    notifyRejoinedChat();
+                }
+                else
+                {
+                    KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed for chat: ",
+                                ID_CSTR(mChatid));
+                    notifyOwnUserPrivChange();
+                }
             }
         }
-    }
 
-    // Manage chat participants priv changes received in MegaTextChat
-    bool membersChanged = syncMembers(chat);
-    mAutoJoining = false;
+        return false; // we have not been removed from chat
+    };
 
-    // Title changes
-    const char *title = chat.getTitle();
-    mHasTitle = (title && title[0]);
-    if (mHasTitle)
+    auto syncChatTitle = [&chat, this](const bool membersChanged)
     {
-        if (mEncryptedTitle != title)   // title has changed
+        // Title changes
+        const char *title = chat.getTitle();
+        mHasTitle = (title && title[0]);
+        if (mHasTitle)
         {
-            // if the title was already decrypted in cache at startup, the `mEncryptedTitle` won't be initialized yet
-            // (the encrypted flavour of the title is saved in cache but overwriten when decrypted)
-            // In consequence, the first actionpacket will initialize it and decrypt it once per execution
-            mEncryptedTitle = title;
-            updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
-
-            decryptTitle()
-            .fail([](const ::promise::Error& err)
+            if (mEncryptedTitle != title)   // title has changed
             {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
-            });
+                // if the title was already decrypted in cache at startup, the `mEncryptedTitle` won't be initialized yet
+                // (the encrypted flavour of the title is saved in cache but overwriten when decrypted)
+                // In consequence, the first actionpacket will initialize it and decrypt it once per execution
+                mEncryptedTitle = title;
+                updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
+
+                decryptTitle()
+                .fail([](const ::promise::Error& err)
+                {
+                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
+                });
+            }
         }
-    }
-    else if (membersChanged)
+        else if (membersChanged)
+        {
+            KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...", ID_CSTR(mChatid));
+            clearTitle();
+        }
+    };
+
+    // Sync chat mode (public|private)
+    syncChatMode();
+
+    // Sync chat options
+    syncChatOptions();
+
+    // Sync scheduled meetings
+    syncSchedMeetings();
+
+    // Sync own privilege
+    auto weHaveBeenRemoved = syncOwnPrivilege();
+    if (weHaveBeenRemoved)
     {
-        KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...", ID_CSTR(mChatid));
-        clearTitle();
+        return true;
     }
 
-    // Changes in archive mode
-    bool archiveChanged = syncArchive(chat.isArchived());
-    if (archiveChanged)
+    // Sync chat participants priv changes
+    bool membersChanged = syncMembers(chat);
+    mAutoJoining = false; // set mAutoJoining false to enable Db transactional mode
+
+    // Sync chat title changes
+    syncChatTitle(membersChanged);
+
+    // Sync changes in archive mode
+    if (syncArchive(chat.isArchived()))
     {
         onArchivedChanged(mIsArchived);
     }
