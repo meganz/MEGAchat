@@ -8,6 +8,9 @@
         {
             "description" : "Enable support for voice and/or video calls",
             "dependencies": [
+                "webrtc",
+                { "name" : "libwebsockets", "default-features": false, "features" : [ "boringssl", "ipv6" ] },
+                { "name" : "curl", "version>=": "8.4.0", "default-features": false, "features" : [ "boringssl" ] }
             ]
         },
         "no-webrtc":
@@ -21,7 +24,9 @@
         },
         "use-mediainfo": {
             "description": "MediaInfo library",
-            "dependencies": [ "libmediainfo" ]
+            "dependencies": [
+                { "name" : "libmediainfo", "default-features": false }
+            ]
         },
         "use-freeimage": {
             "description": "FreeImage library",
