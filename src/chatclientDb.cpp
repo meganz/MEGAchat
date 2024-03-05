@@ -103,19 +103,23 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::loadSch
     std::vector<std::unique_ptr<KarereScheduledMeeting>> v;
     while (stmt.step())
     {
-       karere::Id schedId = stmt.int64Col(0) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(0));
-       karere::Id chatid = stmt.int64Col(1) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(1));
-       karere::Id organizerid = stmt.int64Col(2) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(2));
-       karere::Id parentSchedid = stmt.int64Col(3) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(3));
+       auto getId = [&stmt](int col) {
+           auto id = stmt.integralCol<int64_t>(col);
+           return  id == -1 ? karere::Id::inval().val : static_cast<uint64_t>(id);
+       };
+       karere::Id schedId = getId(0);
+       karere::Id chatid = getId(1);
+       karere::Id organizerid = getId(2);
+       karere::Id parentSchedid = getId(3);
        std::string timezone(stmt.stringCol(4));
-       ::mega::m_time_t startDateTime = stmt.int64Col(5);
-       ::mega::m_time_t endDateTime = stmt.int64Col(6);
+       ::mega::m_time_t startDateTime = stmt.integralCol<::mega::m_time_t>(5);
+       ::mega::m_time_t endDateTime = stmt.integralCol<::mega::m_time_t>(6);
        std::string title(stmt.stringCol(7));
        std::string description(stmt.stringCol(8));
        std::string attributes = stmt.stringCol(9);
-       ::mega::m_time_t overrides  = stmt.int64Col(10);
-       int cancelled = stmt.intCol(11);
-       std::unique_ptr <KarereScheduledFlags> flags(new KarereScheduledFlags(static_cast<unsigned long>(stmt.intCol(12))));
+       ::mega::m_time_t overrides  = stmt.integralCol<::mega::m_time_t>(10);
+       int cancelled = stmt.integralCol<int>(11);
+       std::unique_ptr <KarereScheduledFlags> flags(new KarereScheduledFlags(stmt.integralCol<unsigned long>(12)));
        std::unique_ptr <KarereScheduledRules> rules;
        if (sqlite3_column_type(stmt, 13) != SQLITE_NULL)
        {
@@ -146,13 +150,13 @@ std::vector<std::unique_ptr<KarereScheduledMeetingOccurr>> ChatClientSqliteDb::l
 
     while (stmt.step())
     {
-       karere::Id parentSchedId = stmt.int64Col(1) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(1));
-       ::mega::m_time_t overrides = stmt.int64Col(2);
+       karere::Id parentSchedId = stmt.integralCol<int64_t>(1) == -1 ? karere::Id::inval().val : stmt.integralCol<uint64_t>(1);
+       ::mega::m_time_t overrides = stmt.integralCol<::mega::m_time_t>(2);
        std::string timeZone(stmt.stringCol(3));
-       int cancelled = stmt.intCol(4);
-       karere::Id schedId = stmt.int64Col(5) == -1 ? karere::Id::inval().val : static_cast<uint64_t>(stmt.int64Col(5));
-       ::mega::m_time_t startDateTime = stmt.int64Col(6);
-       ::mega::m_time_t endDateTime = stmt.int64Col(7);
+       int cancelled = stmt.integralCol<int>(4);
+       karere::Id schedId = stmt.integralCol<int64_t>(5) == -1 ? karere::Id::inval().val : stmt.integralCol<uint64_t>(5);
+       ::mega::m_time_t startDateTime = stmt.integralCol<::mega::m_time_t>(6);
+       ::mega::m_time_t endDateTime = stmt.integralCol<::mega::m_time_t>(7);
 
        KarereScheduledMeetingOccurr* aux = new KarereScheduledMeetingOccurr(schedId, parentSchedId, timeZone, startDateTime, endDateTime, overrides, cancelled);
        v.emplace_back(std::move(aux));

@@ -198,7 +198,7 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
     {
         std::unique_ptr<Buffer> data(new Buffer((size_t)sqlite3_column_bytes(stmt, 2)));
         stmt.blobCol(2, *data);
-        UserAttrPair key(stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(1)));
+        UserAttrPair key(stmt.integralCol<uint64_t>(0), stmt.integralCol<uint8_t>(1));
         emplace(std::make_pair(key, std::make_shared<UserAttrCacheItem>(
                 *this, data.release(), kCacheFetchNotPending)));
 //        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());

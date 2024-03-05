@@ -179,7 +179,7 @@ Client::Client(karere::Client *aKarereClient) :
     SqliteStmt stmt1(mKarereClient->db, "SELECT DISTINCT userid FROM history");
     while (stmt1.step())
     {
-        karere::Id userid = stmt1.uint64Col(0);
+        karere::Id userid = stmt1.integralCol<uint64_t>(0);
         if (userid == Id::COMMANDER())
         {
             continue;
@@ -189,7 +189,7 @@ Client::Client(karere::Client *aKarereClient) :
         stmt2 << userid.val;
         if (stmt2.step())
         {
-            mLastMsgTs[userid] = stmt2.uintCol(0);
+            mLastMsgTs[userid] = stmt2.integralCol<::mega::m_time_t>(0);
         }
     }
 }
