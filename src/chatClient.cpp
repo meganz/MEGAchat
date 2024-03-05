@@ -4172,8 +4172,8 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
             peersChanged = true;
             ourIt++;    // prevent iterator becoming invalid due to removal
             removeMember(userid);
-            // we must not call onUserLeave(userid), as OP_JOIN code path will do anyway, so iy would
-            // duplicate notification
+            // we must not call onUserLeave(userid), as OP_JOIN code path will do anyway, and it
+            // would duplicate notification in case we also call from here
         }
         else
         {
