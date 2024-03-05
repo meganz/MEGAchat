@@ -8516,19 +8516,6 @@ void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
                                             const int privilege,
                                             TestChatRoomListener* crl)
 {
-    auto checkPriv = [this](const unsigned int performerIdx,
-                            const megachat::MegaChatHandle chatId,
-                            const int expPriv,
-                            const megachat::MegaChatHandle uh)
-    {
-        std::unique_ptr<MegaChatRoom> room(megaChatApi[performerIdx]->getChatRoom(chatId));
-        if (room)
-        {
-            return room->getPeerPrivilegeByHandle(uh) == expPriv;
-        }
-        return false;
-    };
-
     ASSERT_TRUE(crl) << "updateChatPermissions: Invalid chatroom listener provided";
 
     bool* peerUpdated0 = &peersUpdated[performerIdx];
@@ -8548,29 +8535,13 @@ void MegaChatApiTest::updateChatPermissions(const unsigned int performerIdx,
         << "Failed to update peer permissions to " << privilege << ". Error: " << crtChangePermissions.getErrorString();
 
     // wait for expected changes at onChatListItemUpdate
-    auto permChangeRecva1 = waitForResponse(peerUpdated0, minTimeout * 2);
-    if (!permChangeRecva1)
-    {
-        std::string msg = "Posible race condition (between API and Chatd) where  "
-                          "onChatListItemUpdate (CHANGE_TYPE_PARTICIPANTS) is not received";
-        LOG_warn << msg.c_str();
-        std::cout << "[   WARN   ] " << msg << endl;
+    ASSERT_TRUE(waitForResponse(peerUpdated0, minTimeout * 2))
+        << "onChatListItemUpdate (CHANGE_TYPE_PARTICIPANTS) has not been received. Check race "
+           "condition (between API and Chatd)";
 
-        ASSERT_TRUE(checkPriv(performerIdx, chatId, privilege, uh))
-            << "updateChatPermissions: Unexpected permission for user: " << getUserIdStrB64(uh);
-    }
-
-    auto permChangeRecva2 = waitForResponse(peerUpdated1, minTimeout * 2);
-    if (!permChangeRecva2)
-    {
-        std::string msg = "Posible race condition (between API and Chatd) where "
-                    "onChatListItemUpdate (CHANGE_TYPE_OWN_PRIV) is not received";
-        LOG_warn << msg.c_str();
-        std::cout << "[   WARN   ] "  << msg << endl;
-
-        ASSERT_TRUE(checkPriv(performerIdx, chatId, privilege, uh))
-            << "updateChatPermissions: Unexpected permission for own user: " << getUserIdStrB64(uh);
-    }
+    ASSERT_TRUE(waitForResponse(peerUpdated1, minTimeout * 2))
+        << "onChatListItemUpdate (CHANGE_TYPE_OWN_PRIV) has not been received. Check race "
+           "condition (between API and Chatd)";
 
     // wait for expected changes at onMessageReceived
     ASSERT_TRUE(waitForResponse(mngMsgRecv))
