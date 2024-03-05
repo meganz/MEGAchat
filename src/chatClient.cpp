@@ -2955,19 +2955,20 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
 
 bool GroupChatRoom::removeMember(uint64_t userid)
 {
-    KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", ID_CSTR(mChatid), ID_CSTR(userid));
-
     auto it = mPeers.find(userid);
     if (it == mPeers.end())
     {
         KR_LOG_WARNING("GroupChatRoom::removeMember for a member that we don't have, ignoring");
         return false;
     }
+    else
+    {
+        KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", ID_CSTR(mChatid), ID_CSTR(userid));
+    }
 
     delete it->second;
     mPeers.erase(it);
     parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
-
     return true;
 }
 
@@ -4108,78 +4109,91 @@ promise::Promise<std::shared_ptr<std::string>> GroupChatRoom::unifiedKey()
 bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 {
     UserPrivMap users;
-    auto members = chat.getPeerList();
-    if (members)
-    {
-        auto size = members->size();
-        for (int i = 0; i < size; i++)
-        {
-            users.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
-        }
-    }
+    auto peersChanged = false;
 
+    auto getUserPrivMap = [&users, &chat]()
+    {
+        auto members = chat.getPeerList();
+        if (members)
+        {
+            auto size = members->size();
+            for (int i = 0; i < size; ++i)
+            {
+                users.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
+            }
+        }
+    };
+
+    auto updateTitleFromMemberNames = [&users, &peersChanged, this]()
+    {
+        std::vector<promise::Promise<void> > promises;
+        for (auto& user: users)
+        {
+            if (mPeers.find(user.first) == mPeers.end())
+            {
+                peersChanged = true;
+                promise::Promise<void> promise = addMember(user.first, user.second, publicChat());
+                if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
+                {
+                    promises.push_back(promise);
+                }
+            }
+        }
+
+        if (peersChanged)
+        {
+            auto wptr = weakHandle();
+            promise::when(promises)
+            .then([wptr, this]()
+            {
+                wptr.throwIfDeleted();
+                if (!mHasTitle)
+                {
+                    makeTitleFromMemberNames();
+                }
+            });
+        }
+    };
+
+    getUserPrivMap();
     auto db = parent.mKarereClient.db;
-    bool peersChanged = false;
-    bool commitEach = parent.mKarereClient.commitEach() || mAutoJoining;
+    auto commitEach = parent.mKarereClient.commitEach() || mAutoJoining;
     parent.mKarereClient.setCommitMode(false);
+
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
         auto userid = ourIt->first;
         auto member = ourIt->second;
+        auto itApiUser = users.find(userid);
+        auto userRemoved = itApiUser == users.end();
 
-        auto it = users.find(userid);
-        if (it == users.end()) //we have a user that is not in the chatroom anymore
+        if (userRemoved)
         {
             peersChanged = true;
             ourIt++;    // prevent iterator becoming invalid due to removal
             removeMember(userid);
+            // we must not call onUserLeave(userid), as OP_JOIN code path will do anyway, so iy would
+            // duplicate notification
         }
-        else    // existing peer changed privilege
+        else
         {
-            if (member->mPriv != it->second)
+            // update existing peer privilege
+            auto& peerPriv = member->mPriv;
+            auto newPriv = itApiUser->second;
+            if (peerPriv != newPriv)
             {
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
-                     ID_CSTR(chatid()), ID_CSTR(userid), member->mPriv, it->second);
+                     ID_CSTR(chatid()), ID_CSTR(userid), peerPriv, newPriv);
 
-                onUserJoin(member->mHandle, it->second);
-                member->mPriv = it->second;
-                db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
+                onUserJoin(member->mHandle, newPriv);
+                peerPriv = newPriv;
+                db.query("update chat_peers set priv=? where chatid=? and userid=?", peerPriv, mChatid, userid);
             }
             ourIt++;
         }
     }
-
     parent.mKarereClient.setCommitMode(commitEach);
-
-
-    std::vector<promise::Promise<void> > promises;
-    for (auto& user: users)
-    {
-        if (mPeers.find(user.first) == mPeers.end())
-        {
-            peersChanged = true;
-            promise::Promise<void> promise = addMember(user.first, user.second, publicChat());
-            if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
-            {
-                promises.push_back(promise);
-            }
-        }
-    }
-
-    if (peersChanged)
-    {
-        auto wptr = weakHandle();
-        promise::when(promises)
-        .then([wptr, this]()
-        {
-            wptr.throwIfDeleted();
-            if (!mHasTitle)
-            {
-                makeTitleFromMemberNames();
-            }
-        });
-    }
-
+    updateTitleFromMemberNames();
     return peersChanged;
 }
 
