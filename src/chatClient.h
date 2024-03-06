@@ -411,6 +411,41 @@ protected:
     // Notify apps about own priv change
     void notifyOwnUserPrivChange();
 
+    /**
+     * @brief Checks if UserPrivMap contains any user not included in GroupChatRoom, and if true it
+     * generates chat title from member names, just in case chatroom doesn't have a custom title
+     *
+     * @param users map of user privileges
+     * @param peersChanged input/output param to detect if chatroom composition has changed. This
+     * param will be set true in case UserPrivMap contains any user not included in GroupChatRoom
+     */
+    void updateTitleFromMemberNames(const UserPrivMap& users, bool& peersChanged);
+
+    /**
+     * @brief Checks if GroupChatRoom title has changed respect from MegaTextChat received from SDK,
+     * in that case stores encrypted title in memory and Db, and tries to decrypt.
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     * @param peersChanged input flag that indicates that GroupChatRoom composition has changed
+     */
+    void syncChatTitle(const mega::MegaTextChat& chat, const bool membersChanged);
+
+    /**
+     * @brief Updates GroupChatRoom scheduled meetings and occurrences, if they have changed respect
+     * to MegaTextChat received from SDK
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     */
+    void syncSchedMeetings(const mega::MegaTextChat& chat);
+
+    /**
+     * @brief Updates GroupChatRoom own privilege, if it has changed respect to MegaTextChat
+     * received from SDK, and notify apps about this change
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     */
+    bool syncOwnPrivilege(const mega::MegaTextChat& chat);
+
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
