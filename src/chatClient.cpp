@@ -3760,8 +3760,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
     else
     {
         auto it = mPeers.find(userid);
-        auto peerPrivNotChanged = it != mPeers.end() && it->second->mPriv == privilege;
-        if (peerPrivNotChanged)
+        if (bool peerPrivNotChanged = it != mPeers.end() && it->second->mPriv == privilege; peerPrivNotChanged)
         {
             return;
         }
@@ -4161,8 +4160,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
-        auto userid = ourIt->first;
-        auto member = ourIt->second;
+        auto [userid, member] = *ourIt;
         auto itApiUser = users.find(userid);
         auto userRemoved = itApiUser == users.end();
 
@@ -4315,8 +4313,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         auto ownPrivChanged = oldPriv != newPriv;
         if (ownPrivChanged) // Manage own user privilege change
         {
-            auto ownPrivUpdated = syncOwnPriv(newPriv);
-            if (!ownPrivUpdated)
+            if (bool ownPrivUpdated = syncOwnPriv(newPriv); !ownPrivUpdated)
             {
                 KR_LOG_ERROR("Chatroom[%s]: API event: couldn't update own priv for chat: ", ID_CSTR(mChatid));
                 assert(false);
