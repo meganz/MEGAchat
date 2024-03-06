@@ -3750,8 +3750,7 @@ bool ChatRoom::hasChatHandler() const
 
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
-    auto isOwnUser = userid == parent.mKarereClient.myHandle();
-    if (isOwnUser)
+    if (bool isOwnUser = userid == parent.mKarereClient.myHandle(); isOwnUser)
     {
         if (!syncOwnPriv(privilege)) // There isn't change for own privilege, avoid to call 'onUserJoin'
         {
