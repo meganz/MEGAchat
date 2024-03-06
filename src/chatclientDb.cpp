@@ -99,14 +99,14 @@ std::vector<std::unique_ptr<KarereScheduledMeeting>> ChatClientSqliteDb::loadSch
     SqliteStmt stmt(mDb, "select schedid, chatid, organizerid, parentschedid, timezone, startdatetime, enddatetime, title, description, attributes, overrides, cancelled, "
                          "flags, rules from scheduledMeetings where chatid = ?");
     stmt << id;
-
+       
+    auto getId = [&stmt](int col) {
+        auto id = stmt.integralCol<int64_t>(col);
+        return  id == -1 ? karere::Id::inval().val : static_cast<uint64_t>(id);
+    };
     std::vector<std::unique_ptr<KarereScheduledMeeting>> v;
     while (stmt.step())
     {
-       auto getId = [&stmt](int col) {
-           auto id = stmt.integralCol<int64_t>(col);
-           return  id == -1 ? karere::Id::inval().val : static_cast<uint64_t>(id);
-       };
        karere::Id schedId = getId(0);
        karere::Id chatid = getId(1);
        karere::Id organizerid = getId(2);
