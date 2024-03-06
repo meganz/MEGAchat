@@ -4146,7 +4146,7 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
             auto size = members->size();
             for (int i = 0; i < size; ++i)
             {
-                u.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
+                u.emplace(members->getPeerHandle(i), static_cast<chatd::Priv>(members->getPeerPrivilege(i)));
             }
         }
         return u;

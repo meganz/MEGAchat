@@ -426,7 +426,7 @@ protected:
      * in that case stores encrypted title in memory and Db, and tries to decrypt.
      *
      * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
-     * @param peersChanged input flag that indicates that GroupChatRoom composition has changed
+     * @param membersChanged input flag that indicates that GroupChatRoom composition has changed
      */
     void syncChatTitle(const mega::MegaTextChat& chat, const bool membersChanged);
 
