@@ -106,11 +106,12 @@ int JoinCallViaMeetingLink::operator()(int argc, char* argv[])
 void JoinCallViaMeetingLink::validateInput(const po::variables_map& variablesMap)
 {
     const std::vector<const char*> mandatoryFields{OPT_EMAIL, OPT_PASS, OPT_URL};
+    std::vector<std::string> errorMsgs;
     for (auto& field: mandatoryFields)
     {
         if (variablesMap.count(field) == 0)
         {
-            throw std::logic_error("Missing required option " + std::string(field));
+            errorMsgs.push_back("Missing required option " + std::string(field));
         }
     }
 
@@ -120,8 +121,13 @@ void JoinCallViaMeetingLink::validateInput(const po::variables_map& variablesMap
         const std::string value = variablesMap[field].as<std::string>();
         if (value != "yes" && value != "no")
         {
-            throw std::logic_error("The " + std::string(field) + " option must be yes or no");
+            errorMsgs.push_back("The " + std::string(field) + " option must be yes or no");
         }
+    }
+    if (!errorMsgs.empty())
+    {
+        std::string errMsg = "\n- " + str_utils::join(errorMsgs.begin(), errorMsgs.end(), "\n- ");
+        throw std::logic_error(errMsg);
     }
 }
 

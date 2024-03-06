@@ -1,10 +1,11 @@
+#ifndef MCLC_CHAT_AND_CALL_ACTIONS_H
+#define MCLC_CHAT_AND_CALL_ACTIONS_H
+
 /**
  * @file
  * @brief This file is supposed to hold a set of high level functions that perform different actions
  * related to chats and calls.
  */
-
-#pragma once
 
 #include "megachatapi.h"
 
@@ -141,3 +142,4 @@ bool hangUpCall(const c::MegaChatHandle chatId);
 bool setChatVideoInDevice(const std::string& device);
 
 }
+#endif // MCLC_CHAT_AND_CALL_ACTIONS_H

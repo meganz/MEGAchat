@@ -4,6 +4,7 @@
 #include "mclc_listeners.h"
 #include "mclc_logging.h"
 
+#include <chrono>
 #include <mega.h>
 
 namespace mclc::clc_ccactions
@@ -15,9 +16,10 @@ using mclc::clc_log::logMsg;
 
 namespace // Private utilities
 {
+using namespace std::chrono_literals;
 
-constexpr unsigned int ONE_MINUTE_SECS = 60;
-constexpr unsigned int TEN_SECS = 10;
+constexpr auto ONE_MINUTE_SECS = 60s;
+constexpr auto TEN_SECS = 10s;
 
 struct CallStateChangeTracker
 {

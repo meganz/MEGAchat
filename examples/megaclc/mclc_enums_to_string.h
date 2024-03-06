@@ -1,11 +1,12 @@
+#ifndef MCLC_ENUMS_TO_STRING_H
+#define MCLC_ENUMS_TO_STRING_H
+
 /**
  * @file
  * @brief Some utilities to convert enums into strings and viceversa
  *
  * The clc_etos namespace stands for enum-to-string
  */
-
-#pragma once
 
 #include <string>
 
@@ -31,3 +32,4 @@ std::string msgTypeToString(const int msgType);
 std::string msgStatusToString(const int msgStatus);
 
 }
+#endif // MCLC_ENUMS_TO_STRING_H

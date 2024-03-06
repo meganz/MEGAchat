@@ -105,14 +105,10 @@ void CLCChatRequestListener::onRequestFinish(c::MegaChatApi*,
                                              c::MegaChatError* e)
 {
     assert(request && e);
-    switch (request->getType())
+    if ((request->getType() == c::MegaChatRequest::TYPE_LOGOUT) &&
+        (clc_log::check_err("Chat Logout", e)))
     {
-        case c::MegaChatRequest::TYPE_LOGOUT:
-            if (clc_log::check_err("Chat Logout", e))
-            {
-                clc_global::g_chatFinishedLogout = true;
-            }
-            break;
+        clc_global::g_chatFinishedLogout = true;
     }
 }
 

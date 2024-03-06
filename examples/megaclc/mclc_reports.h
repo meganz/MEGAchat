@@ -1,10 +1,11 @@
+#ifndef MCLC_REPORTS_H
+#define MCLC_REPORTS_H
+
 /**
  * @file
  * @brief This file contains some useful functions to make reports, e.g. a summary of a public chat,
  * process and organize a set of chat messages, etc.
  */
-
-#pragma once
 
 #include <megachatapi.h>
 namespace c = ::megachat;
@@ -32,3 +33,4 @@ void reportMessageHuman(c::MegaChatHandle chatid,
                         const char* loadorreceive);
 void reportMessage(c::MegaChatHandle chatid, c::MegaChatMessage* msg, const char* loadorreceive);
 }
+#endif // MCLC_REPORTS_H

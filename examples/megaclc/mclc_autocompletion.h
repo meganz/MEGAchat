@@ -1,10 +1,10 @@
+#ifndef MCLC_AUTOCOMPLETION_H
+#define MCLC_AUTOCOMPLETION_H
 /**
  * @file
  * @brief This file defines all the utilities related with the autocompletion of the commands in the
  * cli.
  */
-
-#pragma once
 
 #include <mega/autocomplete.h>
 namespace ac = ::mega::autocomplete;
@@ -50,3 +50,4 @@ char** my_rl_completion(const char*, int, int end);
 ac::ACN autocompleteSyntax();
 
 }
+#endif // MCLC_AUTOCOMPLETION_H

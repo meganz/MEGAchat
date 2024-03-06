@@ -1,11 +1,12 @@
+#ifndef MCLC_LISTENERS_H
+#define MCLC_LISTENERS_H
+
 /**
  * @file
  * @brief This file defines a set of listeners that are used in different commands of the app. They
  * are not documented as they are very straight forward and is better to see where they are used to
  * get more context about each one.
  */
-
-#pragma once
 
 #include <mega.h>
 namespace m = ::mega;
@@ -297,3 +298,4 @@ private:
 };
 
 }
+#endif // MCLC_LISTENERS_H

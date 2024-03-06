@@ -1,3 +1,6 @@
+#ifndef MCLC_NO_INTERACTIVE_H
+#define MCLC_NO_INTERACTIVE_H
+
 /**
  * @file
  * @brief This file defines all the utils to manage and process commands run in non interactive
@@ -27,8 +30,6 @@
  *     JoinCallViaMeetingLink class to see how to parse cli arguments with boost program_options
  *     library.
  */
-
-#pragma once
 
 #include <boost/program_options.hpp>
 
@@ -145,3 +146,4 @@ std::optional<AvailableCommands> commandFactory(const std::string_view& commandN
 }
 
 } // namespace mclc
+#endif // MCLC_NO_INTERACTIVE_H

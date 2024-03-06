@@ -1,3 +1,6 @@
+#ifndef MCLC_GLOBALS_H
+#define MCLC_GLOBALS_H
+
 /**
  * @file
  * @brief This file centralizes the declaration of all the global variables that are needed across
@@ -7,8 +10,6 @@
  * a global state to be shared across the app.
  * TODO: However, others should be reconsidered and moved to a more local scope.
  */
-
-#pragma once
 
 #include <mega/autocomplete.h>
 
@@ -27,7 +28,6 @@ namespace mclc::clc_global
 extern bool g_detailHigh;
 
 extern std::atomic<bool> g_reportMessagesDeveloper;
-
 
 /**
  * @brief A flag to check weather we are connected to all active chats, so we can confirm the login
@@ -94,3 +94,4 @@ extern int g_repeatPeriod;
 extern time_t g_repeatLastSent;
 extern std::string g_repeatCommand;
 }
+#endif // MCLC_GLOBALS_H

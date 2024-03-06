@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MCLC_RESOURCES_H
+#define MCLC_RESOURCES_H
 
 namespace mclc::clc_resources
 {
@@ -16,3 +17,4 @@ void appAllocate();
 void appClean();
 
 }
+#endif // MCLC_RESOURCES_H

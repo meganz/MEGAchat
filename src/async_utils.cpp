@@ -43,5 +43,10 @@ bool waitForResponse(const std::function<bool()>& mustExit, unsigned int timeout
     return true;    // response is received
 }
 
+bool waitForResponse(const std::function<bool()>& mustExit,
+                     const std::chrono::seconds& timeout_secs)
+{
+    return waitForResponse(mustExit, static_cast<unsigned int>(timeout_secs.count()));
+}
 
 }
