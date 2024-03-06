@@ -7,13 +7,11 @@
 #include <mega/autocomplete.h>
 namespace ac = ::mega::autocomplete;
 
-#include <iostream>
 #include <csignal>
-
+#include <iostream>
 
 namespace mclc::clc_prompt
 {
-
 
 void signal_handler(int)
 {

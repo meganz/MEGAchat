@@ -19,6 +19,20 @@ void OneShotRequestListener::onRequestFinish(m::MegaApi* api,
     delete this; // one-shot is done so auto-delete
 }
 
+OneShotRequestTracker::~OneShotRequestTracker()
+{
+    if (!resultReceived)
+    {
+        mMegaApi->removeRequestListener(this);
+    }
+}
+
+void OneShotRequestTracker::onRequestFinish(m::MegaApi*, m::MegaRequest* request, m::MegaError* e)
+{
+    mRequest.reset(request ? request->copy() : nullptr);
+    finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
+}
+
 void OneShotTransferListener::onTransferFinish(m::MegaApi* api,
                                                m::MegaTransfer* request,
                                                m::MegaError* e)
@@ -86,6 +100,18 @@ void OneShotChatRequestListener::onRequestTemporaryError(c::MegaChatApi* api,
         onRequestTemporaryErrorFunc(api, request, error);
 }
 
+void CLCChatRequestListener::onRequestFinish(c::MegaChatApi*,
+                                             c::MegaChatRequest* request,
+                                             c::MegaChatError* e)
+{
+    assert(request && e);
+    if ((request->getType() == c::MegaChatRequest::TYPE_LOGOUT) &&
+        (clc_log::check_err("Chat Logout", e)))
+    {
+        clc_global::g_chatFinishedLogout = true;
+    }
+}
+
 CLCRoomListenerRecord::CLCRoomListenerRecord():
     listener(new CLCRoomListener)
 {}
@@ -143,6 +169,11 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api,
                                               int newState)
 {
     using namespace clc_global;
+    if (chatid == c::MEGACHAT_INVALID_HANDLE && newState == c::MegaChatApi::CHAT_CONNECTION_ONLINE)
+    {
+        g_allChatsLoggedIn = true;
+    }
+
     if (newState != c::MegaChatApi::CHAT_CONNECTION_ONLINE ||
         (!g_reviewingPublicChat && !g_dumpingChatHistory) ||
         (chatid != g_reviewPublicChatid && chatid != g_dumpHistoryChatid) ||
@@ -150,7 +181,6 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api,
     {
         return;
     }
-
     // Load all user attributes with loadUserAttributes
     if (!g_startedPublicChatReview && !g_dumpingChatHistory)
     {
@@ -229,6 +259,7 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api,
 void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaChatCall* call)
 {
     using namespace mclc::clc_global;
+    clc_log::logMsg(m::logInfo, "Receiving a call update", clc_log::ELogWriter::MEGA_CHAT);
     if (!call)
     {
         clc_log::logMsg(m::logError, "onChatCallUpdate: NULL call", clc_log::ELogWriter::MEGA_CHAT);
@@ -238,6 +269,9 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_STATUS))
     {
+        clc_log::logMsg(m::logInfo,
+                        "Call update: CHANGE_TYPE_STATUS",
+                        clc_log::ELogWriter::MEGA_CHAT);
         int status = call->getStatus();
         auto findIt = g_callStateMap.find(chatid);
         if (status == megachat::MegaChatCall::CALL_STATUS_INITIAL)
@@ -263,6 +297,9 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         }
         else if (status == megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS)
         {
+            clc_log::logMsg(m::logInfo,
+                            "Call update: CALL_STATUS_IN_PROGRESS",
+                            clc_log::ELogWriter::MEGA_CHAT);
             if (findIt == g_callStateMap.end())
             {
                 // This should be imposible, the call must start with CALL_STATUS_INITIAL so it must
@@ -279,6 +316,9 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         }
         else if (status == megachat::MegaChatCall::CALL_STATUS_TERMINATING_USER_PARTICIPATION)
         {
+            clc_log::logMsg(m::logInfo,
+                            "Call update: CALL_STATUS_TERMINATING_USER_PARTICIPATION",
+                            clc_log::ELogWriter::MEGA_CHAT);
             if (findIt == g_callStateMap.end())
             {
                 clc_log::logMsg(m::logError,
@@ -294,6 +334,9 @@ void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaCha
         }
         else if (status == megachat::MegaChatCall::CALL_STATUS_DESTROYED)
         {
+            clc_log::logMsg(m::logInfo,
+                            "Call update: CALL_STATUS_DESTROYED",
+                            clc_log::ELogWriter::MEGA_CHAT);
             g_callStateMap.erase(chatid); // remove if exists
         }
         else
@@ -543,7 +586,6 @@ void CLCMegaListener::onRequestFinish(m::MegaApi* api, m::MegaRequest* request, 
             g_reviewingPublicChat = false;
             g_dumpingChatHistory = false;
             break;
-
         case m::MegaRequest::TYPE_FETCH_NODES:
             if (clc_log::check_err("FetchNodes", e))
             {

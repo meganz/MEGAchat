@@ -1,3 +1,6 @@
+#ifndef MCLC_LOGGING_H
+#define MCLC_LOGGING_H
+
 /**
  * @file
  * @brief This file defines the utilities to log messages to the console or to a file as well as
@@ -18,8 +21,6 @@
  * responsible of dispatching the messages to the corresponding logger.
  *
  */
-
-#pragma once
 
 #include "mclc_general_utils.h"
 
@@ -225,3 +226,4 @@ void setLoggers();
 extern DebugOutputWriter g_debugOutpuWriter;
 
 }
+#endif // MCLC_LOGGING_H

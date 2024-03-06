@@ -1,10 +1,11 @@
+#ifndef MCLC_CHAT_AND_CALL_ACTIONS_H
+#define MCLC_CHAT_AND_CALL_ACTIONS_H
+
 /**
  * @file
  * @brief This file is supposed to hold a set of high level functions that perform different actions
  * related to chats and calls.
  */
-
-#pragma once
 
 #include "megachatapi.h"
 
@@ -19,6 +20,32 @@ constexpr unsigned int callUnlimitedDuration = 0;
 
 // period in milliseconds after which we'll check if call is still alive
 constexpr unsigned int callIsAliveMillis = 2000;
+
+/**
+ * @brief Log out the g_megaApi. Also logs out from anonymous mode if active.
+ *
+ * NOTE: false is also returned if you try to logout while not logged in.
+ *
+ * @return true if the logout succeed, else false.
+ */
+bool logout();
+
+/**
+ * @brief Similar to logout but it gives you feedback if you are trying to logout while not logged
+ * in. This function in that case returns true.
+ *
+ * @return true if the final state is log out, else false.
+ */
+bool ensureLogout();
+
+/**
+ * @brief Ensure the chat api is initialized and logs into the given account
+ *
+ * @param email The account email
+ * @param password The account password
+ * @return true if everything went OK, false otherwise.
+ */
+bool login(const char* email, const char* password);
 
 /**
  * @brief Given a link to a public chat, this function opens it.
@@ -69,7 +96,8 @@ bool startChatCall(const c::MegaChatHandle chatId,
                    const bool notRinging);
 
 /**
- * @brief Waits in call for a period of waitTimeSec seconds (or unlimited if waitTimeSec is callUnlimitedDuration)
+ * @brief Waits in call for a period of waitTimeSec seconds (or unlimited if waitTimeSec is
+ * callUnlimitedDuration)
  *
  * - This method will return megachat::MegaChatError::ERROR_OK in case waitTimeSec is greater than
  * callUnlimitedDuration, and waitTimeSec timeout has expired
@@ -77,7 +105,8 @@ bool startChatCall(const c::MegaChatHandle chatId,
  * returns false
  *
  * @param chatId The chat handle that identifies chatroom
- * @param waitTimeSec timeout in seconds we need to wait in call or callUnlimitedDuration if unlimited
+ * @param waitTimeSec timeout in seconds we need to wait in call or callUnlimitedDuration if
+ * unlimited
  */
 int waitInCallFor(const c::MegaChatHandle chatId, const unsigned int waitTimeSec);
 
@@ -113,3 +142,4 @@ bool hangUpCall(const c::MegaChatHandle chatId);
 bool setChatVideoInDevice(const std::string& device);
 
 }
+#endif // MCLC_CHAT_AND_CALL_ACTIONS_H

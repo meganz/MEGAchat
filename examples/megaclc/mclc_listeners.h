@@ -1,11 +1,12 @@
+#ifndef MCLC_LISTENERS_H
+#define MCLC_LISTENERS_H
+
 /**
  * @file
  * @brief This file defines a set of listeners that are used in different commands of the app. They
  * are not documented as they are very straight forward and is better to see where they are used to
  * get more context about each one.
  */
-
-#pragma once
 
 #include <mega.h>
 namespace m = ::mega;
@@ -30,6 +31,27 @@ public:
     {}
 
     void onRequestFinish(m::MegaApi* api, m::MegaRequest* request, m::MegaError* e) override;
+};
+
+class OneShotRequestTracker: public m::MegaRequestListener, public megachat::async::ResultHandler
+{
+public:
+    OneShotRequestTracker(m::MegaApi* megaApi):
+        mMegaApi(megaApi)
+    {}
+
+    ~OneShotRequestTracker();
+
+    void onRequestFinish(m::MegaApi* api, m::MegaRequest* request, m::MegaError* e) override;
+
+    m::MegaRequest* getMegaChatRequestPtr() const
+    {
+        return mRequest.get();
+    }
+
+private:
+    std::unique_ptr<m::MegaRequest> mRequest;
+    m::MegaApi* mMegaApi;
 };
 
 class OneShotTransferListener: public m::MegaTransferListener
@@ -83,6 +105,18 @@ public:
     void onRequestTemporaryError(c::MegaChatApi* api,
                                  c::MegaChatRequest* request,
                                  c::MegaChatError* error) override;
+};
+
+/**
+ * @class CLCChatRequestListener
+ * @brief A class to define a global request listener to add to the g_chatApi and define custom
+ * checks for the non-interactive mode.
+ */
+class CLCChatRequestListener: public c::MegaChatRequestListener
+{
+    void onRequestFinish(c::MegaChatApi* api,
+                         c::MegaChatRequest* request,
+                         c::MegaChatError* e) override;
 };
 
 struct CLCRoomListener: public c::MegaChatRoomListener
@@ -264,3 +298,4 @@ private:
 };
 
 }
+#endif // MCLC_LISTENERS_H

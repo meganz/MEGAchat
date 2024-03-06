@@ -30,4 +30,7 @@ protected:
 };
 
 bool waitForResponse(const std::function<bool()>& mustExit, unsigned int timeout_secs);
+
+bool waitForResponse(const std::function<bool()>& mustExit,
+                     const std::chrono::seconds& timeout_secs);
 }

@@ -1,9 +1,10 @@
+#ifndef MCLC_PROMPT_H
+#define MCLC_PROMPT_H
+
 /**
  * @file
  * @brief Some utilities to process and store the state of the prompt during the megaclc execution.
  */
-
-#pragma once
 
 #ifndef NO_READLINE
 #include <readline/history.h>
@@ -56,3 +57,4 @@ void store_line(char* l);
 void process_line(const char* l);
 
 }
+#endif // MCLC_PROMPT_H

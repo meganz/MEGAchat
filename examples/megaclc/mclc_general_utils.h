@@ -1,10 +1,11 @@
+#ifndef MCLC_GENERAL_UTILS_H
+#define MCLC_GENERAL_UTILS_H
+
 /**
  * @file
  * @brief This file contains some generic utilities that are useful for other parts of the
  * application.
  */
-
-#pragma once
 
 #include <mega.h>
 namespace m = ::mega;
@@ -120,6 +121,24 @@ std::string loadfile(const std::string& filename);
  */
 std::string joinStringList(const m::MegaStringList& msl, const std::string& separator);
 
+/**
+ * @brief Generic implementation of the joinStringList that accepts any kind of iterator of strings
+ */
+template<typename Iter>
+std::string join(Iter begin, Iter end, const std::string& separator)
+{
+    std::string result;
+    if (begin != end)
+    {
+        result += *begin++;
+    }
+    while (begin != end)
+    {
+        result += separator + *begin++;
+    }
+    return result;
+}
+
 }
 
 namespace clc_console
@@ -186,3 +205,4 @@ std::string timeToStringUTC(const int64_t time);
 
 }
 }
+#endif // MCLC_GENERAL_UTILS_H

@@ -4,6 +4,7 @@
 #include "mclc_listeners.h"
 #include "mclc_logging.h"
 
+#include <chrono>
 #include <mega.h>
 
 namespace mclc::clc_ccactions
@@ -15,6 +16,10 @@ using mclc::clc_log::logMsg;
 
 namespace // Private utilities
 {
+using namespace std::chrono_literals;
+
+constexpr auto ONE_MINUTE_SECS = 60s;
+constexpr auto TEN_SECS = 10s;
 
 struct CallStateChangeTracker
 {
@@ -48,18 +53,19 @@ struct CallStateChangeTracker
     {
         if (chatId == megachat::MEGACHAT_INVALID_HANDLE)
         {
-            return std::make_pair(megachat::MegaChatError::ERROR_ARGS, megachat::MegaChatCall::CALL_STATUS_INITIAL);
+            return std::make_pair(megachat::MegaChatError::ERROR_ARGS,
+                                  megachat::MegaChatCall::CALL_STATUS_INITIAL);
         }
 
         auto it = clc_global::g_callStateMap.find(chatId);
         if (it == clc_global::g_callStateMap.end())
         {
-            return std::make_pair(megachat::MegaChatError::ERROR_NOENT, megachat::MegaChatCall::CALL_STATUS_INITIAL);
+            return std::make_pair(megachat::MegaChatError::ERROR_NOENT,
+                                  megachat::MegaChatCall::CALL_STATUS_INITIAL);
         }
 
-        int errCode = it->second.stateHasChanged
-                          ? megachat::MegaChatError::ERROR_OK
-                          : megachat::MegaChatError::ERROR_EXIST;
+        int errCode = it->second.stateHasChanged ? megachat::MegaChatError::ERROR_OK :
+                                                   megachat::MegaChatError::ERROR_EXIST;
 
         return std::make_pair(errCode, it->second.state.load());
     }
@@ -75,7 +81,8 @@ bool waitForReceivingCallStatus(const c::MegaChatHandle chatId,
 
     // wait for receiving (CHANGE_TYPE_STATUS)
     CallStateChangeTracker hasCallStateChanged{chatId};
-    auto callNotificationRecv = megachat::async::waitForResponse(hasCallStateChanged, 60);
+    auto callNotificationRecv =
+        megachat::async::waitForResponse(hasCallStateChanged, ONE_MINUTE_SECS);
     if (!callNotificationRecv)
     {
         // if call already exists at this point this notification won't be received (i.e this
@@ -90,7 +97,9 @@ bool waitForReceivingCallStatus(const c::MegaChatHandle chatId,
     if (!call)
     {
         // if no call no sense to continue with command processing
-        logMsg(m::logError, "Call cannot be retrieved for chatid", ELogWriter::MEGA_CHAT);
+        logMsg(m::logError,
+               "Call cannot be retrieved for chatid: " + std::to_string(chatId),
+               ELogWriter::MEGA_CHAT);
         return false;
     }
 
@@ -114,14 +123,14 @@ bool resetCallStateChangeRecv(const c::MegaChatHandle chatId, const bool v)
 }
 
 /**
- * @brief This method returns true if call in chatroom represented by chatId is still alive (CALL_STATUS_IN_PROGRESS)
+ * @brief This method returns true if call in chatroom represented by chatId is still alive
+ * (CALL_STATUS_IN_PROGRESS)
  *
  * @param chatId The chat handle that identifies chatroom
  * @return true if call in chatroom represented by chatId is still alive, otherwise false
  */
 bool isCallAlive(const c::MegaChatHandle chatId)
 {
-    // TODO: add mechanism to exit in case Ctrl+c Ctrl+d are detected
     const bool sdkLoggedIn = clc_global::g_megaApi->isLoggedIn();
     if (!sdkLoggedIn)
     {
@@ -153,7 +162,173 @@ bool isCallAlive(const c::MegaChatHandle chatId)
     logMsg(m::logDebug, "Call is still alive", ELogWriter::MEGA_CHAT);
     return true;
 }
+
+bool hasMegaChatBeenInit()
+{
+    return clc_global::g_chatApi->getInitState() != c::MegaChatApi::INIT_NOT_DONE;
+}
+
+bool areWeLoggedInSdk()
+{
+    return clc_global::g_megaApi->isLoggedIn();
+}
+
+bool areWeLoggedIn()
+{
+    return areWeLoggedInSdk() || hasMegaChatBeenInit();
+}
+
+bool areWeInAnonymousMode()
+{
+    return clc_global::g_chatApi->getInitState() == c::MegaChatApi::INIT_ANONYMOUS;
+}
+
+bool areWeLoggedOut()
+{
+    return !(areWeLoggedIn() || areWeInAnonymousMode());
+}
+
 } // end of namespace // Private utilities
+
+bool logoutFromAnonymousMode()
+{
+    if (!areWeInAnonymousMode())
+    {
+        return false;
+    }
+    clc_global::g_chatFinishedLogout = false;
+    clc_listen::CLCChatRequestTracker logoutTracker(g_chatApi.get());
+    clc_global::g_chatApi->logout(&logoutTracker);
+    bool logoutSucess = logoutTracker.waitForResult() == megachat::MegaChatError::ERROR_OK;
+    if (!logoutSucess)
+    {
+        logMsg(m::logError, "Unable to log out from anonymous mode", ELogWriter::MEGA_CHAT);
+    }
+    logoutSucess = c::async::waitForResponse(
+        []()
+        {
+            return clc_global::g_chatFinishedLogout.load();
+        },
+        ONE_MINUTE_SECS);
+    if (!logoutSucess)
+    {
+        logMsg(m::logError,
+               "Unable to log out the chats from anonymous mode",
+               ELogWriter::MEGA_CHAT);
+    }
+    return logoutSucess;
+}
+
+bool sdkLogout()
+{
+    clc_global::g_chatFinishedLogout = false;
+    setprompt(clc_prompt::NOPROMPT);
+
+    clc_listen::OneShotRequestTracker logoutTracker(clc_global::g_megaApi.get());
+#ifdef ENABLE_SYNC
+    clc_global::g_megaApi->logout(false, &logoutTracker);
+#else
+    clc_global::g_megaApi->logout(&logoutTracker);
+#endif
+
+    bool isMegaChatLoggedOut = c::async::waitForResponse(
+        []()
+        {
+            return clc_global::g_chatFinishedLogout.load();
+        },
+        TEN_SECS);
+    if (!isMegaChatLoggedOut)
+    {
+        logMsg(m::logError, "Unable to log out chat api", ELogWriter::MEGA_CHAT);
+    }
+    bool chatLogoutSucess = logoutTracker.waitForResult(10) == megachat::MegaChatError::ERROR_OK;
+    if (!chatLogoutSucess)
+    {
+        logMsg(m::logError, "Unable to log out from MEGAChat", ELogWriter::SDK);
+    }
+    return chatLogoutSucess && isMegaChatLoggedOut;
+}
+
+bool logout()
+{
+    std::unique_ptr<const char[]> session(clc_global::g_megaApi->dumpSession());
+    if (areWeInAnonymousMode())
+    {
+        return logoutFromAnonymousMode();
+    }
+    if (!areWeLoggedIn())
+    {
+        logMsg(m::logError, "You are trying to logout without being logged in", ELogWriter::SDK);
+        return false;
+    }
+    return sdkLogout();
+}
+
+bool ensureLogout()
+{
+    if (areWeLoggedOut())
+    {
+        logMsg(m::logDebug, "Already logged out, nothing to do", ELogWriter::SDK);
+        return true;
+    }
+    return logout();
+}
+
+bool login(const char* email, const char* password)
+{
+    if (clc_global::g_megaApi->isLoggedIn())
+    {
+        logMsg(m::logError,
+               "You are already logged in. Please logout before trying again.",
+               ELogWriter::SDK);
+        return false;
+    }
+    clc_global::g_chatApi->init(NULL);
+    clc_global::g_login = email;
+    clc_global::g_password = password;
+    clc_global::g_allChatsLoggedIn = false;
+
+    // Login request
+    clc_listen::OneShotRequestTracker loginTracker(clc_global::g_megaApi.get());
+    clc_global::g_megaApi->login(email, password, &loginTracker);
+    if (int errCode = loginTracker.waitForResult(); errCode != m::API_OK)
+    {
+        logMsg(m::logError,
+               std::string("ERROR CODE ") + std::to_string(errCode) + ": Failed to log in",
+               ELogWriter::SDK);
+        return false;
+    }
+    // Fetch nodes
+    bool hasFetchNodesFinished = c::async::waitForResponse(
+        []()
+        {
+            // While fetching nodes g_prompt == NOPROMPT. Once it finishes COMMAND
+            return clc_global::g_prompt == clc_prompt::COMMAND;
+        },
+        ONE_MINUTE_SECS);
+    if (!hasFetchNodesFinished)
+    {
+        logMsg(m::logError,
+               "Time limit exceed to complete the login process, maybe too many nodes to fetch.",
+               ELogWriter::SDK);
+        return false;
+    }
+    // All chats logged in
+    bool hasAllChatsBeenLoggedIn = c::async::waitForResponse(
+        []()
+        {
+            return clc_global::g_allChatsLoggedIn.load();
+        },
+        ONE_MINUTE_SECS);
+    if (!hasAllChatsBeenLoggedIn)
+    {
+        logMsg(m::logError,
+               "Time limit exceed to login all the chats of the account",
+               ELogWriter::MEGA_CHAT);
+        return false;
+    }
+    return true;
+}
 
 std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link)
 {
@@ -256,6 +431,7 @@ bool waitUntilCallIsReceived(const c::MegaChatHandle chatId)
                                                        // as requirement to be logged out to execute
                                                        // exec_joinCallViaMeetingLink
     };
+    logMsg(m::logDebug, "Chat id: " + std::to_string(chatId), ELogWriter::MEGA_CHAT);
     std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
     if (call && expStatus.find(call->getStatus()) == expStatus.end())
     {

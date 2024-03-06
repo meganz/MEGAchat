@@ -1,3 +1,6 @@
+#ifndef MCLC_GLOBALS_H
+#define MCLC_GLOBALS_H
+
 /**
  * @file
  * @brief This file centralizes the declaration of all the global variables that are needed across
@@ -7,8 +10,6 @@
  * a global state to be shared across the app.
  * TODO: However, others should be reconsidered and moved to a more local scope.
  */
-
-#pragma once
 
 #include <mega/autocomplete.h>
 
@@ -27,6 +28,18 @@ namespace mclc::clc_global
 extern bool g_detailHigh;
 
 extern std::atomic<bool> g_reportMessagesDeveloper;
+
+/**
+ * @brief A flag to check weather we are connected to all active chats, so we can confirm the login
+ * is finished properly. It is set to true in the CLCListener::onChatConnectionStateUpdate  method.
+ */
+extern std::atomic<bool> g_allChatsLoggedIn;
+
+/**
+ * @brief A flag to check if the chat api is finished logging out. It is set to true in the
+ * CLCChatRequestListener::onRequestFinish callback of the global g_chatRequestListener
+ */
+extern std::atomic<bool> g_chatFinishedLogout;
 
 extern std::atomic<bool> g_reviewingPublicChat;
 extern std::atomic<bool> g_dumpingChatHistory;
@@ -52,6 +65,7 @@ extern clc_listen::CLCCallListener g_clcCallListener;
 extern clc_listen::CLCMegaListener g_megaclcListener;
 extern clc_listen::CLCChatListener g_chatListener;
 extern clc_listen::CLCMegaGlobalListener g_globalListener;
+extern clc_listen::CLCChatRequestListener g_chatRequestListener;
 
 // output
 extern std::mutex g_outputMutex; // lock this for output since we are using cout on multiple threads
@@ -80,3 +94,4 @@ extern int g_repeatPeriod;
 extern time_t g_repeatLastSent;
 extern std::string g_repeatCommand;
 }
+#endif // MCLC_GLOBALS_H
