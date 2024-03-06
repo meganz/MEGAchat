@@ -229,7 +229,7 @@ bool Client::openDb(const std::string& sid)
 
                 SqliteStmt stmt(db, "select count(*) from chats");
                 stmt.stepMustHaveData("get chats count");
-                if (stmt.intCol(0) > 0)
+                if (stmt.integralCol<int>(0) > 0)
                 {
                     KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
                     api.sdk.invalidateCache();
@@ -278,7 +278,7 @@ bool Client::openDb(const std::string& sid)
 
                 SqliteStmt stmt(db, "select count(*) from chats where peer == -1");
                 stmt.stepMustHaveData("get chats count");
-                if (stmt.intCol(0) > 0)
+                if (stmt.integralCol<int>(0) > 0)
                 {
                     KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
                     api.sdk.invalidateCache();
@@ -372,8 +372,8 @@ bool Client::openDb(const std::string& sid)
                 SqliteStmt stmt(db, "select msgid, min(idx), c.chatid from history as h INNER JOIN chat_vars as c on h.chatid = c.chatid where c.name = 'have_all_history' GROUP BY c.chatid;");
                 while (stmt.step())
                 {
-                   karere::Id msgid = stmt.int64Col(0);
-                   karere::Id chatid = stmt.int64Col(2);
+                   karere::Id msgid = stmt.integralCol<uint64_t>(0);
+                   karere::Id chatid = stmt.integralCol<uint64_t>(2);
                    db.query("delete from history where chatid = ? and msgid = ?", chatid, msgid);
                    db.query("delete from chat_vars where chatid = ? and name = 'have_all_history'", chatid);
                 }
@@ -403,7 +403,7 @@ bool Client::openDb(const std::string& sid)
                 // ts -> 1625140800000 -> 1 July 2021 12:00 GTM
                 SqliteStmt stmt(db, "select count(*) from chats where mode == 1 and ts_created > 1618488000");
                 stmt.stepMustHaveData("get chats count");
-                if (stmt.intCol(0) > 0)
+                if (stmt.integralCol<int>(0) > 0)
                 {
                     KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
                     api.sdk.invalidateCache();
@@ -515,7 +515,7 @@ int Client::importMessages(const char *externalDbPath)
 
     // check external DB is for the same user than the app's DB
     SqliteStmt stmtMyHandle(dbExternal, "select value from vars where name = 'my_handle'");
-    if (!stmtMyHandle.step() || stmtMyHandle.uint64Col(0) != myHandle())
+    if (!stmtMyHandle.step() || stmtMyHandle.integralCol<uint64_t>(0) != myHandle())
     {
         dbExternal.close();
         KR_LOG_ERROR("importMessages: external DB of a different user");
@@ -545,7 +545,7 @@ int Client::importMessages(const char *externalDbPath)
         {
             time_t lastSeenTs = 0;
             time_t expireRetentionTs = 0;
-            lastSeenId = stmtLastSeen.uint64Col(0);
+            lastSeenId = stmtLastSeen.integralCol<uint64_t>(0);
             if (retentionTime)
             {
                 // check last seen message ts
@@ -554,7 +554,7 @@ int Client::importMessages(const char *externalDbPath)
                 stmtLastSeenTs << lastSeenId;
                 if (stmtLastSeenTs.step())
                 {
-                    lastSeenTs = static_cast<time_t> (stmtLastSeen.uint64Col(0));
+                    lastSeenTs = stmtLastSeen.integralCol<time_t>(0);
                     expireRetentionTs = time(nullptr) - retentionTime;
                 }
             }
@@ -590,7 +590,7 @@ int Client::importMessages(const char *externalDbPath)
             stmt1 << chatid << firstMsgidToImport;
             if (stmt1.step())
             {
-                firstIdxToImport = stmt1.intCol(0);
+                firstIdxToImport = stmt1.integralCol<int>(0);
 
                 // ts of oldest message in app that could have been updated/deleted
                 editableMsgsTs = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
@@ -603,9 +603,9 @@ int Client::importMessages(const char *externalDbPath)
                 stmt2 << chatid << newestAppIdx;
                 if (stmt2.step())
                 {
-                    assert(stmt2.intCol(2) == chatd::Message::kMsgTruncate);
-                    firstMsgidToImport = stmt2.uint64Col(0);
-                    firstIdxToImport = stmt2.intCol(1);
+                    assert(stmt2.integralCol<chatd::Message::Type>(2) == chatd::Message::kMsgTruncate);
+                    firstMsgidToImport = stmt2.integralCol<uint64_t>(0);
+                    firstIdxToImport = stmt2.integralCol<int>(1);
 
                     KR_LOG_DEBUG("importMessages: truncate detected in chatid: %s msgid: %s idx: %d",
                                  chatid.toString().c_str(), firstMsgidToImport.toString().c_str(), firstIdxToImport);
@@ -626,8 +626,8 @@ int Client::importMessages(const char *externalDbPath)
             stmt << chatid;
             if (stmt.step())
             {
-                firstMsgidToImport = stmt.uint64Col(1);
-                firstIdxToImport = stmt.intCol(2);
+                firstMsgidToImport = stmt.integralCol<uint64_t>(1);
+                firstIdxToImport = stmt.integralCol<int>(2);
             }
             else
             {
@@ -646,17 +646,17 @@ int Client::importMessages(const char *externalDbPath)
         {
             // restore Message from external DB
             std::unique_ptr<chatd::Message> msg;
-            karere::Id userid(stmtMsg.uint64Col(0));
-            karere::Id msgid(stmtMsg.uint64Col(9));
-            uint32_t ts = stmtMsg.uintCol(1);
-            unsigned char type = (unsigned char)stmtMsg.intCol(2);
-            uint16_t updated = (uint16_t)stmtMsg.intCol(7);
-            chatd::KeyId keyid = stmtMsg.uintCol(5);
+            karere::Id userid(stmtMsg.integralCol<uint64_t>(0));
+            karere::Id msgid(stmtMsg.integralCol<uint64_t>(9));
+            uint32_t ts = stmtMsg.integralCol<uint32_t>(1);
+            unsigned char type = stmtMsg.integralCol<unsigned char>(2);
+            uint16_t updated = stmtMsg.integralCol<uint16_t>(7);
+            chatd::KeyId keyid = stmtMsg.integralCol<chatd::KeyId>(5);
             Buffer buf;
             stmtMsg.blobCol(3, buf);
             msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
-            msg->backRefId = stmtMsg.uint64Col(6);
-            msg->setEncrypted((uint8_t)stmtMsg.intCol(8));
+            msg->backRefId = stmtMsg.integralCol<uint64_t>(6);
+            msg->setEncrypted(stmtMsg.integralCol<uint8_t>(8));
 
             bool isUpdate = false;
             if (msgid == newestAppMsgid)
@@ -716,8 +716,8 @@ int Client::importMessages(const char *externalDbPath)
             stmtMsgUpdated << chatroom->chatid() << editableMsgsTs << firstIdxToImport;
             while (stmtMsgUpdated.step())
             {
-                karere::Id msgid(stmtMsgUpdated.uint64Col(4));
-                uint16_t updated = (uint16_t)stmtMsgUpdated.intCol(6);
+                karere::Id msgid(stmtMsgUpdated.integralCol<uint64_t>(4));
+                uint16_t updated = stmtMsgUpdated.integralCol<uint16_t>(6);
 
                 // check if the edit in the external DB is newer than in app DB
                 query = "select updated from history where chatid = ?1 and msgid = ?2";
@@ -729,7 +729,7 @@ int Client::importMessages(const char *externalDbPath)
                                  chatid.toString().c_str(), msgid.toString().c_str());
                     continue;
                 }
-                uint16_t updatedApp = (uint16_t)stmtMsgAppUpdated.intCol(0);
+                uint16_t updatedApp = stmtMsgAppUpdated.integralCol<uint16_t>(0);
                 if (updated <= updatedApp)
                 {
                     KR_LOG_DEBUG("importMessages: edited message in external db is older. Skipping... (chatid: %s msgid: %s)",
@@ -739,15 +739,15 @@ int Client::importMessages(const char *externalDbPath)
 
                 // restore Message from external DB
                 std::unique_ptr<chatd::Message> msg;
-                karere::Id userid(stmtMsgUpdated.uint64Col(0));
-                uint32_t ts = stmtMsgUpdated.uintCol(1);
-                unsigned char type = (unsigned char)stmtMsgUpdated.intCol(2);
+                karere::Id userid(stmtMsgUpdated.integralCol<uint64_t>(0));
+                uint32_t ts = stmtMsgUpdated.integralCol<uint32_t>(1);
+                unsigned char type = stmtMsgUpdated.integralCol<unsigned char>(2);
                 Buffer buf;
                 stmtMsgUpdated.blobCol(3, buf);
-                chatd::KeyId keyid = stmtMsgUpdated.uintCol(5);
+                chatd::KeyId keyid = stmtMsgUpdated.integralCol<chatd::KeyId>(5);
                 msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
-                msg->backRefId = stmtMsgUpdated.uint64Col(7);
-                msg->setEncrypted((uint8_t)stmtMsgUpdated.intCol(8));
+                msg->backRefId = stmtMsgUpdated.integralCol<uint64_t>(7);
+                msg->setEncrypted(stmtMsgUpdated.integralCol<uint8_t>(8));
 
                 if (retentionTime && ts <= time(nullptr) - retentionTime)
                 {
@@ -1915,7 +1915,7 @@ karere::Id Client::getMyHandleFromDb()
     if (!stmt.step())
         throw std::runtime_error("No own user handle in database");
 
-    karere::Id result = stmt.uint64Col(0);
+    karere::Id result = stmt.integralCol<uint64_t>(0);
 
     if (result == Id::null() || result.val == mega::UNDEF)
         throw std::runtime_error("loadOwnUserHandleFromDb: Own handle in db is invalid");
@@ -1934,7 +1934,7 @@ uint64_t Client::getMyIdentityFromDb()
     }
     else
     {
-        result = stmt.uint64Col(0);
+        result = stmt.integralCol<uint64_t>(0);
         if (result == 0)
         {
             KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
@@ -2602,8 +2602,8 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
     std::vector<promise::Promise<void> > promises;
     while(stmt.step())
     {
-        auto userid = stmt.uint64Col(0);
-        promise::Promise<void> nameResolvedPromise = addMember(userid, (chatd::Priv)stmt.intCol(1), publicChat, false);
+        auto userid = stmt.integralCol<uint64_t>(0);
+        promise::Promise<void> nameResolvedPromise = addMember(userid, stmt.integralCol<chatd::Priv>(1), publicChat, false);
         if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
         {
             promises.push_back(nameResolvedPromise);
@@ -3072,24 +3072,24 @@ void ChatRoomList::loadFromDb()
     SqliteStmt stmtPreviews(db, "select chatid from chats where mode = '2'");
     while(stmtPreviews.step())
     {
-        Id chatid = stmtPreviews.uint64Col(0);
+        Id chatid = stmtPreviews.integralCol<uint64_t>(0);
         deleteRoomFromDb(chatid);
     }
 
     SqliteStmt stmt(db, "select chatid, ts_created ,shard, own_priv, peer, peer_priv, title, archived, mode, unified_key, meeting, chat_options from chats");
     while(stmt.step())
     {
-        auto chatid = stmt.uint64Col(0);
+        auto chatid = stmt.integralCol<uint64_t>(0);
         if (find(chatid) != end())
         {
             KR_LOG_WARNING("ChatRoomList: Attempted to load from db cache a chatid that is already in memory");
             continue;
         }
-        auto peer = stmt.uint64Col(4);
+        auto peer = stmt.integralCol<uint64_t>(4);
         ChatRoom* room;
         if (peer != uint64_t(-1))
         {
-            room = new PeerChatRoom(*this, chatid, static_cast<unsigned char>(stmt.intCol(2)), static_cast<chatd::Priv>(stmt.intCol(3)), peer, static_cast<chatd::Priv>(stmt.intCol(5)), stmt.intCol(1), stmt.intCol(7));
+            room = new PeerChatRoom(*this, chatid, stmt.integralCol<unsigned char>(2), stmt.integralCol<chatd::Priv>(3), peer, stmt.integralCol<chatd::Priv>(5), stmt.integralCol<int>(1), stmt.integralCol<int>(7));
         }
         else
         {
@@ -3123,7 +3123,7 @@ void ChatRoomList::loadFromDb()
                 auxTitle.assign(posTitle, len);
             }
 
-            room = new GroupChatRoom(*this, chatid, static_cast<unsigned char>(stmt.intCol(2)), static_cast<chatd::Priv>(stmt.intCol(3)), stmt.intCol(1), stmt.intCol(7), auxTitle, isTitleEncrypted, stmt.intCol(8), unifiedKey, isUnifiedKeyEncrypted, stmt.intCol(10), static_cast<mega::ChatOptions_t>(stmt.intCol(11)));
+            room = new GroupChatRoom(*this, chatid, stmt.integralCol<unsigned char>(2), stmt.integralCol<chatd::Priv>(3), stmt.integralCol<int>(1), stmt.integralCol<int>(7), auxTitle, isTitleEncrypted, stmt.integralCol<int>(8), unifiedKey, isUnifiedKeyEncrypted, stmt.integralCol<int>(10), stmt.integralCol<mega::ChatOptions_t>(11));
         }
         emplace(chatid, room);
     }
@@ -4739,8 +4739,8 @@ void ContactList::loadFromDb()
     SqliteStmt stmt(client.db, "select userid, email, visibility, since from contacts");
     while(stmt.step())
     {
-        auto userid = stmt.uint64Col(0);
-        Contact *contact = new Contact(*this, userid, stmt.stringCol(1), stmt.intCol(2), stmt.int64Col(3), nullptr);
+        auto userid = stmt.integralCol<uint64_t>(0);
+        Contact *contact = new Contact(*this, userid, stmt.stringCol(1), stmt.integralCol<int>(2), stmt.integralCol<int64_t>(3), nullptr);
         this->emplace(userid, contact);
     }
 }
