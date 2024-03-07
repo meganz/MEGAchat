@@ -1,0 +1,55 @@
+{
+  "name": "libwebsockets",
+  "version-semver": "4.3.2",
+  "description": "Libwebsockets is a lightweight pure C library built to use minimal CPU and memory resources, and provide fast throughput in both directions as client or server.",
+  "homepage": "https://github.com/warmcat/libwebsockets",
+  "supports": "!uwp",
+  "default-features":
+  [
+    "openssl",
+    "gencrypto",
+    "ipv6"
+  ],
+  "dependencies": [
+    {
+      "name": "libuv",
+      "platform": "!emscripten"
+    },
+    "pthreads",
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "zlib"
+  ],
+  "features":
+  {
+    "openssl": 
+    {
+      "description" : "SSL support (OpenSSL)",
+      "dependencies" : [ "openssl" ]
+
+    },
+    "boringssl":
+    {
+      "description" : "SSL support (BoringSSL)",
+      "dependencies" : [ "boringssl" ]
+    },
+    "gencrypto":
+    {
+      "description" : "Enable support for Generic Crypto apis independent of TLS backend"
+    },
+    "ipv6":
+    {
+      "description" : "Compile with support for ipv6"
+    },
+    "non-http2":
+    {
+      "description" : "Compile without server support for HTTP/2"
+    }
+  }
+}

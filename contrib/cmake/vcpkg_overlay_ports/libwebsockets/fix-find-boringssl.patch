@@ -1,0 +1,14 @@
+diff --git a/lib/tls/CMakeLists.txt b/lib/tls/CMakeLists.txt
+index a87c802..9540fe7 100644
+--- a/lib/tls/CMakeLists.txt
++++ b/lib/tls/CMakeLists.txt
+@@ -261,7 +261,7 @@ if (LWS_WITH_SSL)
+                        set(OPENSSL_INCLUDE_DIRS "${OPENSSL_INCLUDE_DIR}")
+                endif()
+ 
+-               if (NOT OPENSSL_FOUND AND NOT LWS_WITH_BORINGSSL)
++               if (NOT OPENSSL_FOUND)
+                        # TODO: Add support for STATIC also.
+                        if (NOT LWS_PLAT_FREERTOS)
+                                find_package(PkgConfig QUIET)
+
