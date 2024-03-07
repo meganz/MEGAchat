@@ -99,4 +99,7 @@ if(ENABLE_CHATLIB_MEGACLC)
     add_subdirectory(examples/megaclc)
 endif()
 
-
+# Load integration tests
+if(ENABLE_CHATLIB_QTAPP)
+    add_subdirectory(tests/sdk_test)
+endif()
