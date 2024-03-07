@@ -17,10 +17,14 @@
         {
             "description" : "Disable support for voice and/or video calls",
             "dependencies": [
-                "openssl",
-                "curl",
-                "libwebsockets"
+                "libwebsockets",
+                "curl"
             ]
+        },
+        "use-openssl":
+        {
+            "description": "OpenSSL library",
+            "dependencies": [ "openssl" ]
         },
         "use-mediainfo": {
             "description": "MediaInfo library",
