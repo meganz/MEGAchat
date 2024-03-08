@@ -1050,8 +1050,10 @@ TEST_F(MegaChatApiTest, BasicTest)
  * @note: SETLIM command is a temporal feature provided by SFU for testing purposes,
  * and it's availability depends on SFU's release plan management
  */
-TEST_F(MegaChatApiTest, CallLimitsFreePlan)
+TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
 {
+    // Temporarily disabled until CLIMITS changes has been introduced into MEGAChat
+
     // define idx's for all involved account in this test
     const unsigned a1 = 0;
     const unsigned a2 = 1;
