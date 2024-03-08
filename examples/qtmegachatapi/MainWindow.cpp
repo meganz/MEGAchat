@@ -300,7 +300,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         QMessageBox msgBox;
         QString myString;
         const auto endsIn = call->getNum();
-        if (endsIn == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED)
+        if (endsIn == ::megachat::MegaChatCall::CALL_LIMIT_DISABLED)
         {
             msgBox.setIcon(QMessageBox::Information);
             myString.append("Call duration is now unlimited. Call duration restriction has been removed");
@@ -329,7 +329,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY)
         || (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END)
-                && call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED))
+                && call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DISABLED))
     {
         if (itemController->getMeetingView()) { itemController->getMeetingView()->updateLabel(call); }
     }

@@ -175,7 +175,12 @@ CallState Call::getState() const
 
 int Call::getCallDurationLimitInSecs() const
 {
-    return mCallDurLimitInSecs;
+    return mCallLimits.durationInSecs;
+}
+
+sfu::SfuInterface::CallLimits Call::getCallLimits() const
+{
+    return mCallLimits;
 }
 
 bool Call::isOwnClientCaller() const
@@ -678,9 +683,9 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
-void Call::setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const
+void Call::setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider) const
 {
-    mSfuConnection->sendSetLimit(callDurSecs, numUsers, numClientsPerUser, numClients);
+    mSfuConnection->sendSetLimit(callDurSecs, numUsers, numClientsPerUser, numClients, divider);
 }
 
 void Call::requestHighResolutionVideo(Cid_t cid, int quality)
@@ -2280,7 +2285,7 @@ bool Call::handleModDel(uint64_t userid)
 }
 
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
-                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs)
+                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const CallLimits& callLimits)
 {
     #ifndef NDEBUG
     // ensures that our sfu protocol version is the latest one defined in karere
@@ -2301,7 +2306,7 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
     setSpeakRequest(speakRequest);
 
     // set call duration limit if any (in seconds)
-    mCallDurLimitInSecs = ldurSecs;
+    mCallLimits = callLimits;
 
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
@@ -2456,12 +2461,14 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 bool Call::handleWillEndCommand(const int endsIn)
 {
     SFU_LOG_DEBUG("%d",endsIn);
-    if (endsIn == sfu::kCallLimitDurationDisabled)
-    {
-        SFU_LOG_DEBUG("handleWillEndCommand: Call duration limit disabled for this call");
-        mCallDurLimitInSecs = endsIn;
-    }
     mCallHandler.onCallWillEndr(*this, endsIn);
+    return true;
+}
+
+bool Call::handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits)
+{
+    mCallLimits = callLimits;
+    mCallHandler.onCallLimitsUpdated(*this);
     return true;
 }
 

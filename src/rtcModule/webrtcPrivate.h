@@ -272,6 +272,7 @@ public:
     karere::Id getCallerid() const override;
     CallState getState() const override;
     int getCallDurationLimitInSecs() const override;
+    sfu::SfuInterface::CallLimits getCallLimits() const override;
     bool isOwnClientCaller() const override;
     bool isJoined()  const override;
     bool isOwnPrivModerator() const override;
@@ -324,7 +325,7 @@ public:
     bool isSpeakRequestEnabled() const override { return mSpeakRequest; }
     bool hasUserPendingSpeakRequest(const karere::Id& uh) const override;
     int getWrJoiningState() const override;
-    void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const override;
+    void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider) const override;
     void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
@@ -490,7 +491,7 @@ public:
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
                       const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                      const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs) override;
+                      const bool speakRequest, const sfu::WrUserList& wrUsers, const CallLimits& callLimits) override;
 
     // --- SfuInterface methods (waiting room related methods) ---
     bool handleWrDump(const sfu::WrUserList& users) override;
@@ -502,6 +503,8 @@ public:
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
 
     bool handleWillEndCommand(const int endsIn) override;
+    bool handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits) override;
+
     bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) override;
 
     bool error(unsigned int code, const std::string& errMsg) override;
@@ -574,8 +577,8 @@ protected:
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
 
-    // Call duration limit in seconds (kCallLimitDurationDisabled => disabled)
-    int mCallDurLimitInSecs = ::sfu::kCallLimitDurationDisabled;
+    // Information about the limits of the call (kCallLimitDisabled is used for not setted values)
+    CallLimits mCallLimits {};
 
     // speak request flag
     bool mSpeakRequest = false;

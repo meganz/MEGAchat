@@ -293,7 +293,10 @@ public:
     void setFlag(const bool f);
     int getNum() const override;
     int getCallDurationLimit() const override;
-    void setCallDurationLimit(const int lim);
+    int getCallUsersLimit() const override;
+    int getCallClientsLimit() const override;
+    int getCallClientsPerUserLimit() const override;
+    sfu::SfuInterface::CallLimits getCallLimits() const;
     void setStatus(int status);
     void removeChanges();
     void setChange(int changed);
@@ -363,7 +366,7 @@ protected:
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
     MegaChatHandle mAuxHandle = MEGACHAT_INVALID_HANDLE;
-    int mCallDurationLimit = CALL_LIMIT_DURATION_DISABLED; // in seconds
+    sfu::SfuInterface::CallLimits mCallLimits; // Object storing all the limits for the call
     int64_t mNum = 0; // generic numeric value that can be used for multiple purposes
 };
 
@@ -727,6 +730,7 @@ public:
     void onCallStateChange(rtcModule::ICall& call) override;
     void onCallRinging(rtcModule::ICall &call) override;
     void onCallWillEndr(rtcModule::ICall &call, const int endsIn) override;
+    void onCallLimitsUpdated(rtcModule::ICall &call) override;
     void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) override;
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call, const Cid_t cidPerf = K_INVALID_CID) override;
@@ -746,7 +750,7 @@ public:
     void onWrPushedFromCall(const rtcModule::ICall& call) override;
     void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) override;
     void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
-    void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add);
+    void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -1694,7 +1698,7 @@ public:
     void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
-    void setLimitsInCall(const MegaChatHandle chatid, const unsigned long callDur, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients, MegaChatRequestListener* listener = nullptr);
+    void setLimitsInCall(const MegaChatHandle chatid, const unsigned long callDur, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients, const unsigned long divider, MegaChatRequestListener* listener = nullptr);
     void mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener = nullptr);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);

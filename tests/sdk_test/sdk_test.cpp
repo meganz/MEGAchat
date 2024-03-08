@@ -1119,7 +1119,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                           {
                               ChatRequestTracker crtCallLimit(megaChatApi[a1]);
                               megaChatApi[a1]->setLimitsInCall(chatid, callDur, MegaChatCall::CALL_LIMIT_RESET, MegaChatCall::CALL_LIMIT_RESET,
-                                                               MegaChatCall::CALL_LIMIT_RESET, &crtCallLimit);
+                                                               MegaChatCall::CALL_LIMIT_RESET, MegaChatCall::CALL_LIMIT_RESET, &crtCallLimit);
                               ASSERT_EQ(crtCallLimit.waitForResult(), MegaChatError::ERROR_OK)
                                   << "Failed to set call duration. Error: " << crtCallLimit.getErrorString();
                           });
@@ -1154,11 +1154,11 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     };
 
     // set call limits
-    auto setCallLimits = [this](const unsigned int performedIdx, const MegaChatHandle chatid, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients)
+    auto setCallLimits = [this](const unsigned int performedIdx, const MegaChatHandle chatid, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients, const unsigned long divider)
     {
         clearTemporalVars();
         ChatRequestTracker crtCallLimit(megaChatApi[performedIdx]);
-        megaChatApi[performedIdx]->setLimitsInCall(chatid, MegaChatCall::CALL_LIMIT_RESET, numUsers, numClientsPerUser, numClients, &crtCallLimit);
+        megaChatApi[performedIdx]->setLimitsInCall(chatid, MegaChatCall::CALL_LIMIT_RESET, numUsers, numClientsPerUser, numClients, divider, &crtCallLimit);
         ASSERT_EQ(crtCallLimit.waitForResult(), MegaChatError::ERROR_OK)
             << "Failed to set call limits. Error: " << crtCallLimit.getErrorString();
     };
@@ -1252,7 +1252,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     LOG_debug << "#### Test3: a1 sets max num clients ####";
     // a2 can join but a3 will received SFU error
     ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2, a3}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
-    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, 4 /*numUsers*/, 4 /*numClientsPerUser*/, 2 /*numClients*/));
+    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, 4 /*numUsers*/, 4 /*numClientsPerUser*/, 2 /*numClients*/, MegaChatCall::CALL_LIMIT_NO_PRESENT /*divider*/));
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
     ASSERT_NO_FATAL_FAILURE(answerCallWithErr(a3, mData.mChatid, false /*audio*/, false /*video*/, MegaChatCall::TERM_CODE_TOO_MANY_PARTICIPANTS));
     ExitBoolFlags eF1;
@@ -1263,7 +1263,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     LOG_debug << "#### Test4: a1 sets max numUsers ####";
     // a2 can join but a3 will received SFU error
     ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2, a3}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
-    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, 2 /*numUsers*/, 4 /*numClientsPerUser*/, 4 /*numClients*/));
+    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, 2 /*numUsers*/, 4 /*numClientsPerUser*/, 4 /*numClients*/, MegaChatCall::CALL_LIMIT_NO_PRESENT /*divider*/));
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
     ASSERT_NO_FATAL_FAILURE(answerCallWithErr(a3, mData.mChatid, false /*audio*/, false /*video*/, MegaChatCall::TERM_CODE_CALL_USERS_LIMIT));
 
@@ -10050,7 +10050,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     {
         boolVars().updateIfExists(apiIndex, "CallWillEnd", true);
 
-        megachat::MegaChatHandle endsIn = call->getNum() == megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED
+        megachat::MegaChatHandle endsIn = call->getNum() == megachat::MegaChatCall::CALL_LIMIT_DISABLED
             ? megachat::MegaChatCall::CALL_LIMIT_RESET
             : static_cast<megachat::MegaChatHandle>(call->getNum());
 
@@ -10979,7 +10979,8 @@ void MockupCall::logError(const char *)
 
 bool MockupCall::handleHello(const Cid_t /*cid*/, const unsigned int /*nAudioTracks*/,
                              const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
-                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/, const int /*ldurSecs*/)
+                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/,
+                             const MockupCall::CallLimits& /*callLimits*/)
 {
     return true;
 }
@@ -11025,6 +11026,11 @@ bool MockupCall::handleMutedCommand(const unsigned /*av*/, const Cid_t /*cidPerf
 }
 
 bool MockupCall::handleWillEndCommand(const int /*endsIn*/)
+{
+    return true;
+}
+
+bool MockupCall::handleClimitsCommand(const sfu::SfuInterface::CallLimits& /*callLimits*/)
 {
     return true;
 }

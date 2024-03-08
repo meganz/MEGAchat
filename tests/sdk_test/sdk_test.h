@@ -1288,7 +1288,7 @@ public:
     void logError(const char* error) override;
     bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                     const bool speakRequest, const sfu::WrUserList& wrUsers, const int /*ldurSecs*/) override;
+                     const bool speakRequest, const sfu::WrUserList& wrUsers, const CallLimits& callLimits) override;
 
     bool handleWrDump(const sfu::WrUserList& wrUsers) override;
     bool handleWrEnter(const sfu::WrUserList& wrUsers) override;
@@ -1299,6 +1299,7 @@ public:
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
     bool handleMutedCommand(const unsigned av, const Cid_t /*cidPerf*/) override;
     bool handleWillEndCommand(const int /*endsIn*/) override;
+    bool handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits) override;
 };
 #endif
 #endif // CHATTEST_H

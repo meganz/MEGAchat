@@ -274,6 +274,21 @@ int MegaChatCall::getCallDurationLimit() const
     return 0;
 }
 
+int MegaChatCall::getCallUsersLimit() const
+{
+    return 0;
+}
+
+int MegaChatCall::getCallClientsLimit() const
+{
+    return 0;
+}
+
+int MegaChatCall::getCallClientsPerUserLimit() const
+{
+    return 0;
+}
+
 int MegaChatCall::getEndCallReason() const
 {
     return 0;
@@ -1213,9 +1228,15 @@ void MegaChatApi::kickUsersFromCall(MegaChatHandle chatid, MegaHandleList* users
     pImpl->kickUsersFromCall(chatid, users, listener);
 }
 
-void MegaChatApi::setLimitsInCall(const MegaChatHandle chatid, const unsigned long callDur, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients, MegaChatRequestListener* listener)
+void MegaChatApi::setLimitsInCall(const MegaChatHandle chatid,
+                                  const unsigned long callDur,
+                                  const unsigned long numUsers,
+                                  const unsigned long numClientsPerUser,
+                                  const unsigned long numClients,
+                                  const unsigned long divider,
+                                  MegaChatRequestListener* listener)
 {
-    pImpl->setLimitsInCall(chatid, callDur, numUsers, numClientsPerUser, numClients, listener);
+    pImpl->setLimitsInCall(chatid, callDur, numUsers, numClientsPerUser, numClients, divider, listener);
 }
 
 void MegaChatApi::mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener)

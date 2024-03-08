@@ -2,6 +2,7 @@
 #ifndef SFU_H
 #define SFU_H
 #include <thread>
+#include <optional>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
 #include <karereId.h>
@@ -72,8 +73,9 @@ public:
 typedef std::vector<WrRoomUser> WrUserList;
 
 
-// Call duration restriction disabled
-static constexpr int kCallLimitDurationDisabled = -1;
+// Default value for when we don't receive information about a specific limit in HELLO or CLIMITS
+// commands. It can be thought as an unlimited value.
+static constexpr int kCallLimitDisabled = -1;
 
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
@@ -228,6 +230,14 @@ private:
 class SfuInterface
 {
 public:
+    struct CallLimits
+    {
+        int durationInSecs = ::sfu::kCallLimitDisabled;
+        int numUsers = ::sfu::kCallLimitDisabled;
+        int numClients = ::sfu::kCallLimitDisabled;
+        int numClientsPerUser = ::sfu::kCallLimitDisabled;
+    };
+
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) = 0;   // audio/video/on-hold flags
     virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap,
@@ -247,7 +257,7 @@ public:
     virtual bool handleModDel(uint64_t userid) = 0;
     virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                             bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs) = 0;
+                             bool speakRequest, const sfu::WrUserList& wrUsers, const CallLimits& callLimits) = 0;
 
     virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
     virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;
@@ -258,7 +268,7 @@ public:
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
     virtual bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) = 0;
     virtual bool handleWillEndCommand(const int endsIn) = 0;
-
+    virtual bool handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits) = 0;
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
@@ -295,6 +305,16 @@ protected:
     Command(SfuInterface& call);
     bool parseWrUsersMap(sfu::WrUserList& wrUsers, const rapidjson::Value& obj) const;
     static uint8_t hexDigitVal(char value);
+
+    /**
+     * @brief Extract the information of the lim field in the document
+     *
+     * @param command The document to parse
+     * @return std::optional<SfuInterface::CallLimits> An empty optional if any filed in the lim
+     * object has an unexpected format. Else, the object with the limits. If any field is missing in
+     * the lim object, the associated parameter will be set to sfu::kCallLimitDisabled.
+     */
+    std::optional<SfuInterface::CallLimits> parseCallLimits(const rapidjson::Document& command);
 
     SfuInterface& mCall;
 };
@@ -485,6 +505,16 @@ public:
     WillEndCommandFunction mComplete;
 };
 
+class ClimitsCommand : public Command
+{
+public:
+    typedef std::function<bool(const SfuInterface::CallLimits& callLimits)> ClimitsCommandFunction;
+    ClimitsCommand(const ClimitsCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    ClimitsCommandFunction mComplete;
+};
+
 class ModAddCommand : public Command
 {   // "MOD_ADD"
 public:
@@ -515,7 +545,7 @@ public:
                                const bool speakRequest,
                                const bool allowed,
                                const sfu::WrUserList& wrUsers,
-                               const int ldur)>HelloCommandFunction;
+                               const SfuInterface::CallLimits& callLimits)>HelloCommandFunction;
 
     HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
@@ -716,7 +746,7 @@ public:
     bool sendWrPush(const std::set<karere::Id>& users, const bool all);
     bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
     bool sendWrKick(const std::set<karere::Id>& users);
-    bool sendSetLimit(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients);
+    bool sendSetLimit(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider);
     bool sendMute(const Cid_t& cid, const unsigned av);
     bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
     bool avoidReconnect() const;

@@ -174,7 +174,7 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append("<br /> Speak request is enabled: ")
             .append(call->isSpeakRequestEnabled() ? on : off)
             .append("<br /> Call duration limit: ")
-            .append(call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED
+            .append(call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DISABLED
                     ? "<span style='font-weight:bold;'>Disabled</span>"
                     : "<span style='color:#AA0000'>" + std::to_string(call->getCallDurationLimit()) +"</span>")
             .append("<br /> Audio flag: ")
