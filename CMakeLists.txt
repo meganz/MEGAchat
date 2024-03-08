@@ -100,6 +100,6 @@ if(ENABLE_CHATLIB_MEGACLC)
 endif()
 
 # Load integration tests
-if(ENABLE_CHATLIB_QTAPP)
+if(ENABLE_CHATLIB_TESTS)
     add_subdirectory(tests/sdk_test)
 endif()
