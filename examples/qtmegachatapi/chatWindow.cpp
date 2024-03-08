@@ -1091,6 +1091,7 @@ void ChatWindow::onRingUser() const
 
 void ChatWindow::onAddSpeaker() const
 {
+#ifndef KARERE_DISABLE_WEBRTC
     const QAction* action = qobject_cast<QAction *>(sender());
     if (!action) { return; }
 
@@ -1099,6 +1100,7 @@ void ChatWindow::onAddSpeaker() const
     add
         ? mMegaChatApi->grantSpeakPermission(mChatRoom->getChatId(), uHandle)
         : mMegaChatApi->revokeSpeakPermission(mChatRoom->getChatId(), uHandle);
+#endif
 }
 
 void ChatWindow::onMemberSetPriv()

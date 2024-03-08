@@ -1658,8 +1658,10 @@ void MainWindow::onCatchUp()
 
 void MainWindow::onSpeakReqFeature()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     bool enable = atoi(mApp->getText("Enable speak request feature? 1(enable) | 0(disable)").c_str());
     mMegaChatApi->enableSpeakRequestSupportForCalls(enable);
+#endif
 }
 
 void MainWindow::onSetSFUId()
