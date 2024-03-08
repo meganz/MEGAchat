@@ -163,7 +163,6 @@ void exec_session(ac::ACState& s)
 void exec_debug(ac::ACState& s)
 {
     // Defaults
-    SimpleLogger::setLogLevel(logWarning);
     g_debugOutpuWriter.disableLogToConsole();
     g_debugOutpuWriter.disableLogToFile();
 
@@ -191,7 +190,6 @@ void exec_debug(ac::ACState& s)
     if (s.extractflagparam("-console", logLevelStr))
     {
         auto logLevel = levelStrToInt(logLevelStr);
-        SimpleLogger::setLogLevel(logLevel);
         g_debugOutpuWriter.enableLogToConsole();
         g_debugOutpuWriter.setConsoleLogLevel(logLevel);
     }

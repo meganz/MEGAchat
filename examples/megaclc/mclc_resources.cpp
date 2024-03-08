@@ -11,6 +11,7 @@ void appAllocate()
 {
     using namespace mclc::clc_global;
 
+    // Loggers are stored in global variables so can be setup before instantiating the final apis
     clc_log::setLoggers();
 
     const std::string megaclc_path = "temp_MEGAclc";
@@ -27,9 +28,6 @@ void appAllocate()
     g_megaApi->addListener(&g_megaclcListener);
     g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
-    g_chatApi->setLogLevel(c::MegaChatApi::LOG_LEVEL_MAX);
-    g_chatApi->setLogWithColors(false);
-    g_chatApi->setLogToConsole(false);
     g_chatApi->addChatListener(&g_clcListener);
     g_chatApi->addChatCallListener(&g_clcCallListener);
     g_chatApi->addChatRequestListener(&g_chatRequestListener);
