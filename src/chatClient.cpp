@@ -4263,25 +4263,22 @@ void GroupChatRoom::syncChatTitle(const mega::MegaTextChat& chat, const bool mem
     // Title changes
     const char* title = chat.getTitle();
     mHasTitle = (title && title[0]);
-    if (mHasTitle)
+    if (mHasTitle && mEncryptedTitle != title)
     {
-        if (mEncryptedTitle != title) // title has changed
-        {
-            // if the title was already decrypted in cache at startup, the `mEncryptedTitle` won't
-            // be initialized yet (the encrypted flavour of the title is saved in cache but
-            // overwriten when decrypted) In consequence, the first actionpacket will initialize it
-            // and decrypt it once per execution
-            mEncryptedTitle = title;
-            updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
+        // if the title was already decrypted in cache at startup, the `mEncryptedTitle` won't
+        // be initialized yet (the encrypted flavour of the title is saved in cache but
+        // overwriten when decrypted) In consequence, the first actionpacket will initialize it
+        // and decrypt it once per execution
+        mEncryptedTitle = title;
+        updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
 
-            decryptTitle().fail(
-                [](const ::promise::Error& err)
-                {
-                    KR_LOG_DEBUG("Can't decrypt chatroom title. In function: "
-                                 "GroupChatRoom::syncWithApi. Error: %s",
-                                 err.what());
-                });
-        }
+        decryptTitle().fail(
+            [](const ::promise::Error& err)
+            {
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: "
+                             "GroupChatRoom::syncWithApi. Error: %s",
+                             err.what());
+            });
     }
     else if (membersChanged)
     {
@@ -4323,40 +4320,40 @@ bool GroupChatRoom::syncOwnPrivilege(const mega::MegaTextChat& chat)
     auto oldPriv = mOwnPriv;
     auto newPriv = static_cast<chatd::Priv>(chat.getOwnPrivilege());
     auto ownPrivChanged = oldPriv != newPriv;
+    bool removedFromChat = false;
     if (ownPrivChanged) // Manage own user privilege change
     {
-        if (bool ownPrivUpdated = syncOwnPriv(newPriv); !ownPrivUpdated)
+        if (!syncOwnPriv(newPriv))
         {
             KR_LOG_ERROR("Chatroom[%s]: API event: couldn't update own priv for chat: ",
                          ID_CSTR(mChatid));
             assert(false);
+            return removedFromChat;
+        }
+
+        if (newPriv == chatd::PRIV_RM)
+        {
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed from chat: ",
+                            ID_CSTR(mChatid));
+            notifyOwnExcludedFromChat();
+            removedFromChat = true;
+        }
+        else if (oldPriv == chatd::PRIV_RM && newPriv != chatd::PRIV_RM)
+        {
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited or re/joined to chat: ",
+                            ID_CSTR(mChatid));
+            rejoinChatOwnUser();
+            notifyRejoinedChat();
         }
         else
         {
-            if (newPriv == chatd::PRIV_RM)
-            {
-                KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed from chat: ",
-                             ID_CSTR(mChatid));
-                notifyOwnExcludedFromChat();
-                return true;
-            }
-            else if (oldPriv == chatd::PRIV_RM && newPriv != chatd::PRIV_RM)
-            {
-                KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited or re/joined to chat: ",
-                             ID_CSTR(mChatid));
-                rejoinChatOwnUser();
-                notifyRejoinedChat();
-            }
-            else
-            {
-                KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed for chat: ",
-                             ID_CSTR(mChatid));
-                notifyOwnUserPrivChange();
-            }
+            KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed for chat: ",
+                            ID_CSTR(mChatid));
+            notifyOwnUserPrivChange();
         }
     }
 
-    return false; // we have not been removed from chat
+    return removedFromChat;
 }
 
 bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
@@ -4391,8 +4388,8 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     // Sync scheduled meetings
     syncSchedMeetings(chat);
 
-    // Sync own privilege
-    if (bool weHaveBeenRemoved = syncOwnPrivilege(chat); weHaveBeenRemoved)
+    // Sync own privilege, if this method returns true, it means that we have been removed from chat
+    if (syncOwnPrivilege(chat))
     {
         return true;
     }
