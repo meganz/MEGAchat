@@ -986,6 +986,30 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
         waitTimeSec = clc_ccactions::callUnlimitedDuration;
     }
 
+    std::string recvVideosStr{"0"};
+    s.extractflagparam("-recvNumLowVideos", recvVideosStr);
+    int numRecvLowVideos = std::stoi(recvVideosStr);
+    if (numRecvLowVideos < -1)
+    {
+        const char* msg = "Invalid value for recvNumLowVideos.";
+        logMsg(m::logError, msg, ELogWriter::MEGA_CHAT);
+        clc_console::conlock(std::cout) << msg << "\n";
+        return;
+    }
+
+    recvVideosStr = "0";
+    s.extractflagparam("-recvNumHighVideos", recvVideosStr);
+    int numRecvHighVideos = std::stoi(recvVideosStr);
+    if (numRecvHighVideos < -1)
+    {
+        const char* msg = "Invalid value for recvNumHighVideos.";
+        logMsg(m::logError, msg, ELogWriter::MEGA_CHAT);
+        clc_console::conlock(std::cout) << msg << "\n";
+        return;
+    }
+    clc_global::g_callVideoParticipants.resetNumberOfLowResVideo(numRecvLowVideos);
+    clc_global::g_callVideoParticipants.resetNumberOfHighResVideo(numRecvHighVideos);
+
     std::string videoInputDevice;
     s.extractflagparam("-videoInputDevice", videoInputDevice);
     if (videoInputDevice.size() != 0)
@@ -1025,6 +1049,16 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
         return;
     }
 
+    std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    if (!call)
+    {
+        // The call must exists as it existed in answerCall function
+        logMsg(m::logError, "Call cannot be retrieved for chatid", ELogWriter::MEGA_CHAT);
+        assert(false);
+        return;
+    }
+    clc_global::g_callVideoParticipants.setCallId(call->getCallId());
+
     logMsg(m::logInfo, "## Task4: Answer chat call ##", ELogWriter::MEGA_CHAT);
     if (!clc_ccactions::answerCall(chatId,
                                    audio,
@@ -1034,7 +1068,7 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
         return;
     }
     // Log number of participants
-    std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    call.reset(g_chatApi->getChatCall(chatId));
     if (!call)
     {
         // The call must exists as it existed in answerCall function

@@ -110,6 +110,40 @@ void CLCChatRequestListener::onRequestFinish(c::MegaChatApi*,
     {
         clc_global::g_chatFinishedLogout = true;
     }
+    else if ((request->getType() == c::MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO) &&
+        (e->getErrorCode() != c::MegaChatError::ERROR_OK))
+    {
+        auto ch = request->getChatHandle();
+        std::unique_ptr<c::MegaChatCall> call(clc_global::g_chatApi->getChatCall(ch));
+        if (!call)
+        {
+            return;
+        }
+        auto handleList = request->getMegaHandleList();
+        if (!handleList)
+        {
+            return;
+        }
+        auto callid = call->getHandle();
+        for (unsigned i = 0; i < handleList->size(); ++i)
+        {
+            auto clientId = handleList->get(i);
+            clc_global::g_callVideoParticipants.removeParticipant(callid, clientId);
+        }
+    }
+    else if ((request->getType() == c::MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO) &&
+        (e->getErrorCode() != c::MegaChatError::ERROR_OK))
+    {
+        auto ch = request->getChatHandle();
+        std::unique_ptr<c::MegaChatCall> call(clc_global::g_chatApi->getChatCall(ch));
+        if (!call)
+        {
+            return;
+        }
+        auto clientId = request->getUserHandle();
+        auto callid = call->getHandle();
+        clc_global::g_callVideoParticipants.removeParticipant(callid, clientId);
+    }
 }
 
 CLCRoomListenerRecord::CLCRoomListenerRecord():
@@ -367,21 +401,109 @@ void CLCCallListener::onChatSessionUpdate(megachat::MegaChatApi*,
         return;
     }
     clc_log::logMsg(m::logInfo,
-                    std::string("onChangeSessionUpdate with chatid ") + std::to_string(chatid) +
+                    std::string("onChatSessionUpdate with chatid ") + std::to_string(chatid) +
                         " and callid " + std::to_string(callid),
                     clc_log::ELogWriter::MEGA_CHAT);
+    bool isNewlyCreatedSession =
+        (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_STATUS) &&
+         session->getStatus() == megachat::MegaChatCall::CALL_STATUS_INITIAL);
+    bool haveSessionOptionsChanged =
+        session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS);
+    if (isNewlyCreatedSession || haveSessionOptionsChanged)
+    {
+        askForParticipantVideo(chatid, callid, session);
+    }
+
     if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_STATUS))
     {}
     else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS))
     {}
     else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES))
-    {}
+    {
+        if (session->canRecvVideoLowRes())
+        {
+            clc_global::g_callVideoParticipants.updateParticipantLowResVideoState(
+                callid,
+                session->getClientid(),
+                true);
+        }
+        else
+        {
+            clc_global::g_callVideoParticipants.removeParticipant(callid, session->getClientid());
+        }
+    }
     else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES))
-    {}
+    {
+        if (session->canRecvVideoHiRes())
+        {
+            clc_global::g_callVideoParticipants.updateParticipantHighResVideoState(
+                callid,
+                session->getClientid(),
+                true);
+        }
+        else
+        {
+            clc_global::g_callVideoParticipants.removeParticipant(callid, session->getClientid());
+        }
+    }
     else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_SESSION_ON_HOLD))
     {}
     else if (session->hasChanged(megachat::MegaChatSession::CHANGE_TYPE_PERMISSIONS))
     {}
+}
+
+void CLCCallListener::askForParticipantVideo(megachat::MegaChatHandle chatid,
+                                             megachat::MegaChatHandle callid,
+                                             megachat::MegaChatSession* session)
+{
+    if (addParticipantLowResVideo(chatid, callid, session))
+    {
+        return;
+    }
+    addParticipantHighResVideo(chatid, callid, session);
+}
+
+bool CLCCallListener::addParticipantLowResVideo(megachat::MegaChatHandle chatid,
+                                                megachat::MegaChatHandle callid,
+                                                megachat::MegaChatSession* session)
+{
+    if (!session->isLowResVideo())
+    {
+        return false;
+    }
+    int errCode = clc_global::g_callVideoParticipants.addLowResParticipant(
+        callid,
+        clc_report::ParticipantInfo{session->getClientid(), session->getPeerid(), false});
+    if (errCode != c::MegaChatError::ERROR_OK)
+    {
+        return false;
+    }
+    auto users = std::unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
+    users->addMegaHandle(session->getClientid());
+
+    clc_listen::CLCChatRequestTracker resListener(clc_global::g_chatApi.get());
+    clc_global::g_chatApi->requestLowResVideo(chatid, users.get(), &resListener);
+    return true;
+}
+
+bool CLCCallListener::addParticipantHighResVideo(megachat::MegaChatHandle chatid,
+                                                 megachat::MegaChatHandle callid,
+                                                 megachat::MegaChatSession* session)
+{
+    if (!session->isHiResVideo())
+    {
+        return false;
+    }
+    int errCode = clc_global::g_callVideoParticipants.addHighResParticipant(
+        callid,
+        clc_report::ParticipantInfo{session->getClientid(), session->getPeerid(), false});
+    if (errCode != c::MegaChatError::ERROR_OK)
+    {
+        return false;
+    }
+    clc_listen::CLCChatRequestTracker resListener(clc_global::g_chatApi.get());
+    clc_global::g_chatApi->requestHiResVideo(chatid, session->getClientid(), &resListener);
+    return true;
 }
 
 void CLCChatListener::onFinish(int n, std::function<void(CLCFinishInfo&)> f)
