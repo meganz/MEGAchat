@@ -101,5 +101,7 @@ endif()
 
 # Load integration tests
 if(ENABLE_CHATLIB_TESTS)
+    # Load test_tools target from the SDK
+    add_subdirectory(third-party/mega/tests)
     add_subdirectory(tests/sdk_test)
 endif()

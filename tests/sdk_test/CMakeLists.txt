@@ -4,12 +4,7 @@ add_executable(megachat_tests)
 target_sources(megachat_tests
     PRIVATE
     sdk_test.h
-    ../../third-party/mega/tests/gtest_common.h # TODO From SDK utils target
-    ../../third-party/mega/tests/integration/sdk_test_utils.h # TODO From SDK utils target
-
     sdk_test.cpp
-    ../../third-party/mega/tests/gtest_common.cpp # TODO From SDK utils target
-    ../../third-party/mega/tests/integration/sdk_test_utils.cpp # TODO From SDK utils target
 )
 
 # Load and link needed libraries for the CHATlib tests
@@ -17,15 +12,10 @@ find_package(GTest CONFIG REQUIRED)
 
 target_link_libraries(megachat_tests
     PRIVATE
+    MEGA::test_tools
     GTest::gmock
     GTest::gtest
     MEGA::CHATlib
-)
-
-# TODO From SDK utils target
-target_include_directories(megachat_tests
-    PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../third-party/mega/tests/
 )
 
 ## Adjust compilation flags for warnings and errors ##
