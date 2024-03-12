@@ -280,9 +280,9 @@ pipeline {
                                                 echo
                                                 echo
                                                 echo \"Processing core dump \$i :: \$(grep `echo \$i | sed 's#test_pid_\\([0-9].*\\)/core#\\1#'` tests.stdout)\"
-                                                echo thread apply all bt > ${megachat_sources_workspace}/build/backtrace
-                                                echo quit >> ${megachat_sources_workspace}/build/backtrace
-                                                gdb -q ${megachat_sources_workspace}/build/MEGAchatTests/megachat_tests \$i -x ${megachat_sources_workspace}/build/backtrace
+                                                echo thread apply all bt > backtrace
+                                                echo quit >> backtrace
+                                                gdb -q tests/sdk_test/megachat_tests \$i -x backtrace
                                                 tar rf core.tar \$i
                                                 coresProcessed=`expr \$coresProcessed + 1`
                                                 coreFiles=`echo \$coreFiles | sed -e \"s#\$i##\"`
@@ -290,7 +290,7 @@ pipeline {
                                         done
                                     done
                                     if [ -e core.tar ]; then
-                                        tar rf core.tar -C ${megachat_sources_workspace}/build/MEGAchatTests/ megachat_tests
+                                        tar rf core.tar -C tests/sdk_test/ megachat_tests
                                         gzip core.tar
                                     fi
                                 fi
