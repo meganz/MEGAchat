@@ -251,7 +251,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getnumcalls, sequence(text("getnumcalls")));
     p->Add(exec_getchatcalls, sequence(text("getchatcalls")));
     p->Add(exec_getchatcallsids, sequence(text("getchatcallsids")));
-#endif
+#endif // KARERE_DISABLE_WEBRTC
 
     p->Add(exec_detail, sequence(text("detail"), opt(either(text("high"), text("low")))));
 #ifdef WIN32

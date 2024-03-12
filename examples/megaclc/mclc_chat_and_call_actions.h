@@ -71,6 +71,7 @@ std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link);
  */
 bool joinChat(const c::MegaChatHandle chatId, const int openPreviewErrCode);
 
+#ifndef KARERE_DISABLE_WEBRTC
 /**
  * @brief Blocks the execution until a call is received. This function assumes you participate in
  * chat whose chatId is provided as param.
@@ -140,6 +141,6 @@ bool hangUpCall(const c::MegaChatHandle chatId);
  * @return true if it was set properly false otherwise.
  */
 bool setChatVideoInDevice(const std::string& device);
-
+#endif // KARERE_DISABLE_WEBRTC
 }
 #endif // MCLC_CHAT_AND_CALL_ACTIONS_H

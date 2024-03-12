@@ -163,7 +163,7 @@ bool isCallAlive(const c::MegaChatHandle chatId)
     logMsg(m::logDebug, "Call is still alive", ELogWriter::MEGA_CHAT);
     return true;
 }
-#endif
+#endif // KARERE_DISABLE_WEBRTC
 
 bool hasMegaChatBeenInit()
 {
@@ -610,5 +610,5 @@ bool setChatVideoInDevice(const std::string& device)
     }
     return true;
 }
-#endif
+#endif // KARERE_DISABLE_WEBRTC
 } // end of namespace mclc::clc_ccactions
