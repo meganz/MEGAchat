@@ -163,7 +163,7 @@ bool isCallAlive(const c::MegaChatHandle chatId)
     if (clc_global::g_callVideoParticipants.isValid())
     {
         logMsg(m::logDebug,
-               clc_global::g_callVideoParticipants.recievingVideoReport(),
+               clc_global::g_callVideoParticipants.receivingVideoReport(),
                ELogWriter::MEGA_CHAT);
     }
     return true;

@@ -111,7 +111,7 @@ void CLCChatRequestListener::onRequestFinish(c::MegaChatApi*,
         clc_global::g_chatFinishedLogout = true;
     }
     else if ((request->getType() == c::MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO) &&
-        (e->getErrorCode() != c::MegaChatError::ERROR_OK))
+             (e->getErrorCode() != c::MegaChatError::ERROR_OK))
     {
         auto ch = request->getChatHandle();
         std::unique_ptr<c::MegaChatCall> call(clc_global::g_chatApi->getChatCall(ch));
@@ -132,7 +132,7 @@ void CLCChatRequestListener::onRequestFinish(c::MegaChatApi*,
         }
     }
     else if ((request->getType() == c::MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO) &&
-        (e->getErrorCode() != c::MegaChatError::ERROR_OK))
+             (e->getErrorCode() != c::MegaChatError::ERROR_OK))
     {
         auto ch = request->getChatHandle();
         std::unique_ptr<c::MegaChatCall> call(clc_global::g_chatApi->getChatCall(ch));
@@ -452,9 +452,9 @@ void CLCCallListener::onChatSessionUpdate(megachat::MegaChatApi*,
     {}
 }
 
-void CLCCallListener::askForParticipantVideo(megachat::MegaChatHandle chatid,
-                                             megachat::MegaChatHandle callid,
-                                             megachat::MegaChatSession* session)
+void CLCCallListener::askForParticipantVideo(const megachat::MegaChatHandle chatid,
+                                             const megachat::MegaChatHandle callid,
+                                             const megachat::MegaChatSession* session) const
 {
     if (addParticipantLowResVideo(chatid, callid, session))
     {
@@ -463,9 +463,9 @@ void CLCCallListener::askForParticipantVideo(megachat::MegaChatHandle chatid,
     addParticipantHighResVideo(chatid, callid, session);
 }
 
-bool CLCCallListener::addParticipantLowResVideo(megachat::MegaChatHandle chatid,
-                                                megachat::MegaChatHandle callid,
-                                                megachat::MegaChatSession* session)
+bool CLCCallListener::addParticipantLowResVideo(const megachat::MegaChatHandle chatid,
+                                                const megachat::MegaChatHandle callid,
+                                                const megachat::MegaChatSession* session) const
 {
     if (!session->isLowResVideo())
     {
@@ -486,9 +486,9 @@ bool CLCCallListener::addParticipantLowResVideo(megachat::MegaChatHandle chatid,
     return true;
 }
 
-bool CLCCallListener::addParticipantHighResVideo(megachat::MegaChatHandle chatid,
-                                                 megachat::MegaChatHandle callid,
-                                                 megachat::MegaChatSession* session)
+bool CLCCallListener::addParticipantHighResVideo(const megachat::MegaChatHandle chatid,
+                                                 const megachat::MegaChatHandle callid,
+                                                 const megachat::MegaChatSession* session) const
 {
     if (!session->isHiResVideo())
     {

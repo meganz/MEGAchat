@@ -180,17 +180,17 @@ class CLCCallListener: public c::MegaChatCallListener
                              megachat::MegaChatSession* session) override;
 
 private:
-    void askForParticipantVideo(megachat::MegaChatHandle chatid,
-                                megachat::MegaChatHandle callid,
-                                megachat::MegaChatSession* session);
+    void askForParticipantVideo(const megachat::MegaChatHandle chatid,
+                                const megachat::MegaChatHandle callid,
+                                const megachat::MegaChatSession* session) const;
 
-    bool addParticipantHighResVideo(megachat::MegaChatHandle chatid,
-                                    megachat::MegaChatHandle callid,
-                                    megachat::MegaChatSession* session);
+    bool addParticipantHighResVideo(const megachat::MegaChatHandle chatid,
+                                    const megachat::MegaChatHandle callid,
+                                    const megachat::MegaChatSession* session) const;
 
-    bool addParticipantLowResVideo(megachat::MegaChatHandle chatid,
-                                   megachat::MegaChatHandle callid,
-                                   megachat::MegaChatSession* session);
+    bool addParticipantLowResVideo(const megachat::MegaChatHandle chatid,
+                                   const megachat::MegaChatHandle callid,
+                                   const megachat::MegaChatSession* session) const;
 };
 
 struct CLCFinishInfo

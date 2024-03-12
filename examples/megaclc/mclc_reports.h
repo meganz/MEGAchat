@@ -45,6 +45,7 @@ struct ParticipantInfo
 class CLCCallReceivedVideos
 {
 public:
+    static constexpr int NUM_FOR_INFINITE_VIDEO_RECEIVERS = -1;
     void resetNumberOfLowResVideo(int newNumberOfLow);
     void resetNumberOfHighResVideo(int newNumberOfHigh);
 
@@ -60,12 +61,12 @@ public:
 
     int removeParticipant(const c::MegaChatHandle callId, const c::MegaChatHandle clientId);
 
-    void setCallId(c::MegaChatHandle callId)
+    void setCallId(const c::MegaChatHandle callId)
     {
         mCallId = callId;
     }
 
-    std::string recievingVideoReport() const;
+    std::string receivingVideoReport() const;
 
     bool isValid() const
     {

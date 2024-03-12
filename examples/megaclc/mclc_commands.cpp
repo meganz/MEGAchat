@@ -989,7 +989,7 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     std::string recvVideosStr{"0"};
     s.extractflagparam("-recvNumLowVideos", recvVideosStr);
     int numRecvLowVideos = std::stoi(recvVideosStr);
-    if (numRecvLowVideos < -1)
+    if (numRecvLowVideos < clc_report::CLCCallReceivedVideos::NUM_FOR_INFINITE_VIDEO_RECEIVERS)
     {
         const char* msg = "Invalid value for recvNumLowVideos.";
         logMsg(m::logError, msg, ELogWriter::MEGA_CHAT);
@@ -1000,7 +1000,7 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     recvVideosStr = "0";
     s.extractflagparam("-recvNumHighVideos", recvVideosStr);
     int numRecvHighVideos = std::stoi(recvVideosStr);
-    if (numRecvHighVideos < -1)
+    if (numRecvHighVideos < clc_report::CLCCallReceivedVideos::NUM_FOR_INFINITE_VIDEO_RECEIVERS)
     {
         const char* msg = "Invalid value for recvNumHighVideos.";
         logMsg(m::logError, msg, ELogWriter::MEGA_CHAT);
@@ -1053,7 +1053,9 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     if (!call)
     {
         // The call must exists as it existed in answerCall function
-        logMsg(m::logError, "Call cannot be retrieved for chatid", ELogWriter::MEGA_CHAT);
+        logMsg(m::logError,
+               "exec_joinCallViaMeetingLink: Call cannot be retrieved for chatid",
+               ELogWriter::MEGA_CHAT);
         assert(false);
         return;
     }

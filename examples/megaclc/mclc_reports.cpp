@@ -327,7 +327,7 @@ int CLCCallReceivedVideos::addHighResParticipant(const c::MegaChatHandle callId,
     {
         return c::MegaChatError::ERROR_EXIST;
     }
-    if (mNumberOfHighResVideo != -1 &&
+    if (mNumberOfHighResVideo != NUM_FOR_INFINITE_VIDEO_RECEIVERS &&
         mHighResParticipants.size() == static_cast<size_t>(mNumberOfHighResVideo))
     {
         return c::MegaChatError::ERROR_TOOMANY;
@@ -351,7 +351,7 @@ int CLCCallReceivedVideos::addLowResParticipant(const c::MegaChatHandle callId,
     {
         return c::MegaChatError::ERROR_EXIST;
     }
-    if (mNumberOfLowResVideo != -1 &&
+    if (mNumberOfLowResVideo != NUM_FOR_INFINITE_VIDEO_RECEIVERS &&
         mLowResParticipants.size() == static_cast<size_t>(mNumberOfLowResVideo))
     {
         return c::MegaChatError::ERROR_TOOMANY;
@@ -366,9 +366,9 @@ int CLCCallReceivedVideos::updateParticipantHighResVideoState(const c::MegaChatH
 {
     if (callId != mCallId)
     {
-        std::string msg = "addLowResParticipant: Provided call id (" + str_utils::ch_s(callId) +
-                          ") does not match with the expected one (" + str_utils::ch_s(mCallId) +
-                          ")";
+        std::string msg = "updateParticipantHighResVideoState: Provided call id (" +
+                          str_utils::ch_s(callId) + ") does not match with the expected one (" +
+                          str_utils::ch_s(mCallId) + ")";
         clc_log::logMsg(m::logWarning, msg, clc_log::ELogWriter::MEGA_CHAT);
         return c::MegaChatError::ERROR_ARGS;
     }
@@ -386,9 +386,9 @@ int CLCCallReceivedVideos::updateParticipantLowResVideoState(const c::MegaChatHa
 {
     if (callId != mCallId)
     {
-        std::string msg = "addLowResParticipant: Provided call id (" + str_utils::ch_s(callId) +
-                          ") does not match with the expected one (" + str_utils::ch_s(mCallId) +
-                          ")";
+        std::string msg = "updateParticipantLowResVideoState: Provided call id (" +
+                          str_utils::ch_s(callId) + ") does not match with the expected one (" +
+                          str_utils::ch_s(mCallId) + ")";
         clc_log::logMsg(m::logWarning, msg, clc_log::ELogWriter::MEGA_CHAT);
         return c::MegaChatError::ERROR_ARGS;
     }
@@ -441,7 +441,7 @@ void CLCCallReceivedVideos::resetNumberOfHighResVideo(int newNumberOfHigh)
     mHighResParticipants.clear();
 }
 
-std::string CLCCallReceivedVideos::recievingVideoReport() const
+std::string CLCCallReceivedVideos::receivingVideoReport() const
 {
     std::string result = "Call: " + str_utils::ch_s(mCallId) + ".";
     if (mLowResParticipants.size())
