@@ -41,8 +41,10 @@ if(NOT PROJECT_NAME)
         # Include VCPKG management tools.
         include(vcpkg_management)
         include(chatlib_vcpkg_management) # For specific MEGAchat configurations
+        list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/contrib/cmake) # MEGAchat overlays
         list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/contrib/cmake) # MEGAsdk overlays
         process_vcpkg_libraries("${vcpkg_overlay}") # Choose and build libraries depending on the configured options.
+        process_chatlib_vcpkg_libraries()
     else()
         # For packages with no pkg-config in the system.
         list(APPEND CMAKE_MODULE_PATH third-party/mega/contrib/cmake/modules/packages)

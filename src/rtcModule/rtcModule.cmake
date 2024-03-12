@@ -31,4 +31,4 @@ target_sources_conditional(CHATlib
     ${CHATLIB_RTCM_SOURCES}
 )
 
-target_include_directories(CHATlib PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(CHATlib PUBLIC ${CMAKE_CURRENT_LIST_DIR})
