@@ -11,12 +11,14 @@
  * TODO: However, others should be reconsidered and moved to a more local scope.
  */
 
+#include "mclc_listeners.h"
+#include "mclc_prompt.h"
+#include "mclc_reports.h"
+
 #include <mega/autocomplete.h>
 
 #include <atomic>
 #include <map>
-#include <mclc_listeners.h>
-#include <mclc_prompt.h>
 #include <megaapi.h>
 #include <megachatapi.h>
 #include <memory>
@@ -66,6 +68,7 @@ extern clc_listen::CLCMegaListener g_megaclcListener;
 extern clc_listen::CLCChatListener g_chatListener;
 extern clc_listen::CLCMegaGlobalListener g_globalListener;
 extern clc_listen::CLCChatRequestListener g_chatRequestListener;
+extern clc_report::CLCCallReceivedVideos g_callVideoParticipants;
 
 // output
 extern std::mutex g_outputMutex; // lock this for output since we are using cout on multiple threads
