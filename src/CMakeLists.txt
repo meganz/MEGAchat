@@ -75,12 +75,8 @@ add_custom_command(
 # Include directories
 target_include_directories(CHATlib
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> # For the top level projects.
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> # For the external projects.
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../third-party> # TODO rapidjson, header-only lib
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/third-party> # rapidjson
-    PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ../third-party
 )
 
 # Include modules in subdirectories with sources for CHAtlib
