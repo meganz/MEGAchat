@@ -84,12 +84,12 @@ CONFIG(ENABLE_WERROR_COMPILATION) {
 }
 
 CONFIG(USE_WEBRTC) {
-    SOURCES +=  ../../src/videoRenderer_Qt.cpp \
+    SOURCES +=  ../../../examples/qtmegachatapi/videoRenderer_Qt.cpp \
                 ../../../examples/qtmegachatapi/peerWidget.cpp \
                 ../../../examples/qtmegachatapi/meetingView.cpp \
                 ../../../examples/qtmegachatapi/meetingSession.cpp
 
-    HEADERS +=  ../../src/videoRenderer_Qt.h \
+    HEADERS +=  ../../../examples/qtmegachatapi/videoRenderer_Qt.h \
                 ../../../examples/qtmegachatapi/peerWidget.h \
                 ../../../examples/qtmegachatapi/meetingView.h \
                 ../../../examples/qtmegachatapi/meetingSession.h

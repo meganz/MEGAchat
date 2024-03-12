@@ -21,6 +21,7 @@ set(QTAPP_HEADERS
     SettingWindow.h
     uiSettings.h
     widgetSubclass.h
+    videoRenderer_Qt.h
 )
 
 set(QTAPP_SOURCES
@@ -39,6 +40,7 @@ set(QTAPP_SOURCES
     reaction.cpp
     SettingWindow.cpp
     uiSettings.cpp
+    videoRenderer_Qt.cpp
 )
 
 set(QTAPP_UI
