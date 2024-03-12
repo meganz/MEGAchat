@@ -21,6 +21,7 @@ using namespace std::chrono_literals;
 constexpr auto ONE_MINUTE_SECS = 60s;
 constexpr auto TEN_SECS = 10s;
 
+#ifndef KARERE_DISABLE_WEBRTC
 struct CallStateChangeTracker
 {
     c::MegaChatHandle chatId{c::MEGACHAT_INVALID_HANDLE};
@@ -162,6 +163,7 @@ bool isCallAlive(const c::MegaChatHandle chatId)
     logMsg(m::logDebug, "Call is still alive", ELogWriter::MEGA_CHAT);
     return true;
 }
+#endif
 
 bool hasMegaChatBeenInit()
 {
@@ -421,6 +423,7 @@ bool joinChat(const c::MegaChatHandle chatId, const int openPreviewErrCode)
     return true;
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 bool waitUntilCallIsReceived(const c::MegaChatHandle chatId)
 {
     std::set<int> expStatus{
@@ -607,5 +610,5 @@ bool setChatVideoInDevice(const std::string& device)
     }
     return true;
 }
-
+#endif
 } // end of namespace mclc::clc_ccactions

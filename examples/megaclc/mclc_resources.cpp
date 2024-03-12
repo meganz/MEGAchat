@@ -29,7 +29,9 @@ void appAllocate()
     g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
     g_chatApi->addChatListener(&g_clcListener);
+#ifndef KARERE_DISABLE_WEBRTC
     g_chatApi->addChatCallListener(&g_clcCallListener);
+#endif
     g_chatApi->addChatRequestListener(&g_chatRequestListener);
 
     g_console.reset(new m::CONSOLE_CLASS);
@@ -47,7 +49,9 @@ void appClean()
     g_megaApi->removeListener(&g_megaclcListener);
     g_megaApi->removeGlobalListener(&g_globalListener);
     g_chatApi->removeChatListener(&g_clcListener);
+#ifndef KARERE_DISABLE_WEBRTC
     g_chatApi->removeChatCallListener(&g_clcCallListener);
+#endif
     g_chatApi->removeChatRequestListener(&g_chatRequestListener);
 
     g_chatApi.reset();

@@ -972,6 +972,7 @@ void exec_closechatpreview(ac::ACState& s)
     g_chatApi->closeChatPreview(room);
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 void exec_joinCallViaMeetingLink(ac::ACState& s)
 {
     // Requirement at this point account must be logged out, this will simplify this method
@@ -1058,6 +1059,7 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     }
     logMsg(m::logError, "Call finished properly", ELogWriter::MEGA_CHAT);
 }
+#endif
 
 void exec_loadmessages(ac::ACState& s)
 {
