@@ -2847,7 +2847,7 @@ chatd::Priv PeerChatRoom::getSdkRoomPeerPriv(const mega::MegaTextChat &chat)
 
 bool ChatRoom::syncOwnPriv(chatd::Priv newPriv)
 {
-    if (mOwnPriv == newPriv)
+    if (!hasOwnPrivChanged(newPriv))
     {
         return false;
     }
@@ -2955,19 +2955,20 @@ promise::Promise<void> GroupChatRoom::addMember(uint64_t userid, chatd::Priv pri
 
 bool GroupChatRoom::removeMember(uint64_t userid)
 {
-    KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", ID_CSTR(mChatid), ID_CSTR(userid));
-
     auto it = mPeers.find(userid);
     if (it == mPeers.end())
     {
         KR_LOG_WARNING("GroupChatRoom::removeMember for a member that we don't have, ignoring");
         return false;
     }
+    else
+    {
+        KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", ID_CSTR(mChatid), ID_CSTR(userid));
+    }
 
     delete it->second;
     mPeers.erase(it);
     parent.mKarereClient.db.query("delete from chat_peers where chatid=? and userid=?", mChatid, userid);
-
     return true;
 }
 
@@ -3178,7 +3179,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     return room;
 }
 
-void ChatRoom::notifyExcludedFromChat()
+void ChatRoom::notifyOwnExcludedFromChat()
 {
     if (mAppChatHandler)
         mAppChatHandler->onExcludedFromChat();
@@ -3263,11 +3264,77 @@ void GroupChatRoom::notifySchedMeetingOccurrencesUpdated(bool append)
     }, parent.mKarereClient.appCtx);
 }
 
-void GroupChatRoom::setRemoved()
+void GroupChatRoom::notifyOwnUserPrivChange()
 {
-    mOwnPriv = chatd::PRIV_RM;
-    parent.mKarereClient.db.query("update chats set own_priv=? where chatid=?", mOwnPriv, mChatid);
-    notifyExcludedFromChat();
+    if (mRoomGui)
+    {
+        mRoomGui->onUserJoin(parent.mKarereClient.myHandle(), mOwnPriv);
+    }
+}
+
+void GroupChatRoom::updateTitleFromMemberNames(const UserPrivMap& users, bool& peersChanged)
+{
+    std::vector<promise::Promise<void>> promises;
+    for (auto& user: users)
+    {
+        if (mPeers.find(user.first) == mPeers.end())
+        {
+            peersChanged = true;
+            promise::Promise<void> promise = addMember(user.first, user.second, publicChat());
+            if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
+            {
+                promises.push_back(promise);
+            }
+        }
+    }
+
+    if (peersChanged)
+    {
+        auto wptr = weakHandle();
+        promise::when(promises).then(
+            [wptr, this]()
+            {
+                wptr.throwIfDeleted();
+                if (!mHasTitle)
+                {
+                    makeTitleFromMemberNames();
+                }
+            });
+    }
+}
+
+void GroupChatRoom::rejoinChatOwnUser()
+{
+    // in case chat-link was invalidated during preview, the room was disabled
+    // now, we upgrade from (invalid) previewer to participant --> enable it back
+    if (mChat->isDisabled())
+    {
+        KR_LOG_WARNING("Enable chatroom previously in preview mode");
+        mChat->disable(false);
+    }
+
+    // if already connected, need to send a new JOIN to chatd
+    if (parent.mKarereClient.connected())
+    {
+        KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
+        if (mChat->onlineState() < ::chatd::ChatState::kChatStateJoining)
+        {
+            mChat->connect();
+        }
+        else
+        {
+            KR_LOG_DEBUG("Skip re-join chatd, since it's already joining right now");
+            parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99003, "Skip re-join chatd", false, static_cast<const char*>(nullptr));
+        }
+    }
+}
+
+void GroupChatRoom::setOwnUserRemoved()
+{
+    if (syncOwnPriv(chatd::PRIV_RM))
+    {
+        notifyOwnExcludedFromChat();
+    }
 }
 
 void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
@@ -3565,7 +3632,7 @@ promise::Promise<void> GroupChatRoom::leave()
     .then([this, wptr]()
     {
         wptr.throwIfDeleted();
-        setRemoved();
+        setOwnUserRemoved();
     });
 }
 
@@ -3714,22 +3781,21 @@ bool ChatRoom::hasChatHandler() const
 
 void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
 {
-    auto it = mPeers.find(userid);
-    if (it != mPeers.end() && it->second->mPriv == privilege)
+    if (bool isOwnUser = userid == parent.mKarereClient.myHandle(); isOwnUser)
     {
-        return;
-    }
-
-    if (userid == parent.mKarereClient.myHandle())
-    {
-        bool hasChange = syncOwnPriv(privilege);
-        if (!hasChange) // There isn't change for own privilege, avoid to call 'onUserJoin'
+        if (!syncOwnPriv(privilege)) // There isn't change for own privilege, avoid to call 'onUserJoin'
         {
             return;
         }
     }
     else
     {
+        auto it = mPeers.find(userid);
+        if (bool peerPrivNotChanged = it != mPeers.end() && it->second->mPriv == privilege; peerPrivNotChanged)
+        {
+            return;
+        }
+
         auto wptr = weakHandle();
         addMember(userid, privilege, publicChat())
         .then([wptr, this]()
@@ -3742,6 +3808,7 @@ void GroupChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
         });
     }
 
+    // Notify apps about user priv change
     if (mRoomGui)
     {
         mRoomGui->onUserJoin(userid, privilege);
@@ -3759,11 +3826,11 @@ void GroupChatRoom::onUserLeave(Id userid)
         }
 
         // preview is not allowed anymore, notify the user and clean cache
-        setRemoved();
+        setOwnUserRemoved();
     }
     else if (userid == parent.mKarereClient.myHandle())
     {
-        setRemoved();
+        setOwnUserRemoved();
     }
     else
     {
@@ -4070,79 +4137,60 @@ promise::Promise<std::shared_ptr<std::string>> GroupChatRoom::unifiedKey()
 // return true if new peer or peer removed. Updates peer privileges as well
 bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
 {
-    UserPrivMap users;
-    auto members = chat.getPeerList();
-    if (members)
+    auto getUserPrivMap = [](const mega::MegaTextChat& chat) -> UserPrivMap
     {
-        auto size = members->size();
-        for (int i = 0; i < size; i++)
+        UserPrivMap u;
+        auto members = chat.getPeerList();
+        if (members)
         {
-            users.emplace(members->getPeerHandle(i), (chatd::Priv)members->getPeerPrivilege(i));
+            auto size = members->size();
+            for (int i = 0; i < size; ++i)
+            {
+                u.emplace(members->getPeerHandle(i), static_cast<chatd::Priv>(members->getPeerPrivilege(i)));
+            }
         }
-    }
+        return u;
+    };
 
-    auto db = parent.mKarereClient.db;
     bool peersChanged = false;
-    bool commitEach = parent.mKarereClient.commitEach() || mAutoJoining;
+    UserPrivMap users = getUserPrivMap(chat);
+    auto db = parent.mKarereClient.db;
+    auto commitEach = parent.mKarereClient.commitEach() || mAutoJoining;
     parent.mKarereClient.setCommitMode(false);
+
     for (auto ourIt = mPeers.begin(); ourIt != mPeers.end();)
     {
-        auto userid = ourIt->first;
-        auto member = ourIt->second;
+        auto [userid, member] = *ourIt;
+        auto itApiUser = users.find(userid);
+        auto userRemoved = itApiUser == users.end();
 
-        auto it = users.find(userid);
-        if (it == users.end()) //we have a user that is not in the chatroom anymore
+        if (userRemoved)
         {
             peersChanged = true;
             ourIt++;    // prevent iterator becoming invalid due to removal
             removeMember(userid);
+            // we must not call onUserLeave(userid), as OP_JOIN code path will do anyway, and it
+            // would duplicate notification in case we also call from here
         }
-        else    // existing peer changed privilege
+        else
         {
-            if (member->mPriv != it->second)
+            // update existing peer privilege
+            auto& peerPriv = member->mPriv;
+            auto newPriv = itApiUser->second;
+            if (peerPriv != newPriv)
             {
                 KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
-                     ID_CSTR(chatid()), ID_CSTR(userid), member->mPriv, it->second);
+                     ID_CSTR(chatid()), ID_CSTR(userid), peerPriv, newPriv);
 
-                onUserJoin(member->mHandle, it->second);
-                member->mPriv = it->second;
-                db.query("update chat_peers set priv=? where chatid=? and userid=?", member->mPriv, mChatid, userid);
+                onUserJoin(member->mHandle, newPriv);
+                peerPriv = newPriv;
+                db.query("update chat_peers set priv=? where chatid=? and userid=?", peerPriv, mChatid, userid);
             }
             ourIt++;
         }
     }
-
     parent.mKarereClient.setCommitMode(commitEach);
-
-
-    std::vector<promise::Promise<void> > promises;
-    for (auto& user: users)
-    {
-        if (mPeers.find(user.first) == mPeers.end())
-        {
-            peersChanged = true;
-            promise::Promise<void> promise = addMember(user.first, user.second, publicChat());
-            if (promises.size() < MAX_NAMES_CHAT_WITHOUT_TITLE)
-            {
-                promises.push_back(promise);
-            }
-        }
-    }
-
-    if (peersChanged)
-    {
-        auto wptr = weakHandle();
-        promise::when(promises)
-        .then([wptr, this]()
-        {
-            wptr.throwIfDeleted();
-            if (!mHasTitle)
-            {
-                makeTitleFromMemberNames();
-            }
-        });
-    }
-
+    updateTitleFromMemberNames(users, peersChanged);
     return peersChanged;
 }
 
@@ -4210,126 +4258,151 @@ void GroupChatRoom::clearTitle()
     parent.mKarereClient.db.query("update chats set title=NULL where chatid=?", mChatid);
 }
 
-bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
+void GroupChatRoom::syncChatTitle(const mega::MegaTextChat& chat, const bool membersChanged)
 {
-    // Mode changed
-    if (!chat.isPublicChat() && publicChat())
+    // Title changes
+    const char* title = chat.getTitle();
+    mHasTitle = (title && title[0]);
+    if (mHasTitle && mEncryptedTitle != title)
     {
-        KR_LOG_DEBUG("Chatroom[%s]: API event: mode changed to private", ID_CSTR(mChatid));
-        setChatPrivateMode();
-        // in case of previewMode, it's also updated in cache
-    }
+        // if the title was already decrypted in cache at startup, the `mEncryptedTitle` won't
+        // be initialized yet (the encrypted flavour of the title is saved in cache but
+        // overwriten when decrypted) In consequence, the first actionpacket will initialize it
+        // and decrypt it once per execution
+        mEncryptedTitle = title;
+        updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
 
-    if (!mChatOptions.areEqual(chat.getChatOptions()))
+        decryptTitle().fail(
+            [](const ::promise::Error& err)
+            {
+                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: "
+                             "GroupChatRoom::syncWithApi. Error: %s",
+                             err.what());
+            });
+    }
+    else if (membersChanged)
     {
-        KR_LOG_DEBUG("Chatroom[%s]: API event: chat options have changed", ID_CSTR(mChatid));
-        updateChatOptions(chat.getChatOptions());
+        KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...",
+                     ID_CSTR(mChatid));
+        clearTitle();
     }
+}
 
+void GroupChatRoom::syncSchedMeetings(const mega::MegaTextChat& chat)
+{
     if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_MEETING))
     {
         updateSchedMeetings(chat);
     }
-    else if (chat.getScheduledMeetingList()
-             && chat.getScheduledMeetingList()->size()
-             && mScheduledMeetings.empty())
+    else if (chat.getScheduledMeetingList() && chat.getScheduledMeetingList()->size() &&
+             mScheduledMeetings.empty())
     {
-        // if chat from API have scheduled meetings, but we don't have those meetings stored in karere
+        // if chat from API have scheduled meetings, but we don't have those meetings stored in
+        // karere
         addSchedMeetings(chat.getScheduledMeetingList());
     }
 
-    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR)
-            || chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
+    if (chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_REPLACE_OCURR) ||
+        chat.hasChanged(mega::MegaTextChat::CHANGE_TYPE_SCHED_APPEND_OCURR))
     {
         addSchedMeetingsOccurrences(chat);
     }
     else if (chat.getUpdatedOccurrencesList() && chat.getUpdatedOccurrencesList()->size())
     {
         assert(false);
-        KR_LOG_WARNING("syncWithApi: Chat received from SDK contains updated occurrences, but no related change is set");
+        KR_LOG_WARNING("syncWithApi: Chat received from SDK contains updated occurrences, but no "
+                       "related change is set");
     }
+}
 
-    // Own privilege changed
+bool GroupChatRoom::syncOwnPrivilege(const mega::MegaTextChat& chat)
+{
     auto oldPriv = mOwnPriv;
-    bool ownPrivChanged = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());
-    if (ownPrivChanged)
+    auto newPriv = static_cast<chatd::Priv>(chat.getOwnPrivilege());
+    auto ownPrivChanged = oldPriv != newPriv;
+    bool removedFromChat = false;
+    if (ownPrivChanged) // Manage own user privilege change
     {
-        if (oldPriv == chatd::PRIV_RM)
+        if (!syncOwnPriv(newPriv))
         {
-            if (mOwnPriv != chatd::PRIV_RM)
-            {
-                // in case chat-link was invalidated during preview, the room was disabled
-                // now, we upgrade from (invalid) previewer to participant --> enable it back
-                if (mChat->isDisabled())
-                {
-                    KR_LOG_WARNING("Enable chatroom previously in preview mode");
-                    mChat->disable(false);
-                }
-
-                // if already connected, need to send a new JOIN to chatd
-                if (parent.mKarereClient.connected())
-                {
-                    KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
-                    if (mChat->onlineState() < ::chatd::ChatState::kChatStateJoining)
-                    {
-                        mChat->connect();
-                    }
-                    else
-                    {
-                        KR_LOG_DEBUG("Skip re-join chatd, since it's already joining right now");
-                        parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99003, "Skip re-join chatd", false, static_cast<const char*>(nullptr));
-                    }
-                }
-                KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited",  ID_CSTR(mChatid));
-                notifyRejoinedChat();
-            }
+            KR_LOG_ERROR("Chatroom[%s]: API event: couldn't update own priv for chat: ",
+                         ID_CSTR(mChatid));
+            assert(false);
+            return removedFromChat;
         }
-        else if (mOwnPriv == chatd::PRIV_RM)
+
+        if (newPriv == chatd::PRIV_RM)
         {
-            //we were excluded
-            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed", ID_CSTR(mChatid));
-            setRemoved(); // may delete 'this'
-            return true;
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed from chat: ",
+                            ID_CSTR(mChatid));
+            notifyOwnExcludedFromChat();
+            removedFromChat = true;
+        }
+        else if (oldPriv == chatd::PRIV_RM && newPriv != chatd::PRIV_RM)
+        {
+            KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited or re/joined to chat: ",
+                            ID_CSTR(mChatid));
+            rejoinChatOwnUser();
+            notifyRejoinedChat();
         }
         else
         {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed",  ID_CSTR(mChatid));
-            onUserJoin(parent.mKarereClient.myHandle(), mOwnPriv);
+            KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed for chat: ",
+                            ID_CSTR(mChatid));
+            notifyOwnUserPrivChange();
         }
     }
 
-    // Peer list changes
-    bool membersChanged = syncMembers(chat);
-    mAutoJoining = false;
+    return removedFromChat;
+}
 
-    // Title changes
-    const char *title = chat.getTitle();
-    mHasTitle = (title && title[0]);
-    if (mHasTitle)
+bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
+{
+    // Updates GroupChatRoom mode, if it has changed respect to MegaTextChat received from SDK
+    auto syncChatMode = [this](const mega::MegaTextChat& chat)
     {
-        if (mEncryptedTitle != title)   // title has changed
+        if (!chat.isPublicChat() && publicChat())
         {
-            // if the title was already decrypted in cache at startup, the `mEncryptedTitle` won't be initialized yet
-            // (the encrypted flavour of the title is saved in cache but overwriten when decrypted)
-            // In consequence, the first actionpacket will initialize it and decrypt it once per execution
-            mEncryptedTitle = title;
-            updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
-
-            decryptTitle()
-            .fail([](const ::promise::Error& err)
-            {
-                KR_LOG_DEBUG("Can't decrypt chatroom title. In function: GroupChatRoom::syncWithApi. Error: %s", err.what());
-            });
+            KR_LOG_DEBUG("Chatroom[%s]: API event: mode changed to private", ID_CSTR(mChatid));
+            setChatPrivateMode();
+            // in case of previewMode, it's also updated in cache
         }
-    }
-    else if (membersChanged)
+    };
+
+    // Updates GroupChatRoom options, if it has changed respect to MegaTextChat received from SDK
+    auto syncChatOptions = [this](const mega::MegaTextChat& chat)
     {
-        KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...", ID_CSTR(mChatid));
-        clearTitle();
+        if (!mChatOptions.areEqual(chat.getChatOptions()))
+        {
+            KR_LOG_DEBUG("Chatroom[%s]: API event: chat options have changed", ID_CSTR(mChatid));
+            updateChatOptions(chat.getChatOptions());
+        }
+    };
+
+    // Sync chat mode (public|private)
+    syncChatMode(chat);
+
+    // Sync chat options
+    syncChatOptions(chat);
+
+    // Sync scheduled meetings
+    syncSchedMeetings(chat);
+
+    // Sync own privilege, if this method returns true, it means that we have been removed from chat
+    if (syncOwnPrivilege(chat))
+    {
+        return true;
     }
 
-    bool archiveChanged = syncArchive(chat.isArchived());
-    if (archiveChanged)
+    // Sync chat participants priv changes
+    bool membersChanged = syncMembers(chat);
+    mAutoJoining = false; // set mAutoJoining false to enable Db transactional mode
+
+    // Sync chat title changes
+    syncChatTitle(chat, membersChanged);
+
+    // Sync changes in archive mode
+    if (syncArchive(chat.isArchived()))
     {
         onArchivedChanged(mIsArchived);
     }

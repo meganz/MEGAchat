@@ -178,6 +178,19 @@ class CLCCallListener: public c::MegaChatCallListener
                              megachat::MegaChatHandle chatid,
                              megachat::MegaChatHandle callid,
                              megachat::MegaChatSession* session) override;
+
+private:
+    void askForParticipantVideo(const megachat::MegaChatHandle chatid,
+                                const megachat::MegaChatHandle callid,
+                                const megachat::MegaChatSession* session) const;
+
+    bool addParticipantHighResVideo(const megachat::MegaChatHandle chatid,
+                                    const megachat::MegaChatHandle callid,
+                                    const megachat::MegaChatSession* session) const;
+
+    bool addParticipantLowResVideo(const megachat::MegaChatHandle chatid,
+                                   const megachat::MegaChatHandle callid,
+                                   const megachat::MegaChatSession* session) const;
 };
 
 struct CLCFinishInfo

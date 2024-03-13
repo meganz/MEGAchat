@@ -161,6 +161,12 @@ bool isCallAlive(const c::MegaChatHandle chatId)
     }
 
     logMsg(m::logDebug, "Call is still alive", ELogWriter::MEGA_CHAT);
+    if (clc_global::g_callVideoParticipants.isValid())
+    {
+        logMsg(m::logDebug,
+               clc_global::g_callVideoParticipants.receivingVideoReport(),
+               ELogWriter::MEGA_CHAT);
+    }
     return true;
 }
 #endif // KARERE_DISABLE_WEBRTC

@@ -4,6 +4,7 @@
 #include "mclc_general_utils.h"
 #include "mclc_globals.h"
 #include "mclc_listeners.h"
+#include "mclc_logging.h"
 
 #include <iostream>
 
@@ -310,4 +311,204 @@ void reportMessage(c::MegaChatHandle chatid, c::MegaChatMessage* msg, const char
     }
     std::cout << std::endl;
 }
+
+int CLCCallReceivedVideos::addHighResParticipant(const c::MegaChatHandle callId,
+                                                 const ParticipantInfo& participant)
+{
+    if (callId != mCallId)
+    {
+        std::string msg = "addHighResParticipant: Provided call id (" + str_utils::ch_s(callId) +
+                          ") does not match with the expected one (" + str_utils::ch_s(mCallId) +
+                          ")";
+        clc_log::logMsg(m::logWarning, msg, clc_log::ELogWriter::MEGA_CHAT);
+        return c::MegaChatError::ERROR_ARGS;
+    }
+    if (findHighRes(participant.mClientId))
+    {
+        return c::MegaChatError::ERROR_EXIST;
+    }
+    if (mNumberOfHighResVideo != NUM_FOR_INFINITE_VIDEO_RECEIVERS &&
+        mHighResParticipants.size() == static_cast<size_t>(mNumberOfHighResVideo))
+    {
+        return c::MegaChatError::ERROR_TOOMANY;
+    }
+    mHighResParticipants.push_back(participant);
+    return c::MegaChatError::ERROR_OK;
+}
+
+int CLCCallReceivedVideos::addLowResParticipant(const c::MegaChatHandle callId,
+                                                const ParticipantInfo& participant)
+{
+    if (callId != mCallId)
+    {
+        std::string msg = "addLowResParticipant: Provided call id (" + str_utils::ch_s(callId) +
+                          ") does not match with the expected one (" + str_utils::ch_s(mCallId) +
+                          ")";
+        clc_log::logMsg(m::logWarning, msg, clc_log::ELogWriter::MEGA_CHAT);
+        return c::MegaChatError::ERROR_ARGS;
+    }
+    if (findLowRes(participant.mClientId))
+    {
+        return c::MegaChatError::ERROR_EXIST;
+    }
+    if (mNumberOfLowResVideo != NUM_FOR_INFINITE_VIDEO_RECEIVERS &&
+        mLowResParticipants.size() == static_cast<size_t>(mNumberOfLowResVideo))
+    {
+        return c::MegaChatError::ERROR_TOOMANY;
+    }
+    mLowResParticipants.push_back(participant);
+    return c::MegaChatError::ERROR_OK;
+}
+
+int CLCCallReceivedVideos::updateParticipantHighResVideoState(const c::MegaChatHandle callId,
+                                                              const c::MegaChatHandle clientId,
+                                                              const bool videoState)
+{
+    if (callId != mCallId)
+    {
+        std::string msg = "updateParticipantHighResVideoState: Provided call id (" +
+                          str_utils::ch_s(callId) + ") does not match with the expected one (" +
+                          str_utils::ch_s(mCallId) + ")";
+        clc_log::logMsg(m::logWarning, msg, clc_log::ELogWriter::MEGA_CHAT);
+        return c::MegaChatError::ERROR_ARGS;
+    }
+    if (auto it = findHighRes(clientId); it)
+    {
+        (*it)->mIsReceivingVideo = videoState;
+        return c::MegaChatError::ERROR_OK;
+    }
+    return c::MegaChatError::ERROR_NOENT;
+}
+
+int CLCCallReceivedVideos::updateParticipantLowResVideoState(const c::MegaChatHandle callId,
+                                                             const c::MegaChatHandle clientId,
+                                                             const bool videoState)
+{
+    if (callId != mCallId)
+    {
+        std::string msg = "updateParticipantLowResVideoState: Provided call id (" +
+                          str_utils::ch_s(callId) + ") does not match with the expected one (" +
+                          str_utils::ch_s(mCallId) + ")";
+        clc_log::logMsg(m::logWarning, msg, clc_log::ELogWriter::MEGA_CHAT);
+        return c::MegaChatError::ERROR_ARGS;
+    }
+    if (auto it = findLowRes(clientId); it)
+    {
+        (*it)->mIsReceivingVideo = videoState;
+        return c::MegaChatError::ERROR_OK;
+    }
+    return c::MegaChatError::ERROR_NOENT;
+}
+
+int CLCCallReceivedVideos::removeParticipant(const c::MegaChatHandle callId,
+                                             const c::MegaChatHandle clientId)
+{
+    if (callId != mCallId)
+    {
+        std::string msg = "removeParticipant: Provided call id (" + str_utils::ch_s(callId) +
+                          ") does not match with the expected one (" + str_utils::ch_s(mCallId) +
+                          ")";
+        clc_log::logMsg(m::logWarning, msg, clc_log::ELogWriter::MEGA_CHAT);
+        return c::MegaChatError::ERROR_ARGS;
+    }
+    bool found = false;
+    if (auto itLow = findLowRes(clientId); itLow)
+    {
+        found = true;
+        mLowResParticipants.erase(*itLow);
+    }
+    if (auto itHigh = findHighRes(clientId); itHigh)
+    {
+        found = true;
+        mHighResParticipants.erase(*itHigh);
+    }
+    if (!found)
+    {
+        return c::MegaChatError::ERROR_NOENT;
+    }
+    return c::MegaChatError::ERROR_OK;
+}
+
+void CLCCallReceivedVideos::resetNumberOfLowResVideo(int newNumberOfLow)
+{
+    mNumberOfLowResVideo = newNumberOfLow;
+    mLowResParticipants.clear();
+}
+
+void CLCCallReceivedVideos::resetNumberOfHighResVideo(int newNumberOfHigh)
+{
+    mNumberOfHighResVideo = newNumberOfHigh;
+    mHighResParticipants.clear();
+}
+
+std::string CLCCallReceivedVideos::receivingVideoReport() const
+{
+    std::string result = "Call: " + str_utils::ch_s(mCallId) + ".";
+    if (mLowResParticipants.size())
+    {
+        result += " Receiving low res video from " + std::to_string(mLowResParticipants.size()) +
+                  " users (" + getParticipantsSummary(mLowResParticipants) + ").";
+    }
+    if (mHighResParticipants.size())
+    {
+        result += " Receiving high res video from " + std::to_string(mHighResParticipants.size()) +
+                  " users (" + getParticipantsSummary(mHighResParticipants) + ").";
+    }
+    return result;
+}
+
+std::optional<std::vector<ParticipantInfo>::iterator>
+    CLCCallReceivedVideos::findLowRes(const c::MegaChatHandle clientId)
+{
+    auto it = std::find_if(mLowResParticipants.begin(),
+                           mLowResParticipants.end(),
+                           [clientId](const ParticipantInfo& p)
+                           {
+                               return p.mClientId == clientId;
+                           });
+    if (it != mLowResParticipants.end())
+    {
+        return it;
+    }
+    return std::nullopt;
+}
+
+std::optional<std::vector<ParticipantInfo>::iterator>
+    CLCCallReceivedVideos::findHighRes(const c::MegaChatHandle clientId)
+{
+    auto it = std::find_if(mHighResParticipants.begin(),
+                           mHighResParticipants.end(),
+                           [clientId](const ParticipantInfo& p)
+                           {
+                               return p.mClientId == clientId;
+                           });
+    if (it != mHighResParticipants.end())
+    {
+        return it;
+    }
+    return std::nullopt;
+}
+
+std::string
+    CLCCallReceivedVideos::getParticipantsSummary(const std::vector<ParticipantInfo>& participants)
+{
+    if (participants.empty())
+    {
+        return "";
+    }
+    std::string result = getParticipantRepr(participants[0]);
+    for (auto it = participants.begin() + 1; it != participants.end(); ++it)
+    {
+        result += ", " + getParticipantRepr(*it);
+    }
+    return result;
+}
+
+std::string CLCCallReceivedVideos::getParticipantRepr(const ParticipantInfo& participant)
+{
+    std::string result = "participant{clientId: " + std::to_string(participant.mClientId);
+    result += ", userId: " + str_utils::ch_s(participant.mUserId) + "}";
+    return result;
+}
+
 }

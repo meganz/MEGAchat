@@ -60,13 +60,6 @@ target_sources(CHATlib
 # Files should appear only once.
 # If the FLAG is not true for a file, it will be added as non-buildable source despite then the file is added again as a buildable one.
 target_sources_conditional(CHATlib
-    FLAG USE_QT
-    PRIVATE
-    videoRenderer_Qt.h
-    videoRenderer_Qt.cpp
-)
-
-target_sources_conditional(CHATlib
     FLAG USE_WEBRTC
     PRIVATE
     rtcCrypto.cpp
@@ -82,11 +75,8 @@ add_custom_command(
 # Include directories
 target_include_directories(CHATlib
     PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}> # For the top level projects.
-        $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}> # For the external projects.
-    PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_CURRENT_SOURCE_DIR}/../third-party # rapidjson, header-only lib
+        ../third-party
 )
 
 # Include modules in subdirectories with sources for CHAtlib
