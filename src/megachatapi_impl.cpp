@@ -2857,12 +2857,6 @@ int MegaChatApiImpl::performRequest_setLimitsInCall(MegaChatRequestPrivate* requ
         return MegaChatError::ERROR_ARGS;
     }
 
-    if (numClientsPerUser > MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT && numClientsPerUser != MegaChatCall::CALL_LIMIT_NO_PRESENT)
-    {
-        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - invalid value for numClientsPerUser");
-        return MegaChatError::ERROR_ARGS;
-    }
-
     call->setLimits(callDurSecs, numUsers, numClientsPerUser, numClients, divider);
     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
     fireOnChatRequestFinish(request, megaChatError);

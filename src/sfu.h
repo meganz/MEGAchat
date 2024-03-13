@@ -316,6 +316,17 @@ protected:
      */
     std::optional<SfuInterface::CallLimits> parseCallLimits(const rapidjson::Document& command);
 
+    /**
+     * @brief Given a json object, extracts from it all the fields needed to build a CallLimits
+     * objetc.
+     *
+     * @param jsonObject The json object with the required fields
+     * @return std::optional<SfuInterface::CallLimits> An empty optional if any filed in the lim
+     * object has an unexpected format. Else, the object with the limits. If any field is missing in
+     * the lim object, the associated parameter will be set to sfu::kCallLimitDisabled.
+     */
+    std::optional<SfuInterface::CallLimits> buildCallLimits(const rapidjson::Value& jsonOject);
+
     SfuInterface& mCall;
 };
 

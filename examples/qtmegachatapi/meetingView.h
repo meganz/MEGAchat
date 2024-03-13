@@ -87,6 +87,7 @@ protected:
     QPushButton* mKickWr;
     QPushButton* mMuteAll;
     QPushButton* mSetLimits;
+    QPushButton* mGetLimits;
     QLabel* mOnHoldLabel;
     QLabel* mLabel;
 
@@ -116,6 +117,7 @@ public slots:
     void onJoinCallWithoutVideo();
     void onMuteAll();
     void onSetLimits();
+    void onGetLimits();
     void onWrShow();
     void onAllowJoin();
     void onPushWr();

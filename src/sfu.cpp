@@ -331,33 +331,21 @@ void Command::parseTracks(const rapidjson::Document& command, const std::string&
     }
 }
 
-std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson::Document& command)
+std::optional<SfuInterface::CallLimits> Command::buildCallLimits(const rapidjson::Value& jsonObject)
 {
-    rapidjson::Value::ConstMemberIterator limIterator = command.FindMember("lim");
-    if (limIterator == command.MemberEnd())
-    {
-        return SfuInterface::CallLimits{};
-    }
-    // If limIterator not found it means all values are unlimited for this call (defaults for
-    // CallLimits)
-    if (!limIterator->value.IsObject())
-    {
-        SFU_LOG_ERROR("HelloCommand: Received param 'lim' has an unexpected format");
-        assert(false);
-        return std::nullopt;
-    }
-    SfuInterface::CallLimits result {};
-    const rapidjson::Value& limObject = limIterator->value;
-    rapidjson::Value::ConstMemberIterator durIterator = limObject.FindMember("dur");
-    if (durIterator != limObject.MemberEnd())
+    SfuInterface::CallLimits result{};
+    rapidjson::Value::ConstMemberIterator durIterator = jsonObject.FindMember("dur");
+    if (durIterator != jsonObject.MemberEnd())
     {
         if (durIterator->value.IsDouble())
         {
-            result.durationInSecs = static_cast<int>(durIterator->value.GetDouble() * 60); // convert from minutes into seconds
+            // convert from minutes into seconds
+            result.durationInSecs = static_cast<int>(durIterator->value.GetDouble() * 60);
         }
         else if (durIterator->value.IsUint())
         {
-            result.durationInSecs = static_cast<int>(durIterator->value.GetUint() * 60); // convert from minutes into seconds
+            // convert from minutes into seconds
+            result.durationInSecs = static_cast<int>(durIterator->value.GetUint() * 60);
         }
         else
         {
@@ -366,10 +354,10 @@ std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson
             return std::nullopt;
         }
     }
-    auto parseUserLims = [&limObject, this](const char* label) -> std::optional<int>
+    auto parseUserLims = [&jsonObject, this](const char* label) -> std::optional<int>
     {
-        rapidjson::Value::ConstMemberIterator labelIterator = limObject.FindMember(label);
-        if (labelIterator == limObject.MemberEnd())
+        rapidjson::Value::ConstMemberIterator labelIterator = jsonObject.FindMember(label);
+        if (labelIterator == jsonObject.MemberEnd())
         {
             return ::sfu::kCallLimitDisabled;
         }
@@ -392,6 +380,25 @@ std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson
     result.numClients = *clntNum;
     result.numClientsPerUser = *uclntNum;
     return result;
+}
+
+std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson::Document& command)
+{
+    rapidjson::Value::ConstMemberIterator limIterator = command.FindMember("lim");
+    if (limIterator == command.MemberEnd())
+    {
+        return SfuInterface::CallLimits{};
+    }
+    // If limIterator not found it means all values are unlimited for this call (defaults for
+    // CallLimits)
+    if (!limIterator->value.IsObject())
+    {
+        SFU_LOG_ERROR("HelloCommand: Received param 'lim' has an unexpected format");
+        assert(false);
+        return std::nullopt;
+    }
+    const rapidjson::Value& limObject = limIterator->value;
+    return buildCallLimits(limObject);
 }
 
 uint64_t Command::hexToBinary(const std::string &hex)
@@ -2840,7 +2847,7 @@ ClimitsCommand::ClimitsCommand(const ClimitsCommandFunction& complete, SfuInterf
 
 bool ClimitsCommand::processCommand(const rapidjson::Document& command)
 {
-    std::optional<SfuInterface::CallLimits> callLimitsOpt = parseCallLimits(command);
+    std::optional<SfuInterface::CallLimits> callLimitsOpt = buildCallLimits(command);
     if (!callLimitsOpt)
     {
         return false;

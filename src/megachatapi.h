@@ -588,9 +588,6 @@ public:
     // Call limit restriction no present (Call limit won't be modified)
     static constexpr unsigned long CALL_LIMIT_NO_PRESENT = 0xFFFFFFFF;
 
-    // Maximum number of clients with which a single user can join a call
-    static constexpr unsigned long CALL_LIMIT_USERS_PER_CLIENT = 4;
-
     // No limit set for a call option like (duration, max clients per call...)
     static constexpr unsigned long CALL_LIMIT_RESET = 0;
 
@@ -6748,7 +6745,6 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
      * - MegaChatError::ERROR_ARGS   - if all provided params are equal to MegaChatCall::CALL_LIMIT_NO_PRESENT
-     * - MegaChatError::ERROR_ARGS   - if numClientsPerUser is greater than MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT
      * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, or there's no a call in the specified chatroom
      * - MegaChatError::ERROR_ACCESS - if call isn't in progress state
      *
@@ -6761,8 +6757,9 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void setLimitsInCall(const MegaChatHandle chatid, const unsigned long callDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
-                         const unsigned long numUsers = MegaChatCall::CALL_LIMIT_NO_PRESENT, const unsigned long numClients = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         const unsigned long numUsers = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                          const unsigned long numClientsPerUser = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         const unsigned long numClients = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                          const unsigned long divider = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                          MegaChatRequestListener* listener = NULL);
 

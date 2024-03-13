@@ -295,23 +295,29 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         std::cerr << "onChatCallUpdate: outgoing ringing stop received but our client is not the caller";
         return;
     }
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_LIMITS_UPDATED))
+    {
+        QMessageBox msgBox;
+        QString myString;
+        const auto endsIn = call->getCallDurationLimit();
+        msgBox.setIcon(QMessageBox::Warning);
+        myString = QString("Call duration limit has changed: ")
+                   + QString(std::to_string(endsIn).c_str())
+                   + QString(" (seconds) due to MEGA account restrictions");
+
+        msgBox.setText(myString);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.exec();
+    }
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END))
     {
         QMessageBox msgBox;
         QString myString;
         const auto endsIn = call->getNum();
-        if (endsIn == ::megachat::MegaChatCall::CALL_LIMIT_DISABLED)
-        {
-            msgBox.setIcon(QMessageBox::Information);
-            myString.append("Call duration is now unlimited. Call duration restriction has been removed");
-        }
-        else
-        {
-            msgBox.setIcon(QMessageBox::Warning);
-            myString = QString("Call will end in ")
-                           + QString(std::to_string(endsIn).c_str())
-                           + QString(" (seconds) due to MEGA account restrictions");
-        }
+        msgBox.setIcon(QMessageBox::Warning);
+        myString = QString("Call will end in ")
+                       + QString(std::to_string(endsIn).c_str())
+                       + QString(" (seconds) due to MEGA account restrictions");
 
         msgBox.setText(myString);
         msgBox.setStandardButtons(QMessageBox::Ok);

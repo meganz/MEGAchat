@@ -94,6 +94,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mSetLimits, SIGNAL(clicked()), this, SLOT(onSetLimits()));
     mSetLimits->setVisible(true);
 
+    mGetLimits= new QPushButton("Get call limits", this);
+    connect(mGetLimits, SIGNAL(clicked()), this, SLOT(onGetLimits()));
+    mGetLimits->setVisible(true);
+
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -132,6 +136,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mKickWr);
     mButtonsLayout->addWidget(mMuteAll);
     mButtonsLayout->addWidget(mSetLimits);
+    mButtonsLayout->addWidget(mGetLimits);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -831,6 +836,27 @@ void MeetingView::onEnableAudioMonitor(bool)
     mMegaChatApi.isAudioLevelMonitorEnabled(mChatid)
            ? mMegaChatApi.enableAudioLevelMonitor(false, mChatid)
            : mMegaChatApi.enableAudioLevelMonitor(true, mChatid);
+}
+
+void MeetingView::onGetLimits()
+{
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        return;
+    }
+
+    std::string text = "\n CallDuration: " + std::to_string(call->getCallDurationLimit()) +
+                       "\n CallUsersLimit: " + std::to_string(call->getCallUsersLimit()) +
+                       "\n CallClientsLimit: " + std::to_string(call->getCallClientsLimit()) +
+                       "\n CallClientsPerUserLimit: " +
+                       std::to_string(call->getCallClientsPerUserLimit());
+
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setWindowTitle("Call limits");
+    msg.setText(text.c_str());
+    msg.exec();
 }
 
 void MeetingView::onJoinCallWithVideo()
