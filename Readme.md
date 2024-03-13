@@ -187,7 +187,7 @@ Note that there is one critical and platform-dependent function that each app th
 For more details, read the comments in base/gcm.h, and for reference implementation study rtctestapp/main.cpp
   * IRtcModule, IEventHandler in /src/IRtcModule.h. These are used to initiate rtc calls and receive events.
   * IVideoRenderer in /src/IVideoRenderer.h is used to implement video playback in arbitrary GUI environments.
-    Example implementation for Qt is in src/videoRenderer_Qt.h;.cpp.
+    Example implementation for Qt is in examples/qtmegachatapi/videoRenderer_Qt.h;.cpp.
     The example usage can be seen from the rtctestapp application.
 
 ## If Mega API calls are required ##

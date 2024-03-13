@@ -3,7 +3,7 @@
 #define PEERWIDGET_H
 
 #include <megachatapi.h>
-#include <videoRenderer_Qt.h>
+#include "videoRenderer_Qt.h"
 #include "QTMegaChatVideoListener.h"
 #include <QWidget>
 #include <webrtc.h>
