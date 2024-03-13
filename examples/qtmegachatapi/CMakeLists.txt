@@ -21,7 +21,6 @@ set(QTAPP_HEADERS
     SettingWindow.h
     uiSettings.h
     widgetSubclass.h
-    videoRenderer_Qt.h
 )
 
 set(QTAPP_SOURCES
@@ -40,7 +39,6 @@ set(QTAPP_SOURCES
     reaction.cpp
     SettingWindow.cpp
     uiSettings.cpp
-    videoRenderer_Qt.cpp
 )
 
 set(QTAPP_UI
@@ -75,10 +73,12 @@ target_sources_conditional(QtApp
     peerWidget.h
     meetingSession.h
     meetingView.h
-    
+    videoRenderer_Qt.h
+
     peerWidget.cpp
-    meetingSession.cpp    
+    meetingSession.cpp
     meetingView.cpp
+    videoRenderer_Qt.cpp
 )
 
 # Activate properties for Qt code
