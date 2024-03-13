@@ -75,6 +75,10 @@ public:
     static inline const char* OPT_VIDEO = "video";
     static inline const char* OPT_AUDIO = "audio";
     static inline const char* OPT_VIDEO_DEV = "video-in-device";
+    static inline const char* OPT_RECV_NUM_LOWRES = "num-rx-lowres-video";
+    static inline const char* OPT_DEFAULT_RECV_NUM_LOWRES = "0";
+    static inline const char* OPT_RECV_NUM_HIRES = "num-rx-hires-video";
+    static inline const char* OPT_DEFAULT_RECV_NUM_HIRES = "0";
     static inline const char* OPT_WAIT = "wait";
     static inline const char* OPT_DEFAULT_WAIT = "40";
     static inline const char* OPT_EMAIL = "email";

@@ -1,6 +1,10 @@
 
 # MEGAChat specific options
-option(USE_WEBRTC "Support for voice and/or video calls" OFF)
+if(UNIX AND NOT APPLE) # Linux
+    option(USE_WEBRTC "Support for voice and/or video calls" ON)
+else()
+    option(USE_WEBRTC "Support for voice and/or video calls" OFF)
+endif()
 if (ENABLE_CHATLIB_QTAPP)
     option(ENABLE_QT_BINDINGS "Enable the target to build the Qt Bindings" ON)
 else()

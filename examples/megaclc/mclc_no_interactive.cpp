@@ -43,7 +43,7 @@ namespace clc_noint
 {
 
 JoinCallViaMeetingLink::JoinCallViaMeetingLink():
-    mDesc{"Options for JoinCallViaMeetingLink command:"}
+    mDesc{"Options for JoinCallViaMeetingLink command"}
 {
     // clang-format off
     mDesc.add_options()
@@ -52,6 +52,8 @@ JoinCallViaMeetingLink::JoinCallViaMeetingLink():
         (OPT_VIDEO, po::value<std::string>()->default_value("no"), "[yes|no] If yes, tries to call with video")
         (OPT_AUDIO, po::value<std::string>()->default_value("no"), "[yes|no] If yes, tries to call with audio")
         (OPT_VIDEO_DEV, po::value<std::string>(), "The input video device name to use in the call")
+        (OPT_RECV_NUM_LOWRES, po::value<std::string>()->default_value(OPT_DEFAULT_RECV_NUM_LOWRES), "Number of low resolution videos to retrieve from participants. -1 means try to get video from all the participants")
+        (OPT_RECV_NUM_HIRES, po::value<std::string>()->default_value(OPT_DEFAULT_RECV_NUM_HIRES), "Number of high resolution videos to retrieve from participants. -1 means try to get video from all the participants")
         (OPT_WAIT, po::value<std::string>()->default_value(OPT_DEFAULT_WAIT), "Time to stay in the call. 0 means never hang up.")
         ((OPT_EMAIL + std::string(",e")).c_str(), po::value<std::string>(), "User's email to login")
         ((OPT_PASS + std::string(",p")).c_str(), po::value<std::string>(), "User's password to login")
@@ -60,16 +62,25 @@ JoinCallViaMeetingLink::JoinCallViaMeetingLink():
     // clang-format on
     mHelpMessage = R"(
 The JoinCallViaMeetingLink command performs the following steps:
-    1. Ensures there is no logged in account
-    2. Logs in with the given credentials
-    3. Opens a chat room link in preview mode
-    4. Joins the chat
-    5. Waits for the incoming call
-    6. Answers the call with or without video/audio enables depending on the
-       given options
-    7. Stays in the call for the given amount of time
-    8. Hangs up the call
-    9. Logs out
+    1.  Ensures there is no logged in account
+    2.  Logs in with the given credentials
+    3.  Opens a chat room link in preview mode
+    4.  Joins the chat
+    5.  Waits for the incoming call
+    6.  Answers the call with or without video/audio enabled depending on the
+        given options
+    7.  Sends the appropriate requests to retrieve the video in high/low
+        resolutions for the given ammount of participants.
+    8.  Stays in the call for the given amount of time
+    9.  Hangs up the call
+    10. Logs out
+
+NOTE: The requests for high and low res video of the participants are mutually
+exclusive, i.e. only one of both resolutions will be asked for a single user,
+having preference the low resolution video. This means that if you set to -1
+the number of low res video (or to a value greater or equal to the number of
+participants) and all the participants are able to send low resolution, no
+matter what number of high res video you write as it will not be satisfied.
 
 )";
 }
@@ -180,6 +191,8 @@ std::string JoinCallViaMeetingLink::buildJoinCallCommand(const po::variables_map
         joinCommand << " -noaudio";
     }
     joinCommand << " -wait " << variablesMap[OPT_WAIT].as<std::string>();
+    joinCommand << " -recvNumLowVideos " << variablesMap[OPT_RECV_NUM_LOWRES].as<std::string>();
+    joinCommand << " -recvNumHighVideos " << variablesMap[OPT_RECV_NUM_HIRES].as<std::string>();
     if (variablesMap.count("video-in-device") != 0)
     {
         joinCommand << " -videoInputDevice \"" << variablesMap[OPT_VIDEO_DEV].as<std::string>()

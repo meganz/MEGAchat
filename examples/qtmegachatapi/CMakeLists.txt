@@ -81,6 +81,11 @@ target_sources_conditional(QtApp
     videoRenderer_Qt.cpp
 )
 
+if(NOT USE_WEBRTC)
+     # Exclude from automoc. Sources are not built but AUTOMOC process it anyway.
+     set_property(SOURCE videoRenderer_Qt.h PROPERTY SKIP_AUTOMOC ON)
+endif()
+
 # Activate properties for Qt code
 set_target_properties(QtApp
     PROPERTIES

@@ -14,4 +14,4 @@ target_sources(CHATlib
     ${CHATLIB_STRV_SOURCES}
 )
 
-target_include_directories(CHATlib PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+target_include_directories(CHATlib PUBLIC ${CMAKE_CURRENT_LIST_DIR})
