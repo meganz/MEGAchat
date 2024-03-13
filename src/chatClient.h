@@ -101,7 +101,7 @@ protected:
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
             std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id& = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
-    void notifyExcludedFromChat();
+    void notifyOwnExcludedFromChat();
     void notifyRejoinedChat();
     bool syncOwnPriv(chatd::Priv newPriv);
     bool syncArchive(bool aIsArchived);
@@ -109,6 +109,12 @@ protected:
     ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     bool isChatdChatInitialized();
+
+    // Returns true if own privilege is different than newPriv, otherwise returns false
+    bool hasOwnPrivChanged(const chatd::Priv newPriv)
+    {
+        return mOwnPriv != newPriv;
+    }
 
 public:
     virtual bool previewMode() const { return false; }
@@ -395,7 +401,51 @@ protected:
     void notifyPreviewClosed();
     void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
     void notifySchedMeetingOccurrencesUpdated(bool append);
-    void setRemoved();
+
+    // Sync own priv to PRIV_RM and notify change to apps
+    void setOwnUserRemoved();
+
+    // Manage own user re/join to chat
+    void rejoinChatOwnUser();
+
+    // Notify apps about own priv change
+    void notifyOwnUserPrivChange();
+
+    /**
+     * @brief Checks if UserPrivMap contains any user not included in GroupChatRoom, and if true it
+     * generates chat title from member names, just in case chatroom doesn't have a custom title
+     *
+     * @param users map of user privileges
+     * @param peersChanged input/output param to detect if chatroom composition has changed. This
+     * param will be set true in case UserPrivMap contains any user not included in GroupChatRoom
+     */
+    void updateTitleFromMemberNames(const UserPrivMap& users, bool& peersChanged);
+
+    /**
+     * @brief Checks if GroupChatRoom title has changed respect from MegaTextChat received from SDK,
+     * in that case stores encrypted title in memory and Db, and tries to decrypt.
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     * @param membersChanged input flag that indicates that GroupChatRoom composition has changed
+     */
+    void syncChatTitle(const mega::MegaTextChat& chat, const bool membersChanged);
+
+    /**
+     * @brief Updates GroupChatRoom scheduled meetings and occurrences, if they have changed respect
+     * to MegaTextChat received from SDK
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     */
+    void syncSchedMeetings(const mega::MegaTextChat& chat);
+
+    /**
+     * @brief Updates GroupChatRoom own privilege, if it has changed respect to MegaTextChat
+     * received from SDK, and notify apps about this change
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     */
+    bool syncOwnPrivilege(const mega::MegaTextChat& chat);
+
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);

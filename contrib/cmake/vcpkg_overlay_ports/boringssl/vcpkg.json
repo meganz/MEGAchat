@@ -1,0 +1,8 @@
+{
+  "name": "boringssl",
+  "version-string": "in-webrtc",
+  "description": "BoringSSL library and headers will be provided by the internal WebRTC.",
+  "dependencies": [
+    "webrtc"
+  ]
+}

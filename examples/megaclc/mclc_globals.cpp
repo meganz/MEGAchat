@@ -35,6 +35,7 @@ clc_listen::CLCMegaListener g_megaclcListener;
 clc_listen::CLCChatListener g_chatListener;
 clc_listen::CLCMegaGlobalListener g_globalListener;
 clc_listen::CLCChatRequestListener g_chatRequestListener;
+clc_report::CLCCallReceivedVideos g_callVideoParticipants;
 
 // output
 std::mutex g_outputMutex;
