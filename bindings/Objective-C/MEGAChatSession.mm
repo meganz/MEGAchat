@@ -124,18 +124,6 @@ using namespace megachat;
     return self.megaChatSession ? self.megaChatSession->isRecording() : NO;
 }
 
-- (BOOL)isSpeakAllowed {
-    return self.megaChatSession ? self.megaChatSession->isSpeakAllowed() : NO;
-}
-
-- (BOOL)hasSpeakPermission {
-    return self.megaChatSession ? self.megaChatSession->hasSpeakPermission() : NO;
-}
-
-- (BOOL)hasPendingSpeakRequest {
-    return self.megaChatSession ? self.megaChatSession->hasPendingSpeakRequest() : NO;
-}
-
 - (NSString *)description {
     NSString *peerId = [MEGASdk base64HandleForUserHandle:self.peerId];
     NSString *clientId = [MEGASdk base64HandleForUserHandle:self.clientId];
@@ -149,11 +137,8 @@ using namespace megachat;
     NSString *canReceiveVideoLowRes = self.canReceiveVideoLowRes ? @"YES" : @"NO";
     NSString *audioDetected = self.isAudioDetected ? @"YES" : @"NO";
     NSString *isRecording = self.isRecording ? @"YES" : @"NO";
-    NSString *isSpeakAllowed = self.isSpeakAllowed ? @"YES" : @"NO";
-    NSString *hasSpeakPermission = self.hasSpeakPermission ? @"YES" : @"NO";
-    NSString *hasPendingSpeakRequest = self.hasPendingSpeakRequest ? @"YES" : @"NO";
 
-    return [NSString stringWithFormat:@"<%@: peerId=%@; clientId=%@; isModerator=%@; hasAudio=%@; hasVideo=%@; changes=%@; isHighResVideo: %@, isLowResVideo: %@, canReceiveVideoHiRes: %@, canReceiveVideoLowRes: %@, audioDetected=%@, isRecording=%@, isSpeakAllowed=%@, hasSpeakPermission=%@, hasPendingSpeakRequest=%@>", self.class, peerId, clientId, isModerator, hasAudio, hasVideo, changes, isHighResVideo, isLowResVideo, canReceiveVideoHiRes, canReceiveVideoLowRes, audioDetected, isRecording, isSpeakAllowed, hasSpeakPermission, hasPendingSpeakRequest];
+    return [NSString stringWithFormat:@"<%@: peerId=%@; clientId=%@; isModerator=%@; hasAudio=%@; hasVideo=%@; changes=%@; isHighResVideo: %@, isLowResVideo: %@, canReceiveVideoHiRes: %@, canReceiveVideoLowRes: %@, audioDetected=%@, isRecording=%@>", self.class, peerId, clientId, isModerator, hasAudio, hasVideo, changes, isHighResVideo, isLowResVideo, canReceiveVideoHiRes, canReceiveVideoLowRes, audioDetected, isRecording];
 }
 
 - (NSString *)stringForChanges {

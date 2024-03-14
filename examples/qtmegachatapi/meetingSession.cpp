@@ -26,12 +26,14 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
         if (mReqSpealLabel)  {layout()->removeWidget(mReqSpealLabel.get());   mReqSpealLabel->clear();}
         if (mModeratorLabel) {layout()->removeWidget(mModeratorLabel.get());  mModeratorLabel->clear();}
         if (mRecordingLabel) {layout()->removeWidget(mRecordingLabel.get());  mRecordingLabel->clear();}
+        if (mSpkPermLabel)   {layout()->removeWidget(mSpkPermLabel.get());  mSpkPermLabel->clear();}
     }
 
     mLayout.reset(new QHBoxLayout());
     mLayout->setAlignment(Qt::AlignLeft);
     setLayout(mLayout.get());
     mCid = static_cast<uint32_t>(session.getClientid());
+    mUserid = session.getPeerid();
 
     if (session.isModerator())
     {
@@ -73,6 +75,23 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
         });
     setTitle();
 
+    const auto chatid = mMeetingView->getChatid();
+    std::unique_ptr<megachat::MegaChatCall> call(mMeetingView->megachatApi().getChatCall(chatid));
+    if (!call)
+    {
+        assert(false); // call should exists at this point
+        return;
+    }
+
+    const bool speakPermission = call->hasUserSpeakPermission(session.getPeerid());
+    QPixmap spkPerPixMap = speakPermission
+                               ? QApplication::style()->standardPixmap(QStyle::SP_DialogYesButton)
+                               : QApplication::style()->standardPixmap(QStyle::SP_DialogNoButton);
+
+    mSpkPermLabel.reset(new QLabel());
+    mSpkPermLabel->setPixmap(spkPerPixMap);
+    layout()->addWidget(mSpkPermLabel.get());
+
     // audio lbl
     mAudio = session.hasAudio();
     QPixmap pixMap = mAudio
@@ -94,7 +113,7 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     layout()->addWidget(mVideoLabel.get());
 
     // reqSpeak lbl
-    mRequestSpeak = session.hasPendingSpeakRequest();
+    mRequestSpeak = call->hasUserPendingSpeakRequest(session.getPeerid());
     if (mRequestSpeak)
     {
        mReqSpealLabel.reset(new QLabel());

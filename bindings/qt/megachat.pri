@@ -66,6 +66,7 @@ MEGACHAT_BASE_PATH = $$PWD/../..
 VPATH += $$MEGACHAT_BASE_PATH/src
 SOURCES += megachatapi.cpp \
             megachatapi_impl.cpp \
+            async_utils.cpp \
             strongvelope/strongvelope.cpp \
             presenced.cpp \
             base64url.cpp \
@@ -84,13 +85,11 @@ SOURCES += megachatapi.cpp \
             kareredb.cpp \
             chatclientDb.cpp
 
-HEADERS  += asyncTest-framework.h \
+HEADERS  += async_utils.h \
             buffer.h \
             chatd.h \
             karereCommon.h \
-            messageBus.h \
             videoRenderer_objc.h \
-            asyncTest.h \
             chatClient.h \
             chatdICrypto.h \
             db.h \

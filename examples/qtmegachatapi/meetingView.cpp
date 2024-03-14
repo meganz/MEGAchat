@@ -50,7 +50,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mAudioMonitor->setVisible(false);
 
     mRemOwnSpeaker = new QPushButton("Remove own user speaker", this);
-    connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveSpeaker()));
+    connect(mRemOwnSpeaker, SIGNAL(clicked()), this, SLOT(onRemoveOwnSpeaker()));
     mRemOwnSpeaker->setVisible(false);
 
     mJoinCallWithVideo = new QPushButton("Join Call with Video", this);
@@ -173,14 +173,18 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append("<span style='font-weight:normal'>")
             .append("<br /> Speak request is enabled: ")
             .append(call->isSpeakRequestEnabled() ? on : off)
+            .append("<br /> Call duration limit: ")
+            .append(call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED
+                    ? "<span style='font-weight:bold;'>Disabled</span>"
+                    : "<span style='color:#AA0000'>" + std::to_string(call->getCallDurationLimit()) +"</span>")
             .append("<br /> Audio flag: ")
             .append(call->hasLocalAudio() ? on : off)
             .append("<br /> Video flag: ")
-            .append(call->hasLocalAudio() ? on : off)
+            .append(call->hasLocalVideo() ? on : off)
             .append("<br /> Has speak permission: ")
-            .append(call->hasSpeakPermission() ? on : off)
+            .append(call->hasUserSpeakPermission(megachatApi().getMyUserHandle()) ? on : off)
             .append("<br /> Has speak request pending to be approved: ")
-            .append(call->hasPendingSpeakRequest() ? on : off)
+            .append(call->hasUserPendingSpeakRequest(megachatApi().getMyUserHandle()) ? on : off)
             .append("<br /> Moderator: ")
             .append(call->isOwnModerator() ? on : off)
             .append("</span>");
@@ -259,6 +263,16 @@ bool MeetingView::hasLowResByCid(uint32_t cid)
 bool MeetingView::hasHiResByCid(uint32_t cid)
 {
     return mHiResWidget.find(cid) != mHiResWidget.end();
+}
+
+megachat::MegaChatHandle MeetingView::getChatid()
+{
+    return mChatid;
+}
+
+megachat::MegaChatApi& MeetingView::megachatApi()
+{
+    return mMegaChatApi;
 }
 
 std::string MeetingView::callStateToString(const ::megachat::MegaChatCall &call)
@@ -620,10 +634,12 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     }
 
     uint32_t cid = static_cast<uint32_t>(atoi(item->data(Qt::UserRole).toString().toStdString().c_str()));
-    if (mSessionWidgets.find(cid) == mSessionWidgets.end())
+    const auto& it = mSessionWidgets.find(cid);
+    if (it == mSessionWidgets.end())
     {
         return;
     }
+    const megachat::MegaChatHandle userid = it->second->getUserId();
 
     QMenu submenu;
     std::string requestDelSpeaker("Remove speaker");
@@ -631,7 +647,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     std::string requestHiRes("Request hiRes");
     std::string stopThumb("Stop vThumb");
     std::string stopHiRes("Stop hiRes");
-    std::string approveSpeak("Approve Speak request");
+    std::string addActiveSpeaker("Grants active speaker");
     std::string rejectSpeak("Reject Speak request");
     std::string pushWr("Push waiting room");
     std::string kickWr("Kick waiting room");
@@ -681,7 +697,7 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     if (call && moderator)
     {
        submenu.addAction(requestDelSpeaker.c_str());
-       submenu.addAction(approveSpeak.c_str());
+        submenu.addAction(addActiveSpeaker.c_str());
        submenu.addAction(rejectSpeak.c_str());
 
        QMenu* wrMenu = submenu.addMenu("Waiting Room management");
@@ -702,17 +718,17 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
         {
             mMegaChatApi.requestHiResVideo(mChatid, cid);
         }
-        else if (rightClickItem->text().contains(approveSpeak.c_str()))
+        else if (rightClickItem->text().contains(addActiveSpeaker.c_str()))
         {
-            mMegaChatApi.approveSpeakRequest(mChatid, cid);
+            mMegaChatApi.grantSpeakPermission(mChatid, userid);
         }
         else if (rightClickItem->text().contains(rejectSpeak.c_str()))
         {
-            mMegaChatApi.rejectSpeakRequest(mChatid, cid);
+            mMegaChatApi.removeSpeakRequest(mChatid, userid);
         }
         else if (rightClickItem->text().contains(requestDelSpeaker.c_str()))
         {
-            onRemoveSpeaker(cid);
+            mMegaChatApi.revokeSpeakPermission(mChatid, userid);
         }
         else if (rightClickItem->text().contains(stopThumb.c_str()))
         {
@@ -763,8 +779,8 @@ void MeetingView::onRequestSpeak(bool request)
     }
 
     request
-            ? mMegaChatApi.requestSpeak(mChatid)
-            : mMegaChatApi.removeRequestSpeak(mChatid);
+        ? mMegaChatApi.sendSpeakRequest(mChatid)
+        : mMegaChatApi.removeSpeakRequest(mChatid);
 }
 
 void MeetingView::onEnableAudio()
@@ -805,14 +821,9 @@ void MeetingView::onEnableVideo()
     }
 }
 
-void MeetingView::onRemoveSpeaker(const megachat::MegaChatHandle cid)
+void MeetingView::onRemoveOwnSpeaker()
 {
-    mMegaChatApi.removeSpeaker(mChatid, cid);
-}
-
-void MeetingView::onRemoveSpeaker()
-{
-    mMegaChatApi.removeSpeaker(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
+    mMegaChatApi.revokeSpeakPermission(mChatid, megachat::MEGACHAT_INVALID_HANDLE);
 }
 
 void MeetingView::onEnableAudioMonitor(bool)
@@ -894,15 +905,18 @@ void MeetingView::onMuteAll()
 
 void MeetingView::onSetLimits()
 {
-    auto getNumLimit = [this](const std::string& msg) -> unsigned int
+    auto getNumLimit = [this](const std::string& msg) -> unsigned long
     {
         try
         {
-            return static_cast<unsigned int> (stoi(QInputDialog::getText(this, tr("Set call limits"), tr(msg.c_str())).toStdString()));
+            std::string valstr = QInputDialog::getText(this, tr("Set call limits: (0 to disable) (empty to not modify)"), tr(msg.c_str())).toStdString();
+            return valstr.empty()
+                       ? megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT
+                       : static_cast<unsigned long> (stoi(valstr));
         }
         catch (const std::exception& e)
         {
-            return megachat::MegaChatCall::CALL_NO_LIMIT;
+            return megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT;
         }
     };
 

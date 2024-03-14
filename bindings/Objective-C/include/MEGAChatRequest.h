@@ -4,7 +4,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeInitialize, // (Obsolete)
-    MEGAChatRequestTypeConnect,
+    MEGAChatRequestTypeConnect, // (obsolete)
     MEGAChatRequestTypeDelete,
     MEGAChatRequestTypeLogout,
     MEGAChatRequestTypeSetOnlineStatus,
@@ -32,7 +32,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeSignalActivity,
     MEGAChatRequestTypeSetPresencePersist,
     MEGAChatRequestTypeSetPresenceAutoaway,
-    MEGAChatRequestTypeLoadAudioVideoDevices,
+    MEGAChatRequestTypeLoadAudioVideoDevices, // Deprecated
     MEGAChatRequestTypeArchiveChatRoom,
     MEGAChatRequestTypePushReceived,
     MEGAChatRequestTypeSetLastGreenVisible,
@@ -48,20 +48,28 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeEnableAudioLevelMonitor,
     MEGAChatRequestTypeManageReaction,
     MEGAChatRequestTypeGetPeerAttributes,
-    MEGAChatRequestTypeRequestSpeak,
-    MEGAChatRequestTypeApproveSpeak,
+    MEGAChatRequestTypeRequestSpeak, // Deprecated
+    MEGAChatRequestTypeApproveSpeak, // Deprecated
     MEGAChatRequestTypeRequestHighResVideo,
     MEGAChatRequestTypeRequestLowResVideo,
     MEGAChatRequestTypeOpenVideoDevice,
     MEGAChatRequestTypeRequestHiResQuality,
-    MEGAChatRequestTypeDeleteSpeaker,
+    MEGAChatRequestTypeDeleteSpeaker, // Deprecated
     MEGAChatRequestTypeRequestSvcLayers,
     MEGAChatRequestTypeSetChatRoomOptions,
-    MEGAChatRequestTypeCreateScheduledMeeting,
+    MEGAChatRequestTypeCreateScheduledMeeting, // Deprecated
     MEGAChatRequestTypeDeleteScheduledMeeting,
     MEGAChatRequestTypeFetchScheduledMeetingOccurrences,
     MEGAChatRequestTypeUpdateScheduledMeetingOcurrence,
     MEGAChatRequestTypeUpdateScheduledMeeting,
+    MEGAChatRequestTypeWaitingRoomPush,
+    MEGAChatRequestTypeWaitingRoomAllow,
+    MEGAChatRequestTypeWaitingRoomKick,
+    MEGAChatRequestTypeRingIndividualInCall,
+    MEGAChatRequestTypeMute,
+    MEGAChatRequestTypeSpeakerAddOrDelete,
+    MEGAChatRequestTypeSpeakRequestAddOrDelete,
+    MEGAChatRequestTypeRejectCall,
 };
 
 enum {

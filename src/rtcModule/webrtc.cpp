@@ -67,7 +67,7 @@ Call::Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id&
     , mIsJoining(false)
     , mRtc(rtc)
 {
-    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), sfu::MY_SFU_PROTOCOL_VERSION, avflags.value()));
+    mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), rtc.getMySfuProtoVersion(), avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
 
@@ -173,6 +173,11 @@ CallState Call::getState() const
     return mState;
 }
 
+int Call::getCallDurationLimitInSecs() const
+{
+    return mCallDurLimitInSecs;
+}
+
 bool Call::isOwnClientCaller() const
 {
     return mIsOwnClientCaller;
@@ -192,7 +197,7 @@ void Call::addParticipant(const karere::Id &peer)
 {
     mParticipants.insert(peer);
     mCallHandler.onAddPeer(*this, peer);
-    if (peer != mMyPeer->getPeerid()    // check that added peer is not own peerid
+    if (peer != getOwnPeerId()    // check that added peer is not own peerid
             && !mIsGroup
             && mIsOwnClientCaller
             && mIsOutgoingRinging)
@@ -204,7 +209,7 @@ void Call::addParticipant(const karere::Id &peer)
 
 void Call::joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined)
 {
-    if (usersJoined.find(mMyPeer->getPeerid()) != usersJoined.end())
+    if (usersJoined.find(getOwnPeerId()) != usersJoined.end())
     {
         setRinging(false);
     }
@@ -280,7 +285,7 @@ bool Call::alreadyParticipating()
 {
     for (auto& peerid : mParticipants)
     {
-        if (peerid == mMyPeer->getPeerid())
+        if (peerid == getOwnPeerId())
         {
             return true;
         }
@@ -475,14 +480,9 @@ int Call::getNetworkQuality() const
     return mNetworkQuality;
 }
 
-bool Call::hasPendingSpeakRequest() const
+bool Call::hasUserPendingSpeakRequest(const karere::Id& uh) const
 {
-    return mSpeakerState == SpeakerState::kPending;
-}
-
-unsigned int Call::getOwnSpeakerState() const
-{
-    return mSpeakerState;
+    return isOnSpeakRequestsList(uh);
 }
 
 int Call::getWrJoiningState() const
@@ -570,7 +570,7 @@ bool Call::isOutgoingRinging() const
 
 bool Call::isOutgoing() const
 {
-    return mCallerId == mMyPeer->getPeerid();
+    return mCallerId == getOwnPeerId();
 }
 
 int64_t Call::getCallInitialTimeStamp() const
@@ -639,54 +639,19 @@ const KarereWaitingRoom* Call::getWaitingRoom() const
     return mWaitingRoom.get();
 }
 
-bool Call::hasOwnUserSpeakPermission() const
+bool Call::addDelSpeakRequest(const karere::Id& user, const bool add)
 {
-    return mSpeakerState == SpeakerState::kActive;
+    assert(!add || !user.isValid());                            // SPEAKRQ cannot be sent on behalf of another user
+    mSfuConnection->sendSpeakReqAddDel(user, add);
+    return true;
 }
 
-void Call::requestSpeak(const bool add)
+void Call::addOrRemoveSpeaker(const karere::Id& user, const bool add)
 {
-    if (mSpeakerState == SpeakerState::kNoSpeaker && add)
-    {
-        mSfuConnection->sendSpeakReq();
-    }
-    else if (hasPendingSpeakRequest() && !add)
-    {
-        mSfuConnection->sendSpeakReqDel(); // cancel a request in-flight
-    }
-    else
-    {
-        assert(false); // unexpected speaker state
-    }
-}
-
-bool Call::isSpeakAllow() const
-{
-    return hasOwnUserSpeakPermission() && getLocalAvFlags().audio();
-}
-
-void Call::approveSpeakRequest(Cid_t cid, bool allow)
-{
-    if (allow)
-    {
-        mSfuConnection->sendSpeakReq(cid);
-    }
-    else
-    {
-        mSfuConnection->sendSpeakReqDel(cid);
-    }
-}
-
-void Call::stopSpeak(Cid_t cid)
-{
-    if (cid)
-    {
-        assert(mSessions.find(cid) != mSessions.end());
-        mSfuConnection->sendSpeakDel(cid);
-        return;
-    }
-
-    mSfuConnection->sendSpeakDel();
+    // SPEAKER_ADD cannot be sent for own user
+    // moderators don't need to send SPEAKER_ADD for themselves
+    assert(user.isValid() || !add);
+    mSfuConnection->sendSpeakerAddDel(user, add);
 }
 
 void Call::pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const
@@ -713,24 +678,9 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
-void Call::setLimits(const double callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients) const
+void Call::setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const
 {
-    mSfuConnection->sendSetLimit(callDur, numUsers, numClientsPerUser, numClients);
-}
-
-std::vector<Cid_t> Call::getSpeakerRequested()
-{
-    std::vector<Cid_t> speakerRequested;
-
-    for (const auto& session : mSessions)
-    {
-        if (session.second->hasRequestSpeak())
-        {
-            speakerRequested.push_back(session.first);
-        }
-    }
-
-    return speakerRequested;
+    mSfuConnection->sendSetLimit(callDurSecs, numUsers, numClientsPerUser, numClients);
 }
 
 void Call::requestHighResolutionVideo(Cid_t cid, int quality)
@@ -905,6 +855,16 @@ std::set<karere::Id> Call::getModerators() const
     return mModerators;
 }
 
+std::set<karere::Id> Call::getSpeakersList() const
+{
+    return mSpeakers;
+}
+
+std::set<karere::Id> Call::getSpeakRequestsList() const
+{
+    return mSpeakRequests;
+}
+
 std::vector<Cid_t> Call::getSessionsCids() const
 {
     std::vector<Cid_t> returnedValue;
@@ -970,7 +930,7 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
         return false;
     }
 
-    mSfuClient.addVersionToUrl(sfuUrl);
+    mSfuClient.addVersionToUrl(sfuUrl, mRtc.getMySfuProtoVersion());
     setState(CallState::kStateConnecting);
     mSfuConnection = mSfuClient.createSfuConnection(mChatid, std::move(sfuUrl), *this, mRtc.getDnsCache());
     return true;
@@ -1060,50 +1020,7 @@ void Call::joinSfu()
             return;
         }
 
-        karere::AvFlags joinFlags = getLocalAvFlags();
-        if (joinFlags.audio() && isSpeakRequestEnabled() && !isOwnPrivModerator())
-        {
-            const bool isReconnecting = getPrevCid() != K_INVALID_CID;
-            if (!isReconnecting)
-            {
-                // If speak request is enabled and we want to start call with audio enabled, we must be a moderator,
-                // otherwise we need to manually send SPEAK_RQ and receive SPEAK_ON (when we are approved by a moderator)
-                // before sending AV command to enable audio
-                orderedCallDisconnect(TermCode::kErrClientGeneral, 
-                                      std::string("audio flags cannot be enabled"
-                                                  " if speak request is also enabled for call"
-                                                  " and we are non moderator"));
-                assert(false);
-                return;
-            }
-            else
-            {
-                // we are non-host and we are trying to reconnect. we had permission to speak before reconnect as
-                // audio flags are enabled. We can't send audio flag enabled in JOIN command as we say below.
-                mSpeakerState = SpeakerState::kNoSpeaker;
-                mCallHandler.onSpeakStatusUpdate(*this);
-                muteMyClient(true/*audio*/, false /*video*/);
-                RTCM_LOG_DEBUG("joinSfu: re-joining to SFU with audio disabled, as speak request "
-                               "is enabled and our peer is non-host");
-            }
-        }
-
-        bool sendAv = false;
-        if (joinFlags.audio())
-        {
-            /* SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
-             *  - 1) send JOIN command with audio flag disabled
-             *  - 2) send an AV command enabling audio flag (immediately after send JOIN)
-             */
-            joinFlags.remove(karere::AvFlags::kAudio);
-            sendAv = true;
-        }
-
-        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, joinFlags.value(), getPrevCid(), kInitialvthumbCount);
-        if (sendAv)
-        {
-            mSfuConnection->sendAv(getLocalAvFlags().value());
-        }
+        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getPrevCid(), kInitialvthumbCount);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -1233,7 +1150,9 @@ void Call::clearResources(const TermCode& termCode)
     disableStats();
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
     clearPendingPeers();
-    mModerators.clear();            // clear moderators list and ownModerator
+    clearModeratorsList();
+    clearSpeakRequestsList();
+    clearSpeakersList();
     mVThumb.reset();
     mHiRes.reset();
     mAudio.reset();
@@ -1359,16 +1278,16 @@ Cid_t Call::getOwnCid() const
     return mMyPeer->getCid();
 }
 
-
-void Call::setSessionModByUserId(uint64_t userid, bool isMod)
+const karere::Id& Call::getOwnPeerId() const
 {
-    for (const auto& session : mSessions)
-    {
-        if (session.second->getPeerid() == userid)
-        {
-            session.second->setModerator(isMod);
-        }
-    }
+    return mMyPeer->getPeerid();
+}
+
+bool Call::hasUserSpeakPermission(const uint64_t userid) const
+{
+    return !isSpeakRequestEnabled()
+           || isOnSpeakersList(userid)
+           || isOnModeratorsList(userid);
 }
 
 void Call::setOwnModerator(bool isModerator)
@@ -1488,9 +1407,10 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
                 return;
             }
 
-            if (oldAudioFlag && !session->getAvFlags().audio())
+            if (!session->getAvFlags().audio() && session->getAudioSlot())
             {
-                removeSpeaker(cid);
+                // disable slot if audio flag has been received as disabled
+                session->disableAudioSlot();
             }
         }
         else
@@ -1499,7 +1419,7 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
             sfu::TrackDescriptor trackDescriptor;
             trackDescriptor.mMid = aMid;
             trackDescriptor.mReuse = true;
-            addSpeaker(cid, trackDescriptor);
+            addSpeaker(cid, aMid);
         }
     })
     .fail([cid](const ::promise::Error&)
@@ -1513,7 +1433,10 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
 
 bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
                                const std::map<Cid_t, std::string>& keystrmap,
-                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers)
+                               const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
+                               const std::set<karere::Id>& speakers,
+                               const std::set<karere::Id>& speakReqs,
+                               const std::map<Cid_t, uint32_t>& amidmap)
 {
     if (mState != kStateJoining)
     {
@@ -1523,9 +1446,28 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     if (!getMyEphemeralKeyPair())
     {
-        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(mRtc.getMySfuProtoVersion()));
         return false;
     }
+
+    if (!speakReqs.empty() && !isSpeakRequestEnabled())
+    {
+        const std::string errMsg = "handleAnswerCommand: we shouldn't receive speak requests if that option is disabled for chatroom";
+        RTCM_LOG_WARNING("%s", errMsg.c_str());
+        assert(false);
+        orderedCallDisconnect(TermCode::kUserHangup, errMsg);
+        return false;
+    }
+
+    /* Store speakers list received from SFU, which contains user handles of all non-moderator
+     * users that have been given speak permission (moderators not included)
+     *
+     * If call doesn't have speak request option enabled, this array is not included in the ANSWER command
+     */
+    mSpeakers = speakers;
+
+    // store speak requests list received from SFU
+    mSpeakRequests = speakReqs;
 
     // clear initial backoff as this connection attempt has succeeded
     mSfuConnection->clearInitialBackoff();
@@ -1538,6 +1480,15 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
     // set join offset
     setJoinOffset(static_cast<int64_t>(callJoinOffset));
+
+    if (hasUserSpeakPermission(getOwnPeerId()) && isOnSpeakRequestsList(getOwnPeerId()))
+    {
+        const std::string errMsg = "handleAnswerCommand: Our own user is included on speakers list but also in speak requests list";
+        RTCM_LOG_WARNING("%s", errMsg.c_str());
+        assert(false);
+        orderedCallDisconnect(TermCode::kUserHangup, errMsg);
+        return false;
+    }
 
     // this promise will be resolved when all ephemeral keys (for users with SFU > V0) have been verified and derived
     // in case of any of the keys can't be verified or derived, the peer will be added anyway.
@@ -1601,7 +1552,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         }
 
         // check if peerid is included in mods list received upon HELLO
-        peer.setModerator(mModerators.find(peer.getPeerid()) != mModerators.end());
+        peer.setModerator(isOnModeratorsList(peer.getPeerid()));
         if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V0) // there's no ephemeral key, just add peer
         {
             addPeerWithEphemKey(peer, true, std::string());
@@ -1645,7 +1596,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
                     if (!ephkeypair)
                     {
-                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+                        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(mRtc.getMySfuProtoVersion()));
                         addPeerWithEphemKey(*auxPeer, false, std::string());
                         return;
                     }
@@ -1689,7 +1640,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     // wait until all peers ephemeral keys have been verified and derived
     auto auxwptr = weakHandle();
     keyDerivationPms
-    ->then([auxwptr, vthumbs, speakers, sdp, keysVerified, this]
+    ->then([auxwptr, vthumbs, amidmap, sdp, keysVerified, this]
     {
         if (auxwptr.deleted())
         {
@@ -1723,7 +1674,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         assert(mRtcConn);
         auto wptr = weakHandle();
         mRtcConn.setRemoteDescription(std::move(sdpInterface))
-        .then([wptr, this, vthumbs, speakers]()
+        .then([wptr, this, vthumbs, amidmap]()
         {
             if (wptr.deleted())
             {
@@ -1733,6 +1684,13 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             if (mState != kStateJoining)
             {
                 RTCM_LOG_WARNING("handleAnswerCommand: get unexpect state change at setRemoteDescription");
+                return;
+            }
+
+            if (amidmap.size() > mSessions.size())
+            {
+                RTCM_LOG_WARNING("handleAnswerCommand: received mid list is greater than current list of sessions");
+                assert(false);
                 return;
             }
 
@@ -1751,18 +1709,20 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             mVThumb->getTransceiver()->sender()->SetParameters(parameters).ok();
             handleIncomingVideo(vthumbs, kLowRes);
 
-            for (const auto& speak : speakers)  // current speakers in the call
+            for (auto& s: mSessions)
             {
-                Cid_t cid = speak.first;
-                const sfu::TrackDescriptor& speakerDecriptor = speak.second;
-                Session* sess = getSession(cid);
-                if (!sess)
+                // add speaker if is currently sending audio (valid amid received)
+                const auto cid = s.second->getClientid();
+                const auto it = amidmap.find(cid);
+                if (it != amidmap.end())
                 {
-                    RTCM_LOG_WARNING("handleAnswerCommand: unknown cid: %u in speakers field", cid);
-                    continue;
+                    addSpeaker(cid, it->second/*amid*/);
                 }
-                sess->setSpeakPermission(true); // set speak permission true
-                addSpeaker(cid, speakerDecriptor);
+            }
+
+            if (hasUserSpeakPermission(getOwnPeerId()))
+            {
+                updateAudioTracks();
             }
 
             setState(CallState::kStateInProgress);
@@ -1990,6 +1950,43 @@ bool Call::handleHiResStartCommand()
     return true;
 }
 
+bool Call::handleSpeakerAddDelCommand(const uint64_t userid, const bool add)
+{
+    if (!isSpeakRequestEnabled())
+    {
+        RTCM_LOG_WARNING("handle %s command. Speak request option is disabled for call", add ? "SPEAKER_ADD" : "SPEAKER_DEL");
+        assert(false);
+        return false;
+    }
+
+    // if userid is invalid, command is for own user
+    const karere::Id uh = !karere::Id(userid).isValid() ? getOwnPeerId() : karere::Id(userid);
+    const bool isOwnUser = uh == getOwnPeerId();
+    if (isOwnUser && isOnModeratorsList(userid))
+    {
+        RTCM_LOG_WARNING("SPEAKER_ADD/DEL command should not be received for own user with moderator role");
+        assert(false);
+        return false;
+    }
+
+    if (!updateSpeakersList(uh, add))
+    {
+        RTCM_LOG_WARNING("handle %s command. cannot update speakers list", add ? "SPEAKER_ADD" : "SPEAKER_DEL");
+    }
+
+    if (add) // Speak permission granted for user
+    {
+        if (isOwnUser)
+        {
+            updateAudioTracks();
+        }
+
+        updateSpeakRequestsList(uh, false/*add*/);  // remove speak request (if any) for this user
+    }
+    // else => no need to update audio tracks for own user upon SPEAKER_DEL, MUTED command will be received
+    return true;
+}
+
 bool Call::handleHiResStopCommand()
 {
     if (mState != kStateInProgress && mState != kStateJoining)
@@ -2004,190 +2001,22 @@ bool Call::handleHiResStopCommand()
     return true;
 }
 
-bool Call::handleSpeakReqsCommand(const std::vector<Cid_t> &speakRequests)
+bool Call::handleSpeakReqAddDelCommand(const uint64_t userid, const bool add)
 {
-    for (Cid_t cid : speakRequests)
+    if (!isSpeakRequestEnabled())
     {
-        if (cid == getOwnCid())
-        {
-            mSpeakerState = SpeakerState::kPending;
-            mCallHandler.onSpeakStatusUpdate(*this);
-        }
-        else
-        {
-            promise::Promise<void>* pms = getPeerVerificationPms(cid);
-            if (!pms)
-            {
-                RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise not found for cid: %u", cid);
-                continue;
-            }
+        RTCM_LOG_WARNING("handle %s command. Speak request option is disabled for call", add ? "SPEAKRQ" : "SPEAKRQ_DEL");
+        assert(false);
+        return false;
+    }
 
-            auto wptr = weakHandle();
-            pms->then([this, cid, wptr]()
-            {
-                if (wptr.deleted())  { return; }
-                Session *session = getSession(cid);
-                assert(session);
-                if (!session)
-                {
-                    RTCM_LOG_ERROR("handleSpeakReqsCommand: Received speakRequest for unknown peer cid %u", cid);
-                    return;
-                }
-                session->setSpeakRequested(true);
-            })
-            .fail([cid](const ::promise::Error&)
-            {
-                RTCM_LOG_WARNING("handleSpeakReqsCommand: PeerVerification promise was rejected for cid: %u", cid);
-                return;
-            });
-        }
+    // userid must be always valid for SPEAKRQ and SPEAKRQ_DEL
+    if (!updateSpeakRequestsList(userid, add))
+    {
+        RTCM_LOG_WARNING("handle %s command. cannot update speak requests list", add ? "SPEAKRQ" : "SPEAKRQ_DEL");
     }
     return true;
 }
-
-bool Call::handleSpeakReqDelCommand(Cid_t cid)
-{
-    if (getOwnCid() != cid) // remote peer
-    {
-        promise::Promise<void>* pms = getPeerVerificationPms(cid);
-        if (!pms)
-        {
-            RTCM_LOG_WARNING("handleSpeakReqDelCommand: PeerVerification promise not found for cid: %u", cid);
-            return false;
-        }
-
-        auto wptr = weakHandle();
-        pms->then([this, cid, wptr]()
-        {
-            if (wptr.deleted())  { return; }
-            Session *session = getSession(cid);
-            assert(session);
-            if (!session)
-            {
-                RTCM_LOG_ERROR("handleSpeakReqDelCommand: Received delSpeakRequest for unknown peer cid %u", cid);
-                return;
-            }
-            session->setSpeakRequested(false);
-        })
-        .fail([cid](const ::promise::Error&)
-        {
-            RTCM_LOG_WARNING("handleSpeakReqDelCommand: PeerVerification promise was rejected for cid: %u", cid);
-            return;
-        });
-    }
-    else // own peer
-    {
-        if (mSpeakerState == SpeakerState::kActive        //  => ignore SPEAK_RQ_DEL (we already had permission to speak)
-            || mSpeakerState == SpeakerState::kNoSpeaker) //  => ignore SPEAK_RQ_DEL (speaker state was already kNoSpeaker)
-        {
-            return true;
-        }
-
-        rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
-        if (track && track->enabled())
-        {
-            RTCM_LOG_WARNING("handleSpeakReqDelCommand: audio track was enabled for Cid: %u", cid);
-            assert(false);
-            track->set_enabled(false);
-            mAudio->getTransceiver()->sender()->SetTrack(nullptr);
-        }
-
-        mSpeakerState = SpeakerState::kNoSpeaker;
-        mCallHandler.onSpeakStatusUpdate(*this);
-    }
-    return true;
-}
-
-bool Call::handleSpeakOnCommand(Cid_t cid)
-{
-    if (cid != K_INVALID_CID)
-    {
-        promise::Promise<void>* pms = getPeerVerificationPms(cid);
-        if (!pms)
-        {
-            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise not found for cid: %u", cid);
-            return false;
-        }
-
-        auto wptr = weakHandle();
-        pms->then([this, cid, wptr]()
-        {
-            if (wptr.deleted())  { return; }
-            Session* session = getSession(cid);
-            if (!session)
-            {
-                RTCM_LOG_WARNING("handleSpeakOnCommand: session not found for Cid: %u", cid);
-                assert(session);
-                return;
-            }
-            session->setSpeakPermission(true);
-        })
-        .fail([cid](const ::promise::Error&)
-        {
-            RTCM_LOG_WARNING("handleSpeakOnCommand: PeerVerification promise was rejected for cid: %u", cid);
-            return;
-        });
-    }
-    else // SPEAK_ON received for own peer
-    {
-        if (mSpeakerState == SpeakerState::kActive)
-        {
-            // ignore SPEAK_ON, we already have permission to speak
-            return true;
-        }
-
-        mSpeakerState = SpeakerState::kActive;
-        mCallHandler.onSpeakStatusUpdate(*this);
-        updateAudioTracks();
-    }
-    return true;
-}
-
-bool Call::handleSpeakOffCommand(Cid_t cid)
-{
-    if (cid != K_INVALID_CID)
-    {
-        promise::Promise<void>* pms = getPeerVerificationPms(cid);
-        if (!pms)
-        {
-            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise not found for cid: %u", cid);
-            return false;
-        }
-        auto wptr = weakHandle();
-        pms->then([this, cid, wptr]()
-        {
-            if (wptr.deleted())  { return; }
-            Session* session = getSession(cid);
-            if (!session)
-            {
-                RTCM_LOG_WARNING("handleSpeakOffCommand: session not found for Cid: %u", cid);
-                assert(session);
-                return;
-            }
-            session->setSpeakPermission(false);
-        })
-        .fail([cid](const ::promise::Error&)
-        {
-            RTCM_LOG_WARNING("handleSpeakOffCommand: PeerVerification promise was rejected for cid: %u", cid);
-            return;
-        });
-    }
-    else // SPEAK_OFF received for own peer
-    {
-        if (mSpeakerState == SpeakerState::kNoSpeaker)
-        {
-            // ignore SPEAK_OFF, we already don't have permission to speak
-            return true;
-        }
-
-        // SPEAK_OFF received from SFU requires to mute our client (audio flag is already unset from the SFU's viewpoint)
-        muteMyClient(true/*audio*/, false/*video*/);
-        mSpeakerState = SpeakerState::kNoSpeaker;
-        mCallHandler.onSpeakStatusUpdate(*this);
-    }
-    return true;
-}
-
 
 bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs)
 {
@@ -2216,7 +2045,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
     const mega::ECDH* ephkeypair = getMyEphemeralKeyPair();
     if (!ephkeypair)
     {
-        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+        RTCM_LOG_ERROR("Can't retrieve Ephemeral key for our own user, SFU protocol version: %u", static_cast<unsigned int>(mRtc.getMySfuProtoVersion()));
         orderedCallDisconnect(TermCode::kErrorCrypto, "Can't retrieve Ephemeral key for our own user");
         return false;
     }
@@ -2380,27 +2209,37 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
 
 bool Call::handleModAdd(uint64_t userid)
 {
-    if (userid == mMyPeer->getPeerid())
+    updateUserModeratorStatus(userid, true /*enable*/);
+    if (isSpeakRequestEnabled())
     {
-        setOwnModerator(true);
+        // remove user from speakers and speak requests list (just if included),
+        // as moderators cannot be included on speak requests nor speakers lists
+        updateSpeakersList(userid, false);
+        updateSpeakRequestsList(userid, false/*add*/);
+    }
+
+    // moderators have speak permission by default, and shouldn't be in speakers list
+    if (!hasUserSpeakPermission(userid))
+    {
+        RTCM_LOG_DEBUG("MOD_ADD received, but speak permission could not be updated for user: %s ",
+                       karere::Id(userid).toString().c_str());
+        assert(false);
+        return false;
+    }
+
+    if (userid == getOwnPeerId())
+    {
+        updateAudioTracks();
         if (isWrFlagEnabled()
             && static_cast<sfu::WrState>(getWrJoiningState()) != sfu::WrState::WR_ALLOWED
             && getState() == kInWaitingRoom)
         {
+            // automatically JOIN call from WR as now we have moderator role, so we have permission
             RTCM_LOG_DEBUG("MOD_ADD received for our own user, and we are in waiting room. JOIN call automatically");
             setWrJoiningState(sfu::WrState::WR_ALLOWED);
             mCallHandler.onWrAllow(*this);
             joinSfu();
         }
-    }
-
-    // update moderator privilege for all sessions that mached with received userid
-    setSessionModByUserId(userid, true);
-
-    if (!mModerators.emplace(userid).second)
-    {
-        RTCM_LOG_WARNING("MOD_ADD: user[%s] already added in moderators list", karere::Id(userid).toString().c_str());
-        return false;
     }
 
     RTCM_LOG_DEBUG("MOD_ADD: user[%s] added in moderators list", karere::Id(userid).toString().c_str());
@@ -2409,27 +2248,47 @@ bool Call::handleModAdd(uint64_t userid)
 
 bool Call::handleModDel(uint64_t userid)
 {
-    if (userid == mMyPeer->getPeerid())
+    // Note: if command is received for own user, we don't need to call updateAudioTracks(), SFU will send us 'MUTED' command
+    updateUserModeratorStatus(userid, false /*enable*/);
+
+    if (isSpeakRequestEnabled())
     {
-        setOwnModerator(false);
+        if (isOnSpeakersList(userid))
+        {
+            // note: moderators should never be included on the speakers list
+            RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speakers list",
+                             karere::Id(userid).toString().c_str());
+
+            assert(false);
+            updateSpeakersList(userid, false);
+        }
+
+        if (isOnSpeakRequestsList(userid))
+        {
+            // note: moderators should never be included on the speak requests list
+            RTCM_LOG_WARNING("MOD_DEL received, but user: %s was already included on speak requests list",
+                             karere::Id(userid).toString().c_str());
+
+            assert(false);
+            updateSpeakRequestsList(userid, false);
+        }
     }
 
-    // update moderator privilege for all sessions that mached with received userid
-    setSessionModByUserId(userid, false);
-
-    if (!mModerators.erase(userid))
-    {
-        RTCM_LOG_WARNING("MOD_DEL: user[%s] not found in moderators list", karere::Id(userid).toString().c_str());
-        return false;
-    }
-
+    // Note: ex-moderators need be granted speak permission again by a moderator
     RTCM_LOG_DEBUG("MOD_DEL: user[%s] removed from moderators list", karere::Id(userid).toString().c_str());
     return true;
 }
 
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
-                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers)
+                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs)
 {
+    #ifndef NDEBUG
+    // ensures that our sfu protocol version is the latest one defined in karere
+    const auto sfuv = mRtc.getMySfuProtoVersion();
+    assert(sfuv == sfu::SfuProtocol::SFU_PROTO_PROD
+           || (sfuv == sfu::SfuProtocol::SFU_PROTO_V4 && mRtc.isSpeakRequestSupportEnabled()));
+    #endif
+
     // mNumInputAudioTracks & mNumInputAudioTracks are used at createTransceivers after receiving HELLO command
     const auto numInputVideoTracks = mRtc.getNumInputVideoTracks();
     if (!isValidInputVideoTracksLimit(numInputVideoTracks))
@@ -2441,11 +2300,14 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
 
     setSpeakRequest(speakRequest);
 
+    // set call duration limit if any (in seconds)
+    mCallDurLimitInSecs = ldurSecs;
+
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
 
     // copy moderator list, and check if our own user is moderator
-    setOwnModerator(mods.find(mMyPeer->getPeerid()) != mods.end());
+    setOwnModerator(mods.find(getOwnPeerId()) != mods.end());
     mModerators = mods;
 
     // set my own client-id (cid)
@@ -2542,7 +2404,7 @@ bool Call::handleWrLeave(const karere::Id& user)
     return true;
 }
 
-bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
+bool Call::handleWrAllow(const Cid_t& cid)
 {
     if (!checkWrCommandReqs("WR_ALLOW", false /*mustBeModerator*/))
     {
@@ -2557,7 +2419,6 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
 
     if (mState != CallState::kInWaitingRoom) { return false; }
     mMyPeer->setCid(cid); // update Cid for own client from SFU
-    mModerators = mods;
     RTCM_LOG_DEBUG("handleWrAllow: we have been allowed to join call, so we need to send JOIN command to SFU");
     setWrJoiningState(sfu::WrState::WR_ALLOWED);
     mCallHandler.onWrAllow(*this);
@@ -2565,7 +2426,7 @@ bool Call::handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods)
     return true;
 }
 
-bool Call::handleWrDeny(const std::set<karere::Id>& mods)
+bool Call::handleWrDeny()
 {
     if (!checkWrCommandReqs("WR_DENY", false /*mustBeModerator*/))
     {
@@ -2577,7 +2438,6 @@ bool Call::handleWrDeny(const std::set<karere::Id>& mods)
         return false;
     }
 
-    mModerators = mods;
     setWrJoiningState(sfu::WrState::WR_NOT_ALLOWED);
     mCallHandler.onWrDeny(*this);
     return true;
@@ -2591,6 +2451,18 @@ bool Call::handleWrUsersAllow(const std::set<karere::Id>& users)
 bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
 {
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
+}
+
+bool Call::handleWillEndCommand(const int endsIn)
+{
+    SFU_LOG_DEBUG("%d",endsIn);
+    if (endsIn == sfu::kCallLimitDurationDisabled)
+    {
+        SFU_LOG_DEBUG("handleWillEndCommand: Call duration limit disabled for this call");
+        mCallDurLimitInSecs = endsIn;
+    }
+    mCallHandler.onCallWillEndr(*this, endsIn);
+    return true;
 }
 
 bool Call::handleMutedCommand(const unsigned av, const Cid_t cidPerf)
@@ -2740,10 +2612,6 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
     {
         muteMyClient(true/*audio*/, false/*video*/);
     }
-    else if (cmd == "MUTE")
-    {
-        RTCM_LOG_WARNING("Deny 'MUTE' received. %s", msg.c_str());
-    }
     else if (cmd == "JOIN")
     {
         if (mState != kStateJoining)
@@ -2752,14 +2620,10 @@ bool Call::processDeny(const std::string& cmd, const std::string& msg)
                            mState, kStateJoining, msg.c_str());
             return false;
         }
-        orderedCallDisconnect(TermCode::kErrorProtocolVersion, "Client doesn't supports waiting rooms");
+        orderedCallDisconnect(TermCode::kErrGeneral, msg);
     }
-    else
-    {
-        assert(false);
-        RTCM_LOG_ERROR("Deny cmd received for unexpected command: %s", msg.c_str());
-        return false;
-    }
+    // else => just send callback to apps to inform why their command didn't succeed
+
     return true;
 }
 
@@ -3096,6 +2960,64 @@ bool Call::manageAllowedDeniedWrUSers(const std::set<karere::Id>& users, bool al
     return true;
 }
 
+bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable)
+{
+    // update call's moderators list
+    enable
+        ? addToModeratorsList(userid)
+        : removeFromModeratorsList(userid);
+
+    if (userid == getOwnPeerId())
+    {
+        setOwnModerator(enable);
+    }
+
+    // for all sessions whose userid matches with received one, update moderator status
+    for (auto& it : mPeersVerification)
+    {
+        promise::Promise<void>* pms = &it.second;
+        auto wptr = weakHandle();
+        pms->then([this, &cid = it.first, userid, enable, wptr]()
+        {
+          if (wptr.deleted())  { return; }
+          Session* session = getSession(cid);
+          if (!session || session->getPeerid() != userid)
+          {
+              return;
+          }
+          session->setModerator(enable);
+        })
+        .fail([&cid = it.first](const ::promise::Error&)
+        {
+            RTCM_LOG_WARNING("updateUserModeratorStatus: PeerVerification promise was rejected for cid: %u", cid);
+            return;
+        });
+    }
+    return true;
+}
+
+bool Call::updateSpeakersList(const karere::Id& userid, const bool add)
+{
+    const bool updated = add ? addToSpeakersList(userid) : removeFromSpeakersList(userid);
+    if (updated)
+    {
+        mCallHandler.onUserSpeakStatusUpdate(*this, userid, add);
+        return true;
+    }
+    return false;
+}
+
+bool Call::updateSpeakRequestsList(const karere::Id& userid, const bool add)
+{
+    const bool updated = add ? addToSpeakRequestsList(userid) : removeFromSpeakRequestsList(userid);
+    if (updated)
+    {
+        mCallHandler.onSpeakRequest(*this, userid, add);
+        return true;
+    }
+    return false;
+}
+
 Keyid_t Call::generateNextKeyId()
 {
     if (mMyPeer->getCurrentKeyId() >= 255
@@ -3215,9 +3137,7 @@ void Call::generateAndSendNewMediakey(bool reset)
                 return;
             }
 
-            // add key to peer's key map, although is not encrypted for any other participant,
-            // as we need to start sending audio frames as soon as we receive SPEAK_ON command
-            // and we could receive it even if there's no more participants in the meeting
+            // add key to peer's key map, although is not encrypted for any other participant
             mMyPeer->addKey(newKeyId, plainKeyStr);
         }, RtcConstant::kRotateKeyUseDelay, mRtc.getAppCtx());
 
@@ -3320,7 +3240,7 @@ void Call::attachSlotToSession (Session& session, RemoteSlot* slot, const bool a
     }
 }
 
-void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
+void Call::addSpeaker(const Cid_t cid, const uint32_t amid)
 {
     if (cid == K_INVALID_CID)
     {
@@ -3328,17 +3248,16 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         assert(false);
     }
 
-    if (speaker.mMid == sfu::TrackDescriptor::invalidMid)
+    if (amid == sfu::TrackDescriptor::invalidMid)
     {
         // peer notified as speaker from SFU, but track not provided yet (this happens if peer is muted)
-        // TODO: check when we fully support raise-to-speak requests (to avoid sending an unnecessary speak request)
         return;
     }
 
-    auto it = mReceiverTracks.find(speaker.mMid);
+    auto it = mReceiverTracks.find(amid);
     if (it == mReceiverTracks.end())
     {
-        RTCM_LOG_WARNING("AddSpeaker: unknown track mid %u", speaker.mMid);
+        RTCM_LOG_WARNING("AddSpeaker: unknown track mid %u", amid);
         return;
     }
 
@@ -3394,28 +3313,6 @@ void Call::addSpeaker(Cid_t cid, const sfu::TrackDescriptor &speaker)
         RTCM_LOG_WARNING("handleKeyCommand: PeerVerification promise was rejected for cid: %u", cid);
         return;
     });
-}
-
-void Call::removeSpeaker(Cid_t cid)
-{
-    Session* sess = getSession(cid);
-    if (!sess)
-    {
-        RTCM_LOG_WARNING("removeSpeaker: unknown cid: %u", cid);
-        return;
-    }
-
-    if (sess->getAudioSlot())
-    {
-        if (!sess->hasSpeakPermission())
-        {
-            RTCM_LOG_ERROR("removeSpeaker: trying to remove a speaker whose permission to speak was disabled"
-                           " callid: %s, cid: %u", getCallid().toString().c_str(), cid);
-            assert(false);
-            // even if we didn't have speak permission, we need to disable audio slot (if any)
-        }
-        sess->disableAudioSlot();
-    }
 }
 
 sfu::Peer& Call::getMyPeer()
@@ -3524,7 +3421,7 @@ void Call::collectNonRTCStats()
 
 void Call::initStatsValues()
 {
-    mStats.mPeerId = mMyPeer->getPeerid();
+    mStats.mPeerId = getOwnPeerId();
     mStats.mCallid = mCallid;
     mStats.mIsGroup = mIsGroup;
     mStats.mDevice = mRtc.getDeviceInfo();
@@ -3533,6 +3430,7 @@ void Call::initStatsValues()
 
 void Call::enableStats()
 {
+    mStats.mSfuProtoVersion = static_cast<uint32_t>(mRtc.getMySfuProtoVersion());
     mStats.mCid = getOwnCid();
     mStats.mTimeOffset = getJoinOffset();
     auto wptr = weakHandle();
@@ -3868,7 +3766,7 @@ void Call::updateAudioTracks()
         return;
     }
 
-    bool audio = mSpeakerState > SpeakerState::kNoSpeaker && getLocalAvFlags().audio();
+    bool audio = hasUserSpeakPermission(mMyPeer->getPeerid()) && getLocalAvFlags().audio();
     rtc::scoped_refptr<webrtc::MediaStreamTrackInterface> track = mAudio->getTransceiver()->sender()->track();
     if (audio && !getLocalAvFlags().isOnHold())
     {
@@ -4399,6 +4297,24 @@ unsigned int RtcModuleSfu::getNumInputVideoTracks() const
     return mRtcNumInputVideoTracks;
 }
 
+sfu::SfuProtocol RtcModuleSfu::getMySfuProtoVersion() const
+{
+    return mMySfuProtoVersion;
+}
+
+bool RtcModuleSfu::isSpeakRequestSupportEnabled() const
+{
+    return mIsSpeakRequestEnabled;
+}
+
+void RtcModuleSfu::enableSpeakRequestSupportForCalls(const bool enable)
+{
+    mIsSpeakRequestEnabled = enable;
+    mMySfuProtoVersion = enable
+                            ? sfu::SfuProtocol::SFU_PROTO_V4
+                            : sfu::SfuProtocol::SFU_PROTO_PROD;
+}
+
 void RtcModuleSfu::setNumInputVideoTracks(const unsigned int numInputVideoTracks)
 {
     if (!isValidInputVideoTracksLimit(mRtcNumInputVideoTracks))
@@ -4788,11 +4704,6 @@ bool Session::isModerator() const
     return mPeer.isModerator();
 }
 
-bool Session::hasSpeakPermission() const
-{
-    return mPeer.hasSpeakPermission();
-}
-
 void Session::notifyHiResReceived()
 {
     mSessionHandler->onHiResReceived(*this);
@@ -4825,7 +4736,6 @@ void Session::setHiResSlot(RemoteVideoSlot *slot)
 void Session::setAudioSlot(RemoteAudioSlot *slot)
 {
     mAudioSlot = slot;
-    setSpeakRequested(false);
 }
 
 void Session::addKey(Keyid_t keyid, const std::string &key)
@@ -4857,16 +4767,6 @@ void Session::setRemoteAvFlags(karere::AvFlags flags)
     if (recordingChanged)   { mSessionHandler->onRecordingChanged(*this); }
     if (onHoldChanged)      { mSessionHandler->onOnHold(*this); }
     if (onAvChanged)        { mSessionHandler->onRemoteFlagsChanged(*this); }
-}
-
-void Session::setSpeakPermission(const bool hasSpeakPermission)
-{
-    if (hasSpeakPermission == mPeer.hasSpeakPermission())
-    {
-        return;
-    }
-    mPeer.setSpeakPermission(hasSpeakPermission);
-    mSessionHandler->onSpeakStatusUpdate(*this);
 }
 
 RemoteAudioSlot *Session::getAudioSlot()
@@ -4916,22 +4816,9 @@ void Session::disableVideoSlot(VideoResolution videoResolution)
 
 void Session::setModerator(bool isModerator)
 {
-    if (mPeer.isModerator() == isModerator)
-    {
-        return;
-    }
+    if (mPeer.isModerator() == isModerator) { return; }
     mPeer.setModerator(isModerator);
     mSessionHandler->onPermissionsChanged(*this);
-}
-
-void Session::setSpeakRequested(bool requested)
-{
-    if (mHasRequestSpeak == requested)
-    {
-        return;
-    }
-    mHasRequestSpeak = requested;
-    mSessionHandler->onSpeakRequest(*this);
 }
 
 const karere::Id& Session::getPeerid() const
@@ -4957,11 +4844,6 @@ karere::AvFlags Session::getAvFlags() const
 bool Session::isAudioDetected() const
 {
     return mAudioDetected;
-}
-
-bool Session::hasRequestSpeak() const
-{
-    return mHasRequestSpeak;
 }
 
 AudioLevelMonitor::AudioLevelMonitor(Call &call, void* appCtx, int32_t cid)

@@ -23,6 +23,7 @@
 #define CHATTEST_H
 
 #include "megachatapi.h"
+#include "async_utils.h"
 #include <chatClient.h>
 #include <future>
 #include <fstream> // Win build requires it
@@ -511,22 +512,30 @@ public:
         std::map<std::string, bool*> mVars;
     };
 
-    static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
+    static std::string getIdStrB64(const megachat::MegaChatHandle h, const std::string &msg)
     {
         const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID callid";
+        return idB64 ? idB64.get() : msg;
+    }
+
+    static std::string getUserIdStrB64(const megachat::MegaChatHandle h)
+    {
+        return getIdStrB64(h, "INVALID userId");
+    };
+
+    static std::string getCallIdStrB64(const megachat::MegaChatHandle h)
+    {
+        return getIdStrB64(h, "INVALID callId");
     };
 
     static std::string getChatIdStrB64(const megachat::MegaChatHandle h)
     {
-        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID chatId";
+        return getIdStrB64(h, "INVALID chatId");
     };
 
     static std::string getSchedIdStrB64(const megachat::MegaChatHandle h)
     {
-        const std::unique_ptr<char[]> idB64(mega::MegaApi::userHandleToBase64(h));
-        return idB64 ? idB64.get() : "INVALID schedId";
+        return getIdStrB64(h, "INVALID schedId");
     };
 
     MegaChatApiTest();
@@ -624,6 +633,7 @@ protected:
     void makeContact(const unsigned int a1, const unsigned int a2);
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
+    megachat::MegaChatHandle getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, megachat::MegaChatPeerList* peers);
     megachat::MegaChatHandle getGroupChatRoom();
     bool addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid);
     void cleanChatVideoListeners();
@@ -769,6 +779,22 @@ protected:
 #endif
 
     /**
+     * @brief Allows to adjust the chatroom permissions for a participant (moderator role required)
+     *
+     * @param performerIdx index of user account that is going to perform the action
+     * @param userIdx index of user account whose chat permission is going to be modified
+     * @param uh MegaChatHandle that identifies the user account whose chat permission is going to be modified
+     * @param privilege new privilege
+     * @param crl TestChatRoomListener that tracks the changes related to chatroom
+     */
+    void updateChatPermissions(const unsigned int performerIdx,
+                               const unsigned int userIdx,
+                               const megachat::MegaChatHandle uh,
+                               const megachat::MegaChatHandle chatId,
+                               const int privilege,
+                               TestChatRoomListener* crl);
+
+    /**
      * @brief Allows to set the title of a group chat
      *
      * The account idx that will perform this operation will be the idx
@@ -833,10 +859,6 @@ protected:
     void inviteToChat (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
                        std::shared_ptr<TestChatRoomListener>chatroomListener);
 
-
-    void updateChatPermission (const unsigned int& a1, const unsigned int& a2, const megachat::MegaChatHandle& uh, const megachat::MegaChatHandle& chatid, const int privilege,
-                               std::shared_ptr<TestChatRoomListener>chatroomListener);
-
     // updates an existing scheduled meeting
     void updateSchedMeeting(const unsigned int a1, const unsigned int a2, const int expectedError, const SchedMeetingData& smData, const bool updateChatTitle);
 
@@ -847,8 +869,19 @@ protected:
     // calls auxiliar methods
     // ----------------------------------------------------------------------------------------------------------------------------
 
-    void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
+    /** Checks that callid for account idx has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS) **/
+    void checkCallIdInProgress(const unsigned idx);
+
+    // deprecated - replace all usages of this method by answerChatCall prototype above
     void answerChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
+
+
+    // starts a call in a chatroom with waiting room option enabled
+    void startChatCall(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
+                       const bool enableVideo, const bool enableAudio, const bool notRinging, const unsigned int timeout);
+
+    // deprecated - replace all usages of this method by startChatCall prototype above
+    void startChatCall(const megachat::MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio);
 
     // gets a pointer to the local flag that indicates if we have reached an specific callstate
     bool* getChatCallStateFlag (unsigned int index, int state);
@@ -936,14 +969,14 @@ protected:
     bool mChatCallSessionStatusInProgress[NUM_ACCOUNTS];
     bool mChatSessionWasDestroyed[NUM_ACCOUNTS];
     bool mChatCallSilenceReq[NUM_ACCOUNTS];
+    bool mUserSpeakPermChanged[NUM_ACCOUNTS];
     bool mSessSpeakPermChanged[NUM_ACCOUNTS];
     bool mOwnFlagsChanged[NUM_ACCOUNTS];
     bool mOwnSpeakStatusChanged[NUM_ACCOUNTS];
     bool mOwnCallPermissionsChanged[NUM_ACCOUNTS];
-    bool mSessSpeakReqRecv[NUM_ACCOUNTS];
-    unsigned mOwnSpeakStatus[NUM_ACCOUNTS];
-    std::map<::megachat::MegaChatHandle, bool> mSessSpeakPerm[NUM_ACCOUNTS];
-    std::map<::megachat::MegaChatHandle, bool> mSessSpeakRequests[NUM_ACCOUNTS];
+    bool mSpeakReqRecv[NUM_ACCOUNTS];
+    std::map<::megachat::MegaChatHandle, bool> mUserSpeakPerm[NUM_ACCOUNTS];
+    std::map<::megachat::MegaChatHandle, bool> mSpeakRequests[NUM_ACCOUNTS];
 #endif
 
     bool mLoggedInAllChats[NUM_ACCOUNTS];
@@ -1086,40 +1119,7 @@ class MegaChatApiUnitaryTest: public ::testing::Test
 {
 };
 
-class ResultHandler
-{
-public:
-    int waitForResult(int seconds = maxTimeout)
-    {
-        if (std::future_status::ready != futureResult.wait_for(std::chrono::seconds(seconds)))
-        {
-            errorStr = "Timeout";
-            return -999; // local timeout
-        }
-        return futureResult.get();
-    }
-
-    const std::string& getErrorString() const { return errorStr; }
-
-protected:
-    void finish(int errCode, std::string&& errStr)
-    {
-        assert(!resultReceived); // call this function only once!
-        errorStr.swap(errStr);
-        resultReceived = true;
-        promiseResult.set_value(errCode);
-    }
-
-    bool finished() const { return resultReceived; }
-
-protected:
-    std::promise<int> promiseResult;
-    std::future<int> futureResult = promiseResult.get_future();
-    std::atomic<bool> resultReceived = false;
-    std::string errorStr;
-};
-
-class RequestTracker : public ::mega::MegaRequestListener, public ResultHandler
+class RequestTracker : public ::mega::MegaRequestListener, public megachat::async::ResultHandler
 {
 public:
     RequestTracker(mega::MegaApi *megaApi)
@@ -1169,7 +1169,7 @@ private:
     mega::MegaApi* mApi;
 };
 
-class ChatRequestTracker : public megachat::MegaChatRequestListener, public ResultHandler
+class ChatRequestTracker : public megachat::MegaChatRequestListener, public megachat::async::ResultHandler
 {
 public:
     ChatRequestTracker(megachat::MegaChatApi* megaChatApi)
@@ -1246,7 +1246,7 @@ private:
     megachat::MegaChatApi* mMegaChatApi;
 };
 
-class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public ResultHandler
+class ChatLogoutTracker : public ::megachat::MegaChatRequestListener, public megachat::async::ResultHandler
 {
 public:
     void onRequestFinish(::megachat::MegaChatApi*, ::megachat::MegaChatRequest* req,
@@ -1264,7 +1264,9 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) override;
-    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::map<Cid_t, sfu::TrackDescriptor>& speakers) override;
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::set<karere::Id>& speakers,
+                             const std::set<karere::Id>& speakReqs,
+                             const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleVThumbsStartCommand() override;
@@ -1272,10 +1274,8 @@ public:
     bool handleHiResCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
     bool handleHiResStartCommand() override;
     bool handleHiResStopCommand() override;
-    bool handleSpeakReqsCommand(const std::vector<Cid_t>&) override;
-    bool handleSpeakReqDelCommand(Cid_t cid) override;
-    bool handleSpeakOnCommand(Cid_t cid) override;
-    bool handleSpeakOffCommand(Cid_t cid) override;
+    bool handleSpeakerAddDelCommand(const uint64_t userid, const bool add) override;
+    bool handleSpeakReqAddDelCommand(const uint64_t userid, const bool add) override;
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
@@ -1288,16 +1288,17 @@ public:
     void logError(const char* error) override;
     bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
                      const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                     const bool speakRequest, const sfu::WrUserList& wrUsers) override;
+                     const bool speakRequest, const sfu::WrUserList& wrUsers, const int /*ldurSecs*/) override;
 
     bool handleWrDump(const sfu::WrUserList& wrUsers) override;
     bool handleWrEnter(const sfu::WrUserList& wrUsers) override;
     bool handleWrLeave(const karere::Id& user) override;
-    bool handleWrAllow(const Cid_t& cid, const std::set<karere::Id>& mods) override;
-    bool handleWrDeny(const std::set<karere::Id>& mods) override;
+    bool handleWrAllow(const Cid_t& cid) override;
+    bool handleWrDeny() override;
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
     bool handleMutedCommand(const unsigned av, const Cid_t /*cidPerf*/) override;
+    bool handleWillEndCommand(const int /*endsIn*/) override;
 };
 #endif
 #endif // CHATTEST_H

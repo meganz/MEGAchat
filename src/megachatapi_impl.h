@@ -194,7 +194,6 @@ public:
     virtual int getStatus() const override;
     virtual MegaChatHandle getPeerid() const override;
     virtual MegaChatHandle getClientid() const override;
-    bool isSpeakAllowed() const override;
     virtual bool hasAudio() const override;
     virtual bool hasVideo() const override;
     virtual bool isHiResVideo() const override;
@@ -211,10 +210,8 @@ public:
     virtual int getTermCode() const override;
     virtual bool hasChanged(int changeType) const override;
     virtual bool isAudioDetected() const override;
-    virtual bool hasPendingSpeakRequest() const override;
     virtual bool canRecvVideoHiRes() const override;
     virtual bool canRecvVideoLowRes() const override;
-    virtual bool hasSpeakPermission() const override;
     virtual bool isModerator() const override;
 
     char* avFlagsToString() const override;
@@ -234,12 +231,10 @@ private:
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     int mTermCode = MegaChatSession::SESS_TERM_CODE_INVALID;
     int mChanged = MegaChatSession::CHANGE_TYPE_NO_CHANGES;
-    bool mHasRequestSpeak = false;
     bool mAudioDetected = false;
     bool mHasHiResTrack = false;
     bool mHasLowResTrack = false;
     bool mIsModerator = false;
-    bool mHasSpeakPermission = false;
 };
 
 class MegaChatCallPrivate : public MegaChatCall
@@ -261,8 +256,8 @@ public:
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
-    bool hasSpeakPermission() const override;
 
+    virtual bool hasUserSpeakPermission(const MegaChatHandle uh) const override;
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
     virtual int64_t getFinalTimeStamp() const override;
@@ -273,6 +268,7 @@ public:
     MegaChatHandle getAuxHandle() const override;
     virtual bool isRinging() const override;
     virtual bool isOwnModerator() const override;
+    mega::MegaHandleList* getSessionsClientidByUserHandle(const MegaChatHandle uh) const override;
     virtual mega::MegaHandleList *getSessionsClientid() const override;
     virtual MegaChatHandle getPeeridCallCompositionChange() const override;
     virtual int getCallCompositionChange() const override;
@@ -284,20 +280,34 @@ public:
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
     virtual bool isOwnClientCaller() const override;
-    virtual unsigned int getSpeakerState() const override;
     virtual MegaChatHandle getCaller() const override;
     virtual bool isOnHold() const override;
     const char* getGenericMessage() const override;
-    bool isSpeakAllowed() const override;
     int getNetworkQuality() const override;
-    bool hasPendingSpeakRequest() const override;
+    bool hasUserPendingSpeakRequest(const MegaChatHandle uh) const override;
     int getWrJoiningState() const override;
     const MegaChatWaitingRoom* getWaitingRoom() const override;
-
+    MegaChatHandle getHandle() const override;
+    void setHandle(const MegaChatHandle h);
+    bool getFlag() const override;
+    void setFlag(const bool f);
+    int getNum() const override;
+    int getCallDurationLimit() const override;
+    void setCallDurationLimit(const int lim);
     void setStatus(int status);
     void removeChanges();
     void setChange(int changed);
     MegaChatSessionPrivate *addSession(rtcModule::ISession &sess);
+
+    /**
+     * @brief Set generic numeric value that can be used for multiple purposes
+     *
+     * @note if this method is called more than once for the same MegaChatCallPrivate instance,
+     * the value stored at mNum will be overwritten,
+     *
+     * It's recommended to check under which circumstances is used, to avoid conflicts.
+     */
+    void setNum(const int n);
 
     int availableAudioSlots();
     int availableVideoSlots();
@@ -306,6 +316,9 @@ public:
     void setId(const karere::Id& callid);
     void setCaller(const karere::Id& caller);
     void setHandleList(const mega::MegaHandleList* handleList);
+    void setSpeakersList(const ::mega::MegaHandleList* speakersList);
+    const ::mega::MegaHandleList* getSpeakRequestsList() const override;
+    const mega::MegaHandleList* getSpeakersList() const override;
     const mega::MegaHandleList* getHandleList() const override;
     void setNotificationType(int notificationType);
     void setAuxHandle(const MegaChatHandle h);
@@ -327,26 +340,31 @@ protected:
     std::map<MegaChatHandle, std::unique_ptr<MegaChatSession>> mSessions;
     std::vector<MegaChatHandle> mParticipants;
     MegaChatHandle mPeerId = MEGACHAT_INVALID_HANDLE;
+    MegaChatHandle mHandle = MEGACHAT_INVALID_HANDLE;
     int mCallCompositionChange = MegaChatCall::NO_COMPOSITION_CHANGE;
     MegaChatHandle mCallerId;
     std::string mMessage;
     std::unique_ptr<::mega::MegaHandleList> mModerators;
     std::unique_ptr<::mega::MegaHandleList> mHandleList;
+    std::unique_ptr<::mega::MegaHandleList> mSpeakersList;
+    std::unique_ptr<::mega::MegaHandleList> mSpeakRequestsList;
     std::unique_ptr<MegaChatWaitingRoom> mMegaChatWaitingRoom;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
     int mEndCallReason = MegaChatCall::END_CALL_REASON_INVALID;
     int mNotificationType = MegaChatCall::NOTIFICATION_TYPE_INVALID;
-    unsigned int mSpeakerState = SPEAKER_STATUS_DISABLED;
     bool mIgnored = false;
     bool mRinging = false;
     bool mIsCaller = false;
     bool mIsOwnClientCaller = false;
     bool mOwnModerator = false;
     bool mSpeakRequest = false;
+    bool mFlag = false;
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
     MegaChatHandle mAuxHandle = MEGACHAT_INVALID_HANDLE;
+    int mCallDurationLimit = CALL_LIMIT_DURATION_DISABLED; // in seconds
+    int64_t mNum = 0; // generic numeric value that can be used for multiple purposes
 };
 
 class MegaChatWaitingRoomPrivate: public MegaChatWaitingRoom
@@ -708,6 +726,7 @@ public:
     ~MegaChatCallHandler();
     void onCallStateChange(rtcModule::ICall& call) override;
     void onCallRinging(rtcModule::ICall &call) override;
+    void onCallWillEndr(rtcModule::ICall &call, const int endsIn) override;
     void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) override;
     void onNewSession(rtcModule::ISession& session, const rtcModule::ICall& call) override;
     void onLocalFlagsChanged(const rtcModule::ICall& call, const Cid_t cidPerf = K_INVALID_CID) override;
@@ -726,7 +745,8 @@ public:
     void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) override;
     void onWrPushedFromCall(const rtcModule::ICall& call) override;
     void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) override;
-    void onSpeakStatusUpdate(const rtcModule::ICall& call) override;
+    void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
+    void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add);
 
 private:
     MegaChatApiImpl* mMegaChatApi;
@@ -751,7 +771,6 @@ class MegaChatSessionHandler : public rtcModule::SessionHandler
 public:
     MegaChatSessionHandler(MegaChatApiImpl *mMegaChatApi, const rtcModule::ICall& call);
     virtual ~MegaChatSessionHandler();
-    void onSpeakRequest(rtcModule::ISession& session) override;
     void onVThumbReceived(rtcModule::ISession& session) override;
     void onHiResReceived(rtcModule::ISession& session) override;
     void onDestroySession(rtcModule::ISession& session) override;
@@ -760,7 +779,6 @@ public:
     void onRemoteAudioDetected(rtcModule::ISession& session) override;
     void onPermissionsChanged(rtcModule::ISession& session) override;
     void onRecordingChanged(rtcModule::ISession& session) override;
-    void onSpeakStatusUpdate(rtcModule::ISession& session) override;
 
 private:
     MegaChatApiImpl *mMegaChatApi;
@@ -1390,13 +1408,12 @@ private:
     int performRequest_setCallOnHold(MegaChatRequestPrivate* request);
     int performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request);
     int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
-    int performRequest_speakRequest(MegaChatRequestPrivate* request);
-    int performRequest_speakApproval(MegaChatRequestPrivate* request);
+    int performRequest_addDelspeakRequest(MegaChatRequestPrivate* request);
+    int performRequest_addRevokeSpeakePermission(MegaChatRequestPrivate* request);
     int performRequest_hiResVideo(MegaChatRequestPrivate* request);
     int performRequest_lowResVideo(MegaChatRequestPrivate* request);
     int performRequest_videoDevice(MegaChatRequestPrivate* request);
     int performRequest_requestHiResQuality(MegaChatRequestPrivate* request);
-    int performRequest_removeSpeaker(MegaChatRequestPrivate* request);
     int performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request);
     int performRequest_kickUsersFromCall(MegaChatRequestPrivate* request);
     int performRequest_rejectCall(MegaChatRequestPrivate* request);
@@ -1674,11 +1691,10 @@ public:
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void rejectCall(const MegaChatHandle callId, MegaChatRequestListener* listener = nullptr);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);
-    void removeSpeaker(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
     void pushUsersIntoWaitingRoom(MegaChatHandle chatid, mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void allowUsersJoinCall(MegaChatHandle chatid, const mega::MegaHandleList* users, const bool all, MegaChatRequestListener* listener = nullptr);
     void kickUsersFromCall(MegaChatHandle chatid, mega::MegaHandleList* users, MegaChatRequestListener* listener = nullptr);
-    void setLimitsInCall(const MegaChatHandle chatid, const unsigned callDur, const unsigned numUsers, const unsigned numClientsPerUser, const unsigned numClients, MegaChatRequestListener* listener = nullptr);
+    void setLimitsInCall(const MegaChatHandle chatid, const unsigned long callDur, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients, MegaChatRequestListener* listener = nullptr);
     void mutePeers(const MegaChatHandle chatid, const MegaChatHandle clientId, MegaChatRequestListener* listener = nullptr);
     MegaChatCall *getChatCall(MegaChatHandle chatId);
     bool setIgnoredCall(MegaChatHandle chatId);
@@ -1692,15 +1708,14 @@ public:
     bool isValidSimVideoTracks(const unsigned int maxSimVideoTracks) const;
     bool isAudioLevelMonitorEnabled(MegaChatHandle chatid);
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void requestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void removeRequestSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-    void approveSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
-    void rejectSpeakRequest(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener = NULL);
+    void addRevokeSpeakPermission(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
+    void enableSpeakRequestSupportForCalls(const bool enable);
+    void addDelSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
-    std::pair<int, rtcModule::ICall*> getCallWithModPermissions(const MegaChatHandle chatid, bool waitingRoom, const std::string& msg);
+    std::pair<int, rtcModule::ICall*> getCall(const MegaChatHandle chatid, const std::string& msg, const bool ownPrivMod, karere::MTristate waitingRoom = karere::MTristate());
 #endif
 
 //    MegaChatCallPrivate *getChatCallByPeer(const char* jid);

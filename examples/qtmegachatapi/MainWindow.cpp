@@ -295,21 +295,73 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         std::cerr << "onChatCallUpdate: outgoing ringing stop received but our client is not the caller";
         return;
     }
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END))
+    {
+        QMessageBox msgBox;
+        QString myString;
+        const auto endsIn = call->getNum();
+        if (endsIn == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED)
+        {
+            msgBox.setIcon(QMessageBox::Information);
+            myString.append("Call duration is now unlimited. Call duration restriction has been removed");
+        }
+        else
+        {
+            msgBox.setIcon(QMessageBox::Warning);
+            myString = QString("Call will end in ")
+                           + QString(std::to_string(endsIn).c_str())
+                           + QString(" (seconds) due to MEGA account restrictions");
+        }
 
+        msgBox.setText(myString);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.exec();
+    }
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS)
         || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD)
-        || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW)
-        || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY))
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY)
+        || (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END)
+                && call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED))
     {
         if (itemController->getMeetingView()) { itemController->getMeetingView()->updateLabel(call); }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED))
+    {
+        MeetingView* meetingView = itemController->getMeetingView();
+        if (meetingView)
+        {
+            std::unique_ptr<MegaHandleList> hl (call->getSessionsClientidByUserHandle(call->getHandle()));
+            assert(hl);
+            for (unsigned int i = 0; i < hl->size(); ++i)
+            {
+                const auto cid = hl->get(i);
+                MegaChatSession* sess = call->getMegaChatSession(cid);
+                assert(sess);
+                if (sess)
+                {
+                    meetingView->updateSession(*sess);
+                }
+            }
+            itemController->getMeetingView()->updateLabel(call);
+        }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED))
+    {
+        if (itemController->getMeetingView())
+        {
+            itemController->getMeetingView()->updateLabel(call);
+        }
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_DENY))
@@ -731,6 +783,9 @@ void MainWindow::on_bSettings_clicked()
 
     auto actSFUId = othersMenu->addAction(tr("Set SFU id"));
     connect(actSFUId, SIGNAL(triggered()), this, SLOT(onSetSFUId()));
+
+    auto actSpeakReq = othersMenu->addAction(tr("Enable speak request feature"));
+    connect(actSpeakReq, SIGNAL(triggered()), this, SLOT(onSpeakReqFeature()));
 
     auto actUseStaging = othersMenu->addAction("Use API staging");
     connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
@@ -1599,6 +1654,12 @@ void MainWindow::on_mLogout_clicked()
 void MainWindow::onCatchUp()
 {
     mMegaApi->catchup();
+}
+
+void MainWindow::onSpeakReqFeature()
+{
+    bool enable = atoi(mApp->getText("Enable speak request feature? 1(enable) | 0(disable)").c_str());
+    mMegaChatApi->enableSpeakRequestSupportForCalls(enable);
 }
 
 void MainWindow::onSetSFUId()

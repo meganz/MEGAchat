@@ -7,6 +7,54 @@
 namespace  rtcModule
 {
 
+void QualityLimitationReport::addIncident(const std::string& reason)
+{
+    const std::pair<std::string, EReason>* it;
+    if (reason == "") // empty reason is treated as EReason::NONE ("none")
+    {
+        it = std::find_if(mStrReasonMap.begin(),
+                          mStrReasonMap.end(),
+                          [](const auto& p)
+                          {
+                              return p.second == EReason::NONE;
+                          });
+        if (it == mStrReasonMap.end())
+        {
+            std::cerr << "qualityLimitationReason: EReason::NONE is not in the mStrReasonMap\n";
+            assert(false); // Fatal: NONE must be in mStrReasonMap
+            return;
+        }
+    }
+    else
+    {
+        it = std::find_if(mStrReasonMap.begin(),
+                          mStrReasonMap.end(),
+                          [&reason](const auto& p)
+                          {
+                              return p.first == reason;
+                          });
+        if (it == mStrReasonMap.end())
+        {
+            std::cerr << "qualityLimitationReason: unexpected reason: " << reason << "\n";
+            assert(false); // Not contemplated reason
+            return;
+        }
+    }
+    size_t index = static_cast<size_t>(it - mStrReasonMap.begin());
+    ++mIncidentCounter[index];
+}
+
+void QualityLimitationReport::toJson(rapidjson::Value& value, rapidjson::Document& json)
+{
+    for (uint32_t i = 0; i < NUMBER_OF_REASONS; ++i)
+    {
+        rapidjson::Value pair(rapidjson::kArrayType);
+        pair.PushBack(static_cast<uint32_t>(mStrReasonMap[i].second), json.GetAllocator());
+        pair.PushBack(mIncidentCounter[i], json.GetAllocator());
+        value.PushBack(pair.Move(), json.GetAllocator());
+    }
+}
+
 void ConnStatsCallBack::removeStats()
 {
     mStats = nullptr;
@@ -16,7 +64,7 @@ std::string Stats::getJson()
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value sfuv(rapidjson::kNumberType);
-    sfuv.SetUint(static_cast<unsigned int>(sfu::MY_SFU_PROTOCOL_VERSION));
+    sfuv.SetUint(mSfuProtoVersion);
     json.AddMember("v", sfuv, json.GetAllocator());
     rapidjson::Value userid(rapidjson::kStringType);
     userid.SetString(mPeerId.toString().c_str(), json.GetAllocator());
@@ -103,6 +151,10 @@ std::string Stats::getJson()
         parseSamples(mSamples.mAudioJitter, audioJitter, json, false);
         samples.AddMember("jtr", audioJitter, json.GetAllocator());
 
+        rapidjson::Value qualityLimitationReason(rapidjson::kArrayType);
+        mSamples.mQualityLimitations.toJson(qualityLimitationReason, json);
+        samples.AddMember("f", qualityLimitationReason, json.GetAllocator());
+
         json.AddMember("samples", samples, json.GetAllocator());
     }
 
@@ -153,6 +205,7 @@ void Stats::clear()
     mSamples.mVtxHiResfps.clear();
     mSamples.mVtxHiResw.clear();
     mSamples.mVtxHiResh.clear();
+    mSamples.mQualityLimitations.clear();
 }
 
 bool Stats::isEmptyStats()
@@ -350,6 +403,11 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                     {
                         double totalPacketSendDelay = *member->cast_to<const webrtc::RTCStatsMember<double>>();
                         mStats->mSamples.mTotalPacketSendDelay.back() = totalPacketSendDelay;
+                    }
+                    else if (strcmp(member->name(), "qualityLimitationReason") == 0)
+                    {
+                        std::string limitationReason = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
+                        mStats->mSamples.mQualityLimitations.addIncident(limitationReason);
                     }
                 }
 
