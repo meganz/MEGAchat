@@ -950,7 +950,8 @@ void MeetingView::onSetLimits()
     auto numUsers = getNumLimit("Set max different users accounts: ");
     auto numClientsPerUser = getNumLimit("Set max clients per user");
     auto numClients = getNumLimit("Set max total clients in the call: ");
-    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClientsPerUser, numClients);
+    auto divider = getNumLimit("Set divider to apply to non passed limits: ");
+    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClientsPerUser, numClients, divider);
 }
 
 void MeetingView::onJoinCallWithoutVideo()
