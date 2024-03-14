@@ -170,6 +170,7 @@ struct CLCStateChange
     {}
 };
 
+#ifndef KARERE_DISABLE_WEBRTC
 class CLCCallListener: public c::MegaChatCallListener
 {
     void onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaChatCall* call) override;
@@ -192,6 +193,7 @@ private:
                                    const megachat::MegaChatHandle callid,
                                    const megachat::MegaChatSession* session) const;
 };
+#endif
 
 struct CLCFinishInfo
 {

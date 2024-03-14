@@ -63,7 +63,9 @@ extern std::unique_ptr<::megachat::MegaChatApi> g_chatApi;
 extern std::map<::megachat::MegaChatHandle, clc_listen::CLCRoomListenerRecord> g_roomListeners;
 extern std::map<::megachat::MegaChatHandle, clc_listen::CLCStateChange> g_callStateMap;
 extern clc_listen::CLCListener g_clcListener;
+#ifndef KARERE_DISABLE_WEBRTC
 extern clc_listen::CLCCallListener g_clcCallListener;
+#endif
 extern clc_listen::CLCMegaListener g_megaclcListener;
 extern clc_listen::CLCChatListener g_chatListener;
 extern clc_listen::CLCMegaGlobalListener g_globalListener;
