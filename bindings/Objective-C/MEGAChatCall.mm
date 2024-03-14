@@ -96,6 +96,14 @@ using namespace megachat;
     return (MEGAChatCallTermCode) (self.megaChatCall ? self.megaChatCall->getTermCode() : 0);
 }
 
+- (NSInteger)numberValue {
+    return self.megaChatCall ? self.megaChatCall->getNum() : 0;
+}
+
+- (NSInteger)callDurationLimit {
+    return self.megaChatCall ? self.megaChatCall->getCallDurationLimit() : 0;
+}
+
 - (MEGAChatCallNotificationType)notificationType {
     return self.megaChatCall ? MEGAChatCallNotificationType(self.megaChatCall->getNotificationType()) : MEGAChatCallNotificationTypeInvalid;
 }
