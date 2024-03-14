@@ -63,7 +63,6 @@ void exec_openchatroom(ac::ACState& s);
 void exec_closechatroom(ac::ACState& s);
 void exec_openchatpreview(ac::ACState& s);
 void exec_closechatpreview(ac::ACState& s);
-void exec_joinCallViaMeetingLink(ac::ACState& s);
 void exec_loadmessages(ac::ACState& s);
 void exec_dumpchathistory(ac::ACState& s);
 void exec_reviewpublicchat(ac::ACState& s);
@@ -87,6 +86,8 @@ void exec_dos_unix(ac::ACState& s);
 void exec_help(ac::ACState&);
 void exec_history(ac::ACState& s);
 void exec_quit(ac::ACState&);
+#ifndef KARERE_DISABLE_WEBRTC
+void exec_joinCallViaMeetingLink(ac::ACState& s);
 void exec_getchatvideoindevices(ac::ACState&);
 void exec_setchatvideoindevice(ac::ACState& s);
 void exec_startchatcall(ac::ACState& s);
@@ -102,6 +103,7 @@ void exec_getchatcallbycallid(ac::ACState&);
 void exec_getnumcalls(ac::ACState&);
 void exec_getchatcalls(ac::ACState&);
 void exec_getchatcallsids(ac::ACState&);
+#endif // KARERE_DISABLE_WEBRTC
 void exec_smsverify(ac::ACState& s);
 void exec_apiurl(ac::ACState& s);
 void exec_catchup(ac::ACState& s);
