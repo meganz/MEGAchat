@@ -110,6 +110,7 @@ void CLCChatRequestListener::onRequestFinish(c::MegaChatApi*,
     {
         clc_global::g_chatFinishedLogout = true;
     }
+#ifndef KARERE_DISABLE_WEBRTC
     else if ((request->getType() == c::MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO) &&
              (e->getErrorCode() != c::MegaChatError::ERROR_OK))
     {
@@ -144,6 +145,7 @@ void CLCChatRequestListener::onRequestFinish(c::MegaChatApi*,
         auto callid = call->getHandle();
         clc_global::g_callVideoParticipants.removeParticipant(callid, clientId);
     }
+#endif
 }
 
 CLCRoomListenerRecord::CLCRoomListenerRecord():
@@ -290,6 +292,7 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api,
     }
 }
 
+#ifndef KARERE_DISABLE_WEBRTC
 void CLCCallListener::onChatCallUpdate(megachat::MegaChatApi*, megachat::MegaChatCall* call)
 {
     using namespace mclc::clc_global;
@@ -505,6 +508,7 @@ bool CLCCallListener::addParticipantHighResVideo(const megachat::MegaChatHandle 
     clc_global::g_chatApi->requestHiResVideo(chatid, session->getClientid(), &resListener);
     return true;
 }
+#endif
 
 void CLCChatListener::onFinish(int n, std::function<void(CLCFinishInfo&)> f)
 {
