@@ -1054,6 +1054,8 @@ TEST_F(MegaChatApiTest, BasicTest)
  */
 TEST_F(MegaChatApiTest, CallLimitsFreePlan)
 {
+    // A value to denote a limit can take any value
+    static constexpr unsigned long UNKNOWN_LIMIT = std::numeric_limits<unsigned long>::max() - 1;
     struct CallLimits
     {
         static unsigned long getLimit(int n)
@@ -1262,9 +1264,18 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                                            << std::to_string(account);
                     continue;
                 }
-                EXPECT_EQ(*varHandle, expectedVarVals[i])
-                    << varLabels[i] << " values for account " << std::to_string(account)
-                    << " don't match";
+                if (auto expected = expectedVarVals[i]; expected != UNKNOWN_LIMIT)
+                {
+                    EXPECT_EQ(*varHandle, expectedVarVals[i])
+                        << varLabels[i] << " values for account " << std::to_string(account)
+                        << " don't match";
+                }
+                else
+                {
+                    EXPECT_NE(*varHandle, MegaChatCall::CALL_LIMIT_NO_PRESENT)
+                        << varLabels[i] << " values for account " << std::to_string(account)
+                        << " has CALL_LIMIT_NO_PRESENT value while any other value was expected";
+                }
             }
         }
         // We check all the accounts/vars before exiting the test
@@ -1319,9 +1330,6 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test SETLIM command";
     megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
     megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
-    constexpr unsigned long MAX_CLIENTS_PER_USER = 1000; // IMPORTANT: Change this value to the
-                                                         // correct one (probably 4) if staging is
-                                                         // not required for this test anymore
 
     // set chat selection criteria
     mData.mChatOptions.mCreate = true;
@@ -1501,7 +1509,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     emptyLimits.mDividerLimit = 1; // We need to pass at least one
     CallLimits defaultLimits{.mCallDur = 3600,
                              .mUsersLimit = 100,
-                             .mClientsPerUserLimit = 4,
+                             .mClientsPerUserLimit = UNKNOWN_LIMIT,
                              .mClientsLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                              .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
     ASSERT_NO_FATAL_FAILURE(
@@ -1516,7 +1524,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                          .mDividerLimit = 2};
     CallLimits expectedNewLimits{.mCallDur = 1800,
                                  .mUsersLimit = 50,
-                                 .mClientsPerUserLimit = 4,
+                                 .mClientsPerUserLimit = UNKNOWN_LIMIT,
                                  .mClientsLimit = 10,
                                  .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
     ASSERT_NO_FATAL_FAILURE(
@@ -1530,7 +1538,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                         .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
     CallLimits expectedNoLimits{.mCallDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                                 .mUsersLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
-                                .mClientsPerUserLimit = MAX_CLIENTS_PER_USER,
+                                .mClientsPerUserLimit = UNKNOWN_LIMIT,
                                 .mClientsLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                                 .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
     ASSERT_NO_FATAL_FAILURE(

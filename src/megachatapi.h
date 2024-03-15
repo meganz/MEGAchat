@@ -6753,10 +6753,13 @@ public:
      * @param numUsers Maximum number of participants (users, not clients - one user may join with several clients), allowed to join the call
      * @param numClientsPerUser Maximum number of clients with which a single user can join a call.
      * @param numClients Maximum total number of clients allowed to be in the call at the same time. This doesn't include the clients in the waiting room
-     * @param divider A divider that divides all existing limits by the specified number, rounding the result (except for callDur)
+     * @param divider A divider that divides all existing limits by the specified number, rounding the result (except for callDur).
+     *     Note: If there are other limits in the command, they will be applied after div, in other
+     *     words, the division will only be applied for limits set in previous requests.
      * @param listener MegaChatRequestListener to track this request
      */
-    void setLimitsInCall(const MegaChatHandle chatid, const unsigned long callDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+    void setLimitsInCall(const MegaChatHandle chatid,
+                         const unsigned long callDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                          const unsigned long numUsers = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                          const unsigned long numClientsPerUser = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                          const unsigned long numClients = MegaChatCall::CALL_LIMIT_NO_PRESENT,
