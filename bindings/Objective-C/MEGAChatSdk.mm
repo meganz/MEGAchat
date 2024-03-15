@@ -1018,6 +1018,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (void)setLimitsInCall:(uint64_t)chatId duration:(NSInteger)duration maxUsers:(NSInteger)maxUsers maxClientsPerUser:(NSInteger)maxClientsPerUser maxClients:(NSInteger)maxClients divider:(NSInteger)divider delegate:(id<MEGAChatRequestDelegate>)delegate {
+    if (self.megaChatApi) {
+        self.megaChatApi->setLimitsInCall(chatId, duration, maxUsers, maxClientsPerUser, maxClients, divider, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    }
+}
+
+- (void)setLimitsInCall:(uint64_t)chatId duration:(NSInteger)duration maxUsers:(NSInteger)maxUsers maxClientsPerUser:(NSInteger)maxClientsPerUser maxClients:(NSInteger)maxClients divider:(NSInteger)divider {
+    if (self.megaChatApi) {
+        self.megaChatApi->setLimitsInCall(chatId, duration, maxUsers, maxClientsPerUser, maxClients, divider);
+    }
+}
+
 - (void)mutePeers:(uint64_t)chatId client:(uint64_t)clientId delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
         self.megaChatApi->mutePeers(chatId, clientId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);

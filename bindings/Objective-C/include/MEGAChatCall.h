@@ -63,6 +63,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeWaitingRoomPushedFromCall = 0x40000,
     MEGAChatCallChangeTypeSpeakRequested = 0x80000,
     MEGAChatCallChangeTypeCallWillEnd = 0x100000,
+    MEGAChatCallChangeTypeCallLimitsUpdated = 0x200000,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
@@ -101,7 +102,10 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 @property (nonatomic, readonly) int64_t finalTimeStamp;
 @property (nonatomic, readonly) MEGAChatCallTermCode termCode;
 @property (nonatomic, readonly) NSInteger numberValue;
-@property (nonatomic, readonly) NSInteger callDurationLimit;
+@property (nonatomic, readonly) NSInteger durationLimit;
+@property (nonatomic, readonly) NSInteger usersLimit;
+@property (nonatomic, readonly) NSInteger clientsLimit;
+@property (nonatomic, readonly) NSInteger clientsPerUserLimit;
 @property (nonatomic, readonly) MEGAChatCallNotificationType notificationType;
 @property (nonatomic, readonly) MEGAChatCallNetworkQuality networkQuality;
 @property (nonatomic, readonly) uint64_t caller;
