@@ -216,7 +216,10 @@ ac::ACN autocompleteSyntax()
 
     p->Add(exec_openchatpreview, sequence(text("openchatpreview"), param("chatlink")));
     p->Add(exec_closechatpreview, sequence(text("closechatpreview"), param("chatid")));
+    p->Add(exec_dumpchathistory,
+           sequence(text("dumpchathistory"), param("roomid"), param("fileName")));
 
+#ifndef KARERE_DISABLE_WEBRTC
     p->Add(exec_joinCallViaMeetingLink,
            sequence(text("joinCallViaMeetingLink"),
                     opt(flag("-novideo")),
@@ -227,10 +230,6 @@ ac::ACN autocompleteSyntax()
                     opt(sequence(flag("-videoInputDevice"), param("videoDevice"))),
                     param("meetingLink")));
 
-    p->Add(exec_dumpchathistory,
-           sequence(text("dumpchathistory"), param("roomid"), param("fileName")));
-
-#ifndef KARERE_DISABLE_WEBRTC
     p->Add(exec_getchatvideoindevices, sequence(text("getchatvideoindevices")));
     p->Add(exec_setchatvideoindevice, sequence(text("setchatvideoindevice"), param("device")));
     p->Add(exec_startchatcall,
@@ -254,7 +253,7 @@ ac::ACN autocompleteSyntax()
     p->Add(exec_getnumcalls, sequence(text("getnumcalls")));
     p->Add(exec_getchatcalls, sequence(text("getchatcalls")));
     p->Add(exec_getchatcallsids, sequence(text("getchatcallsids")));
-#endif
+#endif // KARERE_DISABLE_WEBRTC
 
     p->Add(exec_detail, sequence(text("detail"), opt(either(text("high"), text("low")))));
 #ifdef WIN32

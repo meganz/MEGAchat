@@ -30,7 +30,9 @@ std::unique_ptr<::megachat::MegaChatApi> g_chatApi;
 std::map<::megachat::MegaChatHandle, clc_listen::CLCRoomListenerRecord> g_roomListeners;
 std::map<::megachat::MegaChatHandle, clc_listen::CLCStateChange> g_callStateMap;
 clc_listen::CLCListener g_clcListener;
+#ifndef KARERE_DISABLE_WEBRTC
 clc_listen::CLCCallListener g_clcCallListener;
+#endif
 clc_listen::CLCMegaListener g_megaclcListener;
 clc_listen::CLCChatListener g_chatListener;
 clc_listen::CLCMegaGlobalListener g_globalListener;

@@ -56,7 +56,7 @@ int noInteractiveCommand(int argc, char* argv[]);
 
 namespace clc_noint
 {
-
+#ifndef KARERE_DISABLE_WEBRTC
 /**
  * @class JoinCallViaMeetingLink
  * @brief The functor to execute the joinCallViaMeetingLink no interactive command.
@@ -111,6 +111,7 @@ private:
      */
     std::string buildJoinCallCommand(const po::variables_map& variablesMap);
 };
+#endif
 
 /**
  * @class Help
@@ -128,14 +129,21 @@ private:
     std::string mHelpMsg;
 };
 
-typedef std::variant<JoinCallViaMeetingLink, Help> AvailableCommands;
+typedef std::variant<
+Help
+#ifndef KARERE_DISABLE_WEBRTC
+, JoinCallViaMeetingLink
+#endif
+> AvailableCommands;
 
 // clang-format off
 static const std::map<std::string_view, std::function<AvailableCommands()>, std::less<>> strToCommands{
     {"help",                   []() { return Help(); }},
     {"-h",                     []() { return Help(); }},
     {"--help",                 []() { return Help(); }},
+#ifndef KARERE_DISABLE_WEBRTC
     {"joinCallViaMeetingLink", []() { return JoinCallViaMeetingLink(); }},
+#endif
 };
 // clang-format on
 

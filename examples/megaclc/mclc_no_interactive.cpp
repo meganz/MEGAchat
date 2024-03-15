@@ -41,7 +41,7 @@ int noInteractiveCommand(int argc, char* argv[])
 
 namespace clc_noint
 {
-
+#ifndef KARERE_DISABLE_WEBRTC
 JoinCallViaMeetingLink::JoinCallViaMeetingLink():
     mDesc{"Options for JoinCallViaMeetingLink command"}
 {
@@ -201,6 +201,7 @@ std::string JoinCallViaMeetingLink::buildJoinCallCommand(const po::variables_map
     joinCommand << " " << variablesMap[OPT_URL].as<std::string>();
     return joinCommand.str();
 }
+#endif
 
 Help::Help()
 {
