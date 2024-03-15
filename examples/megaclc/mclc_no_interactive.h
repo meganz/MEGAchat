@@ -129,11 +129,12 @@ private:
     std::string mHelpMsg;
 };
 
+typedef std::variant<
+Help
 #ifndef KARERE_DISABLE_WEBRTC
-typedef std::variant<JoinCallViaMeetingLink, Help> AvailableCommands;
-#else
-typedef std::variant<Help> AvailableCommands;
+, JoinCallViaMeetingLink
 #endif
+> AvailableCommands;
 
 // clang-format off
 static const std::map<std::string_view, std::function<AvailableCommands()>, std::less<>> strToCommands{
