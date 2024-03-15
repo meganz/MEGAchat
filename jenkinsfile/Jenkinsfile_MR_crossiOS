@@ -159,7 +159,7 @@ pipeline {
         stage('Checkout SDK MEGAchat and iOS'){
             steps {
                 deleteDir()
-                sh "echo Cloning iOS branch ${env.IOS_BRANCH}"
+                //sh "echo Cloning iOS branch ${env.IOS_BRANCH}"
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: "origin/${env.IOS_BRANCH}"]],
