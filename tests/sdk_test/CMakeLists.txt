@@ -7,14 +7,10 @@ target_sources(megachat_tests
     sdk_test.cpp
 )
 
-# Load and link needed libraries for the CHATlib tests
-find_package(GTest CONFIG REQUIRED)
-
 target_link_libraries(megachat_tests
     PRIVATE
     MEGA::test_tools
-    GTest::gmock
-    GTest::gtest
+    MEGA::test_common
     MEGA::CHATlib
 )
 
