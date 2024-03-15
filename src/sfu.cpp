@@ -349,7 +349,7 @@ std::optional<SfuInterface::CallLimits> Command::buildCallLimits(const rapidjson
         }
         else
         {
-            SFU_LOG_ERROR("HelloCommand: Received param 'lim[dur]' has an unexpected format");
+            SFU_LOG_ERROR("buildCallLimits: Received param 'lim[dur]' has an unexpected format");
             assert(false);
             return std::nullopt;
         }
@@ -365,7 +365,7 @@ std::optional<SfuInterface::CallLimits> Command::buildCallLimits(const rapidjson
         {
             return static_cast<int>(labelIterator->value.GetUint());
         }
-        SFU_LOG_ERROR("HelloCommand: Received param 'lim[%s]' has an unexpected format", label);
+        SFU_LOG_ERROR("parseUserLims: Received param 'lim[%s]' has an unexpected format", label);
         assert(false);
         return std::nullopt;
     };
@@ -393,7 +393,7 @@ std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson
     // CallLimits)
     if (!limIterator->value.IsObject())
     {
-        SFU_LOG_ERROR("HelloCommand: Received param 'lim' has an unexpected format");
+        SFU_LOG_ERROR("parseCallLimits: Received param 'lim' has an unexpected format");
         assert(false);
         return std::nullopt;
     }
