@@ -8171,8 +8171,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 
     mRinging = call.isRinging();
     mOwnModerator = call.isOwnPrivModerator();
+    mCallWillEndTs = call.getCallWillEndTs();
     mCallLimits = call.getCallLimits();
-    mNum = 0;
 
     std::vector<Cid_t> sessionCids = call.getSessionsCids();
     for (Cid_t cid : sessionCids)
@@ -8214,8 +8214,8 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mHandle = call.getHandle();
     mFlag = call.getFlag();
     mAuxHandle = call.getAuxHandle();
+    mCallWillEndTs = call.getCallWillEndTs();
     mCallLimits = call.getCallLimits();
-    mNum = call.getNum();
 
     for (auto it = call.mSessions.begin(); it != call.mSessions.end(); it++)
     {
@@ -8562,14 +8562,9 @@ void MegaChatCallPrivate::setChange(int changed)
     mChanged = changed;
 }
 
-void MegaChatCallPrivate::setNum(const int n)
+MegaChatTimeStamp MegaChatCallPrivate::getCallWillEndTs() const
 {
-    mNum = n;
-}
-
-int MegaChatCallPrivate::getNum() const
-{
-    return static_cast<int>(mNum);
+    return static_cast<MegaChatTimeStamp>(mCallWillEndTs);
 }
 
 int MegaChatCallPrivate::getCallDurationLimit() const
@@ -11456,10 +11451,9 @@ void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
-void MegaChatCallHandler::onCallWillEndr(rtcModule::ICall &call, const int endsIn)
+void MegaChatCallHandler::onCallWillEndr(rtcModule::ICall &call)
 {
     std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
-    chatCall->setNum(endsIn);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_WILL_END);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }

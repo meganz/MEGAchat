@@ -271,6 +271,7 @@ public:
     karere::Id getChatid() const override;
     karere::Id getCallerid() const override;
     CallState getState() const override;
+    mega::m_time_t getCallWillEndTs() const override;
     int getCallDurationLimitInSecs() const override;
     sfu::SfuInterface::CallLimits getCallLimits() const override;
     bool isOwnClientCaller() const override;
@@ -502,7 +503,7 @@ public:
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
 
-    bool handleWillEndCommand(const int endsIn) override;
+    bool handleWillEndCommand(const unsigned int endsIn) override;
     bool handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits) override;
 
     bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) override;
@@ -576,6 +577,9 @@ protected:
 
     // timer to check stats in order to detect local audio level (for remote audio level, audio monitor does it)
     megaHandle mVoiceDetectionTimer = 0;
+
+    // The timestamp of the setted end time for the current call
+    mega::m_time_t mCallWillEndTs = mega::mega_invalid_timestamp;
 
     // Information about the limits of the call (kCallLimitDisabled is used for not setted values)
     CallLimits mCallLimits {};

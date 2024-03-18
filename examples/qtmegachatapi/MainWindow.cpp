@@ -313,12 +313,21 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     {
         QMessageBox msgBox;
         QString myString;
-        const auto endsIn = call->getNum();
+        const auto endsAt = call->getCallWillEndTs();
+        const auto current = ::mega::m_time(nullptr);
+        if (endsAt < current)
+        {
+            assert(false);
+            myString = QString("Call has already ended");
+        }
+        else
+        {
+            const auto endsIn = endsAt - current;
+            myString = QString("Call will end in ")
+                           + QString(std::to_string(endsIn).c_str())
+                           + QString(" (seconds) due to MEGA account restrictions");
+        }
         msgBox.setIcon(QMessageBox::Warning);
-        myString = QString("Call will end in ")
-                       + QString(std::to_string(endsIn).c_str())
-                       + QString(" (seconds) due to MEGA account restrictions");
-
         msgBox.setText(myString);
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.exec();

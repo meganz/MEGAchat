@@ -743,7 +743,7 @@ public:
      *
      * - MegaChatCall:: CHANGE_TYPE_CALL_WILL_END = 0x100000
      * Notify that call will end due to duration restrictions associated to MEGA account plan
-     * (check MegaChatCall::getNum to get time, in seconds, after which the call will be ended)
+     * (check MegaChatCall::getCallWillEndTs to get time stamp (unix), in which the call will be ended)
      *
      * - MegaChatCall:: CHANGE_TYPE_CALL_LIMITS_UPDATED = 0x200000
      * Notify that call limits have been updated
@@ -837,7 +837,7 @@ public:
      *
      * - MegaChatCall:: CHANGE_TYPE_CALL_WILL_END = 0x100000
      * Notify that call will end due to duration restrictions associated to MEGA account plan
-     * (check MegaChatCall::getNum to get time, in seconds, after which the call will be ended)
+     * (check MegaChatCall::getCallWillEndTs to get time stamp (unix), in which the call will be ended)
      *
      * - MegaChatCall:: CHANGE_TYPE_CALL_LIMITS_UPDATED = 0x200000
      * Notify that call limits have been updated
@@ -939,14 +939,15 @@ public:
      */
     virtual int getTermCode() const;
 
-     /* @brief Returns a numeric value that can be used for multiple purposes
-      *
-      * @note this value only will be valid in the following scenarios:
-      *     - MegaChatCall::CHANGE_TYPE_CALL_WILL_END is notified via MegaChatCallListener::onChatCallUpdate
-      *       In this case this method returns the time, in seconds, after which the call will be ended
-      *       with TERM_CODE_CALL_DUR_LIMIT
-      */
-    virtual int getNum() const;
+    /**
+     * @brief Returns the time stamp at which the call will be ended due to restrictions
+     *
+     * @note this value only will be valid in the following scenarios:
+     *     - MegaChatCall::CHANGE_TYPE_CALL_WILL_END is notified via MegaChatCallListener::onChatCallUpdate
+     *       In this case this method returns the time stamp associated to the call finishing with
+     *       TERM_CODE_CALL_DUR_LIMIT
+     */
+    virtual MegaChatTimeStamp getCallWillEndTs() const;
 
     /**
      * @brief Returns the call duration limit, specified in seconds

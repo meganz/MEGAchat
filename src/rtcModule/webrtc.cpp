@@ -173,6 +173,11 @@ CallState Call::getState() const
     return mState;
 }
 
+mega::m_time_t Call::getCallWillEndTs() const
+{
+    return mCallWillEndTs;
+}
+
 int Call::getCallDurationLimitInSecs() const
 {
     return mCallLimits.durationInSecs;
@@ -2458,10 +2463,11 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
 }
 
-bool Call::handleWillEndCommand(const int endsIn)
+bool Call::handleWillEndCommand(const unsigned int endsIn)
 {
     SFU_LOG_DEBUG("%d",endsIn);
-    mCallHandler.onCallWillEndr(*this, endsIn);
+    mCallWillEndTs = ::mega::m_time(nullptr) + endsIn;
+    mCallHandler.onCallWillEndr(*this);
     return true;
 }
 

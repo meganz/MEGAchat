@@ -1298,7 +1298,7 @@ public:
     bool handleWrUsersAllow(const std::set<karere::Id>& users) override;
     bool handleWrUsersDeny(const std::set<karere::Id>& users) override;
     bool handleMutedCommand(const unsigned av, const Cid_t /*cidPerf*/) override;
-    bool handleWillEndCommand(const int /*endsIn*/) override;
+    bool handleWillEndCommand(const unsigned int /*endsIn*/) override;
     bool handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits) override;
 };
 #endif

@@ -2830,12 +2830,13 @@ WillEndCommand::WillEndCommand(const WillEndCommandFunction& complete, SfuInterf
 bool WillEndCommand::processCommand(const rapidjson::Document& command)
 {
     rapidjson::Value::ConstMemberIterator inIterator = command.FindMember("in");
-    if (inIterator == command.MemberEnd() || !inIterator->value.IsInt())
+    if (inIterator == command.MemberEnd() || !inIterator->value.IsUint())
     {
         SFU_LOG_ERROR("Received data doesn't have 'in' field");
+        assert(false);
         return false;
     }
-    int in = inIterator->value.GetInt();
+    unsigned int in = inIterator->value.GetUint();
     return mComplete(in);
 }
 

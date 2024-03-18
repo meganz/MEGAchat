@@ -1056,6 +1056,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
 {
     // A value to denote a limit can take any value
     static constexpr unsigned long UNKNOWN_LIMIT = std::numeric_limits<unsigned long>::max() - 1;
+
     struct CallLimits
     {
         static unsigned long getLimit(int n)
@@ -1128,8 +1129,11 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
         {
             // CallWillEnd - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
             addBoolVarAndExitFlag(a1, eF, "CallWillEnd", false);
+            addHandleVar(a1, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
             addBoolVarAndExitFlag(a2, eF, "CallWillEnd", false);
+            addHandleVar(a2, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
             addBoolVarAndExitFlag(a3, eF, "CallWillEnd", false);
+            addHandleVar(a3, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
             // callLeft - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
             addBoolVarAndExitFlag(a1, eF, "callLeft", false);
             addBoolVarAndExitFlag(a2, eF, "callLeft", false);
@@ -1197,6 +1201,19 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                                                 << "). Received one(" << *termCodeA2 << ") for a2 ";
             ASSERT_EQ(*termCodeA3, expTermcode) << "Expected termcode(" << expTermcode
                                                 << "). Received one(" << *termCodeA3 << ") for a3 ";
+            // End timestamp must be less than current
+            auto current = ::mega::m_time(nullptr);
+            for (auto client: {a1, a2, a3})
+            {
+                MegaChatHandle* endsAt = handleVars().getVar(client, "CallEndsAt");
+                ASSERT_TRUE(endsAt)
+                    << "Can't get end time stamp var for " << std::to_string(client);
+                ASSERT_NE(*endsAt, MEGACHAT_INVALID_TIMESTAMP)
+                    << "Invalid end time stamp (not setted) for " << std::to_string(client);
+                ASSERT_LE(*endsAt, current)
+                    << "Invalid end time stamp for " << std::to_string(client)
+                    << ": It says it has not finished yet but it has.";
+            }
         }
     };
 
@@ -10298,9 +10315,9 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     {
         boolVars().updateIfExists(apiIndex, "CallWillEnd", true);
 
-        megachat::MegaChatHandle endsIn = static_cast<megachat::MegaChatHandle>(call->getNum());
+        megachat::MegaChatHandle endsAt = static_cast<megachat::MegaChatHandle>(call->getCallWillEndTs());
 
-        handleVars().updateIfExists(apiIndex, "CallEndsIn", endsIn);
+        handleVars().updateIfExists(apiIndex, "CallEndsAt", endsAt);
     }
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_LIMITS_UPDATED))
@@ -11287,7 +11304,7 @@ bool MockupCall::handleMutedCommand(const unsigned /*av*/, const Cid_t /*cidPerf
     return true;
 }
 
-bool MockupCall::handleWillEndCommand(const int /*endsIn*/)
+bool MockupCall::handleWillEndCommand(const unsigned int /*endsIn*/)
 {
     return true;
 }

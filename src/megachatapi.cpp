@@ -264,9 +264,9 @@ int MegaChatCall::getTermCode() const
     return 0;
 }
 
-int MegaChatCall::getNum() const
+MegaChatTimeStamp MegaChatCall::getCallWillEndTs() const
 {
-    return 0;
+    return MEGACHAT_INVALID_TIMESTAMP;
 }
 
 int MegaChatCall::getCallDurationLimit() const

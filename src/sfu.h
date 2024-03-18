@@ -267,7 +267,7 @@ public:
     virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
     virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
     virtual bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) = 0;
-    virtual bool handleWillEndCommand(const int endsIn) = 0;
+    virtual bool handleWillEndCommand(const unsigned int endsIn) = 0;
     virtual bool handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits) = 0;
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
