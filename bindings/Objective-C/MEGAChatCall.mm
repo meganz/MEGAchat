@@ -92,12 +92,12 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->getInitialTimeStamp() : 0;
 }
 
-- (MEGAChatCallTermCode)termCode {
-    return (MEGAChatCallTermCode) (self.megaChatCall ? self.megaChatCall->getTermCode() : 0);
+- (int64_t)callWillEndTimeStamp {
+    return self.megaChatCall ? self.megaChatCall->getCallWillEndTs() : 0;
 }
 
-- (NSInteger)numberValue {
-    return self.megaChatCall ? self.megaChatCall->getNum() : 0;
+- (MEGAChatCallTermCode)termCode {
+    return (MEGAChatCallTermCode) (self.megaChatCall ? self.megaChatCall->getTermCode() : 0);
 }
 
 - (NSInteger)durationLimit {

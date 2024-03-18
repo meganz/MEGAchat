@@ -100,8 +100,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 @property (nonatomic, readonly) int64_t duration;
 @property (nonatomic, readonly) int64_t initialTimeStamp;
 @property (nonatomic, readonly) int64_t finalTimeStamp;
+@property (nonatomic, readonly) int64_t callWillEndTimeStamp;
 @property (nonatomic, readonly) MEGAChatCallTermCode termCode;
-@property (nonatomic, readonly) NSInteger numberValue;
 @property (nonatomic, readonly) NSInteger durationLimit;
 @property (nonatomic, readonly) NSInteger usersLimit;
 @property (nonatomic, readonly) NSInteger clientsLimit;
