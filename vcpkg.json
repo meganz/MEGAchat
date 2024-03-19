@@ -67,7 +67,7 @@
             "description": "Readline library",
             "dependencies": [ "readline" ]
         },
-        "sdk-tests": {
+        "chat-tests": {
             "description": "gtests library for the integration and unit tests",
             "dependencies": [ "gtest" ]
         },

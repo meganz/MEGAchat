@@ -1,6 +1,6 @@
 #include "gtest_common.h"
 #include "sdk_test.h"
-#include "integration/sdk_test_utils.h"
+#include "sdk_test_utils.h"
 
 #include <mega.h>
 #include <megaapi.h>
