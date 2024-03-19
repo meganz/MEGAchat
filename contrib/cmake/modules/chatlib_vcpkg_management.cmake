@@ -12,4 +12,8 @@ macro(process_chatlib_vcpkg_libraries)
         list(APPEND VCPKG_MANIFEST_FEATURES "sdk-tests")
     endif()
 
+    if (ENABLE_CHATLIB_MEGACLC)
+        list(APPEND VCPKG_MANIFEST_FEATURES "megaclc-example")
+    endif()
+
 endmacro()

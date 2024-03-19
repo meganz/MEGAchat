@@ -70,6 +70,10 @@
         "sdk-tests": {
             "description": "gtests library for the integration and unit tests",
             "dependencies": [ "gtest" ]
+        },
+        "megaclc-example": {
+            "description": "gtests library for the integration and unit tests",
+            "dependencies": [ "boost-program-options" ]
         }
     },
     "dependencies": [

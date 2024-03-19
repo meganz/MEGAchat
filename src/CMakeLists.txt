@@ -65,6 +65,13 @@ target_sources_conditional(CHATlib
     rtcCrypto.cpp
 )
 
+target_sources_conditional(CHATlib
+    FLAG ENABLE_CHATLIB_TESTS
+    PRIVATE
+    async_utils.h
+    async_utils.cpp
+)
+
 # Generate karereDbSchema.cpp
 add_custom_command(
     OUTPUT karereDbSchema.cpp

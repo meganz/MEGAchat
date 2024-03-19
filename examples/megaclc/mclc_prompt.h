@@ -7,6 +7,7 @@
  */
 
 #ifndef NO_READLINE
+#include <stdio.h> // Needed for readline
 #include <readline/history.h>
 #include <readline/readline.h>
 #endif
