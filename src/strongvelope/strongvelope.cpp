@@ -1133,13 +1133,14 @@ promise::Promise<Message*> ProtocolHandler::handleManagementMessage(
 
 void ProtocolHandler::fetchUserKeys(karere::Id userid)
 {
-    mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr, false, mPh);
-
-    if (!previewMode())
+    if (!isPublicChat())
     {
-        // preload keys for the new participant
+        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
         mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
     }
+    // else (if chat is public) we don't need to fetch:
+    //   - ATTR_CU25519_PUBLIC_KEY: as messages are encrypyted/decrypted with unified key
+    //   - ATTR_ED25519_PUBLIC_KEY: as we don't verify signature for received messages if chat is public
 }
 
 //We should have already received and decrypted the key in advance
