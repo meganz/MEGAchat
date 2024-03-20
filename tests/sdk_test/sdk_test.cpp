@@ -1521,16 +1521,13 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                                                          mData.mChatid,
                                                          false /*audio*/,
                                                          false /*video*/));
-    // Send empty limits to receive the defaults
-    CallLimits emptyLimits{};
-    emptyLimits.mDividerLimit = 1; // We need to pass at least one
-    CallLimits defaultLimits{.mCallDur = 3600,
-                             .mUsersLimit = 100,
-                             .mClientsPerUserLimit = UNKNOWN_LIMIT,
-                             .mClientsLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
-                             .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
-    ASSERT_NO_FATAL_FAILURE(
-        setCallLimits(a1, mData.mChatid, {a1, a2, a3}, emptyLimits, defaultLimits));
+    // Check that HELLO set the default limits
+    call.reset(megaChatApi[a2]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(call) << "Cannot retrieve call from chatroom: " << getChatIdStrB64(mData.mChatid);
+    settedCallLimits = CallLimits::fromCall(*call);
+    ASSERT_EQ(settedCallLimits.mCallDur, 3600);
+    ASSERT_EQ(settedCallLimits.mUsersLimit, 100);
+    ASSERT_EQ(settedCallLimits.mClientsLimit, MegaChatCall::CALL_LIMIT_NO_PRESENT);
 
     // Set now the clients and divide the rest (except for the clients per user that
     // is not affected)
