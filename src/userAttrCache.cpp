@@ -256,7 +256,8 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, uint64_t changed)
                 key.toString().c_str());
             continue;
         }
-        if (item->pending && ((type & USER_ATTR_FLAG_COMPOSITE) == 0))
+
+        if (item->pending > kCacheFetchNotPending && ((type & USER_ATTR_FLAG_COMPOSITE) == 0))
         {
             // Composed attributes must be re-fetched, if any of the attrs that synthesize it has changed
             //TODO: Shouldn't we schedule a re-fetch?
@@ -579,7 +580,16 @@ void UserAttrCache::invalidate()
     mClient.db.query("delete from userattrs");
     for (auto& item: *this)
     {
-        item.second->pending = kCacheFetchUpdatePending;
+        if (item.second->pending != kCacheNotFetchUntilUse)
+        {
+            // we need to re-fetch all attributes except those ones wich status
+            // is kCacheNotFetchUntilUse
+            //
+            // we currently just set this state if chat is public and
+            // participants size is greater than PRELOAD_CHATLINK_PARTICIPANTS
+            item.second->pending = kCacheFetchUpdatePending;
+            fetchAttr(item.first, item.second);
+        }
     }
 }
 
