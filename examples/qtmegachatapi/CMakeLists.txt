@@ -91,6 +91,7 @@ set_target_properties(QtApp
     PROPERTIES
     AUTOMOC ON # Activates the meta-object code generator for Qt.
     AUTOUIC ON # Activates the User Interface Compiler generator for Qt.
+    AUTORCC ON # Activates the Resource Compiler for Qt.
 )
 
 # Required for the Qt generated files, to be able to include other headers in the current path

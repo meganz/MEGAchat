@@ -67,9 +67,13 @@
             "description": "Readline library",
             "dependencies": [ "readline" ]
         },
-        "sdk-tests": {
+        "chat-tests": {
             "description": "gtests library for the integration and unit tests",
             "dependencies": [ "gtest" ]
+        },
+        "megaclc-example": {
+            "description": "gtests library for the integration and unit tests",
+            "dependencies": [ "boost-program-options" ]
         }
     },
     "dependencies": [
