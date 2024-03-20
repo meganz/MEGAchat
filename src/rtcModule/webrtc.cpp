@@ -2312,6 +2312,8 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
 
     // set call duration limit if any (in seconds)
     mCallLimits = callLimits;
+    // Ensure no residual ending time stamp is stored. The correct one (if any) will come in WILL_END
+    mCallWillEndTs = mega::mega_invalid_timestamp;
 
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
@@ -2473,8 +2475,18 @@ bool Call::handleWillEndCommand(const unsigned int endsIn)
 
 bool Call::handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits)
 {
-    mCallLimits = callLimits;
-    mCallHandler.onCallLimitsUpdated(*this);
+    auto &oldDur = mCallLimits.durationInSecs;
+    auto &newDur = callLimits.durationInSecs;
+    if (oldDur != ::sfu::kCallLimitDisabled && newDur == ::sfu::kCallLimitDisabled)
+    {
+        mCallWillEndTs = mega::mega_invalid_timestamp;
+        mCallHandler.onCallWillEndr(*this);
+    }
+    if (mCallLimits != callLimits)
+    {
+        mCallLimits = callLimits;
+        mCallHandler.onCallLimitsUpdated(*this);
+    }
     return true;
 }
 

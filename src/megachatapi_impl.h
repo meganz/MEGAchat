@@ -356,7 +356,9 @@ protected:
     int mNetworkQuality = rtcModule::kNetworkQualityGood;
     int mWrJoiningState = MegaChatWaitingRoom::MWR_UNKNOWN;
     MegaChatHandle mAuxHandle = MEGACHAT_INVALID_HANDLE;
-    mega::m_time_t mCallWillEndTs; // Time stamp of the call end time
+    mega::m_time_t mCallWillEndTs =
+        mega::mega_invalid_timestamp; // Time stamp of the call finishing time if there is a call
+                                      // duration restriction (mega_invalid_timestamp if not)
     sfu::SfuInterface::CallLimits mCallLimits; // Object storing all the limits for the call
 };
 

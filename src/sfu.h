@@ -236,6 +236,17 @@ public:
         int numUsers = ::sfu::kCallLimitDisabled;
         int numClients = ::sfu::kCallLimitDisabled;
         int numClientsPerUser = ::sfu::kCallLimitDisabled;
+
+        bool operator==(const CallLimits& other)
+        {
+            return durationInSecs == other.durationInSecs && numUsers == other.numUsers &&
+                   numClients == other.numClients && numClientsPerUser == other.numClientsPerUser;
+        }
+
+        bool operator!=(const CallLimits& other)
+        {
+            return !(*this == other);
+        }
     };
 
     // SFU -> Client commands

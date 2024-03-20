@@ -945,7 +945,10 @@ public:
      * @note this value only will be valid in the following scenarios:
      *     - MegaChatCall::CHANGE_TYPE_CALL_WILL_END is notified via MegaChatCallListener::onChatCallUpdate
      *       In this case this method returns the time stamp associated to the call finishing with
-     *       TERM_CODE_CALL_DUR_LIMIT
+     *       TERM_CODE_CALL_DUR_LIMIT.
+     *
+     * @return The call finishing time stamp if there is any duration limit duration limit. If there
+     * are no limits, MEGACHAT_INVALID_TIMESTAMP will be returned.
      */
     virtual MegaChatTimeStamp getCallWillEndTs() const;
 
