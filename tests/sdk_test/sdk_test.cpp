@@ -1042,41 +1042,74 @@ TEST_F(MegaChatApiTest, BasicTest)
 
 /**
  * @brief MegaChatApiTest.CallLimitsFreePlan
- * + Test1: a1 set call duration
+ * + Test1: a1 set call duration and wait until it end for duration limit
  * + Test2: a1 set call duration and disable it after receiving WILL_END notification
- * + Test3: a1 sets max num clients
- * + Test4: a1 sets max numUsers
+ * + Test3: a1 sets max nuClients to 2, let join a2 and check error when joining a3
+ * + Test4: a1 sets max numUsers to 2, let join a2 and check error when joining a3
+ * + Test5: wait for call limits received from SFU (at HELLO command)
+ * + Test6: Set of sequential changes in the limits
  *
  * @note: SETLIM command is a temporal feature provided by SFU for testing purposes,
  * and it's availability depends on SFU's release plan management
  */
-TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
+TEST_F(MegaChatApiTest, CallLimitsFreePlan)
 {
-    // Temporarily disabled until CLIMITS changes has been introduced into MEGAChat
+    // A value to denote a limit can take any value
+    static constexpr unsigned long UNKNOWN_LIMIT = std::numeric_limits<unsigned long>::max() - 1;
+
+    struct CallLimits
+    {
+        static unsigned long getLimit(int n)
+        {
+            return n == megachat::MegaChatCall::CALL_LIMIT_DISABLED ?
+                       megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT :
+                       static_cast<unsigned long>(n);
+        }
+
+        CallLimits() = default;
+
+        unsigned long mCallDur = MegaChatCall::CALL_LIMIT_NO_PRESENT;
+        unsigned long mUsersLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT;
+        unsigned long mClientsPerUserLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT;
+        unsigned long mClientsLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT;
+        unsigned long mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT;
+
+        static CallLimits fromCall(const MegaChatCall& call)
+        {
+            return {.mCallDur = getLimit(call.getCallDurationLimit()),
+                    .mUsersLimit = getLimit(call.getCallUsersLimit()),
+                    .mClientsPerUserLimit = getLimit(call.getCallClientsPerUserLimit()),
+                    .mClientsLimit = getLimit(call.getCallClientsLimit()),
+                    .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
+        }
+    };
 
     // define idx's for all involved account in this test
     const unsigned a1 = 0;
     const unsigned a2 = 1;
     const unsigned a3 = 2;
 
-    CleanupFunction testCleanup = [this] () -> void
+    CleanupFunction testCleanup = [this]() -> void
     {
         LOG_debug << "MegaChatApiTest.CallLimitsFreePlan: Cleanup";
         clearTemporalVars();
         ExitBoolFlags eF;
-        addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        // callDestroyed - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false);
         endChatCall(mData.mOpIdx, eF, mData.mChatid);
         closeOpenedChatrooms();
         cleanChatVideoListeners();
         logoutTestAccounts();
     };
-    MegaMrProper p (testCleanup);
+    MegaMrProper p(testCleanup);
 
     // set call duration and wait until call has finished for all participants
-    auto setCallduration = [this](const MegaChatHandle chatid, const unsigned long callDur, const bool waitForEndCall)
+    auto setCallduration =
+        [this](const MegaChatHandle chatid, const unsigned long callDur, const bool waitForEndCall)
     {
         auto resetDuration = callDur == MegaChatCall::CALL_LIMIT_RESET;
-        ASSERT_TRUE(!resetDuration || !waitForEndCall) << "Provided reset value for call duration and waitForEndCall is also true";
+        ASSERT_TRUE(!resetDuration || !waitForEndCall)
+            << "Provided reset value for call duration and waitForEndCall is also true";
         clearTemporalVars();
         int* termCodeA1 = nullptr;
         int* termCodeA2 = nullptr;
@@ -1084,34 +1117,44 @@ TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
         const auto expTermcode = MegaChatCall::TERM_CODE_CALL_DUR_LIMIT;
 
         ExitBoolFlags eF;
-        addBoolVarAndExitFlag(a1, eF, "CallWillEnd", false);        // a1 - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
-        addBoolVarAndExitFlag(a2, eF, "CallWillEnd", false);        // a2 - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
-        addBoolVarAndExitFlag(a3, eF, "CallWillEnd", false);        // a3 - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
+        // CallLimitsUpdated - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
+        addBoolVarAndExitFlag(a1, eF, "CallLimitsUpdated", false);
+        addBoolVarAndExitFlag(a2, eF, "CallLimitsUpdated", false);
+        addBoolVarAndExitFlag(a3, eF, "CallLimitsUpdated", false);
 
-        if (resetDuration)
+        addHandleVar(a1, "durLimit", callDur);
+        addHandleVar(a2, "durLimit", callDur);
+        addHandleVar(a3, "durLimit", callDur);
+        if (waitForEndCall)
         {
-            addHandleVar(a1, "CallEndsIn", callDur);
-            addHandleVar(a2, "CallEndsIn", callDur);
-            addHandleVar(a3, "CallEndsIn", callDur);
-        }
-        else if (waitForEndCall)
-        {
-            addBoolVarAndExitFlag(a1, eF, "callLeft" , false);          // a1 - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
-            addBoolVarAndExitFlag(a2, eF, "callLeft" , false);          // a2 - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
-            addBoolVarAndExitFlag(a3, eF, "callLeft" , false);          // a3 - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
-            addBoolVarAndExitFlag(a1, eF, "callDestroyed" , false);     // a1 - onChatCallUpdate (CALL_STATUS_DESTROYED)
-            addBoolVarAndExitFlag(a2, eF, "callDestroyed" , false);     // a2 - onChatCallUpdate (CALL_STATUS_DESTROYED)
-            addBoolVarAndExitFlag(a3, eF, "callDestroyed" , false);     // a3 - onChatCallUpdate (CALL_STATUS_DESTROYED)
+            // CallWillEnd - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
+            addBoolVarAndExitFlag(a1, eF, "CallWillEnd", false);
+            addHandleVar(a1, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
+            addBoolVarAndExitFlag(a2, eF, "CallWillEnd", false);
+            addHandleVar(a2, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
+            addBoolVarAndExitFlag(a3, eF, "CallWillEnd", false);
+            addHandleVar(a3, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
+            // callLeft - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
+            addBoolVarAndExitFlag(a1, eF, "callLeft", false);
+            addBoolVarAndExitFlag(a2, eF, "callLeft", false);
+            addBoolVarAndExitFlag(a3, eF, "callLeft", false);
+            // callDestroyed - onChatCallUpdate (CALL_STATUS_DESTROYED)
+            addBoolVarAndExitFlag(a1, eF, "callDestroyed", false);
+            addBoolVarAndExitFlag(a2, eF, "callDestroyed", false);
+            addBoolVarAndExitFlag(a3, eF, "callDestroyed", false);
 
-            termCodeA1 = &mTerminationCode[a1]; *termCodeA1 = MegaChatCall::TERM_CODE_INVALID;
-            termCodeA2 = &mTerminationCode[a2]; *termCodeA2 = MegaChatCall::TERM_CODE_INVALID;
-            termCodeA3 = &mTerminationCode[a3]; *termCodeA3 = MegaChatCall::TERM_CODE_INVALID;
+            termCodeA1 = &mTerminationCode[a1];
+            *termCodeA1 = MegaChatCall::TERM_CODE_INVALID;
+            termCodeA2 = &mTerminationCode[a2];
+            *termCodeA2 = MegaChatCall::TERM_CODE_INVALID;
+            termCodeA3 = &mTerminationCode[a3];
+            *termCodeA3 = MegaChatCall::TERM_CODE_INVALID;
         }
 
         mChatListUpdated[a2].clear();
         mChatListUpdated[a3].clear();
         ASSERT_NO_FATAL_FAILURE({
-            waitForAction (1,  /* just one attempt */
+            waitForAction(1, /* just one attempt */
                           eF,
                           "setting chat call limits",
                           true /* wait for all exit flags */,
@@ -1120,65 +1163,179 @@ TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
                           [this, &chatid, &callDur]()
                           {
                               ChatRequestTracker crtCallLimit(megaChatApi[a1]);
-                              megaChatApi[a1]->setLimitsInCall(chatid, callDur, MegaChatCall::CALL_LIMIT_RESET, MegaChatCall::CALL_LIMIT_RESET,
-                                                               MegaChatCall::CALL_LIMIT_RESET, &crtCallLimit);
+                              megaChatApi[a1]->setLimitsInCall(chatid,
+                                                               callDur,
+                                                               MegaChatCall::CALL_LIMIT_RESET,
+                                                               MegaChatCall::CALL_LIMIT_RESET,
+                                                               MegaChatCall::CALL_LIMIT_RESET,
+                                                               MegaChatCall::CALL_LIMIT_RESET,
+                                                               &crtCallLimit);
                               ASSERT_EQ(crtCallLimit.waitForResult(), MegaChatError::ERROR_OK)
-                                  << "Failed to set call duration. Error: " << crtCallLimit.getErrorString();
+                                  << "Failed to set call duration. Error: "
+                                  << crtCallLimit.getErrorString();
                           });
         });
 
-        if (resetDuration)
-        {
-            MegaChatHandle* a1EndsIn = handleVars().getVar(a1, "CallEndsIn");
-            ASSERT_TRUE(a1EndsIn) << "Can't get CallEndsIn var for " << std::to_string(a1);
-            ASSERT_EQ(*a1EndsIn, callDur) << "CallEndsIn values don't match"
-                                          << *a1EndsIn
-                                          << " " << callDur;
+        auto expectedCallDur =
+            resetDuration ? megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT : callDur;
 
-            MegaChatHandle* a2EndsIn = handleVars().getVar(a2, "CallEndsIn");
-            ASSERT_TRUE(a2EndsIn) << "Can't get CallEndsIn var for " << std::to_string(a2);
-            ASSERT_EQ(*a2EndsIn, callDur) << "CallEndsIn values don't match"
-                                          << *a2EndsIn
-                                          << " " << callDur;
+        MegaChatHandle* a1EndsIn = handleVars().getVar(a1, "durLimit");
+        ASSERT_TRUE(a1EndsIn) << "Can't get durLimit var for " << std::to_string(a1);
+        ASSERT_EQ(*a1EndsIn, expectedCallDur)
+            << "durLimit values don't match" << *a1EndsIn << " " << callDur;
 
-            MegaChatHandle* a3EndsIn = handleVars().getVar(a3, "CallEndsIn");
-            ASSERT_TRUE(a3EndsIn) << "Can't get CallEndsIn var for " << std::to_string(a3);
-            ASSERT_EQ(*a3EndsIn, callDur) << "CallEndsIn values don't match"
-                                          << *a3EndsIn
-                                          << " " << callDur;
-        }
-        else if (waitForEndCall)
+        MegaChatHandle* a2EndsIn = handleVars().getVar(a2, "durLimit");
+        ASSERT_TRUE(a2EndsIn) << "Can't get durLimit var for " << std::to_string(a2);
+        ASSERT_EQ(*a2EndsIn, expectedCallDur)
+            << "durLimit values don't match" << *a2EndsIn << " " << callDur;
+
+        MegaChatHandle* a3EndsIn = handleVars().getVar(a3, "durLimit");
+        ASSERT_TRUE(a3EndsIn) << "Can't get durLimit var for " << std::to_string(a3);
+        ASSERT_EQ(*a3EndsIn, expectedCallDur)
+            << "durLimit values don't match" << *a3EndsIn << " " << callDur;
+        if (waitForEndCall)
         {
-            ASSERT_EQ(*termCodeA1, expTermcode) << "Expected termcode("<< expTermcode << "). Received one("<< *termCodeA1 << ") for a1 ";
-            ASSERT_EQ(*termCodeA2, expTermcode) << "Expected termcode("<< expTermcode << "). Received one("<< *termCodeA2 << ") for a2 ";
-            ASSERT_EQ(*termCodeA3, expTermcode) << "Expected termcode("<< expTermcode << "). Received one("<< *termCodeA3 << ") for a3 ";
+            ASSERT_EQ(*termCodeA1, expTermcode) << "Expected termcode(" << expTermcode
+                                                << "). Received one(" << *termCodeA1 << ") for a1 ";
+            ASSERT_EQ(*termCodeA2, expTermcode) << "Expected termcode(" << expTermcode
+                                                << "). Received one(" << *termCodeA2 << ") for a2 ";
+            ASSERT_EQ(*termCodeA3, expTermcode) << "Expected termcode(" << expTermcode
+                                                << "). Received one(" << *termCodeA3 << ") for a3 ";
+            // End timestamp must be less than current
+            auto current = ::mega::m_time(nullptr);
+            for (auto client: {a1, a2, a3})
+            {
+                MegaChatHandle* endsAt = handleVars().getVar(client, "CallEndsAt");
+                ASSERT_TRUE(endsAt)
+                    << "Can't get end time stamp var for " << std::to_string(client);
+                ASSERT_NE(*endsAt, MEGACHAT_INVALID_TIMESTAMP)
+                    << "Invalid end time stamp (not setted) for " << std::to_string(client);
+                ASSERT_LE(*endsAt, current)
+                    << "Invalid end time stamp for " << std::to_string(client)
+                    << ": It says it has not finished yet but it has.";
+            }
         }
     };
 
     // set call limits
-    auto setCallLimits = [this](const unsigned int performedIdx, const MegaChatHandle chatid, const unsigned long numUsers, const unsigned long numClientsPerUser, const unsigned long numClients)
+    auto setCallLimits = [this](const unsigned int performedIdx,
+                                const MegaChatHandle chatid,
+                                const std::vector<unsigned int>& accountsInCall,
+                                const CallLimits& limits,
+                                const CallLimits& expectedLimits)
     {
         clearTemporalVars();
-        ChatRequestTracker crtCallLimit(megaChatApi[performedIdx]);
-        megaChatApi[performedIdx]->setLimitsInCall(chatid, MegaChatCall::CALL_LIMIT_RESET, numUsers, numClientsPerUser, numClients, &crtCallLimit);
-        ASSERT_EQ(crtCallLimit.waitForResult(), MegaChatError::ERROR_OK)
-            << "Failed to set call limits. Error: " << crtCallLimit.getErrorString();
+        const std::array<std::string, 4> varLabels{"durLimit",
+                                                   "usersLimit",
+                                                   "clientsLimit",
+                                                   "clientsPerUserLimit"};
+        const std::array<unsigned long, 4> expectedVarVals{expectedLimits.mCallDur,
+                                                           expectedLimits.mUsersLimit,
+                                                           expectedLimits.mClientsLimit,
+                                                           expectedLimits.mClientsPerUserLimit};
+        ExitBoolFlags eF;
+        for (auto account: accountsInCall)
+        {
+            addBoolVarAndExitFlag(account, eF, "CallLimitsUpdated", false);
+            if (account != performedIdx)
+            {
+                mChatListUpdated[account].clear();
+            }
+            for (unsigned i = 0; i < 4; ++i)
+            {
+                addHandleVar(account, varLabels[i], expectedVarVals[i]);
+            }
+        }
+
+        ASSERT_NO_FATAL_FAILURE({
+            waitForAction(
+                1, /* just one attempt */
+                eF,
+                "setting chat call limits",
+                true /* wait for all exit flags */,
+                true /* reset flags */,
+                minTimeout * 2, // 2 min
+                [this, &chatid, &performedIdx, &limits]()
+                {
+                    ChatRequestTracker crtCallLimit(megaChatApi[performedIdx]);
+                    megaChatApi[performedIdx]->setLimitsInCall(chatid,
+                                                               limits.mCallDur,
+                                                               limits.mUsersLimit,
+                                                               limits.mClientsPerUserLimit,
+                                                               limits.mClientsLimit,
+                                                               limits.mDividerLimit,
+                                                               &crtCallLimit);
+                    ASSERT_EQ(crtCallLimit.waitForResult(), MegaChatError::ERROR_OK)
+                        << "Failed to set call limits. Error: " << crtCallLimit.getErrorString();
+                });
+        });
+
+        for (auto account: accountsInCall)
+        {
+            for (unsigned i = 0; i < 4; ++i)
+            {
+                MegaChatHandle* varHandle = handleVars().getVar(account, varLabels[i]);
+                if (!varHandle)
+                {
+                    EXPECT_TRUE(varHandle) << "Can't get" << varLabels[i] << " var for account "
+                                           << std::to_string(account);
+                    continue;
+                }
+                if (auto expected = expectedVarVals[i]; expected != UNKNOWN_LIMIT)
+                {
+                    EXPECT_EQ(*varHandle, expectedVarVals[i])
+                        << varLabels[i] << " values for account " << std::to_string(account)
+                        << " don't match";
+                }
+                else
+                {
+                    EXPECT_NE(*varHandle, MegaChatCall::CALL_LIMIT_NO_PRESENT)
+                        << varLabels[i] << " values for account " << std::to_string(account)
+                        << " has CALL_LIMIT_NO_PRESENT value while any other value was expected";
+                }
+            }
+        }
+        // We check all the accounts/vars before exiting the test
+        ASSERT_FALSE(::testing::Test::HasFailure());
     };
 
     // answer call and wait for SFU error
-    auto answerCallWithErr = [this](const unsigned int calleeIdx, const MegaChatHandle chatId, const bool enableVideo, const bool enableAudio, int expTermcode)
+    auto answerCallWithErr = [this](const unsigned int calleeIdx,
+                                    const MegaChatHandle chatId,
+                                    const bool enableVideo,
+                                    const bool enableAudio,
+                                    int expTermcode)
     {
         clearTemporalVars();
-        int* termCode = &mTerminationCode[calleeIdx]; *termCode = MegaChatCall::TERM_CODE_INVALID;
+        int* termCode = &mTerminationCode[calleeIdx];
+        *termCode = MegaChatCall::TERM_CODE_INVALID;
         ExitBoolFlags eF;
-        addBoolVarAndExitFlag(calleeIdx, eF, "CallErrorRecv" , false);   // calleeIdx - onChatCallUpdate(MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR)
+        addBoolVarAndExitFlag(
+            calleeIdx,
+            eF,
+            "CallErrorRecv",
+            false); // calleeIdx - onChatCallUpdate(MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR)
         answerChatCall(calleeIdx, eF, chatId, enableVideo, enableAudio);
-        ASSERT_EQ(*termCode, expTermcode) << "Unexpected termcode " << MegaChatCall::termcodeToString(*termCode) << ", expected one: " << expTermcode;
+        ASSERT_EQ(*termCode, expTermcode)
+            << "Unexpected termcode " << MegaChatCall::termcodeToString(*termCode)
+            << ", expected one: " << expTermcode;
+    };
+
+    // ends call for all participants
+    auto endCall = [this](unsigned int opIdx, const megachat::MegaChatHandle chatid)
+    {
+        ExitBoolFlags eF;
+        clearTemporalVars();
+        addBoolVarAndExitFlag(opIdx,
+                              eF,
+                              "callDestroyed",
+                              false); // opIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        ASSERT_NO_FATAL_FAILURE(endChatCall(opIdx, eF, chatid));
     };
 
     // login into all involved accounts for this test, and establish required contact relationships
     // Note: all involved accounts in this test, must be added to mSessions and mAccounts
-    mData.mOpIdx = a1;  // set test operator role index
+    mData.mOpIdx = a1; // set test operator role index
     mData.mSessions.emplace(a1, login(a1));
     mData.mSessions.emplace(a2, login(a2));
     mData.mSessions.emplace(a3, login(a3));
@@ -1192,12 +1349,12 @@ TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
     megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
 
     // set chat selection criteria
-    mData.mChatOptions.mCreate          = true;
-    mData.mChatOptions.mPublicChat      = true;
-    mData.mChatOptions.mMeetingRoom     = true;
-    mData.mChatOptions.mWaitingRoom     = false;
-    mData.mChatOptions.mSpeakRequest    = false;
-    mData.mChatOptions.mOpenInvite      = false;
+    mData.mChatOptions.mCreate = true;
+    mData.mChatOptions.mPublicChat = true;
+    mData.mChatOptions.mMeetingRoom = true;
+    mData.mChatOptions.mWaitingRoom = false;
+    mData.mChatOptions.mSpeakRequest = false;
+    mData.mChatOptions.mOpenInvite = false;
 
     // set chat operator idx and privileges, and create chat participants list
     // chat operator idx corresponds with idx of account from which we retrieve chatroom
@@ -1205,19 +1362,23 @@ TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
     mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
     mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
 
-    // get a meeting room without participants except a1 (there's no MegachatApi interface to create it with more participants)
+    // get a meeting room without participants except a1 (there's no MegachatApi interface to create
+    // it with more participants)
     std::string err = "Cannot get a chatroom ";
     mData.mChatid = getGroupChatRoom();
-    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Invalid chatid returned by getGroupChatRoom";
+    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE)
+        << "Invalid chatid returned by getGroupChatRoom";
 
     // retrieve chatroom by chatid
     std::unique_ptr<MegaChatRoom> chatroom(megaChatApi[a1]->getChatRoom(mData.mChatid));
     ASSERT_TRUE(chatroom) << err << "with selected criteria";
 
     // open chatroom and add chatroom listener
-    std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, mData.mChatid));
+    std::shared_ptr<TestChatRoomListener> crl(
+        new TestChatRoomListener(this, megaChatApi, mData.mChatid));
     mData.mChatroomListeners.emplace(a1, crl);
-    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get()))
+        << "Can't open chatRoom a1 account";
 
     // invite a2 & a3 to meeting room and add chatroom listener for a2 & a3
     mData.mAccounts.emplace(a2, a2Uh);
@@ -1229,45 +1390,173 @@ TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts(););
     ASSERT_NO_FATAL_FAILURE(inviteToChat(a1, a2, a2Uh, crl.get()));
     ASSERT_NO_FATAL_FAILURE(inviteToChat(a1, a3, a3Uh, crl.get()));
-    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a2 account";
-    ASSERT_TRUE(megaChatApi[a3]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a3 account";
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(mData.mChatid, crl.get()))
+        << "Can't open chatRoom a2 account";
+    ASSERT_TRUE(megaChatApi[a3]->openChatRoom(mData.mChatid, crl.get()))
+        << "Can't open chatRoom a3 account";
 
-    LOG_debug << "#### Test1: a1 set call duration ####";
+    LOG_debug << "#### Test1: a1 set call duration and wait until it end for duration limit ####";
     // call will finish for all participants
-    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2, a3}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
-    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
-    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a3, mData.mChatid, false /*audio*/, false /*video*/));
-    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 30 /*callDur*/, true));
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1,
+                                                      {a2, a3},
+                                                      mData.mChatid,
+                                                      false /*audio*/,
+                                                      false /*video*/,
+                                                      false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(
+        answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(
+        answerCallAndCheckInProgress(a1, a3, mData.mChatid, false /*audio*/, false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 30, true));
 
-    LOG_debug << "#### Test2: a1 set call duration and disable it after receiving WILL_END notification ####";
+    LOG_debug << "#### Test2: a1 set call duration and disable it after receiving WILL_END "
+                 "notification ####";
     // call will finish for all participants
-    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2, a3}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
-    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
-    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a3, mData.mChatid, false /*audio*/, false /*video*/));
-    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 30 /*callDur*/, false));
-    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, MegaChatCall::CALL_LIMIT_RESET /*callDur*/, false));
-    ExitBoolFlags eF;
-    clearTemporalVars();
-    addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
-    ASSERT_NO_FATAL_FAILURE(endChatCall(a1, eF, mData.mChatid));
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1,
+                                                      {a2, a3},
+                                                      mData.mChatid,
+                                                      false /*audio*/,
+                                                      false /*video*/,
+                                                      false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(
+        answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(
+        answerCallAndCheckInProgress(a1, a3, mData.mChatid, false /*audio*/, false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 30, false));
+    ASSERT_NO_FATAL_FAILURE(
+        setCallduration(mData.mChatid, MegaChatCall::CALL_LIMIT_RESET /*callDur*/, false));
+    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, mData.mChatid));
 
-    LOG_debug << "#### Test3: a1 sets max num clients ####";
+    LOG_debug << "#### Test3: a1 sets max nuClients to 2, let join a2 and check error when joining "
+                 "a3 ####";
     // a2 can join but a3 will received SFU error
-    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2, a3}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
-    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, 4 /*numUsers*/, 4 /*numClientsPerUser*/, 2 /*numClients*/));
-    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
-    ASSERT_NO_FATAL_FAILURE(answerCallWithErr(a3, mData.mChatid, false /*audio*/, false /*video*/, MegaChatCall::TERM_CODE_TOO_MANY_PARTICIPANTS));
-    ExitBoolFlags eF1;
-    clearTemporalVars();
-    addBoolVarAndExitFlag(mData.mOpIdx, eF1, "callDestroyed", false); // mOpIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
-    ASSERT_NO_FATAL_FAILURE(endChatCall(a1, eF1, mData.mChatid));
+    CallLimits callClientsLims{.mCallDur = 3600,
+                               .mUsersLimit = 4,
+                               .mClientsPerUserLimit = 4,
+                               .mClientsLimit = 2,
+                               .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1,
+                                                      {a2, a3},
+                                                      mData.mChatid,
+                                                      false /*audio*/,
+                                                      false /*video*/,
+                                                      false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(
+        setCallLimits(a1, mData.mChatid, {a1}, callClientsLims, callClientsLims));
+    ASSERT_NO_FATAL_FAILURE(
+        answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(answerCallWithErr(a3,
+                                              mData.mChatid,
+                                              false /*audio*/,
+                                              false /*video*/,
+                                              MegaChatCall::TERM_CODE_TOO_MANY_PARTICIPANTS));
+    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, mData.mChatid));
 
-    LOG_debug << "#### Test4: a1 sets max numUsers ####";
+    LOG_debug << "#### Test4: a1 sets max numUsers to 2, let join a2 and check error when joining "
+                 "a3 ####";
     // a2 can join but a3 will received SFU error
-    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2, a3}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
-    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, 2 /*numUsers*/, 4 /*numClientsPerUser*/, 4 /*numClients*/));
-    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
-    ASSERT_NO_FATAL_FAILURE(answerCallWithErr(a3, mData.mChatid, false /*audio*/, false /*video*/, MegaChatCall::TERM_CODE_CALL_USERS_LIMIT));
+    CallLimits callUsersLims{.mCallDur = 3600,
+                             .mUsersLimit = 2,
+                             .mClientsPerUserLimit = 4,
+                             .mClientsLimit = 8,
+                             .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1,
+                                                      {a2, a3},
+                                                      mData.mChatid,
+                                                      false /*audio*/,
+                                                      false /*video*/,
+                                                      false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, {a1}, callUsersLims, callUsersLims));
+    ASSERT_NO_FATAL_FAILURE(
+        answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(answerCallWithErr(a3,
+                                              mData.mChatid,
+                                              false /*audio*/,
+                                              false /*video*/,
+                                              MegaChatCall::TERM_CODE_CALL_USERS_LIMIT));
+    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, mData.mChatid));
+
+    LOG_debug << "#### Test5: wait for call limits received from SFU (at HELLO command) ####";
+    CallLimits helloLimits{.mCallDur = 3600,
+                           .mUsersLimit = 8,
+                           .mClientsPerUserLimit = 2,
+                           .mClientsLimit = 10,
+                           .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1,
+                                                      {a2, a3},
+                                                      mData.mChatid,
+                                                      false /*audio*/,
+                                                      false /*video*/,
+                                                      false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, {a1}, helloLimits, helloLimits));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(mData.mOpIdx,
+                                                         a2,
+                                                         mData.mChatid,
+                                                         false /*audio*/,
+                                                         false /*video*/));
+    std::unique_ptr<MegaChatCall> call(megaChatApi[a2]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(call) << "Cannot retrieve call from chatroom: " << getChatIdStrB64(mData.mChatid);
+    auto settedCallLimits = CallLimits::fromCall(*call);
+    ASSERT_EQ(settedCallLimits.mCallDur, helloLimits.mCallDur);
+    ASSERT_EQ(settedCallLimits.mUsersLimit, helloLimits.mUsersLimit);
+    ASSERT_EQ(settedCallLimits.mClientsLimit, helloLimits.mClientsLimit);
+    ASSERT_EQ(settedCallLimits.mClientsPerUserLimit, helloLimits.mClientsPerUserLimit);
+    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, mData.mChatid));
+
+    LOG_debug << "#### Test6: Set of sequential changes in the limits ####";
+    // Create the call and join two more participants
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1,
+                                                      {a2, a3},
+                                                      mData.mChatid,
+                                                      false /*audio*/,
+                                                      false /*video*/,
+                                                      false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(mData.mOpIdx,
+                                                         a2,
+                                                         mData.mChatid,
+                                                         false /*audio*/,
+                                                         false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(mData.mOpIdx,
+                                                         a3,
+                                                         mData.mChatid,
+                                                         false /*audio*/,
+                                                         false /*video*/));
+    // Check that HELLO set the default limits
+    call.reset(megaChatApi[a2]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(call) << "Cannot retrieve call from chatroom: " << getChatIdStrB64(mData.mChatid);
+    settedCallLimits = CallLimits::fromCall(*call);
+    ASSERT_EQ(settedCallLimits.mCallDur, 3600);
+    ASSERT_EQ(settedCallLimits.mUsersLimit, 100);
+    ASSERT_EQ(settedCallLimits.mClientsLimit, MegaChatCall::CALL_LIMIT_NO_PRESENT);
+
+    // Set now the clients and divide the rest (except for the clients per user that
+    // is not affected)
+    CallLimits newLimits{.mCallDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         .mUsersLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         .mClientsPerUserLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                         .mClientsLimit = 10,
+                         .mDividerLimit = 2};
+    CallLimits expectedNewLimits{.mCallDur = 1800,
+                                 .mUsersLimit = 50,
+                                 .mClientsPerUserLimit = UNKNOWN_LIMIT,
+                                 .mClientsLimit = 10,
+                                 .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
+    ASSERT_NO_FATAL_FAILURE(
+        setCallLimits(a1, mData.mChatid, {a1, a2, a3}, newLimits, expectedNewLimits));
+
+    // Remove limits
+    CallLimits noLimits{.mCallDur = MegaChatCall::CALL_LIMIT_RESET,
+                        .mUsersLimit = MegaChatCall::CALL_LIMIT_RESET,
+                        .mClientsPerUserLimit = MegaChatCall::CALL_LIMIT_RESET,
+                        .mClientsLimit = MegaChatCall::CALL_LIMIT_RESET,
+                        .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
+    CallLimits expectedNoLimits{.mCallDur = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                                .mUsersLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                                .mClientsPerUserLimit = UNKNOWN_LIMIT,
+                                .mClientsLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
+                                .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
+    ASSERT_NO_FATAL_FAILURE(
+        setCallLimits(a1, mData.mChatid, {a1, a2, a3}, noLimits, expectedNoLimits));
 
     LOG_debug << "\tSwitching back to prod (TEMPORARY)";
     megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
@@ -8422,8 +8711,8 @@ void MegaChatApiTest::startCallAndCheckReceived (const unsigned int performerIdx
         addBoolVarAndExitFlag(idx, eF, "CallReceived", false);                      // idx - onChatCallUpdate(CALL_STATUS_INITIAL)
     });
 
-    startCallInChat(performerIdx, eF, mData.mChatid, enableVideo, enableAudio, notRinging);
-    checkCallIdInProgress(performerIdx, mData.mChatid);                             // check received callid for caller(performerIdx)
+    startCallInChat(performerIdx, eF, chatId, enableVideo, enableAudio, notRinging);
+    checkCallIdInProgress(performerIdx, chatId);                             // check received callid for caller(performerIdx)
 }
 
 void MegaChatApiTest::startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId,
@@ -10023,11 +10312,25 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
     {
         boolVars().updateIfExists(apiIndex, "CallWillEnd", true);
 
-        megachat::MegaChatHandle endsIn = call->getNum() == megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED
-            ? megachat::MegaChatCall::CALL_LIMIT_RESET
-            : static_cast<megachat::MegaChatHandle>(call->getNum());
+        megachat::MegaChatHandle endsAt = static_cast<megachat::MegaChatHandle>(call->getCallWillEndTs());
 
-        handleVars().updateIfExists(apiIndex, "CallEndsIn", endsIn);
+        handleVars().updateIfExists(apiIndex, "CallEndsAt", endsAt);
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_LIMITS_UPDATED))
+    {
+        boolVars().updateIfExists(apiIndex, "CallLimitsUpdated", true);
+
+        auto getHandle = [](int n) -> megachat::MegaChatHandle
+        {
+            return n == megachat::MegaChatCall::CALL_LIMIT_DISABLED ?
+                       megachat::MegaChatCall::CALL_LIMIT_NO_PRESENT :
+                       static_cast<megachat::MegaChatHandle>(n);
+        };
+        handleVars().updateIfExists(apiIndex, "durLimit", getHandle(call->getCallDurationLimit()));
+        handleVars().updateIfExists(apiIndex, "usersLimit", getHandle(call->getCallUsersLimit()));
+        handleVars().updateIfExists(apiIndex, "clientsLimit", getHandle(call->getCallClientsLimit()));
+        handleVars().updateIfExists(apiIndex, "clientsPerUserLimit", getHandle(call->getCallClientsPerUserLimit()));
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
@@ -10952,7 +11255,8 @@ void MockupCall::logError(const char *)
 
 bool MockupCall::handleHello(const Cid_t /*cid*/, const unsigned int /*nAudioTracks*/,
                              const std::set<karere::Id>& /*mods*/, const bool /*wr*/, const bool /*allowed*/,
-                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/, const int /*ldurSecs*/)
+                             const bool /*speakRequest*/, const sfu::WrUserList& /*wrUsers*/,
+                             const MockupCall::CallLimits& /*callLimits*/)
 {
     return true;
 }
@@ -10997,7 +11301,12 @@ bool MockupCall::handleMutedCommand(const unsigned /*av*/, const Cid_t /*cidPerf
     return true;
 }
 
-bool MockupCall::handleWillEndCommand(const int /*endsIn*/)
+bool MockupCall::handleWillEndCommand(const unsigned int /*endsIn*/)
+{
+    return true;
+}
+
+bool MockupCall::handleClimitsCommand(const sfu::SfuInterface::CallLimits& /*callLimits*/)
 {
     return true;
 }

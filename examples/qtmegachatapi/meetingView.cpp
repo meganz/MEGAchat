@@ -94,6 +94,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mSetLimits, SIGNAL(clicked()), this, SLOT(onSetLimits()));
     mSetLimits->setVisible(true);
 
+    mGetLimits= new QPushButton("Get call limits", this);
+    connect(mGetLimits, SIGNAL(clicked()), this, SLOT(onGetLimits()));
+    mGetLimits->setVisible(true);
+
     setLayout(mGridLayout);
 
     mThumbView->setWidget(widgetThumbs);
@@ -132,6 +136,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mKickWr);
     mButtonsLayout->addWidget(mMuteAll);
     mButtonsLayout->addWidget(mSetLimits);
+    mButtonsLayout->addWidget(mGetLimits);
     mGridLayout->addLayout(mLocalLayout, 2, 1, 1, 1);
     mGridLayout->setRowStretch(0, 1);
     mGridLayout->setRowStretch(1, 3);
@@ -174,7 +179,7 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append("<br /> Speak request is enabled: ")
             .append(call->isSpeakRequestEnabled() ? on : off)
             .append("<br /> Call duration limit: ")
-            .append(call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED
+            .append(call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DISABLED
                     ? "<span style='font-weight:bold;'>Disabled</span>"
                     : "<span style='color:#AA0000'>" + std::to_string(call->getCallDurationLimit()) +"</span>")
             .append("<br /> Audio flag: ")
@@ -833,6 +838,27 @@ void MeetingView::onEnableAudioMonitor(bool)
            : mMegaChatApi.enableAudioLevelMonitor(true, mChatid);
 }
 
+void MeetingView::onGetLimits()
+{
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        return;
+    }
+
+    std::string text = "\n CallDuration: " + std::to_string(call->getCallDurationLimit()) +
+                       "\n CallUsersLimit: " + std::to_string(call->getCallUsersLimit()) +
+                       "\n CallClientsLimit: " + std::to_string(call->getCallClientsLimit()) +
+                       "\n CallClientsPerUserLimit: " +
+                       std::to_string(call->getCallClientsPerUserLimit());
+
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setWindowTitle("Call limits");
+    msg.setText(text.c_str());
+    msg.exec();
+}
+
 void MeetingView::onJoinCallWithVideo()
 {
     QString audiostr = QInputDialog::getText(this, tr("Enable audio [0|1]"), tr("Do you want to enable audio?"));
@@ -924,7 +950,8 @@ void MeetingView::onSetLimits()
     auto numUsers = getNumLimit("Set max different users accounts: ");
     auto numClientsPerUser = getNumLimit("Set max clients per user");
     auto numClients = getNumLimit("Set max total clients in the call: ");
-    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClientsPerUser, numClients);
+    auto divider = getNumLimit("Set divider to apply to non passed limits: ");
+    mMegaChatApi.setLimitsInCall(mChatid, callDur, numUsers, numClientsPerUser, numClients, divider);
 }
 
 void MeetingView::onJoinCallWithoutVideo()

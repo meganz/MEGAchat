@@ -3998,32 +3998,39 @@ public class MegaChatApiJava {
     /**
      * Set limitations for a chat call in progress (like duration or max participants).
      *
+     * - If you don't want to modify any of the limits, set param to MegaChatCall::CALL_LIMIT_NO_PRESENT
+     * - If you want to reset any of the limits to unlimited value, set param to MegaChatCall::CALL_LIMIT_RESET
+     *
      * Note: this method should be only used for test purpose
      * The associated request type with this request is MegaChatRequest::TYPE_SET_LIMIT_CALL
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getMegaHandleList - Returns a MegaHandleList with 4 elements:
+     * - MegaChatRequest::getMegaHandleList - Returns a MegaHandleList with 5 elements:
      *      + MegaHandleList::get(0) - returns callDur param
      *      + MegaHandleList::get(1) - returns numUsers param
      *      + MegaHandleList::get(2) - returns numClientsPerUser param
      *      + MegaHandleList::get(3) - returns numClients param
+     *      + MegaHandleList::get(4) - returns divider param
      *   Note: The indexes above, represents the same order in which params are added to MegaHandleList, at MegaChatApiImpl::setLimitsInCall.
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_ARGS   - if specified chatid is invalid
-     * - MegaChatError::ERROR_ARGS   - if numClientsPerUser is greater than MegaChatCall::CALL_LIMIT_USERS_PER_CLIENT
+     * - MegaChatError::ERROR_ARGS   - if all provided params are equal to MegaChatCall::CALL_LIMIT_NO_PRESENT
      * - MegaChatError::ERROR_NOENT  - if chatroom doesn't exists, or there's no a call in the specified chatroom
-     * - MegaChatError::ERROR_ACCESS - if call isn't in progress state, or our own privilege is different than MegaChatPeerList::PRIV_MODERATOR
+     * - MegaChatError::ERROR_ACCESS - if call isn't in progress state
      *
      * @param chatId MegaChatHandle that identifies the chat room
-     * @param callDur Maximum call duration, in seconds
+     * @param callDur Maximum call duration, in seconds (call duration starts counting when call is answered)
      * @param numUsers Maximum number of participants (users, not clients - one user may join with several clients), allowed to join the call
-     * @param numClients Maximum total number of clients allowed to be in the call at the same time. This doesn't include the clients in the waiting room
      * @param numClientsPerUser Maximum number of clients with which a single user can join a call.
+     * @param numClients Maximum total number of clients allowed to be in the call at the same time. This doesn't include the clients in the waiting room
+     * @param divider A divider that divides all existing limits by the specified number, rounding the result (except for callDur).
+     *     Note: If there are other limits in the command, they will be applied after div, in other
+     *     words, the division will only be applied for limits set in previous requests.
      * @param listener MegaChatRequestListener to track this request
      */
-    public void setLimitsInCall(long chatId, Long callDur, Long numUsers, Long numClients, Long numClientsPerUser, MegaChatRequestListenerInterface listener){
-        megaChatApi.setLimitsInCall(chatId, callDur, numUsers, numClients, numClientsPerUser, createDelegateRequestListener(listener));
+    public void setLimitsInCall(long chatId, Long callDur, Long numUsers,Long numClientsPerUser, Long numClients, Long divider, MegaChatRequestListenerInterface listener){
+        megaChatApi.setLimitsInCall(chatId, callDur, numUsers, numClients, numClientsPerUser, divider, createDelegateRequestListener(listener));
     }
 
     /**

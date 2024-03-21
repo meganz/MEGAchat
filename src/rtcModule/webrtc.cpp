@@ -173,9 +173,19 @@ CallState Call::getState() const
     return mState;
 }
 
+mega::m_time_t Call::getCallWillEndTs() const
+{
+    return mCallWillEndTs;
+}
+
 int Call::getCallDurationLimitInSecs() const
 {
-    return mCallDurLimitInSecs;
+    return mCallLimits.durationInSecs;
+}
+
+sfu::SfuInterface::CallLimits Call::getCallLimits() const
+{
+    return mCallLimits;
 }
 
 bool Call::isOwnClientCaller() const
@@ -678,9 +688,9 @@ void Call::mutePeers(const Cid_t& cid, const unsigned av) const
     mSfuConnection->sendMute(cid, av);
 }
 
-void Call::setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const
+void Call::setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider) const
 {
-    mSfuConnection->sendSetLimit(callDurSecs, numUsers, numClientsPerUser, numClients);
+    mSfuConnection->sendSetLimit(callDurSecs, numUsers, numClientsPerUser, numClients, divider);
 }
 
 void Call::requestHighResolutionVideo(Cid_t cid, int quality)
@@ -2280,7 +2290,7 @@ bool Call::handleModDel(uint64_t userid)
 }
 
 bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const std::set<karere::Id>& mods,
-                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const int ldurSecs)
+                       const bool wr, const bool allowed, const bool speakRequest, const sfu::WrUserList& wrUsers, const CallLimits& callLimits)
 {
     #ifndef NDEBUG
     // ensures that our sfu protocol version is the latest one defined in karere
@@ -2301,7 +2311,13 @@ bool Call::handleHello(const Cid_t cid, const unsigned int nAudioTracks, const s
     setSpeakRequest(speakRequest);
 
     // set call duration limit if any (in seconds)
-    mCallDurLimitInSecs = ldurSecs;
+    mCallLimits = callLimits;
+    // Ensure no residual ending time stamp is stored. The correct one (if any) will come in WILL_END
+    if (mCallWillEndTs != mega::mega_invalid_timestamp)
+    {
+        RTCM_LOG_DEBUG("Resetting mCallWillEndTs to mega_invalid_timestamp upon HELLO command");
+        mCallWillEndTs = mega::mega_invalid_timestamp;
+    }
 
     // Set the maximum number of simultaneous audio tracks the call supports. If no received nAudioTracks or nVideoTracks set as max default
     mNumInputAudioTracks = nAudioTracks ? nAudioTracks : static_cast<uint32_t>(RtcConstant::kMaxCallAudioSenders);
@@ -2453,15 +2469,28 @@ bool Call::handleWrUsersDeny(const std::set<karere::Id>& users)
     return manageAllowedDeniedWrUSers(users, false /*allow*/, "WR_USERS_DENY");
 }
 
-bool Call::handleWillEndCommand(const int endsIn)
+bool Call::handleWillEndCommand(const unsigned int endsIn)
 {
     SFU_LOG_DEBUG("%d",endsIn);
-    if (endsIn == sfu::kCallLimitDurationDisabled)
+    mCallWillEndTs = ::mega::m_time(nullptr) + endsIn;
+    mCallHandler.onCallWillEndr(*this);
+    return true;
+}
+
+bool Call::handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits)
+{
+    auto &oldDur = mCallLimits.durationInSecs;
+    auto &newDur = callLimits.durationInSecs;
+    if (oldDur != ::sfu::kCallLimitDisabled && newDur == ::sfu::kCallLimitDisabled)
     {
-        SFU_LOG_DEBUG("handleWillEndCommand: Call duration limit disabled for this call");
-        mCallDurLimitInSecs = endsIn;
+        mCallWillEndTs = mega::mega_invalid_timestamp;
+        mCallHandler.onCallWillEndr(*this);
     }
-    mCallHandler.onCallWillEndr(*this, endsIn);
+    if (mCallLimits != callLimits)
+    {
+        mCallLimits = callLimits;
+        mCallHandler.onCallLimitsUpdated(*this);
+    }
     return true;
 }
 
