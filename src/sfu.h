@@ -329,10 +329,10 @@ protected:
 
     /**
      * @brief Given a json object, extracts from it all the fields needed to build a CallLimits
-     * objetc.
+     * object.
      *
      * @param jsonObject The json object with the required fields
-     * @return std::optional<SfuInterface::CallLimits> An empty optional if any filed in the lim
+     * @return std::optional<SfuInterface::CallLimits> An empty optional if any field in the lim
      * object has an unexpected format. Else, the object with the limits. If any field is missing in
      * the lim object, the associated parameter will be set to sfu::kCallLimitDisabled.
      */

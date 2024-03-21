@@ -947,7 +947,7 @@ public:
      *       In this case this method returns the time stamp associated to the call finishing with
      *       TERM_CODE_CALL_DUR_LIMIT.
      *
-     * @return The call finishing time stamp if there is any duration limit duration limit. If there
+     * @return The call finishing time stamp if there is any duration limit. If there
      * are no limits, MEGACHAT_INVALID_TIMESTAMP will be returned.
      */
     virtual MegaChatTimeStamp getCallWillEndTs() const;
