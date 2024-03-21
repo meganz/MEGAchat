@@ -66,7 +66,7 @@ target_sources_conditional(CHATlib
 )
 
 target_sources_conditional(CHATlib
-    FLAG ENABLE_CHATLIB_TESTS
+    FLAG ENABLE_CHATLIB_TESTS OR ENABLE_CHATLIB_MEGACLC
     PRIVATE
     async_utils.h
     async_utils.cpp
@@ -110,6 +110,7 @@ if (WIN32)
     target_compile_definitions(CHATlib
         PRIVATE
             NOMINMAX # TODO Fix locally
+            $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:MEGA_FULL_STATIC>
     )
 endif()
 
