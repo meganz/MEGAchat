@@ -8,6 +8,7 @@
 #include <base/trackDelete.h>
 
 #define UACACHE_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_uacache, fmtString, ##__VA_ARGS__)
+#define UACACHE_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_uacache, fmtString, ##__VA_ARGS__)
 
 class Buffer;
 

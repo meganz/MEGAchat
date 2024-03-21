@@ -596,11 +596,23 @@ void UserAttrCache::invalidate()
 void UserAttrCache::onLogin()
 {
     mIsLoggedIn = true;
+    uint64_t skippedAttr = 0;
     for (auto& item: *this)
     {
-        if (item.second->pending != kCacheFetchNotPending && item.second->pending != kCacheNotFetchUntilUse)
-            fetchAttr(item.first, item.second);
+        const bool fetchAttribute = item.second->pending != kCacheFetchNotPending &&
+                                    item.second->pending != kCacheNotFetchUntilUse;
+        if (!fetchAttribute)
+        {
+            skippedAttr++;
+            continue;
+        }
+
+        fetchAttr(item.first, item.second);
     }
+
+    UACACHE_LOG_WARNING("UserAttrCache::onLogin. skip fetching %u attributes of %u in total",
+                      skippedAttr,
+                      size());
 }
 
 void UserAttrCache::onLogOut()
