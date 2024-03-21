@@ -381,7 +381,7 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
             }
             case TLV_TYPE_OPENMODE:
             {
-                openmode = true;
+                publicChatMode = true;
                 break;
             }
             case TLV_TYPE_SCHED_ID:
@@ -1135,12 +1135,24 @@ void ProtocolHandler::fetchUserKeys(karere::Id userid)
 {
     if (!isPublicChat())
     {
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY, nullptr, nullptr);
-        mUserAttrCache.getAttr(userid, ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY, nullptr, nullptr);
+        // in case of public chats, we don't need to fetch ATTR_ED25519_PUBLIC_KEY, as we don't
+        // verify signature for received messages if chat is public
+        mUserAttrCache.getAttr(userid,
+                               ::mega::MegaApi::USER_ATTR_ED25519_PUBLIC_KEY,
+                               nullptr,
+                               nullptr);
     }
-    // else (if chat is public) we don't need to fetch:
-    //   - ATTR_CU25519_PUBLIC_KEY: as messages are encrypyted/decrypted with unified key
-    //   - ATTR_ED25519_PUBLIC_KEY: as we don't verify signature for received messages if chat is public
+
+    if (!previewMode())
+    {
+        // in case of public chats, we need to fetch ATTR_CU25519_PUBLIC_KEY to encrypt/decrypt
+        // unified key, except in preview mode where unified key is retrieved from chat-link and
+        // it's not encrypted
+        mUserAttrCache.getAttr(userid,
+                               ::mega::MegaApi::USER_ATTR_CU25519_PUBLIC_KEY,
+                               nullptr,
+                               nullptr);
+    }
 }
 
 //We should have already received and decrypted the key in advance
@@ -1628,7 +1640,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 {
     auto ctx = std::make_shared<Context>();
     promise::Promise<std::shared_ptr<SendKey>> symPms;
-    if (openmode)  // chat-title was created in open-mode --> decrypt using unfied-key
+    if (publicChatMode)  // chat-title was created in open-mode --> decrypt using unfied-key
     {
         symPms = mProtoHandler.unifiedKey();
     }
@@ -1671,7 +1683,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 
     // Get signing key
     promise::Promise<void> edPms;
-    if (openmode)
+    if (publicChatMode)
     {
         edPms = promise::_Void();
     }
@@ -1708,7 +1720,7 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
 #endif
         }
 
-        if (!openmode)
+        if (!publicChatMode)
         {
             if (!verifySignature(ctx->edKey, *ctx->sendKey))
             {
@@ -1721,10 +1733,10 @@ ParsedMessage::decryptChatTitle(chatd::Message* msg, bool msgCanBeDeleted)
         msg->setEncrypted(Message::kNotEncrypted);
         Id chatid = mProtoHandler.chatid;
 
-        std::string text = openmode
+        std::string text = publicChatMode
                 ? "(public chat)"
                 : "(private chat)";
-        STRONGVELOPE_LOG_DEBUG("Title decrypted successfully %s.", openmode ? "(public chat)" : "(private chat)");
+        STRONGVELOPE_LOG_DEBUG("Title decrypted successfully %s.", publicChatMode ? "(public chat)" : "(private chat)");
         return msg;
     });
 }
