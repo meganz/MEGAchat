@@ -6,6 +6,8 @@
  * @brief Some utilities to process and store the state of the prompt during the megaclc execution.
  */
 
+#include "mclc_general_utils.h"
+
 #ifndef NO_READLINE
 #include <stdio.h> // Needed for readline
 #include <readline/history.h>

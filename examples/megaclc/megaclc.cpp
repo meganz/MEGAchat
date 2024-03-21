@@ -46,7 +46,7 @@ void megaclc()
 
     rl_save_prompt();
 #elif defined(WIN32) && defined(NO_READLINE)
-    static_cast<m::WinConsole*>(clc_global::console.get())
+    static_cast<m::WinConsole*>(clc_global::g_console.get())
         ->setShellConsole(CP_UTF8, GetConsoleOutputCP());
 #else
 #error non-windows platforms must use the readline library
@@ -63,7 +63,7 @@ void megaclc()
         if (clc_global::g_prompt == clc_prompt::COMMAND)
         {
 #if defined(WIN32) && defined(NO_READLINE)
-            static_cast<m::WinConsole*>(clc_global::console.get())
+            static_cast<m::WinConsole*>(clc_global::g_console.get())
                 ->updateInputPrompt(clc_prompt::prompts[clc_prompt::COMMAND]);
 #else
             rl_callback_handler_install(clc_prompt::prompts[clc_prompt::COMMAND],
@@ -88,11 +88,11 @@ void megaclc()
 
 #ifdef NO_READLINE
             {
-                auto cl = console::conlock(std::cout);
-                static_cast<m::WinConsole*>(clc_global::console.get())->consolePeek();
-                if (clc_global::prompt >= clc_prompt::COMMAND && !clc_global::line)
+                auto cl = clc_console::conlock(std::cout);
+                static_cast<m::WinConsole*>(clc_global::g_console.get())->consolePeek();
+                if (clc_global::g_prompt >= clc_prompt::COMMAND && !clc_global::g_promptLine)
                 {
-                    clc_global::line = static_cast<m::WinConsole*>(clc_global::console.get())
+                    clc_global::g_promptLine = static_cast<m::WinConsole*>(clc_global::g_console.get())
                                            ->checkForCompletedInputLine();
                 }
             }
