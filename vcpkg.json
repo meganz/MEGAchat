@@ -77,10 +77,17 @@
         }
     },
     "dependencies": [
-      { "name": "cryptopp", "version>=": "8.9.0" },
-      "libsodium",
-      "sqlite3",
-      "icu"
+        { "name": "cryptopp", "version>=": "8.9.0" },
+        "libsodium",
+        "sqlite3",
+        "icu",
+        "libx11",
+        "libxfixes",
+        "libxdamage",
+        "libxrandr",
+        "libxtst",
+        "libxcomposite",
+        "libxext"
     ],
     "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae"
 }

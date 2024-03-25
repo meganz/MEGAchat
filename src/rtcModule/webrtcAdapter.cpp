@@ -281,9 +281,9 @@ VideoManager* VideoManager::createVideoCapturer(const webrtc::VideoCaptureCapabi
                                    )
 {
 #ifdef __APPLE__
-    return nullptr // TODO implement
+    return nullptr; // TODO implement
 #elif __ANDROID__
-    return nullptr // TODO implement
+    return nullptr; // TODO implement
 #else
     return new CaptureModuleLinux(capabilities);
 #endif
@@ -319,8 +319,10 @@ std::set<std::pair<long int, std::string>> VideoManager::getScreenDevices()
 {
  #ifdef __APPLE__
          // TODO: return OBJCCaptureModule::getScreenDevicesList();
+         return {};
  #elif __ANDROID__
          // TODO: return CaptureModuleAndroid::getScreenDevicesList();
+         return {};
  #else
         return CaptureScreenModuleLinux::getScreenDevicesList();
  #endif
