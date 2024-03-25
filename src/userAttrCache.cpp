@@ -256,7 +256,8 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, uint64_t changed)
                 key.toString().c_str());
             continue;
         }
-        if (item->pending && ((type & USER_ATTR_FLAG_COMPOSITE) == 0))
+
+        if (item->pending > kCacheFetchNotPending && ((type & USER_ATTR_FLAG_COMPOSITE) == 0))
         {
             // Composed attributes must be re-fetched, if any of the attrs that synthesize it has changed
             //TODO: Shouldn't we schedule a re-fetch?
@@ -579,18 +580,39 @@ void UserAttrCache::invalidate()
     mClient.db.query("delete from userattrs");
     for (auto& item: *this)
     {
-        item.second->pending = kCacheFetchUpdatePending;
+        if (item.second->pending != kCacheNotFetchUntilUse)
+        {
+            // we need to re-fetch all attributes except those ones whose status
+            // is kCacheNotFetchUntilUse
+            //
+            // we currently just set this state if chat is public and
+            // participants size is greater than PRELOAD_CHATLINK_PARTICIPANTS
+            item.second->pending = kCacheFetchUpdatePending;
+            fetchAttr(item.first, item.second);
+        }
     }
 }
 
 void UserAttrCache::onLogin()
 {
     mIsLoggedIn = true;
+    uint64_t skippedAttr = 0;
     for (auto& item: *this)
     {
-        if (item.second->pending != kCacheFetchNotPending && item.second->pending != kCacheNotFetchUntilUse)
-            fetchAttr(item.first, item.second);
+        const bool fetchAttribute = item.second->pending != kCacheFetchNotPending &&
+                                    item.second->pending != kCacheNotFetchUntilUse;
+        if (!fetchAttribute)
+        {
+            skippedAttr++;
+            continue;
+        }
+
+        fetchAttr(item.first, item.second);
     }
+
+    UACACHE_LOG_WARNING("UserAttrCache::onLogin. skip fetching %u attributes of %u in total",
+                      skippedAttr,
+                      size());
 }
 
 void UserAttrCache::onLogOut()
