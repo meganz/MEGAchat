@@ -582,7 +582,7 @@ void UserAttrCache::invalidate()
     {
         if (item.second->pending != kCacheNotFetchUntilUse)
         {
-            // we need to re-fetch all attributes except those ones wich status
+            // we need to re-fetch all attributes except those ones whose status
             // is kCacheNotFetchUntilUse
             //
             // we currently just set this state if chat is public and
