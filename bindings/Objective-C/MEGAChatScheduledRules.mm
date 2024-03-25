@@ -39,7 +39,7 @@ using namespace mega;
                         byWeekDay:(NSArray <NSNumber *> *)byWeekDay
                        byMonthDay:(NSArray <NSNumber *> *)byMonthDay
                    byMonthWeekDay:(NSArray<NSArray<NSNumber *> *> *)byMonthWeekDay {
-    self = [self initWithMegaChatScheduledRules:MegaChatScheduledRules::createInstance(frequency) cMemoryOwn:YES];
+    self = [self initWithMegaChatScheduledRules:MegaChatScheduledRules::createInstance((int)frequency) cMemoryOwn:YES];
     
     if (self != nil) {
         self.interval = interval;
@@ -52,12 +52,18 @@ using namespace mega;
     return self;
 }
 
+- (void)dealloc {
+    if (self.cMemoryOwn){
+        delete _megaChatScheduledRules;
+    }
+}
+
 - (MegaChatScheduledRules *)getCPtr {
     return self.megaChatScheduledRules;
 }
 
 - (instancetype)clone {
-    return self.megaChatScheduledRules ? [[MEGAChatScheduledRules alloc] initWithMegaChatScheduledRules:self.megaChatScheduledRules cMemoryOwn:YES] : nil;
+    return self.megaChatScheduledRules ? [[MEGAChatScheduledRules alloc] initWithMegaChatScheduledRules:self.megaChatScheduledRules->copy() cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatScheduledRulesFrequency)frequency {
@@ -67,7 +73,7 @@ using namespace mega;
 
 - (void)setFrequency:(MEGAChatScheduledRulesFrequency)frequency {
     if (self.megaChatScheduledRules) {
-        self.megaChatScheduledRules->setFreq(frequency);
+        self.megaChatScheduledRules->setFreq((int)frequency);
     }
 }
 
@@ -78,7 +84,7 @@ using namespace mega;
 
 - (void)setInterval:(NSInteger)interval {
     if (self.megaChatScheduledRules) {
-        self.megaChatScheduledRules->setInterval(interval);
+        self.megaChatScheduledRules->setInterval((int)interval);
     }
 }
 
@@ -101,7 +107,7 @@ using namespace mega;
 
     for (int i = 0; i < integerList->size(); i++)
     {
-        [integerArray addObject:[NSNumber.alloc initWithInt:integerList->get(i)]];
+        [integerArray addObject:[NSNumber.alloc initWithInt:(int)integerList->get(i)]];
     }
 
     delete integerList;
@@ -133,7 +139,7 @@ using namespace mega;
 
     for (int i = 0; i < integerList->size(); i++)
     {
-        [integerArray addObject:[NSNumber.alloc initWithInt:integerList->get(i)]];
+        [integerArray addObject:[NSNumber.alloc initWithInt:(int)integerList->get(i)]];
     }
 
     delete integerList;
@@ -157,11 +163,11 @@ using namespace mega;
     }
 }
 
-- (NSMutableArray< NSMutableArray<NSNumber *> *> *)byMonthWeekDay {
+- (NSArray< NSArray<NSNumber *> *> *)byMonthWeekDay {
     if (!self.megaChatScheduledRules || !self.megaChatScheduledRules->byMonthWeekDay()) { return nil; }
 
     MegaIntegerMap *integerMap = self.megaChatScheduledRules->byMonthWeekDay()->copy();
-    NSMutableArray< NSMutableArray<NSNumber *> *> *integerArray = [NSMutableArray arrayWithCapacity:integerMap->size()];
+    NSMutableArray<NSArray<NSNumber *> *> *integerArray = [NSMutableArray arrayWithCapacity:integerMap->size()];
     
     for (int i = 0; i < integerMap->size(); i++)
     {
@@ -170,7 +176,7 @@ using namespace mega;
         {
             uint64_t key = keyList->get(i);
             MegaIntegerList *valueList = integerMap->get(key);
-            NSMutableArray<NSNumber *> *keyValueArray = @[[NSNumber.alloc initWithInt:key], [NSNumber.alloc initWithInt:valueList->get(0)]];
+            NSArray<NSNumber *> *keyValueArray = @[[NSNumber.alloc initWithInt:(int)key], [NSNumber.alloc initWithInt:(int)valueList->get(0)]];
             [integerArray addObject:keyValueArray];
         }
     }
@@ -201,12 +207,12 @@ using namespace mega;
 
 - (BOOL)isValidFrequency:(MEGAChatScheduledRulesFrequency)frequency {
     if (!self.megaChatScheduledRules) { return NO; }
-    return self.megaChatScheduledRules->isValidFreq(frequency);
+    return self.megaChatScheduledRules->isValidFreq((int)frequency);
 }
 
 - (BOOL)isValidInterval:(NSInteger)interval {
     if (!self.megaChatScheduledRules) { return NO; }
-    return self.megaChatScheduledRules->isValidInterval(interval);
+    return self.megaChatScheduledRules->isValidInterval((int)interval);
 }
 
 @end

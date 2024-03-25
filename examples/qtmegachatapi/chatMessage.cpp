@@ -540,6 +540,117 @@ std::string ChatMessage::managementInfoToString() const
                     .append(" seconds");
             break;
         }
+        case megachat::MegaChatMessage::TYPE_SCHED_MEETING:
+        {
+            auto isEmpty = [](const mega::MegaStringList* l) -> bool
+            {
+                if (!l || !l->size()) { return true; }
+                for (int i = 0; i < l->size(); ++i)
+                {
+                    if (strlen(l->get(i)))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            };
+
+            std::string changeSet;
+            std::string changeListStr;
+            auto getChangeListStr = [this, &isEmpty, &changeSet, &changeListStr](const unsigned int change, std::string changeStr) -> void
+            {
+                changeSet.append(" ").append(changeStr).append(": ").append(std::to_string(mMessage->hasSchedMeetingChanged(change)));
+                if (change == MegaChatScheduledMeeting::SC_RULES)
+                {
+                    const MegaChatScheduledRules* rules = mMessage->getScheduledMeetingRules();
+                    if (!rules) { return; }
+
+                    changeListStr.append("\n * ").append(changeStr).append("=>");
+                    changeListStr.append("\n\t - Freq: ").append(std::to_string(rules->freq()));
+                    changeListStr.append("\n\t - Interval: ").append(std::to_string(rules->interval()));
+                    changeListStr.append("\n\t - Until: ").append(std::to_string(rules->until()));
+                    if (rules->byWeekDay())
+                    {
+                        changeListStr.append("\n\t - Wd: [");
+                        for(int i = 0; i < rules->byWeekDay()->size(); ++i)
+                        {
+                            changeListStr.append(" ").append(std::to_string(rules->byWeekDay()->get(i)));
+                        }
+                        changeListStr.append("]");
+                    }
+
+                    if (rules->byMonthDay())
+                    {
+                        changeListStr.append("\n\t - Md: [");
+                        for(int i = 0; i < rules->byMonthDay()->size(); ++i)
+                        {
+                            changeListStr.append(" ").append(std::to_string(rules->byMonthDay()->get(i)));
+                        }
+                        changeListStr.append("]");
+                    }
+
+                    if (rules->byMonthWeekDay())
+                    {
+                        mega::MegaIntegerList* keys = rules->byMonthWeekDay()->getKeys();
+                        if (!keys) { return; }
+                        changeListStr.append("\n\t - Mwd: [");
+
+                        for(int i = 0; i < keys->size(); ++i)
+                        {
+                            int64_t key = keys->get(i);
+                            mega::MegaIntegerList* values = rules->byMonthWeekDay()->get(key);
+                            if (!values || !values->size()) { continue; }
+
+                            for(int j = 0; j < values->size(); ++j)
+                            {
+                                changeListStr.append(" [").append(std::to_string(key)).append(", ").append(std::to_string(values->get(j))).append("]");
+                            }
+                        }
+                        changeListStr.append("]");
+                    }
+                }
+                else
+                {
+                    const mega::MegaStringList* l = mMessage->getScheduledMeetingChange(change);
+                    if (isEmpty(l)) { return; }
+
+                    changeListStr.append("\n * ").append(changeStr).append("=>");
+
+                    if (l->size() == 1)
+                    {   changeListStr.append(" Current: ").append(l->get(0)); }
+                    else if (l->size() == 2)
+                    {
+                        changeListStr.append(" Old: ").append(l->get(0));
+                        changeListStr.append(" New: ").append(l->get(1));
+                    }
+                }
+            };
+
+            getChangeListStr(MegaChatScheduledMeeting::SC_NEW_SCHED, "NEW");
+            getChangeListStr(MegaChatScheduledMeeting::SC_PARENT,    "p");
+            getChangeListStr(MegaChatScheduledMeeting::SC_TZONE,     "tz");
+            getChangeListStr(MegaChatScheduledMeeting::SC_START,     "s");
+            getChangeListStr(MegaChatScheduledMeeting::SC_END,       "e");
+            getChangeListStr(MegaChatScheduledMeeting::SC_TITLE,     "t");
+            getChangeListStr(MegaChatScheduledMeeting::SC_DESC,      "d");
+            getChangeListStr(MegaChatScheduledMeeting::SC_ATTR,      "at");
+            getChangeListStr(MegaChatScheduledMeeting::SC_FLAGS,     "f");
+            getChangeListStr(MegaChatScheduledMeeting::SC_RULES,     "r");
+            getChangeListStr(MegaChatScheduledMeeting::SC_CANC,      "c");
+
+            ret.append("User ").append(userHandle_64).append(" ");
+            if (mMessage->hasSchedMeetingChanged(MegaChatScheduledMeeting::SC_NEW_SCHED))
+            {
+                ret.append("created new scheduled meeting: ") .append(actionHandle_64);
+            }
+            else
+            {
+                ret.append("modified scheduled meeting: ") .append(actionHandle_64)
+                    .append("\nchangeset: ") .append(changeSet)
+                    .append("\nchanges: ") .append(changeListStr);
+            }
+            break;
+        }
         default:
         {
             ret.append("Management message with unknown type: ")
@@ -958,7 +1069,9 @@ void ChatMessage::onNodeDownloadOrImport(mega::MegaNode *node, bool import)
         msgBoxAns.setStandardButtons(QMessageBox::Ok | QMessageBox::Cancel);
         if (msgBoxAns.exec() == QMessageBox::Ok)
         {
-            mChatWindow->mMegaApi->startDownload(resultNode, target.c_str(), nullptr, nullptr, false, nullptr);
+            mChatWindow->mMegaApi->startDownload(resultNode, target.c_str(), nullptr, nullptr, false, nullptr,
+                                                 mega::MegaTransfer::COLLISION_CHECK_FINGERPRINT,
+                                                 mega::MegaTransfer::COLLISION_RESOLUTION_OVERWRITE, false);
         }
     }
 }

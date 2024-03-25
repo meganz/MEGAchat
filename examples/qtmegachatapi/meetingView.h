@@ -3,6 +3,7 @@
 #define MEETINGVIEW_H
 
 #include "peerWidget.h"
+#include "megaLoggerApplication.h"
 #include <megachatapi.h>
 
 #include <QDialog>
@@ -16,7 +17,7 @@
 #include "meetingSession.h"
 
 class MeetingSession;
-class MeetingView : public QDialog
+class MeetingView : public QDialog, public megachat::MegaChatRequestListener
 {
     Q_OBJECT
 public:
@@ -32,12 +33,15 @@ public:
     void updateAudioButtonText(const megachat::MegaChatCall &call);
     void updateVideoButtonText(const megachat::MegaChatCall &call);
     void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
-    std::string sessionToString(const megachat::MegaChatSession& session);
+    std::string sessionToString(megachat::MegaChatHandle, megachat::MegaChatHandle,
+                                std::function<void()>);
     void updateAudioMonitor(bool enabled);
     void updateLabel(megachat::MegaChatCall *call);
     void setNotParticipating();
     void setConnecting();
     static std::string callStateToString(const megachat::MegaChatCall& call);
+    megachat::MegaChatHandle getChatid();
+    megachat::MegaChatApi& megachatApi();
 
     // methods to add/remove video widgets
     bool hasLowResByCid(uint32_t cid);
@@ -49,8 +53,12 @@ public:
     void createRingingWindow(megachat::MegaChatHandle callid);
     void destroyRingingWindow();
 
+    // megachat::MegaChatRequestListener
+    virtual void onRequestFinish(megachat::MegaChatApi* api, megachat::MegaChatRequest *request,
+                                 megachat::MegaChatError* e) override;
+
 protected:
-    megachat::MegaChatApi &mMegaChatApi;
+    megachat::MegaChatApi& mMegaChatApi;
     mega::MegaHandle mChatid;
     int mNetworkQuality = ::megachat::MegaChatCall::NETWORK_QUALITY_GOOD;
 
@@ -73,6 +81,13 @@ protected:
     QPushButton* mSetOnHold;
     QPushButton* mJoinCallWithVideo;
     QPushButton* mJoinCallWithoutVideo;
+    QPushButton* mWaitingRoomShow;
+    QPushButton* mAllowJoin;
+    QPushButton* mPushWr;
+    QPushButton* mKickWr;
+    QPushButton* mMuteAll;
+    QPushButton* mSetLimits;
+    QPushButton* mGetLimits;
     QLabel* mOnHoldLabel;
     QLabel* mLabel;
 
@@ -85,6 +100,9 @@ protected:
 
     std::unique_ptr<QMessageBox> mRingingWindow;
 
+    std::function<void()> mUserDataReceivedFunc;
+    MegaLoggerApplication* mLogger;
+
 public slots:
     void onHangUp();
     void onEndCall();
@@ -93,11 +111,17 @@ public slots:
     void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
-    void onRemoveSpeaker(uint32_t cid);
-    void onRemoveSpeaker();
+    void onRemoveOwnSpeaker();
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();
     void onJoinCallWithoutVideo();
+    void onMuteAll();
+    void onSetLimits();
+    void onGetLimits();
+    void onWrShow();
+    void onAllowJoin();
+    void onPushWr();
+    void onKickWr();
 };
 
 #endif // MEETINGVIEW_H

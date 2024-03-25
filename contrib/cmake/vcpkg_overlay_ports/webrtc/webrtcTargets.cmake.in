@@ -1,0 +1,27 @@
+
+get_filename_component(_IMPORTED_PREFIX "${CMAKE_CURRENT_LIST_DIR}/../../" ABSOLUTE)
+
+if(NOT TARGET @cmake_target_name@)
+    # Create target
+    add_library(@cmake_target_name@ STATIC IMPORTED)
+    add_library(@cmake_target_alias@ ALIAS @cmake_target_name@)
+    set_target_properties(@cmake_target_name@ PROPERTIES
+        INTERFACE_INCLUDE_DIRECTORIES "${_IMPORTED_PREFIX}/include/@cmake_target_name@"
+        INTERFACE_LINK_LIBRARIES @cmake_target_libs@
+    )
+
+    set_property(TARGET @cmake_target_name@ APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS
+        @cmake_target_definitions@
+    )
+
+    # Load information for each installed configuration.
+    file(GLOB _cmake_config_files "${CMAKE_CURRENT_LIST_DIR}/@cmake_target_name@Targets-*.cmake")
+    foreach(_cmake_config_file IN LISTS _cmake_config_files)
+        include("${_cmake_config_file}")
+    endforeach()
+    unset(_cmake_config_file)
+    unset(_cmake_config_files)
+
+endif()
+
+unset(_IMPORTED_PREFIX)

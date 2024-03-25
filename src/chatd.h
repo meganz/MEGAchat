@@ -918,6 +918,9 @@ protected:
     bool sendKeyAndMessage(std::pair<MsgCommand*, KeyCommand*> cmd);
     void flushOutputQueue(bool fromStart=false);
     karere::Id makeRandomId();
+    void resetOldestKnownMsgId();
+    bool hasMoreHistoryInDb() const;
+    ChatDbInfo getDbHistInfoAndInitOldestKnownMsgId();
     void login();
     void join();
     void handlejoin();
@@ -1425,6 +1428,9 @@ public:
     uint32_t getRetentionTime() const;
     Priv getOwnprivilege() const;
 
+    void ringIndividualInACall(const karere::Id &userIdToCall, const karere::Id &callId, const int16_t ringTimeout);
+    void rejectCall(const karere::Id& callId);
+
 protected:
     void msgSubmit(Message* msg, karere::SetOfIds recipients);
     bool msgEncryptAndSend(OutputQueue::iterator it);
@@ -1656,11 +1662,45 @@ static inline const char* connStateToStr(Connection::State state)
 
 struct ChatDbInfo
 {
-    karere::Id oldestDbId;
-    karere::Id newestDbId;
-    Idx newestDbIdx;
-    karere::Id lastSeenId;
-    karere::Id lastRecvId;
+public:
+    ChatDbInfo() = default;
+    ~ChatDbInfo() = default;
+    ChatDbInfo(const ChatDbInfo& other) = default;
+    ChatDbInfo(ChatDbInfo&& other) = default;
+    ChatDbInfo& operator = (const ChatDbInfo& other) = delete;
+    ChatDbInfo& operator = (ChatDbInfo&& other) = delete;
+
+    void reset()
+    {
+        oldestDbId = karere::Id::null();
+        newestDbId = karere::Id::null();
+        lastSeenId = karere::Id::null();
+        lastRecvId = karere::Id::null();
+        oldestDbIdx = CHATD_IDX_INVALID;
+        newestDbIdx = CHATD_IDX_RANGE_MIDDLE; // default value for newestDbIdx must be 0
+    }
+
+    Idx getOldestDbIdx() const                  { return oldestDbIdx; }
+    Idx getNewestDbIdx() const                  { return newestDbIdx; }
+    const karere::Id& getOldestDbId() const     { return oldestDbId; }
+    const karere::Id& getNewestDbId() const     { return newestDbId; }
+    const karere::Id& getLastSeenId() const     { return lastSeenId; }
+    const karere::Id& getlastRecvId() const     { return lastRecvId; }
+
+    void setOldestDbId(const karere::Id& id)    { oldestDbId = id; }
+    void setNewestDbId(const karere::Id& id)    { newestDbId = id; }
+    void setLastSeenId(const karere::Id& id)    { lastSeenId = id; }
+    void setLastRecvId(const karere::Id& id)    { lastRecvId = id; }
+    void setOldestDbIdx(const Idx idx)          { oldestDbIdx = idx; }
+    void setNewestDbIdx(const Idx idx)          { newestDbIdx = idx; }
+
+private:
+    karere::Id oldestDbId = karere::Id::null();
+    karere::Id newestDbId = karere::Id::null();
+    karere::Id lastSeenId = karere::Id::null();
+    karere::Id lastRecvId = karere::Id::null();
+    Idx oldestDbIdx = CHATD_IDX_INVALID;
+    Idx newestDbIdx = CHATD_IDX_RANGE_MIDDLE;
 };
 
 class DbInterface

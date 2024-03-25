@@ -19,32 +19,32 @@ public:
     {
         SqliteStmt stmt(mDb, "select min(idx), max(idx) from history where chatid=?1");
         stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
-        auto minIdx = stmt.intCol(0); //WARNING: the chatd implementation uses uint32_t values for idx.
-        info.newestDbIdx = stmt.intCol(1);
+        chatd::Idx minIdx = stmt.integralCol<chatd::Idx>(0);
+        info.setNewestDbIdx(stmt.integralCol<int>(1));
         if (sqlite3_column_type(stmt, 0) == SQLITE_NULL) //no db history
         {
-            void* voidmem = &info; // avoid compiler warning...
-            memset(voidmem, 0, sizeof(info)); //actually need to zero only oldestDbId
+            info.reset(); // reset ChatDbInfo values to invalid/default ones
             return;
         }
+        info.setOldestDbIdx(minIdx);
         SqliteStmt stmt2(mDb, "select msgid from "+mHistTblName+" where chatid=?1 and idx=?2");
         stmt2 << mChat.chatId() << minIdx;
         stmt2.stepMustHaveData();
-        info.oldestDbId = stmt2.uint64Col(0);
-        stmt2.reset().bind(2, info.newestDbIdx);
+        info.setOldestDbId(stmt2.integralCol<uint64_t>(0));
+        stmt2.reset().bind(2, info.getNewestDbIdx());
         stmt2.stepMustHaveData();
-        info.newestDbId = stmt2.uint64Col(0);
-        if (!info.newestDbId)
+        info.setNewestDbId(stmt2.integralCol<uint64_t>(0));
+        if (info.getNewestDbId().isNull())
         {
             assert(false);  // if there's an oldest message, there should be always a newest message, even if it's the same one
             CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
-            info.oldestDbId = 0;
+            info.setOldestDbId(karere::Id::null());
         }
         SqliteStmt stmt3(mDb, "select last_seen, last_recv from chats where chatid=?");
         stmt3 << mChat.chatId();
         stmt3.stepMustHaveData();
-        info.lastSeenId = stmt3.uint64Col(0);
-        info.lastRecvId = stmt3.uint64Col(1);
+        info.setLastSeenId(stmt3.integralCol<uint64_t>(0));
+        info.setLastRecvId(stmt3.integralCol<uint64_t>(1));
     }
     void assertAffectedRowCount(int count, const char* opname=nullptr)
     {
@@ -67,9 +67,9 @@ public:
         SqliteStmt stmt(mDb, checkQuery.c_str());
         stmt << mChat.chatId();
         stmt.step();
-        int low = stmt.intCol(0);
-        int high = stmt.intCol(1);
-        int count = stmt.intCol(2);
+        int low = stmt.integralCol<int>(0);
+        int high = stmt.integralCol<int>(1);
+        int count = stmt.integralCol<int>(2);
         if ((count > 0) && (idx != low-1) && (idx != high+1))
         {
             CHATD_LOG_ERROR("chatid %s: addMsgToHistory: %s discontinuity detected: "
@@ -172,7 +172,7 @@ public:
         SqliteStmt stmt3(mDb, "select updated from history where chatid = ? and msgid = ?");
         stmt3 << mChat.chatId() << msgid;
         stmt3.stepMustHaveData();
-        *updated = static_cast<uint16_t>(stmt3.intCol(0));
+        *updated = stmt3.integralCol<uint16_t>(0);
     }
 
     void getMessageUserKeyId(const karere::Id &msgid, karere::Id &userid, uint32_t &keyid) override
@@ -180,8 +180,8 @@ public:
         SqliteStmt stmt(mDb, "select userid, keyid from history where msgid = ?");
         stmt << msgid;
         stmt.stepMustHaveData("getMessageUserKeyId");
-        userid = static_cast<const uint64_t&>(stmt.int64Col(0));
-        keyid = stmt.uintCol(1);
+        userid = stmt.integralCol<uint64_t>(0);
+        keyid = stmt.integralCol<uint32_t>(1);
     }
 
     void loadSendQueue(chatd::Chat::OutputQueue& queue) override
@@ -195,14 +195,14 @@ public:
         queue.clear();
         while(stmt.step())
         {
-            int rowid = stmt.intCol(0);
-            uint8_t opcode = static_cast<uint8_t>(stmt.intCol(1));
-            karere::Id msgid = static_cast<const uint64_t&>(stmt.int64Col(2));
+            int rowid = stmt.integralCol<int>(0);
+            uint8_t opcode = stmt.integralCol<uint8_t>(1);
+            karere::Id msgid = stmt.integralCol<uint64_t>(2);
             karere::Id userid = mChat.client().myHandle();
-            chatd::KeyId keyid = (chatd::KeyId)stmt.intCol(3);
-            unsigned char type = (unsigned char)stmt.intCol(5);
-            uint32_t ts = static_cast<uint32_t>(stmt.intCol(6));
-            uint16_t updated = static_cast<uint16_t>(stmt.intCol(7));
+            chatd::KeyId keyid = stmt.integralCol<chatd::KeyId>(3);
+            unsigned char type = stmt.integralCol<unsigned char>(5);
+            uint32_t ts = stmt.integralCol<uint32_t>(6);
+            uint16_t updated = stmt.integralCol<uint16_t>(7);
 
             assert((opcode == chatd::OP_NEWMSG)
                    || (opcode == chatd::OP_NEWNODEMSG)
@@ -211,7 +211,7 @@ public:
 
             auto msg = new chatd::Message(msgid, userid, ts, updated, nullptr, 0, true, keyid, type);
             stmt.blobCol(4, *msg);  // set plain-text content
-            msg->backRefId = stmt.uint64Col(8);
+            msg->backRefId = stmt.integralCol<uint64_t>(8);
             if (stmt.hasBlobCol(9))
             {
                 Buffer refs;
@@ -263,7 +263,7 @@ public:
         std::string query = "select idx from " + table + " where chatid = ? and msgid = ?";
         SqliteStmt stmt(mDb, query.c_str());
         stmt << mChat.chatId() << msgid;
-        return (stmt.step()) ? stmt.intCol(0) : CHATD_IDX_INVALID;
+        return (stmt.step()) ? stmt.integralCol<chatd::Idx>(0) : CHATD_IDX_INVALID;
     }
 
     chatd::Idx getIdxOfMsgidFromHistory(const karere::Id& msgid) override
@@ -294,7 +294,7 @@ public:
         if (idx != CHATD_IDX_INVALID)
             stmt << idx;
         stmt.stepMustHaveData("get peer msg count");
-        int32_t unReadCount = stmt.intCol(0);
+        int32_t unReadCount = stmt.integralCol<int32_t>(0);
 
         sql = "select data from history where (chatid = ?1)"
                 "and (userid != ?2 )"
@@ -340,10 +340,13 @@ public:
         {
             Buffer buf;
             stmt.blobCol(5, buf);
-            auto msg = new chatd::Message(stmt.uint64Col(1), mChat.client().myHandle(),
-                static_cast<uint32_t>(stmt.int64Col(3)), static_cast<uint16_t>(stmt.intCol(4)), std::move(buf), true,
-                CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(2));
-            items.emplace_back(msg, stmt.uint64Col(0), static_cast<uint8_t>(stmt.intCol(6)), static_cast<chatd::ManualSendReason>(stmt.intCol(7)));
+            auto msg = new chatd::Message(stmt.integralCol<uint64_t>(1), mChat.client().myHandle(),
+                stmt.integralCol<uint32_t>(3), stmt.integralCol<uint16_t>(4), std::move(buf), true,
+                CHATD_KEYID_INVALID, stmt.integralCol<unsigned char>(2));
+            items.emplace_back(msg,
+                               stmt.integralCol<uint64_t>(0),
+                               stmt.integralCol<uint8_t>(6),
+                               stmt.integralCol<chatd::ManualSendReason>(7));
         }
     }
     bool deleteManualSendItem(uint64_t rowid) override
@@ -360,13 +363,13 @@ public:
 
         Buffer buf;
         stmt.blobCol(4, buf);
-        auto msg = new chatd::Message(stmt.uint64Col(0), mChat.client().myHandle(),
-                                      static_cast<uint32_t>(stmt.int64Col(2)), static_cast<uint16_t>(stmt.intCol(3)), std::move(buf), true,
-                                      CHATD_KEYID_INVALID, (unsigned char)stmt.intCol(1));
+        auto msg = new chatd::Message(stmt.integralCol<uint64_t>(0), mChat.client().myHandle(),
+                                      stmt.integralCol<uint32_t>(2), stmt.integralCol<uint16_t>(3), std::move(buf), true,
+                                      CHATD_KEYID_INVALID, stmt.integralCol<unsigned char>(1));
         item.msg = msg;
         item.rowid = rowid;
-        item.opcode = static_cast<uint8_t>(stmt.intCol(5));
-        item.reason = (chatd::ManualSendReason)stmt.intCol(6);
+        item.opcode = stmt.integralCol<uint8_t>(5);
+        item.reason = stmt.integralCol<chatd::ManualSendReason>(6);
     }
     void truncateHistory(const chatd::Message& msg) override
     {
@@ -382,7 +385,7 @@ public:
         SqliteStmt stmt(mDb, "select type from history where chatid=? and msgid=?");
         stmt << mChat.chatId() << msg.id();
         stmt.step();
-        if (stmt.intCol(0) != chatd::Message::kMsgTruncate)
+        if (stmt.integralCol<chatd::Message::Type>(0) != chatd::Message::kMsgTruncate)
             throw std::runtime_error("DbInterface::truncateHistory: Truncate message type is not 'truncate'");
 #endif
     }
@@ -391,7 +394,7 @@ public:
         SqliteStmt stmt(mDb, "select min(idx) from history where chatid = ?");
         stmt << mChat.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
-        return static_cast<chatd::Idx>(stmt.uint64Col(0));
+        return stmt.integralCol<chatd::Idx>(0);
     }
 
     uint32_t getOldestMsgTs() override
@@ -399,7 +402,7 @@ public:
         SqliteStmt stmt(mDb, "select min(ts) from history where chatid = ?");
         stmt << mChat.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
-        return stmt.uintCol(0);
+        return stmt.integralCol<uint32_t>(0);
     }
 
     void setLastSeen(const karere::Id& msgid) override
@@ -450,13 +453,13 @@ public:
             SqliteStmt stmt(mDb, "select ts_created from chats where chatid=?");
             stmt << mChat.chatId();
             stmt.stepMustHaveData();
-            lastTs = int(stmt.uint64Col(0));
+            lastTs = stmt.integralCol<uint32_t>(0);
             return;
         }
         Buffer buf(128);
         stmt.blobCol(2, buf);
-        msg.assign(buf, static_cast<uint8_t>(stmt.intCol(0)), stmt.uint64Col(3), stmt.intCol(1), stmt.uint64Col(4));
-        lastTs = stmt.intCol(5);
+        msg.assign(buf, stmt.integralCol<uint8_t>(0), stmt.integralCol<uint64_t>(3), stmt.integralCol<int>(1), stmt.integralCol<uint64_t>(4));
+        lastTs = stmt.integralCol<uint32_t>(5);
     }
 
     //Insert a new chat var related to a chat. This function receives as parameters the var name and it's value
@@ -525,10 +528,10 @@ public:
             return false;
         }
 
-        idx = stmt.intCol(3);
-        return !((stmt.uintCol(0) >= chatd::Message::kMsgManagementLowest
-                    && stmt.uintCol(0) <= chatd::Message::kMsgManagementHighest)
-               || (stmt.uint64Col(1) == karere::Id::COMMANDER() && stmt.uintCol(2) == 0));
+        idx = stmt.integralCol<int>(3);
+        return !((stmt.integralCol<uint32_t>(0) >= chatd::Message::kMsgManagementLowest
+                    && stmt.integralCol<uint32_t>(0) <= chatd::Message::kMsgManagementHighest)
+               || (stmt.integralCol<uint64_t>(1) == karere::Id::COMMANDER() && stmt.integralCol<uint32_t>(2) == 0));
     }
 
     void truncateNodeHistory(const karere::Id& id) override
@@ -547,10 +550,10 @@ public:
         SqliteStmt stmt(mDb, "select min(idx), max(idx), count(*) from node_history where chatid=?1");
         stmt.bind(mChat.chatId()).step(); //will always return a row, even if table empty
 
-        int count = stmt.intCol(2);
+        int count = stmt.integralCol<int>(2);
 
-        oldest = count ? stmt.intCol(0) : 0;
-        newest = count ? stmt.intCol(1) : -1;
+        oldest = count ? stmt.integralCol<int>(0) : 0;
+        newest = count ? stmt.integralCol<int>(1) : -1;
     }
 
     void fetchDbNodeHistory(chatd::Idx idx, unsigned count, std::vector<chatd::Message*>& messages) override
@@ -574,14 +577,14 @@ public:
         while(stmt.step())
         {
             i++;
-            karere::Id msgid(stmt.uint64Col(0));
-            karere::Id userid(stmt.uint64Col(1));
-            unsigned ts = stmt.uintCol(2);
-            chatd::KeyId keyid = stmt.uintCol(6);
+            karere::Id msgid(stmt.integralCol<uint64_t>(0));
+            karere::Id userid(stmt.integralCol<uint64_t>(1));
+            unsigned ts = stmt.integralCol<unsigned>(2);
+            chatd::KeyId keyid = stmt.integralCol<chatd::KeyId>(6);
             Buffer buf;
             stmt.blobCol(4, buf);
 #ifndef NDEBUG
-            auto tableIdx = stmt.intCol(5);
+            auto tableIdx = stmt.integralCol<int>(5);
             if(tableIdx != idx - (int)messages.size()) //we go backward in history, hence the -messages.size()
             {
                 CHATD_LOG_ERROR("chatid %s: loadMessages from table %s: History discontinuity detected: "
@@ -590,10 +593,10 @@ public:
                 assert(false);
             }
 #endif
-            auto msg = new chatd::Message(msgid, userid, ts, static_cast<uint16_t>(stmt.intCol(8)), std::move(buf),
-                false, keyid, static_cast<unsigned char>(stmt.intCol(3)));
-            msg->backRefId = stmt.uint64Col(7);
-            msg->setEncrypted((uint8_t)stmt.intCol(9));
+            auto msg = new chatd::Message(msgid, userid, ts, stmt.integralCol<uint16_t>(8), std::move(buf),
+                false, keyid, stmt.integralCol<unsigned char>(3));
+            msg->backRefId = stmt.integralCol<uint64_t>(7);
+            msg->setEncrypted(stmt.integralCol<uint8_t>(9));
             messages.push_back(msg);
         }
     }
@@ -653,7 +656,7 @@ public:
         stmt << msgId;
         while (stmt.step())
         {
-            reactions.emplace_back(std::pair<std::string, karere::Id>(stmt.stringCol(1), karere::Id(stmt.uint64Col(2))));
+            reactions.emplace_back(std::pair<std::string, karere::Id>(stmt.stringCol(1), karere::Id(stmt.integralCol<uint64_t>(2))));
         }
     }
 
@@ -663,7 +666,7 @@ public:
         stmt << mChat.chatId();
         while (stmt.step())
         {
-            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), stmt.uint64Col(3), static_cast<uint8_t>(stmt.uint64Col(4))));
+            reactions.emplace_back(chatd::Chat::PendingReaction(stmt.stringCol(1), stmt.stringCol(2), stmt.integralCol<uint64_t>(3), stmt.integralCol<uint8_t>(4)));
         }
     }
 
@@ -672,7 +675,7 @@ public:
         SqliteStmt stmt(mDb, "select count(*) from chat_pending_reactions where chatid = ?");
         stmt << mChat.chatId();
         stmt.stepMustHaveData(__FUNCTION__);
-        return stmt.intCol(0);
+        return stmt.integralCol<int>(0);
     }
 
     chatd::Idx getIdxByRetentionTime(const time_t ts) override
@@ -680,7 +683,7 @@ public:
         // Find the most recent msg affected by retention time if any
         SqliteStmt stmt(mDb, "select MAX(ts), MAX(idx) from history where chatid = ? and ts <= ?");
         stmt << mChat.chatId() << static_cast<uint32_t>(ts);
-        return (stmt.step() && sqlite3_column_type(stmt, 1) != SQLITE_NULL) ? stmt.intCol(1) : CHATD_IDX_INVALID;
+        return (stmt.step() && sqlite3_column_type(stmt, 1) != SQLITE_NULL) ? stmt.integralCol<int>(1) : CHATD_IDX_INVALID;
     }
 
     void retentionHistoryTruncate(const chatd::Idx idx) override

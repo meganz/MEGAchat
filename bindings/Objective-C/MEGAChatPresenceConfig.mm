@@ -31,10 +31,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatPresenceConfig ? [[MEGAChatPresenceConfig alloc] initWithMegaChatPresenceConfig:self.megaChatPresenceConfig cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatPresenceConfig *)getCPtr {
     return self.megaChatPresenceConfig;
 }

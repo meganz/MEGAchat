@@ -2,6 +2,7 @@
 #ifndef SFU_H
 #define SFU_H
 #include <thread>
+#include <optional>
 #include <base/retryHandler.h>
 #include <net/websocketsIO.h>
 #include <karereId.h>
@@ -26,30 +27,55 @@ namespace sfu
  * - Version 1 (never released for native clients):
  *      + Forward secrecy (ephemeral X25519 EC key pair for each session)
  *      + Dynamic audio routing
- *      + Waiting rooms
  *
  * - Version 2 (contains all features from V1):
  *      + Change AES-GCM by AES-CBC with Zero iv
+ *      + Waiting rooms
+ *
+ * - Version 3 (contains all features from V2):
+ *      + Speak requests (raise hand to speak)
  */
 enum class SfuProtocol: uint32_t
 {
-    SFU_PROTO_INVAL    = UINT32_MAX,
     SFU_PROTO_V0       = 0,
     SFU_PROTO_V1       = 1,
     SFU_PROTO_V2       = 2,
+    SFU_PROTO_V3       = 3,
+    SFU_PROTO_V4       = 4,            // currently for testing purposes
+    SFU_PROTO_FIRST    = SFU_PROTO_V0,
+    SFU_PROTO_PROD     = SFU_PROTO_V3, // protocol version used in production
+    SFU_PROTO_LAST     = SFU_PROTO_V4, // last known protocol version by sfu
+    SFU_PROTO_INVAL    = UINT32_MAX,
 };
 
-// own client SFU protocol version
-constexpr sfu::SfuProtocol MY_SFU_PROTOCOL_VERSION = SfuProtocol::SFU_PROTO_V2;
+// returns true if provided version as param is a valid protocol version in SFU
+static bool isKnownSfuVersion(sfu::SfuProtocol v)       { return v >= SfuProtocol::SFU_PROTO_V0
+                                                            && v <= SfuProtocol::SFU_PROTO_LAST; }
 
-// returns true if provided version as param is equal to SFU current version
-static bool isCurrentSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::SFU_PROTO_V2; }
+// enum for user status in waiting room
+enum class WrState: int
+{
+    WR_UNKNOWN      = -1,   // client unknown joining status
+    WR_NOT_ALLOWED  = 0,    // client is not allowed to join call (must remains in waiting room)
+    WR_ALLOWED      = 1,    // client is allowed to join call (needs to send JOIN command to SFU)
+};
 
-// returns true if provided version as param is SFU version V0 (forward secrecy is not supported)
-static bool isInitialSfuVersion(sfu::SfuProtocol v) { return v == SfuProtocol::SFU_PROTO_V0; }
+// struct that represents an user in waiting room
+struct WrRoomUser
+{
+public:
+    karere::Id mWrUserid = karere::Id::inval();
+    WrState mWrState   = WrState::WR_UNKNOWN;
+};
 
-// returns true if provided version as param is a valid SFU version
-static bool isValidSfuVersion(sfu::SfuProtocol v) { return v != SfuProtocol::SFU_PROTO_INVAL; }
+// typedef for waiting room user list
+// SFU provides Waiting room participants list in order they joined to the call
+typedef std::vector<WrRoomUser> WrUserList;
+
+
+// Default value for when we don't receive information about a specific limit in HELLO or CLIMITS
+// commands. It can be thought as an unlimited value.
+static constexpr int kCallLimitDisabled = -1;
 
 // NOTE: This queue, must be always managed from a single thread.
 // The classes that instantiates it, are responsible to ensure that.
@@ -80,7 +106,6 @@ public:
 
     karere::AvFlags getAvFlags() const;
     void setAvFlags(karere::AvFlags flags);
-
     bool isModerator() const;
     void setModerator(bool isModerator);
 
@@ -91,13 +116,10 @@ public:
     void resetKeys();
     const std::vector<std::string>& getIvs() const;
     void setIvs(const std::vector<std::string>& ivs);
-    void setEphemeralPubKeyDerived(const std::string& key);
+    bool setEphemeralPubKeyDerived(const std::string& key);
 
     // returns derived peer's ephemeral key if available
     std::string getEphemeralPubKeyDerived() const;
-
-    // returns a promise that will be resolved/rejected when peer's ephemeral key is verified and derived
-    const promise::Promise<void>& getEphemeralPubKeyPms() const;
 
     // returns the SFU protocol version used by the peer
     sfu::SfuProtocol getPeerSfuVersion() const { return mSfuPeerProtoVersion; }
@@ -108,7 +130,6 @@ protected:
     karere::AvFlags mAvFlags = karere::AvFlags::kEmpty;
     Keyid_t mCurrentkeyId = 0; // we need to know the current keyId for frame encryption
     std::map<Keyid_t, std::string> mKeyMap;
-
     // initialization vector
     std::vector<std::string> mIvs;
 
@@ -129,9 +150,6 @@ protected:
 
     // peer ephemeral key derived
     std::string mEphemeralPubKeyDerived;
-
-    // this promise is resolved/rejected when peer's ephemeral key is verified and derived
-    mutable promise::Promise<void> mEphemeralKeyPms;
 
     // SFU protocol version used by the peer
     sfu::SfuProtocol mSfuPeerProtoVersion = sfu::SfuProtocol::SFU_PROTO_INVAL;
@@ -212,9 +230,31 @@ private:
 class SfuInterface
 {
 public:
+    struct CallLimits
+    {
+        int durationInSecs = ::sfu::kCallLimitDisabled;
+        int numUsers = ::sfu::kCallLimitDisabled;
+        int numClients = ::sfu::kCallLimitDisabled;
+        int numClientsPerUser = ::sfu::kCallLimitDisabled;
+
+        bool operator==(const CallLimits& other)
+        {
+            return durationInSecs == other.durationInSecs && numUsers == other.numUsers &&
+                   numClients == other.numClients && numClientsPerUser == other.numClientsPerUser;
+        }
+
+        bool operator!=(const CallLimits& other)
+        {
+            return !(*this == other);
+        }
+    };
+
     // SFU -> Client commands
     virtual bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) = 0;   // audio/video/on-hold flags
-    virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, TrackDescriptor>& vthumbs, const std::map<Cid_t, TrackDescriptor>& speakers, std::set<karere::Id>& moderators, bool ownMod) = 0;
+    virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap,
+                                     const std::map<Cid_t, TrackDescriptor>& vthumbs,
+                                     const std::set<karere::Id>& speakers, const std::set<karere::Id>& speakReqs,
+                                     const std::map<Cid_t, uint32_t>& amidmap) = 0;
     virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleVThumbsStartCommand() = 0;
@@ -222,22 +262,30 @@ public:
     virtual bool handleHiResCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
     virtual bool handleHiResStartCommand() = 0;
     virtual bool handleHiResStopCommand() = 0;
-    virtual bool handleSpeakReqsCommand(const std::vector<Cid_t>&) = 0;
-    virtual bool handleSpeakReqDelCommand(Cid_t cid) = 0;
-    virtual bool handleSpeakOnCommand(Cid_t cid) = 0;
-    virtual bool handleSpeakOffCommand(Cid_t cid) = 0;
-    virtual bool handleModAdd (uint64_t userid) = 0;
-    virtual bool handleModDel (uint64_t userid) = 0;
-    virtual bool handleHello (const Cid_t userid, const unsigned int nAudioTracks, const unsigned int nVideoTracks,
-                              const std::set<karere::Id>& mods, const bool wr, const bool allowed,
-                              const std::map<karere::Id, bool>& wrUsers) = 0;
+    virtual bool handleSpeakerAddDelCommand(const uint64_t userid, const bool add) = 0;
+    virtual bool handleSpeakReqAddDelCommand(const uint64_t userid, const bool add) = 0;
+    virtual bool handleModAdd(uint64_t userid) = 0;
+    virtual bool handleModDel(uint64_t userid) = 0;
+    virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
+                             const std::set<karere::Id>& mods, const bool wr, const bool allowed,
+                             bool speakRequest, const sfu::WrUserList& wrUsers, const CallLimits& callLimits) = 0;
 
+    virtual bool handleWrDump(const sfu::WrUserList& users) = 0;
+    virtual bool handleWrEnter(const sfu::WrUserList& users) = 0;
+    virtual bool handleWrLeave(const karere::Id& /*user*/) = 0;
+    virtual bool handleWrAllow(const Cid_t& cid) = 0;
+    virtual bool handleWrDeny() = 0;
+    virtual bool handleWrUsersAllow(const std::set<karere::Id>& users) = 0;
+    virtual bool handleWrUsersDeny(const std::set<karere::Id>& users) = 0;
+    virtual bool handleMutedCommand(const unsigned av, const Cid_t cidPerf) = 0;
+    virtual bool handleWillEndCommand(const unsigned int endsIn) = 0;
+    virtual bool handleClimitsCommand(const sfu::SfuInterface::CallLimits& callLimits) = 0;
     // called when the connection to SFU is established
     virtual bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs) = 0;
     virtual bool handlePeerLeft(Cid_t cid, unsigned termcode) = 0;
-    virtual bool handleBye(unsigned termcode) = 0;
+    virtual bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) = 0;
     virtual void onSfuDisconnected() = 0;
-    virtual void onSendByeCommand() = 0;
+    virtual void onByeCommandSent() = 0;
 
     // handle errors at higher level (connection to SFU -> {err:<code>} )
     virtual bool error(unsigned int, const std::string&) = 0;
@@ -261,21 +309,42 @@ public:
     static std::string binaryToHex(uint64_t value);
     static uint64_t hexToBinary(const std::string& hex);
     static std::vector<mega::byte> hexToByteArray(const std::string &hex);
-    void parseUsersArray(std::set<karere::Id> &moderators, rapidjson::Value::ConstMemberIterator &it) const;
+    void parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it) const;
     void parseTracks(const rapidjson::Document &command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const;
 
 protected:
     Command(SfuInterface& call);
-    bool parseUsersMap(std::map<karere::Id, bool> &wrUsers, const rapidjson::Value &obj) const;
+    bool parseWrUsersMap(sfu::WrUserList& wrUsers, const rapidjson::Value& obj) const;
     static uint8_t hexDigitVal(char value);
+
+    /**
+     * @brief Extract the information of the lim field in the document
+     *
+     * @param command The document to parse
+     * @return std::optional<SfuInterface::CallLimits> An empty optional if any filed in the lim
+     * object has an unexpected format. Else, the object with the limits. If any field is missing in
+     * the lim object, the associated parameter will be set to sfu::kCallLimitDisabled.
+     */
+    std::optional<SfuInterface::CallLimits> parseCallLimits(const rapidjson::Document& command);
+
+    /**
+     * @brief Given a json object, extracts from it all the fields needed to build a CallLimits
+     * object.
+     *
+     * @param jsonObject The json object with the required fields
+     * @return std::optional<SfuInterface::CallLimits> An empty optional if any field in the lim
+     * object has an unexpected format. Else, the object with the limits. If any field is missing in
+     * the lim object, the associated parameter will be set to sfu::kCallLimitDisabled.
+     */
+    std::optional<SfuInterface::CallLimits> buildCallLimits(const rapidjson::Value& jsonOject);
 
     SfuInterface& mCall;
 };
 
-typedef std::function<bool(karere::Id, unsigned, uint32_t)> AvCompleteFunction;
 class AVCommand : public Command
-{
+{   // "AV"
 public:
+    typedef std::function<bool(karere::Id, unsigned, uint32_t)> AvCompleteFunction;
     AVCommand(const AvCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -283,22 +352,24 @@ public:
 };
 
 class AnswerCommand : public Command
-{
+{   // "ANSWER"
 public:
-    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, TrackDescriptor>, std::map<Cid_t, TrackDescriptor>, std::set<karere::Id>&, bool)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>&,
+                               std::map<Cid_t, TrackDescriptor>&, const std::set<karere::Id>&,
+                               const std::set<karere::Id>&, std::map<Cid_t, uint32_t>&)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     AnswerCompleteFunction mComplete;
 
 private:
-    void parsePeerObject(std::vector<Peer>& peers, std::map<Cid_t, std::string>& keystrmap, const std::set<karere::Id>& moderators, rapidjson::Value::ConstMemberIterator& it) const;
+    void parsePeerObject(std::vector<Peer>& peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator& it) const;
 };
 
-typedef std::function<bool(const Keyid_t&, const Cid_t&, const std::string&)> KeyCompleteFunction;
 class KeyCommand : public Command
-{
+{   // "KEY"
 public:
+    typedef std::function<bool(const Keyid_t&, const Cid_t&, const std::string&)> KeyCompleteFunction;
     KeyCommand(const KeyCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -306,150 +377,180 @@ public:
     constexpr static Keyid_t maxKeyId = static_cast<Keyid_t>(~0);
 };
 
-typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompleteFunction;
 class VthumbsCommand : public Command
-{
+{   // "VTHUMBS"
 public:
+    typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> VtumbsCompleteFunction;
     VthumbsCommand(const VtumbsCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsCompleteFunction mComplete;
 };
 
-typedef std::function<bool(void)> VtumbsStartCompleteFunction;
 class VthumbsStartCommand : public Command
-{
+{   // "VTHUMB_START"
 public:
+    typedef std::function<bool(void)> VtumbsStartCompleteFunction;
     VthumbsStartCommand(const VtumbsStartCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsStartCompleteFunction mComplete;
 };
 
-typedef std::function<bool(void)> VtumbsStopCompleteFunction;
 class VthumbsStopCommand : public Command
-{
+{   // "VTHUMB_STOP"
 public:
+    typedef std::function<bool(void)> VtumbsStopCompleteFunction;
     VthumbsStopCommand(const VtumbsStopCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     VtumbsStopCompleteFunction mComplete;
 };
 
-typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> HiresCompleteFunction;
 class HiResCommand : public Command
-{
+{   // "HIRES"
 public:
+    typedef std::function<bool(const std::map<Cid_t, TrackDescriptor>&)> HiresCompleteFunction;
     HiResCommand(const HiresCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiresCompleteFunction mComplete;
 };
 
-typedef std::function<bool(void)> HiResStartCompleteFunction;
 class HiResStartCommand : public Command
-{
+{   // "HIRES_START"
 public:
+    typedef std::function<bool(void)> HiResStartCompleteFunction;
     HiResStartCommand(const HiResStartCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiResStartCompleteFunction mComplete;
 };
 
-typedef std::function<bool(void)> HiResStopCompleteFunction;
 class HiResStopCommand : public Command
-{
+{   // "HIRES_STOP"
 public:
+    typedef std::function<bool(void)> HiResStopCompleteFunction;
     HiResStopCommand(const HiResStopCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HiResStopCompleteFunction mComplete;
 };
 
-typedef std::function<bool(const std::vector<Cid_t>&)> SpeakReqsCompleteFunction;
-class SpeakReqsCommand : public Command
-{
+class SpeakerAddCommand : public Command
+{   // "SPEAKER_ADD"
 public:
-    SpeakReqsCommand(const SpeakReqsCompleteFunction& complete, SfuInterface& call);
+    typedef std::function<bool(const uint64_t, const bool)> SpeakerAddCompleteFunction;
+    SpeakerAddCommand(const SpeakerAddCompleteFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    SpeakerAddCompleteFunction mComplete;
+};
+
+class SpeakerDelCommand : public Command
+{   // "SPEAKER_DEL"
+public:
+    typedef std::function<bool(const uint64_t, const bool)> SpeakerDelCompleteFunction;
+    SpeakerDelCommand(const SpeakerDelCompleteFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    SpeakerDelCompleteFunction mComplete;
+};
+
+class SpeakReqCommand : public Command
+{   // "SPEAKRQ"
+public:
+    typedef std::function<bool(const uint64_t, const bool)> SpeakReqsCompleteFunction;
+    SpeakReqCommand(const SpeakReqsCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakReqsCompleteFunction mComplete;
 };
 
-typedef std::function<bool(karere::Id)> SpeakReqDelCompleteFunction;
 class SpeakReqDelCommand : public Command
-{
+{   // "SPEAKRQ_DEL"
 public:
+    typedef std::function<bool(const uint64_t, const bool)> SpeakReqDelCompleteFunction;
     SpeakReqDelCommand(const SpeakReqDelCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     SpeakReqDelCompleteFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid)> SpeakOnCompleteFunction;
-class SpeakOnCommand : public Command
-{
-public:
-    SpeakOnCommand(const SpeakOnCompleteFunction& complete, SfuInterface& call);
-    bool processCommand(const rapidjson::Document& command) override;
-    static const std::string COMMAND_NAME;
-    SpeakOnCompleteFunction mComplete;
-};
-
-typedef std::function<bool(Cid_t cid)> SpeakOffCompleteFunction;
-class SpeakOffCommand : public Command
-{
-public:
-    SpeakOffCommand(const SpeakOffCompleteFunction& complete, SfuInterface& call);
-    bool processCommand(const rapidjson::Document& command) override;
-    static const std::string COMMAND_NAME;
-    SpeakOffCompleteFunction mComplete;
-};
-
-typedef std::function<bool(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
 class PeerJoinCommand : public Command
-{
+{   // "PEERJOIN"
 public:
+    typedef std::function<bool(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string> &ivs)> PeerJoinCommandFunction;
     PeerJoinCommand(const PeerJoinCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     PeerJoinCommandFunction mComplete;
 };
 
-typedef std::function<bool(Cid_t cid, unsigned termcode)> PeerLeftCommandFunction;
 class PeerLeftCommand : public Command
-{
+{   // "PEERLEFT"
 public:
+    typedef std::function<bool(Cid_t cid, unsigned termcode)> PeerLeftCommandFunction;
     PeerLeftCommand(const PeerLeftCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     PeerLeftCommandFunction mComplete;
 };
 
-typedef std::function<bool(unsigned termCode)> ByeCommandFunction;
 class ByeCommand : public Command
-{
+{   // "BYE"
 public:
+    typedef std::function<bool(const unsigned termCode, const bool wr, const std::string& errMsg)> ByeCommandFunction;
     ByeCommand(const ByeCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     ByeCommandFunction mComplete;
 };
 
-typedef std::function<bool(uint64_t userid)> ModAddCommandFunction;
-class ModAddCommand : public Command
+class MutedCommand : public Command
+{   // "MUTED"
+public:
+    typedef std::function<bool(const unsigned av, const Cid_t cidPerf)> MutedCommandFunction;
+    MutedCommand(const MutedCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    MutedCommandFunction mComplete;
+};
+
+class WillEndCommand : public Command
 {
 public:
+    typedef std::function<bool(int64_t endsIn)> WillEndCommandFunction;
+    WillEndCommand(const WillEndCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WillEndCommandFunction mComplete;
+};
+
+class ClimitsCommand : public Command
+{
+public:
+    typedef std::function<bool(const SfuInterface::CallLimits& callLimits)> ClimitsCommandFunction;
+    ClimitsCommand(const ClimitsCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    ClimitsCommandFunction mComplete;
+};
+
+class ModAddCommand : public Command
+{   // "MOD_ADD"
+public:
+    typedef std::function<bool(uint64_t userid)> ModAddCommandFunction;
     ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     ModAddCommandFunction mComplete;
 };
 
-typedef std::function<bool(uint64_t userid)> ModDelCommandFunction;
 class ModDelCommand : public Command
-{
+{   // "MOD_DEL"
 public:
+    typedef std::function<bool(uint64_t userid)> ModDelCommandFunction;
     ModDelCommand(const ModDelCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -457,20 +558,91 @@ public:
 };
 
 class HelloCommand : public Command
-{
+{   // "HELLO"
 public:
     typedef std::function<bool(const Cid_t userid,
                                const unsigned int nAudioTracks,
-                               const unsigned int nVideoTracks,
                                const std::set<karere::Id>& mods,
                                const bool wr,
+                               const bool speakRequest,
                                const bool allowed,
-                               const std::map<karere::Id, bool>& wrUsers)>HelloCommandFunction;
+                               const sfu::WrUserList& wrUsers,
+                               const SfuInterface::CallLimits& callLimits)>HelloCommandFunction;
 
     HelloCommand(const HelloCommandFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
     HelloCommandFunction mComplete;
+};
+
+class WrDumpCommand: public Command
+{   // "WR_DUMP"
+public:
+    typedef std::function<bool(const sfu::WrUserList& users)>WrDumpCommandFunction;
+    WrDumpCommand(const WrDumpCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrDumpCommandFunction mComplete;
+};
+
+class WrEnterCommand: public Command
+{   // "WR_ENTER"
+public:
+    typedef std::function<bool(const sfu::WrUserList& users)>WrEnterCommandFunction;
+    WrEnterCommand(const WrEnterCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrEnterCommandFunction mComplete;
+};
+
+class WrLeaveCommand: public Command
+{   // "WR_LEAVE"
+public:
+    typedef std::function<bool(const karere::Id& user)>WrLeaveCommandFunction;
+    WrLeaveCommand(const WrLeaveCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrLeaveCommandFunction mComplete;
+};
+
+class WrAllowCommand: public Command
+{   // "WR_ALLOW"
+public:
+    typedef std::function<bool(const Cid_t& cid)>WrAllowCommandFunction;
+    WrAllowCommand(const WrAllowCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrAllowCommandFunction mComplete;
+};
+
+class WrDenyCommand: public Command
+{   // "WR_DENY"
+public:
+    typedef std::function<bool()>WrDenyCommandFunction;
+    WrDenyCommand(const WrDenyCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrDenyCommandFunction mComplete;
+};
+
+class WrUsersAllowCommand: public Command
+{   // "WR_USERS_ALLOW"
+public:
+    typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersAllowCommandFunction;
+    WrUsersAllowCommand(const WrUsersAllowCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrUsersAllowCommandFunction mComplete;
+};
+
+class WrUsersDenyCommand: public Command
+{   // "WR_USERS_DENY"
+public:
+    typedef std::function<bool(const std::set<karere::Id>& users)>WrUsersDenyCommandFunction;
+    WrUsersDenyCommand(const WrUsersDenyCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    WrUsersDenyCommandFunction mComplete;
 };
 
 /**
@@ -501,10 +673,16 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_DEL_HIRES;
     static const std::string CSFU_HIRES_SET_LO;
     static const std::string CSFU_LAYER;
-    static const std::string CSFU_SPEAK_RQ;
-    static const std::string CSFU_SPEAK_RQ_DEL;
-    static const std::string CSFU_SPEAK_DEL;
+    static const std::string CSFU_SPEAKRQ;
+    static const std::string CSFU_SPEAKER_ADD;
+    static const std::string CSFU_SPEAKER_DEL;
+    static const std::string CSFU_SPEAKRQ_DEL;
     static const std::string CSFU_BYE;
+    static const std::string CSFU_WR_PUSH;
+    static const std::string CSFU_WR_ALLOW;
+    static const std::string CSFU_WR_KICK;
+    static const std::string CSFU_MUTE;
+    static const std::string CSFU_SETLIMIT;
 
 public:
     struct SfuData
@@ -536,8 +714,12 @@ public:
         kJoined,        // after receiving ANSWER
     };
 
-    static constexpr uint8_t kConnectTimeout = 30;           // (in seconds) timeout reconnection to succeeed
-    static constexpr uint8_t kNoMediaPathTimeout = 6;        // (in seconds) disconnect call upon no UDP connectivity after this period
+    static constexpr uint32_t callLimitNotPresent = 0xFFFFFFFF;     // No limit present (the param won't be modified)
+    static constexpr uint32_t callLimitReset = 0;                   // Value used for reset call limit like duration or max participants
+    static constexpr unsigned int callLimitUsersPerClient = 4;      // Maximum number of clients with which a single user can join a call
+    static constexpr unsigned int maxInitialBackoff = 100;          // (in milliseconds) max initial backoff for SFU connection attempt
+    static constexpr uint8_t kConnectTimeout = 30;                  // (in seconds) timeout reconnection to succeeed
+    static constexpr uint8_t kNoMediaPathTimeout = 6;               // (in seconds) disconnect call upon no UDP connectivity after this period
     SfuConnection(karere::Url&& sfuUrl, WebsocketsIO& websocketIO, void* appCtx, sfu::SfuInterface& call, DNScache &dnsCache);
     ~SfuConnection();
     void setIsSendingBye(bool sending);
@@ -547,7 +729,8 @@ public:
     bool isOnline() const;
     bool isJoined() const;
     bool isDisconnected() const;
-    promise::Promise<void> connect();
+    void connect();
+    void doReconnect(const bool applyInitialBackoff);
     void disconnect(bool withoutReconnection = false);
     void doConnect(const std::string &ipv4, const std::string &ipv6);
     void retryPendingConnection(bool disconnect);
@@ -561,7 +744,10 @@ public:
     void checkThreadId();
     const karere::Url& getSfuUrl();
 
-    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey, int avFlags, Cid_t prevCid, int speaker = -1, int vthumbs = -1);
+    // Important: SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
+    bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey,
+                 int avFlags, Cid_t prevCid, int vthumbs = -1);
+
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);
     bool sendGetVtumbs(const std::vector<Cid_t>& cids);
@@ -570,10 +756,23 @@ public:
     bool sendDelHiRes(const std::vector<Cid_t>& cids);
     bool sendHiResSetLo(Cid_t cid, int lo = -1);
     bool sendLayer(int spt, int tmp, int stmp);
-    bool sendSpeakReq(Cid_t cid = 0);
-    bool sendSpeakReqDel(Cid_t cid = 0);
-    bool sendSpeakDel(Cid_t cid = 0);
+    bool sendSpeakerAddDel(const karere::Id& user, const bool add);
+    bool sendSpeakReqAddDel(const karere::Id& user, const bool add);
     bool sendBye(int termCode);
+    void clearInitialBackoff();
+    void incrementInitialBackoff();
+    unsigned int getInitialBackoff() const;
+
+    // Waiting room related commands
+    bool sendWrCommand(const std::string& commandStr, const std::set<karere::Id>& users, const bool all = false);
+    bool sendWrPush(const std::set<karere::Id>& users, const bool all);
+    bool sendWrAllow(const std::set<karere::Id>& users, const bool all);
+    bool sendWrKick(const std::set<karere::Id>& users);
+    bool sendSetLimit(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider);
+    bool sendMute(const Cid_t& cid, const unsigned av);
+    bool addWrUsersArray(const std::set<karere::Id>& users, const bool all, rapidjson::Document& json);
+    bool avoidReconnect() const;
+    void setAvoidReconnect(const bool avoidReconnect);
 
 protected:
     // mSfuUrl is provided in class ctor and is returned in answer of mcmc/mcmj commands
@@ -597,6 +796,9 @@ protected:
     /** Handler of the timeout for the connection establishment */
     megaHandle mConnectTimer = 0;
 
+    /** Cancels connect timer in case is set **/
+    void cancelConnectTimer();
+
     /** Input promise for the RetryController
      *  - If it fails: a new attempt is schedulled
      *  - If it success: the reconnection is taken as done */
@@ -617,7 +819,7 @@ protected:
     promise::Promise<void> reconnect();
     void abortRetryController();
 
-    // This flag is set true when BYE command is sent to SFU
+    // This flag is set true when BYE command is being sent to SFU
     bool mIsSendingBye = false;
 
     Cid_t mMyCid = K_INVALID_CID;
@@ -627,6 +829,18 @@ protected:
     CommandsQueue mCommandsQueue;
     std::thread::id mMainThreadId; // thread id to ensure that CommandsQueue is accessed from a single thread
     DNScache &mDnsCache;
+
+    /* Initial backoff for retry controller (in milliseconds)
+     * A connection to SFU can be considered succeeded, just when client receives ANSWER command.
+     * Extend lifetime of retry controller far away than LWS connection, doesn't make sense for this particular scenario.
+     * The best solution is adding a initial backoff that will start in 0 and will be incremented when we establish LWS connection.
+     *
+     * If connection is dropped down before receiving the ANSWER command, the next attempt will be delayed.
+     */
+     unsigned int mInitialBackoff = 0;
+
+     // This flag prevents to start a new reconnection attempt, if we are currently destroying the call
+     bool mAvoidReconnect = false;
 };
 
 /**
@@ -646,14 +860,13 @@ public:
     void retryPendingConnections(bool disconnect);
 
     std::shared_ptr<rtcModule::RtcCryptoMeetings>  getRtcCryptoMeetings();
-    void addVersionToUrl(karere::Url& sfuUrl);
+    void addVersionToUrl(karere::Url& sfuUrl, const sfu::SfuProtocol sfuVersion);
 
 private:
     std::shared_ptr<rtcModule::RtcCryptoMeetings> mRtcCryptoMeetings;
     std::map<karere::Id, std::unique_ptr<SfuConnection>> mConnections;
     WebsocketsIO& mWebsocketIO;
     void* mAppCtx;
-
 };
 
 static inline const char* connStateToStr(SfuConnection::ConnState state)

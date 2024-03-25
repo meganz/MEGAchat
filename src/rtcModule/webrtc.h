@@ -34,8 +34,11 @@ enum TermCode: uint8_t
     kApiEndCall                 = 4,                    // < API/chatd ended call
     kPeerJoinTimeout            = 5,                    // < Nobody joined call
     kPushedToWaitingRoom        = 6,                    // < Our client has been removed from the call and pushed back into the waiting room
-    kKickedFromWaitingRoom      = 7,                    // < Revokes the join permission for our user that is into the waiting room
+    kKickedFromWaitingRoom      = 7,                    // < User has been kicked from call regardless of whether is in the call or in the waiting room
     kTooManyUserClients         = 8,                    // < Too many clients of same user connected
+    kWaitingRoomAllowTimeout    = 9,                    // < Timed out waiting to be allowed from waiting room into call
+    kCallDurLimit               = 10,                   // < Max allowed call duration reached
+    kCallUserLimit              = 11,                   // < Too many different users in call
 
     //==============================================================================================
 
@@ -46,7 +49,7 @@ enum TermCode: uint8_t
     kNoMediaPath                = kFlagDisconn | 4,     // 68 < webRTC connection failed, no UDP connectivity
     //==============================================================================================
 
-    kErrSignaling               = kFlagError | 0,       // 128 < signalling error
+    kErrSignaling               = kFlagError | 0,       // 128 < signalling error | if client doesn't supports waiting rooms
     kErrNoCall                  = kFlagError | 1,       // 129 < attempted to join non-existing call
     kErrAuth                    = kFlagError | 2,       // 130 < authentication error
     kErrApiTimeout              = kFlagError | 3,       // 131 < ping timeout between SFU and API
@@ -64,6 +67,7 @@ enum CallState: uint8_t
     kStateInitial = 0,                  // < Call object was initialised
     kStateClientNoParticipating,        // < User is not partipating in the call
     kStateConnecting,                   // < Connecting to SFU
+    kInWaitingRoom,                     // < In a waiting room
     kStateJoining,                      // < Joining a call
     kStateInProgress,                   // < Call is joined (upon ANSWER)
     kStateTerminatingUserParticipation, // < Call is waiting for sessions to terminate
@@ -113,15 +117,14 @@ class SessionHandler
 {
 public:
     virtual ~SessionHandler(){}
-    virtual void onSpeakRequest(ISession& session, bool requested) = 0;
     virtual void onVThumbReceived(ISession& session) = 0;
     virtual void onHiResReceived(ISession& session) = 0;
     virtual void onDestroySession(ISession& session) = 0;
-    virtual void onAudioRequested(ISession& session) = 0;
     virtual void onRemoteFlagsChanged(ISession& session) = 0;
     virtual void onOnHold(ISession& session) = 0;
     virtual void onRemoteAudioDetected(ISession& session) = 0;
     virtual void onPermissionsChanged(ISession& session) = 0;
+    virtual void onRecordingChanged(ISession& session) = 0;
 };
 
 class ISession
@@ -133,7 +136,6 @@ public:
     virtual karere::AvFlags getAvFlags() const = 0;
     virtual SessionState getState() const = 0;
     virtual bool isAudioDetected() const = 0;
-    virtual bool hasRequestSpeak() const = 0;
     virtual TermCode getTermcode() const = 0;
     virtual void setTermcode(TermCode termcode) = 0;
     virtual void setSessionHandler(SessionHandler* sessionHandler) = 0;
@@ -152,28 +154,44 @@ public:
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) = 0;
     virtual void onCallRinging(ICall& call) = 0;
+    virtual void onCallWillEndr(rtcModule::ICall &call) = 0;
+    virtual void onCallLimitsUpdated(rtcModule::ICall &call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
-    virtual void onAudioApproved(const ICall& call) = 0;
-    virtual void onLocalFlagsChanged(const ICall& call) = 0;
+    virtual void onLocalFlagsChanged(const ICall& call, const Cid_t cidPerf = K_INVALID_CID) = 0;
     virtual void onOnHold(const ICall& call) = 0;
     virtual void onAddPeer(const ICall &call, karere::Id peer) = 0;
     virtual void onRemovePeer(const ICall &call,  karere::Id peer) = 0;
     virtual void onNetworkQualityChanged(const rtcModule::ICall &call) = 0;
     virtual void onStopOutgoingRinging(const ICall& call) = 0;
     virtual void onPermissionsChanged(const ICall& call) = 0;
+    virtual void onWrUsersAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* user) = 0;
+    virtual void onWrUsersDeny(const rtcModule::ICall& call, const ::mega::MegaHandleList* user) = 0;
+    virtual void onWrUserDump(const rtcModule::ICall& call) = 0;
+    virtual void onWrAllow(const rtcModule::ICall& call) = 0;
+    virtual void onWrDeny(const rtcModule::ICall& call) = 0;
+    virtual void onWrUsersEntered(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
+    virtual void onWrUsersLeave(const rtcModule::ICall& call, const mega::MegaHandleList* users) = 0;
+    virtual void onWrPushedFromCall(const rtcModule::ICall& call) = 0;
     virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
+    virtual void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
+    virtual void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
 };
 
+class KarereWaitingRoom;
 class ICall
 {
 public:
     virtual karere::Id getCallid() const = 0;
+    virtual bool isSpeakRequestEnabled() const = 0;
     virtual karere::Id getChatid() const = 0;
     virtual karere::Id getCallerid() const = 0;
     virtual CallState getState() const = 0;
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
     virtual bool isOwnPrivModerator() const = 0;
+    virtual mega::m_time_t getCallWillEndTs() const = 0;
+    virtual int getCallDurationLimitInSecs() const = 0;
+    virtual sfu::SfuInterface::CallLimits getCallLimits() const = 0;
 
     virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
@@ -189,7 +207,7 @@ public:
 
     virtual bool participate() = 0;
     virtual bool isJoining() const = 0;
-    virtual void enableAudioLevelMonitor(bool enable) = 0;
+    virtual std::set<Cid_t> enableAudioLevelMonitor(const bool enable) = 0;
     virtual void ignoreCall() = 0;
     virtual void setRinging(bool ringing) = 0;
     virtual void stopOutgoingRinging() = 0;
@@ -201,35 +219,39 @@ public:
     virtual bool isAudioLevelMonitorEnabled() const = 0;
     virtual bool hasVideoSlot(Cid_t cid, bool highRes = true) const = 0;
     virtual int getNetworkQuality() const = 0;
-    virtual bool hasRequestSpeak() const = 0;
+    virtual bool hasUserPendingSpeakRequest(const karere::Id& uh) const = 0;
+    virtual int getWrJoiningState() const = 0;
     virtual TermCode getTermCode() const = 0;
     virtual uint8_t getEndCallReason() const = 0;
 
     virtual void setCallerId(const karere::Id &callerid) = 0;
     virtual bool alreadyParticipating() = 0;
-    virtual void requestSpeaker(bool add = true) = 0;
-    virtual bool isSpeakAllow() const = 0;
-    virtual void approveSpeakRequest(Cid_t cid, bool allow) = 0;
-    virtual void stopSpeak(Cid_t cid = 0) = 0;
-    virtual std::vector<Cid_t> getSpeakerRequested() = 0;
+    virtual void addOrRemoveSpeaker(const karere::Id& user, const bool add) = 0;
+    virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
+    virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
+    virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
+    virtual void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider) const = 0;
+    virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;
     virtual void stopHighResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 
+    virtual std::set<karere::Id> getSpeakRequestsList() const = 0;
+    virtual std::set<karere::Id> getSpeakersList() const = 0;
     virtual std::set<karere::Id> getParticipants() const = 0;
     virtual std::set<karere::Id> getModerators() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
     virtual ISession* getIsession(Cid_t cid) const = 0;
     virtual bool isOutgoing() const = 0;
-    virtual int64_t getInitialTimeStamp() const = 0;
+    virtual int64_t getCallInitialTimeStamp() const = 0;
     virtual int64_t getFinalTimeStamp() const = 0;
-    virtual int64_t getInitialOffsetinMs() const = 0;
     virtual karere::AvFlags getLocalAvFlags() const = 0;
     virtual void updateAndSendLocalAvFlags(karere::AvFlags flags) = 0;
-
-    virtual bool isAllowSpeak() const = 0;
+    virtual const KarereWaitingRoom* getWaitingRoom() const = 0;
+    virtual bool hasUserSpeakPermission(const uint64_t userid) const = 0;
+    virtual bool addDelSpeakRequest(const karere::Id& user, const bool add) = 0;
 };
 
 class RtcModule
@@ -242,11 +264,16 @@ public:
     virtual bool selectVideoInDevice(const std::string& device, const int type) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
     virtual std::set<std::pair<long int, std::string>> getScreenDevices() = 0;
-    virtual promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const karere::Id &schedId, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
+    virtual promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const bool notRinging, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
     virtual void takeVideoDevice() = 0;
     virtual void releaseVideoDevice() = 0;
     virtual void addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
     virtual void removeLocalVideoRenderer(const karere::Id &chatid) = 0;
+    virtual unsigned int getNumInputVideoTracks() const = 0;
+    virtual void setNumInputVideoTracks(const unsigned int numInputVideoTracks) = 0;
+    virtual void enableSpeakRequestSupportForCalls(const bool enable) = 0;
+    virtual bool isSpeakRequestSupportEnabled() const = 0;
+    virtual sfu::SfuProtocol getMySfuProtoVersion() const = 0;
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
@@ -254,16 +281,84 @@ public:
     virtual sfu::SfuClient& getSfuClient() = 0;
     virtual DNScache& getDnsCache() = 0;
 
-    virtual void orderedDisconnectAndCallRemove(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
-
+    virtual void onDestroyCall(rtcModule::ICall* iCall, EndCallReason reason, TermCode connectionTermCode) = 0;
+    virtual void rtcOrderedCallDisconnect(rtcModule::ICall* iCall, TermCode connectionTermCode) = 0;
     virtual void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) = 0;
     virtual void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) = 0;
     virtual void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) = 0;
 };
 
+static bool isValidWrStatus(const sfu::WrState value)
+{
+    return (value > sfu::WrState::WR_UNKNOWN && value <= sfu::WrState::WR_ALLOWED);
+}
 
+/**
+ * @brief This class represents waiting room users
+ *
+ * A waiting room, is effectively a list of users pending to enter a call
+ */
+class KarereWaitingRoom
+{
+public:
+    ~KarereWaitingRoom() = default;
+    KarereWaitingRoom() = default;
+    KarereWaitingRoom(const KarereWaitingRoom& other) = default;
+    KarereWaitingRoom(KarereWaitingRoom&& other) = delete;
+    KarereWaitingRoom& operator = (const KarereWaitingRoom& other) = delete;
+    KarereWaitingRoom& operator = (KarereWaitingRoom&& other) = delete;
 
-void globalCleanup();
+    void clear() { mWaitingRoomUsers.clear(); }
+
+    bool addOrUpdateUserStatus(const uint64_t& userid, const sfu::WrState status)
+    {
+        if (!isValidWrStatus(status))
+        {
+            assert(false);
+            return false;
+        }
+
+        for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
+        {
+            if (it->mWrUserid == userid)
+            {
+                it->mWrState = status;
+                return true;
+            }
+        }
+        mWaitingRoomUsers.emplace_back(sfu::WrRoomUser { userid, status });
+        return true;
+    }
+
+    bool removeUser(const uint64_t& userid)
+    {
+        for (auto it = mWaitingRoomUsers.begin(); it != mWaitingRoomUsers.end(); ++it)
+        {
+            if (it->mWrUserid == userid)
+            {
+                mWaitingRoomUsers.erase(it);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // updates status for user in wr, if user is not present (it should), log an error and add user
+    bool updateUsers(const std::set<karere::Id>& users, const sfu::WrState status);
+    std::vector<uint64_t> getUsers() const;
+    int getUserStatus(const uint64_t& userid) const;
+    size_t size() const { return mWaitingRoomUsers.size(); }
+
+private:
+    sfu::WrUserList mWaitingRoomUsers;
+};
+
+static unsigned int getMaxSupportedVideoCallParticipants() { return kMaxCallVideoSenders; };
+static bool isValidInputVideoTracksLimit(const unsigned int numSimVideoTracks)
+{
+    return numSimVideoTracks >= kMinCallVideoSenders
+           && numSimVideoTracks <= getMaxSupportedVideoCallParticipants();
+}
 
 typedef enum
 {
@@ -279,7 +374,6 @@ RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScach
 enum RtcConstant {
    kMaxCallReceivers = 20,      // should be inline with webclient value
    kMaxCallAudioSenders = 20,   // should be inline with webclient value
-   kMaxCallVideoSenders = 24,   // should be inline with webclient value
    kInitialvthumbCount = 0,     // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
    kHiResWidth = 960,  // px
    kHiResHeight = 540,  // px

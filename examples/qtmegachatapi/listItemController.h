@@ -63,6 +63,7 @@ public slots:
     void fetchScheduledMeetingEvents();
     void leaveGroupChat();
     void setTitle();
+    void endCall();
     void truncateChat();
     void queryChatLink();
     void createChatLink();
@@ -83,6 +84,8 @@ public slots:
     void onSetOpenInvite(bool enable);
     void onSetSpeakRequest(bool enable);
     void onSetWaitingRoom(bool enable);
+    void onWaitingRoomCall();
+    void onAudioCallNoRingBtn();
 
 private:
     void onPushReceived(unsigned int type);

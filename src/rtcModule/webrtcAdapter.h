@@ -8,7 +8,7 @@
 #include "rtcCrypto.h"
 // disable warnings in webrtc headers
 // the same pragma works with both GCC and Clang
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wconversion"
 #pragma GCC diagnostic ignored "-Wdeprecated-copy"
@@ -24,7 +24,8 @@
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include <libyuv/convert.h>
-#if !defined(__ANDROID__) && (!defined(_WIN32) || !defined(MSC_VER))
+#include <rtc_base/ref_counter.h>
+#ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
 #include "sfu.h"
@@ -295,7 +296,7 @@ public:
       SdpSetLocalCallbacks::PromiseType promise;
       auto observer= rtc::scoped_refptr<SdpSetLocalCallbacks>(new SdpSetLocalCallbacks(promise, mObserver->mAppCtx));
       observer->AddRef();
-      get()->SetLocalDescription(move(desc), observer);
+      get()->SetLocalDescription(std::move(desc), observer);
       return promise;
   }
 
@@ -305,7 +306,7 @@ public:
       SdpSetRemoteCallbacks::PromiseType promise;
       auto observer = rtc::scoped_refptr<SdpSetRemoteCallbacks>(new SdpSetRemoteCallbacks(promise, mObserver->mAppCtx));
       observer->AddRef();
-      get()->SetRemoteDescription(move(desc), observer);
+      get()->SetRemoteDescription(std::move(desc), observer);
       return promise;
   }
 };

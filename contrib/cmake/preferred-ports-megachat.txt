@@ -16,7 +16,6 @@ openssl-unix/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off linux:on
 openssl-windows/c303dd024e2dc03a0665ddffbb12a1077933e649 all:off windows:on
 vcpkg-cmake-config/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
 vcpkg-cmake/94ce0dab56f4d8ba6bd631ba59ed682b02d45c46
-pcre/d6bd10b9af6f6197711222a0ac827e52e0247e30 all:off linux:on
 readline/8.0 all:off osx:on
 sqlite3/c303dd024e2dc03a0665ddffbb12a1077933e649
 zlib/6f7ffeb18f99796233b958aaaf14ec7bd4fb64b2

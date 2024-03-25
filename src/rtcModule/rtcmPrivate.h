@@ -7,7 +7,7 @@
 #define RTCM_LOG_ERROR(fmtString, ...) KARERE_LOG_ERROR(krLogChannel_rtc, fmtString, ##__VA_ARGS__); \
     char logLine[300]; \
     snprintf(logLine, 300, fmtString, ##__VA_ARGS__); \
-    mMegaApi.call(&::mega::MegaApi::sendChatLogs, logLine, mMyPeer->getPeerid(), mCallid, CHATLOGS_PORT); \
+mMegaApi.call(&::mega::MegaApi::sendChatLogs, logLine, getOwnPeerId(), mCallid, CHATLOGS_PORT); \
 
 #define RTCM_LOG_EVENT(fmtString,...) KARERE_LOG_INFO(krLogChannel_rtcevent, fmtString, ##__VA_ARGS__)
 

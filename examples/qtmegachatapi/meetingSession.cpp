@@ -25,12 +25,15 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
         if (mVideoLabel)     {layout()->removeWidget(mVideoLabel.get());      mVideoLabel->clear();}
         if (mReqSpealLabel)  {layout()->removeWidget(mReqSpealLabel.get());   mReqSpealLabel->clear();}
         if (mModeratorLabel) {layout()->removeWidget(mModeratorLabel.get());  mModeratorLabel->clear();}
+        if (mRecordingLabel) {layout()->removeWidget(mRecordingLabel.get());  mRecordingLabel->clear();}
+        if (mSpkPermLabel)   {layout()->removeWidget(mSpkPermLabel.get());  mSpkPermLabel->clear();}
     }
 
     mLayout.reset(new QHBoxLayout());
     mLayout->setAlignment(Qt::AlignLeft);
     setLayout(mLayout.get());
     mCid = static_cast<uint32_t>(session.getClientid());
+    mUserid = session.getPeerid();
 
     if (session.isModerator())
     {
@@ -49,20 +52,45 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     mStatusLabel->setPixmap(statusImg);
     layout()->addWidget(mStatusLabel.get());
 
-    // title lbl
-    std::string title = mMeetingView->sessionToString(session);
-    if (session.isAudioDetected())
+    // recording lbl
+    if (session.isRecording())
     {
-        title.append("  Speaking");
-    }
-    else
-    {
-        title.append( "No Speaking");
+        mRecordingLabel.reset(new QLabel("<span style='font-weight:bold; color:#A30000'>[REC]</span>"));
+        layout()->addWidget(mRecordingLabel.get());
     }
 
-    mTitleLabel.reset(new QLabel(title.c_str()));
-    layout()->addWidget(mTitleLabel.get());
-    setToolTip(title.c_str());
+    // title lbl
+    std::function<void()> setTitle;
+    auto sPeerId = session.getPeerid();
+    auto sClientId = session.getClientid();
+    std::string sTitlePreffix = session.isAudioDetected() ? " Speaking" : "No Speaking";
+    setTitle = std::function<void()>(
+        [this, sPeerId, sClientId, sTitlePreffix, setTitle]()
+        {
+            std::string title = sTitlePreffix
+                                + mMeetingView->sessionToString(sPeerId, sClientId, setTitle);
+            mTitleLabel.reset(new QLabel(title.c_str()));
+            layout()->addWidget(mTitleLabel.get());
+            setToolTip(title.c_str());
+        });
+    setTitle();
+
+    const auto chatid = mMeetingView->getChatid();
+    std::unique_ptr<megachat::MegaChatCall> call(mMeetingView->megachatApi().getChatCall(chatid));
+    if (!call)
+    {
+        assert(false); // call should exists at this point
+        return;
+    }
+
+    const bool speakPermission = call->hasUserSpeakPermission(session.getPeerid());
+    QPixmap spkPerPixMap = speakPermission
+                               ? QApplication::style()->standardPixmap(QStyle::SP_DialogYesButton)
+                               : QApplication::style()->standardPixmap(QStyle::SP_DialogNoButton);
+
+    mSpkPermLabel.reset(new QLabel());
+    mSpkPermLabel->setPixmap(spkPerPixMap);
+    layout()->addWidget(mSpkPermLabel.get());
 
     // audio lbl
     mAudio = session.hasAudio();
@@ -85,7 +113,7 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     layout()->addWidget(mVideoLabel.get());
 
     // reqSpeak lbl
-    mRequestSpeak = session.hasRequestSpeak();
+    mRequestSpeak = call->hasUserPendingSpeakRequest(session.getPeerid());
     if (mRequestSpeak)
     {
        mReqSpealLabel.reset(new QLabel());

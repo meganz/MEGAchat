@@ -101,14 +101,20 @@ protected:
     void switchListenerToApp();
     void createChatdChat(const karere::SetOfIds& initialUsers, bool isPublic = false,
             std::shared_ptr<std::string> unifiedKey = nullptr, int isUnifiedKeyEncrypted = false, const karere::Id& = karere::Id::inval() ); //We can't do the join in the ctor, as chatd may fire callbcks synchronously from join(), and the derived class will not be constructed at that point.
-    void notifyExcludedFromChat();
+    void notifyOwnExcludedFromChat();
     void notifyRejoinedChat();
-    bool syncOwnPriv(chatd::Priv priv);
+    bool syncOwnPriv(chatd::Priv newPriv);
     bool syncArchive(bool aIsArchived);
     void onMessageTimestamp(uint32_t ts);
     ApiPromise requestGrantAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     ApiPromise requestRevokeAccess(mega::MegaNode *node, mega::MegaHandle userHandle);
     bool isChatdChatInitialized();
+
+    // Returns true if own privilege is different than newPriv, otherwise returns false
+    bool hasOwnPrivChanged(const chatd::Priv newPriv)
+    {
+        return mOwnPriv != newPriv;
+    }
 
 public:
     virtual bool previewMode() const { return false; }
@@ -172,7 +178,7 @@ public:
     /** @brief Whether we are currently member of the chatroom (for group
       * chats), or we are contacts with the peer (for 1on1 chats)
       */
-    bool isActive() const { return mIsGroup ? (mOwnPriv != chatd::PRIV_NOTPRESENT) : true; }
+    bool isActive() const { return mIsGroup ? (mOwnPriv != chatd::PRIV_RM) : true; }
 
     /** @brief The online state reported by chatd for that chatroom */
     chatd::ChatState chatdOnlineState() const { return mChat->onlineState(); }
@@ -201,7 +207,7 @@ public:
      * The chatroom object does not take owhership of the handler,
      * so, on removal, the app should take care to free it if needed.
      */
-    void setAppChatHandler(IApp::IChatHandler* handler);
+    bool setAppChatHandler(IApp::IChatHandler* handler);
 
     /** @brief Removes the application-supplied chat event handler from the
      * room. It is up to the aplication to destroy it if needed.
@@ -376,7 +382,6 @@ protected:
     ScheduledMeetingHandler& schedMeetingHandler();
     void setChatPrivateMode();
     void updateChatOptions(mega::ChatOptions_t opt);
-    void addSchedMeetings(const mega::MegaTextChat& chat);
     void updateSchedMeetings(const mega::MegaTextChat& chat);
     void addSchedMeetingsOccurrences(const mega::MegaTextChat& chat);
     void loadSchedMeetingsFromDb();
@@ -396,7 +401,51 @@ protected:
     void notifyPreviewClosed();
     void notifySchedMeetingUpdated(const KarereScheduledMeeting* sm, unsigned long changed);
     void notifySchedMeetingOccurrencesUpdated(bool append);
-    void setRemoved();
+
+    // Sync own priv to PRIV_RM and notify change to apps
+    void setOwnUserRemoved();
+
+    // Manage own user re/join to chat
+    void rejoinChatOwnUser();
+
+    // Notify apps about own priv change
+    void notifyOwnUserPrivChange();
+
+    /**
+     * @brief Checks if UserPrivMap contains any user not included in GroupChatRoom, and if true it
+     * generates chat title from member names, just in case chatroom doesn't have a custom title
+     *
+     * @param users map of user privileges
+     * @param peersChanged input/output param to detect if chatroom composition has changed. This
+     * param will be set true in case UserPrivMap contains any user not included in GroupChatRoom
+     */
+    void updateTitleFromMemberNames(const UserPrivMap& users, bool& peersChanged);
+
+    /**
+     * @brief Checks if GroupChatRoom title has changed respect from MegaTextChat received from SDK,
+     * in that case stores encrypted title in memory and Db, and tries to decrypt.
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     * @param membersChanged input flag that indicates that GroupChatRoom composition has changed
+     */
+    void syncChatTitle(const mega::MegaTextChat& chat, const bool membersChanged);
+
+    /**
+     * @brief Updates GroupChatRoom scheduled meetings and occurrences, if they have changed respect
+     * to MegaTextChat received from SDK
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     */
+    void syncSchedMeetings(const mega::MegaTextChat& chat);
+
+    /**
+     * @brief Updates GroupChatRoom own privilege, if it has changed respect to MegaTextChat
+     * received from SDK, and notify apps about this change
+     *
+     * @param chat MegaTextChat that contains the updates relatives to the chat received from SDK
+     */
+    bool syncOwnPrivilege(const mega::MegaTextChat& chat);
+
     void connect() override;
     promise::Promise<void> memberNamesResolved() const;
     void initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb = false);
@@ -417,7 +466,7 @@ protected:
     GroupChatRoom(ChatRoomList& parent, const uint64_t& chatid,
                 unsigned char aShard, chatd::Priv aOwnPriv, int64_t ts,
                 bool aIsArchived, const std::string& title,
-                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting);
+                const uint64_t publicHandle, std::shared_ptr<std::string> unifiedKey, bool meeting, const mega::ChatOptions_t options, const mega::MegaScheduledMeetingList* smList);
 
     ~GroupChatRoom();
 
@@ -445,6 +494,13 @@ public:
      * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> leave();
+
+    /**
+     * @brief Encrypts a string with the title for all chatroom participants
+     * @param String with the title we want to encrypt
+     * @returns A void promise to std::shared_ptr<Buffer>.
+     */
+    promise::Promise<std::shared_ptr<Buffer>> encryptChatTitle(const std::string& title);
 
     /** TODO
      * @brief setTitle
@@ -474,6 +530,11 @@ public:
      * @returns A void promise, which will fail if the MegaApi request fails.
      */
     promise::Promise<void> setChatRoomOption(int option, bool enabled);
+
+    /**
+     * @brief Adds a list of scheduled meetings for chatroom
+     */
+    void addSchedMeetings(const mega::MegaScheduledMeetingList* schedMeetings);
 
     // searchs a scheduled meeting by schedId
     const KarereScheduledMeeting* getScheduledMeetingsBySchedId(const karere::Id& schedId) const;
@@ -514,12 +575,20 @@ public:
      */
     size_t loadOccurresInMemoryFromDb();
 
+    /**
+     * @brief This method compares the Chatroom fields stored in ram, with information received from API via mcphurl
+     *
+     * @return true if API information differs from stored chatroom, otherwise returns false
+     */
+    bool hasChatLinkChanged(const uint64_t ph, const std::string &decryptedTitle, const bool meeting, const ::mega::ChatOptions_t opts) const;
+
     unsigned long numMembers() const override;
 
     bool isMeeting() const override;
     bool isWaitingRoom() const override;
     bool isSpeakRequest() const override;
     bool isOpenInvite() const override;
+    void updateSchedMeetingsWithList(const mega::MegaScheduledMeetingList* smList);
 };
 
 /** @brief Represents all chatd chatrooms that we are members of at the moment,
@@ -534,6 +603,7 @@ public:
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
     ChatRoom* addRoom(const mega::MegaTextChat &room);
     void removeRoomPreview(Id chatid);
+    void removeRoomPreviewMarshall(Id chatid);
     ChatRoomList(Client& aClient);
     ~ChatRoomList();
     void loadFromDb();
@@ -748,7 +818,7 @@ class InitStats
             kStatsLoginChatd        = 3
         };
 
-        std::string onCompleted(long long numNodes, size_t numChats, size_t numContacts);
+        std::string onCompleted(unsigned long long numNodes, size_t numChats, size_t numContacts);
         bool isCompleted() const;
         void onCanceled();
 
@@ -811,7 +881,7 @@ private:
     StageShardMap mStageShardStats;
 
     /** @brief Number of nodes in the account */
-    long long int mNumNodes = 0;
+    unsigned long long int mNumNodes = 0;
 
     /** @brief Number of chats in the account */
     long int mNumChats = 0;
@@ -1065,13 +1135,13 @@ public:
      * @brief This function allows to create a public chat room. This function should be called after call openChatPreview with createChat flag set to true
      * to avoid that openChatPreview creates the chat room
      */
-    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting);
+    void createPublicChatRoom(uint64_t chatId, uint64_t ph, int shard, const std::string &decryptedTitle, std::shared_ptr<std::string> unifiedKey, const std::string &url, uint32_t ts, bool meeting, const mega::ChatOptions_t opts, const mega::MegaScheduledMeetingList* smList);
 
     /**
      * @brief This function allows to create a scheduled meeting.
      * TODO: complete documentation
      */
-    promise::Promise<KarereScheduledMeeting*> createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting);
+    promise::Promise<KarereScheduledMeeting*> createOrUpdateScheduledMeeting(const mega::MegaScheduledMeeting* scheduledMeeting, const char* chatTitle = nullptr);
 
 
     promise::Promise<std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>> fetchScheduledMeetingOccurrences(uint64_t chatid, mega::m_time_t since, mega::m_time_t until, unsigned int count);
@@ -1081,6 +1151,15 @@ public:
      * TODO: complete documentation
      */
     promise::Promise<void> removeScheduledMeeting(uint64_t chatid, uint64_t schedId);
+
+    /**
+     * @brief This function allows a user in an existing call to send an incoming call push notification to another user in the chat
+     * to notify that call is ringing.
+     * @param chatid handle that identify the chatroom
+     * @param userid handle that identify the user
+     * @return a promise to ReqResult
+     */
+    promise::Promise<ReqResult> ringIndividualInACall(const uint64_t chatid, const uint64_t userid);
 
     /** sort the occurrences list by StartDateTime */
     void sortOccurrences(std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>>& occurrList) const;

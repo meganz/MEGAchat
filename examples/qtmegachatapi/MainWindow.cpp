@@ -170,7 +170,10 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         throw std::runtime_error("Incoming call from unknown contact");
     }
 
-    ChatWindow *window = itemController->showChatWindow();
+#ifndef NDEBUG
+    ChatWindow *window =
+#endif
+    itemController->showChatWindow();
     assert(window);
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS))
@@ -201,6 +204,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 itemController->getMeetingView()->setConnecting();
                 break;
             }
+            case megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM:
             case megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS:
             {
                 assert(itemController->getMeetingView());
@@ -213,7 +217,16 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
                 itemController->getMeetingView()->setNotParticipating();
                 // termcode is only valid at state CALL_STATUS_TERMINATING_USER_PARTICIPATION
                 int termCode = call->getTermCode();
-                if (termCode != megachat::MegaChatCall::TERM_CODE_HANGUP)
+
+                if (termCode == megachat::MegaChatCall::TERM_CODE_CALL_DUR_LIMIT
+                    || termCode == megachat::MegaChatCall::TERM_CODE_CALL_USERS_LIMIT)
+                {
+                    QMessageBox msgBox;
+                    msgBox.setText("Please upgrade your MEGA account into a PRO plan.");
+                    msgBox.setStandardButtons(QMessageBox::Ok);
+                    msgBox.exec();
+                }
+                else if (termCode != megachat::MegaChatCall::TERM_CODE_HANGUP)
                 {
                     std::string message("Termination Code: ");
                     message.append(std::to_string(termCode));
@@ -225,18 +238,15 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
             {
                 assert(itemController->getMeetingView());
                 itemController->destroyMeetingView();
+                std::string message("End call reason: ");
+                message.append(std::to_string(call->getEndCallReason()));
+                QMessageBox::information(this, "Call destroyed", message.c_str());
                 return;
             }
             default:
             {
                 break;
             }
-        }
-
-        MeetingView* meetingView = itemController->getMeetingView();
-        if (meetingView) // At destroy state meetingView doesn't exit
-        {
-            meetingView->updateLabel(call);
         }
     }
 
@@ -259,12 +269,6 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateAudioButtonText(*call);
         itemController->getMeetingView()->updateVideoButtonText(*call);
-    }
-
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
-            || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS))
-    {
-        assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateLabel(call);
     }
 
@@ -276,17 +280,111 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
 
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_GENERIC_NOTIFICATION) && call->getNotificationType() == MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR)
     {
+        if (call->getTermCode() == megachat::MegaChatCall::TERM_CODE_PROTOCOL_VERSION)
+        {
+            QMessageBox msgBox;
+            msgBox.setText("Please update your mega application to enjoy of latests calls features.");
+            msgBox.setStandardButtons(QMessageBox::Ok);
+            msgBox.exec();
+        }
         std::cerr << "onChatCallUpdate: " << MegaChatCall::termcodeToString(call->getTermCode()) << ", " << call->getGenericMessage() << std::endl;
     }
 
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY))
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP) && !call->isOwnClientCaller())
     {
-        itemController->getMeetingView()->updateLabel(call);
+        std::cerr << "onChatCallUpdate: outgoing ringing stop received but our client is not the caller";
+        return;
+    }
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_LIMITS_UPDATED))
+    {
+        QMessageBox msgBox;
+        QString myString;
+        const auto endsIn = call->getCallDurationLimit();
+        msgBox.setIcon(QMessageBox::Warning);
+        myString = QString("Call duration limit has changed: ")
+                   + QString(std::to_string(endsIn).c_str())
+                   + QString(" (seconds) due to MEGA account restrictions");
+
+        msgBox.setText(myString);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.exec();
+    }
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END))
+    {
+        QMessageBox msgBox;
+        QString myString;
+        const auto endsAt = call->getCallWillEndTs();
+        const auto current = ::mega::m_time(nullptr);
+        if (endsAt < current)
+        {
+            assert(false);
+            myString = QString("Call has already ended");
+        }
+        else
+        {
+            const auto endsIn = endsAt - current;
+            myString = QString("Call will end in ")
+                           + QString(std::to_string(endsIn).c_str())
+                           + QString(" (seconds) due to MEGA account restrictions");
+        }
+        msgBox.setIcon(QMessageBox::Warning);
+        msgBox.setText(myString);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.exec();
+    }
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_STATUS)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS)
+        || call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_RINGING_STATUS)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_COMPOSITION)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_ON_HOLD)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_AUDIO_LEVEL)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY)
+        || (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END)
+                && call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DISABLED))
+    {
+        if (itemController->getMeetingView()) { itemController->getMeetingView()->updateLabel(call); }
     }
 
-    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP))
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED))
     {
-        assert(call->isOwnClientCaller());
+        MeetingView* meetingView = itemController->getMeetingView();
+        if (meetingView)
+        {
+            std::unique_ptr<MegaHandleList> hl (call->getSessionsClientidByUserHandle(call->getHandle()));
+            assert(hl);
+            for (unsigned int i = 0; i < hl->size(); ++i)
+            {
+                const auto cid = hl->get(i);
+                MegaChatSession* sess = call->getMegaChatSession(cid);
+                assert(sess);
+                if (sess)
+                {
+                    meetingView->updateSession(*sess);
+                }
+            }
+            itemController->getMeetingView()->updateLabel(call);
+        }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED))
+    {
+        if (itemController->getMeetingView())
+        {
+            itemController->getMeetingView()->updateLabel(call);
+        }
+    }
+
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_WR_DENY))
+    {
+        QMessageBox msg;
+        msg.setIcon(QMessageBox::Warning);
+        msg.setText("A moderator has rejected to enter the call from WR");
+        msg.exec();
     }
 }
 
@@ -339,6 +437,11 @@ void MainWindow::onChatSessionUpdate(MegaChatApi *, MegaChatHandle chatid, MegaC
                 mMegaChatApi->requestHiResVideoWithQuality(chatid, session->getClientid(), megachat::MegaChatCall::CALL_QUALITY_HIGH_DEF);
             }
         }
+    }
+
+    if (session->hasChanged(MegaChatSession::CHANGE_TYPE_SESSION_ON_RECORDING))
+    {
+        meetingView->updateSession(*session);
     }
 
     if (session->hasChanged(MegaChatSession::CHANGE_TYPE_PERMISSIONS) || session->hasChanged(MegaChatSession::CHANGE_TYPE_AUDIO_LEVEL))
@@ -681,6 +784,9 @@ void MainWindow::on_bSettings_clicked()
     auto actPrintMyInfo = othersMenu->addAction(tr("Print my info"));
     connect(actPrintMyInfo, SIGNAL(triggered()), this, SLOT(onPrintMyInfo()));
 
+    auto actPrintUserAlerts = othersMenu->addAction(tr("Print scheduled meetings user alerts"));
+    connect(actPrintUserAlerts, SIGNAL(triggered()), this, SLOT(onPrintUseralerts()));
+
     auto actRetryPendingConn = othersMenu->addAction(tr("Retry pending connections"));
     connect(actRetryPendingConn,  &QAction::triggered, this, [this] {onReconnect(false);});
 
@@ -692,6 +798,9 @@ void MainWindow::on_bSettings_clicked()
 
     auto actSFUId = othersMenu->addAction(tr("Set SFU id"));
     connect(actSFUId, SIGNAL(triggered()), this, SLOT(onSetSFUId()));
+
+    auto actSpeakReq = othersMenu->addAction(tr("Enable speak request feature"));
+    connect(actSpeakReq, SIGNAL(triggered()), this, SLOT(onSpeakReqFeature()));
 
     auto actUseStaging = othersMenu->addAction("Use API staging");
     connect(actUseStaging, SIGNAL(toggled(bool)), this, SLOT(onUseApiStagingClicked(bool)));
@@ -770,6 +879,58 @@ void MainWindow::openChatPreview(bool create)
     }
 }
 
+void MainWindow::onPrintUseralerts()
+{
+    std::string text;
+    std::unique_ptr<MegaUserAlertList> ual(mMegaApi->getUserAlerts());
+    if (!ual || !ual->size()) { return; }
+
+    for (int i = 0; i < ual->size(); ++i)
+    {
+       const MegaUserAlert* alert = ual->get(i);
+       if (!alert ||
+           (alert->getType() != MegaUserAlert::TYPE_SCHEDULEDMEETING_NEW
+            && alert->getType() != MegaUserAlert::TYPE_SCHEDULEDMEETING_DELETED
+            && alert->getType() != MegaUserAlert::TYPE_SCHEDULEDMEETING_UPDATED))
+       {
+            continue;
+       }
+
+       std::unique_ptr<char[]> chatid_64(mMegaApi->userHandleToBase64(alert->getNodeHandle()));
+       std::unique_ptr<char[]> schedid_64(mMegaApi->userHandleToBase64(alert->getSchedId()));
+       std::unique_ptr<char[]> parentSchedid_64(mMegaApi->userHandleToBase64(alert->getPcrHandle()));
+
+       if (alert->getType() == MegaUserAlert::TYPE_SCHEDULEDMEETING_NEW)     { text.append("\n\n[Sm new]");     }
+       if (alert->getType() == MegaUserAlert::TYPE_SCHEDULEDMEETING_UPDATED) { text.append("\n\n[Sm updated]"); }
+       if (alert->getType() == MegaUserAlert::TYPE_SCHEDULEDMEETING_DELETED) { text.append("\n\n[Sm deleted]"); }
+       text.append("\n\tUserAlert Id: ").append(std::to_string(alert->getId()));
+       text.append("\n\tChatid: ").append(chatid_64.get());
+       text.append("\n\tSchedid: ").append(chatid_64.get());
+       text.append("\n\tParent: ").append(chatid_64.get());
+
+       text.append("\n\tFields changed: {");
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_TITLE))         { text.append(" T "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_DESCRIPTION))   { text.append(" D "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_CANCELLED))     { text.append(" C "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_TIMEZONE))      { text.append(" TZ "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_STARTDATE))     { text.append(" S "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_ENDDATE))       { text.append(" E "); }
+       if (alert->hasSchedMeetingChanged(MegaUserAlert::SM_CHANGE_TYPE_RULES))         { text.append(" R "); }
+       text.append(" }");
+    }
+
+    QDialog dialog;
+    QVBoxLayout layout(&dialog);
+    QTextEdit textEdit;
+    QPushButton closeBtn("Close");
+    dialog.resize(600, 400);
+    textEdit.setPlainText(text.c_str());
+    textEdit.setReadOnly(true);
+    layout.addWidget(&textEdit);
+    layout.addWidget(&closeBtn);
+    QObject::connect(&closeBtn, &QPushButton::clicked, &dialog, &QDialog::close);
+    dialog.exec();
+}
 
 void MainWindow::onPrintMyInfo()
 {
@@ -1510,10 +1671,22 @@ void MainWindow::onCatchUp()
     mMegaApi->catchup();
 }
 
+void MainWindow::onSpeakReqFeature()
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    bool enable = atoi(mApp->getText("Enable speak request feature? 1(enable) | 0(disable)").c_str());
+    mMegaChatApi->enableSpeakRequestSupportForCalls(enable);
+#endif
+}
+
 void MainWindow::onSetSFUId()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     int sfuid = atoi(mApp->getText("Set SFU id").c_str());
     mMegaChatApi->setSFUid(sfuid);
+#else
+    mApp->noFeatureErr();
+#endif
 }
 
 void MainWindow::onlastGreenVisibleClicked()

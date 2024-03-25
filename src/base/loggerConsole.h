@@ -7,6 +7,13 @@
 #else
 	#include <io.h>
 #endif
+
+#if defined(_WIN32) && defined(_MSC_VER)
+constexpr auto MegaIsatty = _isatty;
+#else
+constexpr auto MegaIsatty = isatty;
+#endif
+
 namespace karere
 {
 class ConsoleLogger
@@ -17,7 +24,7 @@ protected:
     bool mStderrIsAtty;
 public:
     ConsoleLogger(Logger& logger, bool useColors = true)
-    : mLogger(logger), mStdoutIsAtty(isatty(1)), mStderrIsAtty(isatty(2))
+    : mLogger(logger), mStdoutIsAtty(MegaIsatty(1)), mStderrIsAtty(MegaIsatty(2))
     {}
     void logString(unsigned level, const char* msg, unsigned flags)
     {
@@ -53,8 +60,8 @@ public:
     }
     void setUseColors(bool useColors)
     {
-        this->mStdoutIsAtty = isatty(1) && useColors;
-        this->mStderrIsAtty = isatty(2) && useColors;
+        this->mStdoutIsAtty = MegaIsatty(1) && useColors;
+        this->mStderrIsAtty = MegaIsatty(2) && useColors;
     }
 
     const char* stdoutColorSelect(unsigned flags)

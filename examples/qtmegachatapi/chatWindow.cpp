@@ -683,15 +683,24 @@ void ChatWindow::setMessageHeight(megachat::MegaChatMessage *msg, QListWidgetIte
     {
         case megachat::MegaChatMessage::TYPE_NODE_ATTACHMENT:
         {
-        item->setSizeHint(QSize(item->sizeHint().height(), 150));
-        break;
+            item->setSizeHint(QSize(item->sizeHint().height(), 150));
+            break;
         }
 
         case megachat::MegaChatMessage::TYPE_CONTACT_ATTACHMENT:
         {
-        item->setSizeHint(QSize(item->sizeHint().height(), 150));
-        break;
+            item->setSizeHint(QSize(item->sizeHint().height(), 150));
+            break;
         }
+
+        case megachat::MegaChatMessage::TYPE_SCHED_MEETING:
+        {
+            item->setSizeHint(QSize(item->sizeHint().height(), 300));
+            break;
+        }
+
+        default:
+            break;
     }
 }
 
@@ -846,6 +855,20 @@ void ChatWindow::createMembersMenu(QMenu& menu)
             auto actRemove = entry->addAction(tr("Remove from chat"));
             actRemove->setProperty("userHandle", userhandle);
             connect(actRemove, SIGNAL(triggered()), this, SLOT(onMemberRemove()));
+
+            auto actRing = entry->addAction(tr("Ring user"));
+            actRing->setProperty("userHandle", userhandle);
+            connect(actRing, SIGNAL(triggered()), this, SLOT(onRingUser()));
+
+            auto actAddSpeaker = entry->addAction(tr("Grants speak permission"));
+            actAddSpeaker->setProperty("userHandle", userhandle);
+            actAddSpeaker->setProperty("add", true);
+            connect(actAddSpeaker, SIGNAL(triggered()), this, SLOT(onAddSpeaker()));
+
+            auto actDelSpeaker = entry->addAction(tr("Revokes speak permission"));
+            actDelSpeaker->setProperty("userHandle", userhandle);
+            actDelSpeaker->setProperty("add", false);
+            connect(actDelSpeaker, SIGNAL(triggered()), this, SLOT(onAddSpeaker()));
         }
 
         if (privilege != megachat::MegaChatRoom::PRIV_RM)
@@ -935,6 +958,9 @@ void ChatWindow::createSettingsMenu(QMenu& menu)
     //Set topic
     auto title = roomMenu->addAction("Set title");
     connect(title, SIGNAL(triggered()), getChatItemController(), SLOT(setTitle()));
+
+    auto endCall = roomMenu->addAction("End call for all");
+    connect(endCall, SIGNAL(triggered()), getChatItemController(), SLOT(endCall()));
 
     auto actArchive = roomMenu->addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), getChatItemController(), SLOT(archiveChat(bool)));
@@ -1049,6 +1075,34 @@ void ChatWindow::onMemberRemove()
     }
 }
 
+void ChatWindow::onRingUser() const
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    const QAction* action = qobject_cast<QAction *>(sender());
+    if (!action) { return; }
+
+    std::string auxTimeout = mMainWin->mApp->getText("Get ringing timeout (>0) in seconds");
+    if (auxTimeout.empty()) { return; }
+
+    const QVariant uHandle = action->property("userHandle");
+    mMegaChatApi->ringIndividualInACall(mChatRoom->getChatId(), static_cast<MegaChatHandle>(uHandle.toLongLong()), atoi(auxTimeout.c_str()));
+#endif
+}
+
+void ChatWindow::onAddSpeaker() const
+{
+#ifndef KARERE_DISABLE_WEBRTC
+    const QAction* action = qobject_cast<QAction *>(sender());
+    if (!action) { return; }
+
+    const MegaChatHandle uHandle = static_cast<MegaChatHandle>(action->property("userHandle").toULongLong());
+    const bool add = static_cast<bool>(action->property("add").toBool());
+    add
+        ? mMegaChatApi->grantSpeakPermission(mChatRoom->getChatId(), uHandle)
+        : mMegaChatApi->revokeSpeakPermission(mChatRoom->getChatId(), uHandle);
+#endif
+}
+
 void ChatWindow::onMemberSetPriv()
 {
       int privilege;
@@ -1089,13 +1143,6 @@ void ChatWindow::onAudioCallBtn(bool)
     onCallBtn(false);
 }
 
-void ChatWindow::onAudioCallNoRingBtn()
-{
-    std::string schedIdStr = mMainWin->mApp->getText("Get scheduled meeting id");
-    MegaChatHandle schedId = schedIdStr.empty() ? MEGACHAT_INVALID_HANDLE : mMegaApi->base64ToUserHandle(schedIdStr.c_str());
-    mMegaChatApi->startChatCallNoRinging(mChatRoom->getChatId(), schedId, false, false);
-}
-
 void ChatWindow::closeEvent(QCloseEvent *event)
 {
     delete this;
@@ -1104,7 +1151,10 @@ void ChatWindow::closeEvent(QCloseEvent *event)
 
 void ChatWindow::onCallBtn(bool video)
 {
-    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video);
+    std::string audiostr = mMainWin->mApp->getText("Enable audio [0|1] \n\n Do you want to enable audio?");
+    if (audiostr != "0" && audiostr != "1") { return; }
+    int audio = atoi(audiostr.c_str());
+    mMegaChatApi->startChatCall(this->mChatRoom->getChatId(), video, audio);
 }
 
 #endif

@@ -73,13 +73,23 @@ FORMS +=    ../../../examples/qtmegachatapi/LoginDialog.ui \
     ../../../examples/qtmegachatapi/reaction.ui \
     ../../../examples/qtmegachatapi/confirmAccount.ui
 
+CONFIG(ENABLE_WERROR_COMPILATION) {
+    # disable warnings emanating from Qt headers
+    CONFIG += no_private_qt_headers_warning
+    QMAKE_CXXFLAGS += -isystem $$[QT_INSTALL_HEADERS] \
+                      -isystem $$[QT_INSTALL_HEADERS]/QtCore \
+                      -isystem $$[QT_INSTALL_HEADERS]/QtGui \
+                      -isystem $$[QT_INSTALL_HEADERS]/QtWidgets \
+                      -isystem $$[QT_INSTALL_HEADERS]/QtSvg
+}
+
 CONFIG(USE_WEBRTC) {
-    SOURCES +=  ../../src/videoRenderer_Qt.cpp \
+    SOURCES +=  ../../../examples/qtmegachatapi/videoRenderer_Qt.cpp \
                 ../../../examples/qtmegachatapi/peerWidget.cpp \
                 ../../../examples/qtmegachatapi/meetingView.cpp \
                 ../../../examples/qtmegachatapi/meetingSession.cpp
 
-    HEADERS +=  ../../src/videoRenderer_Qt.h \
+    HEADERS +=  ../../../examples/qtmegachatapi/videoRenderer_Qt.h \
                 ../../../examples/qtmegachatapi/peerWidget.h \
                 ../../../examples/qtmegachatapi/meetingView.h \
                 ../../../examples/qtmegachatapi/meetingSession.h

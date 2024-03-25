@@ -113,6 +113,8 @@ class ChatWindow : public QDialog,
         void onMsgListRequestHistory();
         void onMemberSetPriv();
         void onMemberRemove();
+        void onRingUser() const;
+        void onAddSpeaker() const;
         void onMsgSendBtn();
         void onMemberAdd();
         void onMembersBtn(bool);
@@ -129,7 +131,6 @@ class ChatWindow : public QDialog,
         void closeEvent(QCloseEvent *event);
         void onVideoCallBtn(bool);
         void onAudioCallBtn(bool);
-        void onAudioCallNoRingBtn();
 #endif
 
     friend class CallGui;

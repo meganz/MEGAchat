@@ -224,10 +224,12 @@ class MainWindow :
         void onTwoFactorGetCode();
         void onTwoFactorDisable();
         void onTwoFactorCheck();
+        void onPrintUseralerts();
         void onPrintMyInfo();
         void on_mLogout_clicked();
         void onCatchUp();
         void onSetSFUId();
+        void onSpeakReqFeature();
         void onlastGreenVisibleClicked();
         void onChatsSettingsClicked();
         void onChatCheckPushNotificationRestrictionClicked();
@@ -253,6 +255,7 @@ class MainWindow :
      friend class CallAnswerGui;
      friend class ChatWindow;
      friend class ChatMessage;
+     friend class MeetingView;
 };
 
 #endif // MAINWINDOW_H

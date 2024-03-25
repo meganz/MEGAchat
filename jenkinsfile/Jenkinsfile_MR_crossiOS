@@ -1,0 +1,274 @@
+def setCommitStatus(String pStatus, String errorHint = '') {
+    switch (pStatus) {
+        case 'running':
+            pState = 'running'
+            pMessage = ""
+            break
+        case 'success':
+            pState = 'success'
+            pMessage = ":white_check_mark: ${env.JOB_NAME} :green_apple: <b>iOS</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'aborted':
+            pState = 'canceled'
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>iOS</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'failure':
+            pState = 'failed'
+            pMessage = ":red_circle: ${env.JOB_NAME} :green_apple: <b>iOS</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'unstable':
+            pState = 'failed'
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>iOS</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        default:
+            pState = 'failed'
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>iOS</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+    }
+    if (pMessage) {
+        if (errorHint) {
+             pMessage += '<br/> ' + errorHint
+        }
+        addGitLabMRComment(comment: pMessage)
+    }
+    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: pState)
+}
+
+pipeline {
+    agent { label 'osx && arm64' }
+    options {
+        timeout(time: 200, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
+        gitLabConnection('GitLabConnectionJenkins')
+    }
+    environment {
+        BUILD_OPTIONS = ' '
+        APIURL_TO_TEST = ' '
+        PIPELINE_NAME = 'iOS Build'
+    }
+    stages {
+        stage('clean previous runs'){
+            steps{
+                deleteDir()
+                setCommitStatus('running')
+            }
+        }
+        stage('Get current build description'){
+            steps{
+                script{
+                    println "${env.gitlabMergeRequestDescription}"
+                    env.currentBuildDescription = currentBuild.description
+                }
+            }
+        }
+        stage('Get build options'){
+            when {
+                allOf {
+                    expression { env.gitlabTriggerPhrase != null }
+                    expression { env.gitlabTriggerPhrase.contains('BUILD_OPTIONS') }
+                }
+            }
+            steps {
+                script{
+                    BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\"" -f2', returnStdout: true).trim()
+                    println BUILD_OPTIONS
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Get SDK branch'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('SDK_BRANCH_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_BRANCH_TO_TEST | awk -F "SDK_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    println SDK_BRANCH
+                    if (SDK_BRANCH == ""){
+                        echo "SDK_BRANCH was not found on description so develop will be used by default"
+                    }
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Get iOS branch'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('IOS_BRANCH_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    env.IOS_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep IOS_BRANCH_TO_TEST | awk -F "IOS_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    println IOS_BRANCH
+                    if (IOS_BRANCH == ""){
+                        echo "IOS_BRANCH was not found on description so develop will be used by default"
+                    }
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting iOS branch. Is `IOS_BRANCH` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Get API URL'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('USE_APIURL_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    APIURL_TO_TEST = sh(script: 'echo "$gitlabMergeRequestDescription" | grep USE_APIURL_TO_TEST | awk -F "USE_APIURL_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    println APIURL_TO_TEST
+                    if (APIURL_TO_TEST == ""){
+                        APIURL_TO_TEST = "https://g.api.mega.co.nz/"
+                        echo "APIURL_TO_TEST was not found on description so ${APIURL_TO_TEST} will be used by default"
+                    }
+                    echo "APIURL_TO_TEST will be ${APIURL_TO_TEST}"
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting API URL. Is `APIURL_TO_TEST` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Checkout SDK MEGAchat and iOS'){
+            steps {
+                deleteDir()
+                //sh "echo Cloning iOS branch ${env.IOS_BRANCH}"
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: "origin/${env.IOS_BRANCH}"]],
+                    userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:mobile/ios/iOS_dev.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                    extensions: [
+                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                    ]
+                ])
+                dir("Modules/DataSource/MEGAChatSDK/Sources/MEGAChatSDK"){
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                        userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:megachat/MEGAchat.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                            [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                        ]
+                    ])
+                }
+                dir('Modules/Datasource/MEGASDK/Sources/MEGASDK'){
+                    sh "echo Cloning megachat branch ${env.SDK_BRANCH}"
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${env.SDK_BRANCH}"]],
+                        userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:sdk/sdk.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                        ]
+                    ])
+                }
+                sh """
+                    git submodule update --init iMEGA/Vendor/SVProgressHUD
+                    git submodule update --init iMEGA/Vendor/LTHPasscodeViewController
+                """
+                script{
+                    ios_sources_workspace = WORKSPACE
+                    sdk_sources_workspace = "${ios_sources_workspace}/Modules/DataSource/MEGASDK/Sources/MEGASDK"
+                    megachat_sources_workspace = "${ios_sources_workspace}/Modules/DataSource/MEGAChatSDK/Sources/MEGAChatSDK"
+                }
+            }
+            post {
+                failure {
+                    setCommitStatus('failure')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+        stage('Build MEGACHAT SDK and iOS'){
+            when {
+                anyOf {
+                    expression { env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'trigger compilation' || env.gitlabTriggerPhrase.startsWith('trigger compilation ios'))  }
+                    allOf{
+                        expression { env.gitlabTriggerPhrase == null }
+                        triggeredBy "GitlabWebhookCause"
+                    }
+                }
+            }
+            environment {
+                PATH = "/usr/local/bin:${env.PATH}"
+                LIBTOOLIZE = "/usr/local/bin/glibtoolize"
+            }
+            steps{
+                sh """
+                    bundle config set --local path 'vendor/bundle'
+                    bundle install
+                """
+                dir("${megachat_sources_workspace}/src"){
+                    sh "cmake -P genDbSchema.cmake"
+                }
+                script {
+                    /* IOS_REBUILD_3RDPARTY was a parammeter in old job. Not the case in MR triggered jobs
+                    if (env.IOS_REBUILD_3RDPARTY == "true") {
+                        dir("${sdk_sources_workspace}/bindings/ios/3rdparty"){
+                            sh "sh build-all.sh --enable-chat"
+                        }
+                    }
+                    else {
+                        sh "bundle exec fastlane configure_sdk_and_chat_library use_cache:true"
+                    }
+                    */
+                    sh "bundle exec fastlane configure_sdk_and_chat_library use_cache:true"
+                }
+                withCredentials([gitUsernamePassword(credentialsId: 'jenkins_sdk_token_with_user', gitToolName: 'Default')]) {
+                    sh """
+                        bundle exec fastlane update_plugins
+                        bundle exec fastlane build_simulator
+                    """
+                }
+            }
+            post {
+                success {
+                    setCommitStatus('success')
+                }
+                failure {
+                    setCommitStatus('failure')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
+                }
+            }
+        }
+    }
+}
+// vim: syntax=groovy tabstop=4 shiftwidth=4

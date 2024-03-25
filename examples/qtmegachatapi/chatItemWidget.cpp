@@ -357,7 +357,15 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
         if (chatRoom)
         {
             const char *msg =  mMegaChatApi->getUserFirstnameFromCache(msgUserId);
+
+// disable warnings in Release build
+#if defined(__GNUC__) && !defined(__APPLE__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
             size_t len = msg ? strlen(msg) : 0;
+
             if (len)
             {
                 msgAuthor = new char[len + 1];
@@ -365,6 +373,9 @@ const char *ChatItemWidget::getLastMessageSenderName(megachat::MegaChatHandle ms
                 msgAuthor[len] = '\0';
                 delete [] msg;
             }
+#if defined(__GNUC__) && !defined(__APPLE__)
+#pragma GCC diagnostic pop
+#endif
             delete chatRoom;
         }
     }
@@ -442,6 +453,13 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
     QMenu menu(this);
     megachat::MegaChatRoom *chatRoom = mMegaChatApi->getChatRoom(mChatId);
 
+    QMenu* callsMenu = menu.addMenu("Call's management");
+    auto actAdhocCall = callsMenu->addAction(tr("Waiting Room Call"));
+    connect(actAdhocCall, SIGNAL(triggered()), mController, SLOT(onWaitingRoomCall()));
+
+    auto actschedCall = callsMenu->addAction(tr("Sched meeting Call"));
+    connect(actschedCall, SIGNAL(triggered()), mController, SLOT(onAudioCallNoRingBtn()));
+
     QMenu *roomMenu = menu.addMenu("Room's management");
 
     auto actLeave = roomMenu->addAction(tr("Leave chat"));
@@ -499,6 +517,9 @@ void ChatItemWidget::contextMenuEvent(QContextMenuEvent *event)
 
     auto actTopic = roomMenu->addAction(tr("Set title"));
     connect(actTopic, SIGNAL(triggered()), mController, SLOT(setTitle()));
+
+    auto actEndCall = roomMenu->addAction(tr("End call for all"));
+    connect(actEndCall, SIGNAL(triggered()), mController, SLOT(endCall()));
 
     auto actArchive = roomMenu->addAction("Archive chat");
     connect(actArchive, SIGNAL(toggled(bool)), mController, SLOT(archiveChat(bool)));
