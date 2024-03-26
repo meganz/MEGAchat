@@ -4280,7 +4280,7 @@ void GroupChatRoom::syncChatTitle(const mega::MegaTextChat& chat, const bool mem
                              err.what());
             });
     }
-    else if (membersChanged)
+    else if (!mHasTitle && membersChanged)
     {
         KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...",
                      ID_CSTR(mChatid));
