@@ -435,7 +435,7 @@ public:
     virtual void releaseDevice() = 0;
     virtual webrtc::VideoTrackSourceInterface* getVideoTrackSource() = 0;
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
-    static std::set<std::pair<long int, std::string>> getScreenDevices();
+    static std::set<std::pair<std::string, long int>> getScreenDevices();
 };
 
 class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoManager
@@ -545,9 +545,14 @@ public:
         mBroadcaster.RemoveSink(sink);
     }
 
-    static std::set<std::pair<long int, std::string>> getScreenDevicesList()
+    /**
+     * @brief Returns a set with the information of the screen devices.
+     *
+     * The elements of the list are pairs with: [descriptive name of the device, deviceID]
+     */
+    static std::set<std::pair<std::string, long int>> getScreenDevicesList()
     {
-        std::set<std::pair<long int, std::string>> list;
+        std::set<std::pair<std::string, long int>> list;
         const webrtc::DesktopCaptureOptions options = webrtc::DesktopCaptureOptions::CreateDefault();
         std::unique_ptr<webrtc::DesktopCapturer> screenCapturer = webrtc::DesktopCapturer::CreateScreenCapturer(options);
         if (!screenCapturer)
@@ -558,10 +563,13 @@ public:
         webrtc::DesktopCapturer::SourceList sourceList;
         if (screenCapturer->GetSourceList(&sourceList))
         {
-            std::for_each(sourceList.begin(), sourceList.end(), [&list](const webrtc::DesktopCapturer::Source& s)
-            {
-                list.insert(std::make_pair(s.id, s.title));
-            });
+            std::transform(sourceList.begin(),
+                           sourceList.end(),
+                           std::inserter(list, std::end(list)),
+                           [](const webrtc::DesktopCapturer::Source& s)
+                           {
+                               return std::pair(s.title, s.id);
+                           });
         }
         return list;
     }

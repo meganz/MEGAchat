@@ -9,6 +9,7 @@
 #include <IVideoRenderer.h>
 
 #include <map>
+#include <variant>
 
 namespace rtcModule
 {
@@ -759,28 +760,24 @@ protected:
 class RtcModuleSfu : public RtcModule, public VideoSink
 {
 public:
-    enum class CaptureDeviceType: int32_t
+
+    struct VideoDevice
     {
-        TYPE_CAPTURER_UNKNOWN   = -1,   // unkown capturer device
-        TYPE_CAPTURER_VIDEO     = 0,    // camera capturer device
-        TYPE_CAPTURER_SCREEN    = 1,    // screen capturer device
+        std::string id;
     };
 
-    static constexpr webrtc::DesktopCapturer::SourceId invalDeviceId = -1;
-    static CaptureDeviceType convertIntoCaptureDeviceType(const int type)
+    struct ScreenDevice
     {
-        const CaptureDeviceType aux = static_cast<CaptureDeviceType>(type);
-        if (isValidCaptureDeviceType(aux))
-        {
-            return aux;
-        }
-        return CaptureDeviceType::TYPE_CAPTURER_UNKNOWN;
-    }
+        long int id;
+    };
 
-    static bool isValidCaptureDeviceType(const CaptureDeviceType type)
+    typedef std::variant<VideoDevice, ScreenDevice> InputDevice;
+
+    static std::optional<InputDevice> inputDeviceFactory(const int type)
     {
-        return type >= CaptureDeviceType::TYPE_CAPTURER_VIDEO
-               && type <= CaptureDeviceType::TYPE_CAPTURER_SCREEN;
+        if (type == 0) { return VideoDevice(); }
+        if (type == 1) { return ScreenDevice(); }
+        return std::nullopt;
     }
 
     RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
@@ -791,7 +788,7 @@ public:
     bool isCallStartInProgress(const karere::Id &chatid) const override;
     bool selectVideoInDevice(const std::string& device, const int type) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
-    std::set<std::pair<long int, std::string>>  getScreenDevices() override;
+    std::set<std::pair<std::string, long int>> getScreenDevices() override;
     promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const bool notRinging, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeVideoDevice() override;
     void releaseVideoDevice() override;
@@ -816,7 +813,7 @@ public:
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoManager* getVideoDevice();
-    void changeVideoDevice(const std::string& device, const long int screenDeviceId, bool shouldOpen, const CaptureDeviceType type);
+    void changeVideoDevice(const InputDevice& deviceId, bool shouldOpen);
     void openVideoDevice();
     void closeDevice();
 
@@ -828,20 +825,16 @@ public:
     bool isSpeakRequestSupportEnabled() const override;
     sfu::SfuProtocol getMySfuProtoVersion() const override;
 
-    void setCaptureDeviceType (const CaptureDeviceType type)
-    {
-        mCaptureDeviceType = type;
-    }
-
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
     CallHandler& mCallHandler;
     MyMegaApi& mMegaApi;
     DNScache &mDnsCache;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
-    std::string mVideoDeviceSelected;  // id of selected video device
-    long int mScreenDeviceSelected = invalDeviceId; // id of selected screen device
-    CaptureDeviceType mCaptureDeviceType = CaptureDeviceType::TYPE_CAPTURER_UNKNOWN;
+
+    std::optional<InputDevice> mSelectedDeviceId = std::nullopt;
+    std::optional<VideoDevice> getDefaultVideoDevice();
+
     rtc::scoped_refptr<artc::VideoManager> mCapturerDevice;
     // count of times the device has been taken (without being released)
     unsigned int mDeviceTakenCount = 0;

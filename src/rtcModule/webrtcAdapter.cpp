@@ -281,9 +281,9 @@ VideoManager* VideoManager::createVideoCapturer(const webrtc::VideoCaptureCapabi
                                    )
 {
 #ifdef __APPLE__
-    return nullptr; // TODO implement
+    return new OBJCCaptureModule(capabilities, deviceName);
 #elif __ANDROID__
-    return nullptr; // TODO implement
+    return new CaptureModuleAndroid(capabilities, deviceName, thread);
 #else
     return new CaptureModuleLinux(capabilities);
 #endif
@@ -296,9 +296,11 @@ VideoManager *VideoManager::createScreenCapturer(const webrtc::VideoCaptureCapab
                                                 )
 {
 #ifdef __APPLE__
-    return new OBJCCaptureModule(capabilities, deviceName);
+    // TODO: Implement
+    return nullptr;
 #elif __ANDROID__
-    return new CaptureModuleAndroid(capabilities, deviceName, thread);
+    // TODO: Implement
+    return nullptr;
 #else
     return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux(static_cast<webrtc::DesktopCapturer::SourceId>(deviceId));
 #endif
@@ -315,7 +317,7 @@ std::set<std::pair<std::string, std::string>> VideoManager::getVideoDevices()
     #endif
 }
 
-std::set<std::pair<long int, std::string>> VideoManager::getScreenDevices()
+std::set<std::pair<std::string, long int>> VideoManager::getScreenDevices()
 {
  #ifdef __APPLE__
          // TODO: return OBJCCaptureModule::getScreenDevicesList();

@@ -2102,25 +2102,23 @@ int MegaChatApiImpl::performRequest_setCallOnHold(MegaChatRequestPrivate* reques
 
 int MegaChatApiImpl::performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request)
 {
-    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
-        {
-            if (!mClient->rtc)
-            {
-                API_LOG_ERROR("Change video streaming source - WebRTC is not initialized");
-                return MegaChatError::ERROR_ACCESS;
-            }
+    if (!mClient->rtc)
+    {
+        API_LOG_ERROR("Change video streaming source - WebRTC is not initialized");
+        return MegaChatError::ERROR_ACCESS;
+    }
 
-            const char *deviceName = request->getText();
-            if (!deviceName || !mClient->rtc->selectVideoInDevice(deviceName, request->getPrivilege()))
-            {
-                API_LOG_ERROR("Change video streaming source - device doesn't exist");
-                return MegaChatError::ERROR_ARGS;
-            }
+    const char* deviceName = request->getText();
+    int deviceType = request->getPrivilege();
+    if (!deviceName || !mClient->rtc->selectVideoInDevice(deviceName, deviceType))
+    {
+        API_LOG_ERROR("Change video streaming source - device doesn't exist");
+        return MegaChatError::ERROR_ARGS;
+    }
 
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
-            return MegaChatError::ERROR_OK;
-        }
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
 }
 #endif
 
@@ -5914,10 +5912,10 @@ MegaStringList* MegaChatApiImpl::getChatScreenDevices()
     sdkMutex.lock();
     if (mClient && mClient->rtc)
     {
-        std::set<std::pair<long int, std::string>> l = mClient->rtc->getScreenDevices();
-        std::for_each(l.begin(), l.end(), [sl, l](const std::pair<long int, std::string>& s)
+        std::set<std::pair<std::string, long int>> l = mClient->rtc->getScreenDevices();
+        std::for_each(l.begin(), l.end(), [sl](const auto& s)
         {
-            sl->add(s.second.c_str());
+            sl->add(s.first.c_str());
         });
     }
     return sl;
