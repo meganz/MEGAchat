@@ -753,6 +753,9 @@ void MainWindow::on_bSettings_clicked()
     auto actWebRTC = settingsMenu->addAction(tr("Set A/V input devices (WebRTC)"));
     connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
 
+    auto actChangeScreen = settingsMenu->addAction(tr("Select screen device"));
+    connect(actChangeScreen, SIGNAL(triggered()), this, SLOT(onScreensSet()));
+
     auto actArchived = settingsMenu->addAction(tr("Show archived chats"));
     connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
     actArchived->setCheckable(true);
@@ -1718,6 +1721,31 @@ void MainWindow::onChatCheckPushNotificationRestrictionClicked()
     MegaHandle chatid = mMegaApi->base64ToUserHandle(text.toStdString().c_str());
     ChatListItemController *controller = getChatControllerById(chatid);
     controller->onCheckPushNotificationRestrictionClicked();
+}
+
+void MainWindow::onScreensSet()
+{
+    std::unique_ptr<MegaStringList> l(mMegaChatApi->getChatScreenDevices());
+    if (!l)
+    {
+        return;
+    }
+
+    std::string devList;
+    for (int i = 0; i < l->size(); ++i)
+    {
+        devList += std::to_string(i) + ") " + l->get(i) + "\n";
+    }
+
+    QString text = QInputDialog::getText(this,
+                                         tr("Select screen device (Enter device name)"),
+                                         tr(devList.c_str()));
+    if (text == "")
+    {
+        return;
+    }
+
+    mMegaChatApi->setChatScreenDevice(text.toStdString().c_str());
 }
 
 void MainWindow::onUseApiStagingClicked(bool enable)
