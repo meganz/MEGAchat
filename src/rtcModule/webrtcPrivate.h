@@ -643,7 +643,7 @@ protected:
     // this flag prevents that we start multiple joining attempts for a call
     bool mIsJoining;
     RtcModuleSfu& mRtc;
-    artc::VideoManager* mVideoManager = nullptr;
+    artc::VideoCapturerManager* mVideoManager = nullptr;
 
     megaHandle mConnectTimer = 0;    // Handler of the timeout for call re/connecting
     megaHandle mStatsTimer = 0;
@@ -812,7 +812,7 @@ public:
 
     void OnFrame(const webrtc::VideoFrame& frame) override;
 
-    artc::VideoManager* getVideoDevice();
+    artc::VideoCapturerManager* getVideoDevice();
     void changeVideoDevice(const InputDevice& deviceId, bool shouldOpen);
     void openVideoDevice();
     void closeDevice();
@@ -835,7 +835,7 @@ private:
     std::optional<InputDevice> mSelectedDeviceId = std::nullopt;
     std::optional<VideoDevice> getDefaultVideoDevice();
 
-    rtc::scoped_refptr<artc::VideoManager> mCapturerDevice;
+    rtc::scoped_refptr<artc::VideoCapturerManager> mCameraCapturerDevice;
     // count of times the device has been taken (without being released)
     unsigned int mDeviceTakenCount = 0;
     std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;

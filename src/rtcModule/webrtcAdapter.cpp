@@ -91,70 +91,70 @@ unsigned long generateId()
     return ++id;
 }
 
-CaptureModuleLinux::CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote)
+CaptureCameraModuleLinux::CaptureCameraModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote)
     : mState(webrtc::MediaSourceInterface::kInitializing),
       mRemote(remote),
       mCapabilities(capabilities)
 {
 }
 
-CaptureModuleLinux::~CaptureModuleLinux()
+CaptureCameraModuleLinux::~CaptureCameraModuleLinux()
 {
 }
 
-void CaptureModuleLinux::RegisterObserver(webrtc::ObserverInterface*)
-{
-
-}
-
-void CaptureModuleLinux::UnregisterObserver(webrtc::ObserverInterface*)
+void CaptureCameraModuleLinux::RegisterObserver(webrtc::ObserverInterface*)
 {
 
 }
 
-webrtc::MediaSourceInterface::SourceState CaptureModuleLinux::state() const
+void CaptureCameraModuleLinux::UnregisterObserver(webrtc::ObserverInterface*)
+{
+
+}
+
+webrtc::MediaSourceInterface::SourceState CaptureCameraModuleLinux::state() const
 {
     return mState;
 }
 
-bool CaptureModuleLinux::is_screencast() const
+bool CaptureCameraModuleLinux::is_screencast() const
 {
     return false;
 }
 
-absl::optional<bool> CaptureModuleLinux::needs_denoising() const
+absl::optional<bool> CaptureCameraModuleLinux::needs_denoising() const
 {
     return absl::nullopt;
 }
 
-bool CaptureModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats*)
+bool CaptureCameraModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats*)
 {
     return false;
 }
 
-void CaptureModuleLinux::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
+void CaptureCameraModuleLinux::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
 {
     mBroadcaster.AddOrUpdateSink(sink, wants);
 }
 
-void CaptureModuleLinux::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
+void CaptureCameraModuleLinux::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
 {
     mBroadcaster.RemoveSink(sink);
 }
 
-bool CaptureModuleLinux::remote() const
+bool CaptureCameraModuleLinux::remote() const
 {
     return mRemote;
 }
 
-void CaptureModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
+void CaptureCameraModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
 {
     assert(frame.video_frame_buffer()
            && frame.video_frame_buffer()->type() == webrtc::VideoFrameBuffer::Type::kI420);
     mBroadcaster.OnFrame(frame);
 }
 
-std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevices()
+std::set<std::pair<std::string, std::string> > CaptureCameraModuleLinux::getVideoDevices()
 {
     std::set<std::pair<std::string, std::string>> videoDevices;
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
@@ -176,7 +176,7 @@ std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevic
     return videoDevices;
 }
 
-void CaptureModuleLinux::openDevice(const std::string &videoDevice)
+void CaptureCameraModuleLinux::openDevice(const std::string &videoDevice)
 {
     mCameraCapturer = webrtc::VideoCaptureFactory::Create(videoDevice.c_str());
     if (!mCameraCapturer)
@@ -202,7 +202,7 @@ void CaptureModuleLinux::openDevice(const std::string &videoDevice)
     RTC_CHECK(mCameraCapturer->CaptureStarted());
 }
 
-void CaptureModuleLinux::releaseDevice()
+void CaptureCameraModuleLinux::releaseDevice()
 {
     if (mCameraCapturer)
     {
@@ -212,7 +212,7 @@ void CaptureModuleLinux::releaseDevice()
     }
 }
 
-webrtc::VideoTrackSourceInterface* CaptureModuleLinux::getVideoTrackSource()
+webrtc::VideoTrackSourceInterface* CaptureCameraModuleLinux::getVideoTrackSource()
 {
     return this;
 }
@@ -270,7 +270,7 @@ rtc::scoped_refptr<webrtc::VideoTrackInterface> LocalStreamHandle::video()
     return mVideo;
 }
 
-VideoManager* VideoManager::createVideoCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string &
+VideoCapturerManager* VideoCapturerManager::createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string &
 #if defined(__APPLE__) || defined(__ANDROID__)
                                    deviceName
 #endif
@@ -285,11 +285,11 @@ VideoManager* VideoManager::createVideoCapturer(const webrtc::VideoCaptureCapabi
 #elif __ANDROID__
     return new CaptureModuleAndroid(capabilities, deviceName, thread);
 #else
-    return new CaptureModuleLinux(capabilities);
+    return new CaptureCameraModuleLinux(capabilities);
 #endif
 }
 
-VideoManager *VideoManager::createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread *
+VideoCapturerManager *VideoCapturerManager::createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread *
 #ifdef __ANDROID__
                                                     thread
 #endif
@@ -306,18 +306,18 @@ VideoManager *VideoManager::createScreenCapturer(const webrtc::VideoCaptureCapab
 #endif
 }
 
-std::set<std::pair<std::string, std::string>> VideoManager::getVideoDevices()
+std::set<std::pair<std::string, std::string>> VideoCapturerManager::getCameraDevices()
 {
     #ifdef __APPLE__
         return OBJCCaptureModule::getVideoDevices();
     #elif __ANDROID__
         return CaptureModuleAndroid::getVideoDevices();
     #else
-        return CaptureModuleLinux::getVideoDevices();
+        return CaptureCameraModuleLinux::getVideoDevices();
     #endif
 }
 
-std::set<std::pair<std::string, long int>> VideoManager::getScreenDevices()
+std::set<std::pair<std::string, long int>> VideoCapturerManager::getScreenDevices()
 {
  #ifdef __APPLE__
          // TODO: return OBJCCaptureModule::getScreenDevicesList();

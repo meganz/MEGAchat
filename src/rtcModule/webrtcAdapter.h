@@ -425,20 +425,20 @@ protected:
 };
 
 
-class VideoManager : public rtc::RefCountedObject<webrtc::VideoTrackSourceInterface>
+class VideoCapturerManager : public rtc::RefCountedObject<webrtc::VideoTrackSourceInterface>
 {
 public:
-    virtual ~VideoManager(){}
-    static VideoManager* createVideoCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string& deviceName, rtc::Thread* thread);
-    static VideoManager* createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread* thread);
-    virtual void openDevice(const std::string &videoDevice) = 0;
+    virtual ~VideoCapturerManager(){}
+    static VideoCapturerManager* createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string& deviceName, rtc::Thread* thread);
+    static VideoCapturerManager* createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread* thread);
+    virtual void openDevice(const std::string &deviceName) = 0;
     virtual void releaseDevice() = 0;
     virtual webrtc::VideoTrackSourceInterface* getVideoTrackSource() = 0;
-    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    static std::set<std::pair<std::string, std::string>> getCameraDevices();
     static std::set<std::pair<std::string, long int>> getScreenDevices();
 };
 
-class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoManager
+class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoCapturerManager
 {
 public:
     static CaptureScreenModuleLinux* createCaptureScreenModuleLinux(const webrtc::DesktopCapturer::SourceId deviceId)
@@ -599,11 +599,11 @@ private:
     webrtc::DesktopCapturer::SourceId mDeviceId = invalDeviceId;
 };
 
-class CaptureModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
+class CaptureCameraModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoCapturerManager
 {
 public:
-    explicit CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote = false);
-    virtual ~CaptureModuleLinux() override;
+    explicit CaptureCameraModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote = false);
+    virtual ~CaptureCameraModuleLinux() override;
 
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;

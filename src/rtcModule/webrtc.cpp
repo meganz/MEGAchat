@@ -3845,7 +3845,7 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScach
 
 std::optional<RtcModuleSfu::VideoDevice> RtcModuleSfu::getDefaultVideoDevice()
 {
-    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoCapturerManager::getCameraDevices();
     if (videoDevices.empty())
     {
         return std::nullopt;
@@ -3919,7 +3919,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device, const int type
         overloaded{
             [&foundDevice, &device](VideoDevice& videoDev)
             {
-                foundDevice = findAndSetDeviceId(artc::VideoManager::getVideoDevices(), device, videoDev);
+                foundDevice = findAndSetDeviceId(artc::VideoCapturerManager::getCameraDevices(), device, videoDev);
                 if (!foundDevice)
                 {
                     RTCM_LOG_WARNING(
@@ -3930,7 +3930,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device, const int type
             [&foundDevice, &device](ScreenDevice& screenDev)
             {
                 foundDevice =
-                    findAndSetDeviceId(artc::VideoManager::getScreenDevices(), device, screenDev);
+                    findAndSetDeviceId(artc::VideoCapturerManager::getScreenDevices(), device, screenDev);
                 if (!foundDevice)
                 {
                     RTCM_LOG_WARNING(
@@ -3969,7 +3969,7 @@ bool RtcModuleSfu::selectVideoInDevice(const std::string &device, const int type
 
 void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 {
-    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
+    std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoCapturerManager::getCameraDevices();
     for (auto it = videoDevices.begin(); it != videoDevices.end(); it++)
     {
         devicesVector.insert(it->first);
@@ -3978,7 +3978,7 @@ void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 
 std::set<std::pair<std::string, long int>> RtcModuleSfu::getScreenDevices()
 {
-    return mCapturerDevice->getScreenDevices();
+    return mCameraCapturerDevice->getScreenDevices();
 }
 
 promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const bool notRinging, std::shared_ptr<std::string> unifiedKey)
@@ -4053,7 +4053,7 @@ void RtcModuleSfu::releaseVideoDevice()
         mDeviceTakenCount--;
         if (mDeviceTakenCount == 0)
         {
-            assert(mCapturerDevice);
+            assert(mCameraCapturerDevice);
             closeDevice();
         }
     }
@@ -4272,15 +4272,15 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 
 }
 
-artc::VideoManager *RtcModuleSfu::getVideoDevice()
+artc::VideoCapturerManager *RtcModuleSfu::getVideoDevice()
 {
-    return mCapturerDevice.get();
+    return mCameraCapturerDevice.get();
 }
 
 void RtcModuleSfu::changeVideoDevice(const InputDevice& deviceId, bool shouldOpen)
 {
     mSelectedDeviceId = deviceId;
-    if (mCapturerDevice)
+    if (mCameraCapturerDevice)
     {
         shouldOpen = true;
         closeDevice();
@@ -4317,32 +4317,32 @@ void RtcModuleSfu::openVideoDevice()
     capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
     std::visit(overloaded{[this, &capabilities](const VideoDevice& videoDevice)
                           {
-                              mCapturerDevice = artc::VideoManager::createVideoCapturer(
+                              mCameraCapturerDevice = artc::VideoCapturerManager::createCameraCapturer(
                                   capabilities,
-                                  videoDevice.id,
+                                  videoDevice.id, // device name
                                   artc::gWorkerThread.get());
-                              mCapturerDevice->openDevice(videoDevice.id);
+                              mCameraCapturerDevice->openDevice(videoDevice.id);
                           },
                           [this, &capabilities](const ScreenDevice& screenDevice)
                           {
-                              mCapturerDevice = artc::VideoManager::createScreenCapturer(
+                              mCameraCapturerDevice = artc::VideoCapturerManager::createScreenCapturer(
                                   capabilities,
-                                  screenDevice.id,
+                                  screenDevice.id, // title
                                   artc::gWorkerThread.get());
-                              mCapturerDevice->openDevice("");
+                              mCameraCapturerDevice->openDevice("");
                           }},
                *mSelectedDeviceId);
 
-    mCapturerDevice->AddOrUpdateSink(this, {});
+    mCameraCapturerDevice->AddOrUpdateSink(this, {});
 }
 
 void RtcModuleSfu::closeDevice()
 {
-    if (mCapturerDevice)
+    if (mCameraCapturerDevice)
     {
-        mCapturerDevice->RemoveSink(this);
-        mCapturerDevice->releaseDevice();
-        mCapturerDevice = nullptr;
+        mCameraCapturerDevice->RemoveSink(this);
+        mCameraCapturerDevice->releaseDevice();
+        mCameraCapturerDevice = nullptr;
     }
 }
 
