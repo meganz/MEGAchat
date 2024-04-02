@@ -661,6 +661,12 @@ public:
     virtual bool hasLocalVideo() const;
 
     /**
+     * @brief hasLocalScreenShare
+     * @return
+     */
+    virtual bool hasLocalScreenShare() const;
+
+    /**
      * @brief Returns a bit field with the changes of the call
      *
      * This value is only useful for calls notified by MegaChatCallListener::onChatCallUpdate
@@ -2629,7 +2635,8 @@ public:
 
     enum {
         AUDIO = 0,
-        VIDEO = 1
+        VIDEO = 1,
+        SCREEN = 2,
     };
 
     virtual ~MegaChatRequest();
@@ -6619,6 +6626,20 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief enableScreenShare
+     * @param chatid
+     * @param listener
+     */
+    void enableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener  = NULL);
+
+    /**
+     * @brief disableScreenShare
+     * @param chatid
+     * @param listener
+     */
+    void disableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Disable audio for a call that is in progress

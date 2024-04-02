@@ -2012,7 +2012,9 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
                 return MegaChatError::ERROR_NOENT;
             }
 
-            if (operationType != MegaChatRequest::AUDIO && operationType != MegaChatRequest::VIDEO)
+            if (operationType != MegaChatRequest::AUDIO &&
+                operationType != MegaChatRequest::VIDEO &&
+                operationType != MegaChatRequest::SCREEN)
             {
                 return MegaChatError::ERROR_ARGS;
             }
@@ -2039,7 +2041,7 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
                     requestedFlags.remove(karere::AvFlags::kAudio);
                 }
             }
-            else // (operationType == MegaChatRequest::VIDEO)
+            else if (operationType == MegaChatRequest::VIDEO)
             {
                 if (enable)
                 {
@@ -2048,6 +2050,17 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
                 else
                 {
                     requestedFlags.remove(karere::AvFlags::kCamera);
+                }
+            }
+            else
+            {
+                if (enable)
+                {
+                    requestedFlags.add(karere::AvFlags::kScreen);
+                }
+                else
+                {
+                    requestedFlags.remove(karere::AvFlags::kScreen);
                 }
             }
 
@@ -6151,6 +6164,17 @@ void MegaChatApiImpl::setVideoEnable(MegaChatHandle chatid, bool enable, MegaCha
     waiter->notify();
 }
 
+void MegaChatApiImpl::setScreenShareEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener)
+{
+    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(enable);
+    request->setParamType(MegaChatRequest::SCREEN);
+    request->setPerformRequest([this, request]() { return performRequest_setAudioVideoEnable(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::openCloseCapurerDevice(const int deviceType, const bool open, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE, listener);
@@ -8272,6 +8296,11 @@ bool MegaChatCallPrivate::hasLocalAudio() const
 bool MegaChatCallPrivate::hasLocalVideo() const
 {
     return mLocalAVFlags.camera();
+}
+
+bool MegaChatCallPrivate::hasLocalScreenShare() const
+{
+    return mLocalAVFlags.screenShare();
 }
 
 int MegaChatCallPrivate::getChanges() const

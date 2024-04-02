@@ -253,6 +253,7 @@ public:
 
     virtual bool hasLocalAudio() const override;
     virtual bool hasLocalVideo() const override;
+    bool hasLocalScreenShare() const override;
 
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
@@ -1683,6 +1684,7 @@ public:
     void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
+    void setScreenShareEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener* listener = nullptr);
     void openCloseCapurerDevice(const int deviceType, const bool open, MegaChatRequestListener *listener = NULL);
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void rejectCall(const MegaChatHandle callId, MegaChatRequestListener* listener = nullptr);

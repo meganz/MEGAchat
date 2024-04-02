@@ -224,6 +224,11 @@ bool MegaChatCall::hasLocalVideo() const
     return false;
 }
 
+bool MegaChatCall::hasLocalScreenShare() const
+{
+    return false;
+}
+
 int MegaChatCall::getChanges() const
 {
     return 0;
@@ -1220,7 +1225,17 @@ void MegaChatApi::enableVideo(MegaChatHandle chatid, MegaChatRequestListener *li
 
 void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->setVideoEnable(chatid,false, listener);
+    pImpl->setVideoEnable(chatid, false, listener);
+}
+
+void MegaChatApi::enableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->setScreenShareEnable(chatid, true, listener);
+}
+
+void MegaChatApi::disableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->setScreenShareEnable(chatid, false, listener);
 }
 
 void MegaChatApi::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)

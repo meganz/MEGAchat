@@ -32,6 +32,7 @@ public:
     void updateSession(const megachat::MegaChatSession& session);
     void updateAudioButtonText(const megachat::MegaChatCall &call);
     void updateVideoButtonText(const megachat::MegaChatCall &call);
+    void updateScreenButtonText(const megachat::MegaChatCall &call);
     void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
     std::string sessionToString(megachat::MegaChatHandle, megachat::MegaChatHandle,
                                 std::function<void()>);
@@ -76,6 +77,7 @@ protected:
     QPushButton* mRequestSpeakerCancel;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
+    QPushButton* mEnableScreenShare;
     QPushButton* mAudioMonitor;
     QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
@@ -111,6 +113,7 @@ public slots:
     void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
+    void onEnableScreenShare();
     void onRemoveOwnSpeaker();
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();

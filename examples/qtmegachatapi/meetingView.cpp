@@ -43,6 +43,9 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mEnableVideo = new QPushButton("Video-disable", this);
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
     mEnableVideo->setVisible(false);
+    mEnableScreenShare = new QPushButton("Disable screen share", this);
+    connect(mEnableScreenShare, SIGNAL(released()), this, SLOT(onEnableScreenShare()));
+    mEnableScreenShare->setVisible(false);
 
     QString audioMonTex = mMegaChatApi.isAudioLevelMonitorEnabled(mChatid) ? "Audio monitor (is enabled)" : "Audio monitor (is disabled)";
     mAudioMonitor = new QPushButton(audioMonTex.toStdString().c_str(), this);
@@ -125,6 +128,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mRemOwnSpeaker);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
+    mButtonsLayout->addWidget(mEnableScreenShare);
     mButtonsLayout->addWidget(mAudioMonitor);
     mButtonsLayout->addWidget(mSetOnHold);
     mButtonsLayout->addWidget(mOnHoldLabel);
@@ -235,6 +239,7 @@ void MeetingView::setNotParticipating()
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
+    mEnableScreenShare->setVisible(false);
     mAudioMonitor->setVisible(false);
     mRemOwnSpeaker->setVisible(false);
     mSetOnHold->setVisible(false);
@@ -253,6 +258,7 @@ void MeetingView::setConnecting()
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
+    mEnableScreenShare->setVisible(false);
     mAudioMonitor->setVisible(false);
     mRemOwnSpeaker->setVisible(false);
     mSetOnHold->setVisible(false);
@@ -415,6 +421,7 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
 {
     updateAudioButtonText(call);
     updateVideoButtonText(call);
+    updateScreenButtonText(call);
     mLocalWidget->setVisible(true);
     mHangup->setVisible(true);
     mEndCall->setVisible(true);
@@ -422,6 +429,7 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     mRequestSpeakerCancel->setVisible(true);
     mEnableAudio->setVisible(true);
     mEnableVideo->setVisible(true);
+    mEnableScreenShare->setVisible(true);
     mAudioMonitor->setVisible(true);
     mRemOwnSpeaker->setVisible(true);
     mSetOnHold->setVisible(true);
@@ -511,6 +519,21 @@ void MeetingView::updateVideoButtonText(const megachat::MegaChatCall &call)
     }
 
     mEnableVideo->setText(text.c_str());
+}
+
+void MeetingView::updateScreenButtonText(const megachat::MegaChatCall& call)
+{
+    std::string text;
+    if (call.hasLocalScreenShare())
+    {
+        text = "Disable screen share";
+    }
+    else
+    {
+        text = "Enable screen share";
+    }
+
+    mEnableScreenShare->setText(text.c_str());
 }
 
 void MeetingView::setOnHold(bool isOnHold, megachat::MegaChatHandle cid)
@@ -823,6 +846,26 @@ void MeetingView::onEnableVideo()
     else
     {
         mMegaChatApi.enableVideo(mChatid);
+    }
+}
+
+void MeetingView::onEnableScreenShare()
+{
+    std::unique_ptr<megachat::MegaChatCall> call =
+        std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+
+    if (call->hasLocalScreenShare())
+    {
+        mMegaChatApi.disableScreenShare(mChatid);
+    }
+    else
+    {
+        mMegaChatApi.enableScreenShare(mChatid);
     }
 }
 
