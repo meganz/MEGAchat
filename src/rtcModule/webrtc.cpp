@@ -3665,6 +3665,16 @@ void Call::updateVideoTracks()
         return;
     }
 
+    if (hasCameraFlags)
+    {
+        takeCameraDevice();
+    }
+
+    if (hasScreenFlags)
+    {
+        takeScreenDevice();
+    }
+
     if (mHiRes)
     {
         if (!mHiResActive)
@@ -3677,12 +3687,10 @@ void Call::updateVideoTracks()
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
             if (hasScreenFlags) // not matter if also camera is enabled (screen = hi-res | camera = lowres)
             {
-                takeScreenDevice();
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getScreenDevice()->getVideoTrackSource());
             }
             else if (hasCameraFlags)
             {
-                takeCameraDevice();
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getCameraDevice()->getVideoTrackSource());
             }
             else
@@ -3706,12 +3714,10 @@ void Call::updateVideoTracks()
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
             if (hasCameraFlags)  // not matter if also screen is enabled (screen = hi-res | camera = lowres)
             {
-                takeCameraDevice();
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getCameraDevice()->getVideoTrackSource());
             }
             else if (hasScreenFlags)
             {
-                takeScreenDevice();
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getScreenDevice()->getVideoTrackSource());
             }
             else
