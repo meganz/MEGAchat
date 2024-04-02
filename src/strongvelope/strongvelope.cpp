@@ -732,8 +732,8 @@ void ProtocolHandler::loadKeysFromDb()
     {
         auto key = std::make_shared<SendKey>();
         stmt.blobCol(2, *key);
-        Id userid(stmt.uint64Col(0));
-        uint32_t keyid = stmt.uintCol(1);
+        Id userid(stmt.integralCol<uint64_t>(0));
+        uint32_t keyid = stmt.integralCol<uint32_t>(1);
 
 #ifndef NDEBUG
         auto ret =
@@ -766,7 +766,7 @@ void ProtocolHandler::loadUnconfirmedKeysFromDb()
         stmt.blobCol(1, keyBlobs);
 
         // read keyid
-        KeyId keyid = static_cast<KeyId>(stmt.intCol(2));
+        KeyId keyid = stmt.integralCol<KeyId>(2);
         assert(isLocalKeyId(keyid));
 
         //pick the version that is encrypted for us

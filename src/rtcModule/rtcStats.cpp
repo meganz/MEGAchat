@@ -346,6 +346,10 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 int32_t audioJitter = 0;
                 for (const webrtc::RTCStatsMemberInterface* member : members)
                 {
+                    if (!member->is_defined())
+                    {
+                        continue;
+                    }
                     if (strcmp(member->name(), "packetsLost") == 0)
                     {
                         packetLost = *member->cast_to<const webrtc::RTCStatsMember<int32_t>>();
@@ -378,6 +382,10 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 uint32_t ssrc = 0;
                 for (const webrtc::RTCStatsMemberInterface* member : it->Members())
                 {
+                    if (!member->is_defined())
+                    {
+                        continue;
+                    }
                     if (strcmp(member->name(), "frameWidth") == 0)
                     {
                         width = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
@@ -433,6 +441,10 @@ void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator
     std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
     for (const webrtc::RTCStatsMemberInterface* member : members)
     {
+        if (!member->is_defined())
+        {
+            continue;
+        }
         if (strcmp(member->name(), "currentRoundTripTime") == 0)
         {
             rtt = *member->cast_to<const webrtc::RTCStatsMember<double>>() * 1000;

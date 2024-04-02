@@ -1,9 +1,8 @@
 #include "mclc_resources.h"
 
+#include "mclc_autocompletion.h"
 #include "mclc_globals.h"
 #include "mclc_logging.h"
-#include "mclc_autocompletion.h"
-
 
 namespace mclc::clc_resources
 {
@@ -12,6 +11,7 @@ void appAllocate()
 {
     using namespace mclc::clc_global;
 
+    // Loggers are stored in global variables so can be setup before instantiating the final apis
     clc_log::setLoggers();
 
     const std::string megaclc_path = "temp_MEGAclc";
@@ -28,11 +28,11 @@ void appAllocate()
     g_megaApi->addListener(&g_megaclcListener);
     g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));
-    g_chatApi->setLogLevel(c::MegaChatApi::LOG_LEVEL_MAX);
-    g_chatApi->setLogWithColors(false);
-    g_chatApi->setLogToConsole(false);
     g_chatApi->addChatListener(&g_clcListener);
+#ifndef KARERE_DISABLE_WEBRTC
     g_chatApi->addChatCallListener(&g_clcCallListener);
+#endif
+    g_chatApi->addChatRequestListener(&g_chatRequestListener);
 
     g_console.reset(new m::CONSOLE_CLASS);
 
@@ -40,7 +40,6 @@ void appAllocate()
 #ifdef WIN32
     static_cast<m::WinConsole*>(console.get())->setAutocompleteSyntax(autocompleteTemplate);
 #endif
-
 }
 
 void appClean()
@@ -50,7 +49,10 @@ void appClean()
     g_megaApi->removeListener(&g_megaclcListener);
     g_megaApi->removeGlobalListener(&g_globalListener);
     g_chatApi->removeChatListener(&g_clcListener);
+#ifndef KARERE_DISABLE_WEBRTC
     g_chatApi->removeChatCallListener(&g_clcCallListener);
+#endif
+    g_chatApi->removeChatRequestListener(&g_chatRequestListener);
 
     g_chatApi.reset();
     g_megaApi.reset();

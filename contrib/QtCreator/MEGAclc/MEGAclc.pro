@@ -10,7 +10,7 @@ include(../../../bindings/qt/megachat.pri)
 
 TARGET = megaclc
 
-LIBS += -lstdc++fs -lreadline -ltermcap
+LIBS += -lstdc++fs -lreadline -ltermcap -lboost_program_options
 DEPENDPATH += ../../../examples/megaclc
 INCLUDEPATH += ../../../examples/megaclc
 INCLUDEPATH += ../../../third-party/mega/sdk_build/install/include
@@ -28,3 +28,4 @@ SOURCES +=  ../../../examples/megaclc/mclc_general_utils.cpp
 SOURCES +=  ../../../examples/megaclc/mclc_prompt.cpp
 SOURCES +=  ../../../examples/megaclc/mclc_reports.cpp
 SOURCES +=  ../../../examples/megaclc/mclc_resources.cpp
+SOURCES +=  ../../../examples/megaclc/mclc_no_interactive.cpp

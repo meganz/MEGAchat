@@ -73,17 +73,25 @@ target_sources_conditional(QtApp
     peerWidget.h
     meetingSession.h
     meetingView.h
-    
+    videoRenderer_Qt.h
+
     peerWidget.cpp
-    meetingSession.cpp    
+    meetingSession.cpp
     meetingView.cpp
+    videoRenderer_Qt.cpp
 )
+
+if(NOT USE_WEBRTC)
+     # Exclude from automoc. Sources are not built but AUTOMOC process it anyway.
+     set_property(SOURCE videoRenderer_Qt.h PROPERTY SKIP_AUTOMOC ON)
+endif()
 
 # Activate properties for Qt code
 set_target_properties(QtApp
     PROPERTIES
     AUTOMOC ON # Activates the meta-object code generator for Qt.
     AUTOUIC ON # Activates the User Interface Compiler generator for Qt.
+    AUTORCC ON # Activates the Resource Compiler for Qt.
 )
 
 # Required for the Qt generated files, to be able to include other headers in the current path

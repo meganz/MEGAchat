@@ -311,7 +311,7 @@ void DNScache::loadFromDb()
     std::set<int> removeElements;
     while (stmt.step())
     {
-        int shard = stmt.intCol(0);
+        int shard = stmt.integralCol<int>(0);
         std::string url = stmt.stringCol(1);
         if (url.size())
         {
@@ -553,8 +553,8 @@ bool DNScache::updateCurrentShardForSfuFromDb()
     stmt << kSfuShardStart << kSfuShardEnd;
     if (stmt.step() && !stmt.isNullColumn(0))
     {
-        assert(isSfuValidShard(stmt.intCol(0)));
-        mCurrentShardForSfu = stmt.intCol(0);
+        assert(isSfuValidShard(stmt.integralCol<int>(0)));
+        mCurrentShardForSfu = stmt.integralCol<int>(0);
         return true;
     }
     return false;

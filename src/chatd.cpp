@@ -179,7 +179,7 @@ Client::Client(karere::Client *aKarereClient) :
     SqliteStmt stmt1(mKarereClient->db, "SELECT DISTINCT userid FROM history");
     while (stmt1.step())
     {
-        karere::Id userid = stmt1.uint64Col(0);
+        karere::Id userid = stmt1.integralCol<uint64_t>(0);
         if (userid == Id::COMMANDER())
         {
             continue;
@@ -189,7 +189,7 @@ Client::Client(karere::Client *aKarereClient) :
         stmt2 << userid.val;
         if (stmt2.step())
         {
-            mLastMsgTs[userid] = stmt2.uintCol(0);
+            mLastMsgTs[userid] = stmt2.integralCol<::mega::m_time_t>(0);
         }
     }
 }
@@ -5806,6 +5806,8 @@ void Chat::onUserLeave(const Id& userid)
             // notify that our own user permission (in preview mode) has been updated to PRIV_RM
             // probably chat-link has been invalidated, so chatd send us a JOIN command with priv -1
             CHATID_LOG_DEBUG("our own user permission (in preview mode) has been updated to not present (-1)");
+
+            // notify about own user leave chat preview
             CALL_LISTENER(onUserLeave, userid);
         }
 
@@ -5821,8 +5823,10 @@ void Chat::onUserLeave(const Id& userid)
             CALL_CRYPTO(onUserLeave, it);
             CALL_LISTENER(onUserLeave, it);
         }
+
+        // clear mUsers list from chatd::chat
         mUsers.clear();
-            mChatdClient.mKarereClient->setCommitMode(commitEach);
+        mChatdClient.mKarereClient->setCommitMode(commitEach);
 
 #ifndef KARERE_DISABLE_WEBRTC
         // remove call associated to chatRoom if our own user is not an active participant

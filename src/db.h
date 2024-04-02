@@ -261,8 +261,6 @@ public:
             errmsg.append(" on operation ").append(opname);
         throw std::runtime_error(errmsg);
     }
-    int intCol(int num) { return sqlite3_column_int(mStmt, num); }
-    int64_t int64Col(int num) { return sqlite3_column_int64(mStmt, num); }
     std::string stringCol(int num)
     {
         const unsigned char* data = sqlite3_column_text(mStmt, num);
@@ -278,7 +276,7 @@ public:
     void blobCol(int num, Buffer& buf)
     {
         const void* data = sqlite3_column_blob(mStmt, num);
-        int size = sqlite3_column_bytes(mStmt, num);
+        size_t size = static_cast<size_t>(sqlite3_column_bytes(mStmt, num));
         if (!data || !size)
         {
             buf.clear();
@@ -287,8 +285,8 @@ public:
     }
     void blobCol(int num, StaticBuffer& buf)
     {
-        int size = sqlite3_column_bytes(mStmt, num);
-        if ((int)buf.dataSize() < size)
+        size_t size = static_cast<size_t>(sqlite3_column_bytes(mStmt, num));
+        if (buf.dataSize() < size)
             throw std::runtime_error("blobCol: provided buffer has less space than required: has "+
             std::to_string(buf.dataSize())+", required: "+std::to_string(size));
         const void* data = sqlite3_column_blob(mStmt, num);
@@ -314,11 +312,49 @@ public:
         return size;
     }
 
-    // TODO: ensure that callers invoke the right prototype to avoid unnecessary castings
-    uint64_t uint64Col(int num) { return static_cast<uint64_t>(sqlite3_column_int64(mStmt, num));}
-    unsigned int uintCol(int num) { return static_cast<unsigned int>(sqlite3_column_int(mStmt, num));}
+    /**
+     * @brief Generic method to get an integer from the num-th column.
+     *
+     * The method checks depending on the input which method is more appropriate to get the data
+     * (sqlite3_column_int or sqlite3_column_int64).
+     *
+     * Example:
+     *     char a = smtp.integralCol<char>(5);
+     *     uint64_t a = smtp.integralCol<uint64_t>(4);
+     *
+     * @tparam T The output type. It must be an integral type or an enum (which relies on an
+     * integral type)
+     * @param num The index of the column to read from.
+     * @return The value cast to the give T.
+     */
+    template<typename T>
+    T integralCol(int num)
+    {
+        static_assert(std::is_integral_v<T> || std::is_enum_v<T>, "T must be an integral or an enum type");
+        if constexpr (std::is_enum_v<T>)
+        {
+            using UnderlyingType = std::underlying_type_t<T>;
+            return static_cast<T>(integralCol<UnderlyingType>(num));
+        }
+        if constexpr (std::numeric_limits<T>::digits <= std::numeric_limits<int>::digits)
+        {
+            return static_cast<T>(sqlite3_column_int(mStmt, num));
+        }
+        else if constexpr (std::numeric_limits<T>::digits <= std::numeric_limits<int64_t>::digits + 1)
+        {
+            // We allow casting from int64 to uint64
+            return static_cast<T>(sqlite3_column_int64(mStmt, num));
+        }
+        else
+        {
+            static_assert(always_false<T>::value, "Unsupported type");
+        }
+    }
+
     bool isNullColumn (int num) const { return sqlite3_column_type(mStmt, num) == SQLITE_NULL; }
     int getColumnBytes (int num) const { return sqlite3_column_bytes(mStmt, num); }
+private:
+    template<class T> struct always_false : std::false_type {};
 };
 
 template <class... Args>

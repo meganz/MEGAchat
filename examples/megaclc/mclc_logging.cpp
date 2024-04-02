@@ -50,7 +50,8 @@ void DebugOutputWriter::enableLogToFile(const fs::path& filePath)
     }
     else
     {
-        clc_console::conlock(std::cout) << "Error: Unable to open output file: " << filePath << "\n";
+        clc_console::conlock(std::cout)
+            << "Error: Unable to open output file: " << filePath << "\n";
     }
 }
 
@@ -232,8 +233,13 @@ bool isUnexpectedErr(const int errCode,
 
 void setLoggers()
 {
+    // Set log levels to max as it will be controlled by the g_debugOutpuWriter
     m::SimpleLogger::setOutputClass(&g_apiLogger);
+    m::SimpleLogger::setLogLevel(m::logMax);
     clc_global::g_chatApi->setLoggerObject(&g_chatLogger);
+    clc_global::g_chatApi->setLogLevel(c::MegaChatApi::LOG_LEVEL_MAX);
+    clc_global::g_chatApi->setLogWithColors(false);
+    clc_global::g_chatApi->setLogToConsole(false);
 }
 
 }

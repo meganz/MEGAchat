@@ -1,3 +1,6 @@
+#ifndef MCLC_GLOBALS_H
+#define MCLC_GLOBALS_H
+
 /**
  * @file
  * @brief This file centralizes the declaration of all the global variables that are needed across
@@ -8,14 +11,14 @@
  * TODO: However, others should be reconsidered and moved to a more local scope.
  */
 
-#pragma once
+#include "mclc_listeners.h"
+#include "mclc_prompt.h"
+#include "mclc_reports.h"
 
 #include <mega/autocomplete.h>
 
 #include <atomic>
 #include <map>
-#include <mclc_listeners.h>
-#include <mclc_prompt.h>
 #include <megaapi.h>
 #include <megachatapi.h>
 #include <memory>
@@ -27,6 +30,18 @@ namespace mclc::clc_global
 extern bool g_detailHigh;
 
 extern std::atomic<bool> g_reportMessagesDeveloper;
+
+/**
+ * @brief A flag to check weather we are connected to all active chats, so we can confirm the login
+ * is finished properly. It is set to true in the CLCListener::onChatConnectionStateUpdate  method.
+ */
+extern std::atomic<bool> g_allChatsLoggedIn;
+
+/**
+ * @brief A flag to check if the chat api is finished logging out. It is set to true in the
+ * CLCChatRequestListener::onRequestFinish callback of the global g_chatRequestListener
+ */
+extern std::atomic<bool> g_chatFinishedLogout;
 
 extern std::atomic<bool> g_reviewingPublicChat;
 extern std::atomic<bool> g_dumpingChatHistory;
@@ -48,10 +63,14 @@ extern std::unique_ptr<::megachat::MegaChatApi> g_chatApi;
 extern std::map<::megachat::MegaChatHandle, clc_listen::CLCRoomListenerRecord> g_roomListeners;
 extern std::map<::megachat::MegaChatHandle, clc_listen::CLCStateChange> g_callStateMap;
 extern clc_listen::CLCListener g_clcListener;
+#ifndef KARERE_DISABLE_WEBRTC
 extern clc_listen::CLCCallListener g_clcCallListener;
+#endif
 extern clc_listen::CLCMegaListener g_megaclcListener;
 extern clc_listen::CLCChatListener g_chatListener;
 extern clc_listen::CLCMegaGlobalListener g_globalListener;
+extern clc_listen::CLCChatRequestListener g_chatRequestListener;
+extern clc_report::CLCCallReceivedVideos g_callVideoParticipants;
 
 // output
 extern std::mutex g_outputMutex; // lock this for output since we are using cout on multiple threads
@@ -80,3 +99,4 @@ extern int g_repeatPeriod;
 extern time_t g_repeatLastSent;
 extern std::string g_repeatCommand;
 }
+#endif // MCLC_GLOBALS_H

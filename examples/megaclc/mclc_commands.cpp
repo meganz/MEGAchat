@@ -163,7 +163,6 @@ void exec_session(ac::ACState& s)
 void exec_debug(ac::ACState& s)
 {
     // Defaults
-    SimpleLogger::setLogLevel(logWarning);
     g_debugOutpuWriter.disableLogToConsole();
     g_debugOutpuWriter.disableLogToFile();
 
@@ -191,7 +190,6 @@ void exec_debug(ac::ACState& s)
     if (s.extractflagparam("-console", logLevelStr))
     {
         auto logLevel = levelStrToInt(logLevelStr);
-        SimpleLogger::setLogLevel(logLevel);
         g_debugOutpuWriter.enableLogToConsole();
         g_debugOutpuWriter.setConsoleLogLevel(logLevel);
     }
@@ -974,93 +972,6 @@ void exec_closechatpreview(ac::ACState& s)
     g_chatApi->closeChatPreview(room);
 }
 
-void exec_joinCallViaMeetingLink(ac::ACState& s)
-{
-    // Requirement at this point account must be logged out, this will simplify this method
-    const bool video = !s.extractflag("-novideo");
-    const bool audio = !s.extractflag("-noaudio");
-
-    std::string waitTimeStr{"40"};
-    s.extractflagparam("-wait", waitTimeStr);
-    unsigned int waitTimeSec = static_cast<unsigned int>(std::stoi(waitTimeStr));
-    if (waitTimeSec == 0)
-    {
-        waitTimeSec = clc_ccactions::callUnlimitedDuration;
-    }
-
-    std::string videoInputDevice;
-    s.extractflagparam("-videoInputDevice", videoInputDevice);
-    if (videoInputDevice.size() != 0)
-    {
-        logMsg(m::logInfo,
-               "## Task0: Setting video input device (optional) ##",
-               ELogWriter::MEGA_CHAT);
-        if (!clc_ccactions::setChatVideoInDevice(videoInputDevice))
-        {
-            logMsg(m::logError,
-                   "Invalid input video device, selecting the default one.",
-                   ELogWriter::MEGA_CHAT);
-        }
-    }
-
-    auto link = s.words[1].s;
-
-    logMsg(m::logInfo, "## Task1: open chat link ##", ELogWriter::MEGA_CHAT);
-    auto [chatId, errCode] = clc_ccactions::openChatLink(link);
-    if (chatId == c::MEGACHAT_INVALID_HANDLE)
-    {
-        return;
-    }
-
-    logMsg(m::logInfo, "## Task2: Join chat ##", ELogWriter::MEGA_CHAT);
-    if (!clc_ccactions::joinChat(chatId, errCode))
-    {
-        return;
-    }
-
-    // We assume that there should be an ongoing call in the chat
-    // If we haven't received yet we'll wait a small period to receive it
-    // If we still don't receive it we consider as an error.
-    logMsg(m::logInfo, "## Task3: Wait for call receiving call ##", ELogWriter::MEGA_CHAT);
-    if (!clc_ccactions::waitUntilCallIsReceived(chatId))
-    {
-        return;
-    }
-
-    logMsg(m::logInfo, "## Task4: Answer chat call ##", ELogWriter::MEGA_CHAT);
-    if (!clc_ccactions::answerCall(chatId,
-                                   audio,
-                                   video,
-                                   {megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS}))
-    {
-        return;
-    }
-    // Log number of participants
-    std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
-    if (!call)
-    {
-        // The call must exists as it existed in answerCall function
-        logMsg(m::logError, "Call cannot be retrieved for chatid", ELogWriter::MEGA_CHAT);
-        assert(false);
-        return;
-    }
-    logMsg(m::logInfo,
-           "## Task4.1: You have joined a call with " + std::to_string(call->getNumParticipants()) +
-               " ##",
-           ELogWriter::MEGA_CHAT);
-
-    logMsg(m::logInfo, "## Task5: waiting some time before hanging up ##", ELogWriter::MEGA_CHAT);
-    clc_ccactions::waitInCallFor(chatId, waitTimeSec);
-    logMsg(m::logInfo, "## Task5.1: wait time finished ##", ELogWriter::MEGA_CHAT);
-
-    logMsg(m::logInfo, "## Task6: hanging up the call ##", ELogWriter::MEGA_CHAT);
-    if (!clc_ccactions::hangUpCall(chatId))
-    {
-        return;
-    }
-    logMsg(m::logError, "Call finished properly", ELogWriter::MEGA_CHAT);
-}
-
 void exec_loadmessages(ac::ACState& s)
 {
     g_reportMessagesDeveloper = s.words.size() > 3 && s.words[3].s == "developer";
@@ -1495,6 +1406,92 @@ void exec_quit(ac::ACState&)
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
+void exec_joinCallViaMeetingLink(ac::ACState& s)
+{
+    // Requirement at this point account must be logged out, this will simplify this method
+    const bool video = !s.extractflag("-novideo");
+    const bool audio = !s.extractflag("-noaudio");
+
+    std::string waitTimeStr{"40"};
+    s.extractflagparam("-wait", waitTimeStr);
+    unsigned int waitTimeSec = static_cast<unsigned int>(std::stoi(waitTimeStr));
+    if (waitTimeSec == 0)
+    {
+        waitTimeSec = clc_ccactions::callUnlimitedDuration;
+    }
+
+    std::string videoInputDevice;
+    s.extractflagparam("-videoInputDevice", videoInputDevice);
+    if (videoInputDevice.size() != 0)
+    {
+        logMsg(m::logInfo,
+               "## Task0: Setting video input device (optional) ##",
+               ELogWriter::MEGA_CHAT);
+        if (!clc_ccactions::setChatVideoInDevice(videoInputDevice))
+        {
+            logMsg(m::logError,
+                   "Invalid input video device, selecting the default one.",
+                   ELogWriter::MEGA_CHAT);
+        }
+    }
+
+    auto link = s.words[1].s;
+
+    logMsg(m::logInfo, "## Task1: open chat link ##", ELogWriter::MEGA_CHAT);
+    auto [chatId, errCode] = clc_ccactions::openChatLink(link);
+    if (chatId == c::MEGACHAT_INVALID_HANDLE)
+    {
+        return;
+    }
+
+    logMsg(m::logInfo, "## Task2: Join chat ##", ELogWriter::MEGA_CHAT);
+    if (!clc_ccactions::joinChat(chatId, errCode))
+    {
+        return;
+    }
+
+           // We assume that there should be an ongoing call in the chat
+           // If we haven't received yet we'll wait a small period to receive it
+           // If we still don't receive it we consider as an error.
+    logMsg(m::logInfo, "## Task3: Wait for call receiving call ##", ELogWriter::MEGA_CHAT);
+    if (!clc_ccactions::waitUntilCallIsReceived(chatId))
+    {
+        return;
+    }
+
+    logMsg(m::logInfo, "## Task4: Answer chat call ##", ELogWriter::MEGA_CHAT);
+    if (!clc_ccactions::answerCall(chatId,
+                                   audio,
+                                   video,
+                                   {megachat::MegaChatCall::CALL_STATUS_IN_PROGRESS}))
+    {
+        return;
+    }
+    // Log number of participants
+    std::unique_ptr<megachat::MegaChatCall> call(g_chatApi->getChatCall(chatId));
+    if (!call)
+    {
+        // The call must exists as it existed in answerCall function
+        logMsg(m::logError, "Call cannot be retrieved for chatid", ELogWriter::MEGA_CHAT);
+        assert(false);
+        return;
+    }
+    logMsg(m::logInfo,
+           "## Task4.1: You have joined a call with " + std::to_string(call->getNumParticipants()) +
+               " ##",
+           ELogWriter::MEGA_CHAT);
+
+    logMsg(m::logInfo, "## Task5: waiting some time before hanging up ##", ELogWriter::MEGA_CHAT);
+    clc_ccactions::waitInCallFor(chatId, waitTimeSec);
+    logMsg(m::logInfo, "## Task5.1: wait time finished ##", ELogWriter::MEGA_CHAT);
+
+    logMsg(m::logInfo, "## Task6: hanging up the call ##", ELogWriter::MEGA_CHAT);
+    if (!clc_ccactions::hangUpCall(chatId))
+    {
+        return;
+    }
+    logMsg(m::logError, "Call finished properly", ELogWriter::MEGA_CHAT);
+}
 
 void exec_getchatvideoindevices(ac::ACState&)
 {
@@ -1638,8 +1635,7 @@ void exec_getchatcallsids(ac::ACState&)
         std::cout << ch_s(list->get(i)) << std::endl;
     }
 }
-
-#endif
+#endif // KARERE_DISABLE_WEBRTC
 
 void exec_smsverify(ac::ACState& s)
 {

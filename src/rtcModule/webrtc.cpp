@@ -4198,7 +4198,10 @@ void RtcModuleSfu::openDevice()
     if (videoDevice.empty())
     {
         RTCM_LOG_WARNING("Default video in device is not set");
+#ifndef TARGET_OS_SIMULATOR
+        // it's expected to not have a video device in the simulator but we do not want to crash here so that automated tests do not stop
         assert(false);
+#endif
         std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoManager::getVideoDevices();
         if (videoDevices.empty())
         {
