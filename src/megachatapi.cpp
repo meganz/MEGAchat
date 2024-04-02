@@ -1148,19 +1148,19 @@ MegaStringList *MegaChatApi::getChatVideoInDevices()
     return pImpl->getChatVideoInDevices();
 }
 
-void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
+void MegaChatApi::setCameraInDevice(const char *device, MegaChatRequestListener *listener)
 {
-    pImpl->setChatVideoInDevice(device, TYPE_CAPTURER_VIDEO, listener);
+    pImpl->setVideoCapturerInDevice(device, TYPE_CAPTURER_VIDEO, listener);
 }
 
-void MegaChatApi::setChatScreenDevice(const char* device, MegaChatRequestListener* listener)
+void MegaChatApi::setScreenInDevice(const char* device, MegaChatRequestListener* listener)
 {
-    pImpl->setChatVideoInDevice(device, TYPE_CAPTURER_SCREEN, listener);
+    pImpl->setVideoCapturerInDevice(device, TYPE_CAPTURER_SCREEN, listener);
 }
 
-char *MegaChatApi::getVideoDeviceSelected()
+char *MegaChatApi::getCameraDeviceIdSelected()
 {
-    return pImpl->getVideoDeviceSelected();
+    return pImpl->getCameraDeviceIdSelected();
 }
 
 void MegaChatApi::startCallInChat(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, const bool notRinging, MegaChatRequestListener* listener)
@@ -1271,12 +1271,22 @@ void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatR
 
 void MegaChatApi::openVideoDevice(MegaChatRequestListener *listener)
 {
-    pImpl->openVideoDevice(listener);
+    pImpl->openCloseCapurerDevice(TYPE_CAPTURER_VIDEO, true /*open*/, listener);
 }
 
 void MegaChatApi::releaseVideoDevice(MegaChatRequestListener *listener)
 {
-    pImpl->releaseVideoDevice(listener);
+    pImpl->openCloseCapurerDevice(TYPE_CAPTURER_VIDEO, false /*open*/, listener);
+}
+
+void MegaChatApi::openScreenDevice(MegaChatRequestListener *listener)
+{
+    pImpl->openCloseCapurerDevice(TYPE_CAPTURER_SCREEN, true /*open*/, listener);
+}
+
+void MegaChatApi::releaseScreenDevice(MegaChatRequestListener *listener)
+{
+    pImpl->openCloseCapurerDevice(TYPE_CAPTURER_SCREEN, false /*open*/, listener);
 }
 
 MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)

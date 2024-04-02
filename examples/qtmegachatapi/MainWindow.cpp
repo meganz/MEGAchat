@@ -1745,7 +1745,7 @@ void MainWindow::onScreensSet()
         return;
     }
 
-    mMegaChatApi->setChatScreenDevice(text.toStdString().c_str());
+    mMegaChatApi->setScreenInDevice(text.toStdString().c_str());
 }
 
 void MainWindow::onUseApiStagingClicked(bool enable)

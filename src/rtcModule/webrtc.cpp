@@ -450,8 +450,8 @@ void Call::setOnHold()
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
-    // release video device
-    releaseVideoDevice();
+    releaseCameraDevice();
+    releaseScreenDevice();
 }
 
 void Call::releaseOnHold()
@@ -1181,7 +1181,12 @@ void Call::mediaChannelDisconnect(bool releaseDevices)
     {
         if (getLocalAvFlags().camera())
         {
-            releaseVideoDevice();
+            releaseCameraDevice();
+        }
+
+        if (getLocalAvFlags().screenShare())
+        {
+            releaseScreenDevice();
         }
 
         for (const auto& session : mSessions)
@@ -3360,27 +3365,50 @@ std::map<Cid_t, std::unique_ptr<Session> > &Call::getSessions()
     return mSessions;
 }
 
-void Call::takeVideoDevice()
+void Call::takeCameraDevice()
 {
-    if (!mVideoManager)
+    if (!mCameraManager)
     {
-        mRtc.takeVideoDevice();
-        mVideoManager = mRtc.getVideoDevice();
+        mRtc.takeCameraDevice();
+        mCameraManager = mRtc.getCameraDevice();
     }
 }
 
-void Call::releaseVideoDevice()
+void Call::releaseCameraDevice()
 {
-    if (mVideoManager)
+    if (mCameraManager)
     {
-        mRtc.releaseVideoDevice();
-        mVideoManager = nullptr;
+        mRtc.releaseCameraDevice();
+        mCameraManager = nullptr;
     }
 }
 
-bool Call::hasVideoDevice()
+bool Call::hasCameraDevice()
 {
-    return mVideoManager ? true : false;
+    return mCameraManager ? true : false;
+}
+
+void Call::takeScreenDevice()
+{
+    if (!mScreenManager)
+    {
+        mRtc.takeScreenDevice();
+        mScreenManager = mRtc.getScreenDevice();
+    }
+}
+
+void Call::releaseScreenDevice()
+{
+    if (mScreenManager)
+    {
+        mRtc.releaseScreenDevice();
+        mScreenManager = nullptr;
+    }
+}
+
+bool Call::hasScreenDevice()
+{
+    return mScreenManager ? true : false;
 }
 
 void Call::freeVideoTracks(bool releaseSlots)
@@ -3626,46 +3654,73 @@ Call::verifySignature(const Cid_t cid, const uint64_t userid, const std::string&
 void Call::updateVideoTracks()
 {
     bool isOnHold = getLocalAvFlags().isOnHold();
-    if (getLocalAvFlags().camera() && !isOnHold)
-    {
-        takeVideoDevice();
+    bool hasCameraFlags = getLocalAvFlags().camera();
+    bool hasScreenFlags = getLocalAvFlags().screenShare();
 
-        // hi-res track
-        if (mHiRes)
-        {
-            if (mHiResActive && !mHiRes->getTransceiver()->sender()->track())
-            {
-                rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                mHiRes->getTransceiver()->sender()->SetTrack(videoTrack.get());
-            }
-            else if (!mHiResActive)
-            {
-                // if there is a track, but none in the call has requested hi res video, disable the track
-                mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
-            }
-        }
-
-        // low-res track
-        if (mVThumb)
-        {
-            if (mVThumbActive && !mVThumb->getTransceiver()->sender()->track())
-            {
-                rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getVideoDevice()->getVideoTrackSource());
-                mVThumb->getTransceiver()->sender()->SetTrack(videoTrack.get());
-            }
-            else if (!mVThumbActive)
-            {
-                // if there is a track, but none in the call has requested low res video, disable the track
-                mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
-            }
-        }
-    }
-    else    // no video from camera (muted or not available), or call on-hold
+    if ((!hasCameraFlags && !hasScreenFlags) || isOnHold)
     {
         freeVideoTracks();
-        releaseVideoDevice();
+        releaseCameraDevice();
+        releaseScreenDevice();
+        return;
+    }
+
+    if (mHiRes)
+    {
+        if (!mHiResActive)
+        {
+            // if there is a track, but none in the call has requested hi res video, disable the track
+            mHiRes->getTransceiver()->sender()->SetTrack(nullptr);
+        }
+        else
+        {
+            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+            if (hasScreenFlags) // not matter if also camera is enabled (screen = hi-res | camera = lowres)
+            {
+                takeScreenDevice();
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getScreenDevice()->getVideoTrackSource());
+            }
+            else if (hasCameraFlags)
+            {
+                takeCameraDevice();
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getCameraDevice()->getVideoTrackSource());
+            }
+            else
+            {
+                RTCM_LOG_WARNING("updateVideoTracks(mHiRes): unexpected video flags: %u", getLocalAvFlags().value());
+                assert(false);
+            }
+            mHiRes->getTransceiver()->sender()->SetTrack(videoTrack.get());
+        }
+    }
+
+    if (mVThumb)
+    {
+        if (!mVThumbActive)
+        {
+            // if there is a track, but none in the call has requested low res video, disable the track
+            mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
+        }
+        else
+        {
+            rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+            if (hasCameraFlags)  // not matter if also screen is enabled (screen = hi-res | camera = lowres)
+            {
+                takeCameraDevice();
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getCameraDevice()->getVideoTrackSource());
+            }
+            else if (hasScreenFlags)
+            {
+                takeScreenDevice();
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getScreenDevice()->getVideoTrackSource());
+            }
+            else
+            {
+                RTCM_LOG_WARNING("updateVideoTracks(vThumb): unexpected video flags: %u", getLocalAvFlags().value());
+                assert(false);
+            }
+            mVThumb->getTransceiver()->sender()->SetTrack(videoTrack.get());
+        }
     }
 }
 
@@ -3838,19 +3893,29 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScach
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
 
-    // By default capturer device will be video capturer (camera) if any
-    mSelectedDeviceId = getDefaultVideoDevice();
-    mDeviceTakenCount = 0;
+    mSelectedCameraDeviceId = getDefaultCameraDevice();
+    mSelectedScreenDeviceId = getDefaultScreenDevice();
+    mCameraDeviceTakenCount = 0;
 }
 
-std::optional<RtcModuleSfu::VideoDevice> RtcModuleSfu::getDefaultVideoDevice()
+std::optional<std::string> RtcModuleSfu::getDefaultCameraDevice()
 {
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoCapturerManager::getCameraDevices();
     if (videoDevices.empty())
     {
         return std::nullopt;
     }
-    return VideoDevice{videoDevices.begin()->second};
+    return videoDevices.begin()->second;
+}
+
+std::optional<long int> RtcModuleSfu::getDefaultScreenDevice()
+{
+    auto screenDevices = artc::VideoCapturerManager::getScreenDevices();
+    if (screenDevices.empty())
+    {
+        return std::nullopt;
+    }
+    return screenDevices.begin()->second;
 }
 
 ICall *RtcModuleSfu::findCall(const karere::Id& callid) const
@@ -3886,10 +3951,9 @@ bool RtcModuleSfu::isCallStartInProgress(const karere::Id &chatid) const
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-template<typename T, typename InDevT>
-static bool findAndSetDeviceId(const std::set<std::pair<std::string, T>>& devices,
-                               const std::string& deviceName,
-                               InDevT& device)
+template<typename T>
+static std::optional<T> findAndSetDeviceId(const std::set<std::pair<std::string, T>>& devices,
+                               const std::string& deviceName)
 {
     if (auto it = std::find_if(devices.begin(),
                                devices.end(),
@@ -3899,65 +3963,71 @@ static bool findAndSetDeviceId(const std::set<std::pair<std::string, T>>& device
                                });
         it != devices.end())
     {
-        device.id = it->second;
-        return true;
+        return it->second;
     }
-    return false;
+    return std::nullopt;
 }
 
-bool RtcModuleSfu::selectVideoInDevice(const std::string &device, const int type)
+bool RtcModuleSfu::setVideoCapturerInDevice(const std::string &device, const int type)
 {
-    std::optional<InputDevice> inputDeviceOpt = inputDeviceFactory(type);
-    if (!inputDeviceOpt)
+    if (!checkValidDevType(type))
     {
-        RTCM_LOG_WARNING("selectVideoInDevice: input type: %i is not defined", type);
-        assert(false);
-        return false;
-    }
-    bool foundDevice = false;
-    std::visit(
-        overloaded{
-            [&foundDevice, &device](VideoDevice& videoDev)
-            {
-                foundDevice = findAndSetDeviceId(artc::VideoCapturerManager::getCameraDevices(), device, videoDev);
-                if (!foundDevice)
-                {
-                    RTCM_LOG_WARNING(
-                        "selectVideoInDevice: device: %s of type video could not be found",
-                        device.c_str());
-                }
-            },
-            [&foundDevice, &device](ScreenDevice& screenDev)
-            {
-                foundDevice =
-                    findAndSetDeviceId(artc::VideoCapturerManager::getScreenDevices(), device, screenDev);
-                if (!foundDevice)
-                {
-                    RTCM_LOG_WARNING(
-                        "selectVideoInDevice: device: %s of type screen could not be found",
-                        device.c_str());
-                }
-            }},
-        *inputDeviceOpt);
-    if (!foundDevice)
-    {
+        RTCM_LOG_WARNING("setVideoCapturerInDevice: invalid input type: %d", type);
         assert(false);
         return false;
     }
 
     std::vector<Call*> calls;
     bool shouldOpen = false;
-    for (auto& [callId, callPtr] : mCalls)
+    RtcDevType t = static_cast<RtcDevType>(type);
+    if (t == RtcDevType::TYPE_CAPTURER_CAMERA)
     {
-        if (callPtr->hasVideoDevice())
+        auto deviceId = findAndSetDeviceId(artc::VideoCapturerManager::getCameraDevices(), device);
+        if (!deviceId)
         {
-            calls.push_back(callPtr.get());
-            callPtr->freeVideoTracks();
-            callPtr->releaseVideoDevice();
-            shouldOpen = true;
+            RTCM_LOG_WARNING(
+                "setVideoCapturerInDevice: device: %s of type camera could not be found",
+                device.c_str());
+            assert(false);
+            return false;
         }
+
+        for (auto& [callId, callPtr] : mCalls)
+        {
+            if (callPtr->hasCameraDevice())
+            {
+                calls.push_back(callPtr.get());
+                callPtr->freeVideoTracks();
+                callPtr->releaseCameraDevice();
+                shouldOpen = true;
+            }
+        }
+        changeCameraDevice(*deviceId, shouldOpen);
     }
-    changeVideoDevice(*inputDeviceOpt, shouldOpen);
+    else if (t == RtcDevType::TYPE_CAPTURER_SCREEN)
+    {
+        auto deviceId = findAndSetDeviceId(artc::VideoCapturerManager::getScreenDevices(), device);
+        if (!deviceId)
+        {
+            RTCM_LOG_WARNING(
+                "setVideoCapturerInDevice: device: %s of type screen could not be found",
+                device.c_str());
+            assert(false);
+            return false;
+        }
+
+        for (auto& [callId, callPtr] : mCalls)
+        {
+            if (callPtr->hasScreenDevice())
+            {
+                calls.push_back(callPtr.get());
+                callPtr->freeVideoTracks();
+                callPtr->releaseScreenDevice();
+                shouldOpen = true;
+            }
+        }
+        changeScreenDevice(*deviceId, shouldOpen);
+    }
 
     for (auto& call : calls)
     {
@@ -4037,24 +4107,46 @@ promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere:
     });
 }
 
-void RtcModuleSfu::takeVideoDevice()
+void RtcModuleSfu::takeCameraDevice()
 {
-    if (!mDeviceTakenCount)
+    if (!mCameraDeviceTakenCount)
     {
-        openVideoDevice();
-        mDeviceTakenCount++;
+        openCameraDevice();
+        mCameraDeviceTakenCount++;
     }
 }
 
-void RtcModuleSfu::releaseVideoDevice()
+void RtcModuleSfu::releaseCameraDevice()
 {
-    if (mDeviceTakenCount > 0)
+    if (mCameraDeviceTakenCount > 0)
     {
-        mDeviceTakenCount--;
-        if (mDeviceTakenCount == 0)
+        mCameraDeviceTakenCount--;
+        if (mCameraDeviceTakenCount == 0)
         {
             assert(mCameraCapturerDevice);
-            closeDevice();
+            closeCameraDevice();
+        }
+    }
+}
+
+void RtcModuleSfu::takeScreenDevice()
+{
+    if (!mScreenDeviceTakenCount)
+    {
+        openScreenDevice();
+        mScreenDeviceTakenCount++;
+    }
+}
+
+void RtcModuleSfu::releaseScreenDevice()
+{
+    if (mScreenDeviceTakenCount > 0)
+    {
+        mScreenDeviceTakenCount--;
+        if (mScreenDeviceTakenCount == 0)
+        {
+            assert(mScreenCapturerDevice);
+            closeScreenDevice();
         }
     }
 }
@@ -4090,18 +4182,9 @@ unsigned int RtcModuleSfu::getNumCalls()
     return static_cast<unsigned int>(mCalls.size());
 }
 
-const std::string& RtcModuleSfu::getVideoDeviceSelected() const
+const std::optional<std::string>& RtcModuleSfu::getCameraDeviceIdSelected() const
 {
-    static const std::string emptyString;
-    if (!mSelectedDeviceId)
-    {
-        return emptyString;
-    }
-    if (auto* v = std::get_if<VideoDevice>(&(*mSelectedDeviceId)))
-    {
-        return v->id;
-    }
-    return emptyString;
+    return mSelectedCameraDeviceId;
 }
 
 sfu::SfuClient& RtcModuleSfu::getSfuClient()
@@ -4272,41 +4355,61 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 
 }
 
-artc::VideoCapturerManager *RtcModuleSfu::getVideoDevice()
+artc::VideoCapturerManager *RtcModuleSfu::getCameraDevice()
 {
     return mCameraCapturerDevice.get();
 }
 
-void RtcModuleSfu::changeVideoDevice(const InputDevice& deviceId, bool shouldOpen)
+artc::VideoCapturerManager *RtcModuleSfu::getScreenDevice()
 {
-    mSelectedDeviceId = deviceId;
+    return mScreenCapturerDevice.get();
+}
+
+void RtcModuleSfu::changeCameraDevice(const std::string& deviceId, bool shouldOpen)
+{
+    mSelectedCameraDeviceId = deviceId;
     if (mCameraCapturerDevice)
     {
         shouldOpen = true;
-        closeDevice();
+        closeCameraDevice();
     }
     if (shouldOpen)
     {
-        openVideoDevice();
-        mDeviceTakenCount++;
+        openCameraDevice();
+        mCameraDeviceTakenCount++;
     }
 }
 
-void RtcModuleSfu::openVideoDevice()
+void RtcModuleSfu::changeScreenDevice(const long int deviceId, bool shouldOpen)
 {
-    if (!mSelectedDeviceId)
+    mSelectedScreenDeviceId = deviceId;
+    if (mScreenCapturerDevice)
     {
-        RTCM_LOG_WARNING("Default video in device is not set");
+        shouldOpen = true;
+        closeScreenDevice();
+    }
+    if (shouldOpen)
+    {
+        openScreenDevice();
+        mScreenDeviceTakenCount++;
+    }
+}
+
+void RtcModuleSfu::openCameraDevice()
+{
+    if (!mSelectedCameraDeviceId)
+    {
+        RTCM_LOG_WARNING("openCameraDevice: default camera in device is not set");
 #ifndef TARGET_OS_SIMULATOR
-        // it's expected to not have a video device in the simulator but we do not want to crash here so that automated tests do not stop
+        // it's expected to not have a camera device in the simulator but we do not want to crash here so that automated tests do not stop
         assert(false);
 #endif
         // Try to get default (it already set in the constructor but just in case)
-        mSelectedDeviceId = getDefaultVideoDevice();
+        mSelectedCameraDeviceId = getDefaultCameraDevice();
         // If not present now, return
-        if (!mSelectedDeviceId)
+        if (!mSelectedCameraDeviceId)
         {
-            RTCM_LOG_WARNING("openDevice(): no video devices available");
+            RTCM_LOG_WARNING("openCameraDevice: no camera devices available");
             return;
         }
     }
@@ -4315,34 +4418,60 @@ void RtcModuleSfu::openVideoDevice()
     capabilities.width = RtcConstant::kHiResWidth;
     capabilities.height = RtcConstant::kHiResHeight;
     capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
-    std::visit(overloaded{[this, &capabilities](const VideoDevice& videoDevice)
-                          {
-                              mCameraCapturerDevice = artc::VideoCapturerManager::createCameraCapturer(
-                                  capabilities,
-                                  videoDevice.id, // device name
-                                  artc::gWorkerThread.get());
-                              mCameraCapturerDevice->openDevice(videoDevice.id);
-                          },
-                          [this, &capabilities](const ScreenDevice& screenDevice)
-                          {
-                              mCameraCapturerDevice = artc::VideoCapturerManager::createScreenCapturer(
-                                  capabilities,
-                                  screenDevice.id, // title
-                                  artc::gWorkerThread.get());
-                              mCameraCapturerDevice->openDevice("");
-                          }},
-               *mSelectedDeviceId);
 
+    mCameraCapturerDevice =
+        artc::VideoCapturerManager::createCameraCapturer(capabilities,
+                                                         *mSelectedCameraDeviceId,
+                                                         artc::gWorkerThread.get());
+    mCameraCapturerDevice->openDevice(*mSelectedCameraDeviceId);
     mCameraCapturerDevice->AddOrUpdateSink(this, {});
 }
 
-void RtcModuleSfu::closeDevice()
+void RtcModuleSfu::closeCameraDevice()
 {
     if (mCameraCapturerDevice)
     {
         mCameraCapturerDevice->RemoveSink(this);
         mCameraCapturerDevice->releaseDevice();
         mCameraCapturerDevice = nullptr;
+    }
+}
+
+void RtcModuleSfu::openScreenDevice()
+{
+    if (!mSelectedScreenDeviceId)
+    {
+        RTCM_LOG_WARNING("openScreenDevice: default screen in device is not set");
+        // Try to get default (it already set in the constructor but just in case)
+        mSelectedScreenDeviceId = getDefaultScreenDevice();
+        // If not present now, return
+        if (!mSelectedScreenDeviceId)
+        {
+            RTCM_LOG_WARNING("openScreenDevice: no screen devices available");
+            return;
+        }
+    }
+
+    webrtc::VideoCaptureCapability capabilities;
+    capabilities.width = RtcConstant::kHiResWidth;
+    capabilities.height = RtcConstant::kHiResHeight;
+    capabilities.maxFPS = RtcConstant::kHiResMaxFPS;
+
+    mScreenCapturerDevice =
+        artc::VideoCapturerManager::createScreenCapturer(capabilities,
+                                                         *mSelectedScreenDeviceId,
+                                                         artc::gWorkerThread.get());
+    mScreenCapturerDevice->openDevice(*mSelectedCameraDeviceId);
+    mScreenCapturerDevice->AddOrUpdateSink(this, {});
+}
+
+void RtcModuleSfu::closeScreenDevice()
+{
+    if (mScreenCapturerDevice)
+    {
+        mScreenCapturerDevice->RemoveSink(this);
+        mScreenCapturerDevice->releaseDevice();
+        mScreenCapturerDevice = nullptr;
     }
 }
 

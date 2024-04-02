@@ -1402,13 +1402,13 @@ private:
     int performRequest_hangChatCall(MegaChatRequestPrivate* request);
     int performRequest_setAudioVideoEnable(MegaChatRequestPrivate* request);
     int performRequest_setCallOnHold(MegaChatRequestPrivate* request);
-    int performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request);
+    int performRequest_setVideoCapturerInDevice(MegaChatRequestPrivate* request);
     int performRequest_enableAudioLevelMonitor(MegaChatRequestPrivate* request);
     int performRequest_addDelspeakRequest(MegaChatRequestPrivate* request);
     int performRequest_addRevokeSpeakePermission(MegaChatRequestPrivate* request);
     int performRequest_hiResVideo(MegaChatRequestPrivate* request);
     int performRequest_lowResVideo(MegaChatRequestPrivate* request);
-    int performRequest_videoDevice(MegaChatRequestPrivate* request);
+    int performRequest_openCloseVideoDevice(MegaChatRequestPrivate* request);
     int performRequest_requestHiResQuality(MegaChatRequestPrivate* request);
     int performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request);
     int performRequest_kickUsersFromCall(MegaChatRequestPrivate* request);
@@ -1672,8 +1672,8 @@ public:
     // Audio/Video devices
     mega::MegaStringList* getChatScreenDevices();
     mega::MegaStringList *getChatVideoInDevices();
-    void setChatVideoInDevice(const char* device, const int type, MegaChatRequestListener* listener = NULL);
-    char *getVideoDeviceSelected();
+    void setVideoCapturerInDevice(const char* device, const int type, MegaChatRequestListener* listener = NULL);
+    char *getCameraDeviceIdSelected();
 
     // Calls
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, bool notRinging = false, MegaChatRequestListener *listener = NULL);
@@ -1683,8 +1683,7 @@ public:
     void endChatCall(MegaChatHandle callid, MegaChatRequestListener *listener = NULL);
     void setAudioEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
     void setVideoEnable(MegaChatHandle chatid, bool enable, MegaChatRequestListener *listener = NULL);
-    void openVideoDevice(MegaChatRequestListener *listener = NULL);
-    void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
+    void openCloseCapurerDevice(const int deviceType, const bool open, MegaChatRequestListener *listener = NULL);
     void requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
     void rejectCall(const MegaChatHandle callId, MegaChatRequestListener* listener = nullptr);
     void setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatRequestListener *listener = NULL);

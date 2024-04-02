@@ -2100,7 +2100,7 @@ int MegaChatApiImpl::performRequest_setCallOnHold(MegaChatRequestPrivate* reques
         }
 }
 
-int MegaChatApiImpl::performRequest_setChatVideoInDevice(MegaChatRequestPrivate* request)
+int MegaChatApiImpl::performRequest_setVideoCapturerInDevice(MegaChatRequestPrivate* request)
 {
     if (!mClient->rtc)
     {
@@ -2110,7 +2110,7 @@ int MegaChatApiImpl::performRequest_setChatVideoInDevice(MegaChatRequestPrivate*
 
     const char* deviceName = request->getText();
     int deviceType = request->getPrivilege();
-    if (!deviceName || !mClient->rtc->selectVideoInDevice(deviceName, deviceType))
+    if (!deviceName || !mClient->rtc->setVideoCapturerInDevice(deviceName, deviceType))
     {
         API_LOG_ERROR("Change video streaming source - device doesn't exist");
         return MegaChatError::ERROR_ARGS;
@@ -2610,29 +2610,36 @@ int MegaChatApiImpl::performRequest_lowResVideo(MegaChatRequestPrivate* request)
         }
 }
 
-int MegaChatApiImpl::performRequest_videoDevice(MegaChatRequestPrivate* request)
+int MegaChatApiImpl::performRequest_openCloseVideoDevice(MegaChatRequestPrivate* request)
 {
-    // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
-        {
-            if (!mClient->rtc)
-            {
-                API_LOG_ERROR("OpenVideoDevice - WebRTC is not initialized");
-                return MegaChatError::ERROR_ACCESS;
-            }
+    if (!mClient->rtc)
+    {
+        API_LOG_ERROR("OpenVideoDevice - WebRTC is not initialized");
+        return MegaChatError::ERROR_ACCESS;
+    }
 
-            if (request->getFlag())
-            {
-                mClient->rtc->takeVideoDevice();
-            }
-            else
-            {
-                mClient->rtc->releaseVideoDevice();
-            }
+    int capturerType = request->getPrivilege();
+    if (capturerType == MegaChatApi::TYPE_CAPTURER_VIDEO)
+    {
+        request->getFlag()
+            ? mClient->rtc->takeCameraDevice()
+            : mClient->rtc->releaseCameraDevice();
+    }
+    else if (capturerType == MegaChatApi::TYPE_CAPTURER_SCREEN)
+    {
+        request->getFlag()
+            ? mClient->rtc->takeScreenDevice()
+            : mClient->rtc->releaseScreenDevice();
+    }
+    else
+    {
+        API_LOG_ERROR("OpenVideoDevice - WebRTC is not initialized");
+        return MegaChatError::ERROR_ARGS;
+    }
 
-            MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-            fireOnChatRequestFinish(request, megaChatError);
-            return MegaChatError::ERROR_OK;
-        }
+    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
 }
 
 int MegaChatApiImpl::performRequest_requestHiResQuality(MegaChatRequestPrivate* request)
@@ -5940,23 +5947,26 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
     return devices;
 }
 
-void MegaChatApiImpl::setChatVideoInDevice(const char* device, const int type, MegaChatRequestListener* listener)
+void MegaChatApiImpl::setVideoCapturerInDevice(const char* device, const int type, MegaChatRequestListener* listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM, listener);
     request->setText(device);
     request->setPrivilege(type);
-    request->setPerformRequest([this, request]() { return performRequest_setChatVideoInDevice(request); });
+    request->setPerformRequest([this, request]() { return performRequest_setVideoCapturerInDevice(request); });
     requestQueue.push(request);
     waiter->notify();
 }
 
-char *MegaChatApiImpl::getVideoDeviceSelected()
+char *MegaChatApiImpl::getCameraDeviceIdSelected()
 {
     char *deviceName = nullptr;
     sdkMutex.lock();
     if (mClient && mClient->rtc)
     {
-        deviceName = MegaApi::strdup(mClient->rtc->getVideoDeviceSelected().c_str());
+        auto id = mClient->rtc->getCameraDeviceIdSelected();
+        deviceName = id
+            ? MegaApi::strdup(id->c_str())
+            : MegaApi::strdup("");
     }
     else
     {
@@ -6141,20 +6151,12 @@ void MegaChatApiImpl::setVideoEnable(MegaChatHandle chatid, bool enable, MegaCha
     waiter->notify();
 }
 
-void MegaChatApiImpl::openVideoDevice(MegaChatRequestListener *listener)
+void MegaChatApiImpl::openCloseCapurerDevice(const int deviceType, const bool open, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE, listener);
-    request->setFlag(true);
-    request->setPerformRequest([this, request]() { return performRequest_videoDevice(request); });
-    requestQueue.push(request);
-    waiter->notify();
-}
-
-void MegaChatApiImpl::releaseVideoDevice(MegaChatRequestListener *listener)
-{
-    MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE, listener);
-    request->setFlag(false);
-    request->setPerformRequest([this, request]() { return performRequest_videoDevice(request); });
+    request->setFlag(open);
+    request->setPrivilege(deviceType);
+    request->setPerformRequest([this, request]() { return performRequest_openCloseVideoDevice(request); });
     requestQueue.push(request);
     waiter->notify();
 }

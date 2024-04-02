@@ -6209,7 +6209,7 @@ public:
      * @param device Identifier of device to be selected
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
+    void setCameraInDevice(const char *device, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Select the screen device to be used in calls
@@ -6223,16 +6223,16 @@ public:
      * @param device Identifier of device to be selected
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatScreenDevice(const char *device, MegaChatRequestListener *listener =  NULL);
+    void setScreenInDevice(const char *device, MegaChatRequestListener *listener =  NULL);
 
     /**
-     * @brief Returns the video selected device name
+     * @brief Returns the camera selected device Id
      *
      * You take the ownership of the returned value
      *
-     * @return Device selected name
+     * @return Camera selected device Id
      */
-    char *getVideoDeviceSelected();
+    char *getCameraDeviceIdSelected();
 
     // Call management
     /**
@@ -6917,6 +6917,18 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief openScreenDevice
+     * @param listener
+     */
+    void openScreenDevice(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief releaseScreenDevice
+     * @param listener
+     */
+    void releaseScreenDevice(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Get the MegaChatCall associated with a chatroom
