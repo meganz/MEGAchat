@@ -6340,8 +6340,21 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
  */
 TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
 {
-    const unsigned int a1 = 0, a2 = 1, a3 = 2;
+    CleanupFunction testCleanup = [this]
+    {
+        LOG_debug << "MegaChatApiTest.EstablishedCallsRingUserIndividually: Cleanup";
+        clearTemporalVars();
+        ExitBoolFlags eF;
+        // callDestroyed - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false);
+        endChatCall(mData.mOpIdx, eF, mData.mChatid);
+        closeOpenedChatrooms();
+        logoutTestAccounts();
+    };
+    MegaMrProper p(testCleanup);
 
+    const unsigned int a1 = 0, a2 = 1, a3 = 2;
+    mData.mOpIdx = a1;
     LOG_debug << "# Prepare users, and chat room";
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
@@ -6366,13 +6379,20 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     peers->addPeer(uhB, MegaChatPeerList::PRIV_STANDARD);
     peers->addPeer(uhC, MegaChatPeerList::PRIV_STANDARD);
     const MegaChatHandle chatId = getGroupChatRoom({a1, a2, a3}, peers.get());
+    mData.mChatid = chatId;
     ASSERT_NE(chatId, MEGACHAT_INVALID_HANDLE) << "Common chat for all users not found.";
     ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatId), MegaChatApi::CHAT_CONNECTION_ONLINE)
         << "Not connected to chatd for account " << account(a1).getEmail() << "(" << a1 + 1 << ")";
 
-    auto chatroomListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatId);
-    const auto openChatRoom = [this, &chatId, l = chatroomListener.get()](const auto idx, const std::string& u)
-    { ASSERT_TRUE(megaChatApi[idx]->openChatRoom(chatId, l)) << "Can't open chatRoom user " + u; };
+    auto chatroomListener = std::make_shared<TestChatRoomListener>(this, megaChatApi, chatId);
+    const auto openChatRoom =
+        [this, &chatId, l = chatroomListener](const auto idx, const std::string& u)
+    {
+        ASSERT_TRUE(megaChatApi[idx]->openChatRoom(chatId, l.get()))
+            << "Can't open chatRoom user " + u;
+        mData.mChatroomListeners.emplace(idx, l);
+    };
+
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a1, "A"));
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a2, "B"));
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a3, "C"));
@@ -6557,13 +6577,6 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedA, "A" + err));
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedB, "B" + err));
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedC, "C" + err + "(it never started)"));
-
-    LOG_debug << "# Closing chat room for each user and removing its localVideoListener";
-    const auto closeChatRoom =
-        [this, &chatId, l = chatroomListener.get()](const auto u){ megaChatApi[u]->closeChatRoom(chatId, l); };
-    closeChatRoom(a1);
-    closeChatRoom(a2);
-    closeChatRoom(a3);
 }
 
 /**
