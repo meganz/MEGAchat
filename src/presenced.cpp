@@ -5,11 +5,6 @@ using namespace std;
 using namespace promise;
 using namespace karere;
 
-#if WIN32
-#include <mega/utils.h>
-using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
-#endif
-
 #define PRESENCED_LOG_LISTENER_CALLS
 
 #ifdef PRESENCED_LOG_LISTENER_CALLS
