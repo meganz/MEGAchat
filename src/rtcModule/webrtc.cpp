@@ -3665,15 +3665,13 @@ void Call::updateVideoTracks()
         return;
     }
 
-    if (hasCameraFlags)
-    {
-        takeCameraDevice();
-    }
+    hasCameraFlags
+        ? takeCameraDevice()
+        : releaseCameraDevice();
 
-    if (hasScreenFlags)
-    {
-        takeScreenDevice();
-    }
+    hasScreenFlags
+        ? takeScreenDevice()
+        : releaseScreenDevice();
 
     if (mHiRes)
     {
@@ -4385,7 +4383,7 @@ void RtcScreenVideoSink::OnFrame(const webrtc::VideoFrame &frame)
         for (auto& render : mRenderers)
         {
             ICall* call = mModuleSfu.findCallByChatid(render.first);
-            if ((call && call->getLocalAvFlags().camera() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+            if ((call && call->getLocalAvFlags().screenShare() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
             {
                 assert(render.second != nullptr);
                 void* userData = NULL;

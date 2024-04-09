@@ -210,6 +210,10 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
         ? txt.append("<span style='color:#00AA00'> [V]</span>")
         : txt.append("<span style='color:#AA0000'> [V]</span>");
 
+    call->hasLocalScreenShare()
+        ? txt.append("<span style='color:#00AA00'> [S]</span>")
+        : txt.append("<span style='color:#AA0000'> [S]</span>");
+
     if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM)
     {
         txt.append("<br /><span style='color:#A30010'>WAITING ROOM</span>");
