@@ -3411,7 +3411,7 @@ bool Call::hasScreenDevice()
     return mScreenManager ? true : false;
 }
 
-void Call::freeVideoTracks(bool releaseSlots)
+void Call::freeVideoTracks()
 {
     // disable hi-res track
     if (mHiRes && mHiRes->getTransceiver()->sender()->track())
@@ -3423,26 +3423,6 @@ void Call::freeVideoTracks(bool releaseSlots)
     if (mVThumb && mVThumb->getTransceiver()->sender()->track())
     {
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
-    }
-
-    if (releaseSlots) // release slots in case flag is true
-    {
-        mVThumb.reset();
-        mHiRes.reset();
-    }
-}
-
-void Call::freeAudioTrack(bool releaseSlot)
-{
-    // disable audio track
-    if (mAudio && mAudio->getTransceiver()->sender()->track())
-    {
-        mAudio->getTransceiver()->sender()->SetTrack(nullptr);
-    }
-
-    if (releaseSlot) // release slot in case flag is true
-    {
-        mAudio.reset();
     }
 }
 
