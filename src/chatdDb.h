@@ -573,10 +573,8 @@ public:
 
         SqliteStmt stmt(mDb, query.c_str());
         stmt << mChat.chatId() << idx << count;
-        int i = 0;
         while(stmt.step())
         {
-            i++;
             karere::Id msgid(stmt.integralCol<uint64_t>(0));
             karere::Id userid(stmt.integralCol<uint64_t>(1));
             unsigned ts = stmt.integralCol<unsigned>(2);
