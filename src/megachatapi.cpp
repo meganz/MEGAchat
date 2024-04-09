@@ -1432,22 +1432,34 @@ void MegaChatApi::removeSchedMeetingListener(MegaChatScheduledMeetingListener* l
 
 void MegaChatApi::addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
 {
-    pImpl->addChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, listener);
+    // TODO: Check if there is a constant value associated to 0 as local client
+    pImpl->addChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, TYPE_CAPTURER_VIDEO, listener);
 }
 
 void MegaChatApi::removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
 {
-    pImpl->removeChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, listener);
+    pImpl->removeChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, TYPE_CAPTURER_VIDEO, listener);
+}
+
+void MegaChatApi::addChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
+{
+    // TODO: Check if there is a constant value associated to 0 as local client
+    pImpl->addChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, TYPE_CAPTURER_SCREEN, listener);
+}
+
+void MegaChatApi::removeChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
+{
+    pImpl->removeChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, TYPE_CAPTURER_SCREEN, listener);
 }
 
 void MegaChatApi::addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
 {
-    pImpl->addChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, listener);
+    pImpl->addChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, TYPE_CAPTURER_UNKNOWN, listener);
 }
 
 void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
 {
-    pImpl->removeChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, listener);
+    pImpl->removeChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, TYPE_CAPTURER_UNKNOWN, listener);
 }
 
 void MegaChatApi::setSFUid(int sfuid)

@@ -7502,7 +7502,7 @@ public:
     void removeSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
 
     /**
-     * @brief Register a listener to receive video from local device for an specific chat room
+     * @brief Register a listener to receive video from local camera device for an specific chat room
      *
      * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
      *
@@ -7515,16 +7515,41 @@ public:
     void addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
-     * @brief Unregister a MegaChatVideoListener
+     * @brief Unregister a local MegaChatVideoListener for camera frames
      *
      * This listener won't receive more events.
-     * @note if we want to remove the listener added to receive video frames before start a call
-     * we have to use chatid = MEGACHAT_INVALID_HANDLE
+     * @note if we want to remove the listener added to receive video frames (from camera) before
+     * start a call we have to use chatid = MEGACHAT_INVALID_HANDLE
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Object that is unregistered
      */
     void removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
+
+    /**
+     * @brief Register a listener to receive video from local screen device for an specific chat room
+     *
+     * You can use MegaChatApi::removeChatLocalScreenVideoListener to stop receiving events.
+     *
+     * @note if we want to receive video before start a call (openVideoDevice), we have to
+     * register a MegaChatVideoListener with chatid = MEGACHAT_INVALID_HANDLE
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatVideoListener that will receive local video
+     */
+    void addChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
+
+    /**
+     * @brief Unregister a local MegaChatVideoListener for screen frames
+     *
+     * This listener won't receive more events.
+     * @note if we want to remove the listener added to receive video frames (from screen) before
+     * start a call we have to use chatid = MEGACHAT_INVALID_HANDLE
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener Object that is unregistered
+     */
+    void removeChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
      * @brief Register a listener to receive video from remote device for an specific chat room and peer

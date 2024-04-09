@@ -428,6 +428,7 @@ public:
     unsigned char *buffer;
     int width;
     int height;
+    int sourceType;
 };
 
 class MegaChatVideoReceiver : public rtcModule::IVideoRenderer
@@ -441,7 +442,7 @@ public:
     void setHeight(int height);
 
     // rtcModule::IVideoRenderer implementation
-    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData);
+    virtual void* getImageBuffer(unsigned short width, unsigned short height, int sourceType, void*& userData);
     virtual void frameComplete(void* userData);
     virtual void onVideoAttach();
     virtual void onVideoDetach();
@@ -1349,6 +1350,8 @@ private:
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersHiRes;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersLowRes;
     std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalVideoListeners;
+    std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalCameraVideoListeners;
+    std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalScreenVideoListeners;
 
     mega::MegaStringList *getChatInDevices(const std::set<std::string> &devices);
     void cleanCalls();
@@ -1485,8 +1488,8 @@ public:
     void addSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
     void removeChatCallListener(MegaChatCallListener *listener);
     void removeSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
-    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
-    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, MegaChatVideoListener *listener);
+    void addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, const int capturerType, MegaChatVideoListener *listener);
+    void removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, const int capturerType, MegaChatVideoListener *listener);
     void setSFUid(int sfuid);
 #endif
 
@@ -1506,7 +1509,7 @@ public:
     void fireOnChatSessionUpdate(MegaChatHandle chatid, MegaChatHandle callid, MegaChatSessionPrivate *session);
 
     // MegaChatVideoListener callbacks
-    void fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, char*buffer, rtcModule::VideoResolution videoResolution);
+    void fireOnChatVideoData(MegaChatHandle chatid, uint32_t clientId, int width, int height, int sourceType, char*buffer, rtcModule::VideoResolution videoResolution);
 #endif
 
     // MegaChatListener callbacks (specific ones)

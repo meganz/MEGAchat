@@ -269,8 +269,10 @@ public:
     virtual void releaseCameraDevice() = 0;
     virtual void takeScreenDevice() = 0;
     virtual void releaseScreenDevice() = 0;
-    virtual void addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
-    virtual void removeLocalVideoRenderer(const karere::Id &chatid) = 0;
+    virtual void addLocalCameraRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
+    virtual void removeLocalCameraRenderer(const karere::Id &chatid) = 0;
+    virtual void addLocalScreenRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
+    virtual void removeLocalScreenRenderer(const karere::Id &chatid) = 0;
     virtual unsigned int getNumInputVideoTracks() const = 0;
     virtual void setNumInputVideoTracks(const unsigned int numInputVideoTracks) = 0;
     virtual void enableSpeakRequestSupportForCalls(const bool enable) = 0;

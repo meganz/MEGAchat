@@ -761,7 +761,33 @@ protected:
     void clearModeratorsList()                                  { mModerators.clear(); }
 };
 
-class RtcModuleSfu : public RtcModule, public VideoSink
+class RtcModuleSfu;
+
+class RtcCameraVideoSink : public VideoSink
+{
+public:
+    std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
+
+    RtcCameraVideoSink(void *appCtx, const RtcModuleSfu& moduleSfu): VideoSink(appCtx), mModuleSfu(moduleSfu), mAppCtx(appCtx) {}
+    void OnFrame(const webrtc::VideoFrame& frame) override;
+private:
+    const RtcModuleSfu& mModuleSfu;
+    void* mAppCtx;
+};
+
+class RtcScreenVideoSink : public VideoSink
+{
+public:
+    std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
+
+    RtcScreenVideoSink(void *appCtx, const RtcModuleSfu& moduleSfu): VideoSink(appCtx), mModuleSfu(moduleSfu), mAppCtx(appCtx) {}
+    void OnFrame(const webrtc::VideoFrame& frame) override;
+private:
+    const RtcModuleSfu& mModuleSfu;
+    void* mAppCtx;
+};
+
+class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
 {
 public:
     enum class RtcDevType: int
@@ -809,8 +835,10 @@ public:
     void releaseCameraDevice() override;
     void takeScreenDevice() override;
     void releaseScreenDevice() override;
-    void addLocalVideoRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
-    void removeLocalVideoRenderer(const karere::Id& chatid) override;
+    void addLocalCameraRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
+    void removeLocalCameraRenderer(const karere::Id& chatid) override;
+    void addLocalScreenRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
+    void removeLocalScreenRenderer(const karere::Id& chatid) override;
     void onMediaKeyDecryptionFailed(const std::string& err);
 
     std::vector<karere::Id> chatsWithCall() override;
@@ -826,8 +854,6 @@ public:
     void handleJoinedCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersJoined) override;
     void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) override;
     void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
-
-    void OnFrame(const webrtc::VideoFrame& frame) override;
 
     artc::VideoCapturerManager* getCameraDevice();
     artc::VideoCapturerManager* getScreenDevice();
@@ -864,12 +890,13 @@ private:
     rtc::scoped_refptr<artc::VideoCapturerManager> mCameraCapturerDevice;
     // count of times the device(Camera) has been taken (without being released)
     unsigned int mCameraDeviceTakenCount = 0;
+    RtcCameraVideoSink mCameraVideoSink;
 
     rtc::scoped_refptr<artc::VideoCapturerManager> mScreenCapturerDevice;
     // count of times the device (Screen) has been taken (without being released)
     unsigned int mScreenDeviceTakenCount = 0;
+    RtcScreenVideoSink mScreenVideoSink;
 
-    std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;

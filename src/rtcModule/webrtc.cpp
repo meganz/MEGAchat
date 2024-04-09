@@ -3884,10 +3884,11 @@ void Call::updateAudioTracks()
 RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScache &dnsCache,
                            WebsocketsIO& websocketIO, void *appCtx,
                            rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings)
-    : VideoSink(appCtx)
-    , mCallHandler(callhandler)
+    : mCallHandler(callhandler)
     , mMegaApi(megaApi)
     , mDnsCache(dnsCache)
+    , mCameraVideoSink(appCtx, *this)
+    , mScreenVideoSink(appCtx, *this)
 {
     mAppCtx = appCtx;
 
@@ -4157,14 +4158,24 @@ void RtcModuleSfu::releaseScreenDevice()
     }
 }
 
-void RtcModuleSfu::addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer)
+void RtcModuleSfu::addLocalCameraRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer)
 {
-    mRenderers[chatid] = std::unique_ptr<IVideoRenderer>(videoRederer);
+    mCameraVideoSink.mRenderers[chatid] = std::unique_ptr<IVideoRenderer>(videoRederer);
 }
 
-void RtcModuleSfu::removeLocalVideoRenderer(const karere::Id &chatid)
+void RtcModuleSfu::removeLocalCameraRenderer(const karere::Id &chatid)
 {
-    mRenderers.erase(chatid);
+    mCameraVideoSink.mRenderers.erase(chatid);
+}
+
+void RtcModuleSfu::addLocalScreenRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer)
+{
+    mScreenVideoSink.mRenderers[chatid] = std::unique_ptr<IVideoRenderer>(videoRederer);
+}
+
+void RtcModuleSfu::removeLocalScreenRenderer(const karere::Id &chatid)
+{
+    mScreenVideoSink.mRenderers.erase(chatid);
 }
 
 void RtcModuleSfu::onMediaKeyDecryptionFailed(const std::string& err)
@@ -4322,7 +4333,7 @@ std::vector<uint64_t> KarereWaitingRoom::getUsers() const
     return users;
 }
 
-void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
+void RtcCameraVideoSink::OnFrame(const webrtc::VideoFrame &frame)
 {
     auto wptr = weakHandle();
     karere::marshallCall([wptr, this, frame]()
@@ -4334,7 +4345,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
 
         for (auto& render : mRenderers)
         {
-            ICall* call = findCallByChatid(render.first);
+            ICall* call = mModuleSfu.findCallByChatid(render.first);
             if ((call && call->getLocalAvFlags().camera() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
             {
                 assert(render.second != nullptr);
@@ -4346,7 +4357,7 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
                 }
                 unsigned short width = (unsigned short)buffer->width();
                 unsigned short height = (unsigned short)buffer->height();
-                void* frameBuf = render.second->getImageBuffer(width, height, userData);
+                void* frameBuf = render.second->getImageBuffer(width, height, 0, userData);
                 if (!frameBuf) //image is frozen or app is minimized/covered
                     return;
                 libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
@@ -4360,6 +4371,49 @@ void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
     }, mAppCtx);
 
 }
+
+void RtcScreenVideoSink::OnFrame(const webrtc::VideoFrame &frame)
+{
+}
+
+// void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
+// {
+//     auto wptr = weakHandle();
+//     karere::marshallCall([wptr, this, frame]()
+//     {
+//         if (wptr.deleted())
+//         {
+//             return;
+//         }
+//
+//         for (auto& render : mRenderers)
+//         {
+//             ICall* call = findCallByChatid(render.first);
+//             if ((call && call->getLocalAvFlags().camera() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+//             {
+//                 assert(render.second != nullptr);
+//                 void* userData = NULL;
+//                 auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
+//                 if (frame.rotation() != webrtc::kVideoRotation_0)
+//                 {
+//                     buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+//                 }
+//                 unsigned short width = (unsigned short)buffer->width();
+//                 unsigned short height = (unsigned short)buffer->height();
+//                 void* frameBuf = render.second->getImageBuffer(width, height, userData);
+//                 if (!frameBuf) //image is frozen or app is minimized/covered
+//                     return;
+//                 libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+//                                    buffer->DataU(), buffer->StrideU(),
+//                                    buffer->DataV(), buffer->StrideV(),
+//                                    (uint8_t*)frameBuf, width * 4, width, height);
+//
+//                 render.second->frameComplete(userData);
+//             }
+//         }
+//     }, mAppCtx);
+//
+// }
 
 artc::VideoCapturerManager *RtcModuleSfu::getCameraDevice()
 {
@@ -4430,14 +4484,14 @@ void RtcModuleSfu::openCameraDevice()
                                                          *mSelectedCameraDeviceId,
                                                          artc::gWorkerThread.get());
     mCameraCapturerDevice->openDevice(*mSelectedCameraDeviceId);
-    mCameraCapturerDevice->AddOrUpdateSink(this, {});
+    mCameraCapturerDevice->AddOrUpdateSink(&mCameraVideoSink, {});
 }
 
 void RtcModuleSfu::closeCameraDevice()
 {
     if (mCameraCapturerDevice)
     {
-        mCameraCapturerDevice->RemoveSink(this);
+        mCameraCapturerDevice->RemoveSink(&mCameraVideoSink);
         mCameraCapturerDevice->releaseDevice();
         mCameraCapturerDevice = nullptr;
     }
@@ -4468,14 +4522,14 @@ void RtcModuleSfu::openScreenDevice()
                                                          *mSelectedScreenDeviceId,
                                                          artc::gWorkerThread.get());
     mScreenCapturerDevice->openDevice(*mSelectedCameraDeviceId);
-    mScreenCapturerDevice->AddOrUpdateSink(this, {});
+    mScreenCapturerDevice->AddOrUpdateSink(&mScreenVideoSink, {});
 }
 
 void RtcModuleSfu::closeScreenDevice()
 {
     if (mScreenCapturerDevice)
     {
-        mScreenCapturerDevice->RemoveSink(this);
+        mScreenCapturerDevice->RemoveSink(&mScreenVideoSink);
         mScreenCapturerDevice->releaseDevice();
         mScreenCapturerDevice = nullptr;
     }
@@ -4751,7 +4805,7 @@ void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
             }
             unsigned short width = (unsigned short)buffer->width();
             unsigned short height = (unsigned short)buffer->height();
-            void* frameBuf = mRenderer->getImageBuffer(width, height, userData);
+            void* frameBuf = mRenderer->getImageBuffer(width, height, -1, userData);
             if (!frameBuf) //image is frozen or app is minimized/covered
                 return;
             libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
