@@ -23,7 +23,8 @@ class MeetingView : public QDialog, public megachat::MegaChatRequestListener
 public:
     MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent);
     ~MeetingView();
-    void addLocalVideo(PeerWidget* widget);
+    void addLocalCameraVideo(PeerWidget* widget);
+    void addLocalScreenVideo(PeerWidget* widget);
     void joinedToCall(const megachat::MegaChatCall& call);
     bool hasSession(megachat::MegaChatHandle h);
     void addSession(const megachat::MegaChatSession& session);
@@ -97,7 +98,8 @@ protected:
 
     std::map<uint32_t, PeerWidget*> mThumbsWidget;
     std::map<uint32_t, PeerWidget*> mHiResWidget;
-    PeerWidget* mLocalWidget = nullptr;
+    PeerWidget* mLocalCameraWidget = nullptr;
+    PeerWidget* mLocalScreenWidget = nullptr;
     std::map<uint32_t, MeetingSession*> mSessionWidgets;
 
     std::unique_ptr<QMessageBox> mRingingWindow;

@@ -6,12 +6,12 @@
 #include <QMouseEvent>
 #include <QMenu>
 
-PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, bool local)
+PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, const int videoSourceType)
     : mMegaChatApi(megaChatApi)
     , mChatid(chatid)
     , mCid(cid)
     , mHiRes(hiRes)
-    , mLocal(local)
+    , mVideoSourceType(videoSourceType)
 {
     mMegaChatVideoListenerDelegate = new megachat::QTMegaChatVideoListener(&mMegaChatApi, this);
     mVideoRender = new VideoRendererQt(this);
@@ -19,13 +19,21 @@ PeerWidget::PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHan
     layout->addWidget(mVideoRender);
     setLayout(layout);
 
-    if (mLocal)
+    if (mVideoSourceType == ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_CAMERA)
     {
         mMegaChatApi.addChatLocalVideoListener(mChatid, mMegaChatVideoListenerDelegate);
     }
-    else
+    else if (mVideoSourceType == ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_SCREEN)
+    {
+        mMegaChatApi.addChatLocalScreenVideoListener(mChatid, mMegaChatVideoListenerDelegate);
+    }
+    else if (mVideoSourceType == ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_REMOTE)
     {
         mMegaChatApi.addChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
+    }
+    else
+    {
+        assert(false);
     }
 }
 
@@ -64,7 +72,7 @@ Cid_t PeerWidget::getCid() const
 
 QSize PeerWidget::sizeHint() const
 {
-    if (mLocal)
+    if (isLocalSource())
     {
         return QSize(200, 150);
     }
@@ -81,7 +89,7 @@ QSize PeerWidget::sizeHint() const
 
 QSize PeerWidget::minimumSizeHint() const
 {
-    if (mLocal)
+    if (isLocalSource())
     {
         return QSize(200, 150);
     }
@@ -274,7 +282,7 @@ bool PeerWidget::event(QEvent *event)
        QMouseEvent *mouseEvent = static_cast<QMouseEvent*>(event);
        if (mouseEvent->button() == Qt::RightButton)
        {
-            if (mLocal)
+            if (isLocalSource())
             {
                 return true;
             }
@@ -293,13 +301,21 @@ void PeerWidget::removeVideoListener()
         return;
     }
 
-    if (mLocal)
+    if (mVideoSourceType == ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_CAMERA)
     {
         mMegaChatApi.removeChatLocalVideoListener(mChatid, mMegaChatVideoListenerDelegate);
     }
-    else
+    else if(mVideoSourceType == ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_SCREEN)
+    {
+        mMegaChatApi.removeChatLocalScreenVideoListener(mChatid, mMegaChatVideoListenerDelegate);
+    }
+    else if(mVideoSourceType == ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_REMOTE)
     {
         mMegaChatApi.removeChatRemoteVideoListener(mChatid, mCid, mHiRes, mMegaChatVideoListenerDelegate);
+    }
+    else
+    {
+        assert(false);
     }
 
     delete mMegaChatVideoListenerDelegate;

@@ -12,7 +12,7 @@ class PeerWidget : public QWidget, public megachat::MegaChatVideoListener
 {
     Q_OBJECT
 public:
-    PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, bool local = false);
+    PeerWidget(megachat::MegaChatApi &megaChatApi, megachat::MegaChatHandle chatid, Cid_t cid, bool hiRes, const int videoSourceType);
     ~PeerWidget();
     void setOnHold(bool isOnHold);
     void onChatVideoData(megachat::MegaChatApi *api, megachat::MegaChatHandle chatid, int width, int height, char *buffer, size_t size) override;
@@ -25,13 +25,19 @@ public:
     megachat::QTMegaChatVideoListener *mMegaChatVideoListenerDelegate;
     void removeVideoListener();
 
+    bool isLocalSource() const
+    {
+        return mVideoSourceType == ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_CAMERA ||
+               mVideoSourceType == ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_SCREEN;
+    }
+
 protected:
     VideoRendererQt* mVideoRender;
     megachat::MegaChatApi &mMegaChatApi;
     megachat::MegaChatHandle mChatid;
     Cid_t mCid;
     bool mHiRes = false;
-    bool mLocal = false;
+    int mVideoSourceType = ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_UNKNOWN;
 
     QImage* CreateFrame(int width, int height, char *buffer, size_t size);
     static void myImageCleanupHandler(void *info);

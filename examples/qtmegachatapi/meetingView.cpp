@@ -149,8 +149,12 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
     QVBoxLayout *localLayout = new QVBoxLayout();
     mLocalLayout->addLayout(localLayout);
-    PeerWidget* widget = new PeerWidget(mMegaChatApi, chatid, 0, 0, true);
-    addLocalVideo(widget);
+
+    PeerWidget* cameraWidget = new PeerWidget(mMegaChatApi, chatid, 0, 0, ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_CAMERA);
+    addLocalCameraVideo(cameraWidget);
+
+    PeerWidget* screenWidget = new PeerWidget(mMegaChatApi, chatid, 0, 0, ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_SCREEN);
+    addLocalScreenVideo(screenWidget);
 
     setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::CustomizeWindowHint| Qt::WindowMinimizeButtonHint);
     std::unique_ptr<megachat::MegaChatRoom> chatroom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi.getChatRoom(chatid));
@@ -232,7 +236,8 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
 
 void MeetingView::setNotParticipating()
 {
-    mLocalWidget->setVisible(false);
+    mLocalCameraWidget->setVisible(false);
+    mLocalScreenWidget->setVisible(false);
     mHangup->setVisible(false);
     mEndCall->setVisible(false);
     mRequestSpeaker->setVisible(false);
@@ -246,12 +251,14 @@ void MeetingView::setNotParticipating()
     mOnHoldLabel->setVisible(false);
     mJoinCallWithVideo->setVisible(true);
     mJoinCallWithoutVideo->setVisible(true);
-    mLocalWidget->setOnHold(false);
+    mLocalScreenWidget->setOnHold(false);
+    mLocalCameraWidget->setOnHold(false);
 }
 
 void MeetingView::setConnecting()
 {
-    mLocalWidget->setVisible(false);
+    mLocalCameraWidget->setVisible(false);
+    mLocalScreenWidget->setVisible(false);
     mHangup->setVisible(true);
     mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(false);
@@ -326,7 +333,7 @@ void MeetingView::addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
     auto it = mThumbsWidget.find(cid);
     if (it == mThumbsWidget.end())
     {
-        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false);
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false, ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_REMOTE);
         mThumbLayout->addWidget(peerWidget);
         peerWidget->show();
         mThumbsWidget[peerWidget->getCid()] = peerWidget;
@@ -338,7 +345,7 @@ void MeetingView::addHiResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
     auto it = mHiResWidget.find(cid);
     if (it == mHiResWidget.end())
     {
-        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true);
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true, ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_REMOTE);
         mHiResLayout->addWidget(peerWidget);
         peerWidget->show();
         mHiResWidget[peerWidget->getCid()] = peerWidget;
@@ -408,12 +415,21 @@ void MeetingView::destroyRingingWindow()
     }
 }
 
-void MeetingView::addLocalVideo(PeerWidget *widget)
+void MeetingView::addLocalCameraVideo(PeerWidget *widget)
 {
-    assert(!mLocalWidget);
-    mLocalWidget = widget;
-    mLocalWidget->setVisible(false);
-    mLocalLayout->layout()->addWidget(mLocalWidget);
+    assert(!mLocalCameraWidget);
+    mLocalCameraWidget = widget;
+    mLocalCameraWidget->setVisible(false);
+    mLocalLayout->layout()->addWidget(mLocalCameraWidget);
+    adjustSize();
+}
+
+void MeetingView::addLocalScreenVideo(PeerWidget *widget)
+{
+    assert(!mLocalScreenWidget);
+    mLocalScreenWidget = widget;
+    mLocalScreenWidget->setVisible(false);
+    mLocalLayout->layout()->addWidget(mLocalScreenWidget);
     adjustSize();
 }
 
@@ -422,7 +438,8 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     updateAudioButtonText(call);
     updateVideoButtonText(call);
     updateScreenButtonText(call);
-    mLocalWidget->setVisible(true);
+    mLocalCameraWidget->setVisible(true);
+    mLocalScreenWidget->setVisible(true);
     mHangup->setVisible(true);
     mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(true);
@@ -540,7 +557,8 @@ void MeetingView::setOnHold(bool isOnHold, megachat::MegaChatHandle cid)
 {
     if (cid == megachat::MEGACHAT_INVALID_HANDLE)
     {
-        mLocalWidget->setOnHold(isOnHold);
+        mLocalCameraWidget->setOnHold(isOnHold);
+        mLocalScreenWidget->setOnHold(isOnHold);
         mOnHoldLabel->setVisible(isOnHold);
     }
     else
