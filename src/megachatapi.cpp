@@ -224,6 +224,11 @@ bool MegaChatCall::hasLocalVideo() const
     return false;
 }
 
+bool MegaChatCall::hasLocalScreenShare() const
+{
+    return false;
+}
+
 int MegaChatCall::getChanges() const
 {
     return 0;
@@ -1148,19 +1153,19 @@ MegaStringList *MegaChatApi::getChatVideoInDevices()
     return pImpl->getChatVideoInDevices();
 }
 
-void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
+void MegaChatApi::setCameraInDevice(const char *device, MegaChatRequestListener *listener)
 {
-    pImpl->setChatVideoInDevice(device, TYPE_CAPTURER_VIDEO, listener);
+    pImpl->setVideoCapturerInDevice(device, TYPE_CAPTURER_VIDEO, listener);
 }
 
-void MegaChatApi::setChatScreenDevice(const char* device, MegaChatRequestListener* listener)
+void MegaChatApi::setScreenInDevice(const char* device, MegaChatRequestListener* listener)
 {
-    pImpl->setChatVideoInDevice(device, TYPE_CAPTURER_SCREEN, listener);
+    pImpl->setVideoCapturerInDevice(device, TYPE_CAPTURER_SCREEN, listener);
 }
 
-char *MegaChatApi::getVideoDeviceSelected()
+char *MegaChatApi::getCameraDeviceIdSelected()
 {
-    return pImpl->getVideoDeviceSelected();
+    return pImpl->getCameraDeviceIdSelected();
 }
 
 void MegaChatApi::startCallInChat(const MegaChatHandle chatid, const bool enableVideo, const bool enableAudio, const bool notRinging, MegaChatRequestListener* listener)
@@ -1220,7 +1225,17 @@ void MegaChatApi::enableVideo(MegaChatHandle chatid, MegaChatRequestListener *li
 
 void MegaChatApi::disableVideo(MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
-    pImpl->setVideoEnable(chatid,false, listener);
+    pImpl->setVideoEnable(chatid, false, listener);
+}
+
+void MegaChatApi::enableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->setScreenShareEnable(chatid, true, listener);
+}
+
+void MegaChatApi::disableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener)
+{
+    pImpl->setScreenShareEnable(chatid, false, listener);
 }
 
 void MegaChatApi::requestHiResQuality(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener)
@@ -1271,12 +1286,22 @@ void MegaChatApi::setCallOnHold(MegaChatHandle chatid, bool setOnHold, MegaChatR
 
 void MegaChatApi::openVideoDevice(MegaChatRequestListener *listener)
 {
-    pImpl->openVideoDevice(listener);
+    pImpl->openCloseCapurerDevice(TYPE_CAPTURER_VIDEO, true /*open*/, listener);
 }
 
 void MegaChatApi::releaseVideoDevice(MegaChatRequestListener *listener)
 {
-    pImpl->releaseVideoDevice(listener);
+    pImpl->openCloseCapurerDevice(TYPE_CAPTURER_VIDEO, false /*open*/, listener);
+}
+
+void MegaChatApi::openScreenDevice(MegaChatRequestListener *listener)
+{
+    pImpl->openCloseCapurerDevice(TYPE_CAPTURER_SCREEN, true /*open*/, listener);
+}
+
+void MegaChatApi::releaseScreenDevice(MegaChatRequestListener *listener)
+{
+    pImpl->openCloseCapurerDevice(TYPE_CAPTURER_SCREEN, false /*open*/, listener);
 }
 
 MegaChatCall *MegaChatApi::getChatCall(MegaChatHandle chatid)
@@ -1407,22 +1432,34 @@ void MegaChatApi::removeSchedMeetingListener(MegaChatScheduledMeetingListener* l
 
 void MegaChatApi::addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
 {
-    pImpl->addChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, listener);
+    // TODO: Check if there is a constant value associated to 0 as local client
+    pImpl->addChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, TYPE_CAPTURER_VIDEO, listener);
 }
 
 void MegaChatApi::removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
 {
-    pImpl->removeChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, listener);
+    pImpl->removeChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, TYPE_CAPTURER_VIDEO, listener);
+}
+
+void MegaChatApi::addChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
+{
+    // TODO: Check if there is a constant value associated to 0 as local client
+    pImpl->addChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, TYPE_CAPTURER_SCREEN, listener);
+}
+
+void MegaChatApi::removeChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener)
+{
+    pImpl->removeChatVideoListener(chatid, 0, rtcModule::VideoResolution::kHiRes, TYPE_CAPTURER_SCREEN, listener);
 }
 
 void MegaChatApi::addChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
 {
-    pImpl->addChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, listener);
+    pImpl->addChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, TYPE_CAPTURER_UNKNOWN, listener);
 }
 
 void MegaChatApi::removeChatRemoteVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, bool hiRes, MegaChatVideoListener *listener)
 {
-    pImpl->removeChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, listener);
+    pImpl->removeChatVideoListener(chatid, clientId, hiRes ? rtcModule::VideoResolution::kHiRes : rtcModule::VideoResolution::kLowRes, TYPE_CAPTURER_UNKNOWN, listener);
 }
 
 void MegaChatApi::setSFUid(int sfuid)

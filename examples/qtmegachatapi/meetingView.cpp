@@ -43,6 +43,9 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mEnableVideo = new QPushButton("Video-disable", this);
     connect(mEnableVideo, SIGNAL(released()), this, SLOT(onEnableVideo()));
     mEnableVideo->setVisible(false);
+    mEnableScreenShare = new QPushButton("Disable screen share", this);
+    connect(mEnableScreenShare, SIGNAL(released()), this, SLOT(onEnableScreenShare()));
+    mEnableScreenShare->setVisible(false);
 
     QString audioMonTex = mMegaChatApi.isAudioLevelMonitorEnabled(mChatid) ? "Audio monitor (is enabled)" : "Audio monitor (is disabled)";
     mAudioMonitor = new QPushButton(audioMonTex.toStdString().c_str(), this);
@@ -125,6 +128,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mRemOwnSpeaker);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
+    mButtonsLayout->addWidget(mEnableScreenShare);
     mButtonsLayout->addWidget(mAudioMonitor);
     mButtonsLayout->addWidget(mSetOnHold);
     mButtonsLayout->addWidget(mOnHoldLabel);
@@ -145,8 +149,12 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
 
     QVBoxLayout *localLayout = new QVBoxLayout();
     mLocalLayout->addLayout(localLayout);
-    PeerWidget* widget = new PeerWidget(mMegaChatApi, chatid, 0, 0, true);
-    addLocalVideo(widget);
+
+    PeerWidget* cameraWidget = new PeerWidget(mMegaChatApi, chatid, 0, 0, ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_CAMERA);
+    addLocalCameraVideo(cameraWidget);
+
+    PeerWidget* screenWidget = new PeerWidget(mMegaChatApi, chatid, 0, 0, ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_SCREEN);
+    addLocalScreenVideo(screenWidget);
 
     setWindowFlags(Qt::Window | Qt::WindowTitleHint | Qt::CustomizeWindowHint| Qt::WindowMinimizeButtonHint);
     std::unique_ptr<megachat::MegaChatRoom> chatroom = std::unique_ptr<megachat::MegaChatRoom>(mMegaChatApi.getChatRoom(chatid));
@@ -202,6 +210,10 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
         ? txt.append("<span style='color:#00AA00'> [V]</span>")
         : txt.append("<span style='color:#AA0000'> [V]</span>");
 
+    call->hasLocalScreenShare()
+        ? txt.append("<span style='color:#00AA00'> [S]</span>")
+        : txt.append("<span style='color:#AA0000'> [S]</span>");
+
     if (call->getStatus() == megachat::MegaChatCall::CALL_STATUS_WAITING_ROOM)
     {
         txt.append("<br /><span style='color:#A30010'>WAITING ROOM</span>");
@@ -228,31 +240,36 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
 
 void MeetingView::setNotParticipating()
 {
-    mLocalWidget->setVisible(false);
+    mLocalCameraWidget->setVisible(false);
+    mLocalScreenWidget->setVisible(false);
     mHangup->setVisible(false);
     mEndCall->setVisible(false);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
+    mEnableScreenShare->setVisible(false);
     mAudioMonitor->setVisible(false);
     mRemOwnSpeaker->setVisible(false);
     mSetOnHold->setVisible(false);
     mOnHoldLabel->setVisible(false);
     mJoinCallWithVideo->setVisible(true);
     mJoinCallWithoutVideo->setVisible(true);
-    mLocalWidget->setOnHold(false);
+    mLocalScreenWidget->setOnHold(false);
+    mLocalCameraWidget->setOnHold(false);
 }
 
 void MeetingView::setConnecting()
 {
-    mLocalWidget->setVisible(false);
+    mLocalCameraWidget->setVisible(false);
+    mLocalScreenWidget->setVisible(false);
     mHangup->setVisible(true);
     mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
+    mEnableScreenShare->setVisible(false);
     mAudioMonitor->setVisible(false);
     mRemOwnSpeaker->setVisible(false);
     mSetOnHold->setVisible(false);
@@ -320,7 +337,7 @@ void MeetingView::addLowResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
     auto it = mThumbsWidget.find(cid);
     if (it == mThumbsWidget.end())
     {
-        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false);
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, false, ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_REMOTE);
         mThumbLayout->addWidget(peerWidget);
         peerWidget->show();
         mThumbsWidget[peerWidget->getCid()] = peerWidget;
@@ -332,7 +349,7 @@ void MeetingView::addHiResByCid(megachat::MegaChatHandle chatid, uint32_t cid)
     auto it = mHiResWidget.find(cid);
     if (it == mHiResWidget.end())
     {
-        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true);
+        PeerWidget *peerWidget = new PeerWidget(mMegaChatApi, chatid, cid, true, ::megachat::MegaChatApi::TYPE_VIDEO_SOURCE_REMOTE);
         mHiResLayout->addWidget(peerWidget);
         peerWidget->show();
         mHiResWidget[peerWidget->getCid()] = peerWidget;
@@ -402,12 +419,21 @@ void MeetingView::destroyRingingWindow()
     }
 }
 
-void MeetingView::addLocalVideo(PeerWidget *widget)
+void MeetingView::addLocalCameraVideo(PeerWidget *widget)
 {
-    assert(!mLocalWidget);
-    mLocalWidget = widget;
-    mLocalWidget->setVisible(false);
-    mLocalLayout->layout()->addWidget(mLocalWidget);
+    assert(!mLocalCameraWidget);
+    mLocalCameraWidget = widget;
+    mLocalCameraWidget->setVisible(false);
+    mLocalLayout->layout()->addWidget(mLocalCameraWidget);
+    adjustSize();
+}
+
+void MeetingView::addLocalScreenVideo(PeerWidget *widget)
+{
+    assert(!mLocalScreenWidget);
+    mLocalScreenWidget = widget;
+    mLocalScreenWidget->setVisible(false);
+    mLocalLayout->layout()->addWidget(mLocalScreenWidget);
     adjustSize();
 }
 
@@ -415,13 +441,16 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
 {
     updateAudioButtonText(call);
     updateVideoButtonText(call);
-    mLocalWidget->setVisible(true);
+    updateScreenButtonText(call);
+    mLocalCameraWidget->setVisible(true);
+    mLocalScreenWidget->setVisible(true);
     mHangup->setVisible(true);
     mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(true);
     mRequestSpeakerCancel->setVisible(true);
     mEnableAudio->setVisible(true);
     mEnableVideo->setVisible(true);
+    mEnableScreenShare->setVisible(true);
     mAudioMonitor->setVisible(true);
     mRemOwnSpeaker->setVisible(true);
     mSetOnHold->setVisible(true);
@@ -513,11 +542,27 @@ void MeetingView::updateVideoButtonText(const megachat::MegaChatCall &call)
     mEnableVideo->setText(text.c_str());
 }
 
+void MeetingView::updateScreenButtonText(const megachat::MegaChatCall& call)
+{
+    std::string text;
+    if (call.hasLocalScreenShare())
+    {
+        text = "Disable screen share";
+    }
+    else
+    {
+        text = "Enable screen share";
+    }
+
+    mEnableScreenShare->setText(text.c_str());
+}
+
 void MeetingView::setOnHold(bool isOnHold, megachat::MegaChatHandle cid)
 {
     if (cid == megachat::MEGACHAT_INVALID_HANDLE)
     {
-        mLocalWidget->setOnHold(isOnHold);
+        mLocalCameraWidget->setOnHold(isOnHold);
+        mLocalScreenWidget->setOnHold(isOnHold);
         mOnHoldLabel->setVisible(isOnHold);
     }
     else
@@ -823,6 +868,26 @@ void MeetingView::onEnableVideo()
     else
     {
         mMegaChatApi.enableVideo(mChatid);
+    }
+}
+
+void MeetingView::onEnableScreenShare()
+{
+    std::unique_ptr<megachat::MegaChatCall> call =
+        std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+
+    if (call->hasLocalScreenShare())
+    {
+        mMegaChatApi.disableScreenShare(mChatid);
+    }
+    else
+    {
+        mMegaChatApi.enableScreenShare(mChatid);
     }
 }
 

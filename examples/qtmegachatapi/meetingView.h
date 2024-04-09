@@ -23,7 +23,8 @@ class MeetingView : public QDialog, public megachat::MegaChatRequestListener
 public:
     MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget* parent);
     ~MeetingView();
-    void addLocalVideo(PeerWidget* widget);
+    void addLocalCameraVideo(PeerWidget* widget);
+    void addLocalScreenVideo(PeerWidget* widget);
     void joinedToCall(const megachat::MegaChatCall& call);
     bool hasSession(megachat::MegaChatHandle h);
     void addSession(const megachat::MegaChatSession& session);
@@ -32,6 +33,7 @@ public:
     void updateSession(const megachat::MegaChatSession& session);
     void updateAudioButtonText(const megachat::MegaChatCall &call);
     void updateVideoButtonText(const megachat::MegaChatCall &call);
+    void updateScreenButtonText(const megachat::MegaChatCall &call);
     void setOnHold(bool mIsOnHold, megachat::MegaChatHandle cid);
     std::string sessionToString(megachat::MegaChatHandle, megachat::MegaChatHandle,
                                 std::function<void()>);
@@ -76,6 +78,7 @@ protected:
     QPushButton* mRequestSpeakerCancel;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
+    QPushButton* mEnableScreenShare;
     QPushButton* mAudioMonitor;
     QPushButton* mRemOwnSpeaker;
     QPushButton* mSetOnHold;
@@ -95,7 +98,8 @@ protected:
 
     std::map<uint32_t, PeerWidget*> mThumbsWidget;
     std::map<uint32_t, PeerWidget*> mHiResWidget;
-    PeerWidget* mLocalWidget = nullptr;
+    PeerWidget* mLocalCameraWidget = nullptr;
+    PeerWidget* mLocalScreenWidget = nullptr;
     std::map<uint32_t, MeetingSession*> mSessionWidgets;
 
     std::unique_ptr<QMessageBox> mRingingWindow;
@@ -111,6 +115,7 @@ public slots:
     void onRequestSpeak(bool request);
     void onEnableAudio();
     void onEnableVideo();
+    void onEnableScreenShare();
     void onRemoveOwnSpeaker();
     void onEnableAudioMonitor(bool audioMonitorEnable);
     void onJoinCallWithVideo();

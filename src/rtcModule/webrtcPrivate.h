@@ -97,6 +97,14 @@ private:
 class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
 {
 public:
+    enum
+    {
+        Rtc_Type_Video_source_Unknown          = -1,   // unkown frame type
+        Rtc_Type_Video_source_Local_Camera     = 0,    // local camera frame
+        Rtc_Type_Video_source_Local_Screen     = 1,    // local screen frame
+        Rtc_Type_Video_source_Remote           = 2,    // remote frame
+    };
+
     VideoSink(void* appCtx);
     virtual ~VideoSink();
     void setVideoRender(IVideoRenderer* videoRenderer);
@@ -448,11 +456,13 @@ public:
     sfu::Peer &getMyPeer();
     sfu::SfuClient& getSfuClient();
     std::map<Cid_t, std::unique_ptr<Session>>& getSessions();
-    void takeVideoDevice();
-    void releaseVideoDevice();
-    bool hasVideoDevice();
-    void freeVideoTracks(bool releaseSlots = false);
-    void freeAudioTrack(bool releaseSlot = false);
+    void takeCameraDevice();
+    void releaseCameraDevice();
+    bool hasCameraDevice();
+    void takeScreenDevice();
+    void releaseScreenDevice();
+    bool hasScreenDevice();
+    void freeVideoTracks();
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
     void updateNetworkQuality(int networkQuality);
@@ -643,7 +653,8 @@ protected:
     // this flag prevents that we start multiple joining attempts for a call
     bool mIsJoining;
     RtcModuleSfu& mRtc;
-    artc::VideoCapturerManager* mVideoManager = nullptr;
+    artc::VideoCapturerManager* mCameraManager = nullptr;
+    artc::VideoCapturerManager* mScreenManager = nullptr;
 
     megaHandle mConnectTimer = 0;    // Handler of the timeout for call re/connecting
     megaHandle mStatsTimer = 0;
@@ -757,9 +768,46 @@ protected:
     void clearModeratorsList()                                  { mModerators.clear(); }
 };
 
-class RtcModuleSfu : public RtcModule, public VideoSink
+class RtcModuleSfu;
+
+class RtcCameraVideoSink : public VideoSink
 {
 public:
+    std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
+
+    RtcCameraVideoSink(void *appCtx, const RtcModuleSfu& moduleSfu): VideoSink(appCtx), mModuleSfu(moduleSfu), mAppCtx(appCtx) {}
+    void OnFrame(const webrtc::VideoFrame& frame) override;
+private:
+    const RtcModuleSfu& mModuleSfu;
+    void* mAppCtx;
+};
+
+class RtcScreenVideoSink : public VideoSink
+{
+public:
+    std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
+
+    RtcScreenVideoSink(void *appCtx, const RtcModuleSfu& moduleSfu): VideoSink(appCtx), mModuleSfu(moduleSfu), mAppCtx(appCtx) {}
+    void OnFrame(const webrtc::VideoFrame& frame) override;
+private:
+    const RtcModuleSfu& mModuleSfu;
+    void* mAppCtx;
+};
+
+class RtcModuleSfu : public RtcModule, public karere::DeleteTrackable
+{
+public:
+    enum class RtcDevType: int
+    {
+        TYPE_CAPTURER_CAMERA = 0,
+        TYPE_CAPTURER_SCREEN = 1,
+    };
+
+    static bool checkValidDevType(const int t)
+    {
+        return t == static_cast<int>(RtcDevType::TYPE_CAPTURER_CAMERA) ||
+               t == static_cast<int>(RtcDevType::TYPE_CAPTURER_SCREEN);
+    }
 
     struct VideoDevice
     {
@@ -786,19 +834,23 @@ public:
     ICall* findCall(const karere::Id &callid) const override;
     ICall* findCallByChatid(const karere::Id &chatid) const override;
     bool isCallStartInProgress(const karere::Id &chatid) const override;
-    bool selectVideoInDevice(const std::string& device, const int type) override;
+    bool setVideoCapturerInDevice(const std::string& device, const int type) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     std::set<std::pair<std::string, long int>> getScreenDevices() override;
     promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const bool notRinging, std::shared_ptr<std::string> unifiedKey = nullptr) override;
-    void takeVideoDevice() override;
-    void releaseVideoDevice() override;
-    void addLocalVideoRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
-    void removeLocalVideoRenderer(const karere::Id& chatid) override;
+    void takeCameraDevice() override;
+    void releaseCameraDevice() override;
+    void takeScreenDevice() override;
+    void releaseScreenDevice() override;
+    void addLocalCameraRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
+    void removeLocalCameraRenderer(const karere::Id& chatid) override;
+    void addLocalScreenRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
+    void removeLocalScreenRenderer(const karere::Id& chatid) override;
     void onMediaKeyDecryptionFailed(const std::string& err);
 
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
-    const std::string& getVideoDeviceSelected() const override;
+    const std::optional<std::string>& getCameraDeviceIdSelected() const override;
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
@@ -810,12 +862,14 @@ public:
     void handleLeftCall(const karere::Id &chatid, const karere::Id &callid, const std::set<karere::Id>& usersLeft) override;
     void handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey = nullptr) override;
 
-    void OnFrame(const webrtc::VideoFrame& frame) override;
-
-    artc::VideoCapturerManager* getVideoDevice();
-    void changeVideoDevice(const InputDevice& deviceId, bool shouldOpen);
-    void openVideoDevice();
-    void closeDevice();
+    artc::VideoCapturerManager* getCameraDevice();
+    artc::VideoCapturerManager* getScreenDevice();
+    void changeCameraDevice(const std::string &deviceId, bool shouldOpen);
+    void changeScreenDevice(const long int deviceId, bool shouldOpen);
+    void openCameraDevice();
+    void closeCameraDevice();
+    void openScreenDevice();
+    void closeScreenDevice();
 
     void* getAppCtx();
     std::string getDeviceInfo() const;
@@ -832,13 +886,24 @@ private:
     DNScache &mDnsCache;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
 
-    std::optional<InputDevice> mSelectedDeviceId = std::nullopt;
-    std::optional<VideoDevice> getDefaultVideoDevice();
+    // selected device id for camera device (string format)
+    std::optional<std::string> mSelectedCameraDeviceId = std::nullopt;
+    // selected device id for screen capturer device (numeric format)
+    std::optional<long int> mSelectedScreenDeviceId = std::nullopt;
+
+    std::optional<std::string> getDefaultCameraDevice();
+    std::optional<long int> getDefaultScreenDevice();
 
     rtc::scoped_refptr<artc::VideoCapturerManager> mCameraCapturerDevice;
-    // count of times the device has been taken (without being released)
-    unsigned int mDeviceTakenCount = 0;
-    std::map<karere::Id, std::unique_ptr<IVideoRenderer>> mRenderers;
+    // count of times the device(Camera) has been taken (without being released)
+    unsigned int mCameraDeviceTakenCount = 0;
+    RtcCameraVideoSink mCameraVideoSink;
+
+    rtc::scoped_refptr<artc::VideoCapturerManager> mScreenCapturerDevice;
+    // count of times the device (Screen) has been taken (without being released)
+    unsigned int mScreenDeviceTakenCount = 0;
+    RtcScreenVideoSink mScreenVideoSink;
+
     std::map<karere::Id, VideoSink> mVideoSink;
     void* mAppCtx = nullptr;
     std::set<karere::Id> mCallStartAttempts;

@@ -661,6 +661,12 @@ public:
     virtual bool hasLocalVideo() const;
 
     /**
+     * @brief hasLocalScreenShare
+     * @return
+     */
+    virtual bool hasLocalScreenShare() const;
+
+    /**
      * @brief Returns a bit field with the changes of the call
      *
      * This value is only useful for calls notified by MegaChatCallListener::onChatCallUpdate
@@ -2629,7 +2635,8 @@ public:
 
     enum {
         AUDIO = 0,
-        VIDEO = 1
+        VIDEO = 1,
+        SCREEN = 2,
     };
 
     virtual ~MegaChatRequest();
@@ -3271,6 +3278,14 @@ public:
         TYPE_CAPTURER_UNKNOWN   = -1,   // unkown capturer device
         TYPE_CAPTURER_VIDEO     = 0,    // camera capturer device
         TYPE_CAPTURER_SCREEN    = 1,    // screen capturer device
+    };
+
+    enum
+    {
+        TYPE_VIDEO_SOURCE_UNKNOWN          = -1,   // unkown video source
+        TYPE_VIDEO_SOURCE_LOCAL_CAMERA     = 0,    // local camera video
+        TYPE_VIDEO_SOURCE_LOCAL_SCREEN     = 1,    // local screen video
+        TYPE_VIDEO_SOURCE_REMOTE           = 2,    // remote video
     };
 
     // Invalid value for number of simultaneous video tracks the call supports.
@@ -6209,7 +6224,7 @@ public:
      * @param device Identifier of device to be selected
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
+    void setCameraInDevice(const char *device, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Select the screen device to be used in calls
@@ -6223,16 +6238,16 @@ public:
      * @param device Identifier of device to be selected
      * @param listener MegaChatRequestListener to track this request
      */
-    void setChatScreenDevice(const char *device, MegaChatRequestListener *listener =  NULL);
+    void setScreenInDevice(const char *device, MegaChatRequestListener *listener =  NULL);
 
     /**
-     * @brief Returns the video selected device name
+     * @brief Returns the camera selected device Id
      *
      * You take the ownership of the returned value
      *
-     * @return Device selected name
+     * @return Camera selected device Id
      */
-    char *getVideoDeviceSelected();
+    char *getCameraDeviceIdSelected();
 
     // Call management
     /**
@@ -6621,6 +6636,20 @@ public:
     void enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief enableScreenShare
+     * @param chatid
+     * @param listener
+     */
+    void enableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener  = NULL);
+
+    /**
+     * @brief disableScreenShare
+     * @param chatid
+     * @param listener
+     */
+    void disableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Disable audio for a call that is in progress
      *
      * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
@@ -6917,6 +6946,18 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief openScreenDevice
+     * @param listener
+     */
+    void openScreenDevice(MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief releaseScreenDevice
+     * @param listener
+     */
+    void releaseScreenDevice(MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Get the MegaChatCall associated with a chatroom
@@ -7469,7 +7510,7 @@ public:
     void removeSchedMeetingListener(MegaChatScheduledMeetingListener* listener);
 
     /**
-     * @brief Register a listener to receive video from local device for an specific chat room
+     * @brief Register a listener to receive video from local camera device for an specific chat room
      *
      * You can use MegaChatApi::removeChatLocalVideoListener to stop receiving events.
      *
@@ -7482,16 +7523,41 @@ public:
     void addChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
-     * @brief Unregister a MegaChatVideoListener
+     * @brief Unregister a local MegaChatVideoListener for camera frames
      *
      * This listener won't receive more events.
-     * @note if we want to remove the listener added to receive video frames before start a call
-     * we have to use chatid = MEGACHAT_INVALID_HANDLE
+     * @note if we want to remove the listener added to receive video frames (from camera) before
+     * start a call we have to use chatid = MEGACHAT_INVALID_HANDLE
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Object that is unregistered
      */
     void removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
+
+    /**
+     * @brief Register a listener to receive video from local screen device for an specific chat room
+     *
+     * You can use MegaChatApi::removeChatLocalScreenVideoListener to stop receiving events.
+     *
+     * @note if we want to receive video before start a call (openVideoDevice), we have to
+     * register a MegaChatVideoListener with chatid = MEGACHAT_INVALID_HANDLE
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatVideoListener that will receive local video
+     */
+    void addChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
+
+    /**
+     * @brief Unregister a local MegaChatVideoListener for screen frames
+     *
+     * This listener won't receive more events.
+     * @note if we want to remove the listener added to receive video frames (from screen) before
+     * start a call we have to use chatid = MEGACHAT_INVALID_HANDLE
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener Object that is unregistered
+     */
+    void removeChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
      * @brief Register a listener to receive video from remote device for an specific chat room and peer

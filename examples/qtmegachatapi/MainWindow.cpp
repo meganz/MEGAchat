@@ -269,6 +269,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateAudioButtonText(*call);
         itemController->getMeetingView()->updateVideoButtonText(*call);
+        itemController->getMeetingView()->updateScreenButtonText(*call);
         itemController->getMeetingView()->updateLabel(call);
     }
 
@@ -1745,7 +1746,7 @@ void MainWindow::onScreensSet()
         return;
     }
 
-    mMegaChatApi->setChatScreenDevice(text.toStdString().c_str());
+    mMegaChatApi->setScreenInDevice(text.toStdString().c_str());
 }
 
 void MainWindow::onUseApiStagingClicked(bool enable)
