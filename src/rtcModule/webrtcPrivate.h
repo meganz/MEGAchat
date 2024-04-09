@@ -97,6 +97,14 @@ private:
 class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public karere::DeleteTrackable
 {
 public:
+    enum
+    {
+        Rtc_Type_Video_source_Unknown          = -1,   // unkown frame type
+        Rtc_Type_Video_source_Local_Camera     = 0,    // local camera frame
+        Rtc_Type_Video_source_Local_Screen     = 1,    // local screen frame
+        Rtc_Type_Video_source_Remote           = 2,    // remote frame
+    };
+
     VideoSink(void* appCtx);
     virtual ~VideoSink();
     void setVideoRender(IVideoRenderer* videoRenderer);

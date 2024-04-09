@@ -3280,6 +3280,14 @@ public:
         TYPE_CAPTURER_SCREEN    = 1,    // screen capturer device
     };
 
+    enum
+    {
+        TYPE_VIDEO_SOURCE_UNKNOWN          = -1,   // unkown video source
+        TYPE_VIDEO_SOURCE_LOCAL_CAMERA     = 0,    // local camera video
+        TYPE_VIDEO_SOURCE_LOCAL_SCREEN     = 1,    // local screen video
+        TYPE_VIDEO_SOURCE_REMOTE           = 2,    // remote video
+    };
+
     // Invalid value for number of simultaneous video tracks the call supports.
     static constexpr int INVALID_CALL_VIDEO_SENDERS = -1;
 

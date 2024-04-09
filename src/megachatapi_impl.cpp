@@ -3919,12 +3919,30 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
     assert(videoResolution != rtcModule::VideoResolution::kUndefined);
     if (clientId == 0)
     {
-        const auto& listeners = sourceType == 0 ? mLocalCameraVideoListeners[chatid] : mLocalScreenVideoListeners[chatid];
-        for(const auto& listener : listeners)
+        if (sourceType != MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_CAMERA &&
+            sourceType != MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_SCREEN)
+        {
+            API_LOG_ERROR("fireOnChatVideoData. Invalid sourceType: %d", sourceType);
+            assert(false);
+            return;
+        }
+
+        const auto& listeners = sourceType == MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_CAMERA
+                                     ? mLocalCameraVideoListeners[chatid]
+                                     : mLocalScreenVideoListeners[chatid];
+
+        for (const auto& listener: listeners)
         {
             listener->onChatVideoData(mChatApi, chatid, width, height, buffer, width * height * 4);
         }
 
+        return;
+    }
+
+    if (sourceType != MegaChatApi::TYPE_VIDEO_SOURCE_REMOTE)
+    {
+        API_LOG_ERROR("fireOnChatVideoData. Invalid sourceType: %d", sourceType);
+        assert(false);
         return;
     }
 

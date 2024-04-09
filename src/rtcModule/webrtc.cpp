@@ -4357,7 +4357,7 @@ void RtcCameraVideoSink::OnFrame(const webrtc::VideoFrame &frame)
                 }
                 unsigned short width = (unsigned short)buffer->width();
                 unsigned short height = (unsigned short)buffer->height();
-                void* frameBuf = render.second->getImageBuffer(width, height, 0, userData);
+                void* frameBuf = render.second->getImageBuffer(width, height, VideoSink::Rtc_Type_Video_source_Local_Camera, userData);
                 if (!frameBuf) //image is frozen or app is minimized/covered
                     return;
                 libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
@@ -4374,46 +4374,41 @@ void RtcCameraVideoSink::OnFrame(const webrtc::VideoFrame &frame)
 
 void RtcScreenVideoSink::OnFrame(const webrtc::VideoFrame &frame)
 {
-}
+    auto wptr = weakHandle();
+    karere::marshallCall([wptr, this, frame]()
+    {
+        if (wptr.deleted())
+        {
+            return;
+        }
 
-// void RtcModuleSfu::OnFrame(const webrtc::VideoFrame &frame)
-// {
-//     auto wptr = weakHandle();
-//     karere::marshallCall([wptr, this, frame]()
-//     {
-//         if (wptr.deleted())
-//         {
-//             return;
-//         }
-//
-//         for (auto& render : mRenderers)
-//         {
-//             ICall* call = findCallByChatid(render.first);
-//             if ((call && call->getLocalAvFlags().camera() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
-//             {
-//                 assert(render.second != nullptr);
-//                 void* userData = NULL;
-//                 auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
-//                 if (frame.rotation() != webrtc::kVideoRotation_0)
-//                 {
-//                     buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
-//                 }
-//                 unsigned short width = (unsigned short)buffer->width();
-//                 unsigned short height = (unsigned short)buffer->height();
-//                 void* frameBuf = render.second->getImageBuffer(width, height, userData);
-//                 if (!frameBuf) //image is frozen or app is minimized/covered
-//                     return;
-//                 libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
-//                                    buffer->DataU(), buffer->StrideU(),
-//                                    buffer->DataV(), buffer->StrideV(),
-//                                    (uint8_t*)frameBuf, width * 4, width, height);
-//
-//                 render.second->frameComplete(userData);
-//             }
-//         }
-//     }, mAppCtx);
-//
-// }
+        for (auto& render : mRenderers)
+        {
+            ICall* call = mModuleSfu.findCallByChatid(render.first);
+            if ((call && call->getLocalAvFlags().camera() && !call->getLocalAvFlags().has(karere::AvFlags::kOnHold)) || !call)
+            {
+                assert(render.second != nullptr);
+                void* userData = NULL;
+                auto buffer = frame.video_frame_buffer()->ToI420();   // smart ptr type changed
+                if (frame.rotation() != webrtc::kVideoRotation_0)
+                {
+                    buffer = webrtc::I420Buffer::Rotate(*buffer, frame.rotation());
+                }
+                unsigned short width = (unsigned short)buffer->width();
+                unsigned short height = (unsigned short)buffer->height();
+                void* frameBuf = render.second->getImageBuffer(width, height, VideoSink::Rtc_Type_Video_source_Local_Screen, userData);
+                if (!frameBuf) //image is frozen or app is minimized/covered
+                    return;
+                libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
+                                buffer->DataU(), buffer->StrideU(),
+                                buffer->DataV(), buffer->StrideV(),
+                                (uint8_t*)frameBuf, width * 4, width, height);
+
+                render.second->frameComplete(userData);
+            }
+        }
+    }, mAppCtx);
+}
 
 artc::VideoCapturerManager *RtcModuleSfu::getCameraDevice()
 {
@@ -4805,7 +4800,7 @@ void VideoSink::OnFrame(const webrtc::VideoFrame &frame)
             }
             unsigned short width = (unsigned short)buffer->width();
             unsigned short height = (unsigned short)buffer->height();
-            void* frameBuf = mRenderer->getImageBuffer(width, height, -1, userData);
+            void* frameBuf = mRenderer->getImageBuffer(width, height, VideoSink::Rtc_Type_Video_source_Remote, userData);
             if (!frameBuf) //image is frozen or app is minimized/covered
                 return;
             libyuv::I420ToABGR(buffer->DataY(), buffer->StrideY(),
