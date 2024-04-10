@@ -4691,7 +4691,7 @@ void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
         const mega::MegaScheduledMeetingList* schedMeetings = chat.getUpdatedOccurrencesList() ;
         for (unsigned int i = 0; i < chat.getUpdatedOccurrencesList()->size(); i++)
         {
-            std::unique_ptr<KarereScheduledMeetingOccurr> aux = mega::make_unique<KarereScheduledMeetingOccurr>(schedMeetings->at(i));
+            std::unique_ptr<KarereScheduledMeetingOccurr> aux = std::make_unique<KarereScheduledMeetingOccurr>(schedMeetings->at(i));
             getClientDbInterface().insertOrUpdateSchedMeetingOcurr(*aux);
         }
     }
