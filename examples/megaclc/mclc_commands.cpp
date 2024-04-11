@@ -8,6 +8,10 @@
 #include "mclc_logging.h"
 #include "mclc_reports.h"
 
+#ifdef WIN32
+#include <winhttp.h>
+#endif
+
 #include <async_utils.h>
 #include <karereId.h>
 namespace k = ::karere;
@@ -1383,7 +1387,7 @@ void exec_detail(ac::ACState& s)
 #ifdef WIN32
 void exec_dos_unix(ac::ACState& s)
 {
-    static_cast<m::WinConsole*>(global::console.get())
+    static_cast<m::WinConsole*>(g_console.get())
         ->setAutocompleteStyle(s.words[1].s == "unix");
 }
 #endif
@@ -1396,7 +1400,7 @@ void exec_help(ac::ACState&)
 #ifdef WIN32
 void exec_history(ac::ACState&)
 {
-    static_cast<m::WinConsole*>(global::console.get())->outputHistory();
+    static_cast<m::WinConsole*>(g_console.get())->outputHistory();
 }
 #endif
 
