@@ -10,21 +10,22 @@
 #include <direct.h>
 #endif
 
-#include <filesystem>
-
 using namespace mega;
 using namespace megachat;
 using namespace std;
+namespace fs = std::filesystem;
 using CleanupFunction = MegaChatApiTest::MegaMrProper::CleanupFunction;
 
-std::string MegaChatApiTest::DEFAULT_PATH = "./";
 // IMPORTANT: Ensure that your build system copies the FILE_IMAGE_NAME to the directory where the binary is located.
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
-const std::string MegaChatApiTest::LOCAL_PATH = "./tmp"; // no ending slash
+// The following paths need to end with a trailing /
+fs::path MegaChatApiTest::DEFAULT_PATH = fs::path(".") / "";
+const fs::path MegaChatApiTest::LOCAL_PATH = fs::path(".") / "tmp" / "";
+const fs::path MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH / "download" / "";
+
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
-const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 std::string MegaChatApiTest::PROC_SPECIFIC_PATH;
 std::string USER_AGENT_DESCRIPTION = "MEGAChatTest";
 
@@ -332,27 +333,27 @@ bool MegaChatApiTest::initFS()
 
     PROC_SPECIFIC_PATH = "./test_pid_" + std::to_string(pid);
 
-    if (!filesystem::create_directory(PROC_SPECIFIC_PATH))
+    if (!fs::create_directory(PROC_SPECIFIC_PATH))
     {
         std::cout << "FATAL ERROR: Failed to create directory " << PROC_SPECIFIC_PATH << endl;
         return false;
     }
 
     std::error_code ec;
-    filesystem::current_path(PROC_SPECIFIC_PATH, ec);
+    fs::current_path(PROC_SPECIFIC_PATH, ec);
     if (ec)
     {
         std::cout << "FATAL ERROR: Failed to change work directory to " << PROC_SPECIFIC_PATH << ": " << ec.message() << endl;
         return false;
     }
 
-    if (!filesystem::create_directory(LOCAL_PATH))
+    if (!fs::create_directory(LOCAL_PATH))
     {
-        std::cout << "FATAL ERROR: Failed to create directory " << LOCAL_PATH << endl;
+        std::cout << "FATAL ERROR: Failed to create directory " << LOCAL_PATH.string() << endl;
         return false;
     }
 
-    DEFAULT_PATH = "../"; // set it up 1 level after changing work directory
+    DEFAULT_PATH = fs::path("..") / ""; // set it up 1 level after changing work directory
 
     return true;
 }
@@ -3363,11 +3364,12 @@ TEST_F(MegaChatApiTest, Attachment)
     chatroomListener->clearMessages(a1);   // will be set at confirmation
     chatroomListener->clearMessages(a2);   // will be set at reception
 
-    std::string formatDate = dateToString() + "_Attachment_test";
+    std::string fileName = dateToString() + "_Attachment_test";
+    std::string fileContent = "This is the content of file: " + fileName;
 
     LOG_debug << "#### Test1: Upload new file ####";
-    ASSERT_NO_FATAL_FAILURE(createFile(formatDate, LOCAL_PATH, formatDate));
-    MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
+    ASSERT_NO_FATAL_FAILURE(createFile(fileName, LOCAL_PATH, fileContent));
+    MegaNode* nodeSent = uploadFile(a1, fileName, LOCAL_PATH, REMOTE_PATH);
     ASSERT_TRUE(nodeSent);
 
     LOG_debug << "#### Test2: Send file as attachment to chatroom ####";
@@ -3377,6 +3379,8 @@ TEST_F(MegaChatApiTest, Attachment)
 
     LOG_debug << "#### Test3: Download received file ####";
     ASSERT_TRUE(downloadNode(a2, nodeReceived)) << "Cannot download node attached to message";
+    auto downloadedFilePath = DOWNLOAD_PATH / fileName;
+    ASSERT_TRUE(fs::exists(downloadedFilePath));
 
     LOG_debug << "#### Test4: Import received file into the cloud ####";
     ASSERT_TRUE(importNode(a2, nodeReceived, FILE_IMAGE_NAME)) << "Cannot import node attached to message";
@@ -3405,9 +3409,8 @@ TEST_F(MegaChatApiTest, Attachment)
     ASSERT_EQ(msgReceived->getHandleOfAction(), nodeSent->getHandle()) << "Handle of attached nodes don't match";
 
     // Remove the downloaded file to try to download it again after revoke
-    std::string filePath = DOWNLOAD_PATH + std::string(formatDate);
-    std::string secondaryFilePath = DOWNLOAD_PATH + std::string("remove");
-    rename(filePath.c_str(), secondaryFilePath.c_str());
+    auto secondaryFilePath = DOWNLOAD_PATH / std::string("remove");
+    fs::rename(downloadedFilePath, secondaryFilePath);
 
     LOG_debug << "#### Test6: Download received file again --> no access ####";
     ASSERT_FALSE(downloadNode(1, nodeReceived)) << "Download succeed, when it should fail";
@@ -3422,7 +3425,7 @@ TEST_F(MegaChatApiTest, Attachment)
     nodeSent = NULL;
 
     LOG_debug << "#### Test7: Upload an image to check previews / thumbnails ####";
-    std::string path = DEFAULT_PATH;
+    fs::path path = DEFAULT_PATH;
     if (getenv(PATH_IMAGE.c_str()) != NULL)
     {
         path = getenv(PATH_IMAGE.c_str());
@@ -3436,13 +3439,13 @@ TEST_F(MegaChatApiTest, Attachment)
     nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
 
     LOG_debug << "#### Test8: Download the thumbnail ####";
-    std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
+    std::string thumbnailPath = (LOCAL_PATH / "thumbnail0.jpg").string();
     RequestTracker getThumbnailTracker(megaApi[a1]);
     megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), &getThumbnailTracker);
     ASSERT_EQ(getThumbnailTracker.waitForResult(), API_OK) << "Failed to get thumbnail. Error: " << getThumbnailTracker.getErrorString();
 
     LOG_debug << "#### Test9: Download the thumbnail ####";
-    thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
+    thumbnailPath = (LOCAL_PATH / "thumbnail1.jpg").string();
     RequestTracker getThumbnailTracker2(megaApi[a2]);
     megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), &getThumbnailTracker2);
     ASSERT_EQ(getThumbnailTracker2.waitForResult(), API_OK) << "Failed to get thumbnail (2). Error: " << getThumbnailTracker2.getErrorString();
@@ -9526,19 +9529,18 @@ unsigned int MegaChatApiTest::getMegaApiIndex(MegaApi *api)
     return apiIndex;
 }
 
-void MegaChatApiTest::createFile(const string &fileName, const string &sourcePath, const string &contain)
+void MegaChatApiTest::createFile(const string &fileName, const fs::path &sourcePath, const string &content)
 {
-    std::string filePath = sourcePath + "/" + fileName;
-    FILE* fileDescriptor = fopen(filePath.c_str(), "w");
-    ASSERT_TRUE(fileDescriptor) << "File " << filePath << " could not be opened for writing";
-    fprintf(fileDescriptor, "%s", contain.c_str());
-    fclose(fileDescriptor);
+    fs::path filePath = sourcePath / fileName;
+    std::ofstream fileStream(filePath, std::ios::out);
+    ASSERT_TRUE(fileStream.is_open()) << "File " << filePath.string() << " could not be opened for writing";
+    fileStream << content;
 }
 
-MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const std::string& sourcePath, const std::string& targetPath)
+MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const fs::path& sourcePath, const std::string& targetPath)
 {
     addTransfer(accountIndex);
-    std::string filePath = sourcePath + "/" + fileName;
+    std::string filePath = (sourcePath / fileName).string();
     mNodeUploadHandle[accountIndex] = INVALID_HANDLE;
     std::unique_ptr<MegaNode> targetNode(megaApi[accountIndex]->getNodeByPath(targetPath.c_str()));
     megaApi[accountIndex]->startUpload(filePath.c_str()
@@ -9578,19 +9580,14 @@ bool &MegaChatApiTest::isNotTransferRunning(int accountIndex)
 
 bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
 {
-    struct stat st = {}; // init all members to default values (0)
-    if (stat(DOWNLOAD_PATH.c_str(), &st) == -1)
+    if (!fs::exists(DOWNLOAD_PATH))
     {
-#ifdef _WIN32
-        _mkdir(DOWNLOAD_PATH.c_str());
-#else
-        mkdir(DOWNLOAD_PATH.c_str(), 0700);
-#endif
+        fs::create_directory(DOWNLOAD_PATH);
     }
-
+    static const std::string downloadPathStr = DOWNLOAD_PATH.string();
     addTransfer(accountIndex);
     megaApi[accountIndex]->startDownload(nodeToDownload,
-                                         DOWNLOAD_PATH.c_str(),
+                                         downloadPathStr.c_str(),
                                          nullptr,   /*customName*/
                                          nullptr,   /*appData*/
                                          false,     /*startFirst*/
@@ -9642,68 +9639,22 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     delete crl;
 }
 
-int MegaChatApiTest::purgeLocalTree(const std::string &path)
+int MegaChatApiTest::purgeLocalTree(const fs::path& path)
 {
-#ifdef _WIN32
-    // should be reimplemented, maybe using std::filesystem
-    std::cout << "Manually purge local tree: " << path << std::endl;
-    return 0;
-
-#else
-    DIR *directory = opendir(path.c_str());
-    size_t path_len = path.length();
-    int r = -1;
-
-    if (directory)
+    try
     {
-        struct dirent *p;
-        r = 0;
-        while (!r && (p=readdir(directory)))
+        if (fs::exists(path) && fs::is_directory(path))
         {
-            int r2 = -1;
-            char *buf;
-            size_t len;
-            /* Skip the names "." and ".." as we don't want to recurse on them. */
-            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
-            {
-                continue;
-            }
-
-            len = path_len + strlen(p->d_name) + 2;
-            buf = (char *)malloc(len);
-
-            if (buf)
-            {
-                struct stat statbuf;
-                snprintf(buf, len, "%s/%s", path.c_str(), p->d_name);
-                if (!stat(buf, &statbuf))
-                {
-                    if (S_ISDIR(statbuf.st_mode))
-                    {
-                        r2 = purgeLocalTree(buf);
-                    }
-                    else
-                    {
-                        r2 = unlink(buf);
-                    }
-                }
-
-                free(buf);
-            }
-
-            r = r2;
+            fs::remove_all(path);
+            return 0;
         }
-
-        closedir(directory);
+        return -1;
     }
-
-    if (!r)
+    catch (const fs::filesystem_error& e)
     {
-        r = rmdir(path.c_str());
+        std::cerr << "Error removing " << path << ": " << e.what() << '\n';
+        return -1;
     }
-
-    return r;
-#endif
 }
 
 void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
