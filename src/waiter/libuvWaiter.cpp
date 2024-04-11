@@ -9,10 +9,10 @@ static void break_libuv_loop(uv_async_t* handle)
 
 LibuvWaiter::LibuvWaiter()
 {
-    evtloop = make_unique<uv_loop_t>();
+    evtloop = std::make_unique<uv_loop_t>();
     uv_loop_init(evtloop.get());
     
-    asynchandle = make_unique<uv_async_t>();
+    asynchandle = std::make_unique<uv_async_t>();
     uv_async_init(evtloop.get(), asynchandle.get(), break_libuv_loop);
 }
 
