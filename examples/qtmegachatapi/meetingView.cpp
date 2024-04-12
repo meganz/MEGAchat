@@ -5,6 +5,9 @@
 #include <QApplication>
 #include <QInputDialog>
 
+#include <memory>
+
+
 MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle chatid, QWidget *parent)
     : QDialog(parent)
     , mMegaChatApi(megaChatApi)
@@ -367,7 +370,7 @@ void MeetingView::createRingingWindow(megachat::MegaChatHandle callid)
 {
     if (!mRingingWindow)
     {
-        mRingingWindow = mega::make_unique<QMessageBox>(this);
+        mRingingWindow = std::make_unique<QMessageBox>(this);
         mRingingWindow->setText("New call");
         mRingingWindow->setInformativeText("Answer?");
         mRingingWindow->setStandardButtons(QMessageBox::Yes|QMessageBox::Cancel|QMessageBox::Ignore|QMessageBox::Abort);

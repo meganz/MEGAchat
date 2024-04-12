@@ -6,6 +6,9 @@
 #include <api/video/i420_buffer.h>
 #include <libyuv/convert.h>
 
+#include <memory>
+
+
 namespace rtcModule
 {
 SvcDriver::SvcDriver ()
@@ -1050,20 +1053,20 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> err
             = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitVThumb);
-    mVThumb = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
+    mVThumb = std::make_unique<LocalSlot>(*this, err.MoveValue());
     mVThumb->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitHiRes;
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
     hiresTrackIndex = mRtcConn->GetTransceivers().size() - 1; // keep this sentence just after add transceiver for hiRes track
-    mHiRes = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
+    mHiRes = std::make_unique<LocalSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitAudio;
     transceiverInitAudio.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_AUDIO, transceiverInitAudio);
-    mAudio = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
+    mAudio = std::make_unique<LocalSlot>(*this, err.MoveValue());
     mAudio->generateRandomIv();
 
     // create transceivers for receiving audio from peers
@@ -2740,12 +2743,12 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver,
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = std::make_unique<RemoteAudioSlot>(*this, transceiver,
                                                                                                                mRtc.getAppCtx());
         }
         else
         {
-            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver,
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = std::make_unique<RemoteVideoSlot>(*this, transceiver,
                                                                                                                mRtc.getAppCtx());
         }
     }
@@ -3829,7 +3832,7 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScach
 {
     mAppCtx = appCtx;
 
-    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
+    mSfuClient = std::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
     if (!artc::isInitialized())
     {
         //rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
@@ -3953,7 +3956,7 @@ promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere:
         {
             std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
             karere::Id myUserHandle(userHandle.get());
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags, true);
+            mCalls[callid] = std::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags, true);
 
             if (!mCalls[callid]->connectSfu(sfuUrlStr))
             {
@@ -4103,7 +4106,7 @@ void RtcModuleSfu::handleLeftCall(const karere::Id &/*chatid*/, const karere::Id
 
 void RtcModuleSfu::handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), isGroup, callKey);
+    mCalls[callid] = std::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), isGroup, callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 

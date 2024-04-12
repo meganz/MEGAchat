@@ -10,6 +10,8 @@
 #include <direct.h>
 #endif
 
+#include <memory>
+
 using namespace mega;
 using namespace megachat;
 using namespace std;
@@ -3881,7 +3883,7 @@ protected:
         auto& lsnr = listeners[id];
         if (!lsnr)
         {
-            lsnr = ::mega::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
+            lsnr = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
         }
         return lsnr.get();
     }

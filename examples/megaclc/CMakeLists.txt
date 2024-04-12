@@ -31,6 +31,13 @@ target_sources(megaclc
     mclc_resources.cpp
 )
 
+if (WIN32)
+    target_compile_definitions(megaclc
+        PRIVATE
+            NOMINMAX # TODO Fix locally
+    )
+endif()
+
 find_package(Boost REQUIRED COMPONENTS program_options)
 
 target_link_libraries(megaclc
