@@ -26,7 +26,8 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
         if (mReqSpealLabel)  {layout()->removeWidget(mReqSpealLabel.get());   mReqSpealLabel->clear();}
         if (mModeratorLabel) {layout()->removeWidget(mModeratorLabel.get());  mModeratorLabel->clear();}
         if (mRecordingLabel) {layout()->removeWidget(mRecordingLabel.get());  mRecordingLabel->clear();}
-        if (mSpkPermLabel)   {layout()->removeWidget(mSpkPermLabel.get());  mSpkPermLabel->clear();}
+        if (mSpkPermLabel)   {layout()->removeWidget(mSpkPermLabel.get());    mSpkPermLabel->clear();}
+        if (mRaiseHandLabel) {layout()->removeWidget(mRaiseHandLabel.get());  mRaiseHandLabel->clear();}
     }
 
     mLayout.reset(new QHBoxLayout());
@@ -81,6 +82,12 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
     {
         assert(false); // call should exists at this point
         return;
+    }
+
+    if (call->hasUserHandRaised(session.getPeerid()))
+    {
+        mRaiseHandLabel.reset(new QLabel("[RH]"));
+        layout()->addWidget(mRaiseHandLabel.get());
     }
 
     const bool speakPermission = call->hasUserSpeakPermission(session.getPeerid());

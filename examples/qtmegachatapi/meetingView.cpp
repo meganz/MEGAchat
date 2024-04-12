@@ -40,6 +40,12 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mRequestSpeakerCancel = new QPushButton("Cancel speak request", this);
     connect(mRequestSpeakerCancel, &QAbstractButton::clicked, this, [=](){onRequestSpeak(false);});
     mRequestSpeakerCancel->setVisible(false);
+    mRaiseHand = new QPushButton("Raise hand to speak", this);
+    connect(mRaiseHand, &QAbstractButton::clicked, this, [=](){onRaiseHand(true);});
+    mRaiseHand->setVisible(false);
+    mLowerHand = new QPushButton("Lower hand to stop speaking", this);
+    connect(mLowerHand, &QAbstractButton::clicked, this, [=](){onRaiseHand(false);});
+    mLowerHand->setVisible(false);
     mEnableAudio = new QPushButton("Audio-disable", this);
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
     mEnableAudio->setVisible(false);
@@ -125,6 +131,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mEndCall);
     mButtonsLayout->addWidget(mRequestSpeaker);
     mButtonsLayout->addWidget(mRequestSpeakerCancel);
+    mButtonsLayout->addWidget(mRaiseHand);
+    mButtonsLayout->addWidget(mLowerHand);
     mButtonsLayout->addWidget(mRemOwnSpeaker);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
@@ -236,6 +244,8 @@ void MeetingView::setNotParticipating()
     mEndCall->setVisible(false);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
+    mRaiseHand->setVisible(false);
+    mLowerHand->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
     mAudioMonitor->setVisible(false);
@@ -254,6 +264,8 @@ void MeetingView::setConnecting()
     mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
+    mRaiseHand->setVisible(false);
+    mLowerHand->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
     mAudioMonitor->setVisible(false);
@@ -423,6 +435,8 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(true);
     mRequestSpeakerCancel->setVisible(true);
+    mRaiseHand->setVisible(true);
+    mLowerHand->setVisible(true);
     mEnableAudio->setVisible(true);
     mEnableVideo->setVisible(true);
     mAudioMonitor->setVisible(true);
@@ -775,6 +789,19 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
             mMegaChatApi.mutePeers(mChatid, cid);
         }
     }
+}
+
+void MeetingView::onRaiseHand(bool add)
+{
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+    add
+        ? mMegaChatApi.raiseHandToSpeak(mChatid)
+        : mMegaChatApi.lowerHandToStopSpeak(mChatid);
 }
 
 void MeetingView::onRequestSpeak(bool request)

@@ -74,6 +74,8 @@ protected:
     QPushButton* mEndCall;
     QPushButton* mRequestSpeaker;
     QPushButton* mRequestSpeakerCancel;
+    QPushButton* mRaiseHand;
+    QPushButton* mLowerHand;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
     QPushButton* mAudioMonitor;
@@ -109,6 +111,7 @@ public slots:
     void onOnHold();
     void onSessionContextMenu(const QPoint &);
     void onRequestSpeak(bool request);
+    void onRaiseHand(bool add);
     void onEnableAudio();
     void onEnableVideo();
     void onRemoveOwnSpeaker();
