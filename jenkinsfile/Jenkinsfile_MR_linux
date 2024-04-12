@@ -146,8 +146,16 @@ pipeline {
             }
             steps {
                 deleteDir()
-                checkout scm
                 updateGitlabCommitStatus(name: 'Linux build & test', state: 'running')
+                checkout([
+                    $class: 'GitSCM', 
+                    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACHAT}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                    extensions: [
+                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                        [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                        ]                        
+                ])
                 dir('third-party/mega'){
                     sh "echo Cloning SDK branch ${SDK_BRANCH}"
                     checkout([
