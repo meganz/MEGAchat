@@ -92,16 +92,28 @@ using namespace megachat;
     return self.megaChatCall ? self.megaChatCall->getInitialTimeStamp() : 0;
 }
 
+- (int64_t)callWillEndTimeStamp {
+    return self.megaChatCall ? self.megaChatCall->getCallWillEndTs() : 0;
+}
+
 - (MEGAChatCallTermCode)termCode {
     return (MEGAChatCallTermCode) (self.megaChatCall ? self.megaChatCall->getTermCode() : 0);
 }
 
-- (NSInteger)numberValue {
-    return self.megaChatCall ? self.megaChatCall->getNum() : 0;
+- (NSInteger)durationLimit {
+    return self.megaChatCall ? self.megaChatCall->getCallDurationLimit() : -1;
 }
 
-- (NSInteger)callDurationLimit {
-    return self.megaChatCall ? self.megaChatCall->getCallDurationLimit() : 0;
+- (NSInteger)usersLimit {
+    return self.megaChatCall ? self.megaChatCall->getCallUsersLimit() : -1;
+}
+
+- (NSInteger)clientsLimit {
+    return self.megaChatCall ? self.megaChatCall->getCallClientsLimit() : -1;
+}
+
+- (NSInteger)clientsPerUserLimit {
+    return self.megaChatCall ? self.megaChatCall->getCallClientsPerUserLimit() : -1;
 }
 
 - (MEGAChatCallNotificationType)notificationType {

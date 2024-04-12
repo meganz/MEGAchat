@@ -106,11 +106,24 @@ target_compile_definitions(CHATlib
     $<$<NOT:$<BOOL:${USE_WEBRTC}>>:KARERE_DISABLE_WEBRTC>
 )
 
+if (WIN32)
+    target_compile_definitions(CHATlib
+        PRIVATE
+            NOMINMAX # TODO Fix locally
+    )
+endif()
+
 ## Load and link needed libraries for the CHATlib target ##
 
 # Load 3rd parties
 include(chatlib_libraries) # Include a macro to load the library dependencies
 load_chatlib_libraries()
+
+if(WIN32)
+    target_link_libraries(CHATlib PRIVATE
+        Dbghelp.lib
+    )
+endif()
 
 # Link with the SDK library
 target_link_libraries(CHATlib PUBLIC MEGA::SDKlib)

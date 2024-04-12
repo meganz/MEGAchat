@@ -154,7 +154,8 @@ public:
     virtual void onCallStateChange(ICall& call) = 0;
     virtual void onCallError(rtcModule::ICall &call, int code, const std::string &errMsg) = 0;
     virtual void onCallRinging(ICall& call) = 0;
-    virtual void onCallWillEndr(rtcModule::ICall &call, const int endsIn) = 0;
+    virtual void onCallWillEndr(rtcModule::ICall &call) = 0;
+    virtual void onCallLimitsUpdated(rtcModule::ICall &call) = 0;
     virtual void onNewSession(ISession& session, const ICall& call) = 0;
     virtual void onLocalFlagsChanged(const ICall& call, const Cid_t cidPerf = K_INVALID_CID) = 0;
     virtual void onOnHold(const ICall& call) = 0;
@@ -188,7 +189,9 @@ public:
     virtual bool isOwnClientCaller() const = 0;
     virtual bool isJoined() const = 0;
     virtual bool isOwnPrivModerator() const = 0;
+    virtual mega::m_time_t getCallWillEndTs() const = 0;
     virtual int getCallDurationLimitInSecs() const = 0;
+    virtual sfu::SfuInterface::CallLimits getCallLimits() const = 0;
 
     virtual void addParticipant(const karere::Id &peer) = 0;
     virtual void joinedCallUpdateParticipants(const std::set<karere::Id> &usersJoined) = 0;
@@ -227,7 +230,7 @@ public:
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
-    virtual void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients) const = 0;
+    virtual void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider) const = 0;
     virtual void mutePeers(const Cid_t& cid, const unsigned av) const = 0;
     virtual void requestHighResolutionVideo(Cid_t cid, int quality) = 0;
     virtual void requestHiResQuality(Cid_t cid, int quality) = 0;

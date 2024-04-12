@@ -291,6 +291,9 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)pushUsersIntoWaitingRoom:(uint64_t)chatId usersHandles:(NSArray<NSNumber *> *)usersHandles;
 
+- (void)setLimitsInCall:(uint64_t)chatId duration:(NSInteger)duration maxUsers:(NSInteger)maxUsers maxClientsPerUser:(NSInteger)maxClientsPerUser maxClients:(NSInteger)maxClients divider:(NSInteger)divider delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)setLimitsInCall:(uint64_t)chatId duration:(NSInteger)duration maxUsers:(NSInteger)maxUsers maxClientsPerUser:(NSInteger)maxClientsPerUser maxClients:(NSInteger)maxClients divider:(NSInteger)divider;
+
 - (void)autojoinPublicChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)autojoinPublicChat:(uint64_t)chatId;
 - (void)autorejoinPublicChat:(uint64_t)chatId publicHandle:(uint64_t)publicHandle delegate:(id<MEGAChatRequestDelegate>)delegate;

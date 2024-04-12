@@ -295,24 +295,39 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         std::cerr << "onChatCallUpdate: outgoing ringing stop received but our client is not the caller";
         return;
     }
+    if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_LIMITS_UPDATED))
+    {
+        QMessageBox msgBox;
+        QString myString;
+        const auto endsIn = call->getCallDurationLimit();
+        msgBox.setIcon(QMessageBox::Warning);
+        myString = QString("Call duration limit has changed: ")
+                   + QString(std::to_string(endsIn).c_str())
+                   + QString(" (seconds) due to MEGA account restrictions");
+
+        msgBox.setText(myString);
+        msgBox.setStandardButtons(QMessageBox::Ok);
+        msgBox.exec();
+    }
     if (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END))
     {
         QMessageBox msgBox;
         QString myString;
-        const auto endsIn = call->getNum();
-        if (endsIn == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED)
+        const auto endsAt = call->getCallWillEndTs();
+        const auto current = ::mega::m_time(nullptr);
+        if (endsAt < current)
         {
-            msgBox.setIcon(QMessageBox::Information);
-            myString.append("Call duration is now unlimited. Call duration restriction has been removed");
+            assert(false);
+            myString = QString("Call has already ended");
         }
         else
         {
-            msgBox.setIcon(QMessageBox::Warning);
+            const auto endsIn = endsAt - current;
             myString = QString("Call will end in ")
                            + QString(std::to_string(endsIn).c_str())
                            + QString(" (seconds) due to MEGA account restrictions");
         }
-
+        msgBox.setIcon(QMessageBox::Warning);
         msgBox.setText(myString);
         msgBox.setStandardButtons(QMessageBox::Ok);
         msgBox.exec();
@@ -329,7 +344,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY)
         || (call->hasChanged(megachat::MegaChatCall::CHANGE_TYPE_CALL_WILL_END)
-                && call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DURATION_DISABLED))
+                && call->getCallDurationLimit() == ::megachat::MegaChatCall::CALL_LIMIT_DISABLED))
     {
         if (itemController->getMeetingView()) { itemController->getMeetingView()->updateLabel(call); }
     }
