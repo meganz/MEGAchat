@@ -254,6 +254,7 @@ public:
     virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap,
                                      const std::map<Cid_t, TrackDescriptor>& vthumbs,
                                      const std::set<karere::Id>& speakers, const std::set<karere::Id>& speakReqs,
+                                     const std::set<karere::Id>& raiseHands,
                                      const std::map<Cid_t, uint32_t>& amidmap) = 0;
     virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
@@ -264,6 +265,8 @@ public:
     virtual bool handleHiResStopCommand() = 0;
     virtual bool handleSpeakerAddDelCommand(const uint64_t userid, const bool add) = 0;
     virtual bool handleSpeakReqAddDelCommand(const uint64_t userid, const bool add) = 0;
+    virtual bool handleRaiseHandAddCommand(const uint64_t userid) = 0;
+    virtual bool handleRaiseHandDelCommand(const uint64_t userid) = 0;
     virtual bool handleModAdd(uint64_t userid) = 0;
     virtual bool handleModDel(uint64_t userid) = 0;
     virtual bool handleHello(const Cid_t cid, const unsigned int nAudioTracks,
@@ -356,7 +359,7 @@ class AnswerCommand : public Command
 public:
     typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>&,
                                std::map<Cid_t, TrackDescriptor>&, const std::set<karere::Id>&,
-                               const std::set<karere::Id>&, std::map<Cid_t, uint32_t>&)> AnswerCompleteFunction;
+                               const std::set<karere::Id>&, const std::set<karere::Id>&, std::map<Cid_t, uint32_t>&)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -537,6 +540,26 @@ public:
     ClimitsCommandFunction mComplete;
 };
 
+class RaiseHandAddCommand : public Command
+{
+public:
+    typedef std::function<bool(const uint64_t userid)> RaiseHandAddCommandFunction;
+    RaiseHandAddCommand(const RaiseHandAddCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    RaiseHandAddCommandFunction mComplete;
+};
+
+class RaiseHandDelCommand : public Command
+{
+public:
+    typedef std::function<bool(const uint64_t userid)> RaiseHandDelCommandFunction;
+    RaiseHandDelCommand(const RaiseHandDelCommandFunction& complete, SfuInterface& call);
+    bool processCommand(const rapidjson::Document& command) override;
+    static const std::string COMMAND_NAME;
+    RaiseHandDelCommandFunction mComplete;
+};
+
 class ModAddCommand : public Command
 {   // "MOD_ADD"
 public:
@@ -683,6 +706,8 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_WR_KICK;
     static const std::string CSFU_MUTE;
     static const std::string CSFU_SETLIMIT;
+    static const std::string CSFU_RHANDRQ_ADD;
+    static const std::string CSFU_RHANDRQ_DEL;
 
 public:
     struct SfuData
@@ -758,6 +783,7 @@ public:
     bool sendLayer(int spt, int tmp, int stmp);
     bool sendSpeakerAddDel(const karere::Id& user, const bool add);
     bool sendSpeakReqAddDel(const karere::Id& user, const bool add);
+    bool raiseHandToSpeak(const bool add);
     bool sendBye(int termCode);
     void clearInitialBackoff();
     void incrementInitialBackoff();

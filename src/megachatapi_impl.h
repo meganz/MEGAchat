@@ -257,6 +257,7 @@ public:
     virtual int getChanges() const override;
     virtual bool hasChanged(int changeType) const override;
 
+    bool hasUserHandRaised(const MegaChatHandle uh) const override;
     virtual bool hasUserSpeakPermission(const MegaChatHandle uh) const override;
     virtual int64_t getDuration() const override;
     virtual int64_t getInitialTimeStamp() const override;
@@ -276,6 +277,7 @@ public:
     virtual int getNumParticipants() const override;
     virtual mega::MegaHandleList *getPeeridParticipants() const override;
     virtual const mega::MegaHandleList* getModerators() const override;
+    virtual const mega::MegaHandleList* getRaiseHandsList() const override;
     virtual bool isIgnored() const override;
     virtual bool isIncoming() const override;
     virtual bool isOutgoing() const override;
@@ -341,6 +343,7 @@ protected:
     std::unique_ptr<::mega::MegaHandleList> mHandleList;
     std::unique_ptr<::mega::MegaHandleList> mSpeakersList;
     std::unique_ptr<::mega::MegaHandleList> mSpeakRequestsList;
+    std::unique_ptr<::mega::MegaHandleList> mRaiseHandsList;
     std::unique_ptr<MegaChatWaitingRoom> mMegaChatWaitingRoom;
 
     int mTermCode = MegaChatCall::TERM_CODE_INVALID;
@@ -742,6 +745,7 @@ public:
     void onWrPushedFromCall(const rtcModule::ICall& call) override;
     void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) override;
     void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
+    void onRaiseHandAddedRemoved(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
     void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add) override;
 
 private:
@@ -1408,6 +1412,7 @@ private:
     int performRequest_addRevokeSpeakePermission(MegaChatRequestPrivate* request);
     int performRequest_hiResVideo(MegaChatRequestPrivate* request);
     int performRequest_lowResVideo(MegaChatRequestPrivate* request);
+    int performRequest_raiseHandToSpeak(MegaChatRequestPrivate* request);
     int performRequest_videoDevice(MegaChatRequestPrivate* request);
     int performRequest_requestHiResQuality(MegaChatRequestPrivate* request);
     int performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* request);
@@ -1708,6 +1713,7 @@ public:
     void enableSpeakRequestSupportForCalls(const bool enable);
     void addDelSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
+    void raiseHandToSpeak(MegaChatHandle chatid, bool add, MegaChatRequestListener* listener);
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);

@@ -328,6 +328,7 @@ public:
     int getWrJoiningState() const override;
     void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider) const override;
     void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
+    void raiseHandToSpeak(const bool add) override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
     void kickUsersFromCall(const std::set<karere::Id>& users) const override;
@@ -345,6 +346,7 @@ public:
     std::set<karere::Id> getSpeakRequestsList() const override;
     std::set<karere::Id> getSpeakersList () const override;
     std::set<karere::Id> getModerators() const override;
+    std::set<karere::Id> getRaiseHandsList() const override;
     std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
@@ -473,6 +475,7 @@ public:
                              const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
                              const std::set<karere::Id>& speakers,
                              const std::set<karere::Id>& speakReqs,
+                             const std::set<karere::Id>& raiseHands,
                              const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
@@ -488,6 +491,8 @@ public:
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     void onSfuDisconnected() override;
     void onByeCommandSent() override;
+    bool handleRaiseHandAddCommand(const uint64_t userid) override;
+    bool handleRaiseHandDelCommand(const uint64_t userid) override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
@@ -528,6 +533,10 @@ protected:
     karere::Id mCallerId;
     CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
+
+    // list of user handles of all users that have raised hand to speak (ordered)
+    // users in this list only indicates that he wants to speak
+    std::set<karere::Id> mRaiseHands;
 
     // list of user handles of all users that have been given speak permission (moderators not included)
     std::set<karere::Id> mSpeakers;

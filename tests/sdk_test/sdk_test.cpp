@@ -11168,6 +11168,7 @@ bool MockupCall::handleAvCommand(Cid_t, unsigned, uint32_t)
 
 bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::set<karere::Id>&,
                                      const std::set<karere::Id>& speakReqs,
+                                     const std::set<karere::Id>& raiseHands,
                                      const std::map<Cid_t, uint32_t>&)
 {
     return true;
@@ -11229,6 +11230,16 @@ bool MockupCall::handlePeerLeft(Cid_t, unsigned)
 }
 
 bool MockupCall::handleBye(const unsigned, const bool, const std::string&)
+{
+    return true;
+}
+
+bool MockupCall::handleRaiseHandAddCommand(const uint64_t /*userid*/)
+{
+    return true;
+}
+
+bool MockupCall::handleRaiseHandDelCommand(const uint64_t /*userid*/)
 {
     return true;
 }

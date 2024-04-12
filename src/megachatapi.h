@@ -508,6 +508,7 @@ public:
         CHANGE_TYPE_SPEAK_REQUESTED = 0X80000,      /// Speak request added/removed for a call participant
         CHANGE_TYPE_CALL_WILL_END = 0x100000,       /// Notify that call will end due to duration restrictions associated to MEGA account plan
         CHANGE_TYPE_CALL_LIMITS_UPDATED = 0x200000, /// Notify that call limits have been updated
+        CHANGE_TYPE_CALL_RAISE_HAND = 0x400000,     /// Notify that an user raised/lowered hand to speak
     };
 
     enum
@@ -870,6 +871,16 @@ public:
     virtual bool hasUserSpeakPermission(const MegaChatHandle /*uh*/) const;
 
     /**
+     * @brief Returns if all clients for the same user account have hand raised to indicate that he wants to speak
+     *
+     * Raise hand status it's non related to speak permission or mute status, it's only a visual indication to show that
+     * an user wants to speak.
+     *
+     * @return true if all clients for the same user account have hand raised to speak in this call, otherwise returns false
+     */
+    virtual bool hasUserHandRaised(const MegaChatHandle /*uh*/) const;
+
+    /**
      * @brief Return call duration
      *
      * @note If the call is not finished yet, the returned value represents the elapsed time
@@ -1156,6 +1167,9 @@ public:
      * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK is notified via MegaChatCallListener::onChatCallUpdate
      *   to indicate that speak permission for a call participant has changed
      *
+     * - MegaChatCall::CHANGE_TYPE_CALL_RAISE_HAND is notified via MegaChatCallListener::onChatCallUpdate
+     *   to indicate that raise hand status for a call participant has changed
+     *
      * @return a MegaChatHandle used to notify multiple events
      */
     virtual MegaChatHandle getHandle() const;
@@ -1167,6 +1181,10 @@ public:
      * - MegaChatCall::CHANGE_TYPE_CALL_SPEAK is notified via MegaChatCallListener::onChatCallUpdate
      *   + this method returns true to indicate that speak permission for a call participant has been granted
      *   + this method returns false to indicate that speak permission for a call participant has been revoked
+     *
+     * - MegaChatCall::CHANGE_TYPE_CALL_RAISE_HAND is notified via MegaChatCallListener::onChatCallUpdate
+     *   + this method returns true to indicate that a call participant raised hand to speak
+     *   + this method returns false to indicate that a call participant lowered hand to speak
      *
      * @return a boolean used to notify multiple events
      */
@@ -1185,6 +1203,19 @@ public:
      * @return A MegaHandleList of handles of peers that have moderator role in the call
      */
     virtual const mega::MegaHandleList* getModerators() const;
+
+    /**
+     * @brief Get a MegaHandleList with the ids of peers that have hand raised to speak in the call
+     *
+     * Raise hand status it's non related to speak permission or mute status, it's only a visual indication to show that
+     * an user wants to speak.
+     *
+     * This method always returns a valid instance of MegaHandleList.
+     * The MegaChatCall retains the ownership of the returned value.
+     *
+     * @return A MegaHandleList of handles of peers that have hand raised to speak in the call
+     */
+    virtual const mega::MegaHandleList* getRaiseHandsList() const;
 
     /**
      * @brief Get the number of peers participating in the call
@@ -2624,7 +2655,8 @@ public:
         TYPE_SPEAKRQ_ADD_DEL                        = 65,
         TYPE_REJECT_CALL                            = 66,
         TYPE_SET_LIMIT_CALL                         = 67,
-        TOTAL_OF_REQUEST_TYPES                      = 68,
+        TYPE_RAISE_HAND_TO_SPEAK                    = 68,
+        TOTAL_OF_REQUEST_TYPES                      = 69,
     };
 
     enum {
@@ -7120,6 +7152,50 @@ public:
      * @param listener MegaChatRequestListener to track this request
      */
     void enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Raises hand (for all clients of this user) to indicate that we want to speak in a call
+     *
+     * Raise hand status it's non related to speak permission or mute status, it's only a visual indication to show that
+     * an user wants to speak.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK
+     *
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true to indicate that we want to raise hand to speak
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS    - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT   - if there's not a call in the specified chatid
+     * - MegaChatError::ERROR_ACCESS  - if we don't participate in the call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room where there's a call
+     * @param listener
+     */
+    void raiseHandToSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Lowers hand (for all clients of this user) to indicate that we don't want to speak in a call at this moment
+     *
+     * Raise hand status it's non related to speak permission or mute status, it's only a visual indication to show that
+     * an user wants to speak.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK
+     *
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true to indicate that we want to raise hand to speak
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS    - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT   - if there's not a call in the specified chatid
+     * - MegaChatError::ERROR_ACCESS  - if we don't participate in the call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room where there's a call
+     * @param listener
+     */
+    void lowerHandToStopSpeak(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Request high resolution video from a client
