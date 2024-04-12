@@ -1042,6 +1042,171 @@ TEST_F(MegaChatApiTest, BasicTest)
 #ifndef KARERE_DISABLE_WEBRTC
 
 /**
+ * @brief MegaChatApiTest.RaiseHandLite
+ * + Test1: start call with a1 and a2 answers call
+ * + Test2: a2 raises hand
+ * + Test3: a2 lowers hand
+ * + Test4: a1 raises hand
+ * + Test5: a1 lowers hand
+ * + Test6: end call from a1
+ * + Test7: start call with a1 and raise hand
+ */
+TEST_F(MegaChatApiTest, RaiseHandLite)
+{
+    //========================================================================//
+    // Auxiliar test functions
+    //========================================================================//
+    /** add here all auxiliar lambdas that this test can require **/
+    auto raiseHand = [this](const bool add, const unsigned int idx, const MegaChatHandle uh, std::set<unsigned int> recvIdx)
+    {
+        clearTemporalVars();
+        // what happens if recvIdx is empty, waitForAction could be stucked as It happended in the past?
+        ExitBoolFlags eF;
+        std::for_each(recvIdx.begin(), recvIdx.end(), [this, &add, &eF](auto& i)
+        {
+            if (add)
+            {
+                addBoolVarAndExitFlag(i, eF, "raisedHand", false);
+                addHandleVar(i, "raisedHandUh", MEGACHAT_INVALID_HANDLE);
+            }
+            else
+            {
+                addBoolVarAndExitFlag(i, eF, "loweredHand", false);
+                addHandleVar(i, "loweredHandUh", MEGACHAT_INVALID_HANDLE);
+            }
+        });
+
+        waitForAction(1, /* just one attempt */
+                      eF,
+                      "raise hand",
+                      true /* wait for all exit flags */,
+                      true /* reset flags */,
+                      minTimeout * 2, // 2 min
+                      [this, &chatid = mData.mChatid, &add, &idx]()
+                      {
+                          ChatRequestTracker crtRaiseHand(megaChatApi[idx]);
+                          add
+                              ? megaChatApi[idx]->raiseHandToSpeak(chatid, &crtRaiseHand)
+                              : megaChatApi[idx]->lowerHandToStopSpeak(chatid, &crtRaiseHand);
+
+                          ASSERT_EQ(crtRaiseHand.waitForResult(), MegaChatError::ERROR_OK)
+                              << "Failed to " << (add ? "Raise" : "Lower ")
+                              << "hand. Error: " << crtRaiseHand.getErrorString();
+                      }
+        );
+
+        for (auto i: recvIdx)
+        {
+            MegaChatHandle* recvUh = add
+                                         ? handleVars().getVar(i, "raisedHandUh")
+                                         : handleVars().getVar(i, "loweredHandUh");
+
+            ASSERT_TRUE(recvUh) << "Can't get " << (add ? "raisedHandUh" : "loweredHandUh")
+                                << "for " << std::to_string(i);
+            ASSERT_EQ(*recvUh, uh) << "Unexpected Uh received";
+        }
+    };
+
+    CleanupFunction testCleanup = [this]
+    {
+        LOG_debug << "MegaChatApiTest.RaiseHandLite: Cleanup";
+        clearTemporalVars();
+        ExitBoolFlags eF;
+        // callDestroyed - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false);
+        endChatCall(mData.mOpIdx, eF, mData.mChatid);
+        closeOpenedChatrooms();
+        cleanChatVideoListeners();
+        logoutTestAccounts();
+    };
+    MegaMrProper p (testCleanup);
+
+    // login into all involved accounts for this test, and establish required contact relationships
+    // Note: all involved accounts in this test, must be added to mSessions and mAccounts
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+    mData.mOpIdx = a1; // set test operator role index
+    mData.mSessions.emplace(a1, login(a1));
+    mData.mSessions.emplace(a2, login(a2));
+    const MegaChatHandle a1Uh = megaChatApi[a1]->getMyUserHandle();
+    const MegaChatHandle a2Uh = megaChatApi[a2]->getMyUserHandle();
+    mData.mAccounts.emplace(a1, a1Uh);
+    mData.mAccounts.emplace(a2, a2Uh);
+    ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
+    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
+
+    LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test RaiseHand (lite)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
+
+    // set chat selection criteria
+    mData.mChatOptions.mCreate          = true;
+    mData.mChatOptions.mPublicChat      = true;
+    mData.mChatOptions.mMeetingRoom     = true;
+    mData.mChatOptions.mWaitingRoom     = false;
+    mData.mChatOptions.mSpeakRequest    = false;
+    mData.mChatOptions.mOpenInvite      = false;
+
+    // set chat operator idx and privileges, and create chat participants list
+    // chat operator idx corresponds with idx of account from which we retrieve chatroom
+    mData.mChatOptions.mChatOpIdx = a1;
+    mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
+    mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
+    mData.mChatOptions.mChatPeerList->addPeer(a2Uh, MegaChatPeerList::PRIV_STANDARD);
+    mData.mChatOptions.mChatPeerIdx.emplace_back(a2);
+
+    // get a group chatroom
+    mData.mChatid = getGroupChatRoom();
+    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Can't get a chatroom with selected criteria";
+
+    // open chatroom (just add chatroom listeners for chatroom participants)
+    auto crl = std::make_shared<TestChatRoomListener>(this, megaChatApi, mData.mChatid);
+    mData.mChatroomListeners.emplace(a1, crl);
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
+    mData.mChatroomListeners.emplace(a2, crl);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a2 account";
+
+    // load history
+    ASSERT_GE(loadHistory(a1, mData.mChatid, crl.get()), 0);
+    ASSERT_GE(loadHistory(a2, mData.mChatid, crl.get()), 0);
+
+    LOG_debug << "#### Test1: start call with a1 and a2 answers call ####";
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+
+    LOG_debug << "#### Test2: a2 raises hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true  /*add*/, a2, a2Uh, {a1}));
+
+    LOG_debug << "#### Test3: a2 lowers hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(false /*add*/, a2, a2Uh, {a1}));
+
+    LOG_debug << "#### Test4: a1 raises hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true  /*add*/, a1, a1Uh, {a2}));
+
+    LOG_debug << "#### Test5: a1 lowers hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(false /*add*/, a1, a1Uh, {a2}));
+
+    LOG_debug << "#### Test6: end call from a1 ####";
+    ExitBoolFlags eF;
+    addBoolVarAndExitFlag(a1, eF, "callDestroyed", false);
+    endChatCall(mData.mOpIdx, eF, mData.mChatid);
+    ASSERT_NO_FATAL_FAILURE(endChatCall(a1, eF, mData.mChatid));
+
+    LOG_debug << "#### Test7: start call with a1 and raise hand ####";
+    // a2 must receive raise hand list upon ANSWER command
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a2, a2Uh, {a1}));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+    std::unique_ptr<MegaChatCall>call(megaChatApi[a2]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(call) << "Cannot retrieve call from chatroom: " << getChatIdStrB64(mData.mChatid);
+    ASSERT_TRUE(call->hasUserHandRaised(a1Uh)) << "User " << getUserIdStrB64(a1Uh) << " has not raised hand";
+
+    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
+}
+
+/**
  * @brief MegaChatApiTest.CallLimitsFreePlan
  * + Test1: a1 set call duration and wait until it end for duration limit
  * + Test2: a1 set call duration and disable it after receiving WILL_END notification
@@ -10282,6 +10447,22 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
                 mChatIdStopRingInCall[apiIndex] = call->getChatid();
                 boolVars().updateIfExists(apiIndex, "CallStopsRinging", true);
             }
+        }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED))
+    {
+        auto uh = call->getHandle();
+        auto added = call->getFlag();
+        if (added)
+        {
+            boolVars().updateIfExists(apiIndex, "raisedHand", true);
+            handleVars().updateIfExists(apiIndex, "raisedHandUh", uh);
+        }
+        else
+        {
+            boolVars().updateIfExists(apiIndex, "loweredHand", true);
+            handleVars().updateIfExists(apiIndex, "loweredHandUh", uh);
         }
     }
 
