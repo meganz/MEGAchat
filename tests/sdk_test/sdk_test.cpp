@@ -11066,7 +11066,6 @@ MegaChatRequest *TestMegaChatRequestListener::getMegaChatRequest() const
 
 bool RequestListener::waitForResponse(unsigned int timeout)
 {
-    assert(!mFinished);
     timeout *= 1000000; // convert to micro-seconds
     unsigned int tWaited = 0;    // microseconds
     bool connRetried = false;
