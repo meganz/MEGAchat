@@ -1061,8 +1061,11 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     {
         clearTemporalVars();
         // what happens if recvIdx is empty, waitForAction could be stucked as It happended in the past?
+
+        std::set<unsigned int> auxIdxs = recvIdx;
+        auxIdxs.emplace(idx);
         ExitBoolFlags eF;
-        std::for_each(recvIdx.begin(), recvIdx.end(), [this, &add, &eF](auto& i)
+        std::for_each(auxIdxs.begin(), auxIdxs.end(), [this, &add, &eF](auto& i)
         {
             if (add)
             {
@@ -1095,7 +1098,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                       }
         );
 
-        for (auto i: recvIdx)
+        for (auto i: auxIdxs)
         {
             MegaChatHandle* recvUh = add
                                          ? handleVars().getVar(i, "raisedHandUh")
@@ -1105,6 +1108,12 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                                 << "for " << std::to_string(i);
             ASSERT_EQ(*recvUh, uh) << "Unexpected Uh received";
         }
+
+        // check call for user that raised hand contains that user in raised hand list
+        std::unique_ptr<MegaChatCall> call(megaChatApi[idx]->getChatCall(mData.mChatid));
+        ASSERT_TRUE(call) << "Cannot get call for chatid: " << getChatIdStrB64((mData.mChatid));
+        ASSERT_EQ(call->hasUserHandRaised(uh), add) << "Unexpected raised hand status for own user: "
+                                                    << getUserIdStrB64(uh);
     };
 
     CleanupFunction testCleanup = [this]
@@ -1143,7 +1152,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     // set chat selection criteria
     mData.mChatOptions.mCreate          = true;
     mData.mChatOptions.mPublicChat      = true;
-    mData.mChatOptions.mMeetingRoom     = true;
+    mData.mChatOptions.mMeetingRoom     = false;
     mData.mChatOptions.mWaitingRoom     = false;
     mData.mChatOptions.mSpeakRequest    = false;
     mData.mChatOptions.mOpenInvite      = false;
@@ -1196,7 +1205,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     LOG_debug << "#### Test7: start call with a1 and raise hand ####";
     // a2 must receive raise hand list upon ANSWER command
     ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
-    ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a2, a2Uh, {a1}));
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a1, a1Uh, {}));
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
     std::unique_ptr<MegaChatCall>call(megaChatApi[a2]->getChatCall(mData.mChatid));
     ASSERT_TRUE(call) << "Cannot retrieve call from chatroom: " << getChatIdStrB64(mData.mChatid);
@@ -6129,7 +6138,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     // Test2: B request to speak, A rejects it
     //========================================================================//
-    LOG_debug << "JDEBUG: Test2: B request to speak, A rejects it";
+    LOG_debug << "Test2: B request to speak, A rejects it";
     ASSERT_NO_FATAL_FAILURE(sendAndProcessSpeakRequest(a2, a1, false /*approve*/, mData.mChatid););
     ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, a2Uh, false/*moderator*/, false/*expected*/, mData.mChatid););
     // clean all bool and handle vars (this prevents conflicts in following tests)
@@ -10450,7 +10459,7 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         }
     }
 
-    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED))
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_RAISE_HAND))
     {
         auto uh = call->getHandle();
         auto added = call->getFlag();
@@ -11347,10 +11356,14 @@ bool MockupCall::handleAvCommand(Cid_t, unsigned, uint32_t)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::set<karere::Id>&,
-                                     const std::set<karere::Id>& speakReqs,
-                                     const std::set<karere::Id>& raiseHands,
-                                     const std::map<Cid_t, uint32_t>&)
+bool MockupCall::handleAnswerCommand(Cid_t /*cid*/, std::shared_ptr<sfu::Sdp> /*sdp*/,
+                                     uint64_t /*callJoinOffset*/, std::vector<sfu::Peer>& /*peers*/,
+                                     const std::map<Cid_t, std::string>& /*keystrmap*/,
+                                     const std::map<Cid_t, sfu::TrackDescriptor>& /*vthumbs*/,
+                                     const std::set<karere::Id>& /*speakers*/,
+                                     const std::set<karere::Id>& /*speakReqs*/,
+                                     const std::vector<karere::Id>& /*raiseHands*/,
+                                     const std::map<Cid_t, uint32_t>& /*amidmap*/)
 {
     return true;
 }

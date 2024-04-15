@@ -1264,9 +1264,11 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) override;
-    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::set<karere::Id>& speakers,
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
+                             const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
+                             const std::set<karere::Id>& speakers,
                              const std::set<karere::Id>& speakReqs,
-                             const std::set<karere::Id>& raiseHands,
+                             const std::vector<karere::Id>& raiseHands,
                              const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
