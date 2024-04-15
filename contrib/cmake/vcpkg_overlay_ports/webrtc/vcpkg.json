@@ -6,5 +6,12 @@
     "homepage": "https://webrtc.googlesource.com/src/",
     "dependencies": [
         {"name" : "vcpkg-gn", "host" : true }
-    ]
+    ],
+    "features":
+    {
+      "enable-debug-log":
+      {
+        "description" : "Enables RTC log output for the debug build. It has no effect for the release build."
+      }
+    }
 }
