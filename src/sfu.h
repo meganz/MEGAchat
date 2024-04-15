@@ -254,7 +254,7 @@ public:
     virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap,
                                      const std::map<Cid_t, TrackDescriptor>& vthumbs,
                                      const std::set<karere::Id>& speakers, const std::set<karere::Id>& speakReqs,
-                                     const std::set<karere::Id>& raiseHands,
+                                     const std::vector<karere::Id>& raiseHands,
                                      const std::map<Cid_t, uint32_t>& amidmap) = 0;
     virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
     virtual bool handleVThumbsCommand(const std::map<Cid_t, TrackDescriptor>& videoTrackDescriptors) = 0;
@@ -313,6 +313,7 @@ public:
     static uint64_t hexToBinary(const std::string& hex);
     static std::vector<mega::byte> hexToByteArray(const std::string &hex);
     void parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it) const;
+    bool parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it, const bool allowDuplicates) const;
     void parseTracks(const rapidjson::Document &command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const;
 
 protected:
@@ -359,7 +360,7 @@ class AnswerCommand : public Command
 public:
     typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>&,
                                std::map<Cid_t, TrackDescriptor>&, const std::set<karere::Id>&,
-                               const std::set<karere::Id>&, const std::set<karere::Id>&, std::map<Cid_t, uint32_t>&)> AnswerCompleteFunction;
+                               const std::set<karere::Id>&, const std::vector<karere::Id>&, std::map<Cid_t, uint32_t>&)> AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;
@@ -706,8 +707,8 @@ class SfuConnection : public karere::DeleteTrackable, public WebsocketsClient
     static const std::string CSFU_WR_KICK;
     static const std::string CSFU_MUTE;
     static const std::string CSFU_SETLIMIT;
-    static const std::string CSFU_RHANDRQ_ADD;
-    static const std::string CSFU_RHANDRQ_DEL;
+    static const std::string CSFU_RHAND_ADD;
+    static const std::string CSFU_RHAND_DEL;
 
 public:
     struct SfuData

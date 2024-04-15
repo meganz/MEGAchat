@@ -1210,6 +1210,8 @@ public:
      * Raise hand status it's non related to speak permission or mute status, it's only a visual indication to show that
      * an user wants to speak.
      *
+     * This list is ordered by the time they raised their hand (the last element is the user that raised their hand last)
+     *
      * This method always returns a valid instance of MegaHandleList.
      * The MegaChatCall retains the ownership of the returned value.
      *

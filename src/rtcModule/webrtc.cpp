@@ -873,7 +873,7 @@ std::set<karere::Id> Call::getModerators() const
     return mModerators;
 }
 
-std::set<karere::Id> Call::getRaiseHandsList() const
+const std::vector<karere::Id>& Call::getRaiseHandsList() const
 {
     return mRaiseHands;
 }
@@ -1459,7 +1459,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
                                const std::set<karere::Id>& speakers,
                                const std::set<karere::Id>& speakReqs,
-                               const std::set<karere::Id>& raiseHands,
+                               const std::vector<karere::Id>& raiseHands,
                                const std::map<Cid_t, uint32_t>& amidmap)
 {
     if (mState != kStateJoining)
@@ -2236,29 +2236,40 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
 
 bool Call::handleRaiseHandAddCommand(const uint64_t userid)
 {
-    auto res = mRaiseHands.emplace(userid);
-    if (!res.second)
+    const karere::Id uh = karere::Id(userid).isNull()
+                            ? mMyPeer->getPeerid().val
+                            : userid;
+
+    if (std::find(mRaiseHands.begin(), mRaiseHands.end(), uh) != mRaiseHands.end())
     {
-        RTCM_LOG_WARNING("RHANDRQ_ADD received, but user cannot be added to rhands list: %s ",
-                       karere::Id(userid).toString().c_str());
+        RTCM_LOG_WARNING("RHANDRQ_ADD received, but user already exists at rhands list: %s ",
+                         karere::Id(uh).toString().c_str());
         assert(false);
+        return false;
     }
 
-    mCallHandler.onRaiseHandAddedRemoved(*this, userid, true);
+    mRaiseHands.emplace_back(uh);
+    mCallHandler.onRaiseHandAddedRemoved(*this, uh, true);
     return true;
 }
 
 bool Call::handleRaiseHandDelCommand(const uint64_t userid)
 {
-    auto removed = mRaiseHands.erase(userid);
-    if (!removed)
+    const karere::Id uh = karere::Id(userid).isNull()
+                      ? mMyPeer->getPeerid().val
+                      : userid;
+
+    auto it = std::find(mRaiseHands.begin(), mRaiseHands.end(), uh);
+    if (it == mRaiseHands.end())
     {
         RTCM_LOG_WARNING("RHANDRQ_DEL received, but user cannot be removed from rhands list: %s ",
-                       karere::Id(userid).toString().c_str());
+                         karere::Id(uh).toString().c_str());
         assert(false);
+        return false;
     }
 
-    mCallHandler.onRaiseHandAddedRemoved(*this, userid, false);
+    mRaiseHands.erase(it);
+    mCallHandler.onRaiseHandAddedRemoved(*this, uh, false);
     return true;
 }
 

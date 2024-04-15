@@ -8195,10 +8195,11 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 
     // always create a valid instance of MegaHandleList
     mRaiseHandsList.reset(::mega::MegaHandleList::createInstance());
-    for (auto u: call.getRaiseHandsList())
+    const auto& hrList = call.getRaiseHandsList();
+    std::for_each(hrList.begin(), hrList.end(), [this](const auto& uh)
     {
-        mRaiseHandsList->addMegaHandle(u);
-    }
+        mRaiseHandsList->addMegaHandle(uh.val);
+    });
 
     // always create a valid instance of MegaHandleList
     mSpeakersList.reset(::mega::MegaHandleList::createInstance());

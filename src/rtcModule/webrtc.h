@@ -246,7 +246,7 @@ public:
     virtual std::set<karere::Id> getParticipants() const = 0;
     virtual std::set<karere::Id> getModerators() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
-    virtual std::set<karere::Id> getRaiseHandsList() const = 0;
+    virtual const std::vector<karere::Id>& getRaiseHandsList() const = 0;
     virtual ISession* getIsession(Cid_t cid) const = 0;
     virtual bool isOutgoing() const = 0;
     virtual int64_t getCallInitialTimeStamp() const = 0;

@@ -346,7 +346,7 @@ public:
     std::set<karere::Id> getSpeakRequestsList() const override;
     std::set<karere::Id> getSpeakersList () const override;
     std::set<karere::Id> getModerators() const override;
-    std::set<karere::Id> getRaiseHandsList() const override;
+    const std::vector<karere::Id> &getRaiseHandsList() const override;
     std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
@@ -475,7 +475,7 @@ public:
                              const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
                              const std::set<karere::Id>& speakers,
                              const std::set<karere::Id>& speakReqs,
-                             const std::set<karere::Id>& raiseHands,
+                             const std::vector<karere::Id>& raiseHands,
                              const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
@@ -534,9 +534,10 @@ protected:
     CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
 
-    // list of user handles of all users that have raised hand to speak (ordered)
+    // list of user handles of all users that have raised hand to speak
+    // list is ordered by the time they raised their hand (the last element is the user that raised their hand last)
     // users in this list only indicates that he wants to speak
-    std::set<karere::Id> mRaiseHands;
+    std::vector<karere::Id> mRaiseHands;
 
     // list of user handles of all users that have been given speak permission (moderators not included)
     std::set<karere::Id> mSpeakers;
