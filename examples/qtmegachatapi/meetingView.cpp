@@ -83,6 +83,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     connect(mWaitingRoomShow, SIGNAL(clicked()), this, SLOT(onWrShow()));
     mWaitingRoomShow->setVisible(true);
 
+    mRaiseHandList = new QPushButton("Show raise hand list", this);
+    connect(mRaiseHandList, SIGNAL(clicked()), this, SLOT(onRaiseHandList()));
+    mRaiseHandList->setVisible(true);
+
     mAllowJoin= new QPushButton("Allow join user", this);
     connect(mAllowJoin, SIGNAL(clicked()), this, SLOT(onAllowJoin()));
     mAllowJoin->setVisible(true);
@@ -142,6 +146,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
     mButtonsLayout->addWidget(mWaitingRoomShow);
+    mButtonsLayout->addWidget(mRaiseHandList);
     mButtonsLayout->addWidget(mAllowJoin);
     mButtonsLayout->addWidget(mPushWr);
     mButtonsLayout->addWidget(mKickWr);
@@ -203,6 +208,9 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append(call->hasUserPendingSpeakRequest(megachatApi().getMyUserHandle()) ? on : off)
             .append("<br /> Moderator: ")
             .append(call->isOwnModerator() ? on : off)
+            .append("<br /> Raised hand: ")
+            .append(call->hasUserHandRaised(mMegaChatApi.getMyUserHandle()) ? on : off)
+            .append("<br />")
             .append("</span>");
 
     call->hasLocalAudio()
@@ -895,6 +903,31 @@ void MeetingView::onJoinCallWithVideo()
     if (audiostr != "0" && audiostr != "1") { return; }
     int audio = atoi(audiostr.toStdString().c_str());
     mMegaChatApi.startChatCall(mChatid, true /*video*/, audio);
+}
+
+void MeetingView::onRaiseHandList()
+{
+    std::string rhText = "<br /><span style='color:#A30010'>EMPTY RAISE HAND LIST</span>";
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (call)
+    {
+        const mega::MegaHandleList* rhPeers = call->getRaiseHandsList();
+        if (rhPeers && rhPeers->size())
+        {
+            rhText.assign("<br /><span style='color:#A30010'>RAISE HAND LIST</span><br />");
+            for (size_t i= 0; i < rhPeers->size(); ++i)
+            {
+                ::mega::MegaHandle h = rhPeers->get(static_cast<unsigned int>(i));
+                mega::unique_ptr<const char[]>b64handle(::mega::MegaApi::userHandleToBase64(h));
+                rhText += b64handle.get() + std::string("<br />");
+            }
+        }
+    }
+
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(rhText.c_str());
+    msg.exec();
 }
 
 void MeetingView::onWrShow()

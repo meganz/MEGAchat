@@ -84,6 +84,7 @@ protected:
     QPushButton* mJoinCallWithVideo;
     QPushButton* mJoinCallWithoutVideo;
     QPushButton* mWaitingRoomShow;
+    QPushButton* mRaiseHandList;
     QPushButton* mAllowJoin;
     QPushButton* mPushWr;
     QPushButton* mKickWr;
@@ -122,6 +123,7 @@ public slots:
     void onSetLimits();
     void onGetLimits();
     void onWrShow();
+    void onRaiseHandList();
     void onAllowJoin();
     void onPushWr();
     void onKickWr();

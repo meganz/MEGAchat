@@ -84,12 +84,6 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
         return;
     }
 
-    if (call->hasUserHandRaised(session.getPeerid()))
-    {
-        mRaiseHandLabel.reset(new QLabel("[RH]"));
-        layout()->addWidget(mRaiseHandLabel.get());
-    }
-
     const bool speakPermission = call->hasUserSpeakPermission(session.getPeerid());
     QPixmap spkPerPixMap = speakPermission
                                ? QApplication::style()->standardPixmap(QStyle::SP_DialogYesButton)
@@ -126,6 +120,12 @@ void MeetingSession::updateWidget(const megachat::MegaChatSession &session)
        mReqSpealLabel.reset(new QLabel());
        mReqSpealLabel->setPixmap(QApplication::style()->standardPixmap(QStyle::SP_MessageBoxQuestion));
        layout()->addWidget(mReqSpealLabel.get());
+    }
+
+    if (call->hasUserHandRaised(session.getPeerid()))
+    {
+       mRaiseHandLabel.reset(new QLabel(QString::fromUtf8("\xE2\x9C\x8B")));
+       layout()->addWidget(mRaiseHandLabel.get());
     }
 }
 
