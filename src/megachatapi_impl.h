@@ -1713,7 +1713,7 @@ public:
     void enableSpeakRequestSupportForCalls(const bool enable);
     void addDelSpeakRequest(MegaChatHandle chatid, MegaChatHandle userid, bool add, MegaChatRequestListener* listener = NULL);
     void requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, int quality, MegaChatRequestListener *listener = NULL);
-    void raiseHandToSpeak(MegaChatHandle chatid, bool add, MegaChatRequestListener* listener);
+    void raiseHandToSpeak(MegaChatHandle chatid, bool add, MegaChatRequestListener* listener = nullptr);
     void stopHiResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void requestLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);
     void stopLowResVideo(MegaChatHandle chatid, mega::MegaHandleList *clientIds, MegaChatRequestListener *listener = NULL);

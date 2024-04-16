@@ -2573,14 +2573,13 @@ int MegaChatApiImpl::performRequest_raiseHandToSpeak(MegaChatRequestPrivate* req
         return MegaChatError::ERROR_ARGS;
     }
 
-    auto res = getCall(request->getChatHandle(), errMsg, false/*isModeratorRoleRequired*/);
-    if (res.first != MegaChatError::ERROR_OK)
+    auto [errCode, call] = getCall(request->getChatHandle(), errMsg, false/*isModeratorRoleRequired*/);
+    if (errCode != MegaChatError::ERROR_OK)
     {
         API_LOG_ERROR("%s - can't get chat call", errMsg.c_str());
-        return res.first;
+        return errCode;
     }
 
-    rtcModule::ICall* call= res.second;
     call->raiseHandToSpeak(add);
     MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
     fireOnChatRequestFinish(request, megaChatError);

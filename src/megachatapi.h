@@ -1207,10 +1207,10 @@ public:
     /**
      * @brief Get a MegaHandleList with the ids of peers that have hand raised to speak in the call
      *
-     * Raise hand status it's non related to speak permission or mute status, it's only a visual indication to show that
+     * Raise hand status is not related to speak permission or mute status, it's only a visual indication to show that
      * an user wants to speak.
      *
-     * This list is ordered by the time they raised their hand (the last element is the user that raised their hand last)
+     * This list is ordered by the time they raised their hand (the last element is the user who last raised their hand)
      *
      * This method always returns a valid instance of MegaHandleList.
      * The MegaChatCall retains the ownership of the returned value.
@@ -7160,7 +7160,7 @@ public:
     /**
      * @brief Raises hand (for all clients of this user) to indicate that we want to speak in a call
      *
-     * Raise hand status it's non related to speak permission or mute status, it's only a visual indication to show that
+     * Raise hand status is not related to speak permission or mute status, it's only a visual indication to show that
      * an user wants to speak.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK
@@ -7182,7 +7182,7 @@ public:
     /**
      * @brief Lowers hand (for all clients of this user) to indicate that we don't want to speak in a call at this moment
      *
-     * Raise hand status it's non related to speak permission or mute status, it's only a visual indication to show that
+     * Raise hand status is not related to speak permission or mute status, it's only a visual indication to show that
      * an user wants to speak.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK
