@@ -101,18 +101,13 @@ set_target_properties(CHATlib PROPERTIES
 # Add definitions for the compiler
 target_compile_definitions(CHATlib
     PRIVATE
-    $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
+        $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
+        $<$<BOOL:${WIN32}>:NOMINMAX> # TODO Fix locally
+        $<$<BOOL:${WIN32}>:$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:MEGA_FULL_STATIC>>
+        $<$<BOOL:${APPLE}>:_DARWIN_C_SOURCE>
     PUBLIC
-    $<$<NOT:$<BOOL:${USE_WEBRTC}>>:KARERE_DISABLE_WEBRTC>
+        $<$<NOT:$<BOOL:${USE_WEBRTC}>>:KARERE_DISABLE_WEBRTC>
 )
-
-if (WIN32)
-    target_compile_definitions(CHATlib
-        PRIVATE
-            NOMINMAX # TODO Fix locally
-            $<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:MEGA_FULL_STATIC>
-    )
-endif()
 
 ## Load and link needed libraries for the CHATlib target ##
 
@@ -140,5 +135,8 @@ if(ENABLE_CHATLIB_WERROR)
         TARGET CHATlib
         UNIX  $<$<CONFIG:Debug>: -Werror
                                  -Wno-error=deprecated-declarations> # Kept as a warning, do not promote to error.
+        APPLE $<$<CONFIG:Debug>: -Wno-sign-conversion                 -Wno-overloaded-virtual
+                                 -Wno-inconsistent-missing-override   -Wno-unused-variable
+                                 -Wno-unused-private-field>
     )
 endif()
