@@ -7541,14 +7541,14 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
  */
 TEST_F(MegaChatApiTest, ScheduledMeetings)
 {
-    unsigned a1 = 0;
-    unsigned a2 = 1;
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
 
     // aux data structure to handle lambdas' arguments
     SchedMeetingData smDataTests1, smDataTests2;
 
     // remove scheduled meeting
-    const auto deleteSchedMeeting = [this, &a1, &a2](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
+    const auto deleteSchedMeeting = [this](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
     {
         bool exitFlag = false;
         mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
@@ -7659,48 +7659,83 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     };
 
     // update scheduled meeting occurrence
-    const auto updateOccurrence = [this, &a1, &a2, &fetchOccurrences, &printOccurrences, &occurrences](const unsigned int index, const unsigned int maxAttempts,
-                                                                      const int expectedError, const int repeatError, const SchedMeetingData& smData) -> void
+    const auto updateOccurrence = [this, &fetchOccurrences, &printOccurrences, &occurrences](
+                                      const unsigned int index,
+                                      const unsigned int maxAttempts,
+                                      const int expectedError,
+                                      const SchedMeetingData& smData) -> void
     {
         bool exitFlag = false;
-        mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
-        mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
+        // reset sched meetings updated flags
+        mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;
+        // reset sched meetings id's (do after assign vars above)
+        mSchedIdUpdated[a1] = mSchedIdUpdated[a2] = MEGACHAT_INVALID_HANDLE;
         int res = MegaChatError::ERROR_UNKNOWN;
 
         // wait for onRequestFinish
         ASSERT_NO_FATAL_FAILURE({
-        waitForAction (1,
-                       std::vector<bool *> { &exitFlag },
-                       std::vector<string> { "TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE[a1]"},
-                       "Updating scheduled meeting occurrence",
-                       true /* wait for all exit flags */,
-                       true /* reset flags */,
-                       maxTimeout,
-                       [&api = megaChatApi[index], &d = smData, &repeatError, &maxAttempts, &exitFlag, &res]()
-                       {
-                            unsigned int attempts = 0;
-                            do
+            waitForAction(
+                1,
+                std::vector<bool*>{&exitFlag},
+                std::vector<string>{"TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE[a1]"},
+                "Updating scheduled meeting occurrence",
+                true /* wait for all exit flags */,
+                true /* reset flags */,
+                maxTimeout,
+                [&api = std::as_const(megaChatApi[index]),
+                 &d = std::as_const(smData),
+                 maxAttempts,
+                 &scmFlag =
+                     requestFlags[index][MegaRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES],
+                 &exitFlag,
+                 &res]()
+                {
+                    for (unsigned int attempts = 0; attempts < maxAttempts; ++attempts)
+                    {
+                        scmFlag = false;
+                        ChatRequestTracker crtUpdateOccurrence(api);
+                        api->updateScheduledMeetingOccurrence(d.chatId,
+                                                              d.schedId,
+                                                              d.overrides,
+                                                              d.newStartDate,
+                                                              d.newEndDate,
+                                                              d.newCancelled,
+                                                              &crtUpdateOccurrence);
+                        res = crtUpdateOccurrence.waitForResult();
+                        if (res != MegaChatError::ERROR_TOOMANY)
+                        {
+                            exitFlag = true;
+                            break;
+                        }
+                        // We need to wait until the fetch is finished or some max time
+                        async::waitForResponse(
+                            [&scmFlag]()
                             {
-                                ChatRequestTracker crtUpdateOccurrence(api);
-                                api->updateScheduledMeetingOccurrence(d.chatId, d.schedId, d.overrides, d.newStartDate, d.newEndDate, d.newCancelled, &crtUpdateOccurrence);
-                                res = crtUpdateOccurrence.waitForResult();
-                                if (res == repeatError && ++attempts < maxAttempts) { continue; }
-                                exitFlag = true;
-                                break;
-                            }
-                            while (1);
-                       });
+                                return scmFlag;
+                            },
+                            30s);
+                    }
+                });
         });
 
         if (res == MegaChatError::ERROR_OK)
         {
             // wait for onChatSchedMeetingUpdate (just in case expectedError is ERROR_OK)
-            waitForMultiResponse(std::vector<bool *> {&mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2]}, true, maxTimeout);
-            ASSERT_NE(mSchedIdUpdated[a1], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting occurrence for primary account could not be updated scheduled meeting id: "
-                                                                    << getSchedIdStrB64(smData.schedId) << " overrides: " << std::to_string(smData.overrides);
+            waitForMultiResponse(
+                std::vector<bool*>{&mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2]},
+                true,
+                maxTimeout);
+            ASSERT_NE(mSchedIdUpdated[a1], MEGACHAT_INVALID_HANDLE)
+                << "Scheduled meeting occurrence for primary account could not be updated "
+                   "scheduled meeting id: "
+                << getSchedIdStrB64(smData.schedId)
+                << " overrides: " << std::to_string(smData.overrides);
 
-            ASSERT_NE(mSchedIdUpdated[a2], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting occurrence for secondary account could not be updated scheduled meeting id: "
-                                                                    << getSchedIdStrB64(smData.schedId) << " overrides: " << std::to_string(smData.overrides);
+            ASSERT_NE(mSchedIdUpdated[a2], MEGACHAT_INVALID_HANDLE)
+                << "Scheduled meeting occurrence for secondary account could not be updated "
+                   "scheduled meeting id: "
+                << getSchedIdStrB64(smData.schedId)
+                << " overrides: " << std::to_string(smData.overrides);
         }
         else
         {
@@ -7708,11 +7743,15 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
             {
                 LOG_err << "Can't update scheduled meeting occurrence, fetching occurrences";
                 ASSERT_NO_FATAL_FAILURE({ fetchOccurrences(a1, MegaChatError::ERROR_OK, smData); });
-                if (occurrences) { printOccurrences(occurrences.get(), MegaChatScheduledMeeting::NUM_OCURRENCES_REQ); }
+                if (occurrences)
+                {
+                    printOccurrences(occurrences.get(),
+                                     MegaChatScheduledMeeting::NUM_OCURRENCES_REQ);
+                }
             }
-            ASSERT_EQ(res, expectedError) << "Unexpected error while updating scheduled meeting occurrence. Error: " << res;
+            ASSERT_EQ(res, expectedError)
+                << "Unexpected error while updating scheduled meeting occurrence. Error: " << res;
         }
-
     };
 
     // get scheduled meeting
@@ -7967,7 +8006,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests2.newStartDate = startDate;
     smDataTests2.newEndDate = endDate;
     smDataTests2.newCancelled = false;
-    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 1/*maxAttempts*/, MegaChatError::ERROR_NOENT, MegaChatError::ERROR_TOOMANY, smDataTests2); });
+    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 1/*maxAttempts*/, MegaChatError::ERROR_NOENT, smDataTests2); });
 
     LOG_debug << "#### Test6. A Updates a scheduled meeting occurrence (new child sched meeting created) ####";
     MegaChatTimeStamp overrides =  startDate;
@@ -7978,7 +8017,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests2.overrides = overrides;
     smDataTests2.newStartDate = auxStartDate;
     smDataTests2.newEndDate = auxEndDate;
-    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 3/*maxAttempts*/, MegaChatError::ERROR_OK, MegaChatError::ERROR_TOOMANY, smDataTests2); });
+    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 3/*maxAttempts*/, MegaChatError::ERROR_OK, smDataTests2); });
     auto sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatid, mSchedIdUpdated[a1]));
     ASSERT_TRUE(sched);
     ASSERT_EQ(sched->parentSchedId(), schedId) << "Child scheduled meeting for primary account has not been received scheduled meeting id: " <<  getSchedIdStrB64(schedId);
@@ -8030,7 +8069,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests2.schedId = childSchedId;
     smDataTests2.overrides = overrides;
     smDataTests2.newCancelled = true;
-    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 3/*maxAttempts*/, MegaChatError::ERROR_OK, MegaChatError::ERROR_TOOMANY, smDataTests2); });
+    ASSERT_NO_FATAL_FAILURE({ updateOccurrence(a1, 3/*maxAttempts*/, MegaChatError::ERROR_OK, smDataTests2); });
     sched = std::unique_ptr<MegaChatScheduledMeeting>(megaChatApi[a1]->getScheduledMeeting(chatid, mSchedIdUpdated[a1]));
     ASSERT_TRUE(sched);
     ASSERT_EQ(sched->schedId(), childSchedId) << "Scheduled meeting id: " << getSchedIdStrB64(schedId)
