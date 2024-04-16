@@ -320,6 +320,18 @@ bool Command::parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::
     return true;
 }
 
+uint64_t Command::parseHandle(const rapidjson::Document &command, const std::string paramName, const uint64_t defaultValue) const
+{
+    uint64_t h = defaultValue;
+    rapidjson::Value::ConstMemberIterator handleIterator = command.FindMember(paramName.c_str());
+    if (handleIterator != command.MemberEnd() && handleIterator->value.IsString())
+    {
+        std::string handleString = handleIterator->value.GetString();
+        h = ::mega::MegaApi::base64ToUserHandle(handleString.c_str());
+    }
+    return h;
+}
+
 void Command::parseTracks(const rapidjson::Document& command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const
 {
     // expected track array format: [[3 (cid), 2(mid), 1(reuse)]...]
@@ -2930,16 +2942,8 @@ RaiseHandAddCommand::RaiseHandAddCommand(const RaiseHandAddCommandFunction& comp
 
 bool RaiseHandAddCommand::processCommand(const rapidjson::Document& command)
 {
-    ::mega::MegaHandle userId = karere::Id::null();
-    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
-    if (reasonIterator != command.MemberEnd() && reasonIterator->value.IsString())
-    {
-        std::string userIdString = reasonIterator->value.GetString();
-        userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
-    }
-    // else => if user no present, this command is about own user (provide Id::null)
-
-    return mComplete(userId);
+    // if user no present, this command is about own user (provide Id::null)
+    return mComplete(parseHandle(command, "user", karere::Id::null().val));
 }
 
 RaiseHandDelCommand::RaiseHandDelCommand(const RaiseHandDelCommandFunction& complete, SfuInterface& call)
@@ -2950,16 +2954,8 @@ RaiseHandDelCommand::RaiseHandDelCommand(const RaiseHandDelCommandFunction& comp
 
 bool RaiseHandDelCommand::processCommand(const rapidjson::Document& command)
 {
-    ::mega::MegaHandle userId = karere::Id::null();
-    rapidjson::Value::ConstMemberIterator reasonIterator = command.FindMember("user");
-    if (reasonIterator != command.MemberEnd() && reasonIterator->value.IsString())
-    {
-        std::string userIdString = reasonIterator->value.GetString();
-        userId = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
-    }
-    // else => if user no present, this command is about own user (provide Id::null)
-
-    return mComplete(userId);
+    // if user no present, this command is about own user (provide Id::null)
+    return mComplete(parseHandle(command, "user", karere::Id::null().val));
 }
 
 ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)
