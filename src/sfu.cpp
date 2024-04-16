@@ -308,8 +308,8 @@ bool Command::parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::
             return false;
         }
         std::string userIdString = it->value[j].GetString();
-        const uint64_t uh = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
-        users.emplace_back(::mega::MegaApi::base64ToUserHandle(userIdString.c_str()));
+        const karere::Id uh = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+        users.push_back(uh);
         if (!allowDuplicates && !duplicatedUsers.emplace(uh).second)
         {
             SFU_LOG_ERROR("parse users array: duplicated users");
@@ -599,8 +599,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator rhIterator = command.FindMember("rhands");
     if (rhIterator != command.MemberEnd() && rhIterator->value.IsArray())
     {
-        auto res = parseUsersArrayInOrder(raiseHands, rhIterator, false /*allowDuplicates=*/);
-        if (!res)
+        if (auto parseSucceed = parseUsersArrayInOrder(raiseHands, rhIterator, false /*allowDuplicates=*/); !parseSucceed)
         {
             SFU_LOG_ERROR("AnswerCommand::processCommand: 'rhands' wrong format");
             assert(false);
