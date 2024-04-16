@@ -1063,9 +1063,9 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
         clearTemporalVars();
         recvIdx.emplace(idx);
         ExitBoolFlags eF;
-        std::for_each(recvIdx.begin(), recvIdx.end(), [this, addRh = std::as_const(add), &eF](const auto i)
+        std::for_each(recvIdx.begin(), recvIdx.end(), [this, add, &eF](const auto i)
         {
-            if (addRh)
+            if (add)
             {
                 addBoolVarAndExitFlag(i, eF, "raisedHand", false);
                 addHandleVar(i, "raisedHandUh", MEGACHAT_INVALID_HANDLE);

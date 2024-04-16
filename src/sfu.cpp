@@ -320,7 +320,7 @@ bool Command::parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::
     return true;
 }
 
-uint64_t Command::parseHandle(const rapidjson::Document &command, const std::string paramName, const uint64_t defaultValue) const
+uint64_t Command::parseHandle(const rapidjson::Document &command, const std::string& paramName, const uint64_t defaultValue) const
 {
     uint64_t h = defaultValue;
     rapidjson::Value::ConstMemberIterator handleIterator = command.FindMember(paramName.c_str());

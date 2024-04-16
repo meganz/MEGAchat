@@ -315,7 +315,7 @@ public:
     void parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it) const;
     bool parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it, const bool allowDuplicates) const;
     void parseTracks(const rapidjson::Document &command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const;
-    uint64_t parseHandle(const rapidjson::Document &command, const std::string paramName, const uint64_t defaultValue) const;
+    uint64_t parseHandle(const rapidjson::Document &command, const std::string& paramName, const uint64_t defaultValue) const;
 
 protected:
     Command(SfuInterface& call);
