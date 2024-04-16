@@ -241,7 +241,7 @@ public:
     virtual void requestLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
     virtual void stopLowResolutionVideo(std::vector<Cid_t> &cids) = 0;
 
-    virtual std::set<karere::Id> getSpeakRequestsList() const = 0;
+    virtual const std::vector<karere::Id>& getSpeakRequestsList() const = 0;
     virtual std::set<karere::Id> getSpeakersList() const = 0;
     virtual std::set<karere::Id> getParticipants() const = 0;
     virtual std::set<karere::Id> getModerators() const = 0;

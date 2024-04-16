@@ -587,11 +587,17 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     // lists with the user handles of users that have pending speak requests
-    std::set<karere::Id> speakReqs;
+    std::vector<karere::Id> speakReqs;
     rapidjson::Value::ConstMemberIterator spkReqIterator = command.FindMember("spkrqs");
     if (spkReqIterator != command.MemberEnd() && spkReqIterator->value.IsArray())
     {
-        parseUsersArray(speakReqs, spkReqIterator);
+        auto res = parseUsersArrayInOrder(speakReqs, spkReqIterator, false /*allowDuplicates=*/);
+        if (!res)
+        {
+            SFU_LOG_ERROR("AnswerCommand::processCommand: 'spkrqs' wrong format");
+            assert(false);
+            return false;
+        }
     }
 
     // lists with the user handles of all users that have raised hand to speak

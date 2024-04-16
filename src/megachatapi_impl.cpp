@@ -8210,10 +8210,11 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 
     // always create a valid instance of MegaHandleList
     mSpeakRequestsList.reset(::mega::MegaHandleList::createInstance());
-    for (const auto &speakReq: call.getSpeakRequestsList())
+    const auto& spkrList = call.getSpeakRequestsList();
+    std::for_each(spkrList.begin(), spkrList.end(), [this](const auto& uh)
     {
-        mSpeakRequestsList->addMegaHandle(speakReq);
-    }
+        mSpeakRequestsList->addMegaHandle(uh.val);
+    });
 
     mRinging = call.isRinging();
     mOwnModerator = call.isOwnPrivModerator();
