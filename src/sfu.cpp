@@ -2169,9 +2169,13 @@ bool SfuConnection::raiseHandToSpeak(const bool add)
 {
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value cmdValue(rapidjson::kStringType);
-    const std::string& cmd = add ? SfuConnection::CSFU_RHAND_ADD.c_str() : SfuConnection::CSFU_RHAND_DEL.c_str();
+    const std::string& cmd = add ? SfuConnection::CSFU_RHAND_ADD : SfuConnection::CSFU_RHAND_DEL;
     cmdValue.SetString(cmd.c_str(), json.GetAllocator());
-    json.AddMember(rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(), static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())), cmdValue, json.GetAllocator());
+    json.AddMember(
+        rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(),
+                         static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())),
+        cmdValue,
+        json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);

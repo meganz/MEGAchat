@@ -358,9 +358,17 @@ public:
 class AnswerCommand : public Command
 {   // "ANSWER"
 public:
-    typedef std::function<bool(Cid_t, std::shared_ptr<Sdp>, uint64_t, std::vector<Peer>&, const std::map<Cid_t, std::string>&,
-                               std::map<Cid_t, TrackDescriptor>&, const std::set<karere::Id>&,
-                               const std::set<karere::Id>&, const std::vector<karere::Id>&, std::map<Cid_t, uint32_t>&)> AnswerCompleteFunction;
+    typedef std::function<bool(Cid_t,
+                               std::shared_ptr<Sdp>,
+                               uint64_t,
+                               std::vector<Peer>&,
+                               const std::map<Cid_t, std::string>&,
+                               std::map<Cid_t, TrackDescriptor>&,
+                               const std::set<karere::Id>&,
+                               const std::set<karere::Id>&,
+                               const std::vector<karere::Id>&,
+                               std::map<Cid_t, uint32_t>&)>
+        AnswerCompleteFunction;
     AnswerCommand(const AnswerCompleteFunction& complete, SfuInterface& call);
     bool processCommand(const rapidjson::Document& command) override;
     static const std::string COMMAND_NAME;

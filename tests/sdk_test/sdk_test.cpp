@@ -1085,7 +1085,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                       true /* wait for all exit flags */,
                       true /* reset flags */,
                       minTimeout * 2, // 2 min
-                      [this, &chatid = mData.mChatid, &add, &idx]()
+                      [this, chatid = mData.mChatid, add, idx]()
                       {
                           ChatRequestTracker crtRaiseHand(megaChatApi[idx]);
                           add
@@ -1093,7 +1093,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                               : megaChatApi[idx]->lowerHandToStopSpeak(chatid, &crtRaiseHand);
 
                           ASSERT_EQ(crtRaiseHand.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to " << (add ? "Raise" : "Lower ")
+                              << "Failed to " << (add ? "Raise " : "Lower ")
                               << "hand. Error: " << crtRaiseHand.getErrorString();
                       }
         );
@@ -1105,7 +1105,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                                          : handleVars().getVar(i, "loweredHandUh");
 
             ASSERT_TRUE(recvUh) << "Can't get " << (add ? "raisedHandUh" : "loweredHandUh")
-                                << "for " << std::to_string(i);
+                                << " for " << std::to_string(i);
             ASSERT_EQ(*recvUh, uh) << "Unexpected Uh received";
         }
 
@@ -1130,7 +1130,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     };
     MegaMrProper p (testCleanup);
 
-    // login into all involved accounts for this test, and establish required contact relationships
+    // login into all involved accounts for this test and establish required contact relationships
     // Note: all involved accounts in this test, must be added to mSessions and mAccounts
     const unsigned a1 = 0;
     const unsigned a2 = 1;
