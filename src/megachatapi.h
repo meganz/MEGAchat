@@ -23,6 +23,7 @@
 #define MEGACHATAPI_H
 
 
+#include <limits>
 #include <megaapi.h>
 
 namespace mega { class MegaApi; }
@@ -531,12 +532,6 @@ public:
     };
 
     enum {
-        AUDIO = 0,
-        VIDEO = 1,
-        ANY_FLAG = 2
-    };
-
-    enum {
         PEER_REMOVED = -1,
         NO_COMPOSITION_CHANGE = 0,
         PEER_ADDED = 1,
@@ -654,15 +649,16 @@ public:
     virtual bool hasLocalAudio() const;
 
     /**
-     * @brief Return video state for local
+     * @brief Return if local video flags are enabled (own peer video is enabled or not)
      *
-     * @return true if video is enable, false if video is disable
+     * @return true if local video flags are enabled (own peer video is enabled or not)
      */
     virtual bool hasLocalVideo() const;
 
     /**
-     * @brief hasLocalScreenShare
-     * @return
+     * @brief Return if local screen share flags are enabled (own peer screen share is enabled or not)
+     *
+     * @return true if local screen share flags are enabled (own peer screen share is enabled or not)
      */
     virtual bool hasLocalScreenShare() const;
 
@@ -2634,9 +2630,9 @@ public:
     };
 
     enum {
-        AUDIO = 0,
-        VIDEO = 1,
-        SCREEN = 2,
+        AUDIO_FLAGS = 0,
+        VIDEO_FLAGS = 1,
+        SCREEN_FLAGS = 2,
     };
 
     virtual ~MegaChatRequest();
@@ -2841,10 +2837,12 @@ public:
      * @brief Returns the type of parameter related to the request
      *
      * This value is valid for these requests:
-     * - MegaChatApi::enableAudio - Returns MegaChatRequest::AUDIO
-     * - MegaChatApi::disableAudio - Returns MegaChatRequest::AUDIO
-     * - MegaChatApi::enableVideo - Returns MegaChatRequest::VIDEO
-     * - MegaChatApi::disableVideo - Returns MegaChatRequest::VIDEO
+     * - MegaChatApi::enableAudio - Returns MegaChatRequest::AUDIO_FLAGS
+     * - MegaChatApi::disableAudio - Returns MegaChatRequest::AUDIO_FLAGS
+     * - MegaChatApi::enableVideo - Returns MegaChatRequest::VIDEO_FLAGS
+     * - MegaChatApi::disableVideo - Returns MegaChatRequest::VIDEO_FLAGS
+     * - MegaChatApi::enableScreenShare - Returns MegaChatRequest::SCREEN_FLAGS
+     * - MegaChatApi::disableScreenShare - Returns MegaChatRequest::SCREEN_FLAGS
      * - MegaChatApi::attachVoiceMessage - Returns one
      * - MegaChatApi::attachNode - Returns zero
      * - MegaChatApi::retryPendingConnections - Returns one for refreshUrl
@@ -3275,17 +3273,17 @@ public:
 
     enum
     {
-        TYPE_CAPTURER_UNKNOWN   = -1,   // unkown capturer device
-        TYPE_CAPTURER_VIDEO     = 0,    // camera capturer device
-        TYPE_CAPTURER_SCREEN    = 1,    // screen capturer device
+        TYPE_CAPTURER_UNKNOWN   = -1,
+        TYPE_CAPTURER_VIDEO     = 0,
+        TYPE_CAPTURER_SCREEN    = 1,
     };
 
     enum
     {
-        TYPE_VIDEO_SOURCE_UNKNOWN          = -1,   // unkown video source
-        TYPE_VIDEO_SOURCE_LOCAL_CAMERA     = 0,    // local camera video
-        TYPE_VIDEO_SOURCE_LOCAL_SCREEN     = 1,    // local screen video
-        TYPE_VIDEO_SOURCE_REMOTE           = 2,    // remote video
+        TYPE_VIDEO_SOURCE_UNKNOWN          = -1,
+        TYPE_VIDEO_SOURCE_LOCAL_CAMERA     = 0,
+        TYPE_VIDEO_SOURCE_LOCAL_SCREEN     = 1,
+        TYPE_VIDEO_SOURCE_REMOTE           = 2,
     };
 
     // Invalid value for number of simultaneous video tracks the call supports.
@@ -3293,6 +3291,12 @@ public:
 
     // SFUID default value. API will start calls in SFU server it consider
     static constexpr int SFU_ID_DEFAULT = -1;
+
+    // client Id that can represent our own client to differenciate video from a remote peer
+    static constexpr int LOCAL_CLIENT_ID_FOR_VIDEO = 0;
+
+    // invalid screen device id
+    static constexpr long SCREEN_INVALID_DEVICE_ID = std::numeric_limits<long>::max();
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
@@ -6235,19 +6239,32 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getText - Returns the device
      *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If input device does not exist.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     * - If WebRTC is not initialized
+     *
      * @param device Identifier of device to be selected
      * @param listener MegaChatRequestListener to track this request
      */
     void setScreenInDevice(const char *device, MegaChatRequestListener *listener =  NULL);
 
     /**
-     * @brief Returns the camera selected device Id
+     * @brief Returns the camera selected device Id if any
      *
-     * You take the ownership of the returned value
+     * You take the ownership of the returned value (it can be NULL)
      *
-     * @return Camera selected device Id
+     * @return Camera selected device Id if any
      */
-    char *getCameraDeviceIdSelected();
+    char* getCameraDeviceIdSelected();
+
+    /**
+     * @brief Returns the screen selected device Id if any
+     *
+     * @return Screen selected device Id if any, or MegaChatApi::SCREEN_INVALID_DEVICE_ID
+     */
+    long getScreenDeviceIdSelected() const;
 
     // Call management
     /**
@@ -6625,29 +6642,19 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
-     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO_FLAGS
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call sending audio already (no more audio slots are available).
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
+     * - MegaChatError::ERROR_ACCESS  - if you don't have speak permission or you don't participate in the call
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
     void enableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
-
-    /**
-     * @brief enableScreenShare
-     * @param chatid
-     * @param listener
-     */
-    void enableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener  = NULL);
-
-    /**
-     * @brief disableScreenShare
-     * @param chatid
-     * @param listener
-     */
-    void disableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Disable audio for a call that is in progress
@@ -6656,12 +6663,52 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns false
-     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO_FLAGS
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
+     * - MegaChatError::ERROR_ACCESS  - if you don't have speak permission or you don't participate in the call
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
      */
     void disableAudio(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
+
+    /**
+     * @brief Enables screen share for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::SCREEN_FLAGS
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
+     * - MegaChatError::ERROR_ACCESS  - if you don't have speak permission or you don't participate in the call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void enableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener  = NULL);
+
+    /**
+     * @brief Disables screen share for a call that is in progress
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns false
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::SCREEN_FLAGS
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
+     * - MegaChatError::ERROR_ACCESS  - if you don't have speak permission or you don't participate in the call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void disableScreenShare(MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
 
     /**
      * @brief Enable video for a call that is in progress
@@ -6670,10 +6717,14 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
-     * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
+     * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO_FLAGS
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call sending video already (no more video slots are available).
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
+     * - MegaChatError::ERROR_ACCESS  - if you don't have speak permission or you don't participate in the call
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -6687,7 +6738,11 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns false
-     * - MegaChatRequest::getParamType - Returns MegachatRequest::VIDEO
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::VIDEO_FLAGS
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
+     * - MegaChatError::ERROR_ACCESS  - if you don't have speak permission or you don't participate in the call
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatRequestListener to track this request
@@ -6932,6 +6987,9 @@ public:
      *
      * @note App is responsible to release device and remove MegaChatVideoListener
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS  - if WebRTC is not initialized
+     *
      * @param listener MegaChatRequestListener to track this request
      */
     void openVideoDevice(MegaChatRequestListener *listener = NULL);
@@ -6943,19 +7001,38 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns false close device
      *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS  - if WebRTC is not initialized
+     *
      * @param listener MegaChatRequestListener to track this request
      */
     void releaseVideoDevice(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief openScreenDevice
-     * @param listener
+     * @brief Opens screen capturer device
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns true opens device
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS  - if WebRTC is not initialized
+     *
+     * @param listener MegaChatRequestListener to track this request
      */
     void openScreenDevice(MegaChatRequestListener *listener = NULL);
 
     /**
-     * @brief releaseScreenDevice
-     * @param listener
+     * @brief Releases screen capturer device
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_OPEN_VIDEO_DEVICE
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getFlag - Returns false opens device
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ACCESS  - if WebRTC is not initialized
+     *
+     * @param listener MegaChatRequestListener to track this request
      */
     void releaseScreenDevice(MegaChatRequestListener *listener = NULL);
 
@@ -7535,12 +7612,9 @@ public:
     void removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
-     * @brief Register a listener to receive video from local screen device for an specific chat room
+     * @brief Unregister a local MegaChatVideoListener to start receiving video from local screen device for an specific chat room
      *
      * You can use MegaChatApi::removeChatLocalScreenVideoListener to stop receiving events.
-     *
-     * @note if we want to receive video before start a call (openVideoDevice), we have to
-     * register a MegaChatVideoListener with chatid = MEGACHAT_INVALID_HANDLE
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener MegaChatVideoListener that will receive local video
@@ -7548,11 +7622,9 @@ public:
     void addChatLocalScreenVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
-     * @brief Unregister a local MegaChatVideoListener for screen frames
+     * @brief Unregister a local MegaChatVideoListener to stop receiving video from local screen device for an specific chat room
      *
-     * This listener won't receive more events.
-     * @note if we want to remove the listener added to receive video frames (from screen) before
-     * start a call we have to use chatid = MEGACHAT_INVALID_HANDLE
+     * This listener won't receive more events
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param listener Object that is unregistered

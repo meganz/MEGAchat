@@ -1,5 +1,4 @@
 #ifndef KARERE_DISABLE_WEBRTC
-#include <variant>
 #include <mega/types.h>
 #include <mega/base64.h>
 #include <rtcmPrivate.h>
@@ -450,6 +449,7 @@ void Call::setOnHold()
         mVThumb->getTransceiver()->sender()->SetTrack(nullptr);
     }
 
+    // release both capturer devices (in case they are in use)
     releaseCameraDevice();
     releaseScreenDevice();
 }
@@ -3633,9 +3633,9 @@ Call::verifySignature(const Cid_t cid, const uint64_t userid, const std::string&
 
 void Call::updateVideoTracks()
 {
-    bool isOnHold = getLocalAvFlags().isOnHold();
-    bool hasCameraFlags = getLocalAvFlags().camera();
-    bool hasScreenFlags = getLocalAvFlags().screenShare();
+    const bool isOnHold = getLocalAvFlags().isOnHold();
+    const bool hasCameraFlags = getLocalAvFlags().camera();
+    const bool hasScreenFlags = getLocalAvFlags().screenShare();
 
     if ((!hasCameraFlags && !hasScreenFlags) || isOnHold)
     {
@@ -3667,7 +3667,7 @@ void Call::updateVideoTracks()
             {
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getScreenDevice()->getVideoTrackSource());
             }
-            else if (hasCameraFlags)
+            else if (hasCameraFlags) // only camera flags enabled
             {
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getCameraDevice()->getVideoTrackSource());
             }
@@ -3694,7 +3694,7 @@ void Call::updateVideoTracks()
             {
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getCameraDevice()->getVideoTrackSource());
             }
-            else if (hasScreenFlags)
+            else if (hasScreenFlags) // only screen flags enabled
             {
                 videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getScreenDevice()->getVideoTrackSource());
             }
@@ -3878,12 +3878,13 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScach
         RTCM_LOG_DEBUG("WebRTC stack initialized before first use");
     }
 
-    mSelectedCameraDeviceId = getDefaultCameraDevice();
-    mSelectedScreenDeviceId = getDefaultScreenDevice();
+    mSelectedCameraDeviceId = getDefaultCameraDeviceId();
     mCameraDeviceTakenCount = 0;
+    mSelectedScreenDeviceId = getDefaultScreenDeviceId();
+    mScreenDeviceTakenCount = 0;
 }
 
-std::optional<std::string> RtcModuleSfu::getDefaultCameraDevice()
+std::optional<std::string> RtcModuleSfu::getDefaultCameraDeviceId()
 {
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoCapturerManager::getCameraDevices();
     if (videoDevices.empty())
@@ -3893,7 +3894,7 @@ std::optional<std::string> RtcModuleSfu::getDefaultCameraDevice()
     return videoDevices.begin()->second;
 }
 
-std::optional<long int> RtcModuleSfu::getDefaultScreenDevice()
+std::optional<long int> RtcModuleSfu::getDefaultScreenDeviceId()
 {
     auto screenDevices = artc::VideoCapturerManager::getScreenDevices();
     if (screenDevices.empty())
@@ -4182,6 +4183,11 @@ const std::optional<std::string>& RtcModuleSfu::getCameraDeviceIdSelected() cons
     return mSelectedCameraDeviceId;
 }
 
+const std::optional<long int>& RtcModuleSfu::getScreenDeviceIdSelected() const
+{
+    return mSelectedScreenDeviceId;
+}
+
 sfu::SfuClient& RtcModuleSfu::getSfuClient()
 {
     return (*mSfuClient.get());
@@ -4438,7 +4444,7 @@ void RtcModuleSfu::openCameraDevice()
         assert(false);
 #endif
         // Try to get default (it already set in the constructor but just in case)
-        mSelectedCameraDeviceId = getDefaultCameraDevice();
+        mSelectedCameraDeviceId = getDefaultCameraDeviceId();
         // If not present now, return
         if (!mSelectedCameraDeviceId)
         {
@@ -4476,7 +4482,7 @@ void RtcModuleSfu::openScreenDevice()
     {
         RTCM_LOG_WARNING("openScreenDevice: default screen in device is not set");
         // Try to get default (it already set in the constructor but just in case)
-        mSelectedScreenDeviceId = getDefaultScreenDevice();
+        mSelectedScreenDeviceId = getDefaultScreenDeviceId();
         // If not present now, return
         if (!mSelectedScreenDeviceId)
         {

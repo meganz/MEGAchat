@@ -282,6 +282,7 @@ public:
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
     virtual const std::optional<std::string>& getCameraDeviceIdSelected() const = 0;
+    virtual const std::optional<long int>& getScreenDeviceIdSelected() const = 0;
     virtual sfu::SfuClient& getSfuClient() = 0;
     virtual DNScache& getDnsCache() = 0;
 

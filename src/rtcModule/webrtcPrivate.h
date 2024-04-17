@@ -99,10 +99,10 @@ class VideoSink : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public kar
 public:
     enum
     {
-        Rtc_Type_Video_source_Unknown          = -1,   // unkown frame type
-        Rtc_Type_Video_source_Local_Camera     = 0,    // local camera frame
-        Rtc_Type_Video_source_Local_Screen     = 1,    // local screen frame
-        Rtc_Type_Video_source_Remote           = 2,    // remote frame
+        Rtc_Type_Video_source_Unknown          = -1,
+        Rtc_Type_Video_source_Local_Camera     = 0,
+        Rtc_Type_Video_source_Local_Screen     = 1,
+        Rtc_Type_Video_source_Remote           = 2,
     };
 
     VideoSink(void* appCtx);
@@ -823,8 +823,9 @@ public:
 
     static std::optional<InputDevice> inputDeviceFactory(const int type)
     {
-        if (type == 0) { return VideoDevice(); }
-        if (type == 1) { return ScreenDevice(); }
+        auto t = static_cast<RtcDevType>(type);
+        if (t == RtcDevType::TYPE_CAPTURER_CAMERA) { return VideoDevice();  }
+        if (t == RtcDevType::TYPE_CAPTURER_SCREEN) { return ScreenDevice(); }
         return std::nullopt;
     }
 
@@ -851,6 +852,7 @@ public:
     std::vector<karere::Id> chatsWithCall() override;
     unsigned int getNumCalls() override;
     const std::optional<std::string>& getCameraDeviceIdSelected() const override;
+    const std::optional<long int>& getScreenDeviceIdSelected() const override;
     sfu::SfuClient& getSfuClient() override;
     DNScache& getDnsCache() override;
 
@@ -891,8 +893,8 @@ private:
     // selected device id for screen capturer device (numeric format)
     std::optional<long int> mSelectedScreenDeviceId = std::nullopt;
 
-    std::optional<std::string> getDefaultCameraDevice();
-    std::optional<long int> getDefaultScreenDevice();
+    std::optional<std::string> getDefaultCameraDeviceId();
+    std::optional<long int> getDefaultScreenDeviceId();
 
     rtc::scoped_refptr<artc::VideoCapturerManager> mCameraCapturerDevice;
     // count of times the device(Camera) has been taken (without being released)

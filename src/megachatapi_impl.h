@@ -1678,6 +1678,7 @@ public:
     mega::MegaStringList *getChatVideoInDevices();
     void setVideoCapturerInDevice(const char* device, const int type, MegaChatRequestListener* listener = NULL);
     char *getCameraDeviceIdSelected();
+    long getScreenDeviceIdSelected() const;
 
     // Calls
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, bool notRinging = false, MegaChatRequestListener *listener = NULL);

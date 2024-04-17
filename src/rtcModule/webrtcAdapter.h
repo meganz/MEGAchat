@@ -449,12 +449,13 @@ public:
     // ---- DesktopCapturer::Callback methods ----
     void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame) override
     {
+        // this method is analogous to VideoSinkInterface::onFrame
         auto isValidDesktopFrame = [](const webrtc::DesktopFrame* frame)-> bool
         {
             if (!frame) { return false; }
-            int width = frame->size().width();
-            int height = frame->size().height();
-            int len = frame->size().height() * frame->stride();
+            const int width = frame->size().width();
+            const int height = frame->size().height();
+            const int len = frame->size().height() * frame->stride();
             return (len == width * height * 4); // expected ARGB frame format
         };
 
