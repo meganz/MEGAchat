@@ -883,7 +883,7 @@ std::set<karere::Id> Call::getSpeakersList() const
     return mSpeakers;
 }
 
-std::set<karere::Id> Call::getSpeakRequestsList() const
+const std::vector<karere::Id>& Call::getSpeakRequestsList() const
 {
     return mSpeakRequests;
 }
@@ -1458,7 +1458,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
                                const std::set<karere::Id>& speakers,
-                               const std::set<karere::Id>& speakReqs,
+                               const std::vector<karere::Id>& speakReqs,
                                const std::vector<karere::Id>& raiseHands,
                                const std::map<Cid_t, uint32_t>& amidmap)
 {

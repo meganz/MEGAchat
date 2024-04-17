@@ -253,7 +253,7 @@ public:
     virtual bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) = 0;   // audio/video/on-hold flags
     virtual bool handleAnswerCommand(Cid_t cid, std::shared_ptr<Sdp> spd, uint64_t, std::vector<Peer>& peers, const std::map<Cid_t, std::string>& keystrmap,
                                      const std::map<Cid_t, TrackDescriptor>& vthumbs,
-                                     const std::set<karere::Id>& speakers, const std::set<karere::Id>& speakReqs,
+                                     const std::set<karere::Id>& speakers, const std::vector<karere::Id>& speakReqs,
                                      const std::vector<karere::Id>& raiseHands,
                                      const std::map<Cid_t, uint32_t>& amidmap) = 0;
     virtual bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) = 0;
@@ -366,7 +366,7 @@ public:
                                const std::map<Cid_t, std::string>&,
                                std::map<Cid_t, TrackDescriptor>&,
                                const std::set<karere::Id>&,
-                               const std::set<karere::Id>&,
+                               const std::vector<karere::Id>&,
                                const std::vector<karere::Id>&,
                                std::map<Cid_t, uint32_t>&)>
         AnswerCompleteFunction;

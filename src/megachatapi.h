@@ -1387,6 +1387,8 @@ public:
      *
      * This method will return a valid MegaHandleList instance even if speak requests list doesn't contain any element
      *
+     * This list is ordered by the time they requested to speak (the last element is the user that requested to speak last)
+     *
      * The MegaChatCall retains the ownership of returned value
      *
      * @return a MegaHandleList that contains the user handles of all non-moderator users that have
