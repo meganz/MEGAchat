@@ -6690,19 +6690,18 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     {
         // A grants permission to B for joining call
         mUsersAllowJoin[a1].clear();
-        bool* allowJoin = &mUsersAllowJoin[a1][uh]; *allowJoin = false; // important to initialize, otherwise key won't exists on map
+
+        ExitBoolFlags eF;
+        addBoolVarAndExitFlag(a1, eF, "CallWrUsersLeave", false); // a1  - onChatCallUpdate(CHANGE_TYPE_WR_USERS_LEAVE)
+        addBoolVarAndExitFlag(a2, eF, "CallWrAllow", false);      // a2  - onChatCallUpdate(CHANGE_TYPE_WR_ALLOW)
+        addBoolVarAndExitFlag(a2, eF, "CallInProgress", false);   // a2  - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+
         ASSERT_NO_FATAL_FAILURE(
-            waitForAction (1,
-                          std::vector<bool *> {allowJoin,
-                              &mCallWrAllow[a2]
-                          },
-                          std::vector<string> {
-                              "allowJoin",
-                              "&mCallWrAllow[a2]"
-                          },
-                          "grants B Join permission to call from A",
-                          true /* wait for all exit flags*/,
-                          true /*reset flags*/,
+            waitForAction (1,  /* just one attempt */
+                          eF,
+                          "grants to Join permission to call from waiting room",
+                          true /* wait for all exit flags */,
+                          true /* reset flags */,
                           maxTimeout,
                           [this, a1, chatid, uh](){
                               ChatRequestTracker crtAllowJoin(megaChatApi[a1]);
@@ -6712,7 +6711,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                               ASSERT_EQ(crtAllowJoin.waitForResult(), MegaChatError::ERROR_OK)
                                   << "Failed to allow join users from WR. Error: " << crtAllowJoin.getErrorString();
                           });
-        );
+            );
     };
 
     auto pushIntoWr = [this, a1, a2, chatid, uh]()
@@ -10236,12 +10235,19 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_ALLOW))
     {
-         mCallWrAllow[apiIndex] = true;
+        mCallWrAllow[apiIndex] = true;
+        boolVars().updateIfExists(apiIndex, "CallWrAllow", true);
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_DENY))
     {
          mCallWrDeny[apiIndex] = true;
+    }
+
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE))
+    {
+        boolVars().updateIfExists(apiIndex, "CallWrUsersLeave", true);
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW))
