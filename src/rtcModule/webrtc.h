@@ -175,6 +175,8 @@ public:
     virtual void onCallDeny(const rtcModule::ICall& call, const std::string& cmd, const std::string& msg) = 0;
     virtual void onUserSpeakStatusUpdate(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
     virtual void onSpeakRequest(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
+    virtual void onRaiseHandAddedRemoved(const rtcModule::ICall& call, const karere::Id& userid, const bool add) = 0;
+
 };
 
 class KarereWaitingRoom;
@@ -227,6 +229,7 @@ public:
     virtual void setCallerId(const karere::Id &callerid) = 0;
     virtual bool alreadyParticipating() = 0;
     virtual void addOrRemoveSpeaker(const karere::Id& user, const bool add) = 0;
+    virtual void raiseHandToSpeak(const bool add) = 0;
     virtual void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const = 0;
     virtual void kickUsersFromCall(const std::set<karere::Id>& users) const = 0;
@@ -243,6 +246,7 @@ public:
     virtual std::set<karere::Id> getParticipants() const = 0;
     virtual std::set<karere::Id> getModerators() const = 0;
     virtual std::vector<Cid_t> getSessionsCids() const = 0;
+    virtual const std::vector<karere::Id>& getRaiseHandsList() const = 0;
     virtual ISession* getIsession(Cid_t cid) const = 0;
     virtual bool isOutgoing() const = 0;
     virtual int64_t getCallInitialTimeStamp() const = 0;

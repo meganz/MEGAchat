@@ -2562,6 +2562,30 @@ int MegaChatApiImpl::performRequest_hiResVideo(MegaChatRequestPrivate* request)
         }
 }
 
+int MegaChatApiImpl::performRequest_raiseHandToSpeak(MegaChatRequestPrivate* request)
+{
+    const handle chatid = request->getChatHandle();
+    const bool add = request->getFlag();
+    const std::string errMsg = {"MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK" + std::string(add ? "(ADD)" : "(DEL)")};
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("%s - Invalid chatid", errMsg.c_str());
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    auto [errCode, call] = getCall(request->getChatHandle(), errMsg, false/*isModeratorRoleRequired*/);
+    if (errCode != MegaChatError::ERROR_OK)
+    {
+        API_LOG_ERROR("%s - can't get chat call", errMsg.c_str());
+        return errCode;
+    }
+
+    call->raiseHandToSpeak(add);
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
+}
+
 int MegaChatApiImpl::performRequest_lowResVideo(MegaChatRequestPrivate* request)
 {
     // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
@@ -6525,6 +6549,16 @@ void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cl
     waiter->notify();
 }
 
+void MegaChatApiImpl::raiseHandToSpeak(MegaChatHandle chatid, bool add, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(add);
+    request->setPerformRequest([this, request]() { return performRequest_raiseHandToSpeak(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::stopHiResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
@@ -8159,6 +8193,14 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     }
 
     // always create a valid instance of MegaHandleList
+    mRaiseHandsList.reset(::mega::MegaHandleList::createInstance());
+    const auto& hrList = call.getRaiseHandsList();
+    std::for_each(hrList.begin(), hrList.end(), [this](const auto& uh)
+    {
+        mRaiseHandsList->addMegaHandle(uh.val);
+    });
+
+    // always create a valid instance of MegaHandleList
     mSpeakersList.reset(::mega::MegaHandleList::createInstance());
     for (const auto &speaker: call.getSpeakersList())
     {
@@ -8209,6 +8251,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mWrJoiningState = call.getWrJoiningState();
     mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? call.getWaitingRoom()->copy() : nullptr);
     mModerators.reset(call.getModerators() ? call.getModerators()->copy() : nullptr);
+    mRaiseHandsList.reset(call.getRaiseHandsList() ? call.getRaiseHandsList()->copy() : nullptr);
     mParticipants = call.mParticipants;
     mHandleList.reset(call.getHandleList() ? call.getHandleList()->copy() : nullptr);
     mSpeakersList.reset(call.getSpeakersList() ? call.getSpeakersList()->copy() : nullptr);
@@ -8269,6 +8312,18 @@ int MegaChatCallPrivate::getChanges() const
 bool MegaChatCallPrivate::hasChanged(int changeType) const
 {
     return (mChanged & changeType);
+}
+
+bool MegaChatCallPrivate::hasUserHandRaised(const MegaChatHandle uh) const
+{
+    for (unsigned int i = 0; i < mRaiseHandsList->size(); ++i)
+    {
+        if (mRaiseHandsList->get(i) == uh)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool MegaChatCallPrivate::hasUserSpeakPermission(const MegaChatHandle uh) const
@@ -8447,6 +8502,12 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
 const MegaHandleList* MegaChatCallPrivate::getModerators() const
 {
     return mModerators.get();
+}
+
+
+const MegaHandleList* MegaChatCallPrivate::getRaiseHandsList() const
+{
+    return mRaiseHandsList.get();
 }
 
 bool MegaChatCallPrivate::isIgnored() const
@@ -11579,6 +11640,15 @@ void MegaChatCallHandler::onUserSpeakStatusUpdate(const rtcModule::ICall& call, 
     chatCall->setHandle(userid);
     chatCall->setFlag(add);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_SPEAK);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
+void MegaChatCallHandler::onRaiseHandAddedRemoved(const rtcModule::ICall& call, const karere::Id& userid, const bool add)
+{
+    auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setHandle(userid);
+    chatCall->setFlag(add);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_RAISE_HAND);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 

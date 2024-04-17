@@ -49,6 +49,8 @@ const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // N
 const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied to enter the call
 const std::string WillEndCommand::COMMAND_NAME          = "WILL_END";       // Notify that call will end due to duration restrictions
 const std::string ClimitsCommand::COMMAND_NAME          = "CLIMITS";        // Notify that the limits of the call has been changed
+const std::string RaiseHandAddCommand::COMMAND_NAME     = "RHAND_ADD";      // Notify that a user raised their hand. Params: `user` - the userid of the user
+const std::string RaiseHandDelCommand::COMMAND_NAME     = "RHAND_DEL";      // Notify that a user lowered their hand. Params: `user` - the userid of the user
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
@@ -72,6 +74,8 @@ const std::string SfuConnection::CSFU_MUTE              = "MUTE";           // C
 const std::string SfuConnection::CSFU_SETLIMIT          = "SETLIM";         // Command sent to set limits to call (duration, max participants ...)
                                                                             //      - SETLIM command is a temporal feature provided by SFU for testing purposes,
                                                                             //        and it's availability depends on SFU's release plan management
+const std::string SfuConnection::CSFU_RHAND_ADD       = "RHAND";            // Command sent to raise hand to speak (no speak permission involved in this command)
+const std::string SfuConnection::CSFU_RHAND_DEL       = "RHAND_DEL";        // Command sent to lower hand to speak (no speak permission involved in this command)
 
 CommandsQueue::CommandsQueue():
     isSending(false)
@@ -289,6 +293,43 @@ void Command::parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::Con
         std::string userIdString = it->value[j].GetString();
         users.emplace(::mega::MegaApi::base64ToUserHandle(userIdString.c_str()));
     }
+}
+
+bool Command::parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it, const bool allowDuplicates) const
+{
+    std::set<karere::Id> duplicatedUsers;
+    assert(it->value.IsArray());
+    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    {
+        if (!it->value[j].IsString())
+        {
+            SFU_LOG_ERROR("parse users array: invalid user handle value");
+            users.clear(); // clear users list as it's ill-formed
+            return false;
+        }
+        std::string userIdString = it->value[j].GetString();
+        const karere::Id uh = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+        users.push_back(uh);
+        if (!allowDuplicates && !duplicatedUsers.emplace(uh).second)
+        {
+            SFU_LOG_ERROR("parse users array: duplicated users");
+            users.clear();
+            return false;
+        }
+    }
+    return true;
+}
+
+uint64_t Command::parseHandle(const rapidjson::Document &command, const std::string& paramName, const uint64_t defaultValue) const
+{
+    uint64_t h = defaultValue;
+    rapidjson::Value::ConstMemberIterator handleIterator = command.FindMember(paramName.c_str());
+    if (handleIterator != command.MemberEnd() && handleIterator->value.IsString())
+    {
+        std::string handleString = handleIterator->value.GetString();
+        h = ::mega::MegaApi::base64ToUserHandle(handleString.c_str());
+    }
+    return h;
 }
 
 void Command::parseTracks(const rapidjson::Document& command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const
@@ -565,10 +606,23 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
         parseUsersArray(speakReqs, spkReqIterator);
     }
 
+    // lists with the user handles of all users that have raised hand to speak
+    std::vector<karere::Id> raiseHands;
+    rapidjson::Value::ConstMemberIterator rhIterator = command.FindMember("rhands");
+    if (rhIterator != command.MemberEnd() && rhIterator->value.IsArray())
+    {
+        if (auto parseSucceed = parseUsersArrayInOrder(raiseHands, rhIterator, false /*allowDuplicates=*/); !parseSucceed)
+        {
+            SFU_LOG_ERROR("AnswerCommand::processCommand: 'rhands' wrong format");
+            assert(false);
+            return false;
+        }
+    }
+
     std::map<Cid_t, TrackDescriptor> vthumbs;
     parseTracks(command, "vthumbs", vthumbs);
 
-    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, speakReqs, amidmap);
+    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, speakReqs, raiseHands, amidmap);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator &it) const
@@ -1662,7 +1716,7 @@ const karere::Url& SfuConnection::getSfuUrl()
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
     commands[AVCommand::COMMAND_NAME] = std::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[AnswerCommand::COMMAND_NAME] = std::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9), call);
+    commands[AnswerCommand::COMMAND_NAME] = std::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9, std::placeholders::_10), call);
     commands[KeyCommand::COMMAND_NAME] = std::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
     commands[VthumbsCommand::COMMAND_NAME] = std::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
     commands[VthumbsStartCommand::COMMAND_NAME] = std::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
@@ -1690,6 +1744,8 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[MutedCommand::COMMAND_NAME] = std::make_unique<MutedCommand>(std::bind(&sfu::SfuInterface::handleMutedCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
     commands[WillEndCommand::COMMAND_NAME] = std::make_unique<WillEndCommand>(std::bind(&sfu::SfuInterface::handleWillEndCommand, &call, std::placeholders::_1), call);
     commands[ClimitsCommand::COMMAND_NAME] = std::make_unique<ClimitsCommand>(std::bind(&sfu::SfuInterface::handleClimitsCommand, &call, std::placeholders::_1), call);
+    commands[RaiseHandAddCommand::COMMAND_NAME] = std::make_unique<RaiseHandAddCommand>(std::bind(&sfu::SfuInterface::handleRaiseHandAddCommand, &call, std::placeholders::_1), call);
+    commands[RaiseHandDelCommand::COMMAND_NAME] = std::make_unique<RaiseHandDelCommand>(std::bind(&sfu::SfuInterface::handleRaiseHandDelCommand, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
@@ -2112,6 +2168,25 @@ bool SfuConnection::sendSpeakerAddDel(const karere::Id& user, const bool add)
         json.AddMember(rapidjson::Value("user"), auxValue, json.GetAllocator());
     }
     // else => own user
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
+}
+
+bool SfuConnection::raiseHandToSpeak(const bool add)
+{
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    const std::string& cmd = add ? SfuConnection::CSFU_RHAND_ADD : SfuConnection::CSFU_RHAND_DEL;
+    cmdValue.SetString(cmd.c_str(), json.GetAllocator());
+    json.AddMember(
+        rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(),
+                         static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())),
+        cmdValue,
+        json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -2857,6 +2932,30 @@ bool ClimitsCommand::processCommand(const rapidjson::Document& command)
         return false;
     }
     return mComplete(*callLimitsOpt);
+}
+
+RaiseHandAddCommand::RaiseHandAddCommand(const RaiseHandAddCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool RaiseHandAddCommand::processCommand(const rapidjson::Document& command)
+{
+    // if user no present, this command is about own user (provide Id::null)
+    return mComplete(parseHandle(command, "user", karere::Id::null().val));
+}
+
+RaiseHandDelCommand::RaiseHandDelCommand(const RaiseHandDelCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool RaiseHandDelCommand::processCommand(const rapidjson::Document& command)
+{
+    // if user no present, this command is about own user (provide Id::null)
+    return mComplete(parseHandle(command, "user", karere::Id::null().val));
 }
 
 ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)

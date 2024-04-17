@@ -350,7 +350,8 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
     }
 
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_SPEAK)
-        || call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED))
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_SPEAK_REQUESTED)
+        || call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_RAISE_HAND))
     {
         MeetingView* meetingView = itemController->getMeetingView();
         if (meetingView)

@@ -40,6 +40,12 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mRequestSpeakerCancel = new QPushButton("Cancel speak request", this);
     connect(mRequestSpeakerCancel, &QAbstractButton::clicked, this, [=](){onRequestSpeak(false);});
     mRequestSpeakerCancel->setVisible(false);
+    mRaiseHand = new QPushButton("Raise hand to speak", this);
+    connect(mRaiseHand, &QAbstractButton::clicked, this, [=](){onRaiseHand(true);});
+    mRaiseHand->setVisible(false);
+    mLowerHand = new QPushButton("Lower hand to stop speaking", this);
+    connect(mLowerHand, &QAbstractButton::clicked, this, [=](){onRaiseHand(false);});
+    mLowerHand->setVisible(false);
     mEnableAudio = new QPushButton("Audio-disable", this);
     connect(mEnableAudio, SIGNAL(released()), this, SLOT(onEnableAudio()));
     mEnableAudio->setVisible(false);
@@ -76,6 +82,10 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mWaitingRoomShow = new QPushButton("Show waiting room", this);
     connect(mWaitingRoomShow, SIGNAL(clicked()), this, SLOT(onWrShow()));
     mWaitingRoomShow->setVisible(true);
+
+    mRaiseHandList = new QPushButton("Show raise hand list", this);
+    connect(mRaiseHandList, SIGNAL(clicked()), this, SLOT(onRaiseHandList()));
+    mRaiseHandList->setVisible(true);
 
     mAllowJoin= new QPushButton("Allow join user", this);
     connect(mAllowJoin, SIGNAL(clicked()), this, SLOT(onAllowJoin()));
@@ -125,6 +135,8 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mEndCall);
     mButtonsLayout->addWidget(mRequestSpeaker);
     mButtonsLayout->addWidget(mRequestSpeakerCancel);
+    mButtonsLayout->addWidget(mRaiseHand);
+    mButtonsLayout->addWidget(mLowerHand);
     mButtonsLayout->addWidget(mRemOwnSpeaker);
     mButtonsLayout->addWidget(mEnableAudio);
     mButtonsLayout->addWidget(mEnableVideo);
@@ -134,6 +146,7 @@ MeetingView::MeetingView(megachat::MegaChatApi &megaChatApi, mega::MegaHandle ch
     mButtonsLayout->addWidget(mJoinCallWithVideo);
     mButtonsLayout->addWidget(mJoinCallWithoutVideo);
     mButtonsLayout->addWidget(mWaitingRoomShow);
+    mButtonsLayout->addWidget(mRaiseHandList);
     mButtonsLayout->addWidget(mAllowJoin);
     mButtonsLayout->addWidget(mPushWr);
     mButtonsLayout->addWidget(mKickWr);
@@ -195,6 +208,9 @@ void MeetingView::updateLabel(megachat::MegaChatCall *call)
             .append(call->hasUserPendingSpeakRequest(megachatApi().getMyUserHandle()) ? on : off)
             .append("<br /> Moderator: ")
             .append(call->isOwnModerator() ? on : off)
+            .append("<br /> Raised hand: ")
+            .append(call->hasUserHandRaised(mMegaChatApi.getMyUserHandle()) ? on : off)
+            .append("<br />")
             .append("</span>");
 
     call->hasLocalAudio()
@@ -236,6 +252,8 @@ void MeetingView::setNotParticipating()
     mEndCall->setVisible(false);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
+    mRaiseHand->setVisible(false);
+    mLowerHand->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
     mAudioMonitor->setVisible(false);
@@ -254,6 +272,8 @@ void MeetingView::setConnecting()
     mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(false);
     mRequestSpeakerCancel->setVisible(false);
+    mRaiseHand->setVisible(false);
+    mLowerHand->setVisible(false);
     mEnableAudio->setVisible(false);
     mEnableVideo->setVisible(false);
     mAudioMonitor->setVisible(false);
@@ -423,6 +443,8 @@ void MeetingView::joinedToCall(const megachat::MegaChatCall &call)
     mEndCall->setVisible(true);
     mRequestSpeaker->setVisible(true);
     mRequestSpeakerCancel->setVisible(true);
+    mRaiseHand->setVisible(true);
+    mLowerHand->setVisible(true);
     mEnableAudio->setVisible(true);
     mEnableVideo->setVisible(true);
     mAudioMonitor->setVisible(true);
@@ -777,6 +799,19 @@ void MeetingView::onSessionContextMenu(const QPoint &pos)
     }
 }
 
+void MeetingView::onRaiseHand(bool add)
+{
+    std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
+    if (!call)
+    {
+        assert(false);
+        return;
+    }
+    add
+        ? mMegaChatApi.raiseHandToSpeak(mChatid)
+        : mMegaChatApi.lowerHandToStopSpeak(mChatid);
+}
+
 void MeetingView::onRequestSpeak(bool request)
 {
     std::unique_ptr<megachat::MegaChatCall> call = std::unique_ptr<megachat::MegaChatCall>(mMegaChatApi.getChatCall(mChatid));
@@ -868,6 +903,31 @@ void MeetingView::onJoinCallWithVideo()
     if (audiostr != "0" && audiostr != "1") { return; }
     int audio = atoi(audiostr.toStdString().c_str());
     mMegaChatApi.startChatCall(mChatid, true /*video*/, audio);
+}
+
+void MeetingView::onRaiseHandList()
+{
+    std::string rhText = "<br /><span style='color:#A30010'>EMPTY RAISE HAND LIST</span>";
+    std::unique_ptr<megachat::MegaChatCall> call(mMegaChatApi.getChatCall(mChatid));
+    if (call)
+    {
+        const mega::MegaHandleList* rhPeers = call->getRaiseHandsList();
+        if (rhPeers && rhPeers->size())
+        {
+            rhText.assign("<br /><span style='color:#A30010'>RAISE HAND LIST</span><br />");
+            for (size_t i= 0; i < rhPeers->size(); ++i)
+            {
+                ::mega::MegaHandle h = rhPeers->get(static_cast<unsigned int>(i));
+                mega::unique_ptr<const char[]>b64handle(::mega::MegaApi::userHandleToBase64(h));
+                rhText += b64handle.get() + std::string("<br />");
+            }
+        }
+    }
+
+    QMessageBox msg;
+    msg.setIcon(QMessageBox::Information);
+    msg.setText(rhText.c_str());
+    msg.exec();
 }
 
 void MeetingView::onWrShow()
