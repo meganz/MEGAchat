@@ -603,8 +603,8 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator spkReqIterator = command.FindMember("spkrqs");
     if (spkReqIterator != command.MemberEnd() && spkReqIterator->value.IsArray())
     {
-        auto res = parseUsersArrayInOrder(speakReqs, spkReqIterator, false /*allowDuplicates=*/);
-        if (!res)
+        if (bool parseSucceed = parseUsersArrayInOrder(speakReqs, spkReqIterator, false /*allowDuplicates=*/);
+            !parseSucceed)
         {
             SFU_LOG_ERROR("AnswerCommand::processCommand: 'spkrqs' wrong format");
             assert(false);

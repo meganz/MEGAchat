@@ -781,8 +781,8 @@ protected:
 
     bool removeFromSpeakRequestsList(const uint64_t userid)
     {
-        auto it = std::find(mSpeakRequests.begin(), mSpeakRequests.end(), userid);
-        if (it != mSpeakRequests.end())
+        if (auto it = std::find(mSpeakRequests.begin(), mSpeakRequests.end(), userid);
+            it != mSpeakRequests.end())
         {
             mSpeakRequests.erase(it);
             return true;
