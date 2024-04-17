@@ -667,6 +667,11 @@ void Call::addOrRemoveSpeaker(const karere::Id& user, const bool add)
     mSfuConnection->sendSpeakerAddDel(user, add);
 }
 
+void Call::raiseHandToSpeak(const bool add)
+{
+    mSfuConnection->raiseHandToSpeak(add);
+}
+
 void Call::pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const
 {
     assert(all || !users.empty());
@@ -866,6 +871,11 @@ std::set<karere::Id> Call::getParticipants() const
 std::set<karere::Id> Call::getModerators() const
 {
     return mModerators;
+}
+
+const std::vector<karere::Id>& Call::getRaiseHandsList() const
+{
+    return mRaiseHands;
 }
 
 std::set<karere::Id> Call::getSpeakersList() const
@@ -1449,6 +1459,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
                                const std::set<karere::Id>& speakers,
                                const std::set<karere::Id>& speakReqs,
+                               const std::vector<karere::Id>& raiseHands,
                                const std::map<Cid_t, uint32_t>& amidmap)
 {
     if (mState != kStateJoining)
@@ -1478,6 +1489,9 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
      * If call doesn't have speak request option enabled, this array is not included in the ANSWER command
      */
     mSpeakers = speakers;
+
+    // store user list that raised hand, received from SFU
+    mRaiseHands = raiseHands;
 
     // store speak requests list received from SFU
     mSpeakRequests = speakReqs;
@@ -2217,6 +2231,45 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
             immediateCallDisconnect(auxTermCode);
         }, mRtc.getAppCtx());
     }
+    return true;
+}
+
+bool Call::handleRaiseHandAddCommand(const uint64_t userid)
+{
+    const karere::Id uh = karere::Id(userid).isNull()
+                            ? mMyPeer->getPeerid().val
+                            : userid;
+
+    if (std::find(mRaiseHands.begin(), mRaiseHands.end(), uh) != mRaiseHands.end())
+    {
+        RTCM_LOG_WARNING("RHANDRQ_ADD received, but user already exists at rhands list: %s ",
+                         karere::Id(uh).toString().c_str());
+        assert(false);
+        return false;
+    }
+
+    mRaiseHands.emplace_back(uh);
+    mCallHandler.onRaiseHandAddedRemoved(*this, uh, true);
+    return true;
+}
+
+bool Call::handleRaiseHandDelCommand(const uint64_t userid)
+{
+    const karere::Id uh = karere::Id(userid).isNull()
+                      ? mMyPeer->getPeerid().val
+                      : userid;
+
+    auto it = std::find(mRaiseHands.begin(), mRaiseHands.end(), uh);
+    if (it == mRaiseHands.end())
+    {
+        RTCM_LOG_WARNING("RHANDRQ_DEL received, but user cannot be removed from rhands list: %s ",
+                         karere::Id(uh).toString().c_str());
+        assert(false);
+        return false;
+    }
+
+    mRaiseHands.erase(it);
+    mCallHandler.onRaiseHandAddedRemoved(*this, uh, false);
     return true;
 }
 

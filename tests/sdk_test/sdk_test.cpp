@@ -1044,6 +1044,196 @@ TEST_F(MegaChatApiTest, BasicTest)
 #ifndef KARERE_DISABLE_WEBRTC
 
 /**
+ * @brief MegaChatApiTest.RaiseHandLite
+ * + Test1: start call with a1 and a2 answers call
+ * + Test2: a2 raises hand
+ * + Test3: a2 lowers hand
+ * + Test4: a1 raises hand
+ * + Test5: a1 lowers hand
+ * + Test6: end call from a1
+ * + Test7: start call with a1 and raise hand, then a2 answers call and raise hand
+ * + Test8: check raise hand list order
+ */
+TEST_F(MegaChatApiTest, RaiseHandLite)
+{
+    //========================================================================//
+    // Auxiliar test functions
+    //========================================================================//
+    /** add here all auxiliar lambdas that this test can require **/
+    auto raiseHand = [this](const bool add, const unsigned int idx, const MegaChatHandle uh, std::set<unsigned int> recvIdx)
+    {
+        clearTemporalVars();
+        recvIdx.emplace(idx);
+        ExitBoolFlags eF;
+        std::for_each(recvIdx.begin(), recvIdx.end(), [this, add, &eF](const auto i)
+        {
+            if (add)
+            {
+                addBoolVarAndExitFlag(i, eF, "raisedHand", false);
+                addHandleVar(i, "raisedHandUh", MEGACHAT_INVALID_HANDLE);
+            }
+            else
+            {
+                addBoolVarAndExitFlag(i, eF, "loweredHand", false);
+                addHandleVar(i, "loweredHandUh", MEGACHAT_INVALID_HANDLE);
+            }
+        });
+
+        waitForAction(1, /* just one attempt */
+                      eF,
+                      "raise hand",
+                      true /* wait for all exit flags */,
+                      true /* reset flags */,
+                      minTimeout * 2, // 2 min
+                      [this, chatid = mData.mChatid, add, idx]()
+                      {
+                          ChatRequestTracker crtRaiseHand(megaChatApi[idx]);
+                          add
+                              ? megaChatApi[idx]->raiseHandToSpeak(chatid, &crtRaiseHand)
+                              : megaChatApi[idx]->lowerHandToStopSpeak(chatid, &crtRaiseHand);
+
+                          ASSERT_EQ(crtRaiseHand.waitForResult(), MegaChatError::ERROR_OK)
+                              << "Failed to " << (add ? "Raise " : "Lower ")
+                              << "hand. Error: " << crtRaiseHand.getErrorString();
+                      }
+        );
+
+        for (auto i: recvIdx)
+        {
+            MegaChatHandle* recvUh = add
+                                         ? handleVars().getVar(i, "raisedHandUh")
+                                         : handleVars().getVar(i, "loweredHandUh");
+
+            ASSERT_TRUE(recvUh) << "Can't get " << (add ? "raisedHandUh" : "loweredHandUh")
+                                << " for " << std::to_string(i);
+            ASSERT_EQ(*recvUh, uh) << "Unexpected Uh received";
+        }
+
+        // check call for user that raised hand contains that user in raised hand list
+        std::unique_ptr<MegaChatCall> call(megaChatApi[idx]->getChatCall(mData.mChatid));
+        ASSERT_TRUE(call) << "Cannot get call for chatid: " << getChatIdStrB64((mData.mChatid));
+        ASSERT_EQ(call->hasUserHandRaised(uh), add) << "Unexpected raised hand status for own user: "
+                                                    << getUserIdStrB64(uh);
+    };
+
+    auto isRaiseHandsListOrdered = [](const MegaHandleList* rhList, const std::vector<MegaChatHandle> expOrder) -> bool
+    {
+        if (!rhList || rhList->size() != expOrder.size()) { return false; }
+
+        int i = 0;
+        return std::all_of(expOrder.begin(), expOrder.end(), [rhList, &i](const auto uh)
+        {
+            return rhList->get(i++) == uh;
+        });
+    };
+
+    CleanupFunction testCleanup = [this]
+    {
+        LOG_debug << "MegaChatApiTest.RaiseHandLite: Cleanup";
+        clearTemporalVars();
+        ExitBoolFlags eF;
+        // callDestroyed - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false);
+        endChatCall(mData.mOpIdx, eF, mData.mChatid);
+        closeOpenedChatrooms();
+        cleanChatVideoListeners();
+        logoutTestAccounts();
+    };
+    MegaMrProper p (testCleanup);
+
+    // login into all involved accounts for this test and establish required contact relationships
+    // Note: all involved accounts in this test, must be added to mSessions and mAccounts
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+    mData.mOpIdx = a1; // set test operator role index
+    mData.mSessions.emplace(a1, login(a1));
+    mData.mSessions.emplace(a2, login(a2));
+    const MegaChatHandle a1Uh = megaChatApi[a1]->getMyUserHandle();
+    const MegaChatHandle a2Uh = megaChatApi[a2]->getMyUserHandle();
+    mData.mAccounts.emplace(a1, a1Uh);
+    mData.mAccounts.emplace(a2, a2Uh);
+    ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
+    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
+
+    LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test RaiseHand (lite)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
+
+    // set chat selection criteria
+    mData.mChatOptions.mCreate          = true;
+    mData.mChatOptions.mPublicChat      = true;
+    mData.mChatOptions.mMeetingRoom     = false;
+    mData.mChatOptions.mWaitingRoom     = false;
+    mData.mChatOptions.mSpeakRequest    = false;
+    mData.mChatOptions.mOpenInvite      = false;
+
+    // set chat operator idx and privileges, and create chat participants list
+    // chat operator idx corresponds with idx of account from which we retrieve chatroom
+    mData.mChatOptions.mChatOpIdx = a1;
+    mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
+    mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
+    mData.mChatOptions.mChatPeerList->addPeer(a2Uh, MegaChatPeerList::PRIV_STANDARD);
+    mData.mChatOptions.mChatPeerIdx.emplace_back(a2);
+
+    // get a group chatroom
+    mData.mChatid = getGroupChatRoom();
+    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Can't get a chatroom with selected criteria";
+
+    // open chatroom (just add chatroom listeners for chatroom participants)
+    auto crl = std::make_shared<TestChatRoomListener>(this, megaChatApi, mData.mChatid);
+    mData.mChatroomListeners.emplace(a1, crl);
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
+    mData.mChatroomListeners.emplace(a2, crl);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a2 account";
+
+    // load history
+    ASSERT_GE(loadHistory(a1, mData.mChatid, crl.get()), 0);
+    ASSERT_GE(loadHistory(a2, mData.mChatid, crl.get()), 0);
+
+    LOG_debug << "#### Test1: start call with a1 and a2 answers call ####";
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+
+    LOG_debug << "#### Test2: a2 raises hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true  /*add*/, a2, a2Uh, {a1}));
+
+    LOG_debug << "#### Test3: a2 lowers hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(false /*add*/, a2, a2Uh, {a1}));
+
+    LOG_debug << "#### Test4: a1 raises hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true  /*add*/, a1, a1Uh, {a2}));
+
+    LOG_debug << "#### Test5: a1 lowers hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(false /*add*/, a1, a1Uh, {a2}));
+
+    LOG_debug << "#### Test6: end call from a1 ####";
+    ExitBoolFlags eF;
+    addBoolVarAndExitFlag(a1, eF, "callDestroyed", false);
+    endChatCall(mData.mOpIdx, eF, mData.mChatid);
+    ASSERT_NO_FATAL_FAILURE(endChatCall(a1, eF, mData.mChatid));
+
+    LOG_debug << "#### Test7: start call with a1 and raise hand, then a2 answers call and raise hand ####";
+    // a2 must receive raise hand list upon ANSWER command
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a1, a1Uh, {}));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a2, a2Uh, {a1}));
+
+    LOG_debug << "#### Test8: check raise hand list order ####";
+    std::unique_ptr<MegaChatCall>calla1(megaChatApi[a1]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(calla1) << "Cannot retrieve call from chatroom for a1: " << getChatIdStrB64(mData.mChatid);
+    ASSERT_TRUE(isRaiseHandsListOrdered(calla1->getRaiseHandsList(), {a1Uh, a2Uh}));
+
+    std::unique_ptr<MegaChatCall>calla2(megaChatApi[a2]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(calla2) << "Cannot retrieve call from chatroom for a2: " << getChatIdStrB64(mData.mChatid);
+    ASSERT_TRUE(isRaiseHandsListOrdered(calla2->getRaiseHandsList(), {a1Uh, a2Uh}));
+
+    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
+}
+
+/**
  * @brief MegaChatApiTest.CallLimitsFreePlan
  * + Test1: a1 set call duration and wait until it end for duration limit
  * + Test2: a1 set call duration and disable it after receiving WILL_END notification
@@ -5968,7 +6158,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     // Test2: B request to speak, A rejects it
     //========================================================================//
-    LOG_debug << "JDEBUG: Test2: B request to speak, A rejects it";
+    LOG_debug << "Test2: B request to speak, A rejects it";
     ASSERT_NO_FATAL_FAILURE(sendAndProcessSpeakRequest(a2, a1, false /*approve*/, mData.mChatid););
     ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, a2Uh, false/*moderator*/, false/*expected*/, mData.mChatid););
     // clean all bool and handle vars (this prevents conflicts in following tests)
@@ -10237,6 +10427,22 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         }
     }
 
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_RAISE_HAND))
+    {
+        auto uh = call->getHandle();
+        auto added = call->getFlag();
+        if (added)
+        {
+            boolVars().updateIfExists(apiIndex, "raisedHand", true);
+            handleVars().updateIfExists(apiIndex, "raisedHandUh", uh);
+        }
+        else
+        {
+            boolVars().updateIfExists(apiIndex, "loweredHand", true);
+            handleVars().updateIfExists(apiIndex, "loweredHandUh", uh);
+        }
+    }
+
     if (call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED)
         || call->hasChanged(MegaChatCall::CHANGE_TYPE_WR_COMPOSITION))
     {
@@ -11117,9 +11323,14 @@ bool MockupCall::handleAvCommand(Cid_t, unsigned, uint32_t)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::set<karere::Id>&,
-                                     const std::set<karere::Id>& speakReqs,
-                                     const std::map<Cid_t, uint32_t>&)
+bool MockupCall::handleAnswerCommand(Cid_t /*cid*/, std::shared_ptr<sfu::Sdp> /*sdp*/,
+                                     uint64_t /*callJoinOffset*/, std::vector<sfu::Peer>& /*peers*/,
+                                     const std::map<Cid_t, std::string>& /*keystrmap*/,
+                                     const std::map<Cid_t, sfu::TrackDescriptor>& /*vthumbs*/,
+                                     const std::set<karere::Id>& /*speakers*/,
+                                     const std::set<karere::Id>& /*speakReqs*/,
+                                     const std::vector<karere::Id>& /*raiseHands*/,
+                                     const std::map<Cid_t, uint32_t>& /*amidmap*/)
 {
     return true;
 }
@@ -11180,6 +11391,16 @@ bool MockupCall::handlePeerLeft(Cid_t, unsigned)
 }
 
 bool MockupCall::handleBye(const unsigned, const bool, const std::string&)
+{
+    return true;
+}
+
+bool MockupCall::handleRaiseHandAddCommand(const uint64_t /*userid*/)
+{
+    return true;
+}
+
+bool MockupCall::handleRaiseHandDelCommand(const uint64_t /*userid*/)
 {
     return true;
 }
