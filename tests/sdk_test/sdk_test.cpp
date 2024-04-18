@@ -6876,7 +6876,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     megaChatApi[a2]->addChatLocalVideoListener(chatid, &localVideoListenerB);
     unique_ptr<MegaChatCall> auxCall;
 
-    auto grantsJoinPermission = [this, a1, a2, chatid, uh]()
+    auto grantsJoinPermission = [this, chatid, uh]()
     {
         // A grants permission to B for joining call
         mUsersAllowJoin[a1].clear();
@@ -6893,7 +6893,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
                           true /* wait for all exit flags */,
                           true /* reset flags */,
                           maxTimeout,
-                          [this, a1, chatid, uh](){
+                          [this, chatid, uh](){
                               ChatRequestTracker crtAllowJoin(megaChatApi[a1]);
                               std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
                               hl->addMegaHandle(uh);
