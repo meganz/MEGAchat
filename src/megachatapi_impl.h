@@ -1683,6 +1683,8 @@ public:
     void setVideoCapturerInDevice(const char* device, const int type, MegaChatRequestListener* listener = NULL);
     char *getCameraDeviceIdSelected();
     long getScreenDeviceIdSelected() const;
+    char* getVideoDeviceNameById(const std::string& id) const;
+    char* getScreenDeviceNameById(const long int id) const;
 
     // Calls
     void startChatCall(MegaChatHandle chatid, bool enableVideo = true,  bool enableAudio = true, bool notRinging = false, MegaChatRequestListener *listener = NULL);

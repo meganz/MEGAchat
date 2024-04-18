@@ -5964,7 +5964,6 @@ bool MegaChatApiImpl::hasChatOptionEnabled(int option, int chatOptionsBitMask)
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
-
 MegaStringList* MegaChatApiImpl::getChatScreenDevices()
 {
     MegaStringList* sl = MegaStringList::createInstance();
@@ -6015,12 +6014,12 @@ void MegaChatApiImpl::setVideoCapturerInDevice(const char* device, const int typ
 
 char *MegaChatApiImpl::getCameraDeviceIdSelected()
 {
-    char *deviceName = nullptr;
+    char *deviceId = nullptr;
     SdkMutexGuard g(sdkMutex);
     if (mClient && mClient->rtc)
     {
         auto id = mClient->rtc->getCameraDeviceIdSelected();
-        deviceName = id
+        deviceId = id
             ? MegaApi::strdup(id->c_str())
             : MegaApi::strdup("");
     }
@@ -6029,7 +6028,29 @@ char *MegaChatApiImpl::getCameraDeviceIdSelected()
         API_LOG_ERROR("Failed to get selected video-in device");
     }
 
-    return deviceName;
+    return deviceId;
+}
+
+char* MegaChatApiImpl::getVideoDeviceNameById(const std::string& id) const
+{
+    SdkMutexGuard g(sdkMutex);
+    if (!mClient || !mClient->rtc)
+    {
+        API_LOG_ERROR("getVideoDeviceNameById: webrtc not initialized");
+        return nullptr;
+    }
+    return MegaApi::strdup(mClient->rtc->getVideoDeviceNameById(id).c_str());
+}
+
+char* MegaChatApiImpl::getScreenDeviceNameById(const long int id) const
+{
+    SdkMutexGuard g(sdkMutex);
+    if (!mClient || !mClient->rtc)
+    {
+        API_LOG_ERROR("getVideoDeviceNameById: webrtc not initialized");
+        return nullptr;
+    }
+    return MegaApi::strdup(mClient->rtc->getScreenDeviceNameById(id).c_str());
 }
 
 long MegaChatApiImpl::getScreenDeviceIdSelected() const

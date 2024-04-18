@@ -396,7 +396,7 @@ void CaptureScreenModuleLinux::openDevice(const std::string &)
             while (!mEndCapture)
             {
             mScreenCapturer->CaptureFrame();
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            std::this_thread::sleep_for(screenCapturingRate);
             }
             });
 }

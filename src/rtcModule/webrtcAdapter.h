@@ -58,6 +58,7 @@ extern std::unique_ptr<rtc::Thread> gWorkerThread;
 extern std::unique_ptr<rtc::Thread> gSignalingThread;
 extern rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing;
 extern std::string gFieldTrialStr;
+using namespace std::literals;
 
 /** Globally initializes the library */
 bool init(void *appCtx);
@@ -441,6 +442,8 @@ public:
 class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoCapturerManager
 {
 public:
+    static constexpr std::chrono::milliseconds screenCapturingRate = 50ms;
+
     static CaptureScreenModuleLinux* createCaptureScreenModuleLinux(const webrtc::DesktopCapturer::SourceId deviceId)
     {
         return new CaptureScreenModuleLinux(deviceId);

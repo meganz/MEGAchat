@@ -6287,6 +6287,24 @@ public:
     void setScreenInDevice(const char *device, MegaChatRequestListener *listener =  NULL);
 
     /**
+     * @brief Returns the camera selected device name if any
+     *
+     * You take the ownership of the returned value (it can be NULL or an empty string)
+     *
+     * @return Camera selected device name if any
+     */
+    char* getVideoDeviceNameById(const std::string& id) const;
+
+    /**
+     * @brief Returns the screen selected device name if any
+     *
+     * You take the ownership of the returned value (it can be NULL or an empty string)
+     *
+     * @return Screen selected device name if any
+     */
+    char* getScreenDeviceNameById(const long int id) const;
+
+    /**
      * @brief Returns the camera selected device Id if any
      *
      * You take the ownership of the returned value (it can be NULL)

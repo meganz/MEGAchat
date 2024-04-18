@@ -267,6 +267,8 @@ public:
     virtual bool isCallStartInProgress(const karere::Id &chatid) const = 0;
     virtual bool setVideoCapturerInDevice(const std::string& device, const int type) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
+    virtual std::string getVideoDeviceNameById(const std::string& id) = 0;
+    virtual std::string getScreenDeviceNameById(const long int id) = 0;
     virtual std::set<std::pair<std::string, long int>> getScreenDevices() = 0;
     virtual promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const bool notRinging, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
     virtual void takeCameraDevice() = 0;

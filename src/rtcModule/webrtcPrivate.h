@@ -876,6 +876,8 @@ public:
     bool setVideoCapturerInDevice(const std::string& device, const int type) override;
     void getVideoInDevices(std::set<std::string>& devicesVector) override;
     std::set<std::pair<std::string, long int>> getScreenDevices() override;
+    std::string getVideoDeviceNameById(const std::string& id) override;
+    std::string getScreenDeviceNameById(const long int id) override;
     promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const bool notRinging, std::shared_ptr<std::string> unifiedKey = nullptr) override;
     void takeCameraDevice() override;
     void releaseCameraDevice() override;

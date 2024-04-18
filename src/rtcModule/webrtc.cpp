@@ -4074,6 +4074,31 @@ bool RtcModuleSfu::setVideoCapturerInDevice(const std::string &device, const int
     return true;
 }
 
+std::string RtcModuleSfu::getVideoDeviceNameById(const std::string& id)
+{
+    const std::set<std::pair<std::string, std::string>> d =
+        artc::VideoCapturerManager::getCameraDevices();
+    auto it = std::find_if(d.begin(),
+                           d.end(),
+                           [&id](const auto& pair)
+                           {
+                               return pair.second == id;
+                           });
+    return it != d.end() ? it->first : std::string();
+}
+
+std::string RtcModuleSfu::getScreenDeviceNameById(const long int id)
+{
+    std::set<std::pair<std::string, long int>> d = mCameraCapturerDevice->getScreenDevices();
+    auto it = std::find_if(d.begin(),
+                           d.end(),
+                           [&id](const auto& pair)
+                           {
+                               return pair.second == id;
+                           });
+    return it != d.end() ? it->first : std::string();
+}
+
 void RtcModuleSfu::getVideoInDevices(std::set<std::string> &devicesVector)
 {
     std::set<std::pair<std::string, std::string>> videoDevices = artc::VideoCapturerManager::getCameraDevices();
@@ -4517,7 +4542,7 @@ void RtcModuleSfu::openScreenDevice()
         artc::VideoCapturerManager::createScreenCapturer(capabilities,
                                                          *mSelectedScreenDeviceId,
                                                          artc::gWorkerThread.get());
-    mScreenCapturerDevice->openDevice(*mSelectedCameraDeviceId);
+    mScreenCapturerDevice->openDevice(std::string());
     mScreenCapturerDevice->AddOrUpdateSink(&mScreenVideoSink, {});
 }
 
