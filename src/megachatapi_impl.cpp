@@ -5968,7 +5968,7 @@ bool MegaChatApiImpl::hasChatOptionEnabled(int option, int chatOptionsBitMask)
 MegaStringList* MegaChatApiImpl::getChatScreenDevices()
 {
     MegaStringList* sl = MegaStringList::createInstance();
-    sdkMutex.lock();
+    SdkMutexGuard g(sdkMutex);
     if (mClient && mClient->rtc)
     {
         std::set<std::pair<std::string, long int>> l = mClient->rtc->getScreenDevices();

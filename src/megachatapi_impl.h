@@ -1353,7 +1353,6 @@ private:
     std::set<MegaChatCallListener *> callListeners;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersHiRes;
     std::map<MegaChatHandle, MegaChatPeerVideoListener_map> mVideoListenersLowRes;
-    std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalVideoListeners;
     std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalCameraVideoListeners;
     std::map<MegaChatHandle, MegaChatVideoListener_set> mLocalScreenVideoListeners;
 

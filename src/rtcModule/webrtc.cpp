@@ -3935,9 +3935,7 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScach
     }
 
     mSelectedCameraDeviceId = getDefaultCameraDeviceId();
-    mCameraDeviceTakenCount = 0;
     mSelectedScreenDeviceId = getDefaultScreenDeviceId();
-    mScreenDeviceTakenCount = 0;
 }
 
 std::optional<std::string> RtcModuleSfu::getDefaultCameraDeviceId()
@@ -3989,9 +3987,6 @@ bool RtcModuleSfu::isCallStartInProgress(const karere::Id &chatid) const
     return mCallStartAttempts.find(chatid) != mCallStartAttempts.end();
 }
 
-// helper type for the visitor #4
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
 template<typename T>
 static std::optional<T> findAndSetDeviceId(const std::set<std::pair<std::string, T>>& devices,
