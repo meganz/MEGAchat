@@ -6124,7 +6124,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         // check received callid for caller(a1)
         checkCallIdInProgress(a1);
     };
-    startCallRinging();
+    ASSERT_NO_FATAL_FAILURE(startCallRinging());
 
     // clean all bool and handle vars (this prevents conflicts in following tests)
     boolVars().cleanAll();
@@ -6183,7 +6183,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     LOG_debug << "Test5: Remove B as speaker";
     ASSERT_NO_FATAL_FAILURE(removeSpeaker(a1, a2, a2Uh, mData.mChatid));
-    endCallPrimaryAccount(call->getCallId(), a1, a2);
+    ASSERT_NO_FATAL_FAILURE(endCallPrimaryAccount(call->getCallId(), a1, a2));
     // clean all bool and handle vars (this prevents conflicts in following tests)
     boolVars().cleanAll();
     handleVars().cleanAll();
