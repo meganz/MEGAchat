@@ -265,7 +265,15 @@ if(VCPKG_TARGET_IS_LINUX)
         WEBRTC_POSIX
         WEBRTC_LINUX
     )
-    set(cmake_target_libs "-lX11")
+    set(cmake_target_libs
+        -lX11
+        -lXfixes
+        -lXdamage
+        -lXrandr
+        -lXtst
+        -lXcomposite
+        -lXext
+    )
 endif()
 
 list(JOIN cmake_target_definitions " " cmake_target_definitions) # INTERFACE_COMPILE_DEFINITIONS in the targets file requires a space separated list
