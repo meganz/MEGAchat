@@ -1,6 +1,6 @@
 #include "mclc_prompt.h"
 
-#include "mclc_general_utils.h"
+
 #include "mclc_globals.h"
 #include "mclc_resources.h"
 
@@ -34,7 +34,7 @@ void setprompt(prompttype p)
     {
         clc_global::g_promptPwBufPos = 0;
 #if defined(WIN32) && defined(NO_READLINE)
-        static_cast<m::WinConsole*>(clc_global::clc_console.get())->updateInputPrompt(prompts[p]);
+        static_cast<m::WinConsole*>(clc_global::g_console.get())->updateInputPrompt(prompts[p]);
 #else
         std::cout << prompts[p] << std::flush;
 #endif

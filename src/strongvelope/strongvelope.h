@@ -175,7 +175,7 @@ struct ParsedMessage: public karere::DeleteTrackable
 
     /** True when the message is posted in open mode. It allows to decrypt the `ct` of management
      * messages related to topic changes, which must use unified-key instead of embedded key in `ct` */
-    bool openmode = false;
+    bool publicChatMode = false;
 
     uint32_t keyId;
     uint32_t prevKeyId;

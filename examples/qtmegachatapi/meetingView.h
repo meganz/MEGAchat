@@ -76,6 +76,8 @@ protected:
     QPushButton* mEndCall;
     QPushButton* mRequestSpeaker;
     QPushButton* mRequestSpeakerCancel;
+    QPushButton* mRaiseHand;
+    QPushButton* mLowerHand;
     QPushButton* mEnableAudio;
     QPushButton* mEnableVideo;
     QPushButton* mEnableScreenShare;
@@ -85,6 +87,7 @@ protected:
     QPushButton* mJoinCallWithVideo;
     QPushButton* mJoinCallWithoutVideo;
     QPushButton* mWaitingRoomShow;
+    QPushButton* mRaiseHandList;
     QPushButton* mAllowJoin;
     QPushButton* mPushWr;
     QPushButton* mKickWr;
@@ -113,6 +116,7 @@ public slots:
     void onOnHold();
     void onSessionContextMenu(const QPoint &);
     void onRequestSpeak(bool request);
+    void onRaiseHand(bool add);
     void onEnableAudio();
     void onEnableVideo();
     void onEnableScreenShare();
@@ -124,6 +128,7 @@ public slots:
     void onSetLimits();
     void onGetLimits();
     void onWrShow();
+    void onRaiseHandList();
     void onAllowJoin();
     void onPushWr();
     void onKickWr();

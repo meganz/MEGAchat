@@ -249,6 +249,11 @@ bool MegaChatCall::hasUserSpeakPermission(const MegaChatHandle /*uh*/) const
     return false;
 }
 
+bool MegaChatCall::hasUserHandRaised(const MegaChatHandle /*uh*/) const
+{
+    return false;
+}
+
 int64_t MegaChatCall::getDuration() const
 {
     return 0;
@@ -365,6 +370,11 @@ MegaHandleList *MegaChatCall::getPeeridParticipants() const
 }
 
 const MegaHandleList* MegaChatCall::getModerators() const
+{
+    return NULL;
+}
+
+const MegaHandleList* MegaChatCall::getRaiseHandsList() const
 {
     return NULL;
 }
@@ -1387,6 +1397,16 @@ void MegaChatApi::removeSpeakRequest(MegaChatHandle chatid, MegaChatHandle useri
 void MegaChatApi::enableAudioLevelMonitor(bool enable, MegaChatHandle chatid, MegaChatRequestListener *listener)
 {
     pImpl->enableAudioLevelMonitor(enable, chatid, listener);
+}
+
+void MegaChatApi::raiseHandToSpeak(MegaChatHandle chatid, MegaChatRequestListener* listener)
+{
+    pImpl->raiseHandToSpeak(chatid, true/*add*/, listener);
+}
+
+void MegaChatApi::lowerHandToStopSpeak(MegaChatHandle chatid, MegaChatRequestListener* listener)
+{
+   pImpl->raiseHandToSpeak(chatid, false/*add*/, listener);
 }
 
 void MegaChatApi::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle clientId, MegaChatRequestListener *listener)

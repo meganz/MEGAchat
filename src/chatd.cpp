@@ -10,12 +10,6 @@ using namespace std;
 using namespace promise;
 using namespace karere;
 
-#if WIN32
-#include <mega/utils.h>
-using ::mega::mega_snprintf;   // enables the calls to snprintf below which are #defined
-#endif
-
-
 #define CHATD_LOG_LISTENER_CALLS
 
 // logging for a specific chatid - prepends the chatid and calls the normal logging macro

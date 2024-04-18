@@ -4,7 +4,10 @@
 #include <megaapi.h>
 #include <mega/base64.h>
 
-#include<rapidjson/writer.h>
+#include <rapidjson/writer.h>
+
+#include <memory>
+
 
 namespace sfu
 {
@@ -46,6 +49,8 @@ const std::string WrUsersAllowCommand::COMMAND_NAME     = "WR_USERS_ALLOW"; // N
 const std::string WrUsersDenyCommand::COMMAND_NAME      = "WR_USERS_DENY";  // Notifies moderators that the specified user(s) have been denied to enter the call
 const std::string WillEndCommand::COMMAND_NAME          = "WILL_END";       // Notify that call will end due to duration restrictions
 const std::string ClimitsCommand::COMMAND_NAME          = "CLIMITS";        // Notify that the limits of the call has been changed
+const std::string RaiseHandAddCommand::COMMAND_NAME     = "RHAND_ADD";      // Notify that a user raised their hand. Params: `user` - the userid of the user
+const std::string RaiseHandDelCommand::COMMAND_NAME     = "RHAND_DEL";      // Notify that a user lowered their hand. Params: `user` - the userid of the user
 
 // client -> SFU (commands)
 const std::string SfuConnection::CSFU_JOIN              = "JOIN";           // Command sent to JOIN a call after connect to SFU (or receive WR_ALLOW if we are in a waiting room)
@@ -69,6 +74,8 @@ const std::string SfuConnection::CSFU_MUTE              = "MUTE";           // C
 const std::string SfuConnection::CSFU_SETLIMIT          = "SETLIM";         // Command sent to set limits to call (duration, max participants ...)
                                                                             //      - SETLIM command is a temporal feature provided by SFU for testing purposes,
                                                                             //        and it's availability depends on SFU's release plan management
+const std::string SfuConnection::CSFU_RHAND_ADD       = "RHAND";            // Command sent to raise hand to speak (no speak permission involved in this command)
+const std::string SfuConnection::CSFU_RHAND_DEL       = "RHAND_DEL";        // Command sent to lower hand to speak (no speak permission involved in this command)
 
 CommandsQueue::CommandsQueue():
     isSending(false)
@@ -286,6 +293,43 @@ void Command::parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::Con
         std::string userIdString = it->value[j].GetString();
         users.emplace(::mega::MegaApi::base64ToUserHandle(userIdString.c_str()));
     }
+}
+
+bool Command::parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it, const bool allowDuplicates) const
+{
+    std::set<karere::Id> duplicatedUsers;
+    assert(it->value.IsArray());
+    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    {
+        if (!it->value[j].IsString())
+        {
+            SFU_LOG_ERROR("parse users array: invalid user handle value");
+            users.clear(); // clear users list as it's ill-formed
+            return false;
+        }
+        std::string userIdString = it->value[j].GetString();
+        const karere::Id uh = ::mega::MegaApi::base64ToUserHandle(userIdString.c_str());
+        users.push_back(uh);
+        if (!allowDuplicates && !duplicatedUsers.emplace(uh).second)
+        {
+            SFU_LOG_ERROR("parse users array: duplicated users");
+            users.clear();
+            return false;
+        }
+    }
+    return true;
+}
+
+uint64_t Command::parseHandle(const rapidjson::Document &command, const std::string& paramName, const uint64_t defaultValue) const
+{
+    uint64_t h = defaultValue;
+    rapidjson::Value::ConstMemberIterator handleIterator = command.FindMember(paramName.c_str());
+    if (handleIterator != command.MemberEnd() && handleIterator->value.IsString())
+    {
+        std::string handleString = handleIterator->value.GetString();
+        h = ::mega::MegaApi::base64ToUserHandle(handleString.c_str());
+    }
+    return h;
 }
 
 void Command::parseTracks(const rapidjson::Document& command, const std::string& arrayName, std::map<Cid_t, TrackDescriptor>& tracks) const
@@ -555,17 +599,36 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     }
 
     // lists with the user handles of users that have pending speak requests
-    std::set<karere::Id> speakReqs;
+    std::vector<karere::Id> speakReqs;
     rapidjson::Value::ConstMemberIterator spkReqIterator = command.FindMember("spkrqs");
     if (spkReqIterator != command.MemberEnd() && spkReqIterator->value.IsArray())
     {
-        parseUsersArray(speakReqs, spkReqIterator);
+        if (bool parseSucceed = parseUsersArrayInOrder(speakReqs, spkReqIterator, false /*allowDuplicates=*/);
+            !parseSucceed)
+        {
+            SFU_LOG_ERROR("AnswerCommand::processCommand: 'spkrqs' wrong format");
+            assert(false);
+            return false;
+        }
+    }
+
+    // lists with the user handles of all users that have raised hand to speak
+    std::vector<karere::Id> raiseHands;
+    rapidjson::Value::ConstMemberIterator rhIterator = command.FindMember("rhands");
+    if (rhIterator != command.MemberEnd() && rhIterator->value.IsArray())
+    {
+        if (auto parseSucceed = parseUsersArrayInOrder(raiseHands, rhIterator, false /*allowDuplicates=*/); !parseSucceed)
+        {
+            SFU_LOG_ERROR("AnswerCommand::processCommand: 'rhands' wrong format");
+            assert(false);
+            return false;
+        }
     }
 
     std::map<Cid_t, TrackDescriptor> vthumbs;
     parseTracks(command, "vthumbs", vthumbs);
 
-    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, speakReqs, amidmap);
+    return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, speakReqs, raiseHands, amidmap);
 }
 
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator &it) const
@@ -1658,35 +1721,37 @@ const karere::Url& SfuConnection::getSfuUrl()
 
 void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std::string, std::unique_ptr<sfu::Command>>& commands)
 {
-    commands[AVCommand::COMMAND_NAME] = mega::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[AnswerCommand::COMMAND_NAME] = mega::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9), call);
-    commands[KeyCommand::COMMAND_NAME] = mega::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[VthumbsCommand::COMMAND_NAME] = mega::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
-    commands[VthumbsStartCommand::COMMAND_NAME] = mega::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
-    commands[VthumbsStopCommand::COMMAND_NAME] = mega::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), call);
-    commands[HiResCommand::COMMAND_NAME] = mega::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
-    commands[HiResStartCommand::COMMAND_NAME] = mega::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
-    commands[HiResStopCommand::COMMAND_NAME] = mega::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
-    commands[SpeakerAddCommand::COMMAND_NAME] = mega::make_unique<SpeakerAddCommand>(std::bind(&sfu::SfuInterface::handleSpeakerAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[SpeakerDelCommand::COMMAND_NAME] = mega::make_unique<SpeakerDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakerAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[SpeakReqCommand::COMMAND_NAME] = mega::make_unique<SpeakReqCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[SpeakReqDelCommand::COMMAND_NAME] = mega::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[PeerJoinCommand::COMMAND_NAME] = mega::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
-    commands[PeerLeftCommand::COMMAND_NAME] = mega::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[ByeCommand::COMMAND_NAME] = mega::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
-    commands[ModAddCommand::COMMAND_NAME] = mega::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
-    commands[ModDelCommand::COMMAND_NAME] = mega::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
-    commands[HelloCommand::COMMAND_NAME] = mega::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8), call);
-    commands[WrDumpCommand::COMMAND_NAME] = mega::make_unique<WrDumpCommand>(std::bind(&sfu::SfuInterface::handleWrDump, &call, std::placeholders::_1), call);
-    commands[WrEnterCommand::COMMAND_NAME] = mega::make_unique<WrEnterCommand>(std::bind(&sfu::SfuInterface::handleWrEnter, &call, std::placeholders::_1), call);
-    commands[WrLeaveCommand::COMMAND_NAME] = mega::make_unique<WrLeaveCommand>(std::bind(&sfu::SfuInterface::handleWrLeave, &call, std::placeholders::_1), call);
-    commands[WrAllowCommand::COMMAND_NAME] = mega::make_unique<WrAllowCommand>(std::bind(&sfu::SfuInterface::handleWrAllow, &call, std::placeholders::_1), call);
-    commands[WrDenyCommand::COMMAND_NAME] = mega::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call), call);
-    commands[WrUsersAllowCommand::COMMAND_NAME] = mega::make_unique<WrUsersAllowCommand>(std::bind(&sfu::SfuInterface::handleWrUsersAllow, &call, std::placeholders::_1), call);
-    commands[WrUsersDenyCommand::COMMAND_NAME] = mega::make_unique<WrUsersDenyCommand>(std::bind(&sfu::SfuInterface::handleWrUsersDeny, &call, std::placeholders::_1), call);
-    commands[MutedCommand::COMMAND_NAME] = mega::make_unique<MutedCommand>(std::bind(&sfu::SfuInterface::handleMutedCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
-    commands[WillEndCommand::COMMAND_NAME] = mega::make_unique<WillEndCommand>(std::bind(&sfu::SfuInterface::handleWillEndCommand, &call, std::placeholders::_1), call);
-    commands[ClimitsCommand::COMMAND_NAME] = mega::make_unique<ClimitsCommand>(std::bind(&sfu::SfuInterface::handleClimitsCommand, &call, std::placeholders::_1), call);
+    commands[AVCommand::COMMAND_NAME] = std::make_unique<AVCommand>(std::bind(&sfu::SfuInterface::handleAvCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[AnswerCommand::COMMAND_NAME] = std::make_unique<AnswerCommand>(std::bind(&sfu::SfuInterface::handleAnswerCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8, std::placeholders::_9, std::placeholders::_10), call);
+    commands[KeyCommand::COMMAND_NAME] = std::make_unique<KeyCommand>(std::bind(&sfu::SfuInterface::handleKeyCommand, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[VthumbsCommand::COMMAND_NAME] = std::make_unique<VthumbsCommand>(std::bind(&sfu::SfuInterface::handleVThumbsCommand, &call, std::placeholders::_1), call);
+    commands[VthumbsStartCommand::COMMAND_NAME] = std::make_unique<VthumbsStartCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStartCommand, &call), call);
+    commands[VthumbsStopCommand::COMMAND_NAME] = std::make_unique<VthumbsStopCommand>(std::bind(&sfu::SfuInterface::handleVThumbsStopCommand, &call), call);
+    commands[HiResCommand::COMMAND_NAME] = std::make_unique<HiResCommand>(std::bind(&sfu::SfuInterface::handleHiResCommand, &call, std::placeholders::_1), call);
+    commands[HiResStartCommand::COMMAND_NAME] = std::make_unique<HiResStartCommand>(std::bind(&sfu::SfuInterface::handleHiResStartCommand, &call), call);
+    commands[HiResStopCommand::COMMAND_NAME] = std::make_unique<HiResStopCommand>(std::bind(&sfu::SfuInterface::handleHiResStopCommand, &call), call);
+    commands[SpeakerAddCommand::COMMAND_NAME] = std::make_unique<SpeakerAddCommand>(std::bind(&sfu::SfuInterface::handleSpeakerAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakerDelCommand::COMMAND_NAME] = std::make_unique<SpeakerDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakerAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakReqCommand::COMMAND_NAME] = std::make_unique<SpeakReqCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[SpeakReqDelCommand::COMMAND_NAME] = std::make_unique<SpeakReqDelCommand>(std::bind(&sfu::SfuInterface::handleSpeakReqAddDelCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[PeerJoinCommand::COMMAND_NAME] = std::make_unique<PeerJoinCommand>(std::bind(&sfu::SfuInterface::handlePeerJoin, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6), call);
+    commands[PeerLeftCommand::COMMAND_NAME] = std::make_unique<PeerLeftCommand>(std::bind(&sfu::SfuInterface::handlePeerLeft, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[ByeCommand::COMMAND_NAME] = std::make_unique<ByeCommand>(std::bind(&sfu::SfuInterface::handleBye, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3), call);
+    commands[ModAddCommand::COMMAND_NAME] = std::make_unique<ModAddCommand>(std::bind(&sfu::SfuInterface::handleModAdd, &call, std::placeholders::_1), call);
+    commands[ModDelCommand::COMMAND_NAME] = std::make_unique<ModDelCommand>(std::bind(&sfu::SfuInterface::handleModDel, &call, std::placeholders::_1), call);
+    commands[HelloCommand::COMMAND_NAME] = std::make_unique<HelloCommand>(std::bind(&sfu::SfuInterface::handleHello, &call, std::placeholders::_1, std::placeholders::_2, std::placeholders::_3, std::placeholders::_4, std::placeholders::_5, std::placeholders::_6, std::placeholders::_7, std::placeholders::_8), call);
+    commands[WrDumpCommand::COMMAND_NAME] = std::make_unique<WrDumpCommand>(std::bind(&sfu::SfuInterface::handleWrDump, &call, std::placeholders::_1), call);
+    commands[WrEnterCommand::COMMAND_NAME] = std::make_unique<WrEnterCommand>(std::bind(&sfu::SfuInterface::handleWrEnter, &call, std::placeholders::_1), call);
+    commands[WrLeaveCommand::COMMAND_NAME] = std::make_unique<WrLeaveCommand>(std::bind(&sfu::SfuInterface::handleWrLeave, &call, std::placeholders::_1), call);
+    commands[WrAllowCommand::COMMAND_NAME] = std::make_unique<WrAllowCommand>(std::bind(&sfu::SfuInterface::handleWrAllow, &call, std::placeholders::_1), call);
+    commands[WrDenyCommand::COMMAND_NAME] = std::make_unique<WrDenyCommand>(std::bind(&sfu::SfuInterface::handleWrDeny, &call), call);
+    commands[WrUsersAllowCommand::COMMAND_NAME] = std::make_unique<WrUsersAllowCommand>(std::bind(&sfu::SfuInterface::handleWrUsersAllow, &call, std::placeholders::_1), call);
+    commands[WrUsersDenyCommand::COMMAND_NAME] = std::make_unique<WrUsersDenyCommand>(std::bind(&sfu::SfuInterface::handleWrUsersDeny, &call, std::placeholders::_1), call);
+    commands[MutedCommand::COMMAND_NAME] = std::make_unique<MutedCommand>(std::bind(&sfu::SfuInterface::handleMutedCommand, &call, std::placeholders::_1, std::placeholders::_2), call);
+    commands[WillEndCommand::COMMAND_NAME] = std::make_unique<WillEndCommand>(std::bind(&sfu::SfuInterface::handleWillEndCommand, &call, std::placeholders::_1), call);
+    commands[ClimitsCommand::COMMAND_NAME] = std::make_unique<ClimitsCommand>(std::bind(&sfu::SfuInterface::handleClimitsCommand, &call, std::placeholders::_1), call);
+    commands[RaiseHandAddCommand::COMMAND_NAME] = std::make_unique<RaiseHandAddCommand>(std::bind(&sfu::SfuInterface::handleRaiseHandAddCommand, &call, std::placeholders::_1), call);
+    commands[RaiseHandDelCommand::COMMAND_NAME] = std::make_unique<RaiseHandDelCommand>(std::bind(&sfu::SfuInterface::handleRaiseHandDelCommand, &call, std::placeholders::_1), call);
 }
 
 bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
@@ -2109,6 +2174,25 @@ bool SfuConnection::sendSpeakerAddDel(const karere::Id& user, const bool add)
         json.AddMember(rapidjson::Value("user"), auxValue, json.GetAllocator());
     }
     // else => own user
+
+    rapidjson::StringBuffer buffer;
+    rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
+    json.Accept(writer);
+    std::string command(buffer.GetString(), buffer.GetSize());
+    return sendCommand(command);
+}
+
+bool SfuConnection::raiseHandToSpeak(const bool add)
+{
+    rapidjson::Document json(rapidjson::kObjectType);
+    rapidjson::Value cmdValue(rapidjson::kStringType);
+    const std::string& cmd = add ? SfuConnection::CSFU_RHAND_ADD : SfuConnection::CSFU_RHAND_DEL;
+    cmdValue.SetString(cmd.c_str(), json.GetAllocator());
+    json.AddMember(
+        rapidjson::Value(Command::COMMAND_IDENTIFIER.c_str(),
+                         static_cast<rapidjson::SizeType>(Command::COMMAND_IDENTIFIER.length())),
+        cmdValue,
+        json.GetAllocator());
 
     rapidjson::StringBuffer buffer;
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
@@ -2698,7 +2782,7 @@ SfuClient::SfuClient(WebsocketsIO& websocketIO, void* appCtx, rtcModule::RtcCryp
 SfuConnection* SfuClient::createSfuConnection(const karere::Id& chatid, karere::Url&& sfuUrl, SfuInterface &call, DNScache &dnsCache)
 {
     assert(mConnections.find(chatid) == mConnections.end());
-    mConnections[chatid] = mega::make_unique<SfuConnection>(std::move(sfuUrl), mWebsocketIO, mAppCtx, call, dnsCache);
+    mConnections[chatid] = std::make_unique<SfuConnection>(std::move(sfuUrl), mWebsocketIO, mAppCtx, call, dnsCache);
     SfuConnection* sfuConnection = mConnections[chatid].get();
     sfuConnection->connect();
     return sfuConnection;
@@ -2854,6 +2938,30 @@ bool ClimitsCommand::processCommand(const rapidjson::Document& command)
         return false;
     }
     return mComplete(*callLimitsOpt);
+}
+
+RaiseHandAddCommand::RaiseHandAddCommand(const RaiseHandAddCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool RaiseHandAddCommand::processCommand(const rapidjson::Document& command)
+{
+    // if user no present, this command is about own user (provide Id::null)
+    return mComplete(parseHandle(command, "user", karere::Id::null().val));
+}
+
+RaiseHandDelCommand::RaiseHandDelCommand(const RaiseHandDelCommandFunction& complete, SfuInterface& call)
+    : Command(call)
+    , mComplete(complete)
+{
+}
+
+bool RaiseHandDelCommand::processCommand(const rapidjson::Document& command)
+{
+    // if user no present, this command is about own user (provide Id::null)
+    return mComplete(parseHandle(command, "user", karere::Id::null().val));
 }
 
 ModAddCommand::ModAddCommand(const ModAddCommandFunction& complete, SfuInterface& call)

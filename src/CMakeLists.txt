@@ -66,7 +66,7 @@ target_sources_conditional(CHATlib
 )
 
 target_sources_conditional(CHATlib
-    FLAG ENABLE_CHATLIB_TESTS
+    FLAG ENABLE_CHATLIB_TESTS OR ENABLE_CHATLIB_MEGACLC
     PRIVATE
     async_utils.h
     async_utils.cpp
@@ -101,9 +101,12 @@ set_target_properties(CHATlib PROPERTIES
 # Add definitions for the compiler
 target_compile_definitions(CHATlib
     PRIVATE
-    $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
+        $<$<BOOL:${ENABLE_CHAT}>:ENABLE_CHAT>
+        $<$<BOOL:${WIN32}>:NOMINMAX> # TODO Fix locally
+        $<$<BOOL:${WIN32}>:$<$<NOT:$<BOOL:${BUILD_SHARED_LIBS}>>:MEGA_FULL_STATIC>>
+        $<$<BOOL:${APPLE}>:_DARWIN_C_SOURCE>
     PUBLIC
-    $<$<NOT:$<BOOL:${USE_WEBRTC}>>:KARERE_DISABLE_WEBRTC>
+        $<$<NOT:$<BOOL:${USE_WEBRTC}>>:KARERE_DISABLE_WEBRTC>
 )
 
 ## Load and link needed libraries for the CHATlib target ##
@@ -111,6 +114,12 @@ target_compile_definitions(CHATlib
 # Load 3rd parties
 include(chatlib_libraries) # Include a macro to load the library dependencies
 load_chatlib_libraries()
+
+if(WIN32)
+    target_link_libraries(CHATlib PRIVATE
+        Dbghelp.lib
+    )
+endif()
 
 # Link with the SDK library
 target_link_libraries(CHATlib PUBLIC MEGA::SDKlib)
@@ -126,5 +135,8 @@ if(ENABLE_CHATLIB_WERROR)
         TARGET CHATlib
         UNIX  $<$<CONFIG:Debug>: -Werror
                                  -Wno-error=deprecated-declarations> # Kept as a warning, do not promote to error.
+        APPLE $<$<CONFIG:Debug>: -Wno-sign-conversion                 -Wno-overloaded-virtual
+                                 -Wno-inconsistent-missing-override   -Wno-unused-variable
+                                 -Wno-unused-private-field>
     )
 endif()

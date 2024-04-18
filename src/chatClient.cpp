@@ -4280,7 +4280,7 @@ void GroupChatRoom::syncChatTitle(const mega::MegaTextChat& chat, const bool mem
                              err.what());
             });
     }
-    else if (membersChanged)
+    else if (!mHasTitle && membersChanged)
     {
         KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...",
                      ID_CSTR(mChatid));
@@ -4691,7 +4691,7 @@ void GroupChatRoom::addSchedMeetingsOccurrences(const mega::MegaTextChat& chat)
         const mega::MegaScheduledMeetingList* schedMeetings = chat.getUpdatedOccurrencesList() ;
         for (unsigned int i = 0; i < chat.getUpdatedOccurrencesList()->size(); i++)
         {
-            std::unique_ptr<KarereScheduledMeetingOccurr> aux = mega::make_unique<KarereScheduledMeetingOccurr>(schedMeetings->at(i));
+            std::unique_ptr<KarereScheduledMeetingOccurr> aux = std::make_unique<KarereScheduledMeetingOccurr>(schedMeetings->at(i));
             getClientDbInterface().insertOrUpdateSchedMeetingOcurr(*aux);
         }
     }

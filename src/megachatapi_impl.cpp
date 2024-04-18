@@ -60,6 +60,9 @@
 #include <execution>
 #endif
 
+#include <memory>
+
+
 #define MAX_PUBLICCHAT_MEMBERS_TO_PRIVATE 100
 
 using namespace std;
@@ -174,9 +177,9 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
     reqtag = 0;
 #ifndef KARERE_DISABLE_WEBRTC
-    mCallHandler = ::mega::make_unique<MegaChatCallHandler>(this);
+    mCallHandler = std::make_unique<MegaChatCallHandler>(this);
 #endif
-    mScheduledMeetingHandler = ::mega::make_unique<MegaChatScheduledMeetingHandler>(this);
+    mScheduledMeetingHandler = std::make_unique<MegaChatScheduledMeetingHandler>(this);
 
     //Start blocking thread
     threadExit = 0;
@@ -2568,6 +2571,30 @@ int MegaChatApiImpl::performRequest_hiResVideo(MegaChatRequestPrivate* request)
             fireOnChatRequestFinish(request, megaChatError);
             return MegaChatError::ERROR_OK;
         }
+}
+
+int MegaChatApiImpl::performRequest_raiseHandToSpeak(MegaChatRequestPrivate* request)
+{
+    const handle chatid = request->getChatHandle();
+    const bool add = request->getFlag();
+    const std::string errMsg = {"MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK" + std::string(add ? "(ADD)" : "(DEL)")};
+    if (chatid == MEGACHAT_INVALID_HANDLE)
+    {
+        API_LOG_ERROR("%s - Invalid chatid", errMsg.c_str());
+        return MegaChatError::ERROR_ARGS;
+    }
+
+    auto [errCode, call] = getCall(request->getChatHandle(), errMsg, false/*isModeratorRoleRequired*/);
+    if (errCode != MegaChatError::ERROR_OK)
+    {
+        API_LOG_ERROR("%s - can't get chat call", errMsg.c_str());
+        return errCode;
+    }
+
+    call->raiseHandToSpeak(add);
+    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+    fireOnChatRequestFinish(request, megaChatError);
+    return MegaChatError::ERROR_OK;
 }
 
 int MegaChatApiImpl::performRequest_lowResVideo(MegaChatRequestPrivate* request)
@@ -6594,6 +6621,16 @@ void MegaChatApiImpl::requestHiResVideo(MegaChatHandle chatid, MegaChatHandle cl
     waiter->notify();
 }
 
+void MegaChatApiImpl::raiseHandToSpeak(MegaChatHandle chatid, bool add, MegaChatRequestListener* listener)
+{
+    MegaChatRequestPrivate* request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK, listener);
+    request->setChatHandle(chatid);
+    request->setFlag(add);
+    request->setPerformRequest([this, request]() { return performRequest_raiseHandToSpeak(request); });
+    requestQueue.push(request);
+    waiter->notify();
+}
+
 void MegaChatApiImpl::stopHiResVideo(MegaChatHandle chatid, MegaHandleList *clientIds, MegaChatRequestListener *listener)
 {
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO, listener);
@@ -8298,6 +8335,14 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     }
 
     // always create a valid instance of MegaHandleList
+    mRaiseHandsList.reset(::mega::MegaHandleList::createInstance());
+    const auto& hrList = call.getRaiseHandsList();
+    std::for_each(hrList.begin(), hrList.end(), [this](const auto& uh)
+    {
+        mRaiseHandsList->addMegaHandle(uh.val);
+    });
+
+    // always create a valid instance of MegaHandleList
     mSpeakersList.reset(::mega::MegaHandleList::createInstance());
     for (const auto &speaker: call.getSpeakersList())
     {
@@ -8306,10 +8351,11 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
 
     // always create a valid instance of MegaHandleList
     mSpeakRequestsList.reset(::mega::MegaHandleList::createInstance());
-    for (const auto &speakReq: call.getSpeakRequestsList())
+    const auto& spkrList = call.getSpeakRequestsList();
+    std::for_each(spkrList.begin(), spkrList.end(), [this](const auto& uh)
     {
-        mSpeakRequestsList->addMegaHandle(speakReq);
-    }
+        mSpeakRequestsList->addMegaHandle(uh.val);
+    });
 
     mRinging = call.isRinging();
     mOwnModerator = call.isOwnPrivModerator();
@@ -8319,7 +8365,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const rtcModule::ICall &call)
     std::vector<Cid_t> sessionCids = call.getSessionsCids();
     for (Cid_t cid : sessionCids)
     {
-        mSessions[cid] = ::mega::make_unique<MegaChatSessionPrivate>(*call.getIsession(cid));
+        mSessions[cid] = std::make_unique<MegaChatSessionPrivate>(*call.getIsession(cid));
     }
 }
 
@@ -8348,6 +8394,7 @@ MegaChatCallPrivate::MegaChatCallPrivate(const MegaChatCallPrivate &call)
     mWrJoiningState = call.getWrJoiningState();
     mMegaChatWaitingRoom.reset(call.getWaitingRoom() ? call.getWaitingRoom()->copy() : nullptr);
     mModerators.reset(call.getModerators() ? call.getModerators()->copy() : nullptr);
+    mRaiseHandsList.reset(call.getRaiseHandsList() ? call.getRaiseHandsList()->copy() : nullptr);
     mParticipants = call.mParticipants;
     mHandleList.reset(call.getHandleList() ? call.getHandleList()->copy() : nullptr);
     mSpeakersList.reset(call.getSpeakersList() ? call.getSpeakersList()->copy() : nullptr);
@@ -8413,6 +8460,18 @@ int MegaChatCallPrivate::getChanges() const
 bool MegaChatCallPrivate::hasChanged(int changeType) const
 {
     return (mChanged & changeType);
+}
+
+bool MegaChatCallPrivate::hasUserHandRaised(const MegaChatHandle uh) const
+{
+    for (unsigned int i = 0; i < mRaiseHandsList->size(); ++i)
+    {
+        if (mRaiseHandsList->get(i) == uh)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 bool MegaChatCallPrivate::hasUserSpeakPermission(const MegaChatHandle uh) const
@@ -8591,6 +8650,12 @@ MegaHandleList *MegaChatCallPrivate::getPeeridParticipants() const
 const MegaHandleList* MegaChatCallPrivate::getModerators() const
 {
     return mModerators.get();
+}
+
+
+const MegaHandleList* MegaChatCallPrivate::getRaiseHandsList() const
+{
+    return mRaiseHandsList.get();
 }
 
 bool MegaChatCallPrivate::isIgnored() const
@@ -11587,28 +11652,28 @@ MegaChatCallHandler::~MegaChatCallHandler()
 
 void MegaChatCallHandler::onCallStateChange(rtcModule::ICall &call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setStatus(MegaChatCallPrivate::convertCallState(call.getState()));
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onCallRinging(rtcModule::ICall &call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_RINGING_STATUS);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onCallWillEndr(rtcModule::ICall &call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_WILL_END);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onCallLimitsUpdated(rtcModule::ICall &call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_LIMITS_UPDATED);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
@@ -11617,7 +11682,7 @@ void MegaChatCallHandler::onCallError(rtcModule::ICall &call, int code, const st
 {
     // set manually Notification type, TermCode and message, as we are notifying an SFU error, and that information
     // is temporary, and shouldn't be preserved in original Call object
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setNotificationType(MegaChatCall::NOTIFICATION_TYPE_SFU_ERROR);                           // Notification type
     chatCall->setTermCode(chatCall->convertTermCode(static_cast<rtcModule::TermCode>(code)));           // SFU error
     chatCall->setMessage(errMsg);                                                                       // SFU err message
@@ -11626,21 +11691,21 @@ void MegaChatCallHandler::onCallError(rtcModule::ICall &call, int code, const st
 
 void MegaChatCallHandler::onStopOutgoingRinging(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_OUTGOING_RINGING_STOP);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onPermissionsChanged(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_OWN_PERMISSIONS);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onWrUsersAllow(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_ALLOW);
     chatCall->setHandleList(users);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
@@ -11648,7 +11713,7 @@ void MegaChatCallHandler::onWrUsersAllow(const rtcModule::ICall& call, const ::m
 
 void MegaChatCallHandler::onWrUsersDeny(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_DENY);
     chatCall->setHandleList(users);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
@@ -11656,35 +11721,35 @@ void MegaChatCallHandler::onWrUsersDeny(const rtcModule::ICall& call, const ::me
 
 void MegaChatCallHandler::onWrUserDump(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_COMPOSITION);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onWrAllow(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_ALLOW);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onWrDeny(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_DENY);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onWrPushedFromCall(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_PUSHED_FROM_CALL);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onWrUsersEntered(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_ENTERED);
     chatCall->setHandleList(users);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
@@ -11692,7 +11757,7 @@ void MegaChatCallHandler::onWrUsersEntered(const rtcModule::ICall& call, const :
 
 void MegaChatCallHandler::onWrUsersLeave(const rtcModule::ICall& call, const ::mega::MegaHandleList* users)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_WR_USERS_LEAVE);
     chatCall->setHandleList(users);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
@@ -11702,7 +11767,7 @@ void MegaChatCallHandler::onCallDeny(const rtcModule::ICall& call, const std::st
 {
     // set manually Notification type, Denied command and message, as we are notifying an SFU denied command, and that information
     // is temporary, and shouldn't be preserved in original Call object
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setNotificationType(MegaChatCall::NOTIFICATION_TYPE_SFU_DENY);                         // Notification type
     chatCall->setTermCode(chatCall->convertSfuCmdToCode(cmd));                                       // SFU denied command
     chatCall->setMessage(msg);                                                                       // SFU err message
@@ -11727,19 +11792,28 @@ void MegaChatCallHandler::onUserSpeakStatusUpdate(const rtcModule::ICall& call, 
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
+void MegaChatCallHandler::onRaiseHandAddedRemoved(const rtcModule::ICall& call, const karere::Id& userid, const bool add)
+{
+    auto chatCall = std::make_unique<MegaChatCallPrivate>(call);
+    chatCall->setHandle(userid);
+    chatCall->setFlag(add);
+    chatCall->setChange(MegaChatCall::CHANGE_TYPE_CALL_RAISE_HAND);
+    mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
+}
+
 void MegaChatCallHandler::onNewSession(rtcModule::ISession& sess, const rtcModule::ICall &call)
 {
     MegaChatSessionHandler *sessionHandler = new MegaChatSessionHandler(mMegaChatApi, call);
     sess.setSessionHandler(sessionHandler); // takes ownership, destroyed after onDestroySession()
 
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(sess);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(sess);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_STATUS);
     mMegaChatApi->fireOnChatSessionUpdate(call.getChatid(), call.getCallid(), megaSession.get());
 }
 
 void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call, const Cid_t cidPerf)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_LOCAL_AVFLAGS);
     chatCall->setAuxHandle(cidPerf);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
@@ -11747,28 +11821,28 @@ void MegaChatCallHandler::onLocalFlagsChanged(const rtcModule::ICall &call, cons
 
 void MegaChatCallHandler::onOnHold(const rtcModule::ICall& call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setOnHold(call.getLocalAvFlags().isOnHold());
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onAddPeer(const rtcModule::ICall &call, Id peer)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setPeerid(peer, true);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onRemovePeer(const rtcModule::ICall &call, Id peer)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setPeerid(peer, false);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
 
 void MegaChatCallHandler::onNetworkQualityChanged(const rtcModule::ICall &call)
 {
-    std::unique_ptr<MegaChatCallPrivate> chatCall = ::mega::make_unique<MegaChatCallPrivate>(call);
+    std::unique_ptr<MegaChatCallPrivate> chatCall = std::make_unique<MegaChatCallPrivate>(call);
     chatCall->setChange(MegaChatCall::CHANGE_TYPE_NETWORK_QUALITY);
     mMegaChatApi->fireOnChatCallUpdate(chatCall.get());
 }
@@ -11822,7 +11896,7 @@ void MegaChatSessionHandler::onVThumbReceived(rtcModule::ISession& session)
         session.setVideoRendererVthumb(nullptr);
     }
 
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_LOWRES);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
@@ -11838,49 +11912,49 @@ void MegaChatSessionHandler::onHiResReceived(rtcModule::ISession& session)
         session.setVideoRendererHiRes(nullptr);
     }
 
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_SESSION_ON_HIRES);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
 void MegaChatSessionHandler::onDestroySession(rtcModule::ISession &session)
 {
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_STATUS);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
 void MegaChatSessionHandler::onRemoteFlagsChanged(rtcModule::ISession &session)
 {
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_REMOTE_AVFLAGS);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
 void MegaChatSessionHandler::onOnHold(rtcModule::ISession& session)
 {
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setOnHold(session.getAvFlags().isOnHold());
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
 void MegaChatSessionHandler::onRecordingChanged(rtcModule::ISession& session)
 {
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setRecording(session.getAvFlags().isRecording());
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
 void MegaChatSessionHandler::onRemoteAudioDetected(rtcModule::ISession& session)
 {
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setAudioDetected(session.isAudioDetected());
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
 
 void MegaChatSessionHandler::onPermissionsChanged(rtcModule::ISession& session)
 {
-    std::unique_ptr<MegaChatSessionPrivate> megaSession = ::mega::make_unique<MegaChatSessionPrivate>(session);
+    std::unique_ptr<MegaChatSessionPrivate> megaSession = std::make_unique<MegaChatSessionPrivate>(session);
     megaSession->setChange(MegaChatSession::CHANGE_TYPE_PERMISSIONS);
     mMegaChatApi->fireOnChatSessionUpdate(mChatid, mCallid, megaSession.get());
 }
@@ -13025,7 +13099,7 @@ std::unique_ptr<MegaChatGiphy> JSonUtils::parseGiphy(rapidjson::Document& docume
         API_LOG_ERROR("parseGiphy: invalid JSON struct - \"h\" field not found");
         return std::unique_ptr<MegaChatGiphy>(nullptr);
     }
-    return ::mega::make_unique<MegaChatGiphyPrivate>(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle);
+    return std::make_unique<MegaChatGiphyPrivate>(mp4srcString, webpsrcString, mp4Size, webpSize, giphyWidth, giphyHeight, giphyTitle);
 }
 
 string JSonUtils::getImageFormat(const char *imagen)

@@ -10,21 +10,24 @@
 #include <direct.h>
 #endif
 
-#include <filesystem>
+#include <memory>
 
 using namespace mega;
 using namespace megachat;
 using namespace std;
+namespace fs = std::filesystem;
 using CleanupFunction = MegaChatApiTest::MegaMrProper::CleanupFunction;
 
-std::string MegaChatApiTest::DEFAULT_PATH = "./";
 // IMPORTANT: Ensure that your build system copies the FILE_IMAGE_NAME to the directory where the binary is located.
 const std::string MegaChatApiTest::FILE_IMAGE_NAME = "logo.png";
 const std::string MegaChatApiTest::PATH_IMAGE = "PATH_IMAGE";
 
-const std::string MegaChatApiTest::LOCAL_PATH = "./tmp"; // no ending slash
+// The following paths need to end with a trailing /
+fs::path MegaChatApiTest::DEFAULT_PATH = fs::path(".") / "";
+const fs::path MegaChatApiTest::LOCAL_PATH = fs::path(".") / "tmp" / "";
+const fs::path MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH / "download" / "";
+
 const std::string MegaChatApiTest::REMOTE_PATH = "/";
-const std::string MegaChatApiTest::DOWNLOAD_PATH = LOCAL_PATH + "/download/";
 std::string MegaChatApiTest::PROC_SPECIFIC_PATH;
 std::string USER_AGENT_DESCRIPTION = "MEGAChatTest";
 
@@ -332,27 +335,27 @@ bool MegaChatApiTest::initFS()
 
     PROC_SPECIFIC_PATH = "./test_pid_" + std::to_string(pid);
 
-    if (!filesystem::create_directory(PROC_SPECIFIC_PATH))
+    if (!fs::create_directory(PROC_SPECIFIC_PATH))
     {
         std::cout << "FATAL ERROR: Failed to create directory " << PROC_SPECIFIC_PATH << endl;
         return false;
     }
 
     std::error_code ec;
-    filesystem::current_path(PROC_SPECIFIC_PATH, ec);
+    fs::current_path(PROC_SPECIFIC_PATH, ec);
     if (ec)
     {
         std::cout << "FATAL ERROR: Failed to change work directory to " << PROC_SPECIFIC_PATH << ": " << ec.message() << endl;
         return false;
     }
 
-    if (!filesystem::create_directory(LOCAL_PATH))
+    if (!fs::create_directory(LOCAL_PATH))
     {
-        std::cout << "FATAL ERROR: Failed to create directory " << LOCAL_PATH << endl;
+        std::cout << "FATAL ERROR: Failed to create directory " << LOCAL_PATH.string() << endl;
         return false;
     }
 
-    DEFAULT_PATH = "../"; // set it up 1 level after changing work directory
+    DEFAULT_PATH = fs::path("..") / ""; // set it up 1 level after changing work directory
 
     return true;
 }
@@ -1039,6 +1042,196 @@ TEST_F(MegaChatApiTest, BasicTest)
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
+
+/**
+ * @brief MegaChatApiTest.RaiseHandLite
+ * + Test1: start call with a1 and a2 answers call
+ * + Test2: a2 raises hand
+ * + Test3: a2 lowers hand
+ * + Test4: a1 raises hand
+ * + Test5: a1 lowers hand
+ * + Test6: end call from a1
+ * + Test7: start call with a1 and raise hand, then a2 answers call and raise hand
+ * + Test8: check raise hand list order
+ */
+TEST_F(MegaChatApiTest, RaiseHandLite)
+{
+    //========================================================================//
+    // Auxiliar test functions
+    //========================================================================//
+    /** add here all auxiliar lambdas that this test can require **/
+    auto raiseHand = [this](const bool add, const unsigned int idx, const MegaChatHandle uh, std::set<unsigned int> recvIdx)
+    {
+        clearTemporalVars();
+        recvIdx.emplace(idx);
+        ExitBoolFlags eF;
+        std::for_each(recvIdx.begin(), recvIdx.end(), [this, add, &eF](const auto i)
+        {
+            if (add)
+            {
+                addBoolVarAndExitFlag(i, eF, "raisedHand", false);
+                addHandleVar(i, "raisedHandUh", MEGACHAT_INVALID_HANDLE);
+            }
+            else
+            {
+                addBoolVarAndExitFlag(i, eF, "loweredHand", false);
+                addHandleVar(i, "loweredHandUh", MEGACHAT_INVALID_HANDLE);
+            }
+        });
+
+        waitForAction(1, /* just one attempt */
+                      eF,
+                      "raise hand",
+                      true /* wait for all exit flags */,
+                      true /* reset flags */,
+                      minTimeout * 2, // 2 min
+                      [this, chatid = mData.mChatid, add, idx]()
+                      {
+                          ChatRequestTracker crtRaiseHand(megaChatApi[idx]);
+                          add
+                              ? megaChatApi[idx]->raiseHandToSpeak(chatid, &crtRaiseHand)
+                              : megaChatApi[idx]->lowerHandToStopSpeak(chatid, &crtRaiseHand);
+
+                          ASSERT_EQ(crtRaiseHand.waitForResult(), MegaChatError::ERROR_OK)
+                              << "Failed to " << (add ? "Raise " : "Lower ")
+                              << "hand. Error: " << crtRaiseHand.getErrorString();
+                      }
+        );
+
+        for (auto i: recvIdx)
+        {
+            MegaChatHandle* recvUh = add
+                                         ? handleVars().getVar(i, "raisedHandUh")
+                                         : handleVars().getVar(i, "loweredHandUh");
+
+            ASSERT_TRUE(recvUh) << "Can't get " << (add ? "raisedHandUh" : "loweredHandUh")
+                                << " for " << std::to_string(i);
+            ASSERT_EQ(*recvUh, uh) << "Unexpected Uh received";
+        }
+
+        // check call for user that raised hand contains that user in raised hand list
+        std::unique_ptr<MegaChatCall> call(megaChatApi[idx]->getChatCall(mData.mChatid));
+        ASSERT_TRUE(call) << "Cannot get call for chatid: " << getChatIdStrB64((mData.mChatid));
+        ASSERT_EQ(call->hasUserHandRaised(uh), add) << "Unexpected raised hand status for own user: "
+                                                    << getUserIdStrB64(uh);
+    };
+
+    auto isRaiseHandsListOrdered = [](const MegaHandleList* rhList, const std::vector<MegaChatHandle> expOrder) -> bool
+    {
+        if (!rhList || rhList->size() != expOrder.size()) { return false; }
+
+        int i = 0;
+        return std::all_of(expOrder.begin(), expOrder.end(), [rhList, &i](const auto uh)
+        {
+            return rhList->get(i++) == uh;
+        });
+    };
+
+    CleanupFunction testCleanup = [this]
+    {
+        LOG_debug << "MegaChatApiTest.RaiseHandLite: Cleanup";
+        clearTemporalVars();
+        ExitBoolFlags eF;
+        // callDestroyed - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false);
+        endChatCall(mData.mOpIdx, eF, mData.mChatid);
+        closeOpenedChatrooms();
+        cleanChatVideoListeners();
+        logoutTestAccounts();
+    };
+    MegaMrProper p (testCleanup);
+
+    // login into all involved accounts for this test and establish required contact relationships
+    // Note: all involved accounts in this test, must be added to mSessions and mAccounts
+    const unsigned a1 = 0;
+    const unsigned a2 = 1;
+    mData.mOpIdx = a1; // set test operator role index
+    mData.mSessions.emplace(a1, login(a1));
+    mData.mSessions.emplace(a2, login(a2));
+    const MegaChatHandle a1Uh = megaChatApi[a1]->getMyUserHandle();
+    const MegaChatHandle a2Uh = megaChatApi[a2]->getMyUserHandle();
+    mData.mAccounts.emplace(a1, a1Uh);
+    mData.mAccounts.emplace(a2, a2Uh);
+    ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
+    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
+
+    LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test RaiseHand (lite)";
+    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
+    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
+
+    // set chat selection criteria
+    mData.mChatOptions.mCreate          = true;
+    mData.mChatOptions.mPublicChat      = true;
+    mData.mChatOptions.mMeetingRoom     = false;
+    mData.mChatOptions.mWaitingRoom     = false;
+    mData.mChatOptions.mSpeakRequest    = false;
+    mData.mChatOptions.mOpenInvite      = false;
+
+    // set chat operator idx and privileges, and create chat participants list
+    // chat operator idx corresponds with idx of account from which we retrieve chatroom
+    mData.mChatOptions.mChatOpIdx = a1;
+    mData.mChatOptions.mOpPriv = megachat::MegaChatPeerList::PRIV_MODERATOR;
+    mData.mChatOptions.mChatPeerList.reset(megachat::MegaChatPeerList::createInstance());
+    mData.mChatOptions.mChatPeerList->addPeer(a2Uh, MegaChatPeerList::PRIV_STANDARD);
+    mData.mChatOptions.mChatPeerIdx.emplace_back(a2);
+
+    // get a group chatroom
+    mData.mChatid = getGroupChatRoom();
+    ASSERT_NE(mData.mChatid, MEGACHAT_INVALID_HANDLE) << "Can't get a chatroom with selected criteria";
+
+    // open chatroom (just add chatroom listeners for chatroom participants)
+    auto crl = std::make_shared<TestChatRoomListener>(this, megaChatApi, mData.mChatid);
+    mData.mChatroomListeners.emplace(a1, crl);
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a1 account";
+    mData.mChatroomListeners.emplace(a2, crl);
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(mData.mChatid, crl.get())) << "Can't open chatRoom a2 account";
+
+    // load history
+    ASSERT_GE(loadHistory(a1, mData.mChatid, crl.get()), 0);
+    ASSERT_GE(loadHistory(a2, mData.mChatid, crl.get()), 0);
+
+    LOG_debug << "#### Test1: start call with a1 and a2 answers call ####";
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+
+    LOG_debug << "#### Test2: a2 raises hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true  /*add*/, a2, a2Uh, {a1}));
+
+    LOG_debug << "#### Test3: a2 lowers hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(false /*add*/, a2, a2Uh, {a1}));
+
+    LOG_debug << "#### Test4: a1 raises hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true  /*add*/, a1, a1Uh, {a2}));
+
+    LOG_debug << "#### Test5: a1 lowers hand ####";
+    ASSERT_NO_FATAL_FAILURE(raiseHand(false /*add*/, a1, a1Uh, {a2}));
+
+    LOG_debug << "#### Test6: end call from a1 ####";
+    ExitBoolFlags eF;
+    addBoolVarAndExitFlag(a1, eF, "callDestroyed", false);
+    endChatCall(mData.mOpIdx, eF, mData.mChatid);
+    ASSERT_NO_FATAL_FAILURE(endChatCall(a1, eF, mData.mChatid));
+
+    LOG_debug << "#### Test7: start call with a1 and raise hand, then a2 answers call and raise hand ####";
+    // a2 must receive raise hand list upon ANSWER command
+    ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a1, a1Uh, {}));
+    ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
+    ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a2, a2Uh, {a1}));
+
+    LOG_debug << "#### Test8: check raise hand list order ####";
+    std::unique_ptr<MegaChatCall>calla1(megaChatApi[a1]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(calla1) << "Cannot retrieve call from chatroom for a1: " << getChatIdStrB64(mData.mChatid);
+    ASSERT_TRUE(isRaiseHandsListOrdered(calla1->getRaiseHandsList(), {a1Uh, a2Uh}));
+
+    std::unique_ptr<MegaChatCall>calla2(megaChatApi[a2]->getChatCall(mData.mChatid));
+    ASSERT_TRUE(calla2) << "Cannot retrieve call from chatroom for a2: " << getChatIdStrB64(mData.mChatid);
+    ASSERT_TRUE(isRaiseHandsListOrdered(calla2->getRaiseHandsList(), {a1Uh, a2Uh}));
+
+    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
+    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
+}
 
 /**
  * @brief MegaChatApiTest.CallLimitsFreePlan
@@ -3363,11 +3556,12 @@ TEST_F(MegaChatApiTest, Attachment)
     chatroomListener->clearMessages(a1);   // will be set at confirmation
     chatroomListener->clearMessages(a2);   // will be set at reception
 
-    std::string formatDate = dateToString() + "_Attachment_test";
+    std::string fileName = dateToString() + "_Attachment_test";
+    std::string fileContent = "This is the content of file: " + fileName;
 
     LOG_debug << "#### Test1: Upload new file ####";
-    ASSERT_NO_FATAL_FAILURE(createFile(formatDate, LOCAL_PATH, formatDate));
-    MegaNode* nodeSent = uploadFile(a1, formatDate, LOCAL_PATH, REMOTE_PATH);
+    ASSERT_NO_FATAL_FAILURE(createFile(fileName, LOCAL_PATH, fileContent));
+    MegaNode* nodeSent = uploadFile(a1, fileName, LOCAL_PATH, REMOTE_PATH);
     ASSERT_TRUE(nodeSent);
 
     LOG_debug << "#### Test2: Send file as attachment to chatroom ####";
@@ -3377,6 +3571,8 @@ TEST_F(MegaChatApiTest, Attachment)
 
     LOG_debug << "#### Test3: Download received file ####";
     ASSERT_TRUE(downloadNode(a2, nodeReceived)) << "Cannot download node attached to message";
+    auto downloadedFilePath = DOWNLOAD_PATH / fileName;
+    ASSERT_TRUE(fs::exists(downloadedFilePath));
 
     LOG_debug << "#### Test4: Import received file into the cloud ####";
     ASSERT_TRUE(importNode(a2, nodeReceived, FILE_IMAGE_NAME)) << "Cannot import node attached to message";
@@ -3405,9 +3601,8 @@ TEST_F(MegaChatApiTest, Attachment)
     ASSERT_EQ(msgReceived->getHandleOfAction(), nodeSent->getHandle()) << "Handle of attached nodes don't match";
 
     // Remove the downloaded file to try to download it again after revoke
-    std::string filePath = DOWNLOAD_PATH + std::string(formatDate);
-    std::string secondaryFilePath = DOWNLOAD_PATH + std::string("remove");
-    rename(filePath.c_str(), secondaryFilePath.c_str());
+    auto secondaryFilePath = DOWNLOAD_PATH / std::string("remove");
+    fs::rename(downloadedFilePath, secondaryFilePath);
 
     LOG_debug << "#### Test6: Download received file again --> no access ####";
     ASSERT_FALSE(downloadNode(1, nodeReceived)) << "Download succeed, when it should fail";
@@ -3422,7 +3617,7 @@ TEST_F(MegaChatApiTest, Attachment)
     nodeSent = NULL;
 
     LOG_debug << "#### Test7: Upload an image to check previews / thumbnails ####";
-    std::string path = DEFAULT_PATH;
+    fs::path path = DEFAULT_PATH;
     if (getenv(PATH_IMAGE.c_str()) != NULL)
     {
         path = getenv(PATH_IMAGE.c_str());
@@ -3436,13 +3631,13 @@ TEST_F(MegaChatApiTest, Attachment)
     nodeReceived = msgSent->getMegaNodeList()->get(0)->copy();
 
     LOG_debug << "#### Test8: Download the thumbnail ####";
-    std::string thumbnailPath = LOCAL_PATH + "/thumbnail0.jpg";
+    std::string thumbnailPath = (LOCAL_PATH / "thumbnail0.jpg").string();
     RequestTracker getThumbnailTracker(megaApi[a1]);
     megaApi[a1]->getThumbnail(nodeSent, thumbnailPath.c_str(), &getThumbnailTracker);
     ASSERT_EQ(getThumbnailTracker.waitForResult(), API_OK) << "Failed to get thumbnail. Error: " << getThumbnailTracker.getErrorString();
 
     LOG_debug << "#### Test9: Download the thumbnail ####";
-    thumbnailPath = LOCAL_PATH + "/thumbnail1.jpg";
+    thumbnailPath = (LOCAL_PATH / "thumbnail1.jpg").string();
     RequestTracker getThumbnailTracker2(megaApi[a2]);
     megaApi[a2]->getThumbnail(nodeReceived, thumbnailPath.c_str(), &getThumbnailTracker2);
     ASSERT_EQ(getThumbnailTracker2.waitForResult(), API_OK) << "Failed to get thumbnail (2). Error: " << getThumbnailTracker2.getErrorString();
@@ -3878,7 +4073,7 @@ protected:
         auto& lsnr = listeners[id];
         if (!lsnr)
         {
-            lsnr = ::mega::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
+            lsnr = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatid);
         }
         return lsnr.get();
     }
@@ -5963,7 +6158,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     //========================================================================//
     // Test2: B request to speak, A rejects it
     //========================================================================//
-    LOG_debug << "JDEBUG: Test2: B request to speak, A rejects it";
+    LOG_debug << "Test2: B request to speak, A rejects it";
     ASSERT_NO_FATAL_FAILURE(sendAndProcessSpeakRequest(a2, a1, false /*approve*/, mData.mChatid););
     ASSERT_NO_FATAL_FAILURE(checkOwnSpeakPermissions(a2, a2Uh, false/*moderator*/, false/*expected*/, mData.mChatid););
     // clean all bool and handle vars (this prevents conflicts in following tests)
@@ -6340,8 +6535,21 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
  */
 TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
 {
-    const unsigned int a1 = 0, a2 = 1, a3 = 2;
+    CleanupFunction testCleanup = [this]
+    {
+        LOG_debug << "MegaChatApiTest.EstablishedCallsRingUserIndividually: Cleanup";
+        clearTemporalVars();
+        ExitBoolFlags eF;
+        // callDestroyed - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(mData.mOpIdx, eF, "callDestroyed", false);
+        endChatCall(mData.mOpIdx, eF, mData.mChatid);
+        closeOpenedChatrooms();
+        logoutTestAccounts();
+    };
+    MegaMrProper p(testCleanup);
 
+    const unsigned int a1 = 0, a2 = 1, a3 = 2;
+    mData.mOpIdx = a1;
     LOG_debug << "# Prepare users, and chat room";
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
@@ -6366,13 +6574,20 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     peers->addPeer(uhB, MegaChatPeerList::PRIV_STANDARD);
     peers->addPeer(uhC, MegaChatPeerList::PRIV_STANDARD);
     const MegaChatHandle chatId = getGroupChatRoom({a1, a2, a3}, peers.get());
+    mData.mChatid = chatId;
     ASSERT_NE(chatId, MEGACHAT_INVALID_HANDLE) << "Common chat for all users not found.";
     ASSERT_EQ(megaChatApi[a1]->getChatConnectionState(chatId), MegaChatApi::CHAT_CONNECTION_ONLINE)
         << "Not connected to chatd for account " << account(a1).getEmail() << "(" << a1 + 1 << ")";
 
-    auto chatroomListener = std::make_unique<TestChatRoomListener>(this, megaChatApi, chatId);
-    const auto openChatRoom = [this, &chatId, l = chatroomListener.get()](const auto idx, const std::string& u)
-    { ASSERT_TRUE(megaChatApi[idx]->openChatRoom(chatId, l)) << "Can't open chatRoom user " + u; };
+    auto chatroomListener = std::make_shared<TestChatRoomListener>(this, megaChatApi, chatId);
+    const auto openChatRoom =
+        [this, &chatId, l = chatroomListener](const auto idx, const std::string& u)
+    {
+        ASSERT_TRUE(megaChatApi[idx]->openChatRoom(chatId, l.get()))
+            << "Can't open chatRoom user " + u;
+        mData.mChatroomListeners.emplace(idx, l);
+    };
+
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a1, "A"));
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a2, "B"));
     ASSERT_NO_FATAL_FAILURE(openChatRoom(a3, "C"));
@@ -6557,13 +6772,6 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedA, "A" + err));
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedB, "B" + err));
     ASSERT_NO_FATAL_FAILURE(checkCallDestroyed(callDestroyedC, "C" + err + "(it never started)"));
-
-    LOG_debug << "# Closing chat room for each user and removing its localVideoListener";
-    const auto closeChatRoom =
-        [this, &chatId, l = chatroomListener.get()](const auto u){ megaChatApi[u]->closeChatRoom(chatId, l); };
-    closeChatRoom(a1);
-    closeChatRoom(a2);
-    closeChatRoom(a3);
 }
 
 /**
@@ -9513,19 +9721,18 @@ unsigned int MegaChatApiTest::getMegaApiIndex(MegaApi *api)
     return apiIndex;
 }
 
-void MegaChatApiTest::createFile(const string &fileName, const string &sourcePath, const string &contain)
+void MegaChatApiTest::createFile(const string &fileName, const fs::path &sourcePath, const string &content)
 {
-    std::string filePath = sourcePath + "/" + fileName;
-    FILE* fileDescriptor = fopen(filePath.c_str(), "w");
-    ASSERT_TRUE(fileDescriptor) << "File " << filePath << " could not be opened for writing";
-    fprintf(fileDescriptor, "%s", contain.c_str());
-    fclose(fileDescriptor);
+    fs::path filePath = sourcePath / fileName;
+    std::ofstream fileStream(filePath, std::ios::out);
+    ASSERT_TRUE(fileStream.is_open()) << "File " << filePath.string() << " could not be opened for writing";
+    fileStream << content;
 }
 
-MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const std::string& sourcePath, const std::string& targetPath)
+MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileName, const fs::path& sourcePath, const std::string& targetPath)
 {
     addTransfer(accountIndex);
-    std::string filePath = sourcePath + "/" + fileName;
+    std::string filePath = (sourcePath / fileName).string();
     mNodeUploadHandle[accountIndex] = INVALID_HANDLE;
     std::unique_ptr<MegaNode> targetNode(megaApi[accountIndex]->getNodeByPath(targetPath.c_str()));
     megaApi[accountIndex]->startUpload(filePath.c_str()
@@ -9565,19 +9772,14 @@ bool &MegaChatApiTest::isNotTransferRunning(int accountIndex)
 
 bool MegaChatApiTest::downloadNode(int accountIndex, MegaNode *nodeToDownload)
 {
-    struct stat st = {}; // init all members to default values (0)
-    if (stat(DOWNLOAD_PATH.c_str(), &st) == -1)
+    if (!fs::exists(DOWNLOAD_PATH))
     {
-#ifdef _WIN32
-        _mkdir(DOWNLOAD_PATH.c_str());
-#else
-        mkdir(DOWNLOAD_PATH.c_str(), 0700);
-#endif
+        fs::create_directory(DOWNLOAD_PATH);
     }
-
+    static const std::string downloadPathStr = DOWNLOAD_PATH.string();
     addTransfer(accountIndex);
     megaApi[accountIndex]->startDownload(nodeToDownload,
-                                         DOWNLOAD_PATH.c_str(),
+                                         downloadPathStr.c_str(),
                                          nullptr,   /*customName*/
                                          nullptr,   /*appData*/
                                          false,     /*startFirst*/
@@ -9629,68 +9831,22 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     delete crl;
 }
 
-int MegaChatApiTest::purgeLocalTree(const std::string &path)
+int MegaChatApiTest::purgeLocalTree(const fs::path& path)
 {
-#ifdef _WIN32
-    // should be reimplemented, maybe using std::filesystem
-    std::cout << "Manually purge local tree: " << path << std::endl;
-    return 0;
-
-#else
-    DIR *directory = opendir(path.c_str());
-    size_t path_len = path.length();
-    int r = -1;
-
-    if (directory)
+    try
     {
-        struct dirent *p;
-        r = 0;
-        while (!r && (p=readdir(directory)))
+        if (fs::exists(path) && fs::is_directory(path))
         {
-            int r2 = -1;
-            char *buf;
-            size_t len;
-            /* Skip the names "." and ".." as we don't want to recurse on them. */
-            if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, ".."))
-            {
-                continue;
-            }
-
-            len = path_len + strlen(p->d_name) + 2;
-            buf = (char *)malloc(len);
-
-            if (buf)
-            {
-                struct stat statbuf;
-                snprintf(buf, len, "%s/%s", path.c_str(), p->d_name);
-                if (!stat(buf, &statbuf))
-                {
-                    if (S_ISDIR(statbuf.st_mode))
-                    {
-                        r2 = purgeLocalTree(buf);
-                    }
-                    else
-                    {
-                        r2 = unlink(buf);
-                    }
-                }
-
-                free(buf);
-            }
-
-            r = r2;
+            fs::remove_all(path);
+            return 0;
         }
-
-        closedir(directory);
+        return -1;
     }
-
-    if (!r)
+    catch (const fs::filesystem_error& e)
     {
-        r = rmdir(path.c_str());
+        std::cerr << "Error removing " << path << ": " << e.what() << '\n';
+        return -1;
     }
-
-    return r;
-#endif
 }
 
 void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
@@ -10268,6 +10424,22 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
                 mChatIdStopRingInCall[apiIndex] = call->getChatid();
                 boolVars().updateIfExists(apiIndex, "CallStopsRinging", true);
             }
+        }
+    }
+
+    if (call->hasChanged(MegaChatCall::CHANGE_TYPE_CALL_RAISE_HAND))
+    {
+        auto uh = call->getHandle();
+        auto added = call->getFlag();
+        if (added)
+        {
+            boolVars().updateIfExists(apiIndex, "raisedHand", true);
+            handleVars().updateIfExists(apiIndex, "raisedHandUh", uh);
+        }
+        else
+        {
+            boolVars().updateIfExists(apiIndex, "loweredHand", true);
+            handleVars().updateIfExists(apiIndex, "loweredHandUh", uh);
         }
     }
 
@@ -11102,7 +11274,6 @@ MegaChatRequest *TestMegaChatRequestListener::getMegaChatRequest() const
 
 bool RequestListener::waitForResponse(unsigned int timeout)
 {
-    assert(!mFinished);
     timeout *= 1000000; // convert to micro-seconds
     unsigned int tWaited = 0;    // microseconds
     bool connRetried = false;
@@ -11152,9 +11323,14 @@ bool MockupCall::handleAvCommand(Cid_t, unsigned, uint32_t)
     return true;
 }
 
-bool MockupCall::handleAnswerCommand(Cid_t, std::shared_ptr<sfu::Sdp>, uint64_t, std::vector<sfu::Peer>&, const std::map<Cid_t, std::string>&, const std::map<Cid_t, sfu::TrackDescriptor>&, const std::set<karere::Id>&,
-                                     const std::set<karere::Id>& speakReqs,
-                                     const std::map<Cid_t, uint32_t>&)
+bool MockupCall::handleAnswerCommand(Cid_t /*cid*/, std::shared_ptr<sfu::Sdp> /*sdp*/,
+                                     uint64_t /*callJoinOffset*/, std::vector<sfu::Peer>& /*peers*/,
+                                     const std::map<Cid_t, std::string>& /*keystrmap*/,
+                                     const std::map<Cid_t, sfu::TrackDescriptor>& /*vthumbs*/,
+                                     const std::set<karere::Id>& /*speakers*/,
+                                     const std::vector<karere::Id>& /*speakReqs*/,
+                                     const std::vector<karere::Id>& /*raiseHands*/,
+                                     const std::map<Cid_t, uint32_t>& /*amidmap*/)
 {
     return true;
 }
@@ -11215,6 +11391,16 @@ bool MockupCall::handlePeerLeft(Cid_t, unsigned)
 }
 
 bool MockupCall::handleBye(const unsigned, const bool, const std::string&)
+{
+    return true;
+}
+
+bool MockupCall::handleRaiseHandAddCommand(const uint64_t /*userid*/)
+{
+    return true;
+}
+
+bool MockupCall::handleRaiseHandDelCommand(const uint64_t /*userid*/)
 {
     return true;
 }

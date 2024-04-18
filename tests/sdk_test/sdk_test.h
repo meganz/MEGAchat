@@ -27,6 +27,7 @@
 #include <chatClient.h>
 #include <future>
 #include <fstream> // Win build requires it
+#include <filesystem>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -828,8 +829,8 @@ protected:
     unsigned int getMegaChatApiIndex(megachat::MegaChatApi *api);
     unsigned int getMegaApiIndex(::mega::MegaApi *api);
 
-    void createFile(const std::string &fileName, const std::string &sourcePath, const std::string &contain);
-    ::mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::string &sourcePath, const std::string &targetPath);
+    void createFile(const std::string &fileName, const std::filesystem::path &sourcePath, const std::string &contain);
+    ::mega::MegaNode *uploadFile(int accountIndex, const std::string &fileName, const std::filesystem::path &sourcePath, const std::string &targetPath);
     void addTransfer(int accountIndex);
     bool &isNotTransferRunning(int accountIndex);
 
@@ -838,7 +839,7 @@ protected:
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
 
-    static int purgeLocalTree(const std::string& path);
+    static int purgeLocalTree(const std::filesystem::path& path);
     void purgeCloudTree(unsigned int accountIndex, ::mega::MegaNode* node);
     void clearAndLeaveChats(unsigned accountIndex, const std::vector<megachat::MegaChatHandle>& skipChats);
     void removePendingContactRequest(unsigned int accountIndex);
@@ -982,13 +983,13 @@ protected:
     bool mLoggedInAllChats[NUM_ACCOUNTS];
     std::vector <megachat::MegaChatHandle>mChatListUpdated[NUM_ACCOUNTS];
     bool mChatsUpdated[NUM_ACCOUNTS];
-    static std::string DEFAULT_PATH;
     static const std::string PATH_IMAGE;
     static const std::string FILE_IMAGE_NAME;
 
-    static const std::string LOCAL_PATH;
     static const std::string REMOTE_PATH;
-    static const std::string DOWNLOAD_PATH;
+    static std::filesystem::path DEFAULT_PATH;
+    static const std::filesystem::path DOWNLOAD_PATH;
+    static const std::filesystem::path LOCAL_PATH;
     static std::string PROC_SPECIFIC_PATH;
 
     // implementation for MegaListener
@@ -1264,8 +1265,11 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) override;
-    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::set<karere::Id>& speakers,
-                             const std::set<karere::Id>& speakReqs,
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
+                             const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
+                             const std::set<karere::Id>& speakers,
+                             const std::vector<karere::Id>& speakReqs,
+                             const std::vector<karere::Id>& raiseHands,
                              const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
@@ -1279,6 +1283,8 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
+    bool handleRaiseHandAddCommand(const uint64_t userid) override;
+    bool handleRaiseHandDelCommand(const uint64_t userid) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
     void onByeCommandSent() override;

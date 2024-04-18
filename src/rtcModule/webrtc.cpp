@@ -6,6 +6,9 @@
 #include <api/video/i420_buffer.h>
 #include <libyuv/convert.h>
 
+#include <memory>
+
+
 namespace rtcModule
 {
 SvcDriver::SvcDriver ()
@@ -665,6 +668,11 @@ void Call::addOrRemoveSpeaker(const karere::Id& user, const bool add)
     mSfuConnection->sendSpeakerAddDel(user, add);
 }
 
+void Call::raiseHandToSpeak(const bool add)
+{
+    mSfuConnection->raiseHandToSpeak(add);
+}
+
 void Call::pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const
 {
     assert(all || !users.empty());
@@ -866,12 +874,17 @@ std::set<karere::Id> Call::getModerators() const
     return mModerators;
 }
 
+const std::vector<karere::Id>& Call::getRaiseHandsList() const
+{
+    return mRaiseHands;
+}
+
 std::set<karere::Id> Call::getSpeakersList() const
 {
     return mSpeakers;
 }
 
-std::set<karere::Id> Call::getSpeakRequestsList() const
+const std::vector<karere::Id>& Call::getSpeakRequestsList() const
 {
     return mSpeakRequests;
 }
@@ -1051,20 +1064,20 @@ void Call::createTransceivers(size_t &hiresTrackIndex)
     transceiverInitVThumb.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::RtpTransceiverInterface>> err
             = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitVThumb);
-    mVThumb = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
+    mVThumb = std::make_unique<LocalSlot>(*this, err.MoveValue());
     mVThumb->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitHiRes;
     transceiverInitHiRes.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_VIDEO, transceiverInitHiRes);
     hiresTrackIndex = mRtcConn->GetTransceivers().size() - 1; // keep this sentence just after add transceiver for hiRes track
-    mHiRes = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
+    mHiRes = std::make_unique<LocalSlot>(*this, err.MoveValue());
     mHiRes->generateRandomIv();
 
     webrtc::RtpTransceiverInit transceiverInitAudio;
     transceiverInitAudio.direction = webrtc::RtpTransceiverDirection::kSendRecv;
     err = mRtcConn->AddTransceiver(cricket::MediaType::MEDIA_TYPE_AUDIO, transceiverInitAudio);
-    mAudio = ::mega::make_unique<LocalSlot>(*this, err.MoveValue());
+    mAudio = std::make_unique<LocalSlot>(*this, err.MoveValue());
     mAudio->generateRandomIv();
 
     // create transceivers for receiving audio from peers
@@ -1451,7 +1464,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                                const std::map<Cid_t, std::string>& keystrmap,
                                const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
                                const std::set<karere::Id>& speakers,
-                               const std::set<karere::Id>& speakReqs,
+                               const std::vector<karere::Id>& speakReqs,
+                               const std::vector<karere::Id>& raiseHands,
                                const std::map<Cid_t, uint32_t>& amidmap)
 {
     if (mState != kStateJoining)
@@ -1481,6 +1495,9 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
      * If call doesn't have speak request option enabled, this array is not included in the ANSWER command
      */
     mSpeakers = speakers;
+
+    // store user list that raised hand, received from SFU
+    mRaiseHands = raiseHands;
 
     // store speak requests list received from SFU
     mSpeakRequests = speakReqs;
@@ -2223,6 +2240,45 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
     return true;
 }
 
+bool Call::handleRaiseHandAddCommand(const uint64_t userid)
+{
+    const karere::Id uh = karere::Id(userid).isNull()
+                            ? mMyPeer->getPeerid().val
+                            : userid;
+
+    if (std::find(mRaiseHands.begin(), mRaiseHands.end(), uh) != mRaiseHands.end())
+    {
+        RTCM_LOG_WARNING("RHANDRQ_ADD received, but user already exists at rhands list: %s ",
+                         karere::Id(uh).toString().c_str());
+        assert(false);
+        return false;
+    }
+
+    mRaiseHands.emplace_back(uh);
+    mCallHandler.onRaiseHandAddedRemoved(*this, uh, true);
+    return true;
+}
+
+bool Call::handleRaiseHandDelCommand(const uint64_t userid)
+{
+    const karere::Id uh = karere::Id(userid).isNull()
+                      ? mMyPeer->getPeerid().val
+                      : userid;
+
+    auto it = std::find(mRaiseHands.begin(), mRaiseHands.end(), uh);
+    if (it == mRaiseHands.end())
+    {
+        RTCM_LOG_WARNING("RHANDRQ_DEL received, but user cannot be removed from rhands list: %s ",
+                         karere::Id(uh).toString().c_str());
+        assert(false);
+        return false;
+    }
+
+    mRaiseHands.erase(it);
+    mCallHandler.onRaiseHandAddedRemoved(*this, uh, false);
+    return true;
+}
+
 bool Call::handleModAdd(uint64_t userid)
 {
     updateUserModeratorStatus(userid, true /*enable*/);
@@ -2746,12 +2802,12 @@ void Call::onTrack(rtc::scoped_refptr<webrtc::RtpTransceiverInterface> transceiv
         std::string value = mid.value();
         if (transceiver->media_type() == cricket::MediaType::MEDIA_TYPE_AUDIO)
         {
-            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteAudioSlot>(*this, transceiver,
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = std::make_unique<RemoteAudioSlot>(*this, transceiver,
                                                                                                                mRtc.getAppCtx());
         }
         else
         {
-            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = ::mega::make_unique<RemoteVideoSlot>(*this, transceiver,
+            mReceiverTracks[static_cast<uint32_t>(atoi(value.c_str()))] = std::make_unique<RemoteVideoSlot>(*this, transceiver,
                                                                                                                mRtc.getAppCtx());
         }
     }
@@ -3870,7 +3926,7 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScach
 {
     mAppCtx = appCtx;
 
-    mSfuClient = ::mega::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
+    mSfuClient = std::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
     if (!artc::isInitialized())
     {
         //rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
@@ -4072,7 +4128,7 @@ promise::Promise<void> RtcModuleSfu::startCall(const karere::Id &chatid, karere:
         {
             std::unique_ptr<char []> userHandle(mMegaApi.sdk.getMyUserHandle());
             karere::Id myUserHandle(userHandle.get());
-            mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags, true);
+            mCalls[callid] = std::make_unique<Call>(callid, chatid, myUserHandle, false, mCallHandler, mMegaApi, (*this), isGroup, sharedUnifiedKey, avFlags, true);
 
             if (!mCalls[callid]->connectSfu(sfuUrlStr))
             {
@@ -4258,7 +4314,7 @@ void RtcModuleSfu::handleLeftCall(const karere::Id &/*chatid*/, const karere::Id
 
 void RtcModuleSfu::handleNewCall(const karere::Id &chatid, const karere::Id &callerid, const karere::Id &callid, bool isRinging, bool isGroup, std::shared_ptr<std::string> callKey)
 {
-    mCalls[callid] = ::mega::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), isGroup, callKey);
+    mCalls[callid] = std::make_unique<Call>(callid, chatid, callerid, isRinging, mCallHandler, mMegaApi, (*this), isGroup, callKey);
     mCalls[callid]->setState(kStateClientNoParticipating);
 }
 
