@@ -5977,6 +5977,10 @@ MegaStringList* MegaChatApiImpl::getChatScreenDevices()
             sl->add(s.first.c_str());
         });
     }
+    else
+    {
+        API_LOG_ERROR("Failed to get screen devices");
+    }
     return sl;
 }
 
@@ -6012,7 +6016,7 @@ void MegaChatApiImpl::setVideoCapturerInDevice(const char* device, const int typ
 char *MegaChatApiImpl::getCameraDeviceIdSelected()
 {
     char *deviceName = nullptr;
-    sdkMutex.lock();
+    SdkMutexGuard g(sdkMutex);
     if (mClient && mClient->rtc)
     {
         auto id = mClient->rtc->getCameraDeviceIdSelected();
@@ -6024,7 +6028,6 @@ char *MegaChatApiImpl::getCameraDeviceIdSelected()
     {
         API_LOG_ERROR("Failed to get selected video-in device");
     }
-    sdkMutex.unlock();
 
     return deviceName;
 }
@@ -6801,19 +6804,25 @@ void MegaChatApiImpl::removeChatCallListener(MegaChatCallListener *listener)
     sdkMutex.unlock();
 }
 
-void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, const int capturerType, MegaChatVideoListener *listener)
+void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid,
+                                           MegaChatHandle clientId,
+                                           rtcModule::VideoResolution videoResolution,
+                                           const int capturerType,
+                                           MegaChatVideoListener* listener)
 {
     if (!listener)
     {
         return;
     }
-    if (clientId == MegaChatApi::LOCAL_CLIENT_ID_FOR_VIDEO && (capturerType != MegaChatApi::TYPE_CAPTURER_SCREEN && capturerType != MegaChatApi::TYPE_CAPTURER_VIDEO))
+    if (clientId == MegaChatApi::LOCAL_CLIENT_ID_FOR_VIDEO &&
+        (capturerType != MegaChatApi::TYPE_CAPTURER_SCREEN &&
+         capturerType != MegaChatApi::TYPE_CAPTURER_VIDEO))
     {
         return;
     }
 
     assert(videoResolution != rtcModule::VideoResolution::kUndefined);
-    videoMutex.lock();
+    SdkMutexGuard g(videoMutex);
     if (clientId == MegaChatApi::LOCAL_CLIENT_ID_FOR_VIDEO)
     {
         if (capturerType == MegaChatApi::TYPE_CAPTURER_VIDEO)
@@ -6829,35 +6838,37 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
             API_LOG_ERROR("addChatVideoListener: Invalid capturer type: %i", capturerType);
             assert(false);
         }
-        marshallCall([this, chatid, capturerType]()
-        {
-            // avoid access from App thread to RtcModule::mRenderers
-            if (mClient && mClient->rtc)
+        marshallCall(
+            [this, chatid, capturerType]()
             {
-                if (capturerType == MegaChatApi::TYPE_CAPTURER_VIDEO)
+                // avoid access from App thread to RtcModule::mRenderers
+                if (mClient && mClient->rtc)
                 {
-                    mClient->rtc->addLocalCameraRenderer(
-                        chatid,
-                        new MegaChatVideoReceiver(this,
-                                                  chatid,
-                                                  rtcModule::VideoResolution::kHiRes));
+                    if (capturerType == MegaChatApi::TYPE_CAPTURER_VIDEO)
+                    {
+                        mClient->rtc->addLocalCameraRenderer(
+                            chatid,
+                            new MegaChatVideoReceiver(this,
+                                                      chatid,
+                                                      rtcModule::VideoResolution::kHiRes));
+                    }
+                    else if (capturerType == MegaChatApi::TYPE_CAPTURER_SCREEN)
+                    {
+                        mClient->rtc->addLocalScreenRenderer(
+                            chatid,
+                            new MegaChatVideoReceiver(this,
+                                                      chatid,
+                                                      rtcModule::VideoResolution::kHiRes));
+                    }
+                    else
+                    {
+                        API_LOG_ERROR("addChatVideoListener: Invalid capturer type: %i",
+                                      capturerType);
+                        assert(false);
+                    }
                 }
-                else if (capturerType == MegaChatApi::TYPE_CAPTURER_SCREEN)
-                {
-                    mClient->rtc->addLocalScreenRenderer(
-                        chatid,
-                        new MegaChatVideoReceiver(this,
-                                                  chatid,
-                                                  rtcModule::VideoResolution::kHiRes));
-                }
-                else
-                {
-                    API_LOG_ERROR("addChatVideoListener: Invalid capturer type: %i", capturerType);
-                    assert(false);
-                }
-            }
-
-        }, this);
+            },
+            this);
     }
     else if (videoResolution == rtcModule::VideoResolution::kHiRes)
     {
@@ -6868,22 +6879,27 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid, MegaChatHandle
         mVideoListenersLowRes[chatid][static_cast<uint32_t>(clientId)].insert(listener);
     }
 
-    videoMutex.unlock();
 }
 
-void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHandle clientId, rtcModule::VideoResolution videoResolution, const int capturerType, MegaChatVideoListener *listener)
+void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid,
+                                              MegaChatHandle clientId,
+                                              rtcModule::VideoResolution videoResolution,
+                                              const int capturerType,
+                                              MegaChatVideoListener* listener)
 {
     if (!listener)
     {
         return;
     }
-    if (clientId == MegaChatApi::LOCAL_CLIENT_ID_FOR_VIDEO && (capturerType != MegaChatApi::TYPE_CAPTURER_SCREEN && capturerType != MegaChatApi::TYPE_CAPTURER_VIDEO))
+    if (clientId == MegaChatApi::LOCAL_CLIENT_ID_FOR_VIDEO &&
+        (capturerType != MegaChatApi::TYPE_CAPTURER_SCREEN &&
+         capturerType != MegaChatApi::TYPE_CAPTURER_VIDEO))
     {
         return;
     }
 
     assert(videoResolution != rtcModule::VideoResolution::kUndefined);
-    videoMutex.lock();
+    SdkMutexGuard g(videoMutex);
     if (clientId == MegaChatApi::LOCAL_CLIENT_ID_FOR_VIDEO)
     {
         if (capturerType == MegaChatApi::TYPE_CAPTURER_VIDEO)
@@ -6941,23 +6957,25 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
         auto itHiRes = mVideoListenersHiRes.find(chatid);
         if (itHiRes != mVideoListenersHiRes.end())
         {
-            MegaChatPeerVideoListener_map &videoListenersMap = itHiRes->second;
+            MegaChatPeerVideoListener_map& videoListenersMap = itHiRes->second;
             auto auxit = videoListenersMap.find(static_cast<Cid_t>(clientId));
             if (auxit != videoListenersMap.end())
             {
                 // remove listener from MegaChatVideoListener_set
-                MegaChatVideoListener_set &videoListener_set = auxit->second;
+                MegaChatVideoListener_set& videoListener_set = auxit->second;
                 videoListener_set.erase(listener);
                 if (videoListener_set.empty())
                 {
-                    // if MegaChatVideoListener_set is empty, remove entry from MegaChatPeerVideoListener_map
+                    // if MegaChatVideoListener_set is empty, remove entry from
+                    // MegaChatPeerVideoListener_map
                     videoListenersMap.erase(static_cast<Cid_t>(clientId));
                 }
             }
 
             if (videoListenersMap.empty())
             {
-                // if MegaChatPeerVideoListener_map is empty, remove entry from mVideoListenersHiRes map
+                // if MegaChatPeerVideoListener_map is empty, remove entry from mVideoListenersHiRes
+                // map
                 mVideoListenersHiRes.erase(chatid);
             }
         }
@@ -6968,28 +6986,29 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid, MegaChatHan
         auto itLowRes = mVideoListenersLowRes.find(chatid);
         if (itLowRes != mVideoListenersLowRes.end())
         {
-            MegaChatPeerVideoListener_map &videoListenersMap = itLowRes->second;
+            MegaChatPeerVideoListener_map& videoListenersMap = itLowRes->second;
             auto auxit = videoListenersMap.find(static_cast<Cid_t>(clientId));
             if (auxit != videoListenersMap.end())
             {
                 // remove listener from MegaChatVideoListener_set
-                MegaChatVideoListener_set &videoListener_set = auxit->second;
+                MegaChatVideoListener_set& videoListener_set = auxit->second;
                 videoListener_set.erase(listener);
                 if (videoListener_set.empty())
                 {
-                    // if MegaChatVideoListener_set is empty, remove entry from MegaChatPeerVideoListener_map
+                    // if MegaChatVideoListener_set is empty, remove entry from
+                    // MegaChatPeerVideoListener_map
                     videoListenersMap.erase(static_cast<Cid_t>(clientId));
                 }
             }
 
             if (videoListenersMap.empty())
             {
-                // if MegaChatPeerVideoListener_map is empty, remove entry from mVideoListenersLowRes map
+                // if MegaChatPeerVideoListener_map is empty, remove entry from
+                // mVideoListenersLowRes map
                 mVideoListenersLowRes.erase(chatid);
             }
         }
     }
-    videoMutex.unlock();
 }
 
 void MegaChatApiImpl::setSFUid(int sfuid)

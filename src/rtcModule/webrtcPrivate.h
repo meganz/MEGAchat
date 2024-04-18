@@ -464,7 +464,7 @@ public:
     void takeScreenDevice();
     void releaseScreenDevice();
     bool hasScreenDevice();
-    void freeVideoTracks();
+    void freeLocalVideoTracks();
     // enable/disable video tracks depending on the video's flag and the call on-hold
     void updateVideoTracks();
     void updateNetworkQuality(int networkQuality);

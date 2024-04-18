@@ -447,77 +447,10 @@ public:
     }
 
     // ---- DesktopCapturer::Callback methods ----
-    void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame) override
-    {
-        // this method is analogous to VideoSinkInterface::onFrame
-        auto isValidDesktopFrame = [](const webrtc::DesktopFrame* frame)-> bool
-        {
-            if (!frame) { return false; }
-            const int width = frame->size().width();
-            const int height = frame->size().height();
-            const int len = frame->size().height() * frame->stride();
-            return (len == width * height * 4); // expected ARGB frame format
-        };
-
-        if (result != webrtc::DesktopCapturer::Result::SUCCESS)
-        {
-            RTCM_LOG_WARNING("OnCaptureResult: error capturing frame");
-            return;
-        }
-
-        if (!isValidDesktopFrame(frame.get()))
-        {
-            RTCM_LOG_WARNING("OnCaptureResult: ill-formed captured frame");
-            return;
-        }
-
-        // Convert ARGB into I420 format, expected by OnFrame
-        int width = frame->size().width();
-        int height = frame->size().height();
-        rtc::scoped_refptr<webrtc::I420Buffer> buf = webrtc::I420Buffer::Create(frame->size().width(), frame->size().height());
-        if (!buf.get())
-        {
-            RTCM_LOG_WARNING("OnCaptureResult: error creating I420Buffer");
-            return;
-        }
-
-        if (libyuv::ConvertToI420(frame->data(), 0, buf->MutableDataY(),
-                                  buf->StrideY(), buf->MutableDataU(),
-                                  buf->StrideU(), buf->MutableDataV(),
-                                  buf->StrideV(), 0, 0, width, height, width,
-                                  height, libyuv::kRotate0, cricket::FOURCC_ARGB))
-        {
-            RTCM_LOG_WARNING("OnCaptureResult: error converting ARGB frame format, into I420");
-            return;
-        }
-
-        mBroadcaster.OnFrame(webrtc::VideoFrame(buf, 0, 0, webrtc::kVideoRotation_0));
-    }
+    void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame) override;
 
     // ---- VideoManager methods ----
-    void openDevice(const std::string &) override
-    {
-        const webrtc::DesktopCaptureOptions options = webrtc::DesktopCaptureOptions::CreateDefault();
-        mScreenCapturer = webrtc::DesktopCapturer::CreateScreenCapturer(options);
-        mScreenCapturer->SelectSource(mDeviceId);
-
-        if (!mScreenCapturer)
-        {
-            RTCM_LOG_WARNING("openDevice: error creating DesktopCapturer instance");
-            return;
-        }
-
-        mEndCapture = false;
-        mScreenCapturer->Start(this);
-        mScreenCapturerThread= std::thread ([this]()
-        {
-            while (!mEndCapture)
-            {
-                mScreenCapturer->CaptureFrame();
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-        });
-    }
+    void openDevice(const std::string &) override;
 
     void releaseDevice() override
     {
@@ -526,8 +459,7 @@ public:
         {
             mScreenCapturerThread.join();
         }
-        mScreenCapturer.release();
-        mScreenCapturer = nullptr;
+        mScreenCapturer.reset();
     }
 
     webrtc::VideoTrackSourceInterface* getVideoTrackSource() override
@@ -551,29 +483,7 @@ public:
      *
      * The elements of the list are pairs with: [descriptive name of the device, deviceID]
      */
-    static std::set<std::pair<std::string, long int>> getScreenDevicesList()
-    {
-        std::set<std::pair<std::string, long int>> list;
-        const webrtc::DesktopCaptureOptions options = webrtc::DesktopCaptureOptions::CreateDefault();
-        std::unique_ptr<webrtc::DesktopCapturer> screenCapturer = webrtc::DesktopCapturer::CreateScreenCapturer(options);
-        if (!screenCapturer)
-        {
-            return list;
-        }
-
-        webrtc::DesktopCapturer::SourceList sourceList;
-        if (screenCapturer->GetSourceList(&sourceList))
-        {
-            std::transform(sourceList.begin(),
-                           sourceList.end(),
-                           std::inserter(list, std::end(list)),
-                           [](const webrtc::DesktopCapturer::Source& s)
-                           {
-                               return std::pair(s.title, s.id);
-                           });
-        }
-        return list;
-    }
+    static std::set<std::pair<std::string, long int>> getScreenDevicesList();
 
 protected:
     CaptureScreenModuleLinux(const webrtc::DesktopCapturer::SourceId deviceId)

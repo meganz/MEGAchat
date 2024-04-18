@@ -3467,7 +3467,7 @@ bool Call::hasScreenDevice()
     return mScreenManager ? true : false;
 }
 
-void Call::freeVideoTracks()
+void Call::freeLocalVideoTracks()
 {
     // disable hi-res track
     if (mHiRes && mHiRes->getTransceiver()->sender()->track())
@@ -3695,7 +3695,7 @@ void Call::updateVideoTracks()
 
     if ((!hasCameraFlags && !hasScreenFlags) || isOnHold)
     {
-        freeVideoTracks();
+        freeLocalVideoTracks();
         releaseCameraDevice();
         releaseScreenDevice();
         return;
@@ -4039,7 +4039,7 @@ bool RtcModuleSfu::setVideoCapturerInDevice(const std::string &device, const int
             if (callPtr->hasCameraDevice())
             {
                 calls.push_back(callPtr.get());
-                callPtr->freeVideoTracks();
+                callPtr->freeLocalVideoTracks();
                 callPtr->releaseCameraDevice();
                 shouldOpen = true;
             }
@@ -4063,7 +4063,7 @@ bool RtcModuleSfu::setVideoCapturerInDevice(const std::string &device, const int
             if (callPtr->hasScreenDevice())
             {
                 calls.push_back(callPtr.get());
-                callPtr->freeVideoTracks();
+                callPtr->freeLocalVideoTracks();
                 callPtr->releaseScreenDevice();
                 shouldOpen = true;
             }
