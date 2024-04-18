@@ -108,6 +108,9 @@ public:
     VideoSink(void* appCtx);
     virtual ~VideoSink();
     void setVideoRender(IVideoRenderer* videoRenderer);
+    static void processFrame(const webrtc::VideoFrame& frame,
+                             const std::unique_ptr<IVideoRenderer>& render,
+                             const int sourceType);
     virtual void OnFrame(const webrtc::VideoFrame& frame) override;
 private:
     std::unique_ptr<IVideoRenderer> mRenderer;
