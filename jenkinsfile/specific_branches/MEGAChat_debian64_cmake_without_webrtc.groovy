@@ -71,12 +71,12 @@ pipeline {
                                 ulimit -c unlimited
                                 if [ -z \"${TESTS_PARALLEL}\" ]; then
                                     # Sequential run
-                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} &
+                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} &
                                     pid=\$!
                                     wait \$pid || FAILED=1
                                 else
                                     # Parallel run
-                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} ${TESTS_PARALLEL} 2>&1 | tee tests.stdout
+                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} ${TESTS_PARALLEL} 2>&1 | tee tests.stdout
                                     [ \"\${PIPESTATUS[0]}\" != \"0\" ] && FAILED=1
                                 fi
 
