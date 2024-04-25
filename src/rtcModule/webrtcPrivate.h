@@ -328,6 +328,7 @@ public:
     int getWrJoiningState() const override;
     void setLimits(const uint32_t callDurSecs, const uint32_t numUsers, const uint32_t numClientsPerUser, const uint32_t numClients, const uint32_t divider) const override;
     void addOrRemoveSpeaker(const karere::Id& user, const bool add) override;
+    void raiseHandToSpeak(const bool add) override;
     void pushUsersIntoWaitingRoom(const std::set<karere::Id>& users, const bool all) const override;
     void allowUsersJoinCall(const std::set<karere::Id>& users, const bool all) const override;
     void kickUsersFromCall(const std::set<karere::Id>& users) const override;
@@ -342,9 +343,10 @@ public:
     // ask the SFU to get higher/lower (spatial) quality of HighRes video (thanks to SVC), on demand by the app
     void requestHiResQuality(Cid_t cid, int quality) override;
 
-    std::set<karere::Id> getSpeakRequestsList() const override;
+    const std::vector<karere::Id>& getSpeakRequestsList() const override;
     std::set<karere::Id> getSpeakersList () const override;
     std::set<karere::Id> getModerators() const override;
+    const std::vector<karere::Id> &getRaiseHandsList() const override;
     std::set<karere::Id> getParticipants() const override;
     std::vector<Cid_t> getSessionsCids() const override;
     ISession* getIsession(Cid_t cid) const override;
@@ -472,7 +474,8 @@ public:
     bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
                              const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
                              const std::set<karere::Id>& speakers,
-                             const std::set<karere::Id>& speakReqs,
+                             const std::vector<karere::Id>& speakReqs,
+                             const std::vector<karere::Id>& raiseHands,
                              const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string& key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &videoTrackDescriptors) override;
@@ -488,6 +491,8 @@ public:
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
     void onSfuDisconnected() override;
     void onByeCommandSent() override;
+    bool handleRaiseHandAddCommand(const uint64_t userid) override;
+    bool handleRaiseHandDelCommand(const uint64_t userid) override;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,
@@ -529,11 +534,17 @@ protected:
     CallState mState = CallState::kStateUninitialized;
     bool mIsRinging = false;
 
+    // list of user handles of all users that have raised hand to speak
+    // list is ordered by the time they raised their hand (the last element is the user that raised their hand last)
+    // users in this list only indicates that he wants to speak
+    std::vector<karere::Id> mRaiseHands;
+
     // list of user handles of all users that have been given speak permission (moderators not included)
     std::set<karere::Id> mSpeakers;
 
     // list of speak requests
-    std::set<karere::Id> mSpeakRequests;
+    // list is ordered by the time they requested to speak (the last element is the user that requested to speak)
+    std::vector<karere::Id> mSpeakRequests;
 
     // (just for 1on1 calls) flag to indicate that outgoing ringing sound is reproducing
     // no need to reset this flag as 1on1 calls, are destroyed when any of the participants hangs up
@@ -743,17 +754,41 @@ protected:
     bool isOnSpeakersList (const uint64_t userid) const         { return isSpeakRequestEnabled() && mSpeakers.find(userid) != mSpeakers.end(); }
     void clearSpeakersList()                                    { mSpeakers.clear(); }
 
-    // --- speak requests list methods ---
-    bool addToSpeakRequestsList (const uint64_t userid)         { return mSpeakRequests.emplace(userid).second; }
-    bool removeFromSpeakRequestsList (const uint64_t userid)    { return mSpeakRequests.erase(userid); }
-    bool isOnSpeakRequestsList (const uint64_t userid) const    { return isSpeakRequestEnabled() && mSpeakRequests.find(userid) != mSpeakRequests.end(); }
-    void clearSpeakRequestsList()                               { mSpeakRequests.clear(); }
-
     // --- moderators list methods ---
     bool addToModeratorsList (const uint64_t userid)            { return mModerators.emplace(userid).second; }
     bool removeFromModeratorsList (const uint64_t userid)       { return mModerators.erase(userid); }
     bool isOnModeratorsList (const uint64_t userid) const       { return mModerators.find(userid) != mModerators.end(); }
     void clearModeratorsList()                                  { mModerators.clear(); }
+
+    // --- speak requests list methods ---
+    void clearSpeakRequestsList()                               { mSpeakRequests.clear(); }
+
+    bool isOnSpeakRequestsList(const uint64_t userid) const
+    {
+        return std::find(mSpeakRequests.begin(), mSpeakRequests.end(), userid) !=
+               mSpeakRequests.end();
+    }
+
+    bool addToSpeakRequestsList(const uint64_t userid)
+    {
+        if (!isOnSpeakRequestsList(userid))
+        {
+            mSpeakRequests.emplace_back(userid);
+            return true;
+        }
+        return false;
+    }
+
+    bool removeFromSpeakRequestsList(const uint64_t userid)
+    {
+        if (auto it = std::find(mSpeakRequests.begin(), mSpeakRequests.end(), userid);
+            it != mSpeakRequests.end())
+        {
+            mSpeakRequests.erase(it);
+            return true;
+        }
+        return false;
+    }
 };
 
 class RtcModuleSfu : public RtcModule, public VideoSink

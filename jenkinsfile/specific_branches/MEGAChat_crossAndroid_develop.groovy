@@ -9,7 +9,6 @@ pipeline {
         ANDROID_BRANCH = "develop"
         SDK_BRANCH = "develop"
         MEGACHAT_BRANCH = "develop"
-
     }
     stages {
         stage('Checkout SDK MEGAchat and Android'){

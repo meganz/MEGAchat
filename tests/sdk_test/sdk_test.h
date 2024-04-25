@@ -1265,8 +1265,11 @@ class MockupCall : public sfu::SfuInterface
 {
 public:
     bool handleAvCommand(Cid_t cid, unsigned av, uint32_t amid) override;
-    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers, const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs, const std::set<karere::Id>& speakers,
-                             const std::set<karere::Id>& speakReqs,
+    bool handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> spd, uint64_t callJoinOffset, std::vector<sfu::Peer>& peers,
+                             const std::map<Cid_t, std::string>& keystrmap, const std::map<Cid_t, sfu::TrackDescriptor>& vthumbs,
+                             const std::set<karere::Id>& speakers,
+                             const std::vector<karere::Id>& speakReqs,
+                             const std::vector<karere::Id>& raiseHands,
                              const std::map<Cid_t, uint32_t>& amidmap) override;
     bool handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::string&key) override;
     bool handleVThumbsCommand(const std::map<Cid_t, sfu::TrackDescriptor> &) override;
@@ -1280,6 +1283,8 @@ public:
     bool handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoVersion, int av, std::string& keyStr, std::vector<std::string>& ivs) override;
     bool handlePeerLeft(Cid_t cid, unsigned termcode) override;
     bool handleBye(const unsigned termCode, const bool wr, const std::string& errMsg) override;
+    bool handleRaiseHandAddCommand(const uint64_t userid) override;
+    bool handleRaiseHandDelCommand(const uint64_t userid) override;
     bool handleModAdd(uint64_t userid) override;
     bool handleModDel(uint64_t userid) override;
     void onByeCommandSent() override;
