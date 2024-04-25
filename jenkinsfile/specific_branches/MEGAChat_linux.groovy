@@ -5,11 +5,6 @@ pipeline {
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
     }
-    environment {
-        APIURL_TO_TEST = "https://g.api.mega.co.nz/"
-        SDK_BRANCH = "develop"
-        TESTS_PARALLEL = "--INSTANCES:10"
-    }
     stages {
         stage('Checkout SDK and MEGAchat'){
             steps {
@@ -19,7 +14,7 @@ pipeline {
                     sh "echo Cloning SDK branch ${SDK_BRANCH}"
                     checkout([
                         $class: 'GitSCM',
-                        branches: [[name: "origin/${SDK_BRANCH}"]],
+                        branches: [[name: "${SDK_BRANCH}"]],
                         userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:sdk/sdk.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
                         extensions: [
                             [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
@@ -66,11 +61,9 @@ pipeline {
                     def lockLabel = ''
                     if ("${APIURL_TO_TEST}" == 'https://g.api.mega.co.nz/') {
                         lockLabel = 'SDK_Concurrent_Test_Accounts'
-                    } else if ("${APIURL_TO_TEST}" == 'https://staging.api.mega.co.nz/') {
-                        lockLabel = 'SDK_Concurrent_Test_Accounts_Staging'
                     } else {
-                        error("Wrong APIURL: ${APIURL_TO_TEST}")                        
-                    }      
+                        lockLabel = 'SDK_Concurrent_Test_Accounts_Staging'
+                    }   
                     lock(label: lockLabel, variable: 'ACCOUNTS_COMBINATION', quantity: 1, resource: null){
                         dir("${megachat_sources_workspace}/build/subfolder"){
                             script{
