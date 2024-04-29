@@ -49,13 +49,13 @@ compatible with CMake should be suitable if the same CMake parameters are config
 MEGAchat is configured like any other regular CMake project. The only parameter that is always needed is the VCPKG directory
 to manage the third-party dependencies. The MEGA SDK dependency is built as part of the MEGAchat build.
 
-To configure MEGAchat without the Qt Example App, from the workspace (`mega` directory), run CMake:
+To configure MEGAchat, from the workspace (`mega` directory), run CMake:
 
-	cmake -DVCPKG_ROOT=vcpkg -DENABLE_CHATLIB_QTAPP=OFF -DCMAKE_BUILD_TYPE=Debug -S megachat -B build_dir
+	cmake -DVCPKG_ROOT=vcpkg -DCMAKE_BUILD_TYPE=Debug -S megachat -B build_dir
 
-**Note**: The `-DCMAKE_BUILD_TYPE=<Debug|Release>` may not be needed for multiconfig generators, like Visual Studio.
+**Note 1**: The `-DCMAKE_BUILD_TYPE=<Debug|Release>` may not be needed for multiconfig generators, like Visual Studio.
 
-**Note**: To enable The Qt Example APP, you need to install the Qt Framework libraries, set `ENABLE_CHATLIB_QTAPP=ON` (or remove it, the default value is `ON`), and then set `-DCMAKE_PREFIX_PATH=</path/to/qt/install/dir>` so the build is able to find the Qt Framework installation directory.
+**Note 2** If the Qt Framework is installed on your system but CMake fails to detect it, you can add `-DCMAKE_PREFIX_PATH=</path/to/qt/install/dir>` so that CMake can locate it. If Qt is not installed and you prefer not to install it, you can disable the Qt Example App by setting `-DENABLE_CHATLIB_QTAPP=OFF`. The library, CLI example, and tests will still be built.
 
 In the cmake command above, relative paths have been used for simplicity. If you want to change the location of VCPKG, MEGAchat or the build directory, simply provide a valid relative or absolute path for any of them.
 
@@ -71,7 +71,7 @@ Once MEGAchat is configured, simply build the complete project:
 	cmake --build build_dir
 
 You can specify `--target=<target>` like `CHATlib` or `megaclc`, or just leave the command as it is to build all the tagets.
-Additionally, `-j<N>` can be added to manage concurrency and speed up the build.
+Additionally, `-j <N>` or `--parallel <N>` can be added to manage concurrency and speed up the build.
 
 Once the build is finished, binaries will be available in the `build_dir`, which was specified in the CMake configuration command.
 
