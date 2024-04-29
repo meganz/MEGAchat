@@ -38,7 +38,7 @@ void appAllocate()
 
     g_autocompleteTemplate = clc_ac::autocompleteSyntax();
 #ifdef WIN32
-    static_cast<m::WinConsole*>(console.get())->setAutocompleteSyntax(autocompleteTemplate);
+    static_cast<m::WinConsole*>(g_console.get())->setAutocompleteSyntax(g_autocompleteTemplate);
 #endif
 }
 

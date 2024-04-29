@@ -17,6 +17,7 @@ namespace c = ::megachat;
 #include <karereId.h>
 #include <string>
 namespace fs = std::filesystem;
+#include <fstream>
 
 namespace mclc
 {

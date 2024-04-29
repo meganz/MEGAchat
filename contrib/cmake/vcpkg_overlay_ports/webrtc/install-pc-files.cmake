@@ -27,6 +27,7 @@ install_pc_file(libcrypto [[
 Name: BoringSSL-libcrypto-webrt
 Description: OpenSSL cryptography library
 Libs: -L"${libdir}" -lcrypto
+Libs.private: -lX11
 Cflags: -I"${includedir}"
 ]])
 

@@ -158,13 +158,18 @@ set(treat_warnings_as_errors false)
 set(fatal_linker_warnings false)
 set(rtc_include_tests false)
 set(libyuv_include_tests false)
+set(rtc_disable_logging true)
+
+if("enable-debug-log" IN_LIST FEATURES)
+    set(rtc_disable_logging false)
+endif()
 
 message(STATUS " * Configuring and building...")
 
 vcpkg_gn_configure(
     SOURCE_PATH "${SOURCE_PATH}"
     OPTIONS "is_component_build=${is_component_build} target_cpu=\"${target_cpu}\" use_custom_libcxx=${use_custom_libcxx} is_clang=${is_clang} use_sysroot=${use_sysroot} treat_warnings_as_errors=${treat_warnings_as_errors} fatal_linker_warnings=${fatal_linker_warnings} rtc_include_tests=${rtc_include_tests} libyuv_include_tests=${libyuv_include_tests}"
-    OPTIONS_DEBUG "is_debug=true"
+    OPTIONS_DEBUG "is_debug=true rtc_disable_logging=${rtc_disable_logging}"
     OPTIONS_RELEASE "is_debug=false"
 )
 

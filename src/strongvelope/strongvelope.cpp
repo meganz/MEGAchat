@@ -895,7 +895,7 @@ ProtocolHandler::encryptKeyTo(const std::shared_ptr<SendKey>& sendKey, const kar
 {
     auto wptr = weakHandle();
     return computeSymmetricKey(toUser)
-    .then([wptr, this, sendKey](const std::shared_ptr<SendKey>& symkey) -> Promise<std::shared_ptr<Buffer>>
+    .then([wptr, sendKey](const std::shared_ptr<SendKey>& symkey) -> Promise<std::shared_ptr<Buffer>>
     {
         wptr.throwIfDeleted();
         assert(symkey->dataSize() == SVCRYPTO_KEY_SIZE);
@@ -1233,7 +1233,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         // Verify signature and decrypt
         auto wptr = weakHandle();
         return promise::when(symPms, edPms)
-        .then([this, wptr, message, parsedMsg, ctx, keyid, cacheVersion]() ->promise::Promise<Message*>
+        .then([this, wptr, message, parsedMsg, ctx, cacheVersion]() ->promise::Promise<Message*>
         {
             if (wptr.deleted())
             {
@@ -1592,7 +1592,7 @@ ProtocolHandler::encryptUnifiedKeyForAllParticipants(uint64_t extraUser)
         assert(!key->empty());
 
         return encryptKeyToAllParticipants(key, participants, CHATD_KEYID_INVALID)
-        .then([this, wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
+        .then([wptr](const std::pair<KeyCommand*, std::shared_ptr<SendKey>> result)
         {
             wptr.throwIfDeleted();
             chatd::KeyCommand *keyCmd = result.first;
