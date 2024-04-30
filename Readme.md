@@ -6,6 +6,8 @@ For the development and compilation of MEGAchat, we mainly use CMake as the cros
 
 For details on the necessary building tools for each operating system, review the [Building tools](https://github.com/meganz/sdk#building-tools) chapter in the MEGA SDK repository.
 
+More information for the WebRTC Android compilation in [WebRTC for Android](WebrtcAndroid.md)
+
 ### Dependencies
 
 MEGAchat requires some dependencies to work. Most of them are automatically downloaded and built using VCPKG during the configuration phase.
@@ -14,12 +16,6 @@ You can take a look at the dependencies in the [vcpkg.json](vcpkg.json) file at 
 MEGAchat also needs the MEGA SDK library. There are instructions later in this document on how to get it to be used with MEGAchat. The MEGA SDK project is automatically loaded by the MEGAchat CMake, so you only have to simply clone it in the expected path.
 
 There is only one extra optional dependency that should be installed in the system: The Qt Framework. It is only necessary to build the Qt Example App but it is not required for the tests, CLI example, or the library itself.
-
-#### WebRTC
-
-WebRTC is also a dependency of MEGAchat, used to provide audio/video calls. The WebRTC library is automatically built with VCPKG using an overlay [port](contrib/cmake/vcpkg_overlay_ports/webrtc). It is important to note that, for the moment, video/audio calls are not available in MacOS and Windows builds, only for Linux.
-
-More information for the Android compilation in [WebRTC for Android](WebrtcAndroid.md)
 
 ### Prepare the sources
 
