@@ -167,6 +167,12 @@ bool Client::openDb(const std::string& sid)
     {
         KR_LOG_WARNING("Error accessing local cache (database) file info. %s",
                        std::strerror(errno));
+
+        api.callIgnoreResult(&::mega::MegaApi::sendEvent,
+                             99019,
+                             "Error accessing local cache (database) file info",
+                             false,
+                             static_cast<const char*>(nullptr));
         return false;
     }
 
