@@ -162,10 +162,11 @@ bool Client::openDb(const std::string& sid)
     assert(!sid.empty());
     std::string path = dbPath(sid);
     struct stat info;
-    bool exists = (stat(path.c_str(), &info) == 0);
-    if (!exists)
+    const bool succeeded = (stat(path.c_str(), &info) == 0);
+    if (!succeeded)
     {
-        KR_LOG_WARNING("Asked to use local cache, but it does not exist");
+        KR_LOG_WARNING("Error accessing local cache (database) file info. %s",
+                       std::strerror(errno));
         return false;
     }
 
