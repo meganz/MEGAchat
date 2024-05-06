@@ -212,9 +212,14 @@ the MEGAChat API.
 NOTE: You can safely kill the execution of the app with a SIGINT (C-c) or a
 SIGTERM signal (kill <pid>).
 
-To use it in interactive mode you can run the binary without any argument. This
-initializes a terminal to run commands interactively. If you type "help" in the
-terminal you will see the list of available commands.
+The application needs to store some cache data that will, by default, be saved
+in the $HOME/temp_MEGAclc/ directory (it will be created if it doesn't exist).
+You can modify this output directory by setting the MEGACLC_OUT_DIR env
+variable.
+
+To use the application in interactive mode you can run the binary without any
+argument. This initializes a terminal to run commands interactively. If you
+type "help" in the terminal you will see the list of available commands.
 
 To run non interactive commands you must provide the name of the utility you
 want to run after the name of the megaclc binary and also the options (if it

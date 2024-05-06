@@ -28,21 +28,6 @@ unsigned long getProcessId()
 #endif
 }
 
-#ifdef __APPLE__
-// No std::fileystem before OSX10.15
-std::string getExeDirectory()
-{
-    std::array<char, 513> path{};
-    uint32_t size = 512;
-    if (_NSGetExecutablePath(path.data(), &size))
-    {
-        std::cout << "Error: Unable to retrieve exe path" << std::endl;
-        exit(1);
-    }
-    const std::string spath{path.data()};
-    return spath.substr(0, spath.find_last_of('/'));
-}
-#else
 fs::path getExeDirectory()
 {
 #ifdef WIN32
@@ -52,7 +37,14 @@ fs::path getExeDirectory()
         std::cout << "Error: Unable to retrieve exe path" << std::endl;
         exit(1);
     }
-    return fs::path{path.data()}.parent_path();
+#elif defined(__APPLE__)
+    std::array<char, 513> path{};
+    uint32_t size = 512;
+    if (_NSGetExecutablePath(path.data(), &size))
+    {
+        std::cout << "Error: Unable to retrieve exe path" << std::endl;
+        exit(1);
+    }
 #else // linux
     const auto link = "/proc/" + std::to_string(getpid()) + "/exe";
     std::array<char, 513> path{};
@@ -63,10 +55,20 @@ fs::path getExeDirectory()
         exit(1);
     }
     path[static_cast<size_t>(count)] = '\0';
+#endif
     return fs::path{path.data()}.parent_path();
-#endif
 }
+
+fs::path getHomeDirectory()
+{
+    return fs::path(getenv(
+#ifdef WIN32
+        "USERPROFILE"
+#else
+        "HOME"
 #endif
+        ));
+}
 
 std::unique_ptr<m::MegaNode> GetNodeByPath(const std::string& path)
 {

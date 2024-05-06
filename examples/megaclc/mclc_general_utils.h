@@ -29,15 +29,15 @@ namespace path_utils
  */
 unsigned long getProcessId();
 
-#ifdef __APPLE__
-// No std::fileystem before OSX10.15
-std::string getExeDirectory();
-#else
 /**
  * @brief Returns the directory associated to the running process
  */
 fs::path getExeDirectory();
-#endif
+
+/**
+ * @brief Returns the users home directory ($HOME or $USERPROFILE)
+ */
+fs::path getHomeDirectory();
 
 /**
  * @brief Finds the MegaNode corresponding to the input path
