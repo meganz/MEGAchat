@@ -159,17 +159,22 @@ int main(int argc, char* argv[])
     std::signal(SIGINT, mclc::clc_prompt::signal_handler);
     std::signal(SIGTERM, mclc::clc_prompt::signal_handler);
 
+    std::vector<std::string> args = mclc::cli_utils::argsToVec(argc, argv);
+
+    mclc::clc_resources::extractGlobalOptions(args);
+
     mclc::clc_resources::appAllocate();
 
     int exitCode = 0;
 
-    if (argc < 2)
+    if (args.size() < 2)
     {
         mclc::megaclc(); // Interactive loop
     }
     else
     {
-        exitCode = mclc::noInteractiveCommand(argc - 1, argv + 1);
+        args.erase(args.begin()); // remove the binary name
+        exitCode = mclc::noInteractiveCommand(args);
     }
 
     mclc::clc_resources::appClean();

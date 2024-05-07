@@ -5,6 +5,7 @@
 #include "mclc_globals.h"
 #include "mclc_logging.h"
 #include "mclc_prompt.h"
+#include "mclc_resources.h"
 
 #include <cassert>
 #include <iostream>
@@ -15,16 +16,16 @@
 namespace mclc
 {
 
-int noInteractiveCommand(int argc, char* argv[])
+int noInteractiveCommand(const std::vector<std::string>& args)
 {
-    if (argc == 0)
+    if (args.empty())
     {
         return 0; // nothing to do
     }
-    auto command = clc_noint::commandFactory(argv[0]);
+    auto command = clc_noint::commandFactory(args[0]);
     if (!command)
     {
-        std::cerr << "Invalid command '" << argv[0] << "'. The available options are:\n";
+        std::cerr << "Invalid command '" << args[0] << "'. The available options are:\n";
         for (auto [k, _]: clc_noint::strToCommands)
         {
             std::cerr << "    + " + std::string(k) + "\n";
@@ -32,9 +33,9 @@ int noInteractiveCommand(int argc, char* argv[])
         return 1;
     }
     return std::visit(
-        [&argc, &argv](auto&& cmd)
+        [&args](auto&& cmd)
         {
-            return cmd(argc, argv);
+            return cmd(args);
         },
         *command);
 }
@@ -85,12 +86,12 @@ matter what number of high res video you write as it will not be satisfied.
 )";
 }
 
-int JoinCallViaMeetingLink::operator()(int argc, char* argv[])
+int JoinCallViaMeetingLink::operator()(const std::vector<std::string>& args)
 {
     po::variables_map variablesMap;
     try
     {
-        po::store(po::parse_command_line(argc, argv, mDesc), variablesMap);
+        po::store(po::command_line_parser(args).options(mDesc).run(), variablesMap);
         po::notify(variablesMap);
 
         if (variablesMap.count("help"))
@@ -214,8 +215,7 @@ SIGTERM signal (kill <pid>).
 
 The application needs to store some cache data that will, by default, be saved
 in the $HOME/temp_MEGAclc/ directory (it will be created if it doesn't exist).
-You can modify this output directory by setting the MEGACLC_OUT_DIR env
-variable.
+You can change this behavior with a global option (see bellow).
 
 To use the application in interactive mode you can run the binary without any
 argument. This initializes a terminal to run commands interactively. If you
@@ -234,11 +234,26 @@ Currently, the available utilities are:
     {
         mHelpMsg += "    + " + std::string(k) + "\n";
     }
+    mHelpMsg += R"(
+Apart from the options that each of these commands may accept, there are some
+special options that can be set to modify the behavior of the app in both
+interactive and non-interactive modes. These are all optionals and it is
+important that they are written in the format: --option_flag=value (you could
+add quotes around the value if needed but don't forget the = sign). They can be
+placed anywhere in the command (of course, after the megaclc executable name).
+The available global options are:
+
+)";
+    const auto globalOptions = clc_resources::getAvailableGlobalOptionsDescription();
+    for (const auto& [flag, desc]: globalOptions)
+    {
+        mHelpMsg += "    --" + flag + ": " + desc + "\n";
+    }
 }
 
-int Help::operator()(int argc, char*[])
+int Help::operator()(const std::vector<std::string>& args)
 {
-    if (argc > 1)
+    if (args.size() > 1)
     {
         std::cerr << "Help command does not accept additional argumetns\n";
         return 1;

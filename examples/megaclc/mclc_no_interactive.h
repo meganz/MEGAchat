@@ -52,7 +52,7 @@ namespace mclc
  * of the binary must not be included in the array
  * @return The error code. 0 if everything succeed.
  */
-int noInteractiveCommand(int argc, char* argv[]);
+int noInteractiveCommand(const std::vector<std::string>& args);
 
 namespace clc_noint
 {
@@ -67,7 +67,7 @@ class JoinCallViaMeetingLink
 {
 public:
     JoinCallViaMeetingLink();
-    int operator()(int argc, char* argv[]);
+    int operator()(const std::vector<std::string>& args);
 
     // Here the labels associated to the options are declared to facilitate modifications
     static inline const char* OPT_HELP = "help";
@@ -123,7 +123,7 @@ class Help
 {
 public:
     Help();
-    int operator()(int argc, char* argv[]);
+    int operator()(const std::vector<std::string>& args);
 
 private:
     std::string mHelpMsg;

@@ -21,6 +21,15 @@ namespace fs = std::filesystem;
 
 namespace mclc
 {
+
+namespace cli_utils
+{
+/**
+ * @brief Converts the input arguments received by the main function into a vector of strings
+ */
+std::vector<std::string> argsToVec(int argc, char* argv[]);
+}
+
 namespace path_utils
 {
 

@@ -16,6 +16,26 @@ namespace k = ::karere;
 
 namespace mclc
 {
+
+namespace cli_utils
+{
+std::vector<std::string> argsToVec(int argc, char* argv[])
+{
+    if (argc < 0)
+    {
+        return {};
+    }
+    size_t nElems = static_cast<size_t>(argc);
+    std::vector<std::string> result;
+    result.reserve(nElems);
+    for (size_t i = 0; i < nElems; ++i)
+    {
+        result.push_back(argv[i]);
+    }
+    return result;
+}
+}
+
 namespace path_utils
 {
 
