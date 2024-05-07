@@ -11179,7 +11179,7 @@ TEST_F(MegaChatApiUnitaryTest, EncryptMediaKeyWithEphemKey)
     LOG_info << "___TEST EncryptMediaKeyWithEphemKey___";
 
     std::string encryptedMediaKeyBin, decryptedMediaKeyBin;
-    const std::string expEncryptedMediaKeyB64     = "IqVDFXcCDQKfazBoZxhNSjKMvk9eZYQISMYl_7S71K4";
+    const std::string expEncryptedMediaKeyB64     = "IqVDFXcCDQKfazBoZxhNSjKMvk9eZYQISMYl_7S71K4"; //gitleaks:allow
     const std::vector<::mega::byte> mediaKeyBin   = { 60,181,43,125,112,4,248,203,228,50,177,231,232,185,172,194 };
     const std::vector<::mega::byte> ephemKeyBin   = { 129,216,111,114,44,70,116,227,184,43,159,102,5,134,9,84,125,16,221,217,31,4,37,11,89,137,120,133,205,7,141,247 };
     const std::string ephemeralkeyStr(ephemKeyBin.begin(), ephemKeyBin.end());
