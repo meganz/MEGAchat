@@ -11,7 +11,15 @@ More information for the WebRTC Android compilation in [WebRTC for Android](Webr
 ### Dependencies
 
 MEGAchat requires some dependencies to work. Most of them are automatically downloaded and built using VCPKG during the configuration phase.
-You can take a look at the dependencies in the [vcpkg.json](vcpkg.json) file at root of the repository.
+
+For Linux, some extra libraries are needed in the system so that VCPKG can build the dependencies.
+For Debian-based distributions, you can install the necessary libraries using the following command:
+
+    sudo apt install python3-pkg-resources libglib2.0-dev libgtk-3-dev libasound2-dev libpulse-dev
+
+Package names may vary for different Linux distributions, but it should build succesfully with packages providing the same libraries.
+
+You can take a look at the complete set of dependencies in the [vcpkg.json](vcpkg.json) file at root of the repository.
 
 MEGAchat also needs the MEGA SDK library. There are instructions later in this document on how to get it to be used with MEGAchat. The MEGA SDK project is automatically loaded by the MEGAchat CMake, so you only have to simply clone it in the expected path.
 
