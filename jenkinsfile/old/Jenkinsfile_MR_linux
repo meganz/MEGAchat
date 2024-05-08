@@ -136,7 +136,7 @@ pipeline {
             when{
                 anyOf {
                     expression {
-                        env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'trigger compilation' || env.gitlabTriggerPhrase.startsWith('trigger compilation linux'))
+                        env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'old compilation' || env.gitlabTriggerPhrase.startsWith('old compilation linux'))
                     }
                     allOf{
                         expression { env.gitlabTriggerPhrase == null }
