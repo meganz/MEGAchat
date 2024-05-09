@@ -597,6 +597,7 @@ protected:
 
     /**
      * @brief executes an asynchronous action and wait for results
+     *
      * @param eF conditions that must be accomplished to consider action finished
      * @param actionMsg string that defines the action
      * @param action function to be executed
@@ -606,17 +607,17 @@ protected:
      * @param maxAttempts max number of attempts the action must be retried
      */
     void execActionAndWaitForResult(ExitBoolFlags& eF,
-                                                     std::string actionMsg,
-                                                     std::function<void()> action,
-                                                     unsigned int timeout = medTimeout,
-                                                     bool resetFlags = false,
-                                                     bool waitForAll = true,
-                                                     int maxAttempts = 1);
+                                    std::string actionMsg,
+                                    std::function<void()> action,
+                                    unsigned int timeout = medTimeout,
+                                    bool resetFlags = false,
+                                    bool waitForAll = true,
+                                    int maxAttempts = 1);
 
     /**
      * @brief executes an asynchronous action and wait for results
      *
-     * @note Replace all usages if this method by execActionAndWaitForResult as soon as posible
+     * @note Replace all usages of this method by execActionAndWaitForResult as soon as posible
      *
      * @param maxAttempts max number of attempts the action must be retried
      * @param eF conditions that must be accomplished consider action finished
@@ -631,7 +632,7 @@ protected:
     /**
      * @brief executes an asynchronous action and wait for results
      *
-     * @note Replace all usages if this method by execActionAndWaitForResult as soon as posible
+     * @note Replace all usages of this method by execActionAndWaitForResult as soon as posible
      *
      * @param maxAttempts max number of attempts the action must be retried
      * @param exitFlags vector of conditions that must be accomplished consider action finished
