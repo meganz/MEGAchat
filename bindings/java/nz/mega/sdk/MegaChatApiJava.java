@@ -4418,6 +4418,54 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Raises hand (for all clients of this user) to indicate that we want to speak in a call
+     *
+     * Raise hand status is not related to speak permission or mute status, it's only a visual indication to show that
+     * an user wants to speak.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK
+     *
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true to indicate that we want to raise hand to speak
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS    - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT   - if there's not a call in the specified chatid
+     * - MegaChatError::ERROR_ACCESS  - if we don't participate in the call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room where there's a call
+     * @param listener
+     */
+    public void raiseHandToSpeak(long chatId, MegaChatRequestListenerInterface listener) {
+        megaChatApi.raiseHandToSpeak(chatId, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Lowers hand (for all clients of this user) to indicate that we don't want to speak in a call at this moment
+     *
+     * Raise hand status is not related to speak permission or mute status, it's only a visual indication to show that
+     * an user wants to speak.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK
+     *
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getChatHandle - Returns the chat identifier
+     * - MegaChatRequest::getFlag - Returns true to indicate that we want to raise hand to speak
+     *
+     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS    - if specified chatid is invalid
+     * - MegaChatError::ERROR_NOENT   - if there's not a call in the specified chatid
+     * - MegaChatError::ERROR_ACCESS  - if we don't participate in the call
+     *
+     * @param chatid MegaChatHandle that identifies the chat room where there's a call
+     * @param listener
+     */
+    public void lowerHandToStopSpeak(long chatId, MegaChatRequestListenerInterface listener) {
+        megaChatApi.lowerHandToStopSpeak(chatId, createDelegateRequestListener(listener));
+    }
+
+    /**
      * Request high resolution video from a client
      *
      * The associated request type with this request is MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO
