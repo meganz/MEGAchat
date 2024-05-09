@@ -45,7 +45,7 @@ struct AvailableOption
 /**
  * @brief A vector with all the available global options specs.
  *
- * To add a new option, add a new entre here and add the needed fields in the GlobalOptions struct
+ * To add a new option, add a new entry here and add the needed fields in the GlobalOptions struct
  */
 const std::vector<AvailableOption> availableGlobalOptions{
     {.flag = "global_outdir",
@@ -144,6 +144,7 @@ void appClean()
     g_megaApi.reset();
     g_console.reset();
 
+    // If the output dir is empty remove it (as we have created it in the appAllocate stage)
     if (fs::exists(g_globalOptions.outputDir) && fs::is_directory(g_globalOptions.outputDir) &&
         fs::is_empty(g_globalOptions.outputDir))
     {

@@ -26,7 +26,11 @@ int noInteractiveCommand(const std::vector<std::string>& args)
     if (!command)
     {
         std::cerr << "Invalid command '" << args[0] << "'. The available options are:\n";
-        for (auto [k, _]: clc_noint::strToCommands)
+        for (const auto& [k, _]: clc_resources::getAvailableGlobalOptionsDescription())
+        {
+            std::cerr << "    + --" + std::string(k) + "\n";
+        }
+        for (const auto& [k, _]: clc_noint::strToCommands)
         {
             std::cerr << "    + " + std::string(k) + "\n";
         }
@@ -215,7 +219,7 @@ SIGTERM signal (kill <pid>).
 
 The application needs to store some cache data that will, by default, be saved
 in the $HOME/temp_MEGAclc/ directory (it will be created if it doesn't exist).
-You can change this behavior with a global option (see bellow).
+You can change this behavior with a global option (see below).
 
 To use the application in interactive mode you can run the binary without any
 argument. This initializes a terminal to run commands interactively. If you
