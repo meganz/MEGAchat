@@ -607,12 +607,12 @@ protected:
      * @param maxAttempts max number of attempts the action must be retried
      */
     void execActionAndWaitForResult(ExitBoolFlags& eF,
-                                    std::string actionMsg,
+                                    const std::string& actionMsg,
                                     std::function<void()> action,
-                                    unsigned int timeout = medTimeout,
-                                    bool resetFlags = false,
-                                    bool waitForAll = true,
-                                    int maxAttempts = 1);
+                                    const unsigned int timeout = medTimeout,
+                                    const bool resetFlags = false,
+                                    const bool waitForAll = true,
+                                    const int maxAttempts = 1);
 
     /**
      * @brief executes an asynchronous action and wait for results

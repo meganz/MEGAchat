@@ -912,12 +912,12 @@ bool MegaChatApiTest::waitForResponse(bool *responseReceived, unsigned int timeo
 }
 
 void MegaChatApiTest::execActionAndWaitForResult(ExitBoolFlags& eF,
-                                                 std::string actionMsg,
+                                                 const std::string& actionMsg,
                                                  std::function<void()> action,
-                                                 unsigned int timeout,
-                                                 bool resetFlags,
-                                                 bool waitForAll,
-                                                 int maxAttempts)
+                                                 const unsigned int timeout,
+                                                 const bool resetFlags,
+                                                 const bool waitForAll,
+                                                 const int maxAttempts)
 {
     ASSERT_TRUE(!eF.empty()) << "execActionAndWaitForResult: Empty list of exit flags";
     ASSERT_TRUE(action) << "execActionAndWaitForResult: no valid action provided";
@@ -935,7 +935,7 @@ void MegaChatApiTest::execActionAndWaitForResult(ExitBoolFlags& eF,
         if (!waitForMultiResponse(eF, waitForAll, timeout))
         {
             std::string msg = "Attempt [" + std::to_string(retries) + "] for " + actionMsg + ":\n";
-            for (size_t i = 0; i < eF.size(); ++i)
+            if (!eF.empty())
             {
                 msg += eF.printAll();
             }
@@ -962,7 +962,7 @@ void MegaChatApiTest::waitForAction(int maxAttempts, ExitBoolFlags& eF, const st
         if (!waitForMultiResponse(eF, waitForAll, timeout))
         {
             std::string msg = "Attempt ["; msg.append(std::to_string(retries)).append("] for ").append(actionMsg).append(":\n ");
-            for (size_t i = 0; i < eF.size(); i++)
+            if (!eF.empty())
             {
                 msg += eF.printAll();
             }
