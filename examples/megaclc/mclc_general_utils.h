@@ -21,6 +21,15 @@ namespace fs = std::filesystem;
 
 namespace mclc
 {
+
+namespace cli_utils
+{
+/**
+ * @brief Converts the input arguments received by the main function into a vector of strings
+ */
+std::vector<std::string> argsToVec(int argc, char* argv[]);
+}
+
 namespace path_utils
 {
 
@@ -29,15 +38,15 @@ namespace path_utils
  */
 unsigned long getProcessId();
 
-#ifdef __APPLE__
-// No std::fileystem before OSX10.15
-std::string getExeDirectory();
-#else
 /**
  * @brief Returns the directory associated to the running process
  */
 fs::path getExeDirectory();
-#endif
+
+/**
+ * @brief Returns the users home directory ($HOME or $USERPROFILE)
+ */
+fs::path getHomeDirectory();
 
 /**
  * @brief Finds the MegaNode corresponding to the input path

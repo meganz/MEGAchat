@@ -1002,11 +1002,7 @@ void exec_loadmessages(ac::ACState& s)
 
 static bool initFile(std::unique_ptr<std::ofstream>& file, const std::string& filename)
 {
-#ifdef __APPLE__
-    const auto outputFilename = getExeDirectory() + "/" + filename;
-#else
     const auto outputFilename = getExeDirectory() / filename;
-#endif
     file.reset(new std::ofstream{outputFilename});
     if (!file->is_open())
     {
