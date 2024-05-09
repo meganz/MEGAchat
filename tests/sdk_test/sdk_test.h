@@ -41,6 +41,7 @@
 static const std::string APPLICATION_KEY = "MBoVFSyZ";
 static constexpr unsigned int MAX_ATTEMPTS = 3;
 static const unsigned int minTimeout = 60;     // (seconds)
+static const unsigned int medTimeout = 120;    // (seconds)
 static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 3;
@@ -448,6 +449,11 @@ public:
             return mVars.size();
         }
 
+        size_t empty() const
+        {
+            return !size();
+        }
+
         bool updateAll(const bool v)
         {
             for (auto& entry : mVars)
@@ -591,6 +597,28 @@ protected:
 
     /**
      * @brief executes an asynchronous action and wait for results
+     *
+     * @param eF conditions that must be accomplished to consider action finished
+     * @param actionMsg string that defines the action
+     * @param action function to be executed
+     * @param timeout max timeout (in seconds) to execute the action
+     * @param resetFlags flag that indicates if exitFlags must be reset before executing action
+     * @param waitForAll wait for all exit conditions
+     * @param maxAttempts max number of attempts the action must be retried
+     */
+    void execActionAndWaitForResult(ExitBoolFlags& eF,
+                                    const std::string& actionMsg,
+                                    std::function<void()> action,
+                                    const unsigned int timeout = medTimeout,
+                                    const bool resetFlags = false,
+                                    const bool waitForAll = true,
+                                    const int maxAttempts = 1);
+
+    /**
+     * @brief executes an asynchronous action and wait for results
+     *
+     * @note Replace all usages of this method by execActionAndWaitForResult as soon as posible
+     *
      * @param maxAttempts max number of attempts the action must be retried
      * @param eF conditions that must be accomplished consider action finished
      * @param actionMsg string that defines the action
@@ -603,6 +631,9 @@ protected:
 
     /**
      * @brief executes an asynchronous action and wait for results
+     *
+     * @note Replace all usages of this method by execActionAndWaitForResult as soon as posible
+     *
      * @param maxAttempts max number of attempts the action must be retried
      * @param exitFlags vector of conditions that must be accomplished consider action finished
      * @param flagsStr vector of strings to identify each condition
