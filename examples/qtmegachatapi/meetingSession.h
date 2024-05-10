@@ -42,6 +42,7 @@ private:
     std::unique_ptr <QLabel> mVideoLabel;
     std::unique_ptr <QLabel> mReqSpealLabel;
     std::unique_ptr <QLabel> mRecordingLabel;
+    std::unique_ptr <QLabel> mRaiseHandLabel;
 };
 
 #endif // MEETINGSESSION_H
