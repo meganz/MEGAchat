@@ -452,7 +452,7 @@ public:
     // ---- DesktopCapturer::Callback methods ----
     void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame) override;
 
-    // ---- VideoManager methods ----
+    // ---- VideoCapturerManager methods ----
     void openDevice(const std::string &) override;
 
     void releaseDevice() override
@@ -556,7 +556,7 @@ protected:
 };
 
 #ifdef __APPLE__
-class OBJCCaptureModule : public VideoManager
+class OBJCCaptureModule : public VideoCapturerManager
 {
 public:
     explicit OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
@@ -596,7 +596,7 @@ private:
 #endif
 
 #ifdef __ANDROID__
-class CaptureModuleAndroid : public VideoManager
+class CaptureModuleAndroid : public VideoCapturerManager
 {
 public:
     explicit CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
