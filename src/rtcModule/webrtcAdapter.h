@@ -19,12 +19,14 @@
 #include <media/base/video_broadcaster.h>
 #include <modules/video_capture/video_capture.h>
 #include <rtc_base/ref_counter.h>
+#if defined(__linux__) && !defined(__ANDROID__)
 #include "api/video/i420_buffer.h"
 #include "api/video/video_frame.h"
 #include "modules/desktop_capture/desktop_capturer.h"
 #include "modules/desktop_capture/desktop_capture_options.h"
 #include <libyuv/convert.h>
 #include <rtc_base/ref_counter.h>
+#endif
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
@@ -439,6 +441,7 @@ public:
     static std::set<std::pair<std::string, long int>> getScreenDevices();
 };
 
+#if defined(__linux__) && !defined(__ANDROID__)
 class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoCapturerManager
 {
 public:
@@ -554,6 +557,7 @@ protected:
     rtc::scoped_refptr<webrtc::VideoCaptureModule> mCameraCapturer;
     webrtc::VideoCaptureCapability mCapabilities;
 };
+#endif
 
 #ifdef __APPLE__
 class OBJCCaptureModule : public VideoCapturerManager

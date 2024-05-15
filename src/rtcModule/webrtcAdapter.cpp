@@ -91,6 +91,7 @@ unsigned long generateId()
     return ++id;
 }
 
+#if defined(__linux__) && !defined(__ANDROID__)
 CaptureCameraModuleLinux::CaptureCameraModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote)
     : mState(webrtc::MediaSourceInterface::kInitializing),
       mRemote(remote),
@@ -216,6 +217,7 @@ webrtc::VideoTrackSourceInterface* CaptureCameraModuleLinux::getVideoTrackSource
 {
     return this;
 }
+#endif
 
 karere::AvFlags LocalStreamHandle::av()
 {
@@ -280,12 +282,13 @@ VideoCapturerManager* VideoCapturerManager::createCameraCapturer(const webrtc::V
 #endif
                                    )
 {
-#ifdef __APPLE__
+
+#if defined(__linux__) && !defined(__ANDROID__)
+    return new CaptureCameraModuleLinux(capabilities);
+#elif __APPLE__
     return new OBJCCaptureModule(capabilities, deviceName);
 #elif __ANDROID__
     return new CaptureModuleAndroid(capabilities, deviceName, thread);
-#else
-    return new CaptureCameraModuleLinux(capabilities);
 #endif
 }
 
@@ -295,41 +298,42 @@ VideoCapturerManager *VideoCapturerManager::createScreenCapturer(const webrtc::V
 #endif
                                                 )
 {
-#ifdef __APPLE__
+#if defined(__linux__) && !defined(__ANDROID__)
+    return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux(static_cast<webrtc::DesktopCapturer::SourceId>(deviceId));
+#elif __APPLE__
     // TODO: Implement
     return nullptr;
 #elif __ANDROID__
     // TODO: Implement
     return nullptr;
-#else
-    return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux(static_cast<webrtc::DesktopCapturer::SourceId>(deviceId));
 #endif
 }
 
 std::set<std::pair<std::string, std::string>> VideoCapturerManager::getCameraDevices()
 {
-    #ifdef __APPLE__
-        return OBJCCaptureModule::getVideoDevices();
-    #elif __ANDROID__
-        return CaptureModuleAndroid::getVideoDevices();
-    #else
+#if defined(__linux__) && !defined(__ANDROID__)
         return CaptureCameraModuleLinux::getVideoDevices();
-    #endif
+#elif __APPLE__
+        return OBJCCaptureModule::getVideoDevices();
+#elif __ANDROID__
+        return CaptureModuleAndroid::getVideoDevices();
+#endif
 }
 
 std::set<std::pair<std::string, long int>> VideoCapturerManager::getScreenDevices()
 {
- #ifdef __APPLE__
+#if defined(__linux__) && !defined(__ANDROID__)
+        return CaptureScreenModuleLinux::getScreenDevicesList();
+#elif __APPLE__
          // TODO: return OBJCCaptureModule::getScreenDevicesList();
          return {};
- #elif __ANDROID__
+#elif __ANDROID__
          // TODO: return CaptureModuleAndroid::getScreenDevicesList();
          return {};
- #else
-        return CaptureScreenModuleLinux::getScreenDevicesList();
- #endif
+#endif
 }
 
+#if defined(__linux__) && !defined(__ANDROID__)
 void CaptureScreenModuleLinux::OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame)
 {
     // this method is analogous to VideoSinkInterface::onFrame
@@ -424,6 +428,7 @@ std::set<std::pair<std::string, long int>> CaptureScreenModuleLinux::getScreenDe
     }
     return list;
 }
+#endif
 
 RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv, uint32_t mid)
     : mPeer(peer)
