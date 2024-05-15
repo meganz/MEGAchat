@@ -282,13 +282,12 @@ VideoCapturerManager* VideoCapturerManager::createCameraCapturer(const webrtc::V
 #endif
                                    )
 {
-
-#if defined(__linux__) && !defined(__ANDROID__)
-    return new CaptureCameraModuleLinux(capabilities);
-#elif __APPLE__
+#ifdef __APPLE__
     return new OBJCCaptureModule(capabilities, deviceName);
 #elif __ANDROID__
     return new CaptureModuleAndroid(capabilities, deviceName, thread);
+#else
+    return new CaptureCameraModuleLinux(capabilities);
 #endif
 }
 
@@ -298,39 +297,39 @@ VideoCapturerManager *VideoCapturerManager::createScreenCapturer(const webrtc::V
 #endif
                                                 )
 {
-#if defined(__linux__) && !defined(__ANDROID__)
-    return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux(static_cast<webrtc::DesktopCapturer::SourceId>(deviceId));
-#elif __APPLE__
+#ifdef __APPLE__
     // TODO: Implement
     return nullptr;
 #elif __ANDROID__
     // TODO: Implement
     return nullptr;
+#else
+    return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux(static_cast<webrtc::DesktopCapturer::SourceId>(deviceId));
 #endif
 }
 
 std::set<std::pair<std::string, std::string>> VideoCapturerManager::getCameraDevices()
 {
-#if defined(__linux__) && !defined(__ANDROID__)
-        return CaptureCameraModuleLinux::getVideoDevices();
-#elif __APPLE__
+    #ifdef __APPLE__
         return OBJCCaptureModule::getVideoDevices();
-#elif __ANDROID__
+    #elif __ANDROID__
         return CaptureModuleAndroid::getVideoDevices();
-#endif
+    #else
+        return CaptureCameraModuleLinux::getVideoDevices();
+    #endif
 }
 
 std::set<std::pair<std::string, long int>> VideoCapturerManager::getScreenDevices()
 {
-#if defined(__linux__) && !defined(__ANDROID__)
-        return CaptureScreenModuleLinux::getScreenDevicesList();
-#elif __APPLE__
+ #ifdef __APPLE__
          // TODO: return OBJCCaptureModule::getScreenDevicesList();
          return {};
-#elif __ANDROID__
+ #elif __ANDROID__
          // TODO: return CaptureModuleAndroid::getScreenDevicesList();
          return {};
-#endif
+ #else
+        return CaptureScreenModuleLinux::getScreenDevicesList();
+ #endif
 }
 
 #if defined(__linux__) && !defined(__ANDROID__)
