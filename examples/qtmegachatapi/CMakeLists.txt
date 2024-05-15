@@ -81,6 +81,13 @@ target_sources_conditional(QtApp
     videoRenderer_Qt.cpp
 )
 
+if (WIN32)
+    target_compile_definitions(QtApp
+        PRIVATE
+            NOMINMAX # TODO Fix locally
+    )
+endif()
+
 if(NOT USE_WEBRTC)
      # Exclude from automoc. Sources are not built but AUTOMOC process it anyway.
      set_property(SOURCE videoRenderer_Qt.h PROPERTY SKIP_AUTOMOC ON)
@@ -123,5 +130,6 @@ if(ENABLE_CHATLIB_WERROR)
         TARGET QtApp
         UNIX  $<$<CONFIG:Debug>: -Werror
                                  -Wno-error=deprecated-declarations> # Kept as a warning, do not promote to error.
+        APPLE $<$<CONFIG:Debug>: -Wno-sign-conversion -Wno-inconsistent-missing-override>
     )
 endif()

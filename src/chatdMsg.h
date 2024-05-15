@@ -511,7 +511,7 @@ enum Opcode
 
     /**
       * @brief
-      * S->C: Add user list to current in call user set
+      * S->C: Add user list to current in call user set (own userid can be received)
       *
       * Receive: <chatid.8> <callid.8> <userListCount.1> <user1.8> <user2.8> ...
       */
@@ -527,7 +527,7 @@ enum Opcode
 
     /**
       * @brief
-      * S->C: Notify call state
+      * S->C: Notify call state (own userid can be received)
       *
       * Receive: <chatid.8> <userid.8> <callid.8> <ringing.1>
       */

@@ -136,7 +136,7 @@ pipeline {
             when{
                 anyOf {
                     expression {
-                        env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'trigger compilation' || env.gitlabTriggerPhrase.startsWith('trigger compilation linux'))
+                        env.gitlabTriggerPhrase != null && ( env.gitlabTriggerPhrase == 'old compilation' || env.gitlabTriggerPhrase.startsWith('old compilation linux'))
                     }
                     allOf{
                         expression { env.gitlabTriggerPhrase == null }
@@ -226,12 +226,9 @@ pipeline {
                     def lockLabel = ''
                     if ("${APIURL_TO_TEST}" == 'https://g.api.mega.co.nz/') {
                         lockLabel = 'SDK_Concurrent_Test_Accounts'
-                    } else if ("${APIURL_TO_TEST}" == 'https://staging.api.mega.co.nz/') {
-                        lockLabel = 'SDK_Concurrent_Test_Accounts_Staging'
                     } else {
-                        error("Wrong APIURL: ${APIURL_TO_TEST}")                        
-                    }      
-
+                        lockLabel = 'SDK_Concurrent_Test_Accounts_Staging'
+                    }
                     lock(label: lockLabel, variable: 'ACCOUNTS_COMBINATION', quantity: 1, resource: null){
                         dir("${megachat_sources_workspace}/build/subfolder"){
                             script{

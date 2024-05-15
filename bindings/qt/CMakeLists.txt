@@ -54,5 +54,6 @@ if(ENABLE_CHATLIB_WERROR)
         TARGET CHATQtBindings
         UNIX  $<$<CONFIG:Debug>: -Werror
                                  -Wno-error=deprecated-declarations> # Kept as a warning, do not promote to error.
+        APPLE $<$<CONFIG:Debug>: -Wno-inconsistent-missing-override>
     )
 endif()
