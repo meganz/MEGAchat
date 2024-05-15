@@ -3332,7 +3332,7 @@ public:
     static constexpr int LOCAL_CLIENT_ID_FOR_VIDEO = 0;
 
     // invalid screen device id
-    static constexpr long SCREEN_INVALID_DEVICE_ID = std::numeric_limits<long>::max();
+    static constexpr long SCREEN_INVALID_DEVICE_ID = 0x7fffffff;
 
     // chat will reuse an existent megaApi instance (ie. the one for cloud storage)
     /**
