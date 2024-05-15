@@ -1168,6 +1168,11 @@ void MegaChatApi::setCameraInDevice(const char *device, MegaChatRequestListener 
     pImpl->setVideoCapturerInDevice(device, TYPE_CAPTURER_VIDEO, listener);
 }
 
+void MegaChatApi::setChatVideoInDevice(const char *device, MegaChatRequestListener *listener)
+{
+    pImpl->setVideoCapturerInDevice(device, TYPE_CAPTURER_VIDEO, listener);
+}
+
 void MegaChatApi::setScreenInDevice(const char* device, MegaChatRequestListener* listener)
 {
     pImpl->setVideoCapturerInDevice(device, TYPE_CAPTURER_SCREEN, listener);
@@ -1184,6 +1189,11 @@ char* MegaChatApi::getScreenDeviceNameById(const long int id) const
 }
 
 char* MegaChatApi::getCameraDeviceIdSelected()
+{
+    return pImpl->getCameraDeviceIdSelected();
+}
+
+char* MegaChatApi::getVideoDeviceSelected()
 {
     return pImpl->getCameraDeviceIdSelected();
 }

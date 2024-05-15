@@ -6267,6 +6267,29 @@ public:
     void setCameraInDevice(const char *device, MegaChatRequestListener *listener = NULL);
 
     /**
+     * @brief Select the video device to be used in calls
+     *
+     * Video device identifiers are obtained with function MegaChatApi::getChatVideoInDevices
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_CHANGE_VIDEO_STREAM
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getText - Returns the device
+     *
+     * The request will fail with MegaChatError::ERROR_ARGS
+     * - If input device does not exist.
+     *
+     * The request will fail with MegaChatError::ERROR_ACCESS
+     * - If WebRTC is not initialized
+     *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     * Use MegaChatApi::setCameraInDevice instead.
+     *
+     * @param device Identifier of device to be selected
+     * @param listener MegaChatRequestListener to track this request
+     */
+    void setChatVideoInDevice(const char *device, MegaChatRequestListener *listener = NULL);
+
+    /**
      * @brief Select the screen device to be used in calls
      *
      * Screen device identifiers are obtained with function MegaChatApi::getChatScreenDevices
@@ -6312,6 +6335,18 @@ public:
      * @return Camera selected device Id if any
      */
     char* getCameraDeviceIdSelected();
+
+    /**
+     * @brief Returns the camera selected device Id if any
+     *
+     * You take the ownership of the returned value (it can be NULL)
+     *
+     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
+     * Use MegaChatApi::getCameraDeviceIdSelected instead.
+     *
+     * @return Camera selected device Id if any
+     */
+    char* getVideoDeviceSelected();
 
     /**
      * @brief Returns the screen selected device Id if any
