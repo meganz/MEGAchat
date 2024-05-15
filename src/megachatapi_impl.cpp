@@ -2015,16 +2015,16 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
                 return MegaChatError::ERROR_NOENT;
             }
 
-            if (operationType != MegaChatRequest::AUDIO_FLAGS &&
-                operationType != MegaChatRequest::VIDEO_FLAGS &&
-                operationType != MegaChatRequest::SCREEN_FLAGS)
+            if (operationType != MegaChatRequest::AUDIO &&
+                operationType != MegaChatRequest::VIDEO &&
+                operationType != MegaChatRequest::SCREEN)
             {
                 return MegaChatError::ERROR_ARGS;
             }
 
             karere::AvFlags currentFlags = call->getLocalAvFlags();
             karere::AvFlags requestedFlags = currentFlags;
-            if (operationType == MegaChatRequest::AUDIO_FLAGS)
+            if (operationType == MegaChatRequest::AUDIO)
             {
                 if (enable)
                 {
@@ -2044,7 +2044,7 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
                     requestedFlags.remove(karere::AvFlags::kAudio);
                 }
             }
-            else if (operationType == MegaChatRequest::VIDEO_FLAGS)
+            else if (operationType == MegaChatRequest::VIDEO)
             {
                 if (enable)
                 {
@@ -6230,7 +6230,7 @@ void MegaChatApiImpl::setAudioEnable(MegaChatHandle chatid, bool enable, MegaCha
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enable);
-    request->setParamType(MegaChatRequest::AUDIO_FLAGS);
+    request->setParamType(MegaChatRequest::AUDIO);
     request->setPerformRequest([this, request]() { return performRequest_setAudioVideoEnable(request); });
     requestQueue.push(request);
     waiter->notify();
@@ -6241,7 +6241,7 @@ void MegaChatApiImpl::setVideoEnable(MegaChatHandle chatid, bool enable, MegaCha
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enable);
-    request->setParamType(MegaChatRequest::VIDEO_FLAGS);
+    request->setParamType(MegaChatRequest::VIDEO);
     request->setPerformRequest([this, request]() { return performRequest_setAudioVideoEnable(request); });
     requestQueue.push(request);
     waiter->notify();
@@ -6252,7 +6252,7 @@ void MegaChatApiImpl::setScreenShareEnable(MegaChatHandle chatid, bool enable, M
     MegaChatRequestPrivate *request = new MegaChatRequestPrivate(MegaChatRequest::TYPE_DISABLE_AUDIO_VIDEO_CALL, listener);
     request->setChatHandle(chatid);
     request->setFlag(enable);
-    request->setParamType(MegaChatRequest::SCREEN_FLAGS);
+    request->setParamType(MegaChatRequest::SCREEN);
     request->setPerformRequest([this, request]() { return performRequest_setAudioVideoEnable(request); });
     requestQueue.push(request);
     waiter->notify();

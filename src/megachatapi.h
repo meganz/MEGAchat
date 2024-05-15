@@ -2665,10 +2665,10 @@ public:
         TOTAL_OF_REQUEST_TYPES                      = 69,
     };
 
-    enum {
-        AUDIO_FLAGS = 0,
-        VIDEO_FLAGS = 1,
-        SCREEN_FLAGS = 2,
+    enum {  // AV flags
+        AUDIO = 0,
+        VIDEO = 1,
+        SCREEN = 2,
     };
 
     virtual ~MegaChatRequest();
@@ -2873,12 +2873,12 @@ public:
      * @brief Returns the type of parameter related to the request
      *
      * This value is valid for these requests:
-     * - MegaChatApi::enableAudio - Returns MegaChatRequest::AUDIO_FLAGS
-     * - MegaChatApi::disableAudio - Returns MegaChatRequest::AUDIO_FLAGS
-     * - MegaChatApi::enableVideo - Returns MegaChatRequest::VIDEO_FLAGS
-     * - MegaChatApi::disableVideo - Returns MegaChatRequest::VIDEO_FLAGS
-     * - MegaChatApi::enableScreenShare - Returns MegaChatRequest::SCREEN_FLAGS
-     * - MegaChatApi::disableScreenShare - Returns MegaChatRequest::SCREEN_FLAGS
+     * - MegaChatApi::enableAudio - Returns MegaChatRequest::AUDIO
+     * - MegaChatApi::disableAudio - Returns MegaChatRequest::AUDIO
+     * - MegaChatApi::enableVideo - Returns MegaChatRequest::VIDEO
+     * - MegaChatApi::disableVideo - Returns MegaChatRequest::VIDEO
+     * - MegaChatApi::enableScreenShare - Returns MegaChatRequest::SCREEN
+     * - MegaChatApi::disableScreenShare - Returns MegaChatRequest::SCREEN
      * - MegaChatApi::attachVoiceMessage - Returns one
      * - MegaChatApi::attachNode - Returns zero
      * - MegaChatApi::retryPendingConnections - Returns one for refreshUrl
@@ -6731,7 +6731,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
-     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO_FLAGS
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call sending audio already (no more audio slots are available).
@@ -6752,7 +6752,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns false
-     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO_FLAGS
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::AUDIO
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
@@ -6770,7 +6770,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
-     * - MegaChatRequest::getParamType - Returns MegaChatRequest::SCREEN_FLAGS
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::SCREEN
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
@@ -6788,7 +6788,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns false
-     * - MegaChatRequest::getParamType - Returns MegaChatRequest::SCREEN_FLAGS
+     * - MegaChatRequest::getParamType - Returns MegaChatRequest::SCREEN
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
@@ -6806,7 +6806,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns true
-     * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO_FLAGS
+     * - MegaChatRequest::getParamType - MegaChatRequest::VIDEO
      *
      * The request will fail with MegaChatError::ERROR_TOOMANY when there are too many participants
      * in the call sending video already (no more video slots are available).
@@ -6827,7 +6827,7 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the chat identifier
      * - MegaChatRequest::getFlag - Returns false
-     * - MegaChatRequest::getParamType - Returns MegachatRequest::VIDEO_FLAGS
+     * - MegaChatRequest::getParamType - Returns MegachatRequest::VIDEO
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT   - if there is not any call with in chatroom
