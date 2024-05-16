@@ -1259,21 +1259,27 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatMessage *)sendMessageToChat:(uint64_t)chatId message:(NSString *)message {
-    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->sendMessage(chatId, message.UTF8String) cMemoryOwn:YES] : nil;
+    if (self.megaChatApi == nil) return nil;
+    MegaChatMessage *megaChatMessage = self.megaChatApi->sendMessage(chatId, message.UTF8String);
+    return megaChatMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:megaChatMessage cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatMessage *)attachContactsToChat:(uint64_t)chatId contacts:(NSArray *)contacts {
+    if (self.megaChatApi == nil) return nil;
     MEGAHandleList *handleList = [[MEGAHandleList alloc] init];
     
     for (NSInteger i = 0; i < contacts.count; i++) {
         [handleList addMegaHandle:[[contacts objectAtIndex:i] handle]];
     }
     
-    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->attachContacts(chatId, handleList.getCPtr) cMemoryOwn:YES] : nil;
+    MegaChatMessage *megaChatMessage = self.megaChatApi->attachContacts(chatId, handleList.getCPtr);
+    return megaChatMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:megaChatMessage cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatMessage *)forwardContactFromChat:(uint64_t)sourceChatId messageId:(uint64_t)messageId targetChatId:(uint64_t)targetChatId {
-    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->forwardContact(sourceChatId, messageId, targetChatId) cMemoryOwn:YES] : nil;
+    if (self.megaChatApi == nil) return nil;
+    MegaChatMessage *megaChatMessage = self.megaChatApi->forwardContact(sourceChatId, messageId, targetChatId);
+    return megaChatMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:megaChatMessage cMemoryOwn:YES] : nil;
 }
 
 - (void)attachNodesToChat:(uint64_t)chatId nodes:(NSArray *)nodesArray delegate:(id<MEGAChatRequestDelegate>)delegate {
@@ -1345,7 +1351,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatMessage *)revokeAttachmentMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
-    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->revokeAttachmentMessage(chatId, messageId) cMemoryOwn:YES] : nil;
+    if (self.megaChatApi == nil) return nil;
+    MegaChatMessage *megaChatMessage = self.megaChatApi->revokeAttachmentMessage(chatId, messageId);
+    return megaChatMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:megaChatMessage cMemoryOwn:YES] : nil;
 }
 
 - (BOOL)isRevokedNode:(uint64_t)nodeHandle inChat:(uint64_t)chatId {
@@ -1365,15 +1373,21 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatMessage *)editMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId message:(NSString *)message {
-    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->editMessage(chatId, messageId, message.UTF8String) cMemoryOwn:YES] : nil;
+    if (self.megaChatApi == nil) return nil;
+    MegaChatMessage *megaChatMessage = self.megaChatApi->editMessage(chatId, messageId, message.UTF8String);
+    return megaChatMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:megaChatMessage cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatMessage *)deleteMessageForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
-    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->deleteMessage(chatId, messageId) cMemoryOwn:YES] : nil;
+    if (self.megaChatApi == nil) return nil;
+    MegaChatMessage *megaChatMessage = self.megaChatApi->deleteMessage(chatId, messageId);
+    return megaChatMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:megaChatMessage cMemoryOwn:YES] : nil;
 }
 
 - (MEGAChatMessage *)removeRichLinkForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
-    return self.megaChatApi ? [[MEGAChatMessage alloc] initWithMegaChatMessage:self.megaChatApi->removeRichLink(chatId, messageId) cMemoryOwn:YES] : nil;
+    if (self.megaChatApi == nil) return nil;
+    MegaChatMessage *megaChatMessage = self.megaChatApi->removeRichLink(chatId, messageId);
+    return megaChatMessage ? [[MEGAChatMessage alloc] initWithMegaChatMessage:megaChatMessage cMemoryOwn:YES] : nil;
 }
 
 - (BOOL)setMessageSeenForChat:(uint64_t)chatId messageId:(uint64_t)messageId {
