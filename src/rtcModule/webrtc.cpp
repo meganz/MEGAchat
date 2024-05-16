@@ -4213,6 +4213,18 @@ void RtcModuleSfu::releaseScreenDevice()
     }
 }
 
+bool RtcModuleSfu::hasLocalCameraRenderer(const karere::Id &chatid) const
+{
+    auto it = mCameraVideoSink.mRenderers.find(chatid);
+    return it != mCameraVideoSink.mRenderers.end() && it->second;
+}
+
+bool RtcModuleSfu::hasLocalScreenRenderer(const karere::Id &chatid) const
+{
+    auto it = mScreenVideoSink.mRenderers.find(chatid);
+    return it != mScreenVideoSink.mRenderers.end() && it->second;
+}
+
 void RtcModuleSfu::addLocalCameraRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer)
 {
     mCameraVideoSink.mRenderers[chatid] = std::unique_ptr<IVideoRenderer>(videoRederer);

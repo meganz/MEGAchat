@@ -277,6 +277,8 @@ public:
     virtual void releaseScreenDevice() = 0;
     virtual void addLocalCameraRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
     virtual void removeLocalCameraRenderer(const karere::Id &chatid) = 0;
+    virtual bool hasLocalCameraRenderer(const karere::Id &chatid) const = 0;
+    virtual bool hasLocalScreenRenderer(const karere::Id &chatid) const = 0;
     virtual void addLocalScreenRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
     virtual void removeLocalScreenRenderer(const karere::Id &chatid) = 0;
     virtual unsigned int getNumInputVideoTracks() const = 0;

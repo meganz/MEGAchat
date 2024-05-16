@@ -884,6 +884,8 @@ public:
     void takeScreenDevice() override;
     void releaseScreenDevice() override;
     void addLocalCameraRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
+    bool hasLocalCameraRenderer(const karere::Id &chatid) const override;
+    bool hasLocalScreenRenderer(const karere::Id &chatid) const override;
     void removeLocalCameraRenderer(const karere::Id& chatid) override;
     void addLocalScreenRenderer(const karere::Id& chatid, IVideoRenderer *videoRederer) override;
     void removeLocalScreenRenderer(const karere::Id& chatid) override;
