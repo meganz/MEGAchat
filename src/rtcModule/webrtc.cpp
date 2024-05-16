@@ -1043,7 +1043,12 @@ void Call::joinSfu()
             return;
         }
 
-        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getPrevCid(), kInitialvthumbCount);
+        mSfuConnection->joinSfu(sdp,
+                                ivs,
+                                ephemeralKey,
+                                getLocalAvFlags().value(),
+                                getPrevCid(),
+                                RtcConstant::kInitialvthumbCount);
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -3497,7 +3502,8 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) | static_cast<int32_t>(kTxSpatialLayerCount) << 8);
+    mStats.mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) |
+                                 static_cast<int32_t>(RtcConstant::kTxSpatialLayerCount) << 8);
     mStats.mSamples.mNrxa.push_back(audioSession);
     mStats.mSamples.mNrxl.push_back(vThumbSession);
     mStats.mSamples.mNrxh.push_back(hiResSession);
@@ -4065,7 +4071,11 @@ void RtcModuleSfu::removeLocalVideoRenderer(const karere::Id &chatid)
 
 void RtcModuleSfu::onMediaKeyDecryptionFailed(const std::string& err)
 {
-    mMegaApi.callIgnoreResult(&::mega::MegaApi::sendEvent, 99017, err.c_str());
+    mMegaApi.callIgnoreResult(&::mega::MegaApi::sendEvent,
+                              99017,
+                              err.c_str(),
+                              false,
+                              static_cast<const char*>(nullptr));
 }
 
 std::vector<karere::Id> RtcModuleSfu::chatsWithCall()
