@@ -1095,11 +1095,10 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     // Auxiliar test functions
     //========================================================================//
     /** add here all auxiliar lambdas that this test can require **/
-    auto raiseHand = [this](const bool add, const unsigned int idx, const MegaChatHandle uh, std::set<unsigned int> recvIdx)
+
+
+    auto addVarRaiseHand = [this](const std::set<unsigned int>& recvIdx, const bool add, ExitBoolFlags& eF)
     {
-        clearTemporalVars();
-        recvIdx.emplace(idx);
-        ExitBoolFlags eF;
         std::for_each(recvIdx.begin(), recvIdx.end(), [this, add, &eF](const auto i)
         {
             if (add)
@@ -1113,6 +1112,50 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                 addHandleVar(i, "loweredHandUh", MEGACHAT_INVALID_HANDLE);
             }
         });
+    };
+
+    auto checkVarRaiseHand = [this](std::set<unsigned int>& recvIdx, const bool add, const MegaChatHandle uh)
+    {
+        for (auto i: recvIdx)
+        {
+            MegaChatHandle* recvUh = add
+                                         ? handleVars().getVar(i, "raisedHandUh")
+                                         : handleVars().getVar(i, "loweredHandUh");
+
+            ASSERT_TRUE(recvUh) << "Can't get " << (add ? "raisedHandUh" : "loweredHandUh")
+                                << " for " << std::to_string(i);
+            ASSERT_EQ(*recvUh, uh) << "Unexpected Uh received";
+        }
+    };
+
+    auto reconnectAndCheckraisedHand = [this, &addVarRaiseHand, &checkVarRaiseHand](const bool add, const unsigned int idx, const MegaChatHandle uh, std::set<unsigned int> recvIdx)
+    {
+        clearTemporalVars();
+        recvIdx.emplace(idx);
+        ExitBoolFlags eF;
+        addVarRaiseHand(recvIdx, add, eF);
+        waitForAction(1, /* just one attempt */
+                      eF,
+                      "raise hand",
+                      true /* wait for all exit flags */,
+                      true /* reset flags */,
+                      minTimeout * 2, // 2 min
+                      [this, idx]()
+                      {
+                          ChatRequestTracker crtRetryConnection(megaChatApi[idx]);
+                          megaChatApi[idx]->retryPendingConnections(true, &crtRetryConnection);
+                      }
+                      );
+
+        checkVarRaiseHand(recvIdx, add, uh);
+    };
+
+    auto raiseHand = [this, &addVarRaiseHand, &checkVarRaiseHand](const bool add, const unsigned int idx, const MegaChatHandle uh, std::set<unsigned int> recvIdx)
+    {
+        clearTemporalVars();
+        recvIdx.emplace(idx);
+        ExitBoolFlags eF;
+        addVarRaiseHand(recvIdx, add, eF);
 
         waitForAction(1, /* just one attempt */
                       eF,
@@ -1133,16 +1176,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                       }
         );
 
-        for (auto i: recvIdx)
-        {
-            MegaChatHandle* recvUh = add
-                                         ? handleVars().getVar(i, "raisedHandUh")
-                                         : handleVars().getVar(i, "loweredHandUh");
-
-            ASSERT_TRUE(recvUh) << "Can't get " << (add ? "raisedHandUh" : "loweredHandUh")
-                                << " for " << std::to_string(i);
-            ASSERT_EQ(*recvUh, uh) << "Unexpected Uh received";
-        }
+        checkVarRaiseHand(recvIdx, add, uh);
 
         // check call for user that raised hand contains that user in raised hand list
         std::unique_ptr<MegaChatCall> call(megaChatApi[idx]->getChatCall(mData.mChatid));
@@ -1233,29 +1267,32 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     LOG_debug << "#### Test2: a2 raises hand ####";
     ASSERT_NO_FATAL_FAILURE(raiseHand(true  /*add*/, a2, a2Uh, {a1}));
 
-    LOG_debug << "#### Test3: a2 lowers hand ####";
+    LOG_debug << "#### Test3: a2 raises hand ####";
+    reconnectAndCheckraisedHand(true, a2, a2Uh, {a1});
+
+    LOG_debug << "#### Test4: a2 lowers hand ####";
     ASSERT_NO_FATAL_FAILURE(raiseHand(false /*add*/, a2, a2Uh, {a1}));
 
-    LOG_debug << "#### Test4: a1 raises hand ####";
+    LOG_debug << "#### Test5: a1 raises hand ####";
     ASSERT_NO_FATAL_FAILURE(raiseHand(true  /*add*/, a1, a1Uh, {a2}));
 
-    LOG_debug << "#### Test5: a1 lowers hand ####";
+    LOG_debug << "#### Test6: a1 lowers hand ####";
     ASSERT_NO_FATAL_FAILURE(raiseHand(false /*add*/, a1, a1Uh, {a2}));
 
-    LOG_debug << "#### Test6: end call from a1 ####";
+    LOG_debug << "#### Test7: end call from a1 ####";
     ExitBoolFlags eF;
     addBoolVarAndExitFlag(a1, eF, "callDestroyed", false);
     endChatCall(mData.mOpIdx, eF, mData.mChatid);
     ASSERT_NO_FATAL_FAILURE(endChatCall(a1, eF, mData.mChatid));
 
-    LOG_debug << "#### Test7: start call with a1 and raise hand, then a2 answers call and raise hand ####";
+    LOG_debug << "#### Test8: start call with a1 and raise hand, then a2 answers call and raise hand ####";
     // a2 must receive raise hand list upon ANSWER command
     ASSERT_NO_FATAL_FAILURE(startCallAndCheckReceived(a1, {a2}, mData.mChatid, false /*audio*/, false /*video*/, false /*notRinging*/));
     ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a1, a1Uh, {}));
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
     ASSERT_NO_FATAL_FAILURE(raiseHand(true /*add*/, a2, a2Uh, {a1}));
 
-    LOG_debug << "#### Test8: check raise hand list order ####";
+    LOG_debug << "#### Test9: check raise hand list order ####";
     std::unique_ptr<MegaChatCall>calla1(megaChatApi[a1]->getChatCall(mData.mChatid));
     ASSERT_TRUE(calla1) << "Cannot retrieve call from chatroom for a1: " << getChatIdStrB64(mData.mChatid);
     ASSERT_TRUE(isRaiseHandsListOrdered(calla1->getRaiseHandsList(), {a1Uh, a2Uh}));

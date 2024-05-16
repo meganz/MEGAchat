@@ -493,6 +493,7 @@ public:
     void onByeCommandSent() override;
     bool handleRaiseHandAddCommand(const uint64_t userid) override;
     bool handleRaiseHandDelCommand(const uint64_t userid) override;
+    bool hasRaisedHand(const uint64_t userid) const;
     bool handleModAdd (uint64_t userid) override;
     bool handleModDel (uint64_t userid) override;
     bool handleHello (const Cid_t cid, const unsigned int nAudioTracks,

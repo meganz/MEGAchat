@@ -961,6 +961,13 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 
 void Call::joinSfu()
 {
+    if (!mMyPeer)
+    {
+        RTCM_LOG_WARNING("joinSfu: invalid mMyPeer");
+        assert(false);
+        return;
+    }
+
     clearPendingPeers(); // clear pending peers (if any) before joining call
     initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
@@ -1043,7 +1050,13 @@ void Call::joinSfu()
             return;
         }
 
-        mSfuConnection->joinSfu(sdp, ivs, ephemeralKey, getLocalAvFlags().value(), getPrevCid(), kInitialvthumbCount);
+        mSfuConnection->joinSfu(sdp,
+                                ivs,
+                                ephemeralKey,
+                                getLocalAvFlags().value(),
+                                getPrevCid(),
+                                kInitialvthumbCount,
+                                hasRaisedHand(mMyPeer->getPeerid()));
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -2271,6 +2284,11 @@ bool Call::handleRaiseHandDelCommand(const uint64_t userid)
     mRaiseHands.erase(it);
     mCallHandler.onRaiseHandAddedRemoved(*this, uh, false);
     return true;
+}
+
+bool Call::hasRaisedHand(const uint64_t userid) const
+{
+    return std::find(mRaiseHands.begin(), mRaiseHands.end(), userid) != mRaiseHands.end();
 }
 
 bool Call::handleModAdd(uint64_t userid)
