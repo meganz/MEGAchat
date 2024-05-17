@@ -7745,7 +7745,7 @@ public:
     void removeChatLocalVideoListener(MegaChatHandle chatid, MegaChatVideoListener *listener);
 
     /**
-     * @brief Unregister a local MegaChatVideoListener to start receiving video from local screen device for an specific chat room
+     * @brief Register a local MegaChatVideoListener to start receiving video from local screen device for an specific chat room
      *
      * You can use MegaChatApi::removeChatLocalScreenVideoListener to stop receiving events.
      *
