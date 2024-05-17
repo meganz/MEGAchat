@@ -21,14 +21,6 @@ enum karereTracks: int8_t
     kAudioTrack     = 2,
 };
 
-#ifndef KARERE_DISABLE_WEBRTC
-enum KarereRtcConstant
-{
-    kMinCallVideoSenders = 1,              // minimum number of simultaneous video tracks the call supports.
-    kMaxCallVideoSenders = 24,             // maximum number of simultaneous video tracks the call supports.
-};
-#endif
-
 constexpr unsigned int K_INVALID_CID = 0;
 
 /** @cond PRIVATE */

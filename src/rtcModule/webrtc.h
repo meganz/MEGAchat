@@ -366,11 +366,32 @@ private:
     sfu::WrUserList mWaitingRoomUsers;
 };
 
-static unsigned int getMaxSupportedVideoCallParticipants() { return kMaxCallVideoSenders; };
+namespace RtcConstant
+{
+static constexpr int kMaxCallReceivers = 20; // should be inline with webclient value
+static constexpr int kMaxCallAudioSenders = 20; // should be inline with webclient value
+static constexpr int kMinCallVideoSenders = 1; // minimum number of simultaneous video tracks the call supports.
+static constexpr int kMaxCallVideoSenders = 24; // maximum number of simultaneous video tracks the call supports.
+static constexpr int kInitialvthumbCount = 0; // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
+static constexpr int kHiResWidth = 960; // px
+static constexpr int kHiResHeight = 540; // px
+static constexpr int kHiResMaxFPS = 30;
+static constexpr int kVthumbWidth = 160; // px
+static constexpr int kAudioMonitorTimeout = 2000; // ms
+static constexpr int kStatsInterval = 1000; // ms
+static constexpr int kTxSpatialLayerCount = 3;
+static constexpr int kRotateKeyUseDelay = 100; // ms
+}
+
+static unsigned int getMaxSupportedVideoCallParticipants()
+{
+    return RtcConstant::kMaxCallVideoSenders;
+};
+
 static bool isValidInputVideoTracksLimit(const unsigned int numSimVideoTracks)
 {
-    return numSimVideoTracks >= kMinCallVideoSenders
-           && numSimVideoTracks <= getMaxSupportedVideoCallParticipants();
+    return numSimVideoTracks >= RtcConstant::kMinCallVideoSenders &&
+           numSimVideoTracks <= getMaxSupportedVideoCallParticipants();
 }
 
 typedef enum
@@ -384,20 +405,6 @@ static const int kAudioThreshold = 100;             // Threshold to consider a u
 RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache,
                            WebsocketsIO& websocketIO, void *appCtx,
                            rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
-enum RtcConstant {
-   kMaxCallReceivers = 20,      // should be inline with webclient value
-   kMaxCallAudioSenders = 20,   // should be inline with webclient value
-   kInitialvthumbCount = 0,     // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
-   kHiResWidth = 960,  // px
-   kHiResHeight = 540,  // px
-   kHiResMaxFPS = 30,
-   kVthumbWidth = 160,  // px
-   kAudioMonitorTimeout = 2000, // ms
-   kStatsInterval = 1000,   // ms
-   kTxSpatialLayerCount = 3,
-   kRotateKeyUseDelay = 100, // ms
-};
-
 #endif
 
 }

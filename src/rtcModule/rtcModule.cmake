@@ -1,10 +1,6 @@
 
 set(CHATLIB_RTCM_HEADERS
-    rtcModule/IDeviceListImpl.h
-    rtcModule/ITypes.h
-    rtcModule/ITypesImpl.h
     rtcModule/IVideoRenderer.h
-    rtcModule/messages.h
     rtcModule/rtcmPrivate.h
     rtcModule/rtcStats.h
     rtcModule/webrtcAdapter.h

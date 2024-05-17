@@ -61,10 +61,7 @@
 ../../src/base/services.h
 ../../src/base/timers.hpp
 ../../src/rtcModule/ICryptoFunctions.h
-../../src/rtcModule/IDeviceListImpl.h
 ../../src/rtcModule/IRtcModule.h
-../../src/rtcModule/ITypes.h
-../../src/rtcModule/ITypesImpl.h
 ../../src/rtcModule/IVideoRenderer.h
 ../../src/rtcModule/lib.cpp
 ../../src/rtcModule/rtcModule.cpp
