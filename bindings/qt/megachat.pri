@@ -187,3 +187,5 @@ QMAKE_EXTRA_TARGETS += karereDbSchemaTarget
 DISTFILES += \
     $$PWD/../../src/dbSchema.sql \
     $$PWD/../../src/rtcModule/OBJCCaptureModule.mm
+
+LIBS+=-lXfixes -lXdamage -lXrandr -lXtst -lXcomposite -lXext

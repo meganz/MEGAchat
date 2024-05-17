@@ -19,6 +19,14 @@
 #include <media/base/video_broadcaster.h>
 #include <modules/video_capture/video_capture.h>
 #include <rtc_base/ref_counter.h>
+#if defined(__linux__) && !defined(__ANDROID__)
+#include "api/video/i420_buffer.h"
+#include "api/video/video_frame.h"
+#include "modules/desktop_capture/desktop_capturer.h"
+#include "modules/desktop_capture/desktop_capture_options.h"
+#include <libyuv/convert.h>
+#include <rtc_base/ref_counter.h>
+#endif
 #ifdef __GNUC__
 #pragma GCC diagnostic pop
 #endif
@@ -52,6 +60,7 @@ extern std::unique_ptr<rtc::Thread> gWorkerThread;
 extern std::unique_ptr<rtc::Thread> gSignalingThread;
 extern rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing;
 extern std::string gFieldTrialStr;
+using namespace std::literals;
 
 /** Globally initializes the library */
 bool init(void *appCtx);
@@ -419,22 +428,99 @@ protected:
 };
 
 
-class VideoManager : public rtc::RefCountedObject<webrtc::VideoTrackSourceInterface>
+class VideoCapturerManager : public rtc::RefCountedObject<webrtc::VideoTrackSourceInterface>
 {
 public:
-    virtual ~VideoManager(){}
-    static VideoManager* Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
-    virtual void openDevice(const std::string &videoDevice) = 0;
+    virtual ~VideoCapturerManager(){}
+    static VideoCapturerManager* createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string& deviceName, rtc::Thread* thread);
+    static VideoCapturerManager* createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread* thread);
+    virtual void openDevice(const std::string &deviceName) = 0;
     virtual void releaseDevice() = 0;
     virtual webrtc::VideoTrackSourceInterface* getVideoTrackSource() = 0;
-    static std::set<std::pair<std::string, std::string>> getVideoDevices();
+    static std::set<std::pair<std::string, std::string>> getCameraDevices();
+    static std::set<std::pair<std::string, long int>> getScreenDevices();
 };
 
-class CaptureModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoManager
+#if defined(__linux__) && !defined(__ANDROID__)
+class CaptureScreenModuleLinux : public webrtc::DesktopCapturer::Callback, public VideoCapturerManager
 {
 public:
-    explicit CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote = false);
-    virtual ~CaptureModuleLinux() override;
+    static constexpr std::chrono::milliseconds screenCapturingRate = 50ms;
+
+    static CaptureScreenModuleLinux* createCaptureScreenModuleLinux(const webrtc::DesktopCapturer::SourceId deviceId)
+    {
+        return new CaptureScreenModuleLinux(deviceId);
+    }
+
+    // ---- DesktopCapturer::Callback methods ----
+    void OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame) override;
+
+    // ---- VideoCapturerManager methods ----
+    void openDevice(const std::string &) override;
+
+    void releaseDevice() override
+    {
+        mEndCapture = true;
+        if (mScreenCapturerThread.joinable())
+        {
+            mScreenCapturerThread.join();
+        }
+        mScreenCapturer.reset();
+    }
+
+    webrtc::VideoTrackSourceInterface* getVideoTrackSource() override
+    {
+        return this;
+    }
+
+    // ---- VideoTrackSourceInterface methods ----
+    void AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants) override
+    {
+        mBroadcaster.AddOrUpdateSink(sink, wants);
+    }
+
+    void RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink) override
+    {
+        mBroadcaster.RemoveSink(sink);
+    }
+
+    /**
+     * @brief Returns a set with the information of the screen devices.
+     *
+     * The elements of the list are pairs with: [descriptive name of the device, deviceID]
+     */
+    static std::set<std::pair<std::string, long int>> getScreenDevicesList();
+
+protected:
+    CaptureScreenModuleLinux(const webrtc::DesktopCapturer::SourceId deviceId)
+        : mEndCapture(false), mDeviceId(deviceId)                                                   {}
+    ~CaptureScreenModuleLinux() override                                                            {}
+    void GenerateKeyFrame() override                                                                {}
+    void AddEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override          {}
+    void RemoveEncodedSink(rtc::VideoSinkInterface<webrtc::RecordableEncodedFrame>*) override       {}
+    void RegisterObserver(webrtc::ObserverInterface* ) override                                     {}
+    void UnregisterObserver(webrtc::ObserverInterface* ) override                                   {}
+    bool is_screencast() const override                                                             { return false; }
+    bool SupportsEncodedOutput() const override                                                     { return false; }
+    bool GetStats(webrtc::VideoTrackSourceInterface::Stats*) override                               { return false; }
+    bool remote() const override                                                                    { return false; }
+    absl::optional<bool> needs_denoising() const override                                           { return absl::nullopt; }
+    webrtc::MediaSourceInterface::SourceState state() const override                                { return MediaSourceInterface::kLive;}
+
+private:
+    std::unique_ptr<webrtc::DesktopCapturer> mScreenCapturer;
+    rtc::VideoBroadcaster mBroadcaster;
+    std::thread mScreenCapturerThread;
+    std::atomic<bool> mEndCapture;
+    static constexpr webrtc::DesktopCapturer::SourceId invalDeviceId = -1;
+    webrtc::DesktopCapturer::SourceId mDeviceId = invalDeviceId;
+};
+
+class CaptureCameraModuleLinux : public rtc::VideoSinkInterface<webrtc::VideoFrame>, public VideoCapturerManager
+{
+public:
+    explicit CaptureCameraModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote = false);
+    virtual ~CaptureCameraModuleLinux() override;
 
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;
@@ -471,9 +557,10 @@ protected:
     rtc::scoped_refptr<webrtc::VideoCaptureModule> mCameraCapturer;
     webrtc::VideoCaptureCapability mCapabilities;
 };
+#endif
 
 #ifdef __APPLE__
-class OBJCCaptureModule : public VideoManager
+class OBJCCaptureModule : public VideoCapturerManager
 {
 public:
     explicit OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
@@ -513,7 +600,7 @@ private:
 #endif
 
 #ifdef __ANDROID__
-class CaptureModuleAndroid : public VideoManager
+class CaptureModuleAndroid : public VideoCapturerManager
 {
 public:
     explicit CaptureModuleAndroid(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName, rtc::Thread *thread);
