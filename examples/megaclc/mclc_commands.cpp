@@ -1541,7 +1541,7 @@ void exec_getchatvideoindevices(ac::ACState&)
 void exec_setchatvideoindevice(ac::ACState& s)
 {
     c::MegaChatRequestListener* listener = new c::MegaChatRequestListener; // todo
-    g_chatApi->setChatVideoInDevice(s.words[1].s.c_str(), listener);
+    g_chatApi->setCameraInDevice(s.words[1].s.c_str(), listener);
 }
 
 void exec_startchatcall(ac::ACState& s)

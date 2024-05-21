@@ -47,7 +47,9 @@
             "dependencies": [
                 {
                     "name": "ffmpeg",
-                    "version>=": "5.1.2#10"
+                    "version>=": "5.1.2#10",
+                    "default-features": false,
+                    "features": ["avcodec", "avformat", "swresample", "swscale"]
                 }
             ]
         },
@@ -77,10 +79,10 @@
         }
     },
     "dependencies": [
-      { "name": "cryptopp", "version>=": "8.9.0" },
-      "libsodium",
-      "sqlite3",
-      "icu"
+        { "name": "cryptopp", "version>=": "8.9.0" },
+        "libsodium",
+        "sqlite3",
+        "icu"
     ],
     "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae"
 }

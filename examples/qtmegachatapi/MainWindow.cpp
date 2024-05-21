@@ -269,6 +269,7 @@ void MainWindow::onChatCallUpdate(megachat::MegaChatApi */*api*/, megachat::Mega
         assert(itemController->getMeetingView());
         itemController->getMeetingView()->updateAudioButtonText(*call);
         itemController->getMeetingView()->updateVideoButtonText(*call);
+        itemController->getMeetingView()->updateScreenButtonText(*call);
         itemController->getMeetingView()->updateLabel(call);
     }
 
@@ -753,6 +754,9 @@ void MainWindow::on_bSettings_clicked()
     //TODO: prepare a new tab in SettingsDialog to configure all the presence options
     auto actWebRTC = settingsMenu->addAction(tr("Set A/V input devices (WebRTC)"));
     connect(actWebRTC, SIGNAL(triggered()), this, SLOT(onWebRTCsetting()));
+
+    auto actChangeScreen = settingsMenu->addAction(tr("Select screen device"));
+    connect(actChangeScreen, SIGNAL(triggered()), this, SLOT(onScreensSet()));
 
     auto actArchived = settingsMenu->addAction(tr("Show archived chats"));
     connect(actArchived, SIGNAL(triggered()), this, SLOT(onShowArchivedChats()));
@@ -1719,6 +1723,31 @@ void MainWindow::onChatCheckPushNotificationRestrictionClicked()
     MegaHandle chatid = mMegaApi->base64ToUserHandle(text.toStdString().c_str());
     ChatListItemController *controller = getChatControllerById(chatid);
     controller->onCheckPushNotificationRestrictionClicked();
+}
+
+void MainWindow::onScreensSet()
+{
+    std::unique_ptr<MegaStringList> l(mMegaChatApi->getChatScreenDevices());
+    if (!l)
+    {
+        return;
+    }
+
+    std::string devList;
+    for (int i = 0; i < l->size(); ++i)
+    {
+        devList += std::to_string(i) + ") " + l->get(i) + "\n";
+    }
+
+    QString text = QInputDialog::getText(this,
+                                         tr("Select screen device (Enter device name)"),
+                                         tr(devList.c_str()));
+    if (text == "")
+    {
+        return;
+    }
+
+    mMegaChatApi->setScreenInDevice(text.toStdString().c_str());
 }
 
 void MainWindow::onUseApiStagingClicked(bool enable)

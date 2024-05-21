@@ -104,31 +104,6 @@ void VideoRendererQt::paintEvent(QPaintEvent*)
     }
 }
 
-//IVideoRenderer interface implementation
-void* VideoRendererQt::getImageBuffer(unsigned short width, unsigned short height, void*& userData)
-{
-    if (mFrozen)
-    {
-        return nullptr; //don't overwrite if there is a static image, don't bother if invisible
-    }
-    QImage* bmp = new QImage(width, height, QImage::Format_ARGB32);
-    assert(bmp);
-    userData = static_cast<void*>(bmp);
-    return bmp->bits();
-}
-
-void VideoRendererQt::frameComplete(void* userData)
-{
-    QImage* bmp = static_cast<QImage*>(userData);
-    assert(bmp);
-    {
-        QMutexLocker lock(&mMutex);
-        mFrame.reset(bmp);
-    }
-    QMetaObject::invokeMethod(this,
-      "updateImageSlot", Qt::QueuedConnection);
-}
-
 void VideoRendererQt::doClearViewport()
 {
     assert(mFrame);

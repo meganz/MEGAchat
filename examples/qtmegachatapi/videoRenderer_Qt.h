@@ -1,12 +1,11 @@
 #ifndef VIDEORENDERER_QT_H
 #define VIDEORENDERER_QT_H
 
-#include "rtcModule/IVideoRenderer.h"
 #include <QWidget>
 #include <QMutex>
 #include <memory>
 
-class VideoRendererQt: public QWidget, public rtcModule::IVideoRenderer
+class VideoRendererQt: public QWidget
 {
 protected:
     Q_OBJECT
@@ -58,12 +57,6 @@ public:
             return -1;
     }
     virtual ~VideoRendererQt() {}
-//IVideoRenderer interface
-    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData);
-    virtual void frameComplete(void* userData);
-    virtual void clearViewport() { doClearViewport(); }
-    virtual void onStreamDetach() { disableStaticImage(); }
-//==
 
 private:
     void doClearViewport();

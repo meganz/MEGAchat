@@ -242,6 +242,8 @@ class MainWindow :
         void onAccountConfirmation(const std::string& email, const std::string& password);
         void onCancelAccountConfirmation();
         void onJoinAsGuest();
+        // Allows to select a screen device
+        void onScreensSet();
 
     signals:
         void esidLogout();
