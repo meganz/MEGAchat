@@ -1151,6 +1151,12 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, cons
         clearParticipants();
     }
 
+    if (termCode == kUserHangup)
+    {
+        // clear raised hands list just if termCode is kUserHangup
+        mRaiseHands.clear();
+    }
+
     if (isConnectedToSfu())
     {
         sendStats(termCode);
