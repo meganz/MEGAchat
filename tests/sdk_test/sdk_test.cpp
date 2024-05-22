@@ -1162,7 +1162,6 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
          * Note: User that gets disconnected won't receive RHAND_DEL as it's not connected to SFU
          */
         clearTemporalVars();
-        // recvIdx.emplace(idx);
         ExitBoolFlags eF;
         // ensure that get reach CALL_STATUS_IN_PROGRESS before continue
         ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(idx, eF, "CallInProgress", false));
