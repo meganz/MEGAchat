@@ -962,6 +962,13 @@ bool Call::connectSfu(const std::string& sfuUrlStr)
 
 void Call::joinSfu()
 {
+    if (!mMyPeer)
+    {
+        RTCM_LOG_WARNING("joinSfu: invalid mMyPeer");
+        assert(false);
+        return;
+    }
+
     clearPendingPeers(); // clear pending peers (if any) before joining call
     initStatsValues();
     mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
@@ -1049,7 +1056,8 @@ void Call::joinSfu()
                                 ephemeralKey,
                                 getLocalAvFlags().value(),
                                 getPrevCid(),
-                                RtcConstant::kInitialvthumbCount);
+                                RtcConstant::kInitialvthumbCount,
+                                hasRaisedHand(mMyPeer->getPeerid()));
     })
     .fail([wptr, this](const ::promise::Error& err)
     {
@@ -1141,6 +1149,12 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, cons
     if (mIsReconnectingToChatd)
     {
         clearParticipants();
+    }
+
+    if (termCode == kUserHangup)
+    {
+        // clear raised hands list just if termCode is kUserHangup
+        mRaiseHands.clear();
     }
 
     if (isConnectedToSfu())
@@ -2282,6 +2296,11 @@ bool Call::handleRaiseHandDelCommand(const uint64_t userid)
     mRaiseHands.erase(it);
     mCallHandler.onRaiseHandAddedRemoved(*this, uh, false);
     return true;
+}
+
+bool Call::hasRaisedHand(const uint64_t userid) const
+{
+    return std::find(mRaiseHands.begin(), mRaiseHands.end(), userid) != mRaiseHands.end();
 }
 
 bool Call::handleModAdd(uint64_t userid)

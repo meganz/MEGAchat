@@ -1877,7 +1877,7 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
 }
 
 bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs,
-                            std::string& ephemeralKey, int avFlags, Cid_t prevCid, int vthumbs)
+                            std::string& ephemeralKey, int avFlags, Cid_t prevCid, int vthumbs, const bool hasRaisedHand)
 
 {
     rapidjson::Document json(rapidjson::kObjectType);
@@ -1963,6 +1963,12 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
+
+    if (hasRaisedHand)
+    {
+        json.AddMember("rh", 1, json.GetAllocator());
+    }
+
     if (prevCid != K_INVALID_CID)
     {
         // when reconnecting, send the SFU the CID of the previous connection, so it can kill it instantly

@@ -803,11 +803,20 @@ protected:
     /**
      * @brief ends a chat call
      *
-     * @param performerIdx index of user account that is going to reject the call
+     * @param performerIdx index of user account that is going to end the call
      * @param eF exit flags that determine when action is considered as finished
      * @param chatid MegaChatHandle that identifies the chat room
      */
     void endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatid);
+
+    /**
+     * @brief hangs a chat call
+     *
+     * @param performerIdx index of user account that is going to hangs the call
+     * @param eF exit flags that determine when action is considered as finished
+     * @param chatid MegaChatHandle that identifies the chat room
+     */
+    void hangupChatCall(const unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatId);
 #endif
 
     /**
