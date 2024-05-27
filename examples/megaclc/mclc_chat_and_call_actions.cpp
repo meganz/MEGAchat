@@ -338,41 +338,44 @@ bool login(const char* email, const char* password)
     return true;
 }
 
-std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link)
+std::pair<std::unique_ptr<megachat::MegaChatError>, std::unique_ptr<megachat::MegaChatRequest>>
+    processChatLink(const std::string& link, const bool onlyCheck)
 {
-    auto unexpectedInitState =
+    const std::string errMsg = "processChatLink: ";
+    const auto unexpectedInitState =
         g_chatApi->getInitState() != megachat::MegaChatApi::INIT_ONLINE_SESSION &&
         g_chatApi->getInitState() != megachat::MegaChatApi::INIT_ANONYMOUS;
+
     if (unexpectedInitState)
     {
         logMsg(m::logError,
-               "Your init state in MegaChat is not appropiate to open a chat link",
+               errMsg + "Your init state in MegaChat is not appropiate to check/open a chat link",
                ELogWriter::SDK);
-        return {c::MEGACHAT_INVALID_HANDLE, -999};
+        return {nullptr, nullptr};
     }
 
-    clc_listen::CLCChatRequestTracker openPreviewListener(g_chatApi.get());
-    g_chatApi->openChatPreview(link.c_str(), &openPreviewListener);
-    int errCode = openPreviewListener.waitForResult();
-    bool openPreviewSuccess = errCode == megachat::MegaChatError::ERROR_EXIST ||
-                              errCode == megachat::MegaChatError::ERROR_OK;
-    if (!openPreviewSuccess)
+    clc_listen::CLCChatRequestTracker listener(g_chatApi.get());
+    onlyCheck
+        ? g_chatApi->checkChatLink(link.c_str(), &listener)
+        : g_chatApi->openChatPreview(link.c_str(), &listener);
+
+    const int errCode = listener.waitForResult();
+    const bool success = errCode == megachat::MegaChatError::ERROR_EXIST ||
+                         errCode == megachat::MegaChatError::ERROR_OK;
+    if (!success)
     {
         logMsg(m::logError,
-               std::string("ERROR CODE ") + std::to_string(errCode) + ": Failed to open chat link.",
+               errMsg + std::string("error(") + std::to_string(errCode) + ")",
                ELogWriter::SDK);
-        return {c::MEGACHAT_INVALID_HANDLE, errCode};
     }
-    c::MegaChatHandle chatId = openPreviewListener.getMegaChatRequestPtr()->getChatHandle();
-    std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(chatId));
-    if (!chatRoom)
-    {
-        logMsg(m::logError,
-               "We are not able to get the chat room although it should exist",
-               ELogWriter::SDK);
-        return {c::MEGACHAT_INVALID_HANDLE, errCode};
-    }
-    return {chatId, errCode};
+
+    auto req = listener.getMegaChatRequestPtr();
+    std::unique_ptr<megachat::MegaChatRequest> pReq(req ? req->copy() : nullptr);
+
+    auto err = listener.getMegaChatErrorPtr();
+    std::unique_ptr<megachat::MegaChatError> pErr(err ? err->copy() : nullptr);
+
+    return {std::move(pErr), std::move(pReq)};
 }
 
 bool joinChat(const c::MegaChatHandle chatId, const int openPreviewErrCode)
