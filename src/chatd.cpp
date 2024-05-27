@@ -6082,12 +6082,34 @@ void Chat::setOnlineState(ChatState state)
             {
                 if (call->getParticipants().empty())
                 {
-                    CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s with no participants", call->getCallid().toString().c_str());
-                    mChatdClient.mKarereClient->rtc->rtcOrderedCallDisconnect(call, rtcModule::TermCode::kErrNoCall);
+                    if (call->isJoined())
+                    {
+                        // this should not happen, as if we are still joined into call, we should
+                        // have received JOINEDCALL|CALLSTATE with own userid
+                        CHATD_LOG_ERROR(
+                            "chatd::setOnlineState (kChatStateOnline) -> we are still joined call "
+                            "%s, but no JOINEDCALL nor CALLSTATE received for own userid: %s",
+                            call->getCallid().toString().c_str(),
+                            mChatdClient.mMyHandle.toString().c_str());
+                        assert(false);
+                    }
+
+                    // if participants are empty, there's no users currently JOINED to call upon
+                    // HISTDONE, so we can assume that there's no participants on call, and we have
+                    // to orderly disconnect from SFU (if required) and destroy call
+                    CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s "
+                                    "with no participants",
+                                    call->getCallid().toString().c_str());
+                    mChatdClient.mKarereClient->rtc->onDestroyCall(
+                        call,
+                        rtcModule::EndCallReason::kFailed,
+                        rtcModule::TermCode::kErrNoCall);
                 }
-                else if (call->getState() >= rtcModule::CallState::kStateConnecting && call->getState() <= rtcModule::CallState::kStateInProgress)
+                else if (call->getState() >= rtcModule::CallState::kStateConnecting &&
+                         call->getState() <= rtcModule::CallState::kStateInProgress)
                 {
-                    CHATD_LOG_ERROR("chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
+                    CHATD_LOG_DEBUG(
+                        "chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
                     call->reconnectToSfu();
                 }
             }
