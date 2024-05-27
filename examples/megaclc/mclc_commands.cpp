@@ -1089,6 +1089,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     g_reviewChatMsgCountRemaining = 0;
     g_reviewChatMsgCount = 0;
     g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
+    g_reviewChatLoadAllMsg = s.extractflag("-all");
 
     // get chat-link
     const auto chatLink = s.words[1].s;
@@ -1126,8 +1127,9 @@ void exec_reviewpublicchat(ac::ACState& s)
 
     // get requested number of messages to be exported
     const auto numMsgs = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
-    g_reviewChatMsgCountRemaining =
-        numMsgs > 0 ? numMsgs : MAX_NUMBER_MESSAGES; // N param not provided
+    g_reviewChatMsgCountRemaining = numMsgs > 0
+                                        ? numMsgs
+                                        : MAX_NUMBER_MESSAGES; // N param not provided
 
     auto [errPreviewChatLink, requestPreviewChatLink] =
         clc_ccactions::processChatLink(chatLink.c_str(), true /*onlyCheck*/);

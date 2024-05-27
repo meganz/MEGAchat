@@ -192,7 +192,7 @@ ac::ACN autocompleteSyntax()
                     param("roomid"),
                     wholenumber(10),
                     opt(either(text("human"), text("developer")))));
-    p->Add(exec_reviewpublicchat, sequence(text("rpc"), param("chatlink"), opt(wholenumber(100))));
+    p->Add(exec_reviewpublicchat, sequence(text("rpc"), param("chatlink"), opt(flag("-all")), opt(wholenumber(100))));
     p->Add(exec_isfullhistoryloaded, sequence(text("isfullhistoryloaded"), param("roomid")));
     p->Add(exec_getmessage, sequence(text("getmessage"), param("roomid"), param("msgid")));
     p->Add(exec_getmanualsendingmessage,

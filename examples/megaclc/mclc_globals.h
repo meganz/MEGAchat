@@ -51,6 +51,12 @@ extern std::atomic<bool> g_chatFinishedLogout;
  */
 extern std::atomic<int> g_reviewedChatLoggedIn;
 
+/**
+ * @brief A flag to check if user wants to load all msg's in chat history ignoring
+ * g_reviewChatMsgCountRemaining
+ */
+extern std::atomic<bool> g_reviewChatLoadAllMsg;
+
 extern std::atomic<bool> g_reviewingPublicChat;
 extern std::atomic<bool> g_dumpingChatHistory;
 extern std::atomic<bool> g_startedPublicChatReview;

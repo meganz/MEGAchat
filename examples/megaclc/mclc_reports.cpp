@@ -146,7 +146,10 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
         // 'rcp' command
         if (g_reviewingPublicChat.load())
         {
-            stopLoading = remaining <= 0;
+            stopLoading = g_reviewChatLoadAllMsg.load()
+                              ? false // load all history
+                              : remaining <= 0;
+
             if (remaining < 0)
             {
                 clc_log::logMsg(m::logError,
