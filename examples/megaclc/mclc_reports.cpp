@@ -111,6 +111,24 @@ void chatReport(const c::MegaChatHandle chatid)
 
 void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 {
+    const std::string errMsg = {
+        "reviewPublicChatLoadMessages: (chatid: " + str_utils::base64ChatHandle(chatid) + ")."};
+
+    if (chatid == megachat::MEGACHAT_INVALID_HANDLE)
+    {
+        clc_log::logMsg(m::logError, errMsg + " Invalid chatid", clc_log::ELogWriter::MEGA_CHAT);
+        return;
+    }
+
+    std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(chatid));
+    if (!room)
+    {
+        clc_log::logMsg(m::logError,
+                        errMsg + " Cannot retrieve chatroom",
+                        clc_log::ELogWriter::MEGA_CHAT);
+        return;
+    }
+
     int source;
     if (g_chatApi->isFullHistoryLoaded(chatid))
     {
@@ -118,10 +136,35 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
     }
     else
     {
-        int numberOfMessages = g_reviewChatMsgCountRemaining.load() > 0 ?
-                                   g_reviewChatMsgCountRemaining.load() :
-                                   MAX_NUMBER_MESSAGES;
-        source = g_chatApi->loadMessages(chatid, numberOfMessages);
+        bool stopLoading = false;
+        auto remaining = g_reviewChatMsgCountRemaining.load();
+        if (!g_reviewingPublicChat.load() && !g_dumpingChatHistory.load())
+        {
+            return;
+        }
+
+        // 'rcp' command
+        if (g_reviewingPublicChat.load())
+        {
+            stopLoading = remaining <= 0;
+            if (remaining < 0)
+            {
+                clc_log::logMsg(m::logError,
+                                errMsg + " Invalid remaining count msgs",
+                                clc_log::ELogWriter::MEGA_CHAT);
+                assert(true);
+            }
+        }
+        else // 'dumpchathistory' command (we want to load all messages)
+        {
+            remaining = MAX_NUMBER_MESSAGES;
+        }
+
+        if (stopLoading)
+        {
+            return;
+        }
+        source = g_chatApi->loadMessages(chatid, remaining);
     }
 
     auto cl = clc_console::conlock(std::cout);
@@ -134,19 +177,21 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
         }
         case c::MegaChatApi::SOURCE_NONE:
         {
-            std::string message =
+            std::string auxMsg =
                 "No more messages. Message loaded: " + std::to_string(g_reviewChatMsgCount);
-            clc_console::conlock(std::cout) << message << std::flush;
+
+            clc_log::logMsg(m::logError, errMsg + auxMsg, clc_log::ELogWriter::MEGA_CHAT);
+
             if (g_reviewPublicChatOutFile)
             {
-                clc_console::conlock(*g_reviewPublicChatOutFile) << message << std::flush;
+                clc_console::conlock(*g_reviewPublicChatOutFile) << errMsg + auxMsg << std::flush;
             }
 
             g_dumpingChatHistory = false;
             g_reviewingPublicChat = false;
+            g_startedPublicChatReview = false;
             g_reviewChatMsgCountRemaining = 0;
             g_reviewChatMsgCount = 0;
-            g_startedPublicChatReview = false;
             g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
             return;
         }
