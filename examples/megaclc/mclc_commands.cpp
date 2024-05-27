@@ -1066,9 +1066,12 @@ void exec_dumpchathistory(ac::ACState& s)
 
 void exec_reviewpublicchat(ac::ACState& s)
 {
+    const std::string msg = "exec_reviewpublicchat. ";
     if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
     {
-        conlock(std::cout) << "Error: Not logged in" << std::endl;
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                        msg + "Error: Not logged in",
+                        clc_log::ELogWriter::MEGA_CHAT);
         return;
     }
 
@@ -1081,91 +1084,133 @@ void exec_reviewpublicchat(ac::ACState& s)
     }
 
     g_reviewingPublicChat = true;
+    g_startedPublicChatReview = false;
+    g_reviewedChatLoggedIn = false;
     g_reviewChatMsgCountRemaining = 0;
     g_reviewChatMsgCount = 0;
-    g_startedPublicChatReview = false;
     g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
 
-    const auto chat_link = s.words[1].s;
-    g_reviewChatMsgCountRemaining = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
-
-    const auto lastSlashIdx = chat_link.find_last_of("/");
-    const auto lastHashIdx = chat_link.find_last_of("#");
+    // get chat-link
+    const auto chatLink = s.words[1].s;
+    const auto lastSlashIdx = chatLink.find_last_of("/");
+    const auto lastHashIdx = chatLink.find_last_of("#");
     if (lastSlashIdx == std::string::npos || lastHashIdx == std::string::npos ||
         lastSlashIdx >= lastHashIdx)
     {
-        conlock(std::cout) << "Error: Invalid link format: " << chat_link << std::endl;
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                        msg + "Error: Invalid link format" + chatLink,
+                        clc_log::ELogWriter::MEGA_CHAT);
         return;
     }
-    const auto linkHandle = chat_link.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
 
+    const auto linkHandle = chatLink.substr(lastSlashIdx + 1, lastHashIdx - lastSlashIdx - 1);
     const auto baseFilename =
         "PublicChat_" + linkHandle + "_" + timeToStringUTC(std::time(nullptr)) + "UTC";
     if (!initFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
     {
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                        msg + "Error: cannot open output chat file",
+                        clc_log::ELogWriter::MEGA_CHAT);
         return;
     }
     if (!initFile(g_reviewPublicChatOutFileLinks, baseFilename + "_Links.txt"))
     {
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                        msg + "Error: cannot open output fileLinks file",
+                        clc_log::ELogWriter::MEGA_CHAT);
         return;
     }
-    *g_reviewPublicChatOutFile << chat_link << std::endl;
-    *g_reviewPublicChatOutFileLinks << chat_link << std::endl;
-    g_debugOutpuWriter.writeOutput(chat_link + "\n", logInfo);
+    *g_reviewPublicChatOutFile << chatLink << std::endl;
+    *g_reviewPublicChatOutFileLinks << chatLink << std::endl;
+    g_debugOutpuWriter.writeOutput(chatLink + "\n", logInfo);
 
-    auto check_chat_preview_listener = new OneShotChatRequestListener;
-    check_chat_preview_listener->onRequestFinishFunc =
-        [](c::MegaChatApi* api, c::MegaChatRequest* request, c::MegaChatError* e)
+    // get requested number of messages to be exported
+    const auto numMsgs = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
+    g_reviewChatMsgCountRemaining =
+        numMsgs > 0 ? numMsgs : MAX_NUMBER_MESSAGES; // N param not provided
+
+    auto [errPreviewChatLink, requestPreviewChatLink] =
+        clc_ccactions::processChatLink(chatLink.c_str(), true /*onlyCheck*/);
+    if (!errPreviewChatLink || !requestPreviewChatLink)
     {
-        // Called on Mega Chat API std::thread
-        if (!check_err("checkChatLink", e))
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                        msg + "Error: processChatLink has returned null error or request",
+                        clc_log::ELogWriter::MEGA_CHAT);
+    }
+
+    if (!check_err("checkChatLink", errPreviewChatLink.get()))
+    {
+        *g_reviewPublicChatOutFile
+            << "checkChatLink failed. Error: " << errPreviewChatLink->getErrorString() << std::endl;
+        return;
+    }
+
+    const megachat::MegaChatHandle chatId = g_reviewPublicChatid =
+        requestPreviewChatLink->getChatHandle();
+    std::ostringstream os1;
+    os1 << "\nReviewPublicChat: chatlink loaded succesfully.\n\tChatid: "
+        << k::Id(g_reviewPublicChatid).toString() << std::endl;
+    const auto msg1 = os1.str();
+    conlock(std::cout) << msg1;
+    conlock(*g_reviewPublicChatOutFile) << msg1 << std::flush;
+
+    const int numPeers = static_cast<int>(requestPreviewChatLink->getNumber());
+    std::ostringstream os2;
+    os2 << "\tUser count: " << numPeers << std::endl;
+    const auto msg2 = os2.str();
+    conlock(std::cout) << msg2;
+    conlock(*g_reviewPublicChatOutFile) << msg2 << std::flush;
+
+    const char* title = requestPreviewChatLink->getText();
+    std::ostringstream os3;
+    os3 << "\tTitle: " << title << std::endl;
+    const auto msg3 = os3.str();
+    conlock(std::cout) << msg3;
+    conlock(*g_reviewPublicChatOutFile) << msg3 << std::flush;
+
+    auto [errOpenChatLink, requestOpenChatLink] =
+        clc_ccactions::processChatLink(chatLink.c_str(), false /*onlyCheck*/);
+    if (!errOpenChatLink || !requestOpenChatLink)
+    {
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                        msg + "Failed to open chat link",
+                        clc_log::ELogWriter::MEGA_CHAT);
+    }
+
+    if (!check_err("openChatPreview", errOpenChatLink.get()))
+    {
+        *g_reviewPublicChatOutFile
+            << "openChatPreview failed. Error: " << errPreviewChatLink->getErrorString()
+            << std::endl;
+        return;
+    }
+
+    bool isLoggedInChat = c::async::waitForResponse(
+        []()
         {
-            *g_reviewPublicChatOutFile << "checkChatLink failed. Error: " << e->getErrorString()
-                                       << std::endl;
-            return;
-        }
+            return clc_global::g_reviewedChatLoggedIn.load();
+        },
+        megachat::async::HALF_MINUTE_IN_SECS);
 
-        g_reviewPublicChatid = request->getChatHandle();
-        std::ostringstream os1;
-        os1 << "\nReviewPublicChat: chatlink loaded succesfully.\n\tChatid: "
-            << k::Id(g_reviewPublicChatid).toString() << std::endl;
-        const auto msg1 = os1.str();
-        conlock(std::cout) << msg1;
-        conlock(*g_reviewPublicChatOutFile) << msg1 << std::flush;
+    if (!isLoggedInChat)
+    {
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                        msg + "openChatPreview: cannot login into all chats ",
+                        clc_log::ELogWriter::MEGA_CHAT);
+        return;
+    }
 
-        const int numPeers = static_cast<int>(request->getNumber());
-        std::ostringstream os2;
-        os2 << "\tUser count: " << numPeers << std::endl;
-        const auto msg2 = os2.str();
-        conlock(std::cout) << msg2;
-        conlock(*g_reviewPublicChatOutFile) << msg2 << std::flush;
-
-        const char* title = request->getText();
-        std::ostringstream os3;
-        os3 << "\tTitle: " << title << std::endl;
-        const auto msg3 = os3.str();
-        conlock(std::cout) << msg3;
-        conlock(*g_reviewPublicChatOutFile) << msg3 << std::flush;
-
-        // now we know the chatid, we register the listener
-        auto open_chat_preview_listener = new OneShotChatRequestListener;
-        open_chat_preview_listener->onRequestFinishFunc =
-            [](c::MegaChatApi*, c::MegaChatRequest*, c::MegaChatError* e)
-        {
-            if (!check_err("openChatPreview", e))
-            {
-                *g_reviewPublicChatOutFile
-                    << "openChatPreview failed. Error: " << e->getErrorString() << std::endl;
-                return;
-            }
-        };
-
-        const char* chatlink = request->getLink();
-        api->openChatPreview(chatlink, open_chat_preview_listener);
-        // now wait until logged in into the chatroom, so we know the peers and load their emails
-    };
-
-    g_chatApi->checkChatLink(chat_link.c_str(), check_chat_preview_listener);
+    std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(chatId));
+    if (!room)
+    {
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                        msg + "openChatPreview succeeded but cannot retrieve chatroom " +
+                            str_utils::base64ChatHandle(chatId),
+                        clc_log::ELogWriter::MEGA_CHAT);
+        assert(false);
+        return;
+    }
+    clc_report::chatReport(chatId);
 }
 
 void exec_isfullhistoryloaded(ac::ACState& s)
@@ -1437,7 +1482,13 @@ void exec_joinCallViaMeetingLink(ac::ACState& s)
     auto link = s.words[1].s;
 
     logMsg(m::logInfo, "## Task1: open chat link ##", ELogWriter::MEGA_CHAT);
-    auto [chatId, errCode] = clc_ccactions::openChatLink(link);
+    auto [e, request] = clc_ccactions::processChatLink(link, false/*onlyCheck*/);
+    if (!e || !request)
+    {
+        logMsg(m::logError, "Failed to open chat link", ELogWriter::MEGA_CHAT);
+    }
+    const megachat::MegaChatHandle chatId = request->getChatHandle();
+    const int errCode = e->getErrorCode();
     if (chatId == c::MEGACHAT_INVALID_HANDLE)
     {
         return;

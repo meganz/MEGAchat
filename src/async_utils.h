@@ -9,6 +9,7 @@ namespace megachat::async
 {
 
 static const unsigned int TEN_MINUTES_IN_SEC = 600;
+static const unsigned int HALF_MINUTE_IN_SECS = 60;
 
 class ResultHandler
 {
