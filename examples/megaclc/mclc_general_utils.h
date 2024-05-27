@@ -100,9 +100,14 @@ std::string ch_s(c::MegaChatHandle h);
 std::string OwnStr(const char* s);
 
 /**
- * @brief Returns a string with the base64 representation of a chat handle
+ * @brief Returns a string with the base64 representation of a node handle
  */
 std::string base64NodeHandle(m::MegaHandle h);
+
+/**
+ * @brief Returns a string with the base64 representation of a chat handle
+ */
+std::string base64ChatHandle(m::MegaHandle h);
 
 /**
  * @brief Converts a string with a binary representation of a number into its hexadecimal

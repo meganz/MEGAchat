@@ -13,6 +13,7 @@ std::atomic<bool> g_chatFinishedLogout{false};
 std::atomic<bool> g_reviewingPublicChat{false};
 std::atomic<bool> g_dumpingChatHistory{false};
 std::atomic<bool> g_startedPublicChatReview{false};
+std::atomic<int> g_reviewedChatLoggedIn{false};
 std::atomic<int> g_reviewChatMsgCountRemaining{-1};
 std::atomic<unsigned int> g_reviewChatMsgCount{0};
 std::atomic<::megachat::MegaChatHandle> g_reviewPublicChatid{::megachat::MEGACHAT_INVALID_HANDLE};

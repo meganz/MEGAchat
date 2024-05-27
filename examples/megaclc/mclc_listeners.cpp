@@ -773,6 +773,7 @@ void CLCChatRequestTracker::onRequestFinish(::megachat::MegaChatApi*,
                                             ::megachat::MegaChatError* e)
 {
     request.reset(req ? req->copy() : nullptr);
+    error.reset(e ? e->copy() : nullptr);
     finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
 }
 
