@@ -17,6 +17,15 @@ namespace mclc::clc_report
 static const int MAX_NUMBER_MESSAGES = 100; // chatd doesn't allow more than 256
 
 /**
+ * @brief Creates a report of a chatroom that includes list of participants and a list of exported messages.
+ *
+ * Note: the number of exported messages will be set on function that calls this method.
+ *
+ * @param chatId The chat handle that identifies chatroom
+ */
+void chatReport(const c::MegaChatHandle chatid);
+
+/**
  * @brief Writes to a file the contents of the chat with the given chat handle. The file is the one
  * specified in the g_reviewPublicChatOutFile global variable.
  */

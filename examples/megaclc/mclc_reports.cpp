@@ -23,6 +23,92 @@ bool oneOpenRoom(c::MegaChatHandle room)
 
 }
 
+void chatReport(const c::MegaChatHandle chatid)
+{
+    const std::string errMsg = {"chatReport: (chatid: " + str_utils::base64ChatHandle(chatid) + "). "};
+    std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(chatid));
+    if (!chatRoom)
+    {
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
+                        errMsg + "Cannot get chatroom",
+                        clc_log::ELogWriter::MEGA_CHAT);
+        return;
+    }
+
+    const unsigned int numParticipants = chatRoom->getPeerCount();
+    auto peerList = std::unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
+    for (unsigned int i = 0; i < numParticipants; ++i)
+    {
+        peerList->addMegaHandle(chatRoom->getPeerHandle(i));
+    }
+
+    auto allEmailsReceived = new clc_listen::OneShotChatRequestListener;
+    allEmailsReceived->onRequestFinishFunc =
+        [numParticipants, chatid, errMsg](c::MegaChatApi* api, c::MegaChatRequest*, c::MegaChatError*)
+    {
+        std::unique_ptr<c::MegaChatRoom> chatRoom(api->getChatRoom(chatid));
+        if (!chatRoom)
+        {
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
+                            errMsg + "Cannot get chatroom",
+                            clc_log::ELogWriter::MEGA_CHAT);
+            return;
+        }
+
+        std::ostringstream os;
+        os << "\n\t\t------------------ Load Particpants --------------------\n\n";
+        for (unsigned int i = 0; i < numParticipants; i++)
+        {
+            c::MegaChatHandle peerHandle = chatRoom->getPeerHandle(i);
+            std::unique_ptr<const char[]> email =
+                std::unique_ptr<const char[]>(api->getUserEmailFromCache(peerHandle));
+            std::unique_ptr<const char[]> fullname =
+                std::unique_ptr<const char[]>(api->getUserFullnameFromCache(peerHandle));
+            std::unique_ptr<const char[]> handleBase64 =
+                std::unique_ptr<const char[]>(m::MegaApi::userHandleToBase64(peerHandle));
+            os << "\tParticipant: " << handleBase64.get()
+               << "\tEmail: " << (email.get() ? email.get() : "No email")
+               << "\t\t\tName: " << (fullname.get() ? fullname.get() : "No name") << "\n";
+        }
+
+        os << "\n\n\t\t------------------ Load Messages ----------------------\n\n";
+        const auto msg = os.str();
+        clc_console::conlock(std::cout) << msg;
+        clc_console::conlock(*g_reviewPublicChatOutFile) << msg << std::flush;
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO, msg, clc_log::ELogWriter::MEGA_CHAT);
+
+        // Access to g_roomListeners is safe because no other thread accesses this map
+        // while the Mega Chat API thread is using it here.
+        auto& rec = g_roomListeners[chatid];
+        if (rec.open)
+        {
+            g_chatApi->closeChatRoom(chatid, rec.listener.get());
+        }
+
+        if (!api->openChatRoom(chatid, rec.listener.get()))
+        {
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                            msg + "Failed to open chat room",
+                            clc_log::ELogWriter::MEGA_CHAT);
+            g_roomListeners.erase(chatid);
+            *g_reviewPublicChatOutFile << "Error: Failed to open chat room." << std::endl;
+        }
+        else
+        {
+            rec.listener->room = chatid;
+            rec.open = true;
+        }
+
+        if (api->getChatConnectionState(chatid) == c::MegaChatApi::CHAT_CONNECTION_ONLINE)
+        {
+            g_reportMessagesDeveloper = false;
+            clc_report::reviewPublicChatLoadMessages(chatid);
+        }
+    };
+
+    g_chatApi->loadUserAttributes(chatid, peerList.get(), allEmailsReceived);
+}
+
 void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 {
     int source;
