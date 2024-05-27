@@ -210,7 +210,7 @@ void reportMessageHuman(c::MegaChatHandle chatid,
     if (!msg)
     {
         std::cout << "Room " << str_utils::ch_s(chatid) << " - end of " << loadorreceive
-                  << " messages" << std::endl;
+                  << " messages: " << g_reviewChatMsgCount << std::endl;
         if ((g_reviewingPublicChat || g_dumpingChatHistory) && g_reviewChatMsgCountRemaining)
         {
             reviewPublicChatLoadMessages(chatid);
@@ -228,11 +228,10 @@ void reportMessageHuman(c::MegaChatHandle chatid,
         return;
     }
 
-    if ((g_reviewingPublicChat || g_dumpingChatHistory) && g_reviewChatMsgCountRemaining > 0)
+    if (g_reviewingPublicChat && !g_reviewChatLoadAllMsg && g_reviewChatMsgCountRemaining > 0)
     {
         --g_reviewChatMsgCountRemaining;
     }
-
     g_reviewChatMsgCount++;
 
     const std::shared_ptr<c::MegaChatRoom> room(g_chatApi->getChatRoom(chatid));
