@@ -374,8 +374,7 @@ std::pair<std::unique_ptr<megachat::MegaChatError>, std::unique_ptr<megachat::Me
 
     auto err = listener.getMegaChatErrorPtr();
     std::unique_ptr<megachat::MegaChatError> pErr(err ? err->copy() : nullptr);
-
-    return {std::move(pErr), std::move(pReq)};
+    return std::make_pair(std::move(pErr), std::move(pReq));
 }
 
 bool joinChat(const c::MegaChatHandle chatId, const int openPreviewErrCode)

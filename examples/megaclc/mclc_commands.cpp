@@ -1035,6 +1035,15 @@ void exec_dumpchathistory(ac::ACState& s)
         return;
     }
 
+    std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(g_dumpHistoryChatid));
+    if (!room)
+    {
+        conlock(std::cout) << cmdName + "cannot retrieve chatroom: " +
+                                  str_utils::base64ChatHandle(g_dumpHistoryChatid) + "\n"
+                           << std::flush;
+        return;
+    }
+
     std::string baseFilename =
         "ChatRoom" + s.words[1].s + "_" + timeToStringUTC(std::time(nullptr)) + "UTC";
     if (s.words.size() >= 3)
@@ -1166,7 +1175,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     if (!check_err("openChatPreview", errOpenChatLink.get()))
     {
         conlock(std::cout) << cmdName + "OpenChatPreview failed. Error: " +
-                                  errPreviewChatLink->getErrorString() + "\n"
+                                  errOpenChatLink->getErrorString() + "\n"
                            << std::flush;
         return;
     }
