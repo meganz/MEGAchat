@@ -29,7 +29,7 @@ void chatReport(const c::MegaChatHandle chatid)
     std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(chatid));
     if (!chatRoom)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
                         errMsg + "Cannot get chatroom",
                         clc_log::ELogWriter::MEGA_CHAT);
         return;
@@ -49,7 +49,7 @@ void chatReport(const c::MegaChatHandle chatid)
         std::unique_ptr<c::MegaChatRoom> chatRoom(api->getChatRoom(chatid));
         if (!chatRoom)
         {
-            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO,
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
                             errMsg + "Cannot get chatroom",
                             clc_log::ELogWriter::MEGA_CHAT);
             return;
@@ -123,7 +123,7 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
     std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(chatid));
     if (!room)
     {
-        clc_log::logMsg(m::logError,
+        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
                         errMsg + " Cannot retrieve chatroom",
                         clc_log::ELogWriter::MEGA_CHAT);
         return;
@@ -152,7 +152,7 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 
             if (remaining < 0)
             {
-                clc_log::logMsg(m::logError,
+                clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
                                 errMsg + " Invalid remaining count msgs",
                                 clc_log::ELogWriter::MEGA_CHAT);
                 assert(true);
@@ -183,7 +183,9 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
             std::string auxMsg =
                 "No more messages. Message loaded: " + std::to_string(g_reviewChatMsgCount);
 
-            clc_log::logMsg(m::logError, errMsg + auxMsg, clc_log::ELogWriter::MEGA_CHAT);
+            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
+                            errMsg + auxMsg,
+                            clc_log::ELogWriter::MEGA_CHAT);
 
             if (g_reviewPublicChatOutFile)
             {

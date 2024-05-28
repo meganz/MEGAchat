@@ -209,7 +209,7 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api,
     {
 
         clc_log::logMsg(m::logDebug,
-                        "onChatConnectionStateUpdate connected to all chatrooms",
+                        "onChatConnectionStateUpdate: connected to all chatrooms",
                         clc_log::ELogWriter::MEGA_CHAT);
         g_allChatsLoggedIn = true;
     }
