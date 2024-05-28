@@ -1014,29 +1014,24 @@ static bool initFile(std::unique_ptr<std::ofstream>& file, const std::string& fi
 
 void exec_dumpchathistory(ac::ACState& s)
 {
-    const std::string msg = "exec_dumpchathistory. ";
+    const std::string cmdName = "command 'dumpchathistory'. ";
     if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Error: Not logged in",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "Error: Not logged in\n" << std::flush;
         return;
     }
 
     if (g_dumpHistoryChatid != c::MEGACHAT_INVALID_HANDLE)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "There is other dumping history in progress",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "There is other dumping history in progress\n"
+                           << std::flush;
         return;
     }
 
     g_dumpHistoryChatid = s_ch(s.words[1].s);
     if (g_dumpHistoryChatid == c::MEGACHAT_INVALID_HANDLE)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Error: Invalid chatId",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "Error: Invalid chatId\n" << std::flush;
         return;
     }
 
@@ -1049,10 +1044,7 @@ void exec_dumpchathistory(ac::ACState& s)
 
     if (!initFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Error: cannot open output file",
-                        clc_log::ELogWriter::MEGA_CHAT);
-
+        conlock(std::cout) << cmdName + "Error: cannot open output file\n" << std::flush;
         g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
         return;
     }
@@ -1066,12 +1058,10 @@ void exec_dumpchathistory(ac::ACState& s)
 
 void exec_reviewpublicchat(ac::ACState& s)
 {
-    const std::string msg = "exec_reviewpublicchat. ";
+    const std::string cmdName = "command 'rpc'. ";
     if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Error: Not logged in",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "Error: Not logged in\n" << std::flush;
         return;
     }
 
@@ -1098,9 +1088,8 @@ void exec_reviewpublicchat(ac::ACState& s)
     if (lastSlashIdx == std::string::npos || lastHashIdx == std::string::npos ||
         lastSlashIdx >= lastHashIdx)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Error: Invalid link format" + chatLink,
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "Error: Invalid link format" + chatLink + "\n"
+                           << std::flush;
         return;
     }
 
@@ -1109,16 +1098,12 @@ void exec_reviewpublicchat(ac::ACState& s)
         "PublicChat_" + linkHandle + "_" + timeToStringUTC(std::time(nullptr)) + "UTC";
     if (!initFile(g_reviewPublicChatOutFile, baseFilename + ".txt"))
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Error: cannot open output chat file",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "Error: cannot open output chat file\n" << std::flush;
         return;
     }
     if (!initFile(g_reviewPublicChatOutFileLinks, baseFilename + "_Links.txt"))
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Error: cannot open output fileLinks file",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "Error: cannot open output fileLinks file\n" << std::flush;
         return;
     }
     *g_reviewPublicChatOutFile << chatLink << std::endl;
@@ -1135,15 +1120,16 @@ void exec_reviewpublicchat(ac::ACState& s)
         clc_ccactions::processChatLink(chatLink.c_str(), true /*onlyCheck*/);
     if (!errPreviewChatLink || !requestPreviewChatLink)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Error: processChatLink has returned null error or request",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName +
+                                  "Error: processChatLink has returned null error or request\n"
+                           << std::flush;
     }
 
     if (!check_err("checkChatLink", errPreviewChatLink.get()))
     {
-        *g_reviewPublicChatOutFile
-            << "checkChatLink failed. Error: " << errPreviewChatLink->getErrorString() << std::endl;
+        conlock(std::cout) << cmdName + "checkChatLink failed. Error: " +
+                                  errPreviewChatLink->getErrorString() + "\n"
+                           << std::flush;
         return;
     }
 
@@ -1174,16 +1160,14 @@ void exec_reviewpublicchat(ac::ACState& s)
         clc_ccactions::processChatLink(chatLink.c_str(), false /*onlyCheck*/);
     if (!errOpenChatLink || !requestOpenChatLink)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "Failed to open chat link",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "Failed to open chat link\n" << std::flush;
     }
 
     if (!check_err("openChatPreview", errOpenChatLink.get()))
     {
-        *g_reviewPublicChatOutFile
-            << "openChatPreview failed. Error: " << errPreviewChatLink->getErrorString()
-            << std::endl;
+        conlock(std::cout) << cmdName + "OpenChatPreview failed. Error: " +
+                                  errPreviewChatLink->getErrorString() + "\n"
+                           << std::flush;
         return;
     }
 
@@ -1196,19 +1180,16 @@ void exec_reviewpublicchat(ac::ACState& s)
 
     if (!isLoggedInChat)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "openChatPreview: cannot login into all chats ",
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "Error: cannot login into all chats\n" << std::flush;
         return;
     }
 
     std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(chatId));
     if (!room)
     {
-        clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                        msg + "openChatPreview succeeded but cannot retrieve chatroom " +
-                            str_utils::base64ChatHandle(chatId),
-                        clc_log::ELogWriter::MEGA_CHAT);
+        conlock(std::cout) << cmdName + "openChatPreview succeeded but cannot retrieve chatroom: " +
+                                  str_utils::base64ChatHandle(chatId) + "\n"
+                           << std::flush;
         assert(false);
         return;
     }
