@@ -1068,9 +1068,12 @@ void exec_dumpchathistory(ac::ACState& s)
 void exec_reviewpublicchat(ac::ACState& s)
 {
     const std::string cmdName = "command 'rpc'. ";
-    if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
+    if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION &&
+        g_chatApi->getInitState() != c::MegaChatApi::INIT_ANONYMOUS)
     {
-        conlock(std::cout) << cmdName + "Error: Not logged in\n" << std::flush;
+        conlock(std::cout) << cmdName + "Error: Not logged in. Log into a MEGA account or init "
+                                        "session in anonymous mode ('initanonymous')\n"
+                           << std::flush;
         return;
     }
 
