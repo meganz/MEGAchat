@@ -1014,7 +1014,7 @@ static bool initFile(std::unique_ptr<std::ofstream>& file, const std::string& fi
 
 void exec_dumpchathistory(ac::ACState& s)
 {
-    const std::string cmdName = "command 'dumpchathistory'. ";
+    const std::string cmdName {"command 'dumpchathistory'. "};
     if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION)
     {
         conlock(std::cout) << cmdName + "Error: Not logged in\n" << std::flush;
@@ -1067,7 +1067,7 @@ void exec_dumpchathistory(ac::ACState& s)
 
 void exec_reviewpublicchat(ac::ACState& s)
 {
-    const std::string cmdName = "command 'rpc'. ";
+    const std::string cmdName {"command 'rpc'. "};
     if (g_chatApi->getInitState() != c::MegaChatApi::INIT_ONLINE_SESSION &&
         g_chatApi->getInitState() != c::MegaChatApi::INIT_ANONYMOUS)
     {
@@ -1091,7 +1091,18 @@ void exec_reviewpublicchat(ac::ACState& s)
     g_reviewChatMsgCountRemaining = 0;
     g_reviewChatMsgCount = 0;
     g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
-    g_reviewChatLoadAllMsg = s.extractflag("-all");
+
+    // get requested number of messages to be exported
+    const auto numMsgs = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
+    if (numMsgs > 0)
+    {
+        g_reviewChatMsgCountRemaining = numMsgs;
+    }
+    else
+    {
+        g_reviewChatLoadAllMsg = true;
+        g_reviewChatMsgCountRemaining = MAX_NUMBER_MESSAGES;
+    }
 
     // get chat-link
     const auto chatLink = s.words[1].s;
@@ -1121,12 +1132,6 @@ void exec_reviewpublicchat(ac::ACState& s)
     *g_reviewPublicChatOutFile << chatLink << std::endl;
     *g_reviewPublicChatOutFileLinks << chatLink << std::endl;
     g_debugOutpuWriter.writeOutput(chatLink + "\n", logInfo);
-
-    // get requested number of messages to be exported
-    const auto numMsgs = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
-    g_reviewChatMsgCountRemaining = numMsgs > 0
-                                        ? numMsgs
-                                        : MAX_NUMBER_MESSAGES; // N param not provided
 
     auto [errPreviewChatLink, requestPreviewChatLink] =
         clc_ccactions::processChatLink(chatLink.c_str(), true /*onlyCheck*/);

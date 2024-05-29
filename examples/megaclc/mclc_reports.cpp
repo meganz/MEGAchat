@@ -25,7 +25,7 @@ bool oneOpenRoom(c::MegaChatHandle room)
 
 void chatReport(const c::MegaChatHandle chatid)
 {
-    const std::string errMsg = {"chatReport: (chatid: " + str_utils::base64ChatHandle(chatid) + "). "};
+    const std::string errMsg {"chatReport: (chatid: " + str_utils::base64ChatHandle(chatid) + "). "};
     std::unique_ptr<c::MegaChatRoom> chatRoom(g_chatApi->getChatRoom(chatid));
     if (!chatRoom)
     {
@@ -213,7 +213,12 @@ void reportMessageHuman(c::MegaChatHandle chatid,
     {
         std::cout << "Room " << str_utils::ch_s(chatid) << " - end of " << loadorreceive
                   << " messages: " << g_reviewChatMsgCount << std::endl;
-        if ((g_reviewingPublicChat || g_dumpingChatHistory) && g_reviewChatMsgCountRemaining)
+
+        const bool isChatReviewing = g_reviewingPublicChat || g_dumpingChatHistory;
+        const bool hasMoreMessages = (!g_reviewChatLoadAllMsg && g_reviewChatMsgCountRemaining) ||
+                                     (g_reviewChatLoadAllMsg && !g_chatApi->isFullHistoryLoaded(chatid));
+
+        if (isChatReviewing && hasMoreMessages)
         {
             reviewPublicChatLoadMessages(chatid);
         }
