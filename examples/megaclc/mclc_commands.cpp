@@ -1038,6 +1038,7 @@ void exec_dumpchathistory(ac::ACState& s)
     std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(g_dumpHistoryChatid));
     if (!room)
     {
+        g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
         conlock(std::cout) << cmdName + "cannot retrieve chatroom: " +
                                   str_utils::base64ChatHandle(g_dumpHistoryChatid) + "\n"
                            << std::flush;
@@ -1094,8 +1095,9 @@ void exec_reviewpublicchat(ac::ACState& s)
 
     // get requested number of messages to be exported
     const auto numMsgs = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
-    if (numMsgs > 0)
+    if (numMsgs >= 0)
     {
+        g_reviewChatLoadAllMsg = false;
         g_reviewChatMsgCountRemaining = numMsgs;
     }
     else
