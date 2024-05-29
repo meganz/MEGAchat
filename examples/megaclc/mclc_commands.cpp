@@ -1086,6 +1086,20 @@ void exec_reviewpublicchat(ac::ACState& s)
         g_chatApi->closeChatPreview(g_reviewPublicChatid);
     }
 
+    // get requested number of messages to be exported
+    auto numMsgs = -1;
+    if (s.words.size() > 2)
+    {
+        numMsgs = stoi(s.words[2].s);
+        if (numMsgs <= 0)
+        {
+            conlock(std::cout)
+                << cmdName +
+                       "Error: Invalid value for [N], it must be greater than zero if provided\n";
+            return;
+        }
+    }
+
     g_reviewingPublicChat = true;
     g_startedPublicChatReview = false;
     g_reviewedChatLoggedIn = false;
@@ -1093,9 +1107,7 @@ void exec_reviewpublicchat(ac::ACState& s)
     g_reviewChatMsgCount = 0;
     g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
 
-    // get requested number of messages to be exported
-    const auto numMsgs = s.words.size() > 2 ? stoi(s.words[2].s) : -1;
-    if (numMsgs >= 0)
+    if (numMsgs > 0)
     {
         g_reviewChatLoadAllMsg = false;
         g_reviewChatMsgCountRemaining = numMsgs;
