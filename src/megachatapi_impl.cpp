@@ -6960,7 +6960,7 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid,
     }
     else if (videoResolution == rtcModule::VideoResolution::kHiRes || videoResolution == rtcModule::VideoResolution::kLowRes)
     {
-        auto listeners = videoResolution == rtcModule::VideoResolution::kHiRes
+        auto& listeners = videoResolution == rtcModule::VideoResolution::kHiRes
                        ? mVideoListenersHiRes
                        : mVideoListenersLowRes;
 
