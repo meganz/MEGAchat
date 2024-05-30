@@ -207,88 +207,18 @@ void CLCListener::onChatConnectionStateUpdate(c::MegaChatApi* api,
     using namespace clc_global;
     if (chatid == c::MEGACHAT_INVALID_HANDLE && newState == c::MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
+
+        clc_log::logMsg(m::logDebug,
+                        "onChatConnectionStateUpdate: connected to all chatrooms",
+                        clc_log::ELogWriter::MEGA_CHAT);
         g_allChatsLoggedIn = true;
     }
 
-    if (newState != c::MegaChatApi::CHAT_CONNECTION_ONLINE ||
-        (!g_reviewingPublicChat && !g_dumpingChatHistory) ||
-        (chatid != g_reviewPublicChatid && chatid != g_dumpHistoryChatid) ||
-        g_reviewChatMsgCountRemaining == 0)
+    if (chatid == g_reviewPublicChatid && newState == c::MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
-        return;
-    }
-    // Load all user attributes with loadUserAttributes
-    if (!g_startedPublicChatReview && !g_dumpingChatHistory)
-    {
-        g_startedPublicChatReview = true;
-
-        std::unique_ptr<c::MegaChatRoom> chatRoom(api->getChatRoom(chatid));
-        unsigned int numParticipants = chatRoom->getPeerCount();
-
-        std::unique_ptr<m::MegaHandleList> peerList =
-            std::unique_ptr<m::MegaHandleList>(m::MegaHandleList::createInstance());
-        for (unsigned int i = 0; i < numParticipants; i++)
-        {
-            peerList->addMegaHandle(chatRoom->getPeerHandle(i));
-        }
-
-        auto allEmailsReceived = new OneShotChatRequestListener;
-        allEmailsReceived->onRequestFinishFunc =
-            [numParticipants, chatid](c::MegaChatApi* api, c::MegaChatRequest*, c::MegaChatError*)
-        {
-            std::unique_ptr<c::MegaChatRoom> chatRoom(api->getChatRoom(chatid));
-            std::ostringstream os;
-            os << "\n\t\t------------------ Load Particpants --------------------\n\n";
-            for (unsigned int i = 0; i < numParticipants; i++)
-            {
-                c::MegaChatHandle peerHandle = chatRoom->getPeerHandle(i);
-                std::unique_ptr<const char[]> email =
-                    std::unique_ptr<const char[]>(api->getUserEmailFromCache(peerHandle));
-                std::unique_ptr<const char[]> fullname =
-                    std::unique_ptr<const char[]>(api->getUserFullnameFromCache(peerHandle));
-                std::unique_ptr<const char[]> handleBase64 =
-                    std::unique_ptr<const char[]>(m::MegaApi::userHandleToBase64(peerHandle));
-                os << "\tParticipant: " << handleBase64.get()
-                   << "\tEmail: " << (email.get() ? email.get() : "No email")
-                   << "\t\t\tName: " << (fullname.get() ? fullname.get() : "No name") << "\n";
-            }
-
-            os << "\n\n\t\t------------------ Load Messages ----------------------\n\n";
-            const auto msg = os.str();
-            clc_console::conlock(std::cout) << msg;
-            clc_console::conlock(*g_reviewPublicChatOutFile) << msg << std::flush;
-            clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_INFO, msg, clc_log::ELogWriter::MEGA_CHAT);
-
-            // Access to g_roomListeners is safe because no other thread accesses this map
-            // while the Mega Chat API thread is using it here.
-            auto& rec = g_roomListeners[chatid];
-            assert(!rec.open);
-            if (!api->openChatRoom(chatid, rec.listener.get()))
-            {
-                clc_log::logMsg(c::MegaChatApi::LOG_LEVEL_ERROR,
-                                "Failed to open chat room",
-                                clc_log::ELogWriter::MEGA_CHAT);
-                g_roomListeners.erase(chatid);
-                *g_reviewPublicChatOutFile << "Error: Failed to open chat room." << std::endl;
-            }
-            else
-            {
-                rec.listener->room = chatid;
-                rec.open = true;
-            }
-
-            if (api->getChatConnectionState(chatid) == c::MegaChatApi::CHAT_CONNECTION_ONLINE)
-            {
-                g_reportMessagesDeveloper = false;
-                clc_report::reviewPublicChatLoadMessages(chatid);
-            }
-        };
-
-        api->loadUserAttributes(chatid, peerList.get(), allEmailsReceived);
-    }
-    else
-    {
-        clc_report::reviewPublicChatLoadMessages(chatid);
+        // flag used to know when we are connected to a specific chatroom. g_reviewPublicChatid must
+        // be set to expected chatid before this callback is executed
+        g_reviewedChatLoggedIn = true;
     }
 }
 
@@ -773,6 +703,7 @@ void CLCChatRequestTracker::onRequestFinish(::megachat::MegaChatApi*,
                                             ::megachat::MegaChatError* e)
 {
     request.reset(req ? req->copy() : nullptr);
+    error.reset(e ? e->copy() : nullptr);
     finish(e->getErrorCode(), e->getErrorString() ? e->getErrorString() : "");
 }
 

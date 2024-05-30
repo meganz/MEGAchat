@@ -5365,6 +5365,11 @@ int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
             break;
         }
     }
+    else
+    {
+        API_LOG_ERROR("loadMessages: chatroom(%s) cannot be found",
+                      ::karere::Id(chatid).toString().c_str());
+    }
 
     sdkMutex.unlock();
     return ret;
