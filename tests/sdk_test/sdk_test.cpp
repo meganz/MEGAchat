@@ -621,7 +621,10 @@ void MegaChatApiTest::TearDown()
             // 3. logout megaChatApi
             ChatRequestTracker crtLogout(megaChatApi[i]);
             megaChatApi[i]->logout(&crtLogout);
-            EXPECT_EQ(crtLogout.waitForResult(60), MegaChatError::ERROR_OK) <<  "Failed to logout from Chat. Error: " << crtLogout.getErrorString();
+            int logout{crtLogout.waitForResult(60)};
+            // Session could already be logged out
+            EXPECT_TRUE(logout == MegaChatError::ERROR_OK || logout == MegaChatError::ERROR_ACCESS)
+                << "Failed to logout from Chat. Error: " << crtLogout.getErrorString();
             MegaApi::addLoggerObject(logger());   // need to restore customized logger
 
 #ifndef KARERE_DISABLE_WEBRTC
