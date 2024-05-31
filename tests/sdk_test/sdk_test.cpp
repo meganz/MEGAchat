@@ -4285,8 +4285,23 @@ private:
     std::map<unsigned, std::unique_ptr<TestChatRoomListener>> listeners;
 };
 
-
-
+/**
+ * @brief MegaChatApiTest.GroupLastMessage
+ *
+ * Requirements:
+ *      - Both accounts should be contacts
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ * - Test1: a1 imports messages from a2(NSE) after history truncation
+ * - Test2: a1 imports messages from a2(NSE) when there are no messages to import from external db
+ * - Test3: a1 imports messages from a2(NSE) after a message has been updated
+ * - Test4: a1 imports messages from a2(NSE) after a message has been deleted
+ * - Test5: a1 imports messages from a2(NSE) when chat history is empty in the app
+ * - Test6: a1 imports messages from a2(NSE) after marking a message as seen
+ * - Test7: a1 imports messages from a2(NSE) when lastSeenId was zero, while having retention time set
+ * - Test8: a1 imports messages from a2(NSE) after being kicked off from the groupchat
+ */
 TEST_F(MegaChatApiTest_RetentionHistory, Import)
 {
     // Login chatting accounts
@@ -4314,12 +4329,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
 
-
-    ///
-    ///  Import messages after history truncation
-    ///
-    cout << "///  Import messages after history truncation" << endl;
-
+    LOG_debug << "#### Test1: a1 imports messages from a2(NSE) after history truncation ####\n";
     // set up NSE-simulation
     const string a2Email(account(a1).getEmail());
     sessionNSE.reset(login(a2, nullptr, a2Email.c_str(), account(a1).getPassword().c_str()));
@@ -4358,11 +4368,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Should (only) have the special 'truncate' message";
 
-    ///
-    ///  Import messages when there are no messages to import from external db
-    ///
-    cout << "///  Import messages when there are no messages to import from external db" << endl;
-
+    LOG_debug << "#### Test2: a1 imports messages from a2(NSE) when there are no messages to import from external db ####\n";
     sessionA1.reset(login(a1));
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
     lastMessageId = MEGACHAT_INVALID_HANDLE;
@@ -4379,15 +4385,9 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
         ASSERT_NE(lastMessageId, MEGACHAT_INVALID_HANDLE);
     }
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should have been imported";
 
-    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported";
-
-
-    ///
-    ///  Import messages after a message has been updated
-    ///
-    cout << "///  Import messages after a message has been updated" << endl;
-
+    LOG_debug << "#### Test3: a1 imports messages from a2(NSE) after a message has been updated ####\n";
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // Load all messages to receive message update
@@ -4400,12 +4400,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Updated message should have been imported";
 
-
-    ///
-    ///  Import messages after a message has been deleted
-    ///
-    cout << "///  Import messages after a message has been deleted" << endl;
-
+    LOG_debug << "#### Test4: a1 imports messages from a2(NSE) after a message has been deleted ####\n";
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
@@ -4417,12 +4412,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Deleted message has to be imported too";
 
-
-    ///
-    ///  Import messages when chat history is empty in the app
-    ///
-    cout << "///  Import messages when chat history is empty in the app" << endl;
-
+    LOG_debug << "#### Test5: a1 imports messages from a2(NSE) when chat history is empty in the app ####\n";
     // clear history in app
     sessionA1.reset(login(a1, sessionA1.get()));
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
@@ -4445,15 +4435,9 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
     ASSERT_EQ(chatroomListener(a2)->msgId[a2].back(), lastMessageId);
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
-
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "1 new message from B should have been imported";
 
-
-    ///
-    ///  Import messages after marking a message as seen
-    ///
-    cout << "///  Import messages after marking a message as seen" << endl;
-
+    LOG_debug << "#### Test6: a1 imports messages from a2(NSE) after marking a message as seen ####\n";
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
@@ -4461,17 +4445,11 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     bool* flagSeenA2 = &chatroomListener(a2)->msgSeen[a2]; *flagSeenA2 = false;
     ASSERT_TRUE(megaChatApi[a2]->setMessageSeen(chatid, msgSentByB->getMsgId())) << "Couldn't mark message as seen";
     EXPECT_TRUE(waitForResponse(flagSeenA2)) << "Timeout expired for message marked as seen";
-
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
-
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; marked as read message doesn't count"; // really ?
 
 
-    ///
-    ///  Import messages when lastSeenId was zero, while having retention time set
-    ///
-    cout << "///  Import messages when lastSeenId was zero, while having retention time set" << endl;
-
+    LOG_debug << "#### Test7: a1 imports messages from a2(NSE) when lastSeenId was zero, while having retention time set ####\n";
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
