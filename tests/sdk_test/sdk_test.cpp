@@ -611,8 +611,8 @@ void MegaChatApiTest::TearDown()
 #else
             megaApi[i]->logout(&logoutTracker);
 #endif
-            TEST_LOG_ERROR(logoutRt.waitForResult(60) == API_OK, "Failed to logout from SDK. Error: " + logoutRt.getErrorString());
-            TEST_LOG_ERROR(chatLogoutCrt.waitForResult() == MegaChatError::ERROR_OK, "Failed to auto-logout from chat. Error: " + chatLogoutCrt.getErrorString());
+            EXPECT_EQ(logoutRt.waitForResult(60), API_OK) << "Failed to logout from SDK. Error: " << logoutRt.getErrorString();
+            EXPECT_EQ(chatLogoutCrt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to auto-logout from chat. Error: " << chatLogoutCrt.getErrorString();
             megaChatApi[i]->removeChatRequestListener(&chatLogoutCrt);
         }
 
@@ -621,7 +621,7 @@ void MegaChatApiTest::TearDown()
             // 3. logout megaChatApi
             ChatRequestTracker crtLogout(megaChatApi[i]);
             megaChatApi[i]->logout(&crtLogout);
-            TEST_LOG_ERROR(crtLogout.waitForResult(60) == MegaChatError::ERROR_OK, "Failed to logout from Chat. Error: " + crtLogout.getErrorString());
+            EXPECT_EQ(crtLogout.waitForResult(60), MegaChatError::ERROR_OK) <<  "Failed to logout from Chat. Error: " << crtLogout.getErrorString();
             MegaApi::addLoggerObject(logger());   // need to restore customized logger
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -2192,8 +2192,8 @@ TEST_F(MegaChatApiTest, ResumeSession)
     // MegaChatApiImpl::sendPendingRequests() -> case MegaChatRequest::TYPE_LOGOUT -> delete mClient;
     // which should happen with a delay (how much?), but often will crash after continuing from the breakpoint
     int logoutResult = crtLogout2.waitForResult();
-    TEST_LOG_ERROR(logoutResult == MegaChatError::ERROR_OK, "Error chat logout (2). Error: " +
-                   std::to_string(logoutResult) + " (" + crtLogout2.getErrorString() + ')');
+    ASSERT_EQ(logoutResult, MegaChatError::ERROR_OK) << "Error chat logout (2). Error: " <<
+                   std::to_string(logoutResult) << " (" << crtLogout2.getErrorString() << ')';
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
     delete megaChatApi[accountIndex];
     // create a new MegaChatApi instance
@@ -9843,12 +9843,12 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
     bool *chatClosed = &chatItemClosed[accountIndex]; *chatClosed = false;
     ChatRequestTracker crtLeaveChat(megaChatApi[accountIndex]);
     megaChatApi[accountIndex]->leaveChat(chatid, &crtLeaveChat);
-    TEST_LOG_ERROR(crtLeaveChat.waitForResult() == MegaChatError::ERROR_OK, "Failed to leave chatroom. Error: " + crtLeaveChat.getErrorString());
-    TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
+    ASSERT_EQ(crtLeaveChat.waitForResult(), MegaChatError::ERROR_OK) << "Failed to leave chatroom. Error: " + crtLeaveChat.getErrorString();
+    ASSERT_TRUE(waitForResponse(chatClosed)) << "Chatroom closed error";
     MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
     if (chatroom->isGroup())
     {
-        TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
+        ASSERT_TRUE(!chatroom->isActive()) << "Chatroom active error";
     }
     delete chatroom;    chatroom = NULL;
 }
@@ -10037,8 +10037,9 @@ void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
         RequestTracker removeTracker(megaApi[accountIndex]);
         megaApi[accountIndex]->remove(childrenNode, &removeTracker);
         int removeResult = removeTracker.waitForResult();
-        TEST_LOG_ERROR((removeResult == API_OK), "Failed to remove node. Error: "
-                       + std::to_string(removeResult) + ' ' + removeTracker.getErrorString());
+        EXPECT_EQ(removeResult, API_OK)
+                  << "Failed to remove node. Error: " << std::to_string(removeResult) << ' '
+                  << removeTracker.getErrorString();
     }
 
     delete children;
@@ -10056,7 +10057,7 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned accountIndex, const vector<Meg
         {
             ChatRequestTracker crtClearHist(megaChatApi[accountIndex]);
             megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId(), &crtClearHist);
-            TEST_LOG_ERROR(crtClearHist.waitForResult() == MegaChatError::ERROR_OK, "Failed to truncate history. Error: " + crtClearHist.getErrorString());
+            ASSERT_EQ(crtClearHist.waitForResult(), MegaChatError::ERROR_OK) << "Failed to truncate history. Error: " + crtClearHist.getErrorString();
         }
 
         if (chatroom->isGroup() && chatroom->isActive() &&
@@ -10081,8 +10082,9 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
                                              MegaContactRequest::INVITE_ACTION_DELETE,
                                              &inviteContactTracker);
         int inviteContactResult = inviteContactTracker.waitForResult();
-        TEST_LOG_ERROR((inviteContactResult == API_OK), "Failed to remove peer. Error: "
-                       + std::to_string(inviteContactResult) + ' ' + inviteContactTracker.getErrorString());
+        EXPECT_EQ(inviteContactResult, API_OK)
+            << "Failed to remove peer. Error: " << std::to_string(inviteContactResult) << ' '
+            << inviteContactTracker.getErrorString();
     }
 
     delete contactRequests;
