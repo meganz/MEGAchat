@@ -4468,9 +4468,35 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_TRUE(chatroom);
     ASSERT_EQ(chatroom->getRetentionTime(), 5);
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
-
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should be there, including 'truncate', because they all got truncated";
 
+    LOG_debug << "#### Test8: a1 imports messages from a2(NSE) after being kicked off from the "
+                 "groupchat ####\n";
+    std::unique_ptr<MegaChatRoom> roomFromB(megaChatApi[b]->getChatRoom(chatid));
+    ASSERT_TRUE(roomFromB) << "Cannot get chatroom (" << getChatIdStrB64(chatid) << ") from B";
+    ASSERT_EQ(roomFromB->getOwnPrivilege(), megachat::MegaChatRoom::PRIV_MODERATOR)
+        << "Unexpected permission for B in chatroom (" << getChatIdStrB64(chatid) << ")";
+
+    sessionA1.reset(login(a1, sessionA1.get()));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1)))
+        << "Can't open chatRoom for account a1";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2)))
+        << "Can't open chatRoom for account a2";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+    bool* flagWaitRetHistTruncate = &chatroomListener(a2)->retentionHistoryTruncated[a2];
+    *flagRetentionHistTruncated = false;
+    ASSERT_EQ(roomFromB->getRetentionTime(), 5);
+    removeFromChatRoom(b, {a2}, megaChatApi[a2]->getMyUserHandle(), chatid);
+    EXPECT_TRUE(waitForResponse(flagWaitRetHistTruncate))
+        << "Timeout expired for retention history to be truncated";
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+    ASSERT_NO_FATAL_FAILURE(testImport(0))
+        << "No message should be there, as retention history has been applied";
     ///
     ///  Import messages when app should skip some messages for which retention time expired
     ///
@@ -8975,6 +9001,37 @@ void MegaChatApiTest::addBoolVarAndExitFlag(const unsigned int i, ExitBoolFlags 
     ASSERT_TRUE(eF.add(n + std::to_string(i), f)) << n << " couldn't be added to eF for account " << std::to_string(i);
 }
 
+void MegaChatApiTest::removeFromChatRoom(const unsigned int performerIdx,
+                                         const std::set<unsigned int>& recvsIdxs,
+                                         const ::megachat::MegaChatHandle uh,
+                                         const ::megachat::MegaChatHandle chatid)
+{
+    ExitBoolFlags eF;
+    std::for_each(recvsIdxs.begin(),
+                  recvsIdxs.end(),
+                  [this, &eF](const auto idx)
+                  {
+                      addBoolVarAndExitFlag(idx, eF, "ownRemoved", false);
+                  });
+
+    std::string errMsg =
+        "removing chatroom participant from account " + std::to_string(performerIdx);
+    waitForAction(1, /* just one attempt */
+                  eF,
+                  errMsg,
+                  true /* wait for all exit flags */,
+                  true /* reset flags */,
+                  minTimeout * 2, // 120 secs
+                  [this, performerIdx, chatid, uh]()
+                  {
+                      ChatRequestTracker crtRemoveFromChat(megaChatApi[performerIdx]);
+                      megaChatApi[performerIdx]->removeFromChat(chatid, uh, &crtRemoveFromChat);
+                      EXPECT_EQ(crtRemoveFromChat.waitForResult(), MegaChatError::ERROR_OK)
+                          << "removeFromChatRoom: Failed to remove participant. Error: "
+                          << crtRemoveFromChat.getErrorString();
+                  });
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId)
 {
@@ -10963,6 +11020,10 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_CHAT_MODE))
         {
             chatModeUpdated[apiIndex] = true;
+        }
+        else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_CLOSED))
+        {
+            t->boolVars().updateIfExists(apiIndex, "ownRemoved", true);
         }
     }
 
