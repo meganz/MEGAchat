@@ -4488,11 +4488,11 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
 
-    bool* flagWaitRetHistTruncate = &chatroomListener(a2)->retentionHistoryTruncated[a2];
-    *flagRetentionHistTruncated = false;
+    ASSERT_TRUE(addBoolVar(a2, "retentionHistTruncate", false /*val*/))
+        << "retentionHistTruncate couldn't be added for account " << std::to_string(a2);
     ASSERT_EQ(roomFromB->getRetentionTime(), 5);
     removeFromChatRoom(b, {a2}, megaChatApi[a2]->getMyUserHandle(), chatid);
-    EXPECT_TRUE(waitForResponse(flagWaitRetHistTruncate))
+    EXPECT_TRUE(waitForResponse(boolVars().getVar(a2, "retentionHistTruncate")))
         << "Timeout expired for retention history to be truncated";
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
     ASSERT_NO_FATAL_FAILURE(testImport(0))
@@ -11141,6 +11141,7 @@ void TestChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi *api, M
     ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onHistoryTruncatedByRetentionTime()";
     mRetentionMessageHandle[apiIndex] = msg->getMsgId();
     retentionHistoryTruncated[apiIndex] = true;
+    t->boolVars().updateIfExists(apiIndex, "retentionHistTruncate", true);
 }
 
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
