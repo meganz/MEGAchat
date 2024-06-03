@@ -404,8 +404,10 @@ void Client::setRetentionTimer()
         retentionPeriod = kMinRetentionTimeout;
     }
 
-    cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckTs
-    CHATD_LOG_DEBUG("set timer for next retention history check to %ld (seconds):", retentionPeriod);
+    cancelRetentionTimer(false);
+    CHATD_LOG_DEBUG("setRetentionTimer: cancelling timer if any (keeping mRetentionCheckTs), then "
+                    "set timer for next retention history check to %ld (seconds):",
+                    retentionPeriod);
     auto wptr = weakHandle();
     mRetentionTimer = karere::setTimeout([this, wptr]()
     {

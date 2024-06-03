@@ -4495,9 +4495,11 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     ASSERT_TRUE(addBoolVar(a2, "retentionHistTruncate", false /*val*/))
         << "retentionHistTruncate couldn't be added for account " << std::to_string(a2);
+    bool* retHistTruncate = boolVars().getVar(a2, "retentionHistTruncate");
+    ASSERT_TRUE(retHistTruncate) << "Cannot retrieve retentionHistTruncate for a2";
     ASSERT_EQ(roomFromB->getRetentionTime(), 5);
     removeFromChatRoom(b, {a2}, megaChatApi[a2]->getMyUserHandle(), chatid);
-    ASSERT_TRUE(waitForResponse(boolVars().getVar(a2, "retentionHistTruncate")))
+    ASSERT_TRUE(waitForResponse(retHistTruncate))
         << "Timeout expired for retention history to be truncated";
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
     ASSERT_NO_FATAL_FAILURE(testImport(0))
