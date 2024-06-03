@@ -4329,6 +4329,11 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
 
+    LOG_debug << "**** MegaChatApiTest_RetentionHistory.import ****"
+              << "\n\t- Chatid (" << getChatIdStrB64(chatid) << ")\n\t- UserId a1 & a2 ("
+              << getUserIdStrB64(megaChatApi[a1]->getMyUserHandle()) << ") \n\t- UserId b ("
+              << getUserIdStrB64(megaChatApi[b]->getMyUserHandle()) << ")\n";
+
     LOG_debug << "#### Test1: a1 imports messages from a2(NSE) after history truncation ####\n";
     // set up NSE-simulation
     const string a2Email(account(a1).getEmail());
