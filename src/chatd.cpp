@@ -4936,7 +4936,10 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     Message *msg = findOrNull(idx);
     if (msg)
     {
-       CALL_LISTENER(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
+        CHATID_LOG_DEBUG("handleRetentionTime: calling onHistoryTruncatedByRetentionTime with most "
+                         "recent msg (%s) affected by retention time",
+                         msg->id().toString().c_str());
+        CALL_LISTENER(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
     }
 
     // Clean affected messages in db and RAM
