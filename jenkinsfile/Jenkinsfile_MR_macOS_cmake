@@ -6,23 +6,23 @@ def setCommitStatus(String pStatus, String errorHint = '') {
             break
         case 'success':
             pState = 'success'
-            pMessage = ":white_check_mark: ${env.JOB_NAME} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":white_check_mark: ${env.JOB_NAME} :green_apple: <b>MacOS</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'aborted':
             pState = 'canceled'
-            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>MacOS</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'failure':
             pState = 'failed'
-            pMessage = ":red_circle: ${env.JOB_NAME} :penguin: <b>Linux</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":red_circle: ${env.JOB_NAME} :green_apple: <b>MacOS</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'unstable':
             pState = 'failed'
-            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>MacOS</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         default:
             pState = 'failed'
-            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>MacOS</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
     }
     if (pMessage) {
         if (errorHint) {
@@ -160,7 +160,7 @@ pipeline {
                     sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR_X64} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}"
-                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR_X64} -j3"
+                    sh "cmake --build mejor${megachat_sources_workspace}/${BUILD_DIR_X64} -j3"
                 }
 
             }
