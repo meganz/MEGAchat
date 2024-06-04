@@ -6,23 +6,23 @@ def setCommitStatus(String pStatus, String errorHint = '') {
             break
         case 'success':
             pState = 'success'
-            pMessage = ":white_check_mark: ${env.JOB_NAME} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":white_check_mark: ${env.JOB_NAME} <b>Windows</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'aborted':
             pState = 'canceled'
-            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} <b>Windows</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'failure':
             pState = 'failed'
-            pMessage = ":red_circle: ${env.JOB_NAME} :penguin: <b>Linux</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":red_circle: ${env.JOB_NAME} <b>Windows</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'unstable':
             pState = 'failed'
-            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} <b>Windows</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         default:
             pState = 'failed'
-            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} <b>Windows</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
     }
     if (pMessage) {
         if (errorHint) {
@@ -66,13 +66,7 @@ pipeline {
             steps {
                 script{
                     BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\\"" -f2 || :', returnStdout: true).trim()
-                    TESTS_PARALLEL = sh(script: 'echo "$gitlabTriggerPhrase" | grep "\\-\\-sequence" >/dev/null 2>&1 && echo "" || echo "--INSTANCES:10"', returnStdout: true).trim()
-                    GTEST_REPEAT = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-gtest_repeat=[^ ]*" | awk -F "gtest_repeat="  \'{print "--gtest_repeat="\$2}\'|| :', returnStdout: true).trim()
-                    GTEST_FILTER = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-gtest_filter=[^ ]*" | awk -F "gtest_filter="  \'{print "--gtest_filter="\$2}\'|| :', returnStdout: true).trim()
-                    println BUILD_OPTIONS
-                    println TESTS_PARALLEL
-                    println GTEST_REPEAT
-                    println GTEST_FILTER                
+                    println BUILD_OPTIONS          
                     }
             }
             post{
@@ -189,131 +183,53 @@ pipeline {
                     -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=OFF -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
                     -S '${megachat_sources_workspace}' -B '${megachat_sources_workspace}'\\\\${BUILD_DIR}\\\\"
                     sh "cmake --build '${megachat_sources_workspace}'\\\\${BUILD_DIR} -j2"
-
                 }
 
             }
-            post{
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
+        }
+        stage('Upload MEGAclc'){
+            when {
+                beforeAgent true
+                expression { env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc') }
+            }
+            environment{
+                JF_PATH  = "${megachat_sources_workspace}\\.."
+            }
+            steps {
+                dir('build_dir\\examples\\megaclc\\Debug'){
+                    script {
+                        def windows_artifactory_upload = { String ART_UPLOAD_PATH ->
+                        
+                            powershell """
+                                ${JF_PATH}\\jf config use artifactory
+                                ${JF_PATH}\\jf rt del ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload megaclc.exe ${ART_UPLOAD_PATH}
+                                ${JF_PATH}\\jf rt upload megaclc.pdb ${ART_UPLOAD_PATH}
+                            """
+                        }
+                        windows_artifactory_upload("MEGAchat/${env.gitlabMergeRequestIid}/windows/megaclc/")
+                    }
                 }
             }
         }
-        // stage('Run MEGAchat tests'){
-        //     environment {
-        //         MEGA_PWD0 = credentials('MEGA_PWD_DEFAULT')
-        //         MEGA_PWD1 = credentials('MEGA_PWD_DEFAULT')
-        //         MEGA_PWD2 = credentials('MEGA_PWD_DEFAULT')
-        //         BUILD_DIR = "build_dir"
-        //     }
-        //     steps{
-        //         script {
-        //             def lockLabel = ''
-        //             if ("${APIURL_TO_TEST}" == 'https://g.api.mega.co.nz/') {
-        //                 lockLabel = 'SDK_Concurrent_Test_Accounts'
-        //             } else {
-        //                 lockLabel = 'SDK_Concurrent_Test_Accounts_Staging'
-        //             }
-        //             lock(label: lockLabel, variable: 'ACCOUNTS_COMBINATION', quantity: 1, resource: null){
-        //                 dir("${megachat_sources_workspace}/${BUILD_DIR}"){
-        //                     script{
-        //                         env.MEGA_EMAIL0 = "${env.ACCOUNTS_COMBINATION}"
-        //                         echo "${env.ACCOUNTS_COMBINATION}"
-
-        //                     }
-        //                     sh """#!/bin/bash
-        //                         set -x
-        //                         ulimit -c unlimited
-        //                         if [ -z \"${TESTS_PARALLEL}\" ]; then
-        //                             # Sequential run
-        //                             tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} &
-        //                             pid=\$!
-        //                             wait \$pid || FAILED=1
-        //                         else
-        //                             # Parallel run
-        //                             tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} ${TESTS_PARALLEL} 2>&1 | tee tests.stdout
-        //                             [ \"\${PIPESTATUS[0]}\" != \"0\" ] && FAILED=1
-        //                         fi
-
-        //                         if [ -n "\$FAILED" ]; then
-        //                             if [ -z \"${TESTS_PARALLEL}\" ]; then
-        //                                 # Sequential run
-        //                                 coreFiles=\"test_pid_\$pid/core\"
-        //                             else
-        //                                 # Parallel run
-        //                                 procFailed=`grep \"<< PROCESS\" tests.stdout | sed 's/.*PID:\\([0-9]*\\).*/\\1/'`
-        //                                 if [ -n \"\$procFailed\" ]; then
-        //                                     for i in \$procFailed; do
-        //                                         coreFiles=\"\$coreFiles test_pid_\$i/core\"
-        //                                     done
-        //                                 fi
-        //                             fi
-        //                         fi
-
-        //                         if [ -n \"\$coreFiles\" ]; then
-        //                             maxTime=10
-        //                             startTime=`date +%s`
-        //                             coresProcessed=0
-        //                             coresTotal=`echo \$coreFiles | wc -w`
-        //                             # While there are pending cores
-        //                             while [ \$coresProcessed -lt \$coresTotal ] && [ \$( expr `date +%s` - \$startTime ) -lt \$maxTime ]; do
-        //                                 echo "Waiting for core dumps..."
-        //                                 sleep 1
-        //                                 for i in \$coreFiles; do
-        //                                     if [ -e \"\$i\" ] && [ -z \"\$( lsof \$i 2>/dev/null )\" ]; then
-        //                                         echo
-        //                                         echo
-        //                                         echo \"Processing core dump \$i :: \$(grep `echo \$i | sed 's#test_pid_\\([0-9].*\\)/core#\\1#'` tests.stdout)\"
-        //                                         echo thread apply all bt > backtrace
-        //                                         echo quit >> backtrace
-        //                                         gdb -q tests/sdk_test/megachat_tests \$i -x backtrace
-        //                                         tar rf core.tar \$i
-        //                                         coresProcessed=`expr \$coresProcessed + 1`
-        //                                         coreFiles=`echo \$coreFiles | sed -e \"s#\$i##\"`
-        //                                     fi
-        //                                 done
-        //                             done
-        //                             if [ -e core.tar ]; then
-        //                                 tar rf core.tar -C tests/sdk_test/ megachat_tests
-        //                                 gzip core.tar
-        //                             fi
-        //                         fi
-
-        //                         gzip -c test.log > test_${BUILD_ID}.log.gz || :
-        //                         rm test.log || :
-        //                         if [ ! -z "\$FAILED" ]; then
-        //                             false
-        //                         fi
-        //                     """
-        //                 }
-        //             }
-        //         }
-        //     }
-        //     post {
-        //         always{
-        //             archiveArtifacts artifacts: 'build_dir/test*.log*, build_dir/core.tar.gz', fingerprint: true
-        //             deleteDir()
-        //         }
-        //         success {
-        //             setCommitStatus('success')
-        //         }
-        //         failure {
-        //             setCommitStatus('failure')
-        //         }
-        //         aborted {
-        //             setCommitStatus('aborted')
-        //         }
-        //         unstable {
-        //             setCommitStatus('unstable')
-        //         }
-        //     }
-        // }
     }
+
+    post{
+        always{
+            deleteDir()
+        }
+        success {
+            setCommitStatus('success')
+        }
+        failure {
+            setCommitStatus('failure')
+        }
+        aborted {
+            setCommitStatus('aborted')
+        }
+        unstable {
+            setCommitStatus('unstable')
+        }
+    }
+    
 }
-// vim: syntax=groovy tabstop=4 shiftwidth=4
