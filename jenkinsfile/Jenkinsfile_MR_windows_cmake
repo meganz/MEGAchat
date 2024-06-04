@@ -43,7 +43,7 @@ pipeline {
     environment {
         BUILD_OPTIONS = ' '
         APIURL_TO_TEST = ' '
-        PIPELINE_NAME = 'Linux build & test'
+        PIPELINE_NAME = 'Windows build'
         RUN_TESTS = false
     }
     stages {
@@ -198,6 +198,7 @@ pipeline {
             steps {
                 dir('build_dir\\examples\\megaclc\\Debug'){
                     script {
+                        uploadMegaclcExecuted = true
                         def windows_artifactory_upload = { String ART_UPLOAD_PATH ->
                         
                             powershell """
@@ -219,7 +220,14 @@ pipeline {
             deleteDir()
         }
         success {
-            setCommitStatus('success')
+            script{
+                if (uploadMegaclcExecuted){
+                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} <b>Windows</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>MEGAclc URL: [${env.REPO_URL}/MEGAchat/${env.gitlabMergeRequestIid}/windows/megaclc]" )
+                    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: 'success')                    
+                } else {
+                   setCommitStatus('success') 
+                }
+            }
         }
         failure {
             setCommitStatus('failure')
@@ -231,5 +239,4 @@ pipeline {
             setCommitStatus('unstable')
         }
     }
-    
 }
