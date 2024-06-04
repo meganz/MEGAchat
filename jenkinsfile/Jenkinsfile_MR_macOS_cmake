@@ -6,23 +6,23 @@ def setCommitStatus(String pStatus, String errorHint = '') {
             break
         case 'success':
             pState = 'success'
-            pMessage = ":white_check_mark: ${env.JOB_NAME} <b>Windows</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":white_check_mark: ${env.JOB_NAME} :penguin: <b>Linux</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'aborted':
             pState = 'canceled'
-            pMessage = ":interrobang: ${env.JOB_NAME} <b>Windows</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'failure':
             pState = 'failed'
-            pMessage = ":red_circle: ${env.JOB_NAME} <b>Windows</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":red_circle: ${env.JOB_NAME} :penguin: <b>Linux</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         case 'unstable':
             pState = 'failed'
-            pMessage = ":interrobang: ${env.JOB_NAME} <b>Windows</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
             break
         default:
             pState = 'failed'
-            pMessage = ":interrobang: ${env.JOB_NAME} <b>Windows</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            pMessage = ":interrobang: ${env.JOB_NAME} :penguin: <b>Linux</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
     }
     if (pMessage) {
         if (errorHint) {
@@ -34,7 +34,7 @@ def setCommitStatus(String pStatus, String errorHint = '') {
 }
 
 pipeline {
-    agent { label 'windows && amd64' }
+    agent { label 'osx && arm64' }
     options {
         timeout(time: 300, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '75', daysToKeepStr: '21'))
@@ -43,15 +43,14 @@ pipeline {
     environment {
         BUILD_OPTIONS = ' '
         APIURL_TO_TEST = ' '
-        PIPELINE_NAME = 'Windows build'
-        RUN_TESTS = false
+        PIPELINE_NAME = 'MacOS build'
     }
     stages {
         stage('clean previous runs and update gitlab commit status'){
             steps{
                 deleteDir()
                 setCommitStatus('running')
-                updateGitlabCommitStatus(name: 'Windows build', state: 'running')
+                updateGitlabCommitStatus(name: 'MacOS build', state: 'running')
             }
         }
         stage('Get current build description'){
@@ -66,7 +65,7 @@ pipeline {
             steps {
                 script{
                     BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\\"" -f2 || :', returnStdout: true).trim()
-                    println BUILD_OPTIONS          
+                    println BUILD_OPTIONS
                     }
             }
             post{
@@ -114,7 +113,7 @@ pipeline {
                         [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
                         ]                        
                 ])
-                dir('third-party\\mega'){
+                dir('third-party/mega'){
                     sh "echo Cloning SDK branch ${SDK_BRANCH}"
                     checkout([
                         $class: 'GitSCM',
@@ -140,73 +139,46 @@ pipeline {
         }
         stage('Build MEGAchat'){
             environment{
-                VCPKGPATH  = "${megachat_sources_workspace}\\..\\vcpkg"
-                _MSPDBSRV_ENDPOINT_ = "${BUILD_TAG}"
-                TMP       = "${megachat_sources_workspace}\\tmp"
-                TEMP      = "${megachat_sources_workspace}\\tmp"
-                TMPDIR    = "${megachat_sources_workspace}\\tmp"
+                PATH = "/usr/local/bin:${env.PATH}"
+                VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
                 BUILD_DIR = "build_dir"
+                BUILD_DIR_X64 = "build_dir_x64"
+                MEGAQTPATH= "${env.HOME}/Qt-build/5.15.13/5.15.13/arm64"
             }
             steps{
                 dir(megachat_sources_workspace){
-                    sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT='${VCPKGPATH}' ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
-                    -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
-                    -S '${megachat_sources_workspace}' -B '${megachat_sources_workspace}'\\\\${BUILD_DIR}\\\\"
-                    sh "cmake --build '${megachat_sources_workspace}'\\\\${BUILD_DIR} -j2"
+                    //Build for arm64
+                    sh "echo Building for arm64"
+                    sh "mkdir ${BUILD_DIR}"
+                    sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}"
+                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j3"
+                    
+                    //build for x64
+                    sh "echo \"Building for x64 (crosscompiling)\""
+                    sh "mkdir ${BUILD_DIR_X64}"
+                    sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    -DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
+                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR_X64} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}"
+                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR_X64} -j3"
                 }
 
             }
-        }
-        stage('Upload MEGAclc'){
-            when {
-                beforeAgent true
-                expression { env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc') }
-            }
-            environment{
-                JF_PATH  = "${megachat_sources_workspace}\\.."
-            }
-            steps {
-                dir('build_dir\\examples\\megaclc\\Debug'){
-                    script {
-                        uploadMegaclcExecuted = true
-                        def windows_artifactory_upload = { String ART_UPLOAD_PATH ->
-                        
-                            powershell """
-                                ${JF_PATH}\\jf config use artifactory
-                                ${JF_PATH}\\jf rt del ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload megaclc.exe ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload megaclc.pdb ${ART_UPLOAD_PATH}
-                            """
-                        }
-                        windows_artifactory_upload("MEGAchat/${env.gitlabMergeRequestIid}/windows/megaclc/")
-                    }
+            post{
+                always{
+                    deleteDir()
+                }
+                failure {
+                    setCommitStatus('failure')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+                unstable {
+                    setCommitStatus('unstable')
                 }
             }
-        }
-    }
-
-    post{
-        always{
-            deleteDir()
-        }
-        success {
-            script{
-                if (uploadMegaclcExecuted){
-                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} <b>Windows</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>MEGAclc URL: [${env.REPO_URL}/MEGAchat/${env.gitlabMergeRequestIid}/windows/megaclc]" )
-                    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: 'success')                    
-                } else {
-                   setCommitStatus('success') 
-                }
-            }
-        }
-        failure {
-            setCommitStatus('failure')
-        }
-        aborted {
-            setCommitStatus('aborted')
-        }
-        unstable {
-            setCommitStatus('unstable')
         }
     }
 }
+// vim: syntax=groovy tabstop=4 shiftwidth=4
