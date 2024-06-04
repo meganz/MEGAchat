@@ -159,7 +159,7 @@ public:
     }
 
     statsErr validateStatsInfo() const;
-    std::string getJson();
+    std::pair<statsErr, std::string> getJson();
     void clear();
     bool isEmptyStats();
 

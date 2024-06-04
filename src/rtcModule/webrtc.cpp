@@ -1366,15 +1366,16 @@ void Call::sendStats(const TermCode& termCode)
     mStats.mMaxPeers = mMaxPeers;
     mStats.mTermCode = static_cast<int32_t>(termCode);
 
-    const Stats::statsErr& err = mStats.validateStatsInfo();
-    if (err != Stats::statsErr::kStatsOk)
+    if (auto[err, statsJson] = mStats.getJson(); err != Stats::statsErr::kStatsOk)
     {
-        RTCM_LOG_WARNING("Discarding callstats due to this error: %s",
-                         Stats::statsErrToString(err).c_str());
+        RTCM_LOG_WARNING("sendStats: discarding callstats due to this error: %s.\nJSON: %s",
+                         Stats::statsErrToString(err).c_str(),
+                         statsJson.c_str());
+        assert(false);
     }
     else
     {
-        mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+        mMegaApi.sdk.sendChatStats(statsJson.c_str());
     }
 
     RTCM_LOG_DEBUG("Clear local SFU stats");

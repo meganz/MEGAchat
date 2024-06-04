@@ -100,8 +100,9 @@ Stats::statsErr Stats::validateStatsInfo() const
     return Stats::statsErr::kStatsOk;
 }
 
-std::string Stats::getJson()
+std::pair<Stats::statsErr, std::string> Stats::getJson()
 {
+    const auto& statsValidationErr = validateStatsInfo();
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value sfuv(rapidjson::kNumberType);
     sfuv.SetUint(mSfuProtoVersion);
@@ -209,7 +210,7 @@ std::string Stats::getJson()
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
     std::string jsonStats(buffer.GetString(), buffer.GetSize());
-    return jsonStats;
+    return std::make_pair(statsValidationErr, jsonStats);
 }
 
 void Stats::clear()
