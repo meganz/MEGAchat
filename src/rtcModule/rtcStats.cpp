@@ -60,6 +60,46 @@ void ConnStatsCallBack::removeStats()
     mStats = nullptr;
 }
 
+Stats::statsErr Stats::validateStatsInfo() const
+{
+    if (mSfuProtoVersion != static_cast<uint32_t>(sfu::SfuProtocol::SFU_PROTO_PROD))
+    {
+        return Stats::statsErr::kStatsProtoErr;
+    }
+
+    if (!mPeerId.isValid())
+    {
+        return Stats::statsErr::kStatsMyPeerErr;
+    }
+
+    if (!mCid)
+    {
+        return Stats::statsErr::kStatsCidErr;
+    }
+
+    if (!mDuration)
+    {
+        return Stats::statsErr::kStatsDurErr;
+    }
+
+    if (mDevice.empty())
+    {
+        return Stats::statsErr::kStatsDeviceErr;
+    }
+
+    if (mSfuHost.empty())
+    {
+        return Stats::statsErr::kStatsSfuHostErr;
+    }
+
+    if (!mCallid.isValid())
+    {
+        return Stats::statsErr::kStatsCallIdErr;
+    }
+
+    return Stats::statsErr::kStatsOk;
+}
+
 std::string Stats::getJson()
 {
     rapidjson::Document json(rapidjson::kObjectType);

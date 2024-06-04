@@ -1365,7 +1365,18 @@ void Call::sendStats(const TermCode& termCode)
                            : mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
     mStats.mMaxPeers = mMaxPeers;
     mStats.mTermCode = static_cast<int32_t>(termCode);
-    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+
+    const Stats::statsErr& err = mStats.validateStatsInfo();
+    if (err != Stats::statsErr::kStatsOk)
+    {
+        RTCM_LOG_WARNING("Discarding callstats due to this error: %s",
+                         Stats::statsErrToString(err).c_str());
+    }
+    else
+    {
+        mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    }
+
     RTCM_LOG_DEBUG("Clear local SFU stats");
     mStats.clear();
 }

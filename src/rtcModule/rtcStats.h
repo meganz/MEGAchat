@@ -111,6 +111,54 @@ public:
 class Stats
 {
 public:
+    enum class statsErr : int
+    {
+        kStatsCallIdErr = -7,
+        kStatsSfuHostErr = -6,
+        kStatsDeviceErr = -5,
+        kStatsDurErr = -4,
+        kStatsCidErr = -3,
+        kStatsMyPeerErr = -2,
+        kStatsProtoErr = -1,
+        kStatsOk = 0,
+    };
+
+    static std::string statsErrToString(statsErr e)
+    {
+        switch (e)
+        {
+            case statsErr::kStatsCallIdErr:
+                return "Invalid CallId";
+                break;
+            case statsErr::kStatsSfuHostErr:
+                return "Invalid SFU host";
+                break;
+            case statsErr::kStatsDeviceErr:
+                return "Invalid device Id";
+                break;
+            case statsErr::kStatsDurErr:
+                return "Invalid call duration";
+                break;
+            case statsErr::kStatsCidErr:
+                return "Invalid Cid";
+                break;
+            case statsErr::kStatsMyPeerErr:
+                return "Invalid PeerId";
+                break;
+            case statsErr::kStatsProtoErr:
+                return "Invalid protocol version";
+                break;
+            case statsErr::kStatsOk:
+                return "Stats Ok";
+                break;
+            default:
+                return "Invalid statsErr";
+                assert(false);
+                break;
+        }
+    }
+
+    statsErr validateStatsInfo() const;
     std::string getJson();
     void clear();
     bool isEmptyStats();
