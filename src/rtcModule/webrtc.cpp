@@ -1365,7 +1365,20 @@ void Call::sendStats(const TermCode& termCode)
                            : mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
     mStats.mMaxPeers = mMaxPeers;
     mStats.mTermCode = static_cast<int32_t>(termCode);
-    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    mMegaApi.call(&::mega::MegaApi::sendChatStats, mStats.getJson().c_str(), 0)
+        .then(
+            [](ReqResult result)
+            {
+                if (result->getNumber() != 200)
+                {
+                    RTCM_LOG_WARNING(
+                        "Received error %d from SFU stats server, for this stats JSON: %s",
+                        result->getNumber(),
+                        result->getName());
+                    assert(false);
+                }
+            });
+
     RTCM_LOG_DEBUG("Clear local SFU stats");
     mStats.clear();
 }
