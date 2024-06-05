@@ -796,6 +796,15 @@ bool MegaChatApiTest::exitWait(ExitBoolFlags& eF, const bool waitForAll) const
         : eF.anyEqualTo(true);
 };
 
+void MegaChatApiTest::testCleanup()
+{
+    LOG_debug << "Clearing contacts\n";
+    clearContacts();
+
+    LOG_debug << "Clearing contact requests\n";
+    clearContactRequests();
+}
+
 void MegaChatApiTest::clearContacts()
 {
     for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
@@ -8993,6 +9002,61 @@ void MegaChatApiTest::replyIncomingContactRequest(const unsigned int invitorIdx,
                           << r->getSourceEmail();
                   });
 }
+
+void MegaChatApiTest::makeContacts(const unsigned int invitorIdx, const unsigned int invitedIdx)
+{
+    const std::string& invitorEmail{account(invitorIdx).getEmail()};
+    const std::string& invitedEmail{account(invitedIdx).getEmail()};
+
+    auto [areContacts, visibility] = areTestAccountsContacts(invitorIdx, invitedIdx);
+    if (areContacts && visibility == MegaUser::VISIBILITY_VISIBLE)
+    {
+        LOG_debug << "makeContacts: " << invitorEmail << " (invitor) and " << invitedEmail
+                  << " (invited), are already contacts";
+        return;
+    }
+
+    const bool canBeContacts = areContacts || visibility == MegaUser::VISIBILITY_HIDDEN;
+    ASSERT_TRUE(canBeContacts)
+        << "makeContacts: Both accounts cannot be contacts, as invited account visibility is:"
+        << visibility;
+
+    // Invitor sends outgoing contact request (if there's no one)
+    auto outGoingCr = getContactRequestWith(invitorIdx, true /*outgoing*/, invitedEmail);
+    if (!outGoingCr)
+    {
+        auto incomingCr = getContactRequestWith(invitedIdx, false /*outgoing*/, invitorEmail);
+        ASSERT_TRUE(!incomingCr)
+            << invitedEmail << " (invited) already has an incoming contact request from " << invitorEmail
+            << " (invitor) account, but invitor doesn't have an outgoing contact request";
+
+        LOG_debug << "makeContacts: " << invitorEmail << " sends outgoing contact request to "
+                  << invitedEmail;
+
+        ASSERT_NO_FATAL_FAILURE(sendOutgoingContactRequest(invitorIdx,
+                                                           invitedIdx,
+                                                           invitedEmail,
+                                                           "I want to invite you to MEGA",
+                                                           MegaContactRequest::INVITE_ACTION_ADD))
+            << "makeContacts: cannot send outgoing contact request to " << invitedEmail;
+    }
+
+    // Invited replies contact request (if there's an existing incoming contact request)
+    auto incomingCr = getContactRequestWith(invitedIdx, false /*outgoing*/, invitorEmail);
+    ASSERT_TRUE(incomingCr) << invitedEmail
+                            << " (invited) doesn't have an incoming contact request from "
+                            << invitorEmail << " (invitor) account and it should";
+
+    LOG_debug << "makeContacts: " << invitedEmail << " replies to incoming contact request from "
+              << invitorEmail;
+
+    ASSERT_NO_FATAL_FAILURE(replyIncomingContactRequest(invitorIdx,
+                                                        invitedIdx,
+                                                        std::move(incomingCr),
+                                                        MegaContactRequest::REPLY_ACTION_ACCEPT))
+        << "makeContacts: cannot reply incoming contact request from " << invitorEmail;
+}
+
 std::pair<bool, int> MegaChatApiTest::areTestAccountsContacts(unsigned int invitorIdx, unsigned int invitedIdx) const
 {
     const std::string& invitedEmail {account(invitedIdx).getEmail()};

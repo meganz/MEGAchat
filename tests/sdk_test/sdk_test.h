@@ -587,6 +587,12 @@ public:
 protected:
     // Cleanup functions
     //--------------------------------------------------------------------------------------
+
+    /**
+     * @brief Perform cleanup on automated tests accounts.
+     */
+    void testCleanup();
+
     /**
      * @brief Removes all contacts for all involved accounts in automated tests
      */
@@ -720,6 +726,15 @@ protected:
                                      const unsigned int invitedIdx,
                                      std::unique_ptr<mega::MegaContactRequest> req,
                                      const int action);
+
+    /**
+     * @brief This function makes that invitor and invited accounts becomes contacts
+     *
+     * @param invitorIdx index of account that sends contact request
+     * @param invitedIdx index of account that receives contact request
+     */
+    void makeContacts(const unsigned int invitorIdx, const unsigned int invitedIdx);
+
     /**
      * @brief Check if two accounts are contacts
      *
