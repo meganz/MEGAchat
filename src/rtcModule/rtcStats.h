@@ -125,46 +125,9 @@ public:
     };
 
     typedef std::bitset<kStatsSize> callstats_bs_t;
+    static constexpr unsigned int httpErrOk = 200;
 
-    static std::string statsErrToString(const callstats_bs_t& e)
-    {
-        if (e.none())
-        {
-            return "Stats Ok";
-        }
-
-        std::string err;
-        if (e[kStatsProtoErr])
-        {
-            err += "Invalid protocol version | ";
-        }
-        if (e[kStatsMyPeerErr])
-        {
-            err += "Invalid PeerId | ";
-        }
-        if (e[kStatsCidErr])
-        {
-            err += "Invalid Cid | ";
-        }
-        if (e[kStatsDurErr])
-        {
-            err += "Invalid call duration | ";
-        }
-        if (e[kStatsDeviceErr])
-        {
-            err += "Invalid device Id | ";
-        }
-        if (e[kStatsSfuHostErr])
-        {
-            err += "Invalid SFU host | ";
-        }
-        if (e[kStatsCallIdErr])
-        {
-            err += "Invalid CallId | ";
-        }
-        return err;
-    }
-
+    static std::string statsErrToString(const callstats_bs_t& e);
     callstats_bs_t validateStatsInfo() const;
     std::pair<callstats_bs_t, std::string> getJson();
     void clear();

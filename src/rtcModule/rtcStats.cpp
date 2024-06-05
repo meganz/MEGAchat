@@ -60,6 +60,50 @@ void ConnStatsCallBack::removeStats()
     mStats = nullptr;
 }
 
+std::string Stats::statsErrToString(const callstats_bs_t& e)
+{
+    if (e.none())
+    {
+        return "Stats Ok";
+    }
+
+    std::string err;
+    if (e[kStatsProtoErr])
+    {
+        err += "Invalid protocol version | ";
+    }
+    if (e[kStatsMyPeerErr])
+    {
+        err += "Invalid PeerId | ";
+    }
+    if (e[kStatsCidErr])
+    {
+        err += "Invalid Cid | ";
+    }
+    if (e[kStatsDurErr])
+    {
+        err += "Invalid call duration | ";
+    }
+    if (e[kStatsDeviceErr])
+    {
+        err += "Invalid device Id | ";
+    }
+    if (e[kStatsSfuHostErr])
+    {
+        err += "Invalid SFU host | ";
+    }
+    if (e[kStatsCallIdErr])
+    {
+        err += "Invalid CallId | ";
+    }
+
+    if (err.size() > 3)
+    {
+        err.erase(err.length() - 3);
+    }
+    return err;
+}
+
 Stats::callstats_bs_t Stats::validateStatsInfo() const
 {
     callstats_bs_t bs;
@@ -103,7 +147,7 @@ Stats::callstats_bs_t Stats::validateStatsInfo() const
 
 std::pair<Stats::callstats_bs_t, std::string> Stats::getJson()
 {
-    const auto& statsValidation = validateStatsInfo();
+    const auto statsValidation = validateStatsInfo();
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value sfuv(rapidjson::kNumberType);
     sfuv.SetUint(mSfuProtoVersion);
