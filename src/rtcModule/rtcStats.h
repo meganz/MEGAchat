@@ -124,7 +124,7 @@ public:
         kStatsSize = 7,
     };
 
-    typedef std::bitset<kStatsSize> callstats_bs_t;
+    using callstats_bs_t = std::bitset<kStatsSize>;
     static constexpr unsigned int httpErrOk = 200;
 
     static std::string statsErrToString(const callstats_bs_t& e);
