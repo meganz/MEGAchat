@@ -169,7 +169,6 @@ pipeline {
                                 ${JF_PATH}\\jf config use artifactory
                                 ${JF_PATH}\\jf rt del ${ART_UPLOAD_PATH}
                                 ${JF_PATH}\\jf rt upload megaclc.exe ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload megaclc.pdb ${ART_UPLOAD_PATH}
                             """
                         }
                         windows_artifactory_upload("MEGAchat/${env.gitlabMergeRequestIid}/windows/megaclc/")
