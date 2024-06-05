@@ -36,13 +36,12 @@ def setCommitStatus(String pStatus, String errorHint = '') {
 pipeline {
     agent { label 'windows && amd64' }
     options {
-        timeout(time: 300, unit: 'MINUTES')
+        timeout(time: 120, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '75', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
     }
     environment {
         BUILD_OPTIONS = ' '
-        APIURL_TO_TEST = ' '
         PIPELINE_NAME = 'Windows build'
         RUN_TESTS = false
     }
@@ -52,14 +51,6 @@ pipeline {
                 deleteDir()
                 setCommitStatus('running')
                 updateGitlabCommitStatus(name: 'Windows build', state: 'running')
-            }
-        }
-        stage('Get current build description'){
-            steps{
-                script{
-                    println "${env.gitlabMergeRequestDescription}"
-                    env.currentBuildDescription = currentBuild.description
-                }
             }
         }
         stage('Get build options'){
@@ -153,6 +144,9 @@ pipeline {
                     -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
                     -S '${megachat_sources_workspace}' -B '${megachat_sources_workspace}'\\\\${BUILD_DIR}\\\\"
                     sh "cmake --build '${megachat_sources_workspace}'\\\\${BUILD_DIR} -j2"
+                }
+                script {
+                    uploadMegaclcExecuted = false
                 }
 
             }

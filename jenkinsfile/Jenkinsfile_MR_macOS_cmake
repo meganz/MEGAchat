@@ -36,13 +36,12 @@ def setCommitStatus(String pStatus, String errorHint = '') {
 pipeline {
     agent { label 'osx && arm64' }
     options {
-        timeout(time: 300, unit: 'MINUTES')
+        timeout(time: 120, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '75', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
     }
     environment {
         BUILD_OPTIONS = ' '
-        APIURL_TO_TEST = ' '
         PIPELINE_NAME = 'MacOS build'
     }
     stages {
@@ -51,14 +50,6 @@ pipeline {
                 deleteDir()
                 setCommitStatus('running')
                 updateGitlabCommitStatus(name: 'MacOS build', state: 'running')
-            }
-        }
-        stage('Get current build description'){
-            steps{
-                script{
-                    println "${env.gitlabMergeRequestDescription}"
-                    env.currentBuildDescription = currentBuild.description
-                }
             }
         }
         stage('Get build options'){
@@ -165,21 +156,20 @@ pipeline {
                 }
 
             }
-            post{
-                always{
-                    deleteDir()
-                }
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
-                }
-            }
+        }
+    }
+    post{
+        always{
+            deleteDir()
+        }
+        failure {
+            setCommitStatus('failure')
+        }
+        aborted {
+            setCommitStatus('aborted')
+        }
+        unstable {
+            setCommitStatus('unstable')
         }
     }
 }
-// vim: syntax=groovy tabstop=4 shiftwidth=4
