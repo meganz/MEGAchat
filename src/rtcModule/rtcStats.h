@@ -1,5 +1,6 @@
 #ifndef RTCSTATS_H
 #define RTCSTATS_H
+#include <bitset>
 #include <karereId.h>
 // disable warnings in webrtc headers
 // the same pragma works with both GCC and Clang
@@ -111,55 +112,61 @@ public:
 class Stats
 {
 public:
-    enum class statsErr : int
+    enum
     {
-        kStatsCallIdErr = -7,
-        kStatsSfuHostErr = -6,
-        kStatsDeviceErr = -5,
-        kStatsDurErr = -4,
-        kStatsCidErr = -3,
-        kStatsMyPeerErr = -2,
-        kStatsProtoErr = -1,
-        kStatsOk = 0,
+        kStatsProtoErr = 0,
+        kStatsMyPeerErr = 1,
+        kStatsCidErr = 2,
+        kStatsDurErr = 3,
+        kStatsDeviceErr = 4,
+        kStatsSfuHostErr = 5,
+        kStatsCallIdErr = 6,
+        kStatsSize = 7,
     };
 
-    static std::string statsErrToString(statsErr e)
+    typedef std::bitset<kStatsSize> callstats_bs_t;
+
+    static std::string statsErrToString(const callstats_bs_t& e)
     {
-        switch (e)
+        if (e.none())
         {
-            case statsErr::kStatsCallIdErr:
-                return "Invalid CallId";
-                break;
-            case statsErr::kStatsSfuHostErr:
-                return "Invalid SFU host";
-                break;
-            case statsErr::kStatsDeviceErr:
-                return "Invalid device Id";
-                break;
-            case statsErr::kStatsDurErr:
-                return "Invalid call duration";
-                break;
-            case statsErr::kStatsCidErr:
-                return "Invalid Cid";
-                break;
-            case statsErr::kStatsMyPeerErr:
-                return "Invalid PeerId";
-                break;
-            case statsErr::kStatsProtoErr:
-                return "Invalid protocol version";
-                break;
-            case statsErr::kStatsOk:
-                return "Stats Ok";
-                break;
-            default:
-                return "Invalid statsErr";
-                assert(false);
-                break;
+            return "Stats Ok";
         }
+
+        std::string err;
+        if (e[kStatsProtoErr])
+        {
+            err += "Invalid protocol version | ";
+        }
+        if (e[kStatsMyPeerErr])
+        {
+            err += "Invalid PeerId | ";
+        }
+        if (e[kStatsCidErr])
+        {
+            err += "Invalid Cid | ";
+        }
+        if (e[kStatsDurErr])
+        {
+            err += "Invalid call duration | ";
+        }
+        if (e[kStatsDeviceErr])
+        {
+            err += "Invalid device Id | ";
+        }
+        if (e[kStatsSfuHostErr])
+        {
+            err += "Invalid SFU host | ";
+        }
+        if (e[kStatsCallIdErr])
+        {
+            err += "Invalid CallId | ";
+        }
+        return err;
     }
 
-    statsErr validateStatsInfo() const;
-    std::pair<statsErr, std::string> getJson();
+    callstats_bs_t validateStatsInfo() const;
+    std::pair<callstats_bs_t, std::string> getJson();
     void clear();
     bool isEmptyStats();
 

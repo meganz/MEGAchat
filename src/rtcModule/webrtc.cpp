@@ -1365,11 +1365,10 @@ void Call::sendStats(const TermCode& termCode)
                            : mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
     mStats.mMaxPeers = mMaxPeers;
     mStats.mTermCode = static_cast<int32_t>(termCode);
-
-    if (auto[err, statsJson] = mStats.getJson(); err != Stats::statsErr::kStatsOk)
+    if (auto[statsValidation, statsJson] = mStats.getJson(); statsValidation.any())
     {
-        RTCM_LOG_WARNING("sendStats: discarding callstats due to this error: %s.\nJSON: %s",
-                         Stats::statsErrToString(err).c_str(),
+        RTCM_LOG_WARNING("sendStats: discarding callstats due to the following error/s: %s.\nJSON: %s",
+                         Stats::statsErrToString(statsValidation).c_str(),
                          statsJson.c_str());
         assert(false);
     }

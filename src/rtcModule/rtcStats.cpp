@@ -60,49 +60,50 @@ void ConnStatsCallBack::removeStats()
     mStats = nullptr;
 }
 
-Stats::statsErr Stats::validateStatsInfo() const
+Stats::callstats_bs_t Stats::validateStatsInfo() const
 {
+    callstats_bs_t bs;
     if (mSfuProtoVersion != static_cast<uint32_t>(sfu::SfuProtocol::SFU_PROTO_PROD))
     {
-        return Stats::statsErr::kStatsProtoErr;
+        bs[Stats::kStatsProtoErr] = true;
     }
 
     if (!mPeerId.isValid())
     {
-        return Stats::statsErr::kStatsMyPeerErr;
+        bs[Stats::kStatsMyPeerErr] = true;
     }
 
     if (!mCid)
     {
-        return Stats::statsErr::kStatsCidErr;
+        bs[Stats::kStatsCidErr] = true;
     }
 
     if (!mDuration)
     {
-        return Stats::statsErr::kStatsDurErr;
+        bs[Stats::kStatsDurErr] = true;
     }
 
     if (mDevice.empty())
     {
-        return Stats::statsErr::kStatsDeviceErr;
+        bs[Stats::kStatsDeviceErr] = true;
     }
 
     if (mSfuHost.empty())
     {
-        return Stats::statsErr::kStatsSfuHostErr;
+        bs[Stats::kStatsSfuHostErr] = true;
     }
 
     if (!mCallid.isValid())
     {
-        return Stats::statsErr::kStatsCallIdErr;
+        bs[Stats::kStatsCallIdErr] = true;
     }
 
-    return Stats::statsErr::kStatsOk;
+    return bs;
 }
 
-std::pair<Stats::statsErr, std::string> Stats::getJson()
+std::pair<Stats::callstats_bs_t, std::string> Stats::getJson()
 {
-    const auto& statsValidationErr = validateStatsInfo();
+    const auto& statsValidation = validateStatsInfo();
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value sfuv(rapidjson::kNumberType);
     sfuv.SetUint(mSfuProtoVersion);
@@ -210,7 +211,7 @@ std::pair<Stats::statsErr, std::string> Stats::getJson()
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
     std::string jsonStats(buffer.GetString(), buffer.GetSize());
-    return std::make_pair(statsValidationErr, jsonStats);
+    return std::make_pair(statsValidation, jsonStats);
 }
 
 void Stats::clear()
