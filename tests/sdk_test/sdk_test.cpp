@@ -1179,6 +1179,9 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                       {
                           ChatRequestTracker crtRetryConnection(megaChatApi[idx]);
                           megaChatApi[idx]->retryPendingConnections(true, &crtRetryConnection);
+
+                          ASSERT_EQ(crtRetryConnection.waitForResult(), MegaChatError::ERROR_OK)
+                              << "Failed to retry pending connections";
                       });
 
         checkVarRaiseHand(recvIdx, false, uh); // check flags for lowered hand
