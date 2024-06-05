@@ -796,6 +796,90 @@ bool MegaChatApiTest::exitWait(ExitBoolFlags& eF, const bool waitForAll) const
         : eF.anyEqualTo(true);
 };
 
+void MegaChatApiTest::clearContacts()
+{
+    for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
+    {
+        for (unsigned int j = 0; j < NUM_ACCOUNTS; ++j)
+        {
+            if (i == j)
+            {
+                continue;
+            }
+
+            if (!megaApi[i] || !megaApi[j] || !megaApi[i]->isLoggedIn() ||
+                !megaApi[j]->isLoggedIn())
+            {
+                continue;
+            }
+
+            std::unique_ptr<char[]> userEmail(megaApi[i]->getMyEmail());
+            if (!userEmail)
+            {
+                continue;
+            }
+
+            std::unique_ptr<::mega::MegaUser> contact(megaApi[j]->getContact(userEmail.get()));
+            if (!contact || contact->getVisibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
+            {
+                continue;
+            }
+
+            RequestTracker crtRemoveContact(megaApi[j]);
+            megaApi[j]->removeContact(contact.get(), &crtRemoveContact);
+            crtRemoveContact.waitForResult();
+        }
+    }
+}
+
+void MegaChatApiTest::clearContactRequests()
+{
+    auto clearCr = [this](const bool outgoing)
+    {
+        for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
+        {
+            if (!megaApi[i] || !megaApi[i]->isLoggedIn())
+            {
+                continue;
+            }
+
+            std::unique_ptr<MegaContactRequestList> crl(
+                outgoing ? megaApi[i]->getOutgoingContactRequests() :
+                           megaApi[i]->getIncomingContactRequests());
+
+            if (!crl)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < crl->size(); ++j)
+            {
+                if (const auto cr = crl->get(j); cr)
+                {
+                    if (outgoing)
+                    {
+                        sendOutgoingContactRequest(i,
+                                                   MEGACHAT_INVALID_INDEX,
+                                                   cr->getTargetEmail(),
+                                                   "Test cleanup removing outgoing contact request",
+                                                   MegaContactRequest::INVITE_ACTION_DELETE);
+                    }
+                    else
+                    {
+                        replyIncomingContactRequest(MEGACHAT_INVALID_INDEX,
+                                                    i,
+                                                    std::unique_ptr<MegaContactRequest>(cr->copy()),
+                                                    MegaContactRequest::REPLY_ACTION_DENY);
+                    }
+                }
+            }
+
+        }
+    };
+    clearCr(true /*outgoing contact requests*/);
+    clearCr(false /*incoming contact requests*/);
+}
+
 bool MegaChatApiTest::waitForMultiResponse(ExitBoolFlags& eF, bool waitForAll, unsigned int timeout) const
 {
     timeout *= 1000000; // convert to micro-seconds
@@ -8834,6 +8918,95 @@ void MegaChatApiTest::makeContact(const unsigned int a1, const unsigned int a2)
     ASSERT_TRUE(waitForResponse(usersUpdateA2)) << "Expired timeout for a1 as contact at a2";
 }
 
+void MegaChatApiTest::sendOutgoingContactRequest(const unsigned int invitorIdx,
+                                                 const unsigned int invitedIdx,
+                                                 const std::string_view email,
+                                                 const std::string_view msg,
+                                                 const int action)
+{
+    clearTemporalVars();
+    ExitBoolFlags eF;
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitorIdx, eF, "ContactRequestUpdated", false));
+
+    // if invited is not a logged in account in current automated tests execution we do not want to
+    // wait for response for that "account"
+    if (invitedIdx != MEGACHAT_INVALID_INDEX)
+    {
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(invitedIdx, eF, "ContactRequestUpdated", false));
+    }
+
+    waitForAction(1, /* just one attempt */
+                  eF,
+                  "Send outgoing contact request",
+                  true /* wait for all exit flags */,
+                  true /* reset flags */,
+                  minTimeout * 2, // 2 min
+                  [this, invitorIdx, email, msg, action]()
+                  {
+                      const std::string mail{email};
+                      RequestTracker rtInvite(megaApi[invitorIdx]);
+                      megaApi[invitorIdx]->inviteContact(mail.c_str(),
+                                                         std::string{msg}.c_str(),
+                                                         action,
+                                                         &rtInvite);
+
+                      ASSERT_EQ(rtInvite.waitForResult(), MegaChatError::ERROR_OK)
+                          << "Failed to send outgoing contact request to " << mail;
+                  });
+}
+
+void MegaChatApiTest::replyIncomingContactRequest(const unsigned int invitorIdx,
+                                                  const unsigned int invitedIdx,
+                                                  std::unique_ptr<MegaContactRequest> req,
+                                                  const int action)
+{
+    clearTemporalVars();
+    ASSERT_TRUE(req) << "Invalid MegaContactRequest";
+
+    ExitBoolFlags eF;
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitedIdx, eF, "ContactRequestUpdated", false));
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitedIdx, eF, "UsersUpdate", false));
+
+    // if invitor is not a logged in account in current automated tests execution we do not want to
+    // wait for response for that "account"
+    if (invitorIdx != MEGACHAT_INVALID_INDEX)
+    {
+        ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitorIdx, eF, "UsersUpdate", false));
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(invitorIdx, eF, "ContactRequestUpdated", false));
+    }
+
+    waitForAction(1, /* just one attempt */
+                  eF,
+                  "Reply incoming contact request",
+                  true /* wait for all exit flags */,
+                  true /* reset flags */,
+                  minTimeout * 2, // 2 min
+                  [this, invitedIdx, r = req.get(), action]()
+                  {
+                      RequestTracker rtReply(megaApi[invitedIdx]);
+                      megaApi[invitedIdx]->replyContactRequest(r, action, &rtReply);
+
+                      ASSERT_EQ(rtReply.waitForResult(), MegaChatError::ERROR_OK)
+                          << "Failed to reply incoming contact request from "
+                          << r->getSourceEmail();
+                  });
+}
+std::pair<bool, int> MegaChatApiTest::areTestAccountsContacts(unsigned int invitorIdx, unsigned int invitedIdx) const
+{
+    const std::string& invitedEmail {account(invitedIdx).getEmail()};
+    std::unique_ptr<MegaUser> invitedUser(megaApi[invitorIdx]->getContact(invitedEmail.c_str()));
+    if (!invitedUser)
+    {
+        return std::make_pair(false, MegaUser::VISIBILITY_UNKNOWN);
+    }
+    else
+    {
+        return std::make_pair(true, invitedUser->getVisibility());
+    }
+}
+
 bool MegaChatApiTest::areContact(unsigned int a1, unsigned int a2)
 {
     const std::string a2Email {account(a2).getEmail()};
@@ -10003,6 +10176,38 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     delete crl;
 }
 
+std::unique_ptr<MegaContactRequest> MegaChatApiTest::getContactRequestWith(unsigned int idx, bool outgoing, std::string_view email) const
+{
+    std::unique_ptr<MegaContactRequestList> crl;
+    if (outgoing)
+    {
+        crl.reset(megaApi[idx]->getOutgoingContactRequests());
+    }
+    else
+    {
+        crl.reset(megaApi[idx]->getIncomingContactRequests());
+    }
+
+    if (crl)
+    {
+        for (int i = 0; i < crl->size(); ++i)
+        {
+            const MegaContactRequest* cr = crl->get(i);
+            if (!cr)
+            {
+                continue;
+            }
+
+            const auto& auxEmail = outgoing ? cr->getTargetEmail() : cr->getSourceEmail();
+            if (!email.compare(auxEmail))
+            {
+                return std::unique_ptr<MegaContactRequest>(cr->copy());
+            }
+        }
+    }
+    return nullptr;
+}
+
 int MegaChatApiTest::purgeLocalTree(const fs::path& path)
 {
     try
@@ -10430,6 +10635,7 @@ void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestLi
     ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onContactRequestsUpdate()";
 
     mContactRequestUpdated[apiIndex] = true;
+    boolVars().updateIfExists(apiIndex, "ContactRequestUpdated", true);
 }
 
 void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList)
@@ -10438,6 +10644,7 @@ void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* 
 
     unsigned int accountIndex = getMegaApiIndex(api);
     mUsersUpdate[accountIndex] = true;
+    boolVars().updateIfExists(accountIndex, "UsersUpdate", true);
     ASSERT_NE(accountIndex, UINT_MAX) << "MegaChatApiTest::onUsersUpdate()";
     for (int i = 0; i < userList->size(); i++)
     {
