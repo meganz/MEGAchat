@@ -1370,7 +1370,6 @@ void Call::sendStats(const TermCode& termCode)
         RTCM_LOG_WARNING("sendStats: discarding callstats due to the following error/s: %s.\nJSON: %s",
                          Stats::statsErrToString(statsValidation).c_str(),
                          statsJson.c_str());
-        assert(false);
     }
     else
     {
