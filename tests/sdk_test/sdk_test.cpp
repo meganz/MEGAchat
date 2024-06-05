@@ -567,6 +567,9 @@ void MegaChatApiTest::TearDown()
     string name = string(ti->test_suite_name()) + '.' + ti->name();
     LOG_info << "Test " << name << ": TearDown starting.";
 
+    // perform cleanup actions
+    testGlobalCleanup();
+
     for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
     {
         // 1. clear and leave unused chatrooms
@@ -796,7 +799,7 @@ bool MegaChatApiTest::exitWait(ExitBoolFlags& eF, const bool waitForAll) const
         : eF.anyEqualTo(true);
 };
 
-void MegaChatApiTest::testCleanup()
+void MegaChatApiTest::testGlobalCleanup()
 {
     LOG_debug << "Clearing contacts\n";
     clearContacts();

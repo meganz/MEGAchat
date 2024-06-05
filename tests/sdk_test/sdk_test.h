@@ -591,7 +591,7 @@ protected:
     /**
      * @brief Perform cleanup on automated tests accounts.
      */
-    void testCleanup();
+    void testGlobalCleanup();
 
     /**
      * @brief Removes all contacts for all involved accounts in automated tests
