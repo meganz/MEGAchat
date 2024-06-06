@@ -338,4 +338,10 @@ using namespace megachat;
     return result;
 }
 
+#pragma mark - Raise to Speak Lite
+
+- (MEGAHandleList *)raiseHandsList{
+    return self.megaChatCall ? [[MEGAHandleList alloc] initWithMegaHandleList:self.megaChatCall->getRaiseHandsList()->copy() cMemoryOwn: YES] : nil;
+}
+
 @end

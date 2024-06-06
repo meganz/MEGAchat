@@ -70,6 +70,8 @@ typedef NS_ENUM (NSInteger, MEGAChatRequestType) {
     MEGAChatRequestTypeSpeakerAddOrDelete,
     MEGAChatRequestTypeSpeakRequestAddOrDelete,
     MEGAChatRequestTypeRejectCall,
+    MEGAChatRequestTypeSetLimitCall,
+    MEGAChatRequestTypeRaiseHandToSpeak,
 };
 
 enum {
