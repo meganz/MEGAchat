@@ -4286,7 +4286,7 @@ private:
 };
 
 /**
- * @brief MegaChatApiTest.GroupLastMessage
+ * @brief MegaChatApiTest_RetentionHistory.Import
  *
  * Requirements:
  *      - Both accounts should be contacts
@@ -4498,7 +4498,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     bool* retHistTruncate = boolVars().getVar(a2, "retentionHistTruncate");
     ASSERT_TRUE(retHistTruncate) << "Cannot retrieve retentionHistTruncate for a2";
     ASSERT_EQ(roomFromB->getRetentionTime(), 5);
-    removeFromChatRoom(b, {a2}, megaChatApi[a2]->getMyUserHandle(), chatid);
+    ASSERT_NO_FATAL_FAILURE(removeFromChatRoom(b, {a2}, megaChatApi[a2]->getMyUserHandle(), chatid));
     ASSERT_TRUE(waitForResponse(retHistTruncate))
         << "Timeout expired for retention history to be truncated";
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
@@ -9014,12 +9014,12 @@ void MegaChatApiTest::removeFromChatRoom(const unsigned int performerIdx,
                                          const ::megachat::MegaChatHandle chatid)
 {
     ExitBoolFlags eF;
-    std::for_each(recvsIdxs.begin(),
-                  recvsIdxs.end(),
-                  [this, &eF](const auto idx)
-                  {
-                      addBoolVarAndExitFlag(idx, eF, "ownRemoved", false);
-                  });
+    ASSERT_NO_FATAL_FAILURE(std::for_each(recvsIdxs.begin(),
+                                          recvsIdxs.end(),
+                                          [this, &eF](const auto idx)
+                                          {
+                                              addBoolVarAndExitFlag(idx, eF, "ownRemoved", false);
+                                          }));
 
     std::string errMsg =
         "removing chatroom participant from account " + std::to_string(performerIdx);
