@@ -1396,7 +1396,6 @@ void Call::sendStats(const TermCode& termCode)
     mStats.clear();
 }
 
-
 EndCallReason Call::getEndCallReasonFromTermcode(const TermCode& termCode)
 {
     if (termCode == kUserHangup)                    { return kEnded; }

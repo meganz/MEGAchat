@@ -46,15 +46,6 @@ static const unsigned int maxTimeout = 600;    // (seconds)
 static const unsigned int pollingT = 500000;   // (microseconds) to check if response from server is received
 static const unsigned int NUM_ACCOUNTS = 3;
 
-#define TEST_LOG_ERROR(a, message) \
-    do { \
-        if (!(a)) \
-        { \
-            postLog(message); \
-        } \
-    } \
-    while(false) \
-
 class MegaLoggerTest : public ::mega::MegaLogger,
         public megachat::MegaChatLogger {
 
