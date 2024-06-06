@@ -683,7 +683,6 @@ protected:
      * @param chatroomListener TestChatRoomListener that track MegaChatRoomListener events
      */
     int loadHistory(const unsigned int accountIndex, const megachat::MegaChatHandle chatid, TestChatRoomListener* chatroomListener);
-    void makeContact(const unsigned int a1, const unsigned int a2);
 
     /**
      * @brief Invite another person to be your MEGA contact
