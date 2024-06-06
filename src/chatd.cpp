@@ -404,8 +404,10 @@ void Client::setRetentionTimer()
         retentionPeriod = kMinRetentionTimeout;
     }
 
-    cancelRetentionTimer(false); // cancel timer if any, but keep mRetentionCheckTs
-    CHATD_LOG_DEBUG("set timer for next retention history check to %ld (seconds):", retentionPeriod);
+    cancelRetentionTimer(false);
+    CHATD_LOG_DEBUG("setRetentionTimer: cancelling timer if any (keeping mRetentionCheckTs), then "
+                    "set timer for next retention history check to %ld (seconds):",
+                    retentionPeriod);
     auto wptr = weakHandle();
     mRetentionTimer = karere::setTimeout([this, wptr]()
     {
@@ -4936,7 +4938,10 @@ time_t Chat::handleRetentionTime(bool updateTimer)
     Message *msg = findOrNull(idx);
     if (msg)
     {
-       CALL_LISTENER(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
+        CHATID_LOG_DEBUG("handleRetentionTime: calling onHistoryTruncatedByRetentionTime with most "
+                         "recent msg (%s) affected by retention time",
+                         msg->id().toString().c_str());
+        CALL_LISTENER(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
     }
 
     // Clean affected messages in db and RAM

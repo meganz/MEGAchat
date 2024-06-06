@@ -710,6 +710,19 @@ protected:
     // Adds a temporal boolean variable, to ExitBoolFlags param, and also to MegaChatApiTest::mAuxBool
     void addBoolVarAndExitFlag(const unsigned int i, ExitBoolFlags &eF, const std::string& n, const bool val);
 
+    /**
+     * @brief Removes a participant from chatroom
+     *
+     * @param performerIdx index of user account that is going to perform the action
+     * @param recvsIdxs set of indexes of users accounts that must receive the update
+     * @param uh MegaChatHandle that identifies the user we want to remove from chat room
+     * @param chatId MegaChatHandle that identifies the chat room
+     */
+    void removeFromChatRoom(const unsigned int performerIdx,
+                            const std::set<unsigned int>& recvsIdxs,
+                            const ::megachat::MegaChatHandle uh,
+                            const ::megachat::MegaChatHandle chatid);
+
 #ifndef KARERE_DISABLE_WEBRTC
     /**
      * @brief checks that callid for account i has been received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
