@@ -43,6 +43,8 @@ pipeline {
     environment {
         BUILD_OPTIONS = ' '
         PIPELINE_NAME = 'MacOS build'
+        BUILD_DIR = "build_dir"
+        BUILD_DIR_X64 = "build_dir_x64"
     }
     stages {
         stage('clean previous runs and update gitlab commit status'){
@@ -132,8 +134,6 @@ pipeline {
             environment{
                 PATH = "/usr/local/bin:${env.PATH}"
                 VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
-                BUILD_DIR = "build_dir"
-                BUILD_DIR_X64 = "build_dir_x64"
                 MEGAQTPATH= "${env.HOME}/Qt-build/5.15.13/5.15.13/arm64"
             }
             steps{
@@ -154,7 +154,24 @@ pipeline {
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR_X64} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR_X64} -j3"
                 }
+                script {
+                    uploadMegaclcExecuted = false
+                }
 
+            }
+        }
+        stage('Upload MEGAclc'){
+            when {
+                beforeAgent true
+                expression { env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc') }
+            }
+            steps {
+                script {
+                    uploadMegaclcExecuted = true     
+                }                   
+                sh "jf rt del MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/"
+                sh "cd ${BUILD_DIR}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/arm64/"
+                sh "cd ${BUILD_DIR_X64}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/x64/"
             }
         }
     }
@@ -163,7 +180,14 @@ pipeline {
             deleteDir()
         }
         success {
-            setCommitStatus('success')
+            script{
+                if (uploadMegaclcExecuted){
+                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :green_apple: <b>MacOS</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>MEGAclc URL: [${env.REPO_URL}/MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc]" )
+                    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: 'success')                    
+                } else {
+                   setCommitStatus('success') 
+                }
+            }
         }
         failure {
             setCommitStatus('failure')
