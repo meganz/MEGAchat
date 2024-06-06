@@ -64,6 +64,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallChangeType) {
     MEGAChatCallChangeTypeSpeakRequested = 0x80000,
     MEGAChatCallChangeTypeCallWillEnd = 0x100000,
     MEGAChatCallChangeTypeCallLimitsUpdated = 0x200000,
+    MEGAChatCallChangeTypeCallRaiseHand = 0x400000,
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatCallConfiguration) {
@@ -139,6 +140,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 
 @property (nonatomic, readonly) MEGAHandleList *speakersList;
 @property (nonatomic, readonly) MEGAHandleList *speakRequestsList;
+@property (nonatomic, readonly) MEGAHandleList *raiseHandsList;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 

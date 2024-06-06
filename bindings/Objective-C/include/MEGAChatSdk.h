@@ -564,6 +564,14 @@ NS_ASSUME_NONNULL_BEGIN
 
 + (nullable NSString *)stringForMEGAChatInitState:(MEGAChatInit)initState;
 
+#pragma mark - Raise to Speak Lite
+
+- (void)raiseHandToSpeakForCall:(uint64_t)chatHandle
+                       delegate:(id<MEGAChatRequestDelegate>)delegate;
+
+- (void)lowerHandToStopSpeakForCall:(uint64_t)chatHandle
+                           delegate:(id<MEGAChatRequestDelegate>)delegate;
+
 @end
 
 NS_ASSUME_NONNULL_END

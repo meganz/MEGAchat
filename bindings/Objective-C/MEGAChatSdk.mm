@@ -2341,4 +2341,26 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return ret;
 }
 
+#pragma mark - Raise to Speak Lite
+
+- (void)raiseHandToSpeakForCall:(uint64_t)chatHandle
+                       delegate:(id<MEGAChatRequestDelegate>)delegate{
+    
+    if (self.megaChatApi == nil) {
+        return;
+    }
+    
+    self.megaChatApi->raiseHandToSpeak(chatHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
+- (void)lowerHandToStopSpeakForCall:(uint64_t)chatHandle
+                           delegate:(id<MEGAChatRequestDelegate>)delegate{
+    
+    if (self.megaChatApi == nil) {
+        return;
+    }
+    
+    self.megaChatApi->lowerHandToStopSpeak(chatHandle, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+}
+
 @end
