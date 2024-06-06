@@ -1167,7 +1167,12 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
         clearTemporalVars();
         ExitBoolFlags eF;
         // ensure that get reach CALL_STATUS_IN_PROGRESS before continue
-        ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(idx, eF, "CallInProgress", false));
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(idx,
+                                  eF,
+                                  "CallInProgress",
+                                  false));
+
         ASSERT_NO_FATAL_FAILURE(
             addVarRaiseHand(recvIdx,
                             false,
@@ -1187,6 +1192,9 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
                           {
                               ChatRequestTracker crtRetryConnection(megaChatApi[idx]);
                               megaChatApi[idx]->retryPendingConnections(true, &crtRetryConnection);
+
+                              ASSERT_EQ(crtRetryConnection.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to retry pending connections";
                           }));
 
         ASSERT_NO_FATAL_FAILURE(
