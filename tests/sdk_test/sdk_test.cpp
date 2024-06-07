@@ -8955,8 +8955,8 @@ int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChat
 
 void MegaChatApiTest::sendOutgoingContactRequest(const unsigned int invitorIdx,
                                                  const unsigned int invitedIdx,
-                                                 const std::string email,
-                                                 const std::string msg,
+                                                 const std::string& email,
+                                                 const std::string& msg,
                                                  const int action)
 {
     clearTemporalVars();
