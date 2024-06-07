@@ -733,7 +733,7 @@ protected:
      *
      * @return a pair of bool (true if contacts, otherwise false) with int (contact visibility)
      */
-    std::pair<bool, int> areTestAccountsContacts(unsigned int invitorIdx, unsigned int invitedIdx) const;
+    std::pair<bool, int> areTestAccountsContacts(const unsigned int invitorIdx, const unsigned int invitedIdx) const;
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
     megachat::MegaChatHandle getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, megachat::MegaChatPeerList* peers);
@@ -959,9 +959,9 @@ protected:
      * incoming contact request
      * @return a Unique pointer to the MegaContactRequest
      */
-    std::unique_ptr<mega::MegaContactRequest> getContactRequestWith(unsigned int idx,
-                                                                    bool outgoing,
-                                                                    std::string_view email) const;
+    std::unique_ptr<mega::MegaContactRequest> getContactRequestWith(const unsigned int idx,
+                                                                    const bool outgoing,
+                                                                    const std::string_view email) const;
 
     static int purgeLocalTree(const std::filesystem::path& path);
     void purgeCloudTree(unsigned int accountIndex, ::mega::MegaNode* node);
