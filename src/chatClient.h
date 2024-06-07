@@ -1008,6 +1008,7 @@ public:
     enum: bool { kSetPresOverride = true, kSetPresDynamic = false };
 
     std::string mAppDir;
+    std::string mClientname; // A name used as prefix when logging
     WebsocketsIO *websocketIO;  // network-layer interface
     void *appCtx;               // app's context
     MyMegaApi api;              // MegaApi's instance
@@ -1097,6 +1098,15 @@ public:
     const Id& myHandle() const { return mMyHandle; }
     const std::string& myName() const { return mMyName; }
     const std::string& myEmail() const { return mMyEmail; }
+
+    /**
+     * @brief Helper method to get the client name as c_str for logging
+     */
+    const char* getLoggingName() const
+    {
+        return mClientname.c_str();
+    }
+
     uint64_t myIdentity() const { return mMyIdentity; }
     UserAttrCache& userAttrCache() const { return *mUserAttrCache; }
     bool isUserAttrCacheReady() const { return mUserAttrCache.get(); }

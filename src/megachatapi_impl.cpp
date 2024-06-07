@@ -3428,6 +3428,36 @@ void MegaChatApiImpl::setLogToConsole(bool enable)
     }
 }
 
+void MegaChatApiImpl::setLoggingName(const char* loggingName)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (!mClient)
+    {
+        assert(false);
+        API_LOG_ERROR(
+            "MegaChatApiImpl::setLoggingName must be called after initializing karere client");
+        return;
+    }
+    if (loggingName)
+    {
+        mClient->mClientname = std::string(loggingName) + " ";
+    }
+    else
+    {
+        mClient->mClientname.clear();
+    }
+}
+
+const char* MegaChatApiImpl::getLoggingName() const
+{
+    SdkMutexGuard g(sdkMutex);
+    if (!mClient)
+    {
+        return "";
+    }
+    return mClient->getLoggingName();
+}
+
 void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
 {
     if (!megaLogger)   // removing logger
