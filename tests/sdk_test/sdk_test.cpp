@@ -8955,8 +8955,8 @@ int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChat
 
 void MegaChatApiTest::sendOutgoingContactRequest(const unsigned int invitorIdx,
                                                  const unsigned int invitedIdx,
-                                                 const std::string_view email,
-                                                 const std::string_view msg,
+                                                 const std::string email,
+                                                 const std::string msg,
                                                  const int action)
 {
     clearTemporalVars();
@@ -8979,15 +8979,14 @@ void MegaChatApiTest::sendOutgoingContactRequest(const unsigned int invitorIdx,
                   minTimeout * 2, // 2 min
                   [this, invitorIdx, email, msg, action]()
                   {
-                      const std::string mail{email};
                       RequestTracker rtInvite(megaApi[invitorIdx]);
-                      megaApi[invitorIdx]->inviteContact(mail.c_str(),
-                                                         std::string{msg}.c_str(),
+                      megaApi[invitorIdx]->inviteContact(email.c_str(),
+                                                         msg.c_str(),
                                                          action,
                                                          &rtInvite);
 
                       ASSERT_EQ(rtInvite.waitForResult(), MegaChatError::ERROR_OK)
-                          << "Failed to send outgoing contact request to " << mail;
+                          << "Failed to send outgoing contact request to " << email;
                   });
 }
 
@@ -9083,9 +9082,10 @@ void MegaChatApiTest::makeContacts(const unsigned int invitorIdx, const unsigned
         << "makeContacts: cannot reply incoming contact request from " << invitorEmail;
 }
 
-std::pair<bool, int> MegaChatApiTest::areTestAccountsContacts(unsigned int invitorIdx, unsigned int invitedIdx) const
+std::pair<bool, int> MegaChatApiTest::areTestAccountsContacts(unsigned int invitorIdx,
+                                                              unsigned int invitedIdx) const
 {
-    const std::string& invitedEmail {account(invitedIdx).getEmail()};
+    const std::string& invitedEmail{account(invitedIdx).getEmail()};
     std::unique_ptr<MegaUser> invitedUser(megaApi[invitorIdx]->getContact(invitedEmail.c_str()));
     if (!invitedUser)
     {
@@ -10278,17 +10278,17 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     delete crl;
 }
 
-std::unique_ptr<MegaContactRequest> MegaChatApiTest::getContactRequestWith(unsigned int idx, bool outgoing, std::string_view email) const
+std::unique_ptr<MegaContactRequest>
+    MegaChatApiTest::getContactRequestWith(unsigned int idx,
+                                           bool outgoing,
+                                           std::string_view email) const
 {
-    std::unique_ptr<MegaContactRequestList> crl;
-    if (outgoing)
-    {
-        crl.reset(megaApi[idx]->getOutgoingContactRequests());
-    }
-    else
-    {
-        crl.reset(megaApi[idx]->getIncomingContactRequests());
-    }
+    const std::unique_ptr<MegaContactRequestList> crl{std::invoke(
+        [&]()
+        {
+            return outgoing ? megaApi[idx]->getOutgoingContactRequests() :
+                              megaApi[idx]->getIncomingContactRequests();
+        })};
 
     if (crl)
     {

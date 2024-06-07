@@ -692,8 +692,8 @@ protected:
      */
     void sendOutgoingContactRequest(const unsigned int invitorIdx,
                                     const unsigned int invitedIdx,
-                                    const std::string_view email,
-                                    const std::string_view msg,
+                                    const std::string email,
+                                    const std::string msg,
                                     const int action);
 
     /**
