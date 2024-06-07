@@ -4515,14 +4515,67 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
     ASSERT_NO_FATAL_FAILURE(testImport(0))
         << "No message should be there, as retention history has been applied";
-    ///
-    ///  Import messages when app should skip some messages for which retention time expired
-    ///
-    ///
-// Looking at code, retention time is not store at DB. It's zero until client connects to chatd.
-// As client 1 doesn't get conneted before calling to import messages. It can't skip messages for which retention time expired (It's zero)
-// Apps lifetime are diffent, maybe, they can use this functionality but I think it isn't possible for automatic tests
 
+    LOG_debug << "#### Test9: a1 imports messages from a2(NSE) with Last Seen default value "
+                 "groupchat ####\n";
+    std::unique_ptr<MegaChatPeerList> auxPeers(MegaChatPeerList::createInstance());
+    auxPeers->addPeer(megaChatApi[a1]->getMyUserHandle(), MegaChatPeerList::PRIV_STANDARD);
+    sessionA1.reset(login(a1, sessionA1.get()));
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ChatroomCreationOptions& opt = mData.mChatOptions;
+    opt.mOpPriv = MegaChatRoom::PRIV_STANDARD;
+    opt.mCreate = true;
+    opt.mPublicChat = false;
+    opt.mMeetingRoom = false;
+    opt.mWaitingRoom = false;
+    opt.mSpeakRequest = false;
+    opt.mSchedMeetingData = nullptr;
+    const MegaChatHandle auxchatid =
+        getGroupChatRoomWithParticipants({b, a1}, auxPeers.get(), true);
+    ASSERT_NE(auxchatid, MEGACHAT_INVALID_HANDLE)
+        << "Cannot create a group chatroom for b( "
+        << getUserIdStrB64(megaChatApi[b]->getMyUserHandle()) << ") and a("
+        << megaChatApi[a1]->getMyUserHandle() << ")";
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+    std::unique_ptr<TestChatRoomListener> crl(
+        new TestChatRoomListener(this, megaChatApi, auxchatid));
+    megaChatApi[b]->openChatRoom(auxchatid, crl.get());
+    bool err = false;
+    std::string errMsg;
+    for (int i = 0; i < 10; ++i)
+    {
+        clearTemporalVars();
+        auto m = "M" + toChars<int>(i);
+        if (!addBoolVar(b, "msgConfirmed", false /*val*/))
+        {
+            err = true;
+            break;
+        }
+        MegaChatMessage* messageSent = megaChatApi[b]->sendMessage(auxchatid, m.c_str());
+        if (!messageSent)
+        {
+            errMsg += "Cannot send " + m;
+            err = true;
+            break;
+        }
+
+        if (!waitForResponse(boolVars().getVar(b, "msgConfirmed")))
+        {
+            errMsg += "Msg confirmed not received after " + toChars<unsigned int>(maxTimeout) +
+                      " seconds";
+            err = true;
+            break;
+        }
+    }
+    megaChatApi[b]->closeChatRoom(auxchatid, crl.get());
+    ASSERT_TRUE(!err) << errMsg;
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+    ASSERT_NO_FATAL_FAILURE(testImport(10));
+
+    // Looking at code, retention time is not store at DB. It's zero until client connects to chatd.
+    // As client 1 doesn't get conneted before calling to import messages. It can't skip messages for which retention time expired (It's zero)
+    // Apps lifetime are diffent, maybe, they can use this functionality but I think it isn't possible for automatic tests
  }
 
 /**
@@ -8984,12 +9037,12 @@ bool MegaChatApiTest::removeChatVideoListener(const unsigned int idx, const mega
 }
 #endif
 
-MegaChatHandle MegaChatApiTest::getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, MegaChatPeerList* peers)
+MegaChatHandle MegaChatApiTest::getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, MegaChatPeerList* peers, const bool forceCreate)
 {
     ChatroomCreationOptions& opt = mData.mChatOptions;
     return getGroupChatRoom(accounts, peers,
                             opt.mOpPriv, opt.mCreate, opt.mPublicChat,
-                            opt.mMeetingRoom, opt.mWaitingRoom, opt.mSpeakRequest, opt.mSchedMeetingData.get());
+                            opt.mMeetingRoom, opt.mWaitingRoom, opt.mSpeakRequest, opt.mSchedMeetingData.get(), forceCreate);
 }
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom()
@@ -9378,9 +9431,16 @@ void MegaChatApiTest::setChatTitle(const std::string& title, const unsigned int 
     });
 };
 
-MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>& a, MegaChatPeerList* peers,
-                                                 const int a1Priv, const bool create, const bool publicChat,
-                                                 const bool meetingRoom, const bool waitingRoom, const bool speakRequest, SchedMeetingData* schedMeetingData)
+MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>& a,
+                                                 MegaChatPeerList* peers,
+                                                 const int a1Priv,
+                                                 const bool create,
+                                                 const bool publicChat,
+                                                 const bool meetingRoom,
+                                                 const bool waitingRoom,
+                                                 const bool speakRequest,
+                                                 SchedMeetingData* schedMeetingData,
+                                                 const bool forceCreate)
 {
     LOG_debug << "getGroupChatRoom: get a chatroom for test";
     static const std::string errBadParam = "getGroupChatRoom: Attempting to get a group chat for ";
@@ -9573,8 +9633,13 @@ MegaChatHandle MegaChatApiTest::getGroupChatRoom(const std::vector<unsigned int>
         return MEGACHAT_INVALID_HANDLE;
     };
 
-    MegaChatHandle targetChatid = findChat();
-    if (targetChatid == MEGACHAT_INVALID_HANDLE && create)
+    MegaChatHandle targetChatid = MEGACHAT_INVALID_HANDLE;
+    if (!forceCreate)
+    {
+        targetChatid = findChat();
+    }
+
+    if (forceCreate || (targetChatid == MEGACHAT_INVALID_HANDLE && create))
     {
         targetChatid = createChat();
     }
@@ -11175,7 +11240,7 @@ void TestChatRoomListener::onMessageLoaded(MegaChatApi *api, MegaChatMessage *ms
 void TestChatRoomListener::onMessageReceived(MegaChatApi *api, MegaChatMessage *msg)
 {
     unsigned int apiIndex = getMegaChatApiIndex(api);
-    ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onMessageReceived()";
+    ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onMessageReceived() in acount: "<< apiIndex;
 
     std::stringstream buffer;
     buffer << "[api: " << apiIndex << "] Message received - ";
@@ -11252,6 +11317,7 @@ void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *ms
         {
             mConfirmedMessageHandle[apiIndex] = msg->getMsgId();
             msgConfirmed[apiIndex] = true;
+            t->boolVars().updateIfExists(apiIndex, "msgConfirmed", true);
         }
         else if (msg->getStatus() == MegaChatMessage::STATUS_DELIVERED)
         {
