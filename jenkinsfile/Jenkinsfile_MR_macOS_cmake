@@ -1,0 +1,202 @@
+def setCommitStatus(String pStatus, String errorHint = '') {
+    switch (pStatus) {
+        case 'running':
+            pState = 'running'
+            pMessage = ""
+            break
+        case 'success':
+            pState = 'success'
+            pMessage = ":white_check_mark: ${env.JOB_NAME} :green_apple: <b>MacOS</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'aborted':
+            pState = 'canceled'
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>MacOS</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'failure':
+            pState = 'failed'
+            pMessage = ":red_circle: ${env.JOB_NAME} :green_apple: <b>MacOS</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        case 'unstable':
+            pState = 'failed'
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>MacOS</b> UNSTABLE :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+            break
+        default:
+            pState = 'failed'
+            pMessage = ":interrobang: ${env.JOB_NAME} :green_apple: <b>MacOS</b> UNKNOWN :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}"
+    }
+    if (pMessage) {
+        if (errorHint) {
+            pMessage += '<br/> ' + errorHint
+        }
+        addGitLabMRComment(comment: pMessage)
+    }
+    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: pState)
+}
+
+pipeline {
+    agent { label 'osx && arm64' }
+    options {
+        timeout(time: 120, unit: 'MINUTES')
+        buildDiscarder(logRotator(numToKeepStr: '75', daysToKeepStr: '21'))
+        gitLabConnection('GitLabConnectionJenkins')
+    }
+    environment {
+        BUILD_OPTIONS = ' '
+        PIPELINE_NAME = 'MacOS build'
+        BUILD_DIR = "build_dir"
+        BUILD_DIR_X64 = "build_dir_x64"
+    }
+    stages {
+        stage('clean previous runs and update gitlab commit status'){
+            steps{
+                deleteDir()
+                setCommitStatus('running')
+                updateGitlabCommitStatus(name: 'MacOS build', state: 'running')
+            }
+        }
+        stage('Get build options'){
+            steps {
+                script{
+                    BUILD_OPTIONS = sh(script: 'echo "$gitlabTriggerPhrase" | grep BUILD_OPTIONS | awk -F "BUILD_OPTIONS="  \'{print \$2}\' | cut -d"\\"" -f2 || :', returnStdout: true).trim()
+                    println BUILD_OPTIONS
+                    }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Get SDK branch'){
+            when {
+                expression {
+                    env.gitlabMergeRequestDescription.contains('SDK_BRANCH_TO_TEST')
+                }
+            }
+            steps {
+                script{
+                    env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_BRANCH_TO_TEST | awk -F "SDK_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
+                    println SDK_BRANCH
+                    if (SDK_BRANCH == ""){
+                        echo "SDK_BRANCH was not found on description so develop will be used by default"
+                    }
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Checkout SDK and MEGAchat'){
+            steps {
+                sh "echo cloning MEGAchat branch ${env.gitlabSourceBranch} and merging with ${env.gitlabTargetBranch}"
+                checkout([
+                    $class: 'GitSCM', 
+                    branches: [[name: "origin/${env.gitlabSourceBranch}"]],
+                    userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACHAT}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                    extensions: [
+                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
+                        [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                        ]                        
+                ])
+                dir('third-party/mega'){
+                    sh "echo Cloning SDK branch ${SDK_BRANCH}"
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "origin/${SDK_BRANCH}"]],
+                        userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                        ]
+                    ])
+                }
+                script{
+                    megachat_sources_workspace = WORKSPACE
+                }
+            }
+            post{
+                failure {
+                    setCommitStatus('failure')
+                }
+                aborted {
+                    setCommitStatus('aborted')
+                }
+            }
+        }
+        stage('Build MEGAchat'){
+            environment{
+                PATH = "/usr/local/bin:${env.PATH}"
+                VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
+                MEGAQTPATH= "${env.HOME}/Qt-build/5.15.13/5.15.13/arm64"
+            }
+            steps{
+                dir(megachat_sources_workspace){
+                    //Build for arm64
+                    sh "echo Building for arm64"
+                    sh "mkdir ${BUILD_DIR}"
+                    sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR} -DCMAKE_PREFIX_PATH=${MEGAQTPATH} \
+                    -DCMAKE_OSX_ARCHITECTURES=arm64 -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF" 
+                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j3"
+                    
+                    //build for x64
+                    sh "echo \"Building for x64 (crosscompiling)\""
+                    sh "mkdir ${BUILD_DIR_X64}"
+                    sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    -DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
+                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR_X64} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}"
+                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR_X64} -j3"
+                }
+                script {
+                    uploadMegaclcExecuted = false
+                }
+
+            }
+        }
+        stage('Upload MEGAclc'){
+            when {
+                beforeAgent true
+                expression { env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc') }
+            }
+            steps {
+                script {
+                    uploadMegaclcExecuted = true     
+                }                   
+                sh "jf rt del MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/"
+                sh "cd ${BUILD_DIR}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/arm64/"
+                sh "cd ${BUILD_DIR_X64}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/x64/"
+            }
+        }
+    }
+    post{
+        always{
+            deleteDir()
+        }
+        success {
+            script{
+                if (uploadMegaclcExecuted){
+                    addGitLabMRComment(comment: ":white_check_mark: ${currentBuild.projectName} :green_apple: <b>MacOS</b>  SUCCEEDED :muscle:<br/>Build results: [Jenkins [${currentBuild.displayName}]](${currentBuild.absoluteUrl})<br/>Commit: ${env.GIT_COMMIT}<br/>MEGAclc URL: [${env.REPO_URL}/MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc]" )
+                    updateGitlabCommitStatus(name: "${PIPELINE_NAME}", state: 'success')                    
+                } else {
+                   setCommitStatus('success') 
+                }
+            }
+        }
+        failure {
+            setCommitStatus('failure')
+        }
+        aborted {
+            setCommitStatus('aborted')
+        }
+        unstable {
+            setCommitStatus('unstable')
+        }
+    }
+}
