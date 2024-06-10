@@ -27,7 +27,7 @@ public:
      * passed to \c frameComplete()
      * @return A pointer to the frame buffer where the frame will be written
      */
-    virtual void* getImageBuffer(unsigned short width, unsigned short height, void*& userData) = 0;
+    virtual void* getImageBuffer(unsigned short width, unsigned short height, int sourceType, void*& userData) = 0;
 
     /**
      * @brief frameComplete Called _by a worker thread_ after a call to \c getImageBuffer()
@@ -74,7 +74,7 @@ public:
 class NullRenderer: public IVideoRenderer
 {
 public:
-    virtual void* getImageBuffer(unsigned short /*width*/, unsigned short /*height*/, void*& /*userData*/)
+    virtual void* getImageBuffer(unsigned short /*width*/, unsigned short /*height*/, int /*sourceType*/, void*& /*userData*/)
     { return nullptr; }
     virtual void frameComplete(void* /*userp*/) {}
     virtual void released() { delete this; } //we don't post frames to the GUI so no problem with deleting immediately

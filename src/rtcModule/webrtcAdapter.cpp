@@ -91,68 +91,71 @@ unsigned long generateId()
     return ++id;
 }
 
-CaptureModuleLinux::CaptureModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote)
+#if defined(__linux__) && !defined(__ANDROID__)
+CaptureCameraModuleLinux::CaptureCameraModuleLinux(const webrtc::VideoCaptureCapability &capabilities, bool remote)
     : mState(webrtc::MediaSourceInterface::kInitializing),
       mRemote(remote),
       mCapabilities(capabilities)
 {
 }
 
-CaptureModuleLinux::~CaptureModuleLinux()
+CaptureCameraModuleLinux::~CaptureCameraModuleLinux()
 {
 }
 
-void CaptureModuleLinux::RegisterObserver(webrtc::ObserverInterface*)
-{
-
-}
-
-void CaptureModuleLinux::UnregisterObserver(webrtc::ObserverInterface*)
+void CaptureCameraModuleLinux::RegisterObserver(webrtc::ObserverInterface*)
 {
 
 }
 
-webrtc::MediaSourceInterface::SourceState CaptureModuleLinux::state() const
+void CaptureCameraModuleLinux::UnregisterObserver(webrtc::ObserverInterface*)
+{
+
+}
+
+webrtc::MediaSourceInterface::SourceState CaptureCameraModuleLinux::state() const
 {
     return mState;
 }
 
-bool CaptureModuleLinux::is_screencast() const
+bool CaptureCameraModuleLinux::is_screencast() const
 {
     return false;
 }
 
-absl::optional<bool> CaptureModuleLinux::needs_denoising() const
+absl::optional<bool> CaptureCameraModuleLinux::needs_denoising() const
 {
     return absl::nullopt;
 }
 
-bool CaptureModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats*)
+bool CaptureCameraModuleLinux::GetStats(webrtc::VideoTrackSourceInterface::Stats*)
 {
     return false;
 }
 
-void CaptureModuleLinux::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
+void CaptureCameraModuleLinux::AddOrUpdateSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink, const rtc::VideoSinkWants& wants)
 {
     mBroadcaster.AddOrUpdateSink(sink, wants);
 }
 
-void CaptureModuleLinux::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
+void CaptureCameraModuleLinux::RemoveSink(rtc::VideoSinkInterface<webrtc::VideoFrame>* sink)
 {
     mBroadcaster.RemoveSink(sink);
 }
 
-bool CaptureModuleLinux::remote() const
+bool CaptureCameraModuleLinux::remote() const
 {
     return mRemote;
 }
 
-void CaptureModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
+void CaptureCameraModuleLinux::OnFrame(const webrtc::VideoFrame& frame)
 {
+    assert(frame.video_frame_buffer()
+           && frame.video_frame_buffer()->type() == webrtc::VideoFrameBuffer::Type::kI420);
     mBroadcaster.OnFrame(frame);
 }
 
-std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevices()
+std::set<std::pair<std::string, std::string> > CaptureCameraModuleLinux::getVideoDevices()
 {
     std::set<std::pair<std::string, std::string>> videoDevices;
     std::unique_ptr<webrtc::VideoCaptureModule::DeviceInfo> info(webrtc::VideoCaptureFactory::CreateDeviceInfo());
@@ -174,7 +177,7 @@ std::set<std::pair<std::string, std::string> > CaptureModuleLinux::getVideoDevic
     return videoDevices;
 }
 
-void CaptureModuleLinux::openDevice(const std::string &videoDevice)
+void CaptureCameraModuleLinux::openDevice(const std::string &videoDevice)
 {
     mCameraCapturer = webrtc::VideoCaptureFactory::Create(videoDevice.c_str());
     if (!mCameraCapturer)
@@ -200,7 +203,7 @@ void CaptureModuleLinux::openDevice(const std::string &videoDevice)
     RTC_CHECK(mCameraCapturer->CaptureStarted());
 }
 
-void CaptureModuleLinux::releaseDevice()
+void CaptureCameraModuleLinux::releaseDevice()
 {
     if (mCameraCapturer)
     {
@@ -210,10 +213,11 @@ void CaptureModuleLinux::releaseDevice()
     }
 }
 
-webrtc::VideoTrackSourceInterface* CaptureModuleLinux::getVideoTrackSource()
+webrtc::VideoTrackSourceInterface* CaptureCameraModuleLinux::getVideoTrackSource()
 {
     return this;
 }
+#endif
 
 karere::AvFlags LocalStreamHandle::av()
 {
@@ -268,7 +272,7 @@ rtc::scoped_refptr<webrtc::VideoTrackInterface> LocalStreamHandle::video()
     return mVideo;
 }
 
-VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabilities, const std::string &
+VideoCapturerManager* VideoCapturerManager::createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string &
 #if defined(__APPLE__) || defined(__ANDROID__)
                                    deviceName
 #endif
@@ -283,20 +287,147 @@ VideoManager *VideoManager::Create(const webrtc::VideoCaptureCapability &capabil
 #elif __ANDROID__
     return new CaptureModuleAndroid(capabilities, deviceName, thread);
 #else
-    return new CaptureModuleLinux(capabilities);
+    return new CaptureCameraModuleLinux(capabilities);
 #endif
 }
 
-std::set<std::pair<std::string, std::string>> VideoManager::getVideoDevices()
+VideoCapturerManager *VideoCapturerManager::createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread *
+#ifdef __ANDROID__
+                                                    thread
+#endif
+                                                )
+{
+#ifdef __APPLE__
+    // TODO: Implement
+    return nullptr;
+#elif __ANDROID__
+    // TODO: Implement
+    return nullptr;
+#else
+    return artc::CaptureScreenModuleLinux::createCaptureScreenModuleLinux(static_cast<webrtc::DesktopCapturer::SourceId>(deviceId));
+#endif
+}
+
+std::set<std::pair<std::string, std::string>> VideoCapturerManager::getCameraDevices()
 {
     #ifdef __APPLE__
         return OBJCCaptureModule::getVideoDevices();
     #elif __ANDROID__
         return CaptureModuleAndroid::getVideoDevices();
     #else
-        return CaptureModuleLinux::getVideoDevices();
+        return CaptureCameraModuleLinux::getVideoDevices();
     #endif
 }
+
+std::set<std::pair<std::string, long int>> VideoCapturerManager::getScreenDevices()
+{
+ #ifdef __APPLE__
+         // TODO: return OBJCCaptureModule::getScreenDevicesList();
+         return {};
+ #elif __ANDROID__
+         // TODO: return CaptureModuleAndroid::getScreenDevicesList();
+         return {};
+ #else
+        return CaptureScreenModuleLinux::getScreenDevicesList();
+ #endif
+}
+
+#if defined(__linux__) && !defined(__ANDROID__)
+void CaptureScreenModuleLinux::OnCaptureResult(webrtc::DesktopCapturer::Result result, std::unique_ptr<webrtc::DesktopFrame> frame)
+{
+    // this method is analogous to VideoSinkInterface::onFrame
+    auto isValidDesktopFrame = [](const webrtc::DesktopFrame* frame)-> bool
+    {
+        if (!frame) { return false; }
+        const int width = frame->size().width();
+        const int height = frame->size().height();
+        const int len = frame->size().height() * frame->stride();
+        return (len == width * height * 4); // expected ARGB frame format
+    };
+
+    if (result != webrtc::DesktopCapturer::Result::SUCCESS)
+    {
+        RTCM_LOG_WARNING("OnCaptureResult: error capturing frame");
+        return;
+    }
+
+    if (!isValidDesktopFrame(frame.get()))
+    {
+        RTCM_LOG_WARNING("OnCaptureResult: ill-formed captured frame");
+        return;
+    }
+
+    // Convert ARGB into I420 format, expected by OnFrame
+    int width = frame->size().width();
+    int height = frame->size().height();
+    rtc::scoped_refptr<webrtc::I420Buffer> buf = webrtc::I420Buffer::Create(frame->size().width(), frame->size().height());
+    if (!buf.get())
+    {
+        RTCM_LOG_WARNING("OnCaptureResult: error creating I420Buffer");
+        return;
+    }
+
+    if (libyuv::ConvertToI420(frame->data(), 0, buf->MutableDataY(),
+                buf->StrideY(), buf->MutableDataU(),
+                buf->StrideU(), buf->MutableDataV(),
+                buf->StrideV(), 0, 0, width, height, width,
+                height, libyuv::kRotate0, cricket::FOURCC_ARGB))
+    {
+        RTCM_LOG_WARNING("OnCaptureResult: error converting ARGB frame format, into I420");
+        return;
+    }
+
+    mBroadcaster.OnFrame(webrtc::VideoFrame(buf, 0, 0, webrtc::kVideoRotation_0));
+}
+
+void CaptureScreenModuleLinux::openDevice(const std::string &)
+{
+    const webrtc::DesktopCaptureOptions options = webrtc::DesktopCaptureOptions::CreateDefault();
+    mScreenCapturer = webrtc::DesktopCapturer::CreateScreenCapturer(options);
+    mScreenCapturer->SelectSource(mDeviceId);
+
+    if (!mScreenCapturer)
+    {
+        RTCM_LOG_WARNING("openDevice: error creating DesktopCapturer instance");
+        return;
+    }
+
+    mEndCapture = false;
+    mScreenCapturer->Start(this);
+    mScreenCapturerThread= std::thread ([this]()
+            {
+            while (!mEndCapture)
+            {
+            mScreenCapturer->CaptureFrame();
+            std::this_thread::sleep_for(screenCapturingRate);
+            }
+            });
+}
+
+std::set<std::pair<std::string, long int>> CaptureScreenModuleLinux::getScreenDevicesList()
+{
+    std::set<std::pair<std::string, long int>> list;
+    const webrtc::DesktopCaptureOptions options = webrtc::DesktopCaptureOptions::CreateDefault();
+    std::unique_ptr<webrtc::DesktopCapturer> screenCapturer = webrtc::DesktopCapturer::CreateScreenCapturer(options);
+    if (!screenCapturer)
+    {
+        return list;
+    }
+
+    webrtc::DesktopCapturer::SourceList sourceList;
+    if (screenCapturer->GetSourceList(&sourceList))
+    {
+        std::transform(sourceList.begin(),
+                sourceList.end(),
+                std::inserter(list, std::end(list)),
+                [](const webrtc::DesktopCapturer::Source& s)
+                {
+                return std::pair(s.title, s.id);
+                });
+    }
+    return list;
+}
+#endif
 
 RtcCipher::RtcCipher(const sfu::Peer &peer, std::shared_ptr<rtcModule::IRtcCryptoMeetings> cryptoMeetings, IvStatic_t iv, uint32_t mid)
     : mPeer(peer)

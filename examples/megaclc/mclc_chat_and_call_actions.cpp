@@ -577,7 +577,7 @@ bool hangUpCall(const c::MegaChatHandle chatId)
 bool setChatVideoInDevice(const std::string& device)
 {
     clc_listen::CLCChatRequestTracker setInputListener(g_chatApi.get());
-    g_chatApi->setChatVideoInDevice(device.c_str(), &setInputListener);
+    g_chatApi->setCameraInDevice(device.c_str(), &setInputListener);
     auto errorCode = setInputListener.waitForResult();
     if (errorCode == c::MegaChatError::ERROR_ARGS)
     {

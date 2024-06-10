@@ -781,7 +781,7 @@ public:
 
     // Important: SFU V2 or greater doesn't accept audio flag enabled upon JOIN command
     bool joinSfu(const Sdp& sdp, const std::map<std::string, std::string> &ivs, std::string& ephemeralKey,
-                 int avFlags, Cid_t prevCid, int vthumbs = -1);
+                 int avFlags, Cid_t prevCid, int vthumbs = -1, const bool hasRaisedHand = false);
 
     bool sendKey(Keyid_t id, const std::map<Cid_t, std::string>& keys);
     bool sendAv(unsigned av);

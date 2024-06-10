@@ -131,12 +131,8 @@ HEADERS  += async_utils.h \
             base/trackDelete.h \
             net/libwebsocketsIO.h \
             net/websocketsIO.h \
-            rtcModule/IDeviceListImpl.h \
             rtcModule/IRtcCrypto.h \
-            rtcModule/ITypes.h \
-            rtcModule/ITypesImpl.h \
             rtcModule/IVideoRenderer.h \
-            rtcModule/messages.h \
             rtcModule/rtcmPrivate.h \
             rtcModule/webrtc.h \
             rtcModule/webrtcAdapter.h \
@@ -187,3 +183,5 @@ QMAKE_EXTRA_TARGETS += karereDbSchemaTarget
 DISTFILES += \
     $$PWD/../../src/dbSchema.sql \
     $$PWD/../../src/rtcModule/OBJCCaptureModule.mm
+
+LIBS+=-lXfixes -lXdamage -lXrandr -lXtst -lXcomposite -lXext

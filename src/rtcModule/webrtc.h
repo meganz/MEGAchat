@@ -265,13 +265,22 @@ public:
     virtual ICall* findCall(const karere::Id &callid) const = 0;
     virtual ICall* findCallByChatid(const karere::Id &chatid) const = 0;
     virtual bool isCallStartInProgress(const karere::Id &chatid) const = 0;
-    virtual bool selectVideoInDevice(const std::string& device) = 0;
+    virtual bool setVideoCapturerInDevice(const std::string& device, const int type) = 0;
     virtual void getVideoInDevices(std::set<std::string>& devicesVector) = 0;
+    virtual std::string getVideoDeviceNameById(const std::string& id) = 0;
+    virtual std::string getScreenDeviceNameById(const long int id) = 0;
+    virtual std::set<std::pair<std::string, long int>> getScreenDevices() = 0;
     virtual promise::Promise<void> startCall(const karere::Id &chatid, karere::AvFlags avFlags, bool isGroup, const bool notRinging, std::shared_ptr<std::string> unifiedKey = nullptr) = 0;
-    virtual void takeDevice() = 0;
-    virtual void releaseDevice() = 0;
-    virtual void addLocalVideoRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
-    virtual void removeLocalVideoRenderer(const karere::Id &chatid) = 0;
+    virtual void takeCameraDevice() = 0;
+    virtual void releaseCameraDevice() = 0;
+    virtual void takeScreenDevice() = 0;
+    virtual void releaseScreenDevice() = 0;
+    virtual void addLocalCameraRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
+    virtual void removeLocalCameraRenderer(const karere::Id &chatid) = 0;
+    virtual bool hasLocalCameraRenderer(const karere::Id &chatid) const = 0;
+    virtual bool hasLocalScreenRenderer(const karere::Id &chatid) const = 0;
+    virtual void addLocalScreenRenderer(const karere::Id &chatid, IVideoRenderer *videoRederer) = 0;
+    virtual void removeLocalScreenRenderer(const karere::Id &chatid) = 0;
     virtual unsigned int getNumInputVideoTracks() const = 0;
     virtual void setNumInputVideoTracks(const unsigned int numInputVideoTracks) = 0;
     virtual void enableSpeakRequestSupportForCalls(const bool enable) = 0;
@@ -280,7 +289,8 @@ public:
 
     virtual std::vector<karere::Id> chatsWithCall() = 0;
     virtual unsigned int getNumCalls() = 0;
-    virtual const std::string& getVideoDeviceSelected() const = 0;
+    virtual const std::optional<std::string>& getCameraDeviceIdSelected() const = 0;
+    virtual const std::optional<long int>& getScreenDeviceIdSelected() const = 0;
     virtual sfu::SfuClient& getSfuClient() = 0;
     virtual DNScache& getDnsCache() = 0;
 
@@ -356,11 +366,32 @@ private:
     sfu::WrUserList mWaitingRoomUsers;
 };
 
-static unsigned int getMaxSupportedVideoCallParticipants() { return kMaxCallVideoSenders; };
+namespace RtcConstant
+{
+static constexpr int kMaxCallReceivers = 20; // should be inline with webclient value
+static constexpr int kMaxCallAudioSenders = 20; // should be inline with webclient value
+static constexpr int kMinCallVideoSenders = 1; // minimum number of simultaneous video tracks the call supports.
+static constexpr int kMaxCallVideoSenders = 24; // maximum number of simultaneous video tracks the call supports.
+static constexpr int kInitialvthumbCount = 0; // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
+static constexpr int kHiResWidth = 960; // px
+static constexpr int kHiResHeight = 540; // px
+static constexpr int kHiResMaxFPS = 30;
+static constexpr int kVthumbWidth = 160; // px
+static constexpr int kAudioMonitorTimeout = 2000; // ms
+static constexpr int kStatsInterval = 1000; // ms
+static constexpr int kTxSpatialLayerCount = 3;
+static constexpr int kRotateKeyUseDelay = 100; // ms
+}
+
+static unsigned int getMaxSupportedVideoCallParticipants()
+{
+    return RtcConstant::kMaxCallVideoSenders;
+};
+
 static bool isValidInputVideoTracksLimit(const unsigned int numSimVideoTracks)
 {
-    return numSimVideoTracks >= kMinCallVideoSenders
-           && numSimVideoTracks <= getMaxSupportedVideoCallParticipants();
+    return numSimVideoTracks >= RtcConstant::kMinCallVideoSenders &&
+           numSimVideoTracks <= getMaxSupportedVideoCallParticipants();
 }
 
 typedef enum
@@ -374,20 +405,6 @@ static const int kAudioThreshold = 100;             // Threshold to consider a u
 RtcModule* createRtcModule(MyMegaApi& megaApi, CallHandler &callhandler, DNScache &dnsCache,
                            WebsocketsIO& websocketIO, void *appCtx,
                            rtcModule::RtcCryptoMeetings* rRtcCryptoMeetings);
-enum RtcConstant {
-   kMaxCallReceivers = 20,      // should be inline with webclient value
-   kMaxCallAudioSenders = 20,   // should be inline with webclient value
-   kInitialvthumbCount = 0,     // maximum amount of video streams to receive after joining SFU, by default we won't request any vthumb track
-   kHiResWidth = 960,  // px
-   kHiResHeight = 540,  // px
-   kHiResMaxFPS = 30,
-   kVthumbWidth = 160,  // px
-   kAudioMonitorTimeout = 2000, // ms
-   kStatsInterval = 1000,   // ms
-   kTxSpatialLayerCount = 3,
-   kRotateKeyUseDelay = 100, // ms
-};
-
 #endif
 
 }

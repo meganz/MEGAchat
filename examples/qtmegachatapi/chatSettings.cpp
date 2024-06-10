@@ -11,7 +11,7 @@ ChatSettingsDialog::ChatSettingsDialog(QMainWindow *parent)
 
 #ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<::mega::MegaStringList> videoInDevices(mMainWin->mMegaChatApi->getChatVideoInDevices());
-    std::unique_ptr<char[]> videoDeviceSelected(mMainWin->mMegaChatApi->getVideoDeviceSelected());
+    std::unique_ptr<char[]> videoDeviceSelected(mMainWin->mMegaChatApi->getCameraDeviceIdSelected());
     for (int i = 0; i < videoInDevices->size(); i++)
     {
         ui->videoInCombo->addItem(videoInDevices->get(i), videoInDevices->get(i));
@@ -37,10 +37,10 @@ void ChatSettingsDialog::on_buttonBox_clicked(QAbstractButton*)
 #ifndef KARERE_DISABLE_WEBRTC
 void ChatSettingsDialog::setDevices(const std::string &videoDevice)
 {
-    std::unique_ptr<char[]> videoDeviceSelected(mMainWin->mMegaChatApi->getVideoDeviceSelected());
+    std::unique_ptr<char[]> videoDeviceSelected(mMainWin->mMegaChatApi->getCameraDeviceIdSelected());
     if (videoDevice != videoDeviceSelected.get())
     {
-        mMainWin->mMegaChatApi->setChatVideoInDevice(videoDevice.c_str());
+        mMainWin->mMegaChatApi->setCameraInDevice(videoDevice.c_str());
     }
 }
 #endif
