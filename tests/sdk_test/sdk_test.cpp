@@ -567,6 +567,9 @@ void MegaChatApiTest::TearDown()
     string name = string(ti->test_suite_name()) + '.' + ti->name();
     LOG_info << "Test " << name << ": TearDown starting.";
 
+    // perform cleanup actions
+    testGlobalCleanup();
+
     for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
     {
         // 1. clear and leave unused chatrooms
@@ -798,6 +801,99 @@ bool MegaChatApiTest::exitWait(ExitBoolFlags& eF, const bool waitForAll) const
         ? eF.allEqualTo(true)
         : eF.anyEqualTo(true);
 };
+
+void MegaChatApiTest::testGlobalCleanup()
+{
+    LOG_debug << "Clearing contacts\n";
+    clearContacts();
+
+    LOG_debug << "Clearing contact requests\n";
+    clearContactRequests();
+}
+
+void MegaChatApiTest::clearContacts()
+{
+    for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
+    {
+        for (unsigned int j = 0; j < NUM_ACCOUNTS; ++j)
+        {
+            if (i == j)
+            {
+                continue;
+            }
+
+            if (!megaApi[i] || !megaApi[j] || !megaApi[i]->isLoggedIn() ||
+                !megaApi[j]->isLoggedIn())
+            {
+                continue;
+            }
+
+            std::unique_ptr<char[]> userEmail(megaApi[i]->getMyEmail());
+            if (!userEmail)
+            {
+                continue;
+            }
+
+            std::unique_ptr<::mega::MegaUser> contact(megaApi[j]->getContact(userEmail.get()));
+            if (!contact || contact->getVisibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
+            {
+                continue;
+            }
+
+            RequestTracker crtRemoveContact(megaApi[j]);
+            megaApi[j]->removeContact(contact.get(), &crtRemoveContact);
+            crtRemoveContact.waitForResult();
+        }
+    }
+}
+
+void MegaChatApiTest::clearContactRequests()
+{
+    auto clearCr = [this](const bool outgoing)
+    {
+        for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
+        {
+            if (!megaApi[i] || !megaApi[i]->isLoggedIn())
+            {
+                continue;
+            }
+
+            std::unique_ptr<MegaContactRequestList> crl(
+                outgoing ? megaApi[i]->getOutgoingContactRequests() :
+                           megaApi[i]->getIncomingContactRequests());
+
+            if (!crl)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < crl->size(); ++j)
+            {
+                if (const auto cr = crl->get(j); cr)
+                {
+                    if (outgoing)
+                    {
+                        sendOutgoingContactRequest(i,
+                                                   MEGACHAT_INVALID_INDEX,
+                                                   cr->getTargetEmail(),
+                                                   "Test cleanup removing outgoing contact request",
+                                                   MegaContactRequest::INVITE_ACTION_DELETE);
+                    }
+                    else
+                    {
+                        replyIncomingContactRequest(MEGACHAT_INVALID_INDEX,
+                                                    i,
+                                                    std::unique_ptr<MegaContactRequest>(cr->copy()),
+                                                    MegaContactRequest::REPLY_ACTION_DENY);
+                    }
+                }
+            }
+
+        }
+    };
+    clearCr(true /*outgoing contact requests*/);
+    clearCr(false /*incoming contact requests*/);
+}
 
 bool MegaChatApiTest::waitForMultiResponse(ExitBoolFlags& eF, bool waitForAll, unsigned int timeout) const
 {
@@ -1040,7 +1136,7 @@ TEST_F(MegaChatApiTest, BasicTest)
     mData.mAccounts.emplace(a1, a1Uh);
     mData.mAccounts.emplace(a2, a2Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     // set chat selection criteria
@@ -1284,7 +1380,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     mData.mAccounts.emplace(a1, a1Uh);
     mData.mAccounts.emplace(a2, a2Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test RaiseHand (lite)";
@@ -1722,9 +1818,9 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     mData.mAccounts.emplace(a2, a2Uh);
     mData.mAccounts.emplace(a3, a3Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a2, a3));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
     ASSERT_NO_FATAL_FAILURE(inviteToChat(a1, a2, a2Uh, crl.get()));
     ASSERT_NO_FATAL_FAILURE(inviteToChat(a1, a3, a3Uh, crl.get()));
@@ -1925,9 +2021,9 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     mData.mAccounts.emplace(a2, a2Uh);
     mData.mAccounts.emplace(a3, a3Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a2, a3));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     // set chat selection criteria
@@ -2055,7 +2151,7 @@ TEST_F(MegaChatApiTest, RejectCall)
     mData.mAccounts.emplace(a1, a1Uh);
     mData.mAccounts.emplace(a2, a2Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     // set chat selection criteria
@@ -2533,7 +2629,7 @@ TEST_F(MegaChatApiTest, EditAndDeleteMessages)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -2612,7 +2708,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
         user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
@@ -3048,7 +3144,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
     }
     }
@@ -3194,7 +3290,7 @@ TEST_F(MegaChatApiTest, Reactions)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
         user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
@@ -3345,7 +3441,7 @@ TEST_F(MegaChatApiTest, DISABLED_OfflineMode)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
         user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
@@ -3500,7 +3596,7 @@ TEST_F(MegaChatApiTest, ClearHistory)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -3672,7 +3768,7 @@ TEST_F(MegaChatApiTest, Attachment)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -3830,7 +3926,7 @@ TEST_F(MegaChatApiTest, LastMessage)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -3954,7 +4050,7 @@ TEST_F(MegaChatApiTest, SendContact)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -4088,7 +4184,7 @@ TEST_F(MegaChatApiTest, GroupLastMessage)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
         user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
@@ -4332,7 +4428,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     // Ensure contacts
     if (!areContact(a1, b))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, b));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, b));
     }
 
     // Get a group chatroom with {a1, b}
@@ -4565,7 +4661,7 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     std::unique_ptr<MegaUser>user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         user.reset(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     }
 
@@ -5053,7 +5149,7 @@ TEST_F(MegaChatApiTest, Calls)
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
@@ -5277,7 +5373,7 @@ TEST_F(MegaChatApiTest, DISABLED_ManualCalls)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
 
@@ -5541,7 +5637,7 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     // Get a group chatroom with both users
@@ -6229,9 +6325,9 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     mData.mAccounts.emplace(a2, a2Uh);
     mData.mAccounts.emplace(a3, a3Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a2, a3));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     // remove when we bump to SFU v4 protocol
@@ -6428,7 +6524,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
 
     if (!areContact(a1, a2))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     // select/create a chatroom with speak request enabled
@@ -6750,16 +6846,9 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     std::unique_ptr<char[]> tertiarySession(login(a3));  // user C
-    const auto ensureContact = [this](unsigned int u1, unsigned int u2)
-    {
-        if (!areContact(u1, u2))
-        {
-            ASSERT_NO_FATAL_FAILURE(makeContact(u1, u2));
-        }
-    };
-    ASSERT_NO_FATAL_FAILURE(ensureContact(a1, a2));
-    ASSERT_NO_FATAL_FAILURE(ensureContact(a1, a3));
-    ASSERT_NO_FATAL_FAILURE(ensureContact(a2, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a2, a3));
 
     LOG_debug << "\tGet or create a group chatroom with all users";
     const auto getContactUserHandle = [this](const auto src, const auto target) -> MegaChatHandle
@@ -7000,7 +7089,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     // Get a group chatroom with both users
@@ -7546,11 +7635,7 @@ TEST_F(MegaChatApiTest, EditMessageFromDifferentSender)
     ASSERT_TRUE(sessionPrimary.get()) << "User A login failed";
     std::unique_ptr<char[]> sessionSecondary {login(a2)};
     ASSERT_TRUE(sessionSecondary.get()) << "User B login failed";
-
-    if (!areContact(a1, a2))
-    {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
-    }
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
 
     LOG_debug << "\tGet or create a peer to peer chatroom with both users";
     MegaChatHandle chatId = getPeerToPeerChatRoom(a1, a2);
@@ -7624,7 +7709,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
 
     if (!areContact(a1, a2))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
@@ -8279,7 +8364,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         user.reset(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
         ASSERT_TRUE(user) << "Secondary account is not a contact of primary account yet";
     }
@@ -8635,7 +8720,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -8836,7 +8921,7 @@ void MegaChatApiTest::initChat(unsigned int a1, unsigned int a2, std::unique_ptr
     user.reset(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     chatid = getPeerToPeerChatRoom(a1, a2);
@@ -8887,37 +8972,148 @@ int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChat
     return chatroomListener->msgCount[accountIndex];
 }
 
-void MegaChatApiTest::makeContact(const unsigned int a1, const unsigned int a2)
+void MegaChatApiTest::sendOutgoingContactRequest(const unsigned int invitorIdx,
+                                                 const unsigned int invitedIdx,
+                                                 const std::string& email,
+                                                 const std::string& msg,
+                                                 const int action)
 {
-    if (areContact(a1, a2)) { return; }
-    const std::string contactRequestMessage = "Contact Request Message";
-    bool* flagContactRequestUpdatedSecondary = &mContactRequestUpdated[a2];
-    *flagContactRequestUpdatedSecondary = false;
-    RequestTracker rtInvite(megaApi[a1]);
-    // a1 sends contact request to a2
-    megaApi[a1]->inviteContact(account(a2).getEmail().c_str(),
-                               contactRequestMessage.c_str(),
-                               MegaContactRequest::INVITE_ACTION_ADD,
-                               &rtInvite);
+    clearTemporalVars();
+    ExitBoolFlags eF;
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitorIdx, eF, "ContactRequestUpdated", false));
 
-    ASSERT_EQ(rtInvite.waitForResult(), API_OK) << "Error invite contact. Error: " << rtInvite.getErrorString();
-    ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedSecondary)) << "Expired timeout for receive contact request at a2";
-    ASSERT_NO_FATAL_FAILURE(getContactRequest(a2, false));
-    ASSERT_TRUE(mContactRequest[a2]) << "Contact request not received for a2";
+    // if invited is not a logged in account in current automated tests execution we do not want to
+    // wait for response for that "account"
+    if (invitedIdx != MEGACHAT_INVALID_INDEX)
+    {
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(invitedIdx, eF, "ContactRequestUpdated", false));
+    }
 
-    // a2 replies contact request
-    bool* flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
-    *flagContactRequestUpdatedPrimary = false;
+    waitForAction(1, /* just one attempt */
+                  eF,
+                  "Send outgoing contact request",
+                  true /* wait for all exit flags */,
+                  true /* reset flags */,
+                  minTimeout * 2, // 2 min
+                  [this, invitorIdx, email, msg, action]()
+                  {
+                      RequestTracker rtInvite(megaApi[invitorIdx]);
+                      megaApi[invitorIdx]->inviteContact(email.c_str(),
+                                                         msg.c_str(),
+                                                         action,
+                                                         &rtInvite);
 
-    bool* usersUpdateA1 = &mUsersUpdate[a1]; *usersUpdateA1 = false;
-    bool* usersUpdateA2 = &mUsersUpdate[a2]; *usersUpdateA2 = false;
+                      ASSERT_EQ(rtInvite.waitForResult(), MegaChatError::ERROR_OK)
+                          << "Failed to send outgoing contact request to " << email;
+                  });
+}
 
-    RequestTracker rtReplyCR(megaApi[a2]);
-    megaApi[a2]->replyContactRequest(mContactRequest[a2].get(), MegaContactRequest::REPLY_ACTION_ACCEPT, &rtReplyCR);
-    ASSERT_EQ(rtReplyCR.waitForResult(), API_OK) << "Error reply contact request. Error: " << rtReplyCR.getErrorString();
-    ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedPrimary)) << "Expired timeout for receive contact request reply at a1";
-    ASSERT_TRUE(waitForResponse(usersUpdateA1)) << "Expired timeout for a2 as contact at a1";
-    ASSERT_TRUE(waitForResponse(usersUpdateA2)) << "Expired timeout for a1 as contact at a2";
+void MegaChatApiTest::replyIncomingContactRequest(const unsigned int invitorIdx,
+                                                  const unsigned int invitedIdx,
+                                                  std::unique_ptr<MegaContactRequest> req,
+                                                  const int action)
+{
+    clearTemporalVars();
+    ASSERT_TRUE(req) << "Invalid MegaContactRequest";
+
+    ExitBoolFlags eF;
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitedIdx, eF, "ContactRequestUpdated", false));
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitedIdx, eF, "UsersUpdate", false));
+
+    // if invitor is not a logged in account in current automated tests execution we do not want to
+    // wait for response for that "account"
+    if (invitorIdx != MEGACHAT_INVALID_INDEX)
+    {
+        ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitorIdx, eF, "UsersUpdate", false));
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(invitorIdx, eF, "ContactRequestUpdated", false));
+    }
+
+    waitForAction(1, /* just one attempt */
+                  eF,
+                  "Reply incoming contact request",
+                  true /* wait for all exit flags */,
+                  true /* reset flags */,
+                  minTimeout * 2, // 2 min
+                  [this, invitedIdx, r = req.get(), action]()
+                  {
+                      RequestTracker rtReply(megaApi[invitedIdx]);
+                      megaApi[invitedIdx]->replyContactRequest(r, action, &rtReply);
+
+                      ASSERT_EQ(rtReply.waitForResult(), MegaChatError::ERROR_OK)
+                          << "Failed to reply incoming contact request from "
+                          << r->getSourceEmail();
+                  });
+}
+
+void MegaChatApiTest::makeContacts(const unsigned int invitorIdx, const unsigned int invitedIdx)
+{
+    const std::string& invitorEmail{account(invitorIdx).getEmail()};
+    const std::string& invitedEmail{account(invitedIdx).getEmail()};
+
+    auto [areContacts, visibility] = areTestAccountsContacts(invitorIdx, invitedIdx);
+    if (areContacts && visibility == MegaUser::VISIBILITY_VISIBLE)
+    {
+        LOG_debug << "makeContacts: " << invitorEmail << " (invitor) and " << invitedEmail
+                  << " (invited), are already contacts";
+        return;
+    }
+
+    const bool canBeContacts = areContacts || visibility == MegaUser::VISIBILITY_HIDDEN;
+    ASSERT_TRUE(canBeContacts)
+        << "makeContacts: Both accounts cannot be contacts, as invited account visibility is:"
+        << visibility;
+
+    // Invitor sends outgoing contact request (if there's no one)
+    auto outGoingCr = getContactRequestWith(invitorIdx, true /*outgoing*/, invitedEmail);
+    if (!outGoingCr)
+    {
+        auto incomingCr = getContactRequestWith(invitedIdx, false /*outgoing*/, invitorEmail);
+        ASSERT_TRUE(!incomingCr)
+            << invitedEmail << " (invited) already has an incoming contact request from " << invitorEmail
+            << " (invitor) account, but invitor doesn't have an outgoing contact request";
+
+        LOG_debug << "makeContacts: " << invitorEmail << " sends outgoing contact request to "
+                  << invitedEmail;
+
+        ASSERT_NO_FATAL_FAILURE(sendOutgoingContactRequest(invitorIdx,
+                                                           invitedIdx,
+                                                           invitedEmail,
+                                                           "I want to invite you to MEGA",
+                                                           MegaContactRequest::INVITE_ACTION_ADD))
+            << "makeContacts: cannot send outgoing contact request to " << invitedEmail;
+    }
+
+    // Invited replies contact request (if there's an existing incoming contact request)
+    auto incomingCr = getContactRequestWith(invitedIdx, false /*outgoing*/, invitorEmail);
+    ASSERT_TRUE(incomingCr) << invitedEmail
+                            << " (invited) doesn't have an incoming contact request from "
+                            << invitorEmail << " (invitor) account and it should";
+
+    LOG_debug << "makeContacts: " << invitedEmail << " replies to incoming contact request from "
+              << invitorEmail;
+
+    ASSERT_NO_FATAL_FAILURE(replyIncomingContactRequest(invitorIdx,
+                                                        invitedIdx,
+                                                        std::move(incomingCr),
+                                                        MegaContactRequest::REPLY_ACTION_ACCEPT))
+        << "makeContacts: cannot reply incoming contact request from " << invitorEmail;
+}
+
+std::pair<bool, int> MegaChatApiTest::areTestAccountsContacts(unsigned int invitorIdx,
+                                                              unsigned int invitedIdx) const
+{
+    const std::string& invitedEmail{account(invitedIdx).getEmail()};
+    std::unique_ptr<MegaUser> invitedUser(megaApi[invitorIdx]->getContact(invitedEmail.c_str()));
+    if (!invitedUser)
+    {
+        return std::make_pair(false, MegaUser::VISIBILITY_UNKNOWN);
+    }
+    else
+    {
+        return std::make_pair(true, invitedUser->getVisibility());
+    }
 }
 
 bool MegaChatApiTest::areContact(unsigned int a1, unsigned int a2)
@@ -10132,6 +10328,38 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     delete crl;
 }
 
+std::unique_ptr<MegaContactRequest>
+    MegaChatApiTest::getContactRequestWith(unsigned int idx,
+                                           bool outgoing,
+                                           std::string_view email) const
+{
+    const std::unique_ptr<MegaContactRequestList> crl{std::invoke(
+        [&]()
+        {
+            return outgoing ? megaApi[idx]->getOutgoingContactRequests() :
+                              megaApi[idx]->getIncomingContactRequests();
+        })};
+
+    if (crl)
+    {
+        for (int i = 0; i < crl->size(); ++i)
+        {
+            const MegaContactRequest* cr = crl->get(i);
+            if (!cr)
+            {
+                continue;
+            }
+
+            const auto& auxEmail = outgoing ? cr->getTargetEmail() : cr->getSourceEmail();
+            if (!email.compare(auxEmail))
+            {
+                return std::unique_ptr<MegaContactRequest>(cr->copy());
+            }
+        }
+    }
+    return nullptr;
+}
+
 int MegaChatApiTest::purgeLocalTree(const fs::path& path)
 {
     try
@@ -10561,6 +10789,7 @@ void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestLi
     ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onContactRequestsUpdate()";
 
     mContactRequestUpdated[apiIndex] = true;
+    boolVars().updateIfExists(apiIndex, "ContactRequestUpdated", true);
 }
 
 void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList)
@@ -10569,6 +10798,7 @@ void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* 
 
     unsigned int accountIndex = getMegaApiIndex(api);
     mUsersUpdate[accountIndex] = true;
+    boolVars().updateIfExists(accountIndex, "UsersUpdate", true);
     ASSERT_NE(accountIndex, UINT_MAX) << "MegaChatApiTest::onUsersUpdate()";
     for (int i = 0; i < userList->size(); i++)
     {

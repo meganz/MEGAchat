@@ -576,6 +576,27 @@ public:
     void postLog(const std::string &msg);
 
 protected:
+    // Cleanup functions
+    //--------------------------------------------------------------------------------------
+
+    /**
+     * @brief Perform cleanup on automated tests accounts.
+     */
+    void testGlobalCleanup();
+
+    /**
+     * @brief Removes all contacts for all involved accounts in automated tests
+     */
+    void clearContacts();
+
+    /**
+     * @brief Remove all incoming and outgoing contact requests for all involved accounts in
+     * automated tests. All outgoing contact requests are deleted, and all incoming contact
+     * requests are rejected.
+     */
+    void clearContactRequests();
+    //--------------------------------------------------------------------------------------
+
     // check if any/all flags in eF has been set true
     bool exitWait(ExitBoolFlags& eF, const bool waitForAll) const;
     // deprecated: replace current usages of this method by prototype above
@@ -653,7 +674,66 @@ protected:
      * @param chatroomListener TestChatRoomListener that track MegaChatRoomListener events
      */
     int loadHistory(const unsigned int accountIndex, const megachat::MegaChatHandle chatid, TestChatRoomListener* chatroomListener);
-    void makeContact(const unsigned int a1, const unsigned int a2);
+
+    /**
+     * @brief Invite another person to be your MEGA contact
+     *
+     * @param invitorIdx index of account that sent contact request
+     * @param invitedIdx index of account that received contact request
+     * if MEGACHAT_INVALID_INDEX is provided this param will be ignored.
+     * It's useful when invited account don't participate in automated tests.
+     *
+     * @param email of the target account of contact request
+     * @param msg Message for the user (can be NULL)
+     * @param action Action for this contact request. Valid values are:
+     * - MegaContactRequest::INVITE_ACTION_ADD = 0
+     * - MegaContactRequest::INVITE_ACTION_DELETE = 1
+     * - MegaContactRequest::INVITE_ACTION_REMIND = 2
+     */
+    void sendOutgoingContactRequest(const unsigned int invitorIdx,
+                                    const unsigned int invitedIdx,
+                                    const std::string& email,
+                                    const std::string& msg,
+                                    const int action);
+
+    /**
+     * @brief Reply to an incoming contact request
+     *
+     * @param invitorIdx index of account that sent contact request
+     * if MEGACHAT_INVALID_INDEX is provided this param will be ignored.
+     * It's useful when invited account don't participate in automated tests.
+     *
+     * @param invitedIdx index of account that received contact request
+     * @param req MegaContactRequest that represents incoming contact request. You can get your
+     * pending contact requests using MegaApi::getIncomingContactRequests
+     * @param action Action for this contact request. Valid values are:
+     * - MegaContactRequest::REPLY_ACTION_ACCEPT = 0
+     * - MegaContactRequest::REPLY_ACTION_DENY = 1
+     * - MegaContactRequest::REPLY_ACTION_IGNORE = 2
+     *
+     */
+    void replyIncomingContactRequest(const unsigned int invitorIdx,
+                                     const unsigned int invitedIdx,
+                                     std::unique_ptr<mega::MegaContactRequest> req,
+                                     const int action);
+
+    /**
+     * @brief This function makes that invitor and invited accounts becomes contacts
+     *
+     * @param invitorIdx index of account that sends contact request
+     * @param invitedIdx index of account that receives contact request
+     */
+    void makeContacts(const unsigned int invitorIdx, const unsigned int invitedIdx);
+
+    /**
+     * @brief Check if two accounts are contacts
+     *
+     * @param a1 index of first account
+     * @param a2 index of decond account
+     *
+     * @return a pair of bool (true if contacts, otherwise false) with int (contact visibility)
+     */
+    std::pair<bool, int> areTestAccountsContacts(const unsigned int invitorIdx, const unsigned int invitedIdx) const;
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
     megachat::MegaChatHandle getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, megachat::MegaChatPeerList* peers);
@@ -882,6 +962,19 @@ protected:
     bool importNode(int accountIndex, ::mega::MegaNode* node, const std::string& destinationName);
 
     void getContactRequest(unsigned int accountIndex, bool outgoing, int expectedSize = 1);
+
+    /**
+     * @brief getContactRequestWith
+     * @param idx Index of the account where we want to get the contact request
+     * @param outgoing If true this function will search for an outgoing contact request, otherwise
+     * an incoming contact request
+     * @param email Target email in case of outgoing contact request and Source email in case of
+     * incoming contact request
+     * @return a Unique pointer to the MegaContactRequest
+     */
+    std::unique_ptr<mega::MegaContactRequest> getContactRequestWith(const unsigned int idx,
+                                                                    const bool outgoing,
+                                                                    const std::string_view email) const;
 
     static int purgeLocalTree(const std::filesystem::path& path);
     void purgeCloudTree(unsigned int accountIndex, ::mega::MegaNode* node);
