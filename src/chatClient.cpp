@@ -5595,15 +5595,7 @@ std::string InitStats::onCompleted(unsigned long long numNodes, size_t numChats,
 
 mega::dstime InitStats::currentTime()
 {
-#if defined(_WIN32) && defined(_MSC_VER)
-    struct __timeb64 tb;
-    _ftime64(&tb);
-    return static_cast<mega::dstime>((tb.time * 1000) + (tb.millitm));
-#else
-    timespec ts;
-    mega::m_clock_getmonotonictime(&ts);
-    return static_cast<uint32_t>((ts.tv_sec * 1000 + ts.tv_nsec / 1000000));
-#endif
+    return mega::m_clock_getmonotonictimeDS();
 }
 
 void InitStats::shardStart(uint8_t stage, uint8_t shard)
@@ -5830,11 +5822,11 @@ std::string InitStats::toJson()
                 jSonShard.AddMember(rapidjson::Value("sh"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage elapsed time
-                jsonValue.SetInt(shardStats.elapsed);
+                jsonValue.SetUint64(shardStats.elapsed);
                 jSonShard.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage elapsed time
-                jsonValue.SetInt(shardStats.maxElapsed);
+                jsonValue.SetUint64(shardStats.maxElapsed);
                 jSonShard.AddMember(rapidjson::Value("max"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage retries
