@@ -29,23 +29,20 @@ pipeline {
         }
         stage('Build MEGAchat'){
             environment{
+                VCPKGPATH = "/opt/vcpkg"
+                BUILD_DIR = "build_dir"
                 WEBRTC_SRC="/home/jenkins/webrtc/src"
-                PATH = "/home/jenkins/tools/depot_tools:${env.PATH}"
             }
             steps{
                 dir(megachat_sources_workspace){
                     sh """
                         sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS}#g" tests/sdk_test/sdk_test.h
-                        mkdir -p build
                     """
-                }
-                dir(sdk_sources_workspace){
-                    sh """
-                        ./autogen.sh
-                        ./configure --disable-tests --enable-chat --enable-shared --without-pdfium --without-ffmpeg
-                        sed -i "s#nproc#echo 1#" bindings/qt/build_with_webrtc.sh
-                        cd bindings/qt && bash build_with_webrtc.sh all withExamples
-                    """
+                    sh "echo Building SDK"
+                    sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR}"
+                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j2"
+
                 }
 
             }
