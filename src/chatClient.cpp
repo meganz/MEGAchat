@@ -3209,12 +3209,14 @@ void ChatRoomList::removeRoomPreview(Id chatid)
     auto it = find(chatid);
     if (it == end())
     {
-        CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
+        CHATD_LOG_WARNING("%sremoveRoomPreview: room not in chat list",
+                          mKarereClient.getLoggingName());
         return;
     }
     if (!it->second->previewMode())
     {
-        CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
+        CHATD_LOG_WARNING("%sremoveRoomPreview: room is not a preview",
+                          mKarereClient.getLoggingName());
         return;
     }
 
@@ -3374,7 +3376,8 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
             // 2. logout megaChatApi;
             // 3. delete megaChatApi;
             // 4. delete megaApi.
-            CHATD_LOG_ERROR("lambda in marshallCall(): db was closed, cannot notify chats");
+            CHATD_LOG_ERROR("%slambda in marshallCall(): db was closed, cannot notify chats",
+                            getLoggingName());
             assert(db.isOpen());
             return;
         }

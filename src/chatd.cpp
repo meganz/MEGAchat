@@ -128,20 +128,25 @@ Client::Client(karere::Client *aKarereClient) :
                 {
                 case '1':
                 {
-                    CHATD_LOG_DEBUG("USER_ATTR_RICH_PREVIEWS user attribute enabled");
+                    CHATD_LOG_DEBUG("%sUSER_ATTR_RICH_PREVIEWS user attribute enabled",
+                                    client->getLoggingName());
                     client->mRichLinkState = kRichLinkEnabled;
                     break;
                 }
 
                 case '0':
                 {
-                    CHATD_LOG_DEBUG("USER_ATTR_RICH_PREVIEWS user attribute disabled");
+                    CHATD_LOG_DEBUG("%sUSER_ATTR_RICH_PREVIEWS user attribute disabled",
+                                    client->getLoggingName());
                     client->mRichLinkState = kRichLinkDisabled;
                     break;
                 }
 
                 default:
-                    CHATD_LOG_WARNING("Unexpected value for user attribute USER_ATTR_RICH_PREVIEWS - value: %c", *tmp);
+                    CHATD_LOG_WARNING(
+                        "%sUnexpected value for user attribute USER_ATTR_RICH_PREVIEWS - value: %c",
+                        client->getLoggingName(),
+                        *tmp);
                     break;
                 }
             }
@@ -194,7 +199,10 @@ Chat& Client::createChat(const Id& chatid, int shardNo,
     auto chatit = mChatForChatId.find(chatid);
     if (chatit != mChatForChatId.end())
     {
-        CHATD_LOG_WARNING("Client::createChat: Chat with chatid %s already exists, returning existing instance", ID_CSTR(chatid));
+        CHATD_LOG_WARNING(
+            "%sClient::createChat: Chat with chatid %s already exists, returning existing instance",
+            getLoggingName(),
+            ID_CSTR(chatid));
         return *chatit->second;
     }
 
@@ -369,7 +377,7 @@ void Client::updateRetentionCheckTs(time_t nextCheckTs, bool force)
     {
         setTimer = true;
         mRetentionCheckTs = static_cast<uint32_t>(nextCheckTs);
-        CHATD_LOG_DEBUG("set retention history check ts: %ld", nextCheckTs);
+        CHATD_LOG_DEBUG("%sset retention history check ts: %ld", getLoggingName(), nextCheckTs);
     }
 
     if (mRetentionCheckTs && setTimer)
@@ -389,7 +397,7 @@ void Client::cancelRetentionTimer(bool resetTs)
     if (resetTs)
     {
         mRetentionCheckTs = 0;
-        CHATD_LOG_DEBUG("retention history check period reset");
+        CHATD_LOG_DEBUG("%sretention history check period reset", getLoggingName());
     }
 }
 
@@ -405,9 +413,11 @@ void Client::setRetentionTimer()
     }
 
     cancelRetentionTimer(false);
-    CHATD_LOG_DEBUG("setRetentionTimer: cancelling timer if any (keeping mRetentionCheckTs), then "
-                    "set timer for next retention history check to %ld (seconds):",
-                    retentionPeriod);
+    CHATD_LOG_DEBUG(
+        "%ssetRetentionTimer: cancelling timer if any (keeping mRetentionCheckTs), then "
+        "set timer for next retention history check to %ld (seconds):",
+        getLoggingName(),
+        retentionPeriod);
     auto wptr = weakHandle();
     mRetentionTimer = karere::setTimeout([this, wptr]()
     {
@@ -455,11 +465,13 @@ bool Client::areAllChatsLoggedIn(int shard)
     {
         if (shard == -1)
         {
-            CHATD_LOG_DEBUG("We are logged in to all chats");
+            CHATD_LOG_DEBUG("%sWe are logged in to all chats", getLoggingName());
         }
         else
         {
-            CHATD_LOG_DEBUG("We are logged in to all chats for shard %d", shard);
+            CHATD_LOG_DEBUG("%sWe are logged in to all chats for shard %d",
+                            getLoggingName(),
+                            shard);
         }
     }
 
@@ -1309,13 +1321,17 @@ promise::Promise<void> Connection::fetchUrl()
     {
         if (wptr.deleted())
         {
-            CHATD_LOG_DEBUG("Chatd URL request completed, but chatd connection was deleted");
+            CHATD_LOG_DEBUG("%sChatd URL request completed, but chatd connection was deleted",
+                            mChatdClient.getLoggingName());
             return;
         }
 
         if (!result->getLink())
         {
-            CHATD_LOG_ERROR("[shard %d]: %s: No chatd URL received from API", mShardNo, ID_CSTR(karere::Id(*mChatIds.begin())));
+            CHATD_LOG_ERROR("%s[shard %d]: %s: No chatd URL received from API",
+                            mChatdClient.getLoggingName(),
+                            mShardNo,
+                            ID_CSTR(karere::Id(*mChatIds.begin())));
             return;
         }
 
@@ -1815,7 +1831,8 @@ void Chat::onDisconnect()
         rtcModule::ICall *call = mChatdClient.mKarereClient->rtc->findCallByChatid(mChatId);
         if (call)
         {
-            CHATD_LOG_ERROR("chatd::onDisconnect stop sfu reconnection and remove participants");
+            CHATD_LOG_ERROR("%schatd::onDisconnect stop sfu reconnection and remove participants",
+                            mChatdClient.getLoggingName());
             call->onDisconnectFromChatd();
         }
     }
@@ -3577,7 +3594,8 @@ void Chat::requestRichLink(Message &message)
 
                 if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
                 {
-                    CHATD_LOG_ERROR("requestRichLink: Json is not valid");
+                    CHATD_LOG_ERROR("%srequestRichLink: Json is not valid",
+                                    mChatdClient.getLoggingName());
                     return;
                 }
 
@@ -3928,7 +3946,7 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     auto msgCmd = new MsgCommand(it->opcode(), mChatId, client().myHandle(),
          msg->id(), msg->ts, msg->updated);
 
-    CHATD_LOG_CRYPTO_CALL("Calling ICrypto::encrypt()");
+    CHATD_LOG_CRYPTO_CALL("%sCalling ICrypto::encrypt()", mChatdClient.getLoggingName());
     auto pms = mCrypto->msgEncrypt(msg, it->recipients, msgCmd);
     // if using current keyid or original keyid from msg, promise is resolved immediately
     if (pms.succeeded())
@@ -4525,7 +4543,9 @@ void Client::msgConfirm(const Id& msgxid, const Id& msgid, uint32_t timestamp)
         if (chat.second->msgConfirm(msgxid, msgid, timestamp) != CHATD_IDX_INVALID)
             return;
     }
-    CHATD_LOG_DEBUG("msgConfirm: No chat knows about message transaction id %s", ID_CSTR(msgxid));
+    CHATD_LOG_DEBUG("%smsgConfirm: No chat knows about message transaction id %s",
+                    getLoggingName(),
+                    ID_CSTR(msgxid));
 }
 
 //called when MSGID is received
@@ -4657,7 +4677,12 @@ Idx Chat::msgConfirm(const Id& msgxid, const Id& msgid, uint32_t timestamp)
 #endif
         mDbInterface->updateSendingItemsMsgidAndOpcode(msgxid, msgid);
         assert(countDb == count);
-        CHATD_LOG_DEBUG("msgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%s to msgid=%s of %d message/s in the sending queue", ID_CSTR(msgxid), ID_CSTR(msgid), count);
+        CHATD_LOG_DEBUG("%smsgConfirm: updated opcode MSGUPDx to MSGUPD and the msgxid=%s to "
+                        "msgid=%s of %d message/s in the sending queue",
+                        mChatdClient.getLoggingName(),
+                        ID_CSTR(msgxid),
+                        ID_CSTR(msgid),
+                        count);
     }
 
     CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx, tsUpdated);
@@ -5322,7 +5347,9 @@ bool Chat::hasMoreHistoryInDb() const
     const Message* msg = findOrNull(lownum());
     if (!msg)
     {
-        CHATD_LOG_ERROR("hasMoreHistoryInDb: Can't find msg in RAM with Idx: %d", lownum());
+        CHATD_LOG_ERROR("%shasMoreHistoryInDb: Can't find msg in RAM with Idx: %d",
+                        mChatdClient.getLoggingName(),
+                        lownum());
         assert(msg);
         return true;
     }
@@ -5597,7 +5624,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             return false;
         }
     }
-    CHATD_LOG_CRYPTO_CALL("Calling ICrypto::decrypt()");
+    CHATD_LOG_CRYPTO_CALL("%sCalling ICrypto::decrypt()", mChatdClient.getLoggingName());
     auto pms = mCrypto->msgDecrypt(&msg);
     if (pms.succeeded())
     {
@@ -6333,8 +6360,10 @@ void Chat::setOnlineState(ChatState state)
                         // this should not happen, as if we are still joined into call, we should
                         // have received JOINEDCALL|CALLSTATE with own userid
                         CHATD_LOG_ERROR(
-                            "chatd::setOnlineState (kChatStateOnline) -> we are still joined call "
+                            "%schatd::setOnlineState (kChatStateOnline) -> we are still joined "
+                            "call "
                             "%s, but no JOINEDCALL nor CALLSTATE received for own userid: %s",
+                            mChatdClient.getLoggingName(),
                             call->getCallid().toString().c_str(),
                             mChatdClient.mMyHandle.toString().c_str());
                         assert(false);
@@ -6343,9 +6372,11 @@ void Chat::setOnlineState(ChatState state)
                     // if participants are empty, there's no users currently JOINED to call upon
                     // HISTDONE, so we can assume that there's no participants on call, and we have
                     // to orderly disconnect from SFU (if required) and destroy call
-                    CHATD_LOG_DEBUG("chatd::setOnlineState (kChatStateOnline) -> removing call: %s "
-                                    "with no participants",
-                                    call->getCallid().toString().c_str());
+                    CHATD_LOG_DEBUG(
+                        "%schatd::setOnlineState (kChatStateOnline) -> removing call: %s "
+                        "with no participants",
+                        mChatdClient.getLoggingName(),
+                        call->getCallid().toString().c_str());
                     mChatdClient.mKarereClient->rtc->onDestroyCall(
                         call,
                         rtcModule::EndCallReason::kFailed,
@@ -6355,7 +6386,8 @@ void Chat::setOnlineState(ChatState state)
                          call->getState() <= rtcModule::CallState::kStateInProgress)
                 {
                     CHATD_LOG_DEBUG(
-                        "chatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ");
+                        "%schatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ",
+                        mChatdClient.getLoggingName());
                     call->reconnectToSfu();
                 }
             }
@@ -6551,7 +6583,7 @@ void Client::leave(const Id& chatid)
     auto conn = mConnectionForChatId.find(chatid);
     if (conn == mConnectionForChatId.end())
     {
-        CHATD_LOG_ERROR("Client::leave: Unknown chat %s", ID_CSTR(chatid));
+        CHATD_LOG_ERROR("%sClient::leave: Unknown chat %s", getLoggingName(), ID_CSTR(chatid));
         return;
     }
     conn->second->mChatIds.erase(chatid);
