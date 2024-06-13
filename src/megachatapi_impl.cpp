@@ -3928,11 +3928,11 @@ void MegaChatApiImpl::setLoggingName(const char* loggingName)
     }
     if (loggingName)
     {
-        mClient->mClientname = std::string(loggingName) + " ";
+        mClient->api.mClientname = std::string(loggingName) + " ";
     }
     else
     {
-        mClient->mClientname.clear();
+        mClient->api.mClientname.clear();
     }
 }
 

@@ -1106,7 +1106,7 @@ public:
      */
     const char* getLoggingName() const
     {
-        return mClientname.c_str();
+        return api.getLoggingName();
     }
 
     uint64_t myIdentity() const { return mMyIdentity; }

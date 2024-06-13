@@ -538,6 +538,11 @@ public:
     void onRemoveTrack(rtc::scoped_refptr<webrtc::RtpReceiverInterface> receiver);
     void onConnectionChange(webrtc::PeerConnectionInterface::PeerConnectionState newState);
 
+    const char* getLoggingName() const
+    {
+        return mMegaApi.getLoggingName();
+    }
+
 protected:
     /* if we are connected to chatd, this participant list will be managed exclusively by meetings related chatd commands
      * if we are disconnected from chatd (chatd connectivity lost), but still participating in a call, peerleft and peerjoin SFU commands
@@ -923,6 +928,11 @@ public:
     void enableSpeakRequestSupportForCalls(const bool enable) override;
     bool isSpeakRequestSupportEnabled() const override;
     sfu::SfuProtocol getMySfuProtoVersion() const override;
+
+    const char* getLoggingName() const
+    {
+        return mMegaApi.getLoggingName();
+    }
 
 private:
     std::map<karere::Id, std::unique_ptr<Call>> mCalls;
