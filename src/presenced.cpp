@@ -51,13 +51,15 @@ Promise<void> Client::fetchUrl()
     {
         if (wptr.deleted())
         {
-            PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+            PRESENCED_LOG_DEBUG(
+                "%sPresenced URL request completed, but presenced client was deleted",
+                getLoggingName());
             return ::promise::_Void();
         }
 
         if (!result->getLink())
         {
-            PRESENCED_LOG_DEBUG("No Presenced URL received from API");
+            PRESENCED_LOG_DEBUG("%sNo Presenced URL received from API", getLoggingName());
             return ::promise::_Void();
         }
 
@@ -77,22 +79,25 @@ Promise<void> Client::fetchUrl()
 void Client::connect()
 {
     assert (mConnState == kConnNew);
-    fetchUrl()
-    .then([this]
-    {
-        reconnect()
-        .fail([](const ::promise::Error& err)
+    fetchUrl().then(
+        [this]
         {
-            PRESENCED_LOG_DEBUG("Presenced::connect(): Error connecting to server after getting URL: %s", err.what());
+            reconnect().fail(
+                [lname = getLoggingName()](const ::promise::Error& err)
+                {
+                    PRESENCED_LOG_DEBUG(
+                        "%sPresenced::connect(): Error connecting to server after getting URL: %s",
+                        lname,
+                        err.what());
+                });
         });
-    });
 }
 
 void Client::pushPeers()
 {
     if (!mLastScsn.isValid())
     {
-        PRESENCED_LOG_WARNING("pushPeers: still not catch-up with API");
+        PRESENCED_LOG_WARNING("%spushPeers: still not catch-up with API", getLoggingName());
         return;
     }
 
@@ -114,8 +119,10 @@ void Client::wsConnectCb()
 {
     if (mConnState != kConnecting)
     {
-        PRESENCED_LOG_WARNING("Connection to Presenced has been established, but current connection state is %s, instead of connecting (as we expected)"
-                           , connStateToStr(mConnState));
+        PRESENCED_LOG_WARNING("%sConnection to Presenced has been established, but current "
+                              "connection state is %s, instead of connecting (as we expected)",
+                              getLoggingName(),
+                              connStateToStr(mConnState));
         return;
     }
 
@@ -130,7 +137,11 @@ void Client::wsConnectCb()
         if (++mConnSuceeded > kMaxConnSuceeded)
         {
             // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
-            PRESENCED_LOG_DEBUG("Limit of successful connection attempts (%u), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
+            PRESENCED_LOG_DEBUG("%sLimit of successful connection attempts (%u), was reached in a "
+                                "period of %d seconds:",
+                                getLoggingName(),
+                                kMaxConnSuceeded,
+                                kMaxConnSucceededTimeframe);
             resetConnSuceededAttempts(now);
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
@@ -147,12 +158,13 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
 
     if (mConnState == kFetchingUrl || mFetchingUrl)
     {
-        PRESENCED_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        PRESENCED_LOG_DEBUG("%swsCloseCb: previous fetch of a fresh URL is still in progress",
+                            getLoggingName());
         onSocketClose(errcode, errtype, reason);
         return;
     }
 
-    PRESENCED_LOG_DEBUG("Fetching a fresh URL");
+    PRESENCED_LOG_DEBUG("%sFetching a fresh URL", getLoggingName());
     mFetchingUrl = true;
     auto wptr = getDelTracker();
     mApi->call(&::mega::MegaApi::getChatPresenceURL)
@@ -160,7 +172,9 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
     {
         if (wptr.deleted())
         {
-            PRESENCED_LOG_ERROR("Presenced URL request completed, but presenced client was deleted");
+            PRESENCED_LOG_ERROR(
+                "%sPresenced URL request completed, but presenced client was deleted",
+                getLoggingName());
             return;
         }
 
@@ -172,7 +186,8 @@ void Client::wsCloseCb(int errcode, int errtype, const char *preason, size_t rea
             resetConnSuceededAttempts(time(nullptr));
 
             // Update DNSCache record with new URL
-            PRESENCED_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
+            PRESENCED_LOG_DEBUG("%sUpdate URL in cache, and start a new retry attempt",
+                                getLoggingName());
             mDnsCache.updateRecord(kPresencedShard, url, true);
             retryPendingConnection(true);
         }
@@ -185,27 +200,33 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 {
     if (mKarereClient->isTerminated())
     {
-        PRESENCED_LOG_WARNING("Socket close but karere client was terminated.");
+        PRESENCED_LOG_WARNING("%sSocket close but karere client was terminated.", getLoggingName());
         return;
     }
 
     if (mConnState == kDisconnected)
     {
-        PRESENCED_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
+        PRESENCED_LOG_DEBUG("%sonSocketClose: we are already in kDisconnected state",
+                            getLoggingName());
         if (!mRetryCtrl)
         {
-            PRESENCED_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            PRESENCED_LOG_ERROR("%sThere's no retry controller instance when calling onSocketClose "
+                                "in kDisconnected state",
+                                getLoggingName());
             mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state", false, static_cast<const char*>(nullptr));
             reconnect(); //start retry controller
         }
         return;
     }
 
-    PRESENCED_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
+    PRESENCED_LOG_WARNING("%sSocket close on IP %s. Reason: %s",
+                          getLoggingName(),
+                          mTargetIp.c_str(),
+                          reason.c_str());
 
     if (mConnState == kFetchingUrl)
     {
-        PRESENCED_LOG_DEBUG("Socket close while fetching URL. Ignoring...");
+        PRESENCED_LOG_DEBUG("%sSocket close while fetching URL. Ignoring...", getLoggingName());
         // it should happen only when the cached URL becomes invalid (wsResolveDNS() returns UV_EAI_NONAME
         // and it will reconnect automatically once the URL is fetched again
         return;
@@ -221,7 +242,7 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
 
     if (oldState >= kConnected)
     {
-        PRESENCED_LOG_DEBUG("Socket close at state kLoggedIn");
+        PRESENCED_LOG_DEBUG("%sSocket close at state kLoggedIn", getLoggingName());
 
         assert(!mRetryCtrl);
         reconnect(); //start retry controller
@@ -229,7 +250,10 @@ void Client::onSocketClose(int errcode, int errtype, const std::string& reason)
     else // oldState is kResolving or kConnecting
          // -> tell retry controller that the connect attempt failed
     {
-        PRESENCED_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
+        PRESENCED_LOG_DEBUG(
+            "%sSocket close and state is not kStateConnected (but %s), start retry controller",
+            getLoggingName(),
+            connStateToStr(oldState));
 
         assert(mRetryCtrl);
         assert(!mConnectPromise.succeeded());
@@ -265,7 +289,10 @@ bool Client::setPresence(Presence pres)
     if (pres == mConfig.mPresence)
         return true;
 
-    PRESENCED_LOG_DEBUG("setPresence(): %s -> %s", mConfig.mPresence.toString(), pres.toString());
+    PRESENCED_LOG_DEBUG("%ssetPresence(): %s -> %s",
+                        getLoggingName(),
+                        mConfig.mPresence.toString(),
+                        pres.toString());
 
     mConfig.mPresence = pres;
     return sendPrefs();
@@ -276,7 +303,10 @@ bool Client::setPersist(bool enable)
     if (enable == mConfig.mPersist)
         return true;
 
-    PRESENCED_LOG_DEBUG("setPersist(): %d -> %d", (int)mConfig.mPersist, (int)enable);
+    PRESENCED_LOG_DEBUG("%ssetPersist(): %d -> %d",
+                        getLoggingName(),
+                        (int)mConfig.mPersist,
+                        (int)enable);
 
     mConfig.mPersist = enable;
     return sendPrefs();
@@ -354,25 +384,35 @@ void Client::signalActivity()
     {
         if (!mConfig.mPresence.isValid())
         {
-            PRESENCED_LOG_DEBUG("signalActivity(): the current configuration is not yet received, cannot be changed");
+            PRESENCED_LOG_DEBUG("%ssignalActivity(): the current configuration is not yet "
+                                "received, cannot be changed",
+                                getLoggingName());
         }
         else if (!mConfig.mAutoawayActive)
         {
-            PRESENCED_LOG_WARNING("signalActivity(): autoaway is disabled, no need to signal user's activity");
+            PRESENCED_LOG_WARNING(
+                "%ssignalActivity(): autoaway is disabled, no need to signal user's activity",
+                getLoggingName());
         }
         else if (mConfig.mPresence != Presence::kOnline)
         {
-            PRESENCED_LOG_WARNING("signalActivity(): configured status is not online, autoaway shouldn't be used");
+            PRESENCED_LOG_WARNING(
+                "%ssignalActivity(): configured status is not online, autoaway shouldn't be used",
+                getLoggingName());
         }
         else if (mConfig.mPersist)
         {
-            PRESENCED_LOG_WARNING("signalActivity(): configured status is persistent, no need to signal user's activity");
+            PRESENCED_LOG_WARNING("%ssignalActivity(): configured status is persistent, no need to "
+                                  "signal user's activity",
+                                  getLoggingName());
         }
         return;
     }
     else if (mKarereClient->isInBackground())
     {
-        PRESENCED_LOG_WARNING("signalActivity(): app is in background, no need to signal user's activity");
+        PRESENCED_LOG_WARNING(
+            "%ssignalActivity(): app is in background, no need to signal user's activity",
+            getLoggingName());
         return;
     }
 
@@ -386,25 +426,35 @@ void Client::signalInactivity()
     {
         if (!mConfig.mPresence.isValid())
         {
-            PRESENCED_LOG_DEBUG("signalInactivity(): the current configuration is not yet received");
+            PRESENCED_LOG_DEBUG(
+                "%ssignalInactivity(): the current configuration is not yet received",
+                getLoggingName());
         }
         else if (!mConfig.mAutoawayActive)
         {
-            PRESENCED_LOG_WARNING("signalInactivity(): autoaway is disabled, no need to signal user's inactivity");
+            PRESENCED_LOG_WARNING(
+                "%ssignalInactivity(): autoaway is disabled, no need to signal user's inactivity",
+                getLoggingName());
         }
         else if (mConfig.mPresence != Presence::kOnline)
         {
-            PRESENCED_LOG_WARNING("signalInactivity(): configured status is not online, no need to signal user's inactivity");
+            PRESENCED_LOG_WARNING("%ssignalInactivity(): configured status is not online, no need "
+                                  "to signal user's inactivity",
+                                  getLoggingName());
         }
         else if (mConfig.mPersist)
         {
-            PRESENCED_LOG_WARNING("signalInactivity(): configured status is persistent, no need to signal user's inactivity");
+            PRESENCED_LOG_WARNING("%ssignalInactivity(): configured status is persistent, no need "
+                                  "to signal user's inactivity",
+                                  getLoggingName());
         }
         return;
     }
     else if (!mKarereClient->isInBackground())
     {
-        PRESENCED_LOG_WARNING("signalInactivity(): app is not in background, no need to signal user's inactivity");
+        PRESENCED_LOG_WARNING(
+            "%ssignalInactivity(): app is not in background, no need to signal user's inactivity",
+            getLoggingName());
         return;
     }
 
@@ -437,7 +487,7 @@ void Client::abortRetryController()
 
     assert(!isOnline());
 
-    PRESENCED_LOG_DEBUG("Reconnection was aborted");
+    PRESENCED_LOG_DEBUG("%sReconnection was aborted", getLoggingName());
     mRetryCtrl->abort();
     mRetryCtrl.reset();
 }
@@ -447,7 +497,8 @@ Client::reconnect()
 {
     if (mKarereClient->isTerminated())
     {
-        PRESENCED_LOG_WARNING("Reconnect attempt initiated, but karere client was terminated.");
+        PRESENCED_LOG_WARNING("%sReconnect attempt initiated, but karere client was terminated.",
+                              getLoggingName());
         assert(false);
         return ::promise::Error("Reconnect called when karere::Client is terminated", kErrorAccess, kErrorAccess);
     }
@@ -473,7 +524,9 @@ Client::reconnect()
         {
             if (wptr.deleted())
             {
-                PRESENCED_LOG_DEBUG("Reconnect attempt initiated, but presenced client was deleted.");
+                PRESENCED_LOG_DEBUG(
+                    "%sReconnect attempt initiated, but presenced client was deleted.",
+                    getLoggingName());
                 return ::promise::_Void();
             }
 
@@ -486,7 +539,7 @@ Client::reconnect()
             bool cachedIPs = mDnsCache.getIp(kPresencedShard, ipv4, ipv6);
 
             setConnState(kResolving);
-            PRESENCED_LOG_DEBUG("Resolving hostname %s...", host.c_str());
+            PRESENCED_LOG_DEBUG("%sResolving hostname %s...", getLoggingName(), host.c_str());
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mKarereClient->websocketIO, host.c_str(),
@@ -494,13 +547,17 @@ Client::reconnect()
             {
                 if (wptr.deleted())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed, but presenced client was deleted.");
+                    PRESENCED_LOG_DEBUG(
+                        "%sDNS resolution completed, but presenced client was deleted.",
+                        getLoggingName());
                     return;
                 }
 
                 if (mKarereClient->isTerminated())
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
+                    PRESENCED_LOG_DEBUG(
+                        "%sDNS resolution completed but karere client was terminated.",
+                        getLoggingName());
                     return;
                 }
 
@@ -508,24 +565,33 @@ Client::reconnect()
                 {
                     if (isOnline())
                     {
-                        PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                        PRESENCED_LOG_DEBUG("%sDNS resolution completed but ignored: connection is "
+                                            "already established using cached IP",
+                                            getLoggingName());
                         assert(cachedIPs);
                     }
                     else
                     {
-                        PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: connection was aborted");
+                        PRESENCED_LOG_DEBUG(
+                            "%sDNS resolution completed but ignored: connection was aborted",
+                            getLoggingName());
                     }
                     return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
+                    PRESENCED_LOG_DEBUG(
+                        "%sDNS resolution completed but ignored: a newer retry has already started",
+                        getLoggingName());
                     return;
                 }
                 if (mRetryCtrl->currentAttemptNo() != attemptNo)
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %lu, new: %lu)",
-                                     attemptNo, mRetryCtrl->currentAttemptNo());
+                    PRESENCED_LOG_DEBUG("%sDNS resolution completed but ignored: a newer attempt "
+                                        "is already started (old: %lu, new: %lu)",
+                                        getLoggingName(),
+                                        attemptNo,
+                                        mRetryCtrl->currentAttemptNo());
                     return;
                 }
 
@@ -534,17 +600,22 @@ Client::reconnect()
                     if (isOnline() && cachedIPs)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
-                        PRESENCED_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        PRESENCED_LOG_WARNING(
+                            "%sDNS error, but connection is established. Relaying on cached IPs...",
+                            getLoggingName());
                         return;
                     }
 
                     if (statusDNS < 0)
                     {
-                        PRESENCED_LOG_ERROR("Async DNS error in presenced. Error code: %d", statusDNS);
+                        PRESENCED_LOG_ERROR("%sAsync DNS error in presenced. Error code: %d",
+                                            getLoggingName(),
+                                            statusDNS);
                     }
                     else
                     {
-                        PRESENCED_LOG_ERROR("Async DNS error in presenced. Empty set of IPs");
+                        PRESENCED_LOG_ERROR("%sAsync DNS error in presenced. Empty set of IPs",
+                                            getLoggingName());
                     }
 
                     assert(!isOnline());
@@ -562,7 +633,8 @@ Client::reconnect()
 
                 if (!cachedIPs) // connect required DNS lookup
                 {
-                    PRESENCED_LOG_DEBUG("Hostname resolved by first time. Connecting...");
+                    PRESENCED_LOG_DEBUG("%sHostname resolved by first time. Connecting...",
+                                        getLoggingName());
                     mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
                     doConnect();
                     return;
@@ -570,11 +642,13 @@ Client::reconnect()
 
                 if (mDnsCache.isMatch(kPresencedShard, ipsv4, ipsv6))
                 {
-                    PRESENCED_LOG_DEBUG("DNS resolve matches cached IPs.");
+                    PRESENCED_LOG_DEBUG("%sDNS resolve matches cached IPs.", getLoggingName());
                 }
                 else
                 {
-                    PRESENCED_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    PRESENCED_LOG_WARNING(
+                        "%sDNS resolve doesn't match cached IPs. Forcing reconnect...",
+                        getLoggingName());
                     mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
                     retryPendingConnection(true);
                 }
@@ -584,7 +658,7 @@ Client::reconnect()
             if (statusDNS < 0)
             {
                 string errStr = "Immediate DNS error in presenced. Error code: " + std::to_string(statusDNS);
-                PRESENCED_LOG_ERROR("%s", errStr.c_str());
+                PRESENCED_LOG_ERROR("%s%s", getLoggingName(), errStr.c_str());
 
                 assert(mConnState == kResolving);
                 assert(!mConnectPromise.done());
@@ -650,7 +724,8 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
 {
     if (!mLastScsn.isValid())
     {
-        PRESENCED_LOG_DEBUG("onUsersUpdate: still catching-up with actionpackets");
+        PRESENCED_LOG_DEBUG("%sonUsersUpdate: still catching-up with actionpackets",
+                            getLoggingName());
         return;
     }
 
@@ -660,7 +735,9 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
 
     if (!usersUpdated)
     {
-        PRESENCED_LOG_DEBUG("User list up to date. scsn: %s", scsn.toString().c_str());
+        PRESENCED_LOG_DEBUG("%sUser list up to date. scsn: %s",
+                            getLoggingName(),
+                            scsn.toString().c_str());
         return;
     }
 
@@ -675,7 +752,8 @@ void Client::onUsersUpdate(::mega::MegaApi *api, ::mega::MegaUserList *usersUpda
 
         if (!mLastScsn.isValid())
         {
-            PRESENCED_LOG_DEBUG("onUsersUpdate (marshall): still catching-up with actionpackets");
+            PRESENCED_LOG_DEBUG("%sonUsersUpdate (marshall): still catching-up with actionpackets",
+                                getLoggingName());
             return;
         }
 
@@ -789,6 +867,11 @@ void Client::onEvent(::mega::MegaApi *api, ::mega::MegaEvent *event)
     }
 }
 
+const char* Client::getLoggingName() const
+{
+    return mKarereClient ? mKarereClient->getLoggingName() : "";
+}
+
 void Client::heartbeat()
 {
     // if a heartbeat is received but we are already offline...
@@ -809,7 +892,7 @@ void Client::heartbeat()
     {
         if (!sendKeepalive(now))
         {
-            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+            PRESENCED_LOG_WARNING("%sFailed to send keepalive, reconnecting...", getLoggingName());
             needReconnect = true;
         }
     }
@@ -817,7 +900,8 @@ void Client::heartbeat()
     {
         if (now - mTsLastPingSent > kKeepaliveReplyTimeout)
         {
-            PRESENCED_LOG_WARNING("Timed out waiting for KEEPALIVE response, reconnecting...");
+            PRESENCED_LOG_WARNING("%sTimed out waiting for KEEPALIVE response, reconnecting...",
+                                  getLoggingName());
             needReconnect = true;
         }
     }
@@ -825,7 +909,7 @@ void Client::heartbeat()
     {
         if (!sendKeepalive(now))
         {
-            PRESENCED_LOG_WARNING("Failed to send keepalive, reconnecting...");
+            PRESENCED_LOG_WARNING("%sFailed to send keepalive, reconnecting...", getLoggingName());
             needReconnect = true;
         }
     }
@@ -856,7 +940,9 @@ void Client::doConnect()
     assert (url.isValid());
 
     setConnState(kConnecting);
-    PRESENCED_LOG_DEBUG("Connecting to presenced using the IP: %s", mTargetIp.c_str());
+    PRESENCED_LOG_DEBUG("%sConnecting to presenced using the IP: %s",
+                        getLoggingName(),
+                        mTargetIp.c_str());
 
     bool rt = wsConnect(mKarereClient->websocketIO, mTargetIp.c_str(),
           url.host.c_str(),
@@ -866,7 +952,9 @@ void Client::doConnect()
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
     {
-        PRESENCED_LOG_DEBUG("Connection to presenced failed using the IP: %s", mTargetIp.c_str());
+        PRESENCED_LOG_DEBUG("%sConnection to presenced failed using the IP: %s",
+                            getLoggingName(),
+                            mTargetIp.c_str());
 
         string oldTargetIp = mTargetIp;
         mTargetIp.clear();
@@ -881,7 +969,7 @@ void Client::doConnect()
 
         if (mTargetIp.size())
         {
-            PRESENCED_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
+            PRESENCED_LOG_DEBUG("%sRetrying using the IP: %s", getLoggingName(), mTargetIp.c_str());
             if (wsConnect(mKarereClient->websocketIO, mTargetIp.c_str(),
                           url.host.c_str(),
                           url.port,
@@ -890,13 +978,16 @@ void Client::doConnect()
             {
                 return;
             }
-            PRESENCED_LOG_DEBUG("Connection to presenced failed using the IP: %s", mTargetIp.c_str());
+            PRESENCED_LOG_DEBUG("%sConnection to presenced failed using the IP: %s",
+                                getLoggingName(),
+                                mTargetIp.c_str());
         }        
         else
         {
             // do not close the socket, which forces a new retry attempt and turns the DNS response obsolete
             // Instead, let the DNS request to complete, in order to refresh IPs
-            PRESENCED_LOG_DEBUG("Empty cached IP. Waiting for DNS resolution...");
+            PRESENCED_LOG_DEBUG("%sEmpty cached IP. Waiting for DNS resolution...",
+                                getLoggingName());
             return;
         }
 
@@ -908,7 +999,9 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
 {
     if (mConnState == kConnNew)
     {
-        PRESENCED_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
+        PRESENCED_LOG_WARNING(
+            "%sretryPendingConnection: no connection to be retried yet. Call connect() first",
+            getLoggingName());
         return;
     }
 
@@ -916,11 +1009,14 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
     {
         if (mConnState == kFetchingUrl || mFetchingUrl)
         {
-            PRESENCED_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            PRESENCED_LOG_WARNING(
+                "%sretryPendingConnection: previous fetch of a fresh URL is still in progress",
+                getLoggingName());
             return;
         }
 
-        PRESENCED_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+        PRESENCED_LOG_WARNING("%sretryPendingConnection: fetch a fresh URL for reconnection!",
+                              getLoggingName());
 
         // abort and prevent any further reconnection attempt
         setConnState(kDisconnected);
@@ -935,7 +1031,9 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
         {
             if (wptr.deleted())
             {
-                PRESENCED_LOG_DEBUG("Presenced URL request completed, but presenced client was deleted");
+                PRESENCED_LOG_DEBUG(
+                    "%sPresenced URL request completed, but presenced client was deleted",
+                    getLoggingName());
                 return;
             }
 
@@ -946,7 +1044,7 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
     }
     else if (disconnect)
     {
-        PRESENCED_LOG_WARNING("retryPendingConnection: forced reconnection!");
+        PRESENCED_LOG_WARNING("%sretryPendingConnection: forced reconnection!", getLoggingName());
 
         setConnState(kDisconnected);
         abortRetryController();
@@ -954,7 +1052,8 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
     }
     else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
     {
-        PRESENCED_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+        PRESENCED_LOG_WARNING("%sretryPendingConnection: abort backoff and reconnect immediately",
+                              getLoggingName());
 
         assert(!isOnline());
         assert(!mHeartbeatEnabled);
@@ -963,7 +1062,9 @@ void Client::retryPendingConnection(bool disconnect, bool refreshURL)
     }
     else
     {
-        PRESENCED_LOG_WARNING("retryPendingConnection: ignored (currently joining/joined, no forced disconnect was requested)");
+        PRESENCED_LOG_WARNING("%sretryPendingConnection: ignored (currently joining/joined, no "
+                              "forced disconnect was requested)",
+                              getLoggingName());
     }
 }
 
@@ -984,7 +1085,7 @@ bool Client::sendCommand(Command&& cmd)
         logSend(cmd);
     bool result = sendBuf(std::move(cmd));
     if (!result)
-        PRESENCED_LOG_DEBUG("  Can't send, we are offline");
+        PRESENCED_LOG_DEBUG("%s  Can't send, we are offline", getLoggingName());
     return result;
 }
 
@@ -995,7 +1096,7 @@ bool Client::sendCommand(const Command& cmd)
         logSend(cmd);
     auto result = sendBuf(std::move(buf));
     if (!result)
-        PRESENCED_LOG_DEBUG("  Can't send, we are offline");
+        PRESENCED_LOG_DEBUG("%s  Can't send, we are offline", getLoggingName());
     return result;
 }
 void Client::logSend(const Command& cmd)
@@ -1142,7 +1243,9 @@ bool Client::sendUserActive(bool active, bool force)
 {
     if ((active == mLastSentUserActive) && !force)
     {
-        PRESENCED_LOG_DEBUG("Tried to change user-active to the current state: %d", (int)mLastSentUserActive);
+        PRESENCED_LOG_DEBUG("%sTried to change user-active to the current state: %d",
+                            getLoggingName(),
+                            (int)mLastSentUserActive);
         return true;
     }
 
@@ -1253,15 +1356,17 @@ void Client::handleMessage(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                PRESENCED_LOG_DEBUG("recv KEEPALIVE");
+                PRESENCED_LOG_DEBUG("%srecv KEEPALIVE", getLoggingName());
                 break;
             }
             case OP_PEERSTATUS:
             {
                 READ_8(pres, 0);
                 READ_ID(userid, 1);
-                PRESENCED_LOG_DEBUG("recv PEERSTATUS - user '%s' with presence %s",
-                    ID_CSTR(userid), Presence::toString(pres));
+                PRESENCED_LOG_DEBUG("%srecv PEERSTATUS - user '%s' with presence %s",
+                                    getLoggingName(),
+                                    ID_CSTR(userid),
+                                    Presence::toString(pres));
                 updatePeerPresence(userid, pres);
                 break;
             }
@@ -1277,19 +1382,25 @@ void Client::handleMessage(const StaticBuffer& buf)
                 READ_16(prefs, 0);
                 if (mPrefsAckWait && prefs == mConfig.toCode()) //ack
                 {
-                    PRESENCED_LOG_DEBUG("recv PREFS - server ack to the prefs we sent (%s)", mConfig.toString().c_str());
+                    PRESENCED_LOG_DEBUG("%srecv PREFS - server ack to the prefs we sent (%s)",
+                                        getLoggingName(),
+                                        mConfig.toString().c_str());
                 }
                 else
                 {
                     mConfig.fromCode(prefs);
                     if (mPrefsAckWait)
                     {
-                        PRESENCED_LOG_DEBUG("recv other PREFS while waiting for our PREFS ack, cancelling our send.\nPrefs: %s",
-                          mConfig.toString().c_str());
+                        PRESENCED_LOG_DEBUG("%srecv other PREFS while waiting for our PREFS ack, "
+                                            "cancelling our send.\nPrefs: %s",
+                                            getLoggingName(),
+                                            mConfig.toString().c_str());
                     }
                     else if (loginCompleted)
                     {
-                        PRESENCED_LOG_DEBUG("recv PREFS from server (initial config): %s", mConfig.toString().c_str());
+                        PRESENCED_LOG_DEBUG("%srecv PREFS from server (initial config): %s",
+                                            getLoggingName(),
+                                            mConfig.toString().c_str());
                         if (mConfig.autoAwayInEffect())
                         {
                             // signal whether the user is active or inactive
@@ -1306,7 +1417,9 @@ void Client::handleMessage(const StaticBuffer& buf)
                     }
                     else
                     {
-                        PRESENCED_LOG_DEBUG("recv PREFS from another client: %s", mConfig.toString().c_str());
+                        PRESENCED_LOG_DEBUG("%srecv PREFS from another client: %s",
+                                            getLoggingName(),
+                                            mConfig.toString().c_str());
                     }
                 }
                 mPrefsAckWait = false;
@@ -1317,7 +1430,10 @@ void Client::handleMessage(const StaticBuffer& buf)
             {
                 READ_ID(userid, 0);
                 READ_16(lastGreen, 8);
-                PRESENCED_LOG_DEBUG("recv LASTGREEN - user '%s' last green %u", ID_CSTR(userid), lastGreen);
+                PRESENCED_LOG_DEBUG("%srecv LASTGREEN - user '%s' last green %u",
+                                    getLoggingName(),
+                                    ID_CSTR(userid),
+                                    lastGreen);
 
                 // convert the received minutes into a UNIX timestamp
                 time_t lastGreenTs = time(NULL) - (lastGreen * 60);
@@ -1328,19 +1444,28 @@ void Client::handleMessage(const StaticBuffer& buf)
             }
             default:
             {
-                PRESENCED_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
+                PRESENCED_LOG_ERROR("%sUnknown opcode %d, ignoring all subsequent commands",
+                                    getLoggingName(),
+                                    opcode);
                 return;
             }
         }
       }
       catch(BufferRangeError& e)
       {
-          PRESENCED_LOG_ERROR("Buffer bound check error while parsing %s:\n\t%s\n\tAborting command processing", Command::opcodeToStr(opcode), e.what());
+          PRESENCED_LOG_ERROR(
+              "%sBuffer bound check error while parsing %s:\n\t%s\n\tAborting command processing",
+              getLoggingName(),
+              Command::opcodeToStr(opcode),
+              e.what());
           return;
       }
       catch(std::exception& e)
       {
-          PRESENCED_LOG_ERROR("Exception while processing incoming %s: %s", Command::opcodeToStr(opcode), e.what());
+          PRESENCED_LOG_ERROR("%sException while processing incoming %s: %s",
+                              getLoggingName(),
+                              Command::opcodeToStr(opcode),
+                              e.what());
           return;
       }
     }
@@ -1350,12 +1475,17 @@ void Client::setConnState(ConnState newState)
 {
     if (newState == mConnState)
     {
-        PRESENCED_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(newState));
+        PRESENCED_LOG_DEBUG("%sTried to change connection state to the current state: %s",
+                            getLoggingName(),
+                            connStateToStr(newState));
         return;
     }
     else
     {
-        PRESENCED_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mConnState), connStateToStr(newState));
+        PRESENCED_LOG_DEBUG("%sConnection state change: %s --> %s",
+                            getLoggingName(),
+                            connStateToStr(mConnState),
+                            connStateToStr(newState));
         mConnState = newState;
     }
 
@@ -1389,7 +1519,10 @@ void Client::setConnState(ConnState newState)
 
                 mConnectTimer = 0;
 
-                PRESENCED_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+                PRESENCED_LOG_DEBUG(
+                    "%sReconnection attempt has not succeed after %d. Reconnecting...",
+                    getLoggingName(),
+                    kConnectTimeout);
                 mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99005, "Reconnection timed out (presenced)", false, static_cast<const char*>(nullptr));
 
                 retryPendingConnection(true);
@@ -1406,7 +1539,7 @@ void Client::setConnState(ConnState newState)
     }
     else if (mConnState == kConnected)
     {
-        PRESENCED_LOG_DEBUG("Presenced connected to %s", mTargetIp.c_str());
+        PRESENCED_LOG_DEBUG("%sPresenced connected to %s", getLoggingName(), mTargetIp.c_str());
 
         mDnsCache.connectDone(kPresencedShard, mTargetIp);
         assert(!mConnectPromise.done());
@@ -1427,7 +1560,7 @@ void Client::addPeers(const std::vector<karere::Id> &peers)
 
     if (mKarereClient->anonymousMode())
     {
-        PRESENCED_LOG_WARNING("Not sending ADDPEERS in anonymous mode");
+        PRESENCED_LOG_WARNING("%sNot sending ADDPEERS in anonymous mode", getLoggingName());
         return;
     }
 
@@ -1454,7 +1587,7 @@ void Client::removePeers(const std::vector<karere::Id> &peers)
 
     if (mKarereClient->anonymousMode())
     {
-        PRESENCED_LOG_WARNING("Not sending DELPEERS in anonymous mode");
+        PRESENCED_LOG_WARNING("%sNot sending DELPEERS in anonymous mode", getLoggingName());
         return;
     }
 
