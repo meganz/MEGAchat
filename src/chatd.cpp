@@ -529,8 +529,11 @@ void Connection::wsConnectCb()
 {
     if (mState != kStateConnecting)
     {
-        CHATDS_LOG_WARNING("Connection to Shard %d has been established, but current connection state is %s, instead of connecting (as we expected)"
-                           , mShardNo, connStateToStr(mState));
+        CHATDS_LOG_WARNING("%sConnection to Shard %d has been established, but current connection "
+                           "state is %s, instead of connecting (as we expected)",
+                           mChatdClient.getLoggingName(),
+                           mShardNo,
+                           connStateToStr(mState));
         return;
     }
 
@@ -545,7 +548,11 @@ void Connection::wsConnectCb()
         if (++mConnSuceeded > kMaxConnSuceeded)
         {
             // We need to refresh URL because we have reached max successful attempts, in kMaxConnSucceededTimeframe period
-            CHATDS_LOG_DEBUG("Limit of successful connection attempts (%u), was reached in a period of %d seconds:", kMaxConnSuceeded, kMaxConnSucceededTimeframe);
+            CHATDS_LOG_DEBUG("%sLimit of successful connection attempts (%u), was reached in a "
+                             "period of %d seconds:",
+                             mChatdClient.getLoggingName(),
+                             kMaxConnSuceeded,
+                             kMaxConnSucceededTimeframe);
             resetConnSuceededAttempts(now);
             retryPendingConnection(true, true); // cancel all retries and fetch new URL
             return;
@@ -562,12 +569,13 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
 
     if (mState == kStateFetchingUrl || mFetchingUrl)
     {
-        CHATDS_LOG_DEBUG("wsCloseCb: previous fetch of a fresh URL is still in progress");
+        CHATDS_LOG_DEBUG("%swsCloseCb: previous fetch of a fresh URL is still in progress",
+                         mChatdClient.getLoggingName());
         onSocketClose(errcode, errtype, reason);
         return;
     }
 
-    CHATDS_LOG_DEBUG("Fetching a fresh URL" ,mShardNo);
+    CHATDS_LOG_DEBUG("%sFetching a fresh URL", mChatdClient.getLoggingName(), mShardNo);
     mFetchingUrl = true;
     auto wptr = getDelTracker();
     mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
@@ -575,7 +583,8 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     {
         if (wptr.deleted())
         {
-            CHATDS_LOG_ERROR("Chatd URL request completed, but chatd connection was deleted");
+            CHATDS_LOG_ERROR("%sChatd URL request completed, but chatd connection was deleted",
+                             mChatdClient.getLoggingName());
             return;
         }
 
@@ -587,7 +596,8 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
             resetConnSuceededAttempts(time(nullptr));
 
             // Update DNSCache record with new URL
-            CHATDS_LOG_DEBUG("Update URL in cache, and start a new retry attempt");
+            CHATDS_LOG_DEBUG("%sUpdate URL in cache, and start a new retry attempt",
+                             mChatdClient.getLoggingName());
             mDnsCache.updateRecord(mShardNo, url, true);
             retryPendingConnection(true);
         }
@@ -600,27 +610,35 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 {
     if (mChatdClient.mKarereClient->isTerminated())
     {
-        CHATDS_LOG_WARNING("Socket close but karere client was terminated.");
+        CHATDS_LOG_WARNING("%sSocket close but karere client was terminated.",
+                           mChatdClient.getLoggingName());
         return;
     }
 
     if (mState == kStateDisconnected)
     {
-        CHATDS_LOG_DEBUG("onSocketClose: we are already in kStateDisconnected state");
+        CHATDS_LOG_DEBUG("%sonSocketClose: we are already in kStateDisconnected state",
+                         mChatdClient.getLoggingName());
         if (!mRetryCtrl)
         {
-            CHATDS_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            CHATDS_LOG_ERROR("%sThere's no retry controller instance when calling onSocketClose in "
+                             "kDisconnected state",
+                             mChatdClient.getLoggingName());
             mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99013, "There's no retry controller instance when calling onSocketClose in kDisconnected state", false, static_cast<const char*>(nullptr));
             reconnect(); // start retry controller
         }
         return;
     }
 
-    CHATDS_LOG_WARNING("Socket close on IP %s. Reason: %s", mTargetIp.c_str(), reason.c_str());
+    CHATDS_LOG_WARNING("%sSocket close on IP %s. Reason: %s",
+                       mChatdClient.getLoggingName(),
+                       mTargetIp.c_str(),
+                       reason.c_str());
 
     if (mState == kStateFetchingUrl)
     {
-        CHATDS_LOG_DEBUG("Socket close while fetching URL. Ignoring...");
+        CHATDS_LOG_DEBUG("%sSocket close while fetching URL. Ignoring...",
+                         mChatdClient.getLoggingName());
         // it should happen only when the cached URL becomes invalid (wsResolveDNS() returns UV_EAI_NONAME
         // and it will reconnect automatically once the URL is fetched again
         return;
@@ -636,7 +654,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 
     if (oldState == kStateConnected)
     {
-        CHATDS_LOG_DEBUG("Socket close at state kStateConnected");
+        CHATDS_LOG_DEBUG("%sSocket close at state kStateConnected", mChatdClient.getLoggingName());
 
         assert(!mRetryCtrl);
         reconnect(); //start retry controller
@@ -644,7 +662,10 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
     else // oldState is kStateResolving or kStateConnecting
          // -> tell retry controller that the connect attempt failed
     {
-        CHATDS_LOG_DEBUG("Socket close and state is not kStateConnected (but %s), start retry controller", connStateToStr(oldState));
+        CHATDS_LOG_DEBUG(
+            "%sSocket close and state is not kStateConnected (but %s), start retry controller",
+            mChatdClient.getLoggingName(),
+            connStateToStr(oldState));
 
         assert(mRetryCtrl);
         assert(!mConnectPromise.succeeded());
@@ -658,7 +679,7 @@ void Connection::onSocketClose(int errcode, int errtype, const std::string& reas
 promise::Promise<void> Connection::sendKeepalive()
 {
     uint8_t opcode = mChatdClient.keepaliveType();
-    CHATDS_LOG_DEBUG("send %s", Command::opcodeToStr(opcode));
+    CHATDS_LOG_DEBUG("%ssend %s", mChatdClient.getLoggingName(), Command::opcodeToStr(opcode));
     sendBuf(Command(opcode));
     return mSendPromise;
 }
@@ -667,19 +688,22 @@ void Connection::sendEcho()
 {
     if (!mDnsCache.isValidUrl(mShardNo)) // the connection is not ready yet (i.e. initialization in offline-mode)
     {
-        CHATDS_LOG_DEBUG("sendEcho(): connection not initialized yet");
+        CHATDS_LOG_DEBUG("%ssendEcho(): connection not initialized yet",
+                         mChatdClient.getLoggingName());
         return;
     }
 
     if (mEchoTimer) // one is already sent
     {
-        CHATDS_LOG_DEBUG("sendEcho(): already sent, waiting for response");
+        CHATDS_LOG_DEBUG("%ssendEcho(): already sent, waiting for response",
+                         mChatdClient.getLoggingName());
         return;
     }
 
     if (!isOnline())
     {
-        CHATDS_LOG_DEBUG("sendEcho(): connection is down, cannot send");
+        CHATDS_LOG_DEBUG("%ssendEcho(): connection is down, cannot send",
+                         mChatdClient.getLoggingName());
         return;
     }
 
@@ -691,7 +715,9 @@ void Connection::sendEcho()
 
         mEchoTimer = 0;
 
-        CHATDS_LOG_DEBUG("Echo response not received in %d secs. Reconnecting...", kEchoTimeout);
+        CHATDS_LOG_DEBUG("%sEcho response not received in %d secs. Reconnecting...",
+                         mChatdClient.getLoggingName(),
+                         kEchoTimeout);
         mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99001, "ECHO response timed out", false, static_cast<const char*>(nullptr));
 
         setState(kStateDisconnected);
@@ -700,7 +726,7 @@ void Connection::sendEcho()
 
     }, kEchoTimeout * 1000, mChatdClient.mKarereClient->appCtx);
 
-    CHATDS_LOG_DEBUG("send ECHO");
+    CHATDS_LOG_DEBUG("%ssend ECHO", mChatdClient.getLoggingName());
     sendBuf(Command(OP_ECHO));
 }
 
@@ -715,12 +741,17 @@ void Connection::setState(State state)
     State oldState = mState;
     if (mState == state)
     {
-        CHATDS_LOG_DEBUG("Tried to change connection state to the current state: %s", connStateToStr(state));
+        CHATDS_LOG_DEBUG("%sTried to change connection state to the current state: %s",
+                         mChatdClient.getLoggingName(),
+                         connStateToStr(state));
         return;
     }
     else
     {
-        CHATDS_LOG_DEBUG("Connection state change: %s --> %s", connStateToStr(mState), connStateToStr(state));
+        CHATDS_LOG_DEBUG("%sConnection state change: %s --> %s",
+                         mChatdClient.getLoggingName(),
+                         connStateToStr(mState),
+                         connStateToStr(state));
         mState = state;
     }
 
@@ -768,7 +799,9 @@ void Connection::setState(State state)
 
                 mConnectTimer = 0;
 
-                CHATDS_LOG_DEBUG("Reconnection attempt has not succeed after %d. Reconnecting...", kConnectTimeout);
+                CHATDS_LOG_DEBUG("%sReconnection attempt has not succeed after %d. Reconnecting...",
+                                 mChatdClient.getLoggingName(),
+                                 kConnectTimeout);
                 mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out", false, static_cast<const char*>(nullptr));
 
                 retryPendingConnection(true);
@@ -790,7 +823,9 @@ void Connection::setState(State state)
     }
     else if (mState == kStateConnected)
     {
-        CHATDS_LOG_DEBUG("Chatd connected to %s", mTargetIp.c_str());
+        CHATDS_LOG_DEBUG("%sChatd connected to %s",
+                         mChatdClient.getLoggingName(),
+                         mTargetIp.c_str());
 
         mDnsCache.connectDone(mShardNo, mTargetIp);
         assert(!mConnectPromise.done());
@@ -829,7 +864,8 @@ Promise<void> Connection::reconnect()
 {
     if (mChatdClient.mKarereClient->isTerminated())
     {
-        CHATDS_LOG_WARNING("Reconnect attempt initiated, but karere client was terminated.");
+        CHATDS_LOG_WARNING("%sReconnect attempt initiated, but karere client was terminated.",
+                           mChatdClient.getLoggingName());
         assert(false);
         return ::promise::Error("Reconnect called when karere::Client is terminated", kErrorAccess, kErrorAccess);
     }
@@ -857,7 +893,8 @@ Promise<void> Connection::reconnect()
         {
             if (wptr.deleted())
             {
-                CHATDS_LOG_DEBUG("Reconnect attempt initiated, but chatd client was deleted.");
+                CHATDS_LOG_DEBUG("%sReconnect attempt initiated, but chatd client was deleted.",
+                                 mChatdClient.getLoggingName());
                 return ::promise::_Void();
             }
 
@@ -870,7 +907,9 @@ Promise<void> Connection::reconnect()
             bool cachedIPs = mDnsCache.getIp(mShardNo, ipv4, ipv6);
 
             setState(kStateResolving);
-            CHATDS_LOG_DEBUG("Resolving hostname %s...", host.c_str());
+            CHATDS_LOG_DEBUG("%sResolving hostname %s...",
+                             mChatdClient.getLoggingName(),
+                             host.c_str());
 
             for (auto& chatid: mChatIds)
             {
@@ -888,13 +927,16 @@ Promise<void> Connection::reconnect()
             {
                 if (wptr.deleted())
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: chatd client was deleted.");
+                    CHATDS_LOG_DEBUG(
+                        "%sDNS resolution completed but ignored: chatd client was deleted.",
+                        mChatdClient.getLoggingName());
                     return;
                 }
 
                 if (mChatdClient.mKarereClient->isTerminated())
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed but karere client was terminated.");
+                    CHATDS_LOG_DEBUG("%sDNS resolution completed but karere client was terminated.",
+                                     mChatdClient.getLoggingName());
                     return;
                 }
 
@@ -902,24 +944,33 @@ Promise<void> Connection::reconnect()
                 {
                     if (isOnline())
                     {
-                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
+                        CHATDS_LOG_DEBUG("%sDNS resolution completed but ignored: connection is "
+                                         "already established using cached IP",
+                                         mChatdClient.getLoggingName());
                         assert(cachedIPs);
                     }
                     else
                     {
-                        CHATDS_LOG_DEBUG("DNS resolution completed but ignored: connection was aborted");
+                        CHATDS_LOG_DEBUG(
+                            "%sDNS resolution completed but ignored: connection was aborted",
+                            mChatdClient.getLoggingName());
                     }
                     return;
                 }
                 if (mRetryCtrl.get() != retryCtrl)
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer RetryController has already started");
+                    CHATDS_LOG_DEBUG("%sDNS resolution completed but ignored: a newer "
+                                     "RetryController has already started",
+                                     mChatdClient.getLoggingName());
                     return;
                 }
                 if (mRetryCtrl->currentAttemptNo() != attemptNo)
                 {
-                    CHATDS_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %lu, new: %lu)",
-                                     attemptNo, mRetryCtrl->currentAttemptNo());
+                    CHATDS_LOG_DEBUG("%sDNS resolution completed but ignored: a newer attempt is "
+                                     "already started (old: %lu, new: %lu)",
+                                     mChatdClient.getLoggingName(),
+                                     attemptNo,
+                                     mRetryCtrl->currentAttemptNo());
                     return;
                 }
 
@@ -928,17 +979,23 @@ Promise<void> Connection::reconnect()
                     if (isOnline() && cachedIPs)
                     {
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
-                        CHATDS_LOG_WARNING("DNS error, but connection is established. Relaying on cached IPs...");
+                        CHATDS_LOG_WARNING(
+                            "%sDNS error, but connection is established. Relaying on cached IPs...",
+                            mChatdClient.getLoggingName());
                         return;
                     }
 
                     if (statusDNS < 0)
                     {
-                        CHATDS_LOG_ERROR("Async DNS error in chatd for shard %d. Error code: %d", mShardNo, statusDNS);
+                        CHATDS_LOG_ERROR("%sAsync DNS error in chatd for shard %d. Error code: %d",
+                                         mChatdClient.getLoggingName(),
+                                         mShardNo,
+                                         statusDNS);
                     }
                     else
                     {
-                        CHATDS_LOG_ERROR("Async DNS error in chatd. Empty set of IPs");
+                        CHATDS_LOG_ERROR("%sAsync DNS error in chatd. Empty set of IPs",
+                                         mChatdClient.getLoggingName());
                     }
 
                     mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
@@ -958,7 +1015,8 @@ Promise<void> Connection::reconnect()
 
                 if (!cachedIPs) // connect() required initial DNS lookup
                 {
-                    CHATDS_LOG_DEBUG("Hostname resolved by first time. Connecting...");
+                    CHATDS_LOG_DEBUG("%sHostname resolved by first time. Connecting...",
+                                     mChatdClient.getLoggingName());
 
                     //GET end ts for QueryDns
                     mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
@@ -969,7 +1027,8 @@ Promise<void> Connection::reconnect()
 
                 if (mDnsCache.isMatch(mShardNo, ipsv4, ipsv6))
                 {
-                    CHATDS_LOG_DEBUG("DNS resolve matches cached IPs.");
+                    CHATDS_LOG_DEBUG("%sDNS resolve matches cached IPs.",
+                                     mChatdClient.getLoggingName());
                 }
                 else
                 {
@@ -978,7 +1037,9 @@ Promise<void> Connection::reconnect()
 
                     // update DNS cache
                     mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
-                    CHATDS_LOG_WARNING("DNS resolve doesn't match cached IPs. Forcing reconnect...");
+                    CHATDS_LOG_WARNING(
+                        "%sDNS resolve doesn't match cached IPs. Forcing reconnect...",
+                        mChatdClient.getLoggingName());
                     retryPendingConnection(true);
                 }
             });
@@ -987,7 +1048,7 @@ Promise<void> Connection::reconnect()
             if (statusDNS < 0)
             {
                 string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS);
-                CHATDS_LOG_ERROR("%s", errStr.c_str());
+                CHATDS_LOG_ERROR("%s%s", mChatdClient.getLoggingName(), errStr.c_str());
 
                 mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
 
@@ -1035,7 +1096,7 @@ void Connection::abortRetryController()
 
     assert(!isOnline());
 
-    CHATDS_LOG_DEBUG("Reconnection was aborted");
+    CHATDS_LOG_DEBUG("%sReconnection was aborted", mChatdClient.getLoggingName());
     mRetryCtrl->abort();
     mRetryCtrl.reset();
 }
@@ -1059,7 +1120,9 @@ void Connection::doConnect()
     assert (url.isValid());
 
     setState(kStateConnecting);
-    CHATDS_LOG_DEBUG("Connecting to chatd using the IP: %s", mTargetIp.c_str());
+    CHATDS_LOG_DEBUG("%sConnecting to chatd using the IP: %s",
+                     mChatdClient.getLoggingName(),
+                     mTargetIp.c_str());
 
     bool rt = wsConnect(mChatdClient.mKarereClient->websocketIO, mTargetIp.c_str(),
               url.host.c_str(),
@@ -1069,7 +1132,9 @@ void Connection::doConnect()
 
     if (!rt)    // immediate failure --> try the other IP family (if available)
     {
-        CHATDS_LOG_DEBUG("Connection to chatd failed using the IP: %s", mTargetIp.c_str());
+        CHATDS_LOG_DEBUG("%sConnection to chatd failed using the IP: %s",
+                         mChatdClient.getLoggingName(),
+                         mTargetIp.c_str());
 
         string oldTargetIp = mTargetIp;
         mTargetIp.clear();
@@ -1084,7 +1149,9 @@ void Connection::doConnect()
 
         if (mTargetIp.size())
         {
-            CHATDS_LOG_DEBUG("Retrying using the IP: %s", mTargetIp.c_str());
+            CHATDS_LOG_DEBUG("%sRetrying using the IP: %s",
+                             mChatdClient.getLoggingName(),
+                             mTargetIp.c_str());
             if (wsConnect(mChatdClient.mKarereClient->websocketIO, mTargetIp.c_str(),
                                       url.host.c_str(),
                                       url.port,
@@ -1093,13 +1160,16 @@ void Connection::doConnect()
             {
                 return;
             }
-            CHATDS_LOG_DEBUG("Connection to chatd failed using the IP: %s", mTargetIp.c_str());
+            CHATDS_LOG_DEBUG("%sConnection to chatd failed using the IP: %s",
+                             mChatdClient.getLoggingName(),
+                             mTargetIp.c_str());
         }
         else
         {
             // do not close the socket, which forces a new retry attempt and turns the DNS response obsolete
             // Instead, let the DNS request to complete, in order to refresh IPs
-            CHATDS_LOG_DEBUG("Empty cached IP. Waiting for DNS resolution...");
+            CHATDS_LOG_DEBUG("%sEmpty cached IP. Waiting for DNS resolution...",
+                             mChatdClient.getLoggingName());
             return;
         }
 
@@ -1111,7 +1181,9 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
 {
     if (mState == kStateNew)
     {
-        CHATDS_LOG_WARNING("retryPendingConnection: no connection to be retried yet. Call connect() first");
+        CHATDS_LOG_WARNING(
+            "%sretryPendingConnection: no connection to be retried yet. Call connect() first",
+            mChatdClient.getLoggingName());
         return;
     }
 
@@ -1119,10 +1191,13 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
     {
         if (mState == kStateFetchingUrl || mFetchingUrl)
         {
-            CHATDS_LOG_WARNING("retryPendingConnection: previous fetch of a fresh URL is still in progress");
+            CHATDS_LOG_WARNING(
+                "%sretryPendingConnection: previous fetch of a fresh URL is still in progress",
+                mChatdClient.getLoggingName());
             return;
         }
-        CHATDS_LOG_WARNING("retryPendingConnection: fetch a fresh URL for reconnection!");
+        CHATDS_LOG_WARNING("%sretryPendingConnection: fetch a fresh URL for reconnection!",
+                           mChatdClient.getLoggingName());
 
         // abort and prevent any further reconnection attempt
         setState(kStateDisconnected);
@@ -1137,7 +1212,8 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         {
             if (wptr.deleted())
             {
-                CHATDS_LOG_ERROR("Chatd URL request completed, but Connection was deleted");
+                CHATDS_LOG_ERROR("%sChatd URL request completed, but Connection was deleted",
+                                 mChatdClient.getLoggingName());
                 return;
             }
 
@@ -1148,7 +1224,8 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
     }
     else if (disconnect)
     {
-        CHATDS_LOG_WARNING("retryPendingConnection: forced reconnection!");
+        CHATDS_LOG_WARNING("%sretryPendingConnection: forced reconnection!",
+                           mChatdClient.getLoggingName());
 
         setState(kStateDisconnected);
         abortRetryController();
@@ -1156,7 +1233,8 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
     }
     else if (mRetryCtrl && mRetryCtrl->state() == rh::State::kStateRetryWait)
     {
-        CHATDS_LOG_WARNING("retryPendingConnection: abort backoff and reconnect immediately");
+        CHATDS_LOG_WARNING("%sretryPendingConnection: abort backoff and reconnect immediately",
+                           mChatdClient.getLoggingName());
 
         assert(!isOnline());
         assert(!mHeartbeatEnabled);
@@ -1166,7 +1244,9 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
     }
     else
     {
-        CHATDS_LOG_WARNING("retryPendingConnection: ignored (currently joining/joined, no forced disconnect was requested)");
+        CHATDS_LOG_WARNING("%sretryPendingConnection: ignored (currently joining/joined, no forced "
+                           "disconnect was requested)",
+                           mChatdClient.getLoggingName());
     }
 }
 
@@ -1183,7 +1263,8 @@ void Connection::heartbeat()
 
     if (time(NULL) - mTsLastRecv >= Connection::kIdleTimeout)
     {
-        CHATDS_LOG_WARNING("Connection inactive for too long, reconnecting...");
+        CHATDS_LOG_WARNING("%sConnection inactive for too long, reconnecting...",
+                           mChatdClient.getLoggingName());
         mChatdClient.cancelRetentionTimer(); // Cancel retention timer
         setState(kStateDisconnected);
         abortRetryController();
@@ -1198,15 +1279,18 @@ int Connection::shardNo() const
 
 promise::Promise<void> Connection::connect()
 {
-    return fetchUrl()
-    .then([this]
-    {
-        return reconnect()
-        .fail([this](const ::promise::Error& err)
+    return fetchUrl().then(
+        [this]
         {
-            CHATDS_LOG_ERROR("Chat::connect(): Error connecting to server after getting URL: %s", err.what());
+            return reconnect().fail(
+                [this](const ::promise::Error& err)
+                {
+                    CHATDS_LOG_ERROR(
+                        "%sChat::connect(): Error connecting to server after getting URL: %s",
+                        mChatdClient.getLoggingName(),
+                        err.what());
+                });
         });
-    });
 }
 
 promise::Promise<void> Connection::fetchUrl()
@@ -1285,7 +1369,9 @@ bool Connection::sendBuf(Buffer&& buf)
             if (wptr.deleted())
                 return;
 
-           CHATDS_LOG_ERROR("Failed to send data. Error: %s", err.what());
+            CHATDS_LOG_ERROR("%sFailed to send data. Error: %s",
+                             mChatdClient.getLoggingName(),
+                             err.what());
         });
     }
 
@@ -1302,10 +1388,10 @@ bool Connection::sendBuf(Buffer&& buf)
 
 bool Connection::sendCommand(Command&& cmd)
 {
-    CHATDS_LOG_DEBUG("send %s", cmd.toString().c_str());
+    CHATDS_LOG_DEBUG("%ssend %s", mChatdClient.getLoggingName(), cmd.toString().c_str());
     bool result = sendBuf(std::move(cmd));
     if (!result)
-        CHATDS_LOG_DEBUG("Can't send, we are offline");
+        CHATDS_LOG_DEBUG("%sCan't send, we are offline", mChatdClient.getLoggingName());
     return result;
 }
 
@@ -1626,7 +1712,9 @@ bool Connection::rejoinExistingChats()
         }
         catch(std::exception& e)
         {
-            CHATDS_LOG_ERROR("rejoinExistingChats: Exception: %s", e.what());
+            CHATDS_LOG_ERROR("%srejoinExistingChats: Exception: %s",
+                             mChatdClient.getLoggingName(),
+                             e.what());
             return false;
         }
     }
@@ -2133,7 +2221,7 @@ void Connection::execCommand(const StaticBuffer& buf)
         {
             case OP_KEEPALIVE:
             {
-                CHATDS_LOG_DEBUG("recv KEEPALIVE");
+                CHATDS_LOG_DEBUG("%srecv KEEPALIVE", mChatdClient.getLoggingName());
                 sendKeepalive();
                 break;
             }
@@ -2152,12 +2240,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 Priv priv = (Priv)buf.read<int8_t>(pos);
                 pos++;
-                CHATDS_LOG_DEBUG("%s: recv JOIN - user '%s' with privilege level %d",
-                                ID_CSTR(chatid), ID_CSTR(userid), priv);
+                CHATDS_LOG_DEBUG("%s%s: recv JOIN - user '%s' with privilege level %d",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(userid),
+                                 priv);
 
                 if (userid == Id::COMMANDER())
                 {
-                    CHATDS_LOG_ERROR("recv JOIN for API user");
+                    CHATDS_LOG_ERROR("%srecv JOIN for API user", mChatdClient.getLoggingName());
                     assert(false);
                     break;
                 }
@@ -2183,9 +2274,16 @@ void Connection::execCommand(const StaticBuffer& buf)
                 const char* msgdata = buf.readPtr(pos, msglen);
                 pos += msglen;
 
-                CHATDS_LOG_DEBUG("%s: recv %s - msgid: '%s', from user '%s' with keyid %u, ts %u, tsdelta %u",
-                    ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(msgid),
-                    ID_CSTR(userid), keyid, ts, updated);
+                CHATDS_LOG_DEBUG(
+                    "%s%s: recv %s - msgid: '%s', from user '%s' with keyid %u, ts %u, tsdelta %u",
+                    mChatdClient.getLoggingName(),
+                    ID_CSTR(chatid),
+                    Command::opcodeToStr(opcode),
+                    ID_CSTR(msgid),
+                    ID_CSTR(userid),
+                    keyid,
+                    ts,
+                    updated);
 
                 std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid));
                 msg->setEncrypted(Message::kEncryptedPending);
@@ -2211,7 +2309,10 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 READ_ID(msgid, 8);
-                CHATDS_LOG_DEBUG("%s: recv SEEN - msgid: '%s'", ID_CSTR(chatid), ID_CSTR(msgid));
+                CHATDS_LOG_DEBUG("%s%s: recv SEEN - msgid: '%s'",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(msgid));
                 mChatdClient.chats(chatid).onLastSeen(msgid);
                 break;
             }
@@ -2219,7 +2320,10 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 READ_ID(msgid, 8);
-                CHATDS_LOG_DEBUG("%s: recv RECEIVED - msgid: '%s'", ID_CSTR(chatid), ID_CSTR(msgid));
+                CHATDS_LOG_DEBUG("%s%s: recv RECEIVED - msgid: '%s'",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(msgid));
                 mChatdClient.chats(chatid).onLastReceived(msgid);
                 break;
             }
@@ -2228,8 +2332,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_32(period, 16);
-                CHATDS_LOG_DEBUG("%s: recv RETENTION by user '%s' to %u second(s)",
-                                ID_CSTR(chatid), ID_CSTR(userid), period);
+                CHATDS_LOG_DEBUG("%s%s: recv RETENTION by user '%s' to %u second(s)",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(userid),
+                                 period);
 
                 auto &chat = mChatdClient.chats(chatid);
                 chat.onRetentionTimeUpdated(period);
@@ -2239,7 +2346,10 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
-                CHATDS_LOG_DEBUG("recv MSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
+                CHATDS_LOG_DEBUG("%srecv MSGID: '%s' -> '%s'",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(msgxid),
+                                 ID_CSTR(msgid));
                 mChatdClient.onMsgAlreadySent(msgxid, msgid);
                 break;
             }
@@ -2247,23 +2357,24 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
-                CHATDS_LOG_DEBUG("recv NEWMSGID: '%s' -> '%s'", ID_CSTR(msgxid), ID_CSTR(msgid));
+                CHATDS_LOG_DEBUG("%srecv NEWMSGID: '%s' -> '%s'",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(msgxid),
+                                 ID_CSTR(msgid));
                 mChatdClient.msgConfirm(msgxid, msgid);
                 break;
             }
-/*            case OP_RANGE:
-            {
-                READ_CHATID(0);
-                READ_ID(oldest, 8);
-                READ_ID(newest, 16);
-                CHATDS_LOG_DEBUG("%s: recv RANGE - (%s - %s)",
-                                ID_CSTR(chatid), ID_CSTR(oldest), ID_CSTR(newest));
-                auto& msgs = mClient.chats(chatid);
-                if (msgs.onlineState() == kChatStateJoining)
-                    msgs.initialFetchHistory(newest);
-                break;
-            }
-*/
+                /*            case OP_RANGE:
+                            {
+                                READ_CHATID(0);
+                                READ_ID(oldest, 8);
+                                READ_ID(newest, 16);
+                                CHATDS_LOG_DEBUG("%s%s: recv RANGE - (%s - %s)",
+                   mChatdClient.getLoggingName(), ID_CSTR(chatid), ID_CSTR(oldest),
+                   ID_CSTR(newest)); auto& msgs = mClient.chats(chatid); if (msgs.onlineState() ==
+                   kChatStateJoining) msgs.initialFetchHistory(newest); break;
+                            }
+                */
             case OP_REJECT:
             {
                 READ_CHATID(0);
@@ -2277,23 +2388,32 @@ void Connection::execCommand(const StaticBuffer& buf)
                     karere::Id actualChatid = mChatdClient.chatidFromPh(chatid);
                     if (actualChatid.isValid())
                     {
-                        CHATDS_LOG_WARNING("%s: recv REJECT of %s: ph='%s', reason: %hu",
-                                        ID_CSTR(actualChatid), Command::opcodeToStr(op),
-                                        chatid.toString(Id::CHATLINKHANDLE).c_str(), reason);
+                        CHATDS_LOG_WARNING("%s%s: recv REJECT of %s: ph='%s', reason: %hu",
+                                           mChatdClient.getLoggingName(),
+                                           ID_CSTR(actualChatid),
+                                           Command::opcodeToStr(op),
+                                           chatid.toString(Id::CHATLINKHANDLE).c_str(),
+                                           reason);
 
                         auto& chat = mChatdClient.chats(actualChatid);
                         chat.onHandleJoinRejected();
                     }
                     else
                     {
-                        CHATDS_LOG_WARNING("recv REJECT of %s: ph='%s' (unknown)",
-                                           Command::opcodeToStr(op), chatid.toString(Id::CHATLINKHANDLE).c_str());
+                        CHATDS_LOG_WARNING("%srecv REJECT of %s: ph='%s' (unknown)",
+                                           mChatdClient.getLoggingName(),
+                                           Command::opcodeToStr(op),
+                                           chatid.toString(Id::CHATLINKHANDLE).c_str());
                     }
                     break;
                 }
 
-                CHATDS_LOG_WARNING("%s: recv REJECT of %s: id='%s', reason: %hu",
-                    ID_CSTR(chatid), Command::opcodeToStr(op), ID_CSTR(id), reason);
+                CHATDS_LOG_WARNING("%s%s: recv REJECT of %s: id='%s', reason: %hu",
+                                   mChatdClient.getLoggingName(),
+                                   ID_CSTR(chatid),
+                                   Command::opcodeToStr(op),
+                                   ID_CSTR(id),
+                                   reason);
                 auto& chat = mChatdClient.chats(chatid);
                 if (op == OP_ADDREACTION || op == OP_DELREACTION)
                 {
@@ -2335,7 +2455,9 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_HISTDONE:
             {
                 READ_CHATID(0);
-                CHATDS_LOG_DEBUG("%s: recv HISTDONE - history retrieval finished", ID_CSTR(chatid));
+                CHATDS_LOG_DEBUG("%s%s: recv HISTDONE - history retrieval finished",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid));
                 Chat &chat = mChatdClient.chats(chatid);
                 chat.onHistDone();
                 break;
@@ -2345,7 +2467,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_32(keyxid, 8);
                 READ_32(keyid, 12);
-                CHATDS_LOG_DEBUG("%s: recv NEWKEYID: %u -> %u", ID_CSTR(chatid), keyxid, keyid);
+                CHATDS_LOG_DEBUG("%s%s: recv NEWKEYID: %u -> %u",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 keyxid,
+                                 keyid);
                 mChatdClient.chats(chatid).keyConfirm(keyxid, keyid);
                 break;
             }
@@ -2356,7 +2482,10 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(totalLen, 12);
                 const char* keys = buf.readPtr(pos, totalLen);
                 pos+=totalLen;
-                CHATDS_LOG_DEBUG("%s: recv NEWKEY %u", ID_CSTR(chatid), keyid);
+                CHATDS_LOG_DEBUG("%s%s: recv NEWKEY %u",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 keyid);
                 mChatdClient.chats(chatid).onNewKeys(StaticBuffer(keys, totalLen));
                 break;
             }
@@ -2366,7 +2495,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
-                CHATDS_LOG_DEBUG("(Deprecated) %s: recv INCALL userid %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
+                CHATDS_LOG_DEBUG("%s(Deprecated) %s: recv INCALL userid %s, clientid: %x",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(userid),
+                                 clientid);
                 break;
             }
             case OP_ENDCALL:
@@ -2375,7 +2508,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_CHATID(0);
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
-                CHATDS_LOG_DEBUG("(Deprecated) %s: recv ENDCALL userid: %s, clientid: %x", ID_CSTR(chatid), ID_CSTR(userid), clientid);
+                CHATDS_LOG_DEBUG("%s(Deprecated) %s: recv ENDCALL userid: %s, clientid: %x",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(userid),
+                                 clientid);
                 break;
             }
             case OP_CALLDATA:
@@ -2384,7 +2521,13 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8);
                 READ_32(clientid, 16);
                 READ_16(payloadLen, 20);
-                CHATDS_LOG_DEBUG("(Deprecated) %s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %u", ID_CSTR(chatid), ID_CSTR(userid), clientid, payloadLen);
+                CHATDS_LOG_DEBUG(
+                    "%s(Deprecated) %s: recv CALLDATA userid: %s, clientid: %x, PayloadLen: %u",
+                    mChatdClient.getLoggingName(),
+                    ID_CSTR(chatid),
+                    ID_CSTR(userid),
+                    clientid,
+                    payloadLen);
                 pos += payloadLen; // payload bytes will be consumed by handleCallData(), but does not update `pos` pointer
                 break;
             }
@@ -2401,7 +2544,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 (void)clientid; //disable unused var warning if webrtc is enabled
                 READ_16(payloadLen, 20);
                 pos += payloadLen; //skip the payload
-                CHATDS_LOG_WARNING("(Deprecated) %s: recv %s userid: %s, clientid: %x", ID_CSTR(chatid), Command::opcodeToStr(opcode), ID_CSTR(userid), clientid);
+                CHATDS_LOG_WARNING("%s(Deprecated) %s: recv %s userid: %s, clientid: %x",
+                                   mChatdClient.getLoggingName(),
+                                   ID_CSTR(chatid),
+                                   Command::opcodeToStr(opcode),
+                                   ID_CSTR(userid),
+                                   clientid);
                 break;
             }
             case OP_CLIENTID:
@@ -2410,17 +2558,21 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_32(clientid, 0);
                 READ_32(unused, 4);
                 mClientId = clientid;
-                unused
-                    ? CHATDS_LOG_DEBUG("recv CLIENTID - %x reserved: %u", clientid, unused)
-                    : CHATDS_LOG_DEBUG("recv CLIENTID - %x", clientid);
+                unused ? CHATDS_LOG_DEBUG("%srecv CLIENTID - %x reserved: %u",
+                                          mChatdClient.getLoggingName(),
+                                          clientid,
+                                          unused) :
+                         CHATDS_LOG_DEBUG("%srecv CLIENTID - %x",
+                                          mChatdClient.getLoggingName(),
+                                          clientid);
                 break;
             }
             case OP_ECHO:
             {
-                CHATDS_LOG_DEBUG("recv ECHO");
+                CHATDS_LOG_DEBUG("%srecv ECHO", mChatdClient.getLoggingName());
                 if (mEchoTimer)
                 {
-                    CHATDS_LOG_DEBUG("Socket is still alive");
+                    CHATDS_LOG_DEBUG("%sSocket is still alive", mChatdClient.getLoggingName());
                     cancelTimeout(mEchoTimer, mChatdClient.mKarereClient->appCtx);
                     mEchoTimer = 0;
                 }
@@ -2435,9 +2587,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 std::string reaction(buf.readPtr(pos, payloadLen), payloadLen);
                 pos += payloadLen;
 
-                CHATDS_LOG_DEBUG("%s: recv ADDREACTION from user %s to message %s reaction %s",
-                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid),
-                                base64urlencode(reaction.data(), reaction.size()).c_str());
+                CHATDS_LOG_DEBUG("%s%s: recv ADDREACTION from user %s to message %s reaction %s",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(userid),
+                                 ID_CSTR(msgid),
+                                 base64urlencode(reaction.data(), reaction.size()).c_str());
 
                 auto& chat = mChatdClient.chats(chatid);
                 chat.onAddReaction(msgid, userid, std::move(reaction));
@@ -2452,9 +2607,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 std::string reaction(buf.readPtr(pos, payloadLen), payloadLen);
                 pos += payloadLen;
 
-                CHATDS_LOG_DEBUG("%s: recv DELREACTION from user %s to message %s reaction %s",
-                                ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(msgid),
-                                base64urlencode(reaction.data(), reaction.size()).c_str());
+                CHATDS_LOG_DEBUG("%s%s: recv DELREACTION from user %s to message %s reaction %s",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(userid),
+                                 ID_CSTR(msgid),
+                                 base64urlencode(reaction.data(), reaction.size()).c_str());
 
                 auto& chat = mChatdClient.chats(chatid);
                 chat.onDelReaction(msgid, userid, std::move(reaction));
@@ -2464,7 +2622,10 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 READ_ID(rsn, 8);
-                CHATDS_LOG_DEBUG("%s: recv REACTIONSN rsn %s", ID_CSTR(chatid), ID_CSTR(rsn));
+                CHATDS_LOG_DEBUG("%s%s: recv REACTIONSN rsn %s",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(rsn));
                 auto& chat = mChatdClient.chats(chatid);
                 chat.onReactionSn(rsn);
                 break;
@@ -2472,7 +2633,7 @@ void Connection::execCommand(const StaticBuffer& buf)
             case OP_SYNC:
             {
                 READ_CHATID(0);
-                CHATDS_LOG_DEBUG("%s: recv SYNC", ID_CSTR(chatid));
+                CHATDS_LOG_DEBUG("%s%s: recv SYNC", mChatdClient.getLoggingName(), ID_CSTR(chatid));
                 mChatdClient.mKarereClient->onSyncReceived(chatid);
                 break;
             }
@@ -2480,14 +2641,20 @@ void Connection::execCommand(const StaticBuffer& buf)
             {
                 READ_CHATID(0);
                 READ_32(duration, 8);
-                CHATDS_LOG_DEBUG("(Deprecated) %s: recv CALLTIME: %u", ID_CSTR(chatid), duration);
+                CHATDS_LOG_DEBUG("%s(Deprecated) %s: recv CALLTIME: %u",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 duration);
                 break;
             }
             case OP_NUMBYHANDLE:
             {
                 READ_CHATID(0);
                 READ_32(count, 8);
-                CHATDS_LOG_DEBUG("%s: recv NUMBYHANDLE: %u", ID_CSTR(chatid), count);
+                CHATDS_LOG_DEBUG("%s%s: recv NUMBYHANDLE: %u",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 count);
 
                 auto& chat =  mChatdClient.chats(chatid);
                 chat.onPreviewersUpdate(count);
@@ -2498,7 +2665,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
                 READ_32(timestamp, 16);
-                CHATDS_LOG_DEBUG("recv MSGIDTIMESTAMP: '%s' -> '%s'  %u", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
+                CHATDS_LOG_DEBUG("%srecv MSGIDTIMESTAMP: '%s' -> '%s'  %u",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(msgxid),
+                                 ID_CSTR(msgid),
+                                 timestamp);
                 mChatdClient.onMsgAlreadySent(msgxid, msgid);
                 break;
             }
@@ -2507,7 +2678,11 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(msgxid, 0);
                 READ_ID(msgid, 8);
                 READ_32(timestamp, 16);
-                CHATDS_LOG_DEBUG("recv NEWMSGIDTIMESTAMP: '%s' -> '%s'   %u", ID_CSTR(msgxid), ID_CSTR(msgid), timestamp);
+                CHATDS_LOG_DEBUG("%srecv NEWMSGIDTIMESTAMP: '%s' -> '%s'   %u",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(msgxid),
+                                 ID_CSTR(msgid),
+                                 timestamp);
                 mChatdClient.msgConfirm(msgxid, msgid, timestamp);
                 break;
             }
@@ -2527,7 +2702,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                     userListStr.append(ID_CSTR(user)).append(", ");
                 }
                 userListStr.erase(userListStr.size() - 2);
-                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid: %s userList: [%s]", tmpStr, ID_CSTR(chatid), ID_CSTR(callid), userListStr.c_str());
+                CHATDS_LOG_DEBUG("%srecv %s chatid: %s, callid: %s userList: [%s]",
+                                 mChatdClient.getLoggingName(),
+                                 tmpStr,
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(callid),
+                                 userListStr.c_str());
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mKarereClient->rtc)
                 {
@@ -2542,7 +2722,9 @@ void Connection::execCommand(const StaticBuffer& buf)
                     {
                         if (opcode == OP_LEFTCALL) // If peer is removed, we can receive LEFTCALL and call has been destroyed
                         {
-                            CHATDS_LOG_WARNING("Receive a LEFTCALL without a call. Unique valid option is that we have been removed from chatroom");
+                            CHATDS_LOG_WARNING("%sReceive a LEFTCALL without a call. Unique valid "
+                                               "option is that we have been removed from chatroom",
+                                               mChatdClient.getLoggingName());
                             break;
                         }
 
@@ -2557,27 +2739,46 @@ void Connection::execCommand(const StaticBuffer& buf)
                         }
 
                         auto wptr = weakHandle();
-                        pms.then([wptr, this, chatid, callid, opcode, users] (shared_ptr<string> unifiedKey)
-                        {
-                            if (wptr.deleted())
-                            {
-                                return;
-                            }
+                        pms.then(
+                               [wptr, this, chatid, callid, opcode, users](
+                                   shared_ptr<string> unifiedKey)
+                               {
+                                   if (wptr.deleted())
+                                   {
+                                       return;
+                                   }
 
-                            auto& chat = mChatdClient.chats(chatid);
+                                   auto& chat = mChatdClient.chats(chatid);
 
-                            mChatdClient.mKarereClient->rtc->handleNewCall(chatid, karere::Id::inval(), callid, false, chat.isGroup(), unifiedKey);
-                            // in case that OP_CALLSTATE were received first, it might have created the call already
-                            // (this is just a protection, in case chatd changes the order of the opcodes)
-                            assert(mChatdClient.mKarereClient->rtc->findCall(callid));
-                            opcode == OP_JOINEDCALL
-                                    ? mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid, callid, users)
-                                    : mChatdClient.mKarereClient->rtc->handleLeftCall(chatid, callid, users);
-                        })
-                        .fail([this, chatid, callid] (const ::promise::Error &err)
-                        {
-                            CHATDS_LOG_ERROR("Failed to decrypt unified key %s. Chatid: %s callid: %s", err.msg().c_str(), ID_CSTR(chatid), ID_CSTR(callid));
-                        });
+                                   mChatdClient.mKarereClient->rtc->handleNewCall(
+                                       chatid,
+                                       karere::Id::inval(),
+                                       callid,
+                                       false,
+                                       chat.isGroup(),
+                                       unifiedKey);
+                                   // in case that OP_CALLSTATE were received first, it might have
+                                   // created the call already (this is just a protection, in case
+                                   // chatd changes the order of the opcodes)
+                                   assert(mChatdClient.mKarereClient->rtc->findCall(callid));
+                                   opcode == OP_JOINEDCALL ?
+                                       mChatdClient.mKarereClient->rtc->handleJoinedCall(chatid,
+                                                                                         callid,
+                                                                                         users) :
+                                       mChatdClient.mKarereClient->rtc->handleLeftCall(chatid,
+                                                                                       callid,
+                                                                                       users);
+                               })
+                            .fail(
+                                [this, chatid, callid](const ::promise::Error& err)
+                                {
+                                    CHATDS_LOG_ERROR(
+                                        "%sFailed to decrypt unified key %s. Chatid: %s callid: %s",
+                                        mChatdClient.getLoggingName(),
+                                        err.msg().c_str(),
+                                        ID_CSTR(chatid),
+                                        ID_CSTR(callid));
+                                });
                     }
                     else // if call already exists.
                     {
@@ -2595,7 +2796,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 READ_ID(userid, 8); // call originator id
                 READ_ID(callid, 16);
                 READ_8(ringing, 24);
-                CHATDS_LOG_DEBUG("recv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %u ", ID_CSTR(chatid), ID_CSTR(userid), ID_CSTR(callid), ringing);
+                CHATDS_LOG_DEBUG("%srecv CALLSTATE chatid: %s, userid: %s, callid %s, ringing: %u ",
+                                 mChatdClient.getLoggingName(),
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(userid),
+                                 ID_CSTR(callid),
+                                 ringing);
 #ifndef KARERE_DISABLE_WEBRTC
                 if (mChatdClient.mKarereClient->rtc)
                 {
@@ -2618,41 +2824,56 @@ void Connection::execCommand(const StaticBuffer& buf)
                         }
 
                         auto wptr = weakHandle();
-                        pms.then([wptr, this, chatid, callid, userid, ringing] (shared_ptr<string> unifiedKey)
-                        {
-                            if (wptr.deleted())
-                            {
-                                return;
-                            }
+                        pms.then(
+                               [wptr, this, chatid, callid, userid, ringing](
+                                   shared_ptr<string> unifiedKey)
+                               {
+                                   if (wptr.deleted())
+                                   {
+                                       return;
+                                   }
 
-                            auto& chat = mChatdClient.chats(chatid);
-                            rtcModule::ICall* call = mChatdClient.mKarereClient->rtc->findCall(callid);
-                            if (!call)
-                            {
-                                mChatdClient.mKarereClient->rtc->handleNewCall(chatid, userid, callid, ringing, chat.isGroup(), unifiedKey);
-                            }
-                            else
-                            {
-                                // if OP_JOINEDCALL was received first and needed to wait for the unified key,
-                                // it may have created the call object already
-                                call->setCallerId(userid);
-                                call->setRinging(call->alreadyParticipating() ? false : ringing);
+                                   auto& chat = mChatdClient.chats(chatid);
+                                   rtcModule::ICall* call =
+                                       mChatdClient.mKarereClient->rtc->findCall(callid);
+                                   if (!call)
+                                   {
+                                       mChatdClient.mKarereClient->rtc->handleNewCall(
+                                           chatid,
+                                           userid,
+                                           callid,
+                                           ringing,
+                                           chat.isGroup(),
+                                           unifiedKey);
+                                   }
+                                   else
+                                   {
+                                       // if OP_JOINEDCALL was received first and needed to wait for
+                                       // the unified key, it may have created the call object
+                                       // already
+                                       call->setCallerId(userid);
+                                       call->setRinging(call->alreadyParticipating() ? false :
+                                                                                       ringing);
 
-                                if (!ringing
-                                        && !chat.isGroup()
-                                        && call->isOwnClientCaller()
-                                        && call->isOutgoingRinging())
+                                       if (!ringing && !chat.isGroup() &&
+                                           call->isOwnClientCaller() && call->isOutgoingRinging())
+                                       {
+                                           // notify that 1on1 call has stopped ringing, in order
+                                           // stop outgoing ringing sound if we started the call
+                                           call->stopOutgoingRinging();
+                                       }
+                                   }
+                               })
+                            .fail(
+                                [this, chatid, callid](const ::promise::Error& err)
                                 {
-                                    // notify that 1on1 call has stopped ringing, in order stop outgoing ringing sound if we started the call
-                                    call->stopOutgoingRinging();
-                                }
-                            }
-
-                        })
-                        .fail([this, chatid, callid] (const ::promise::Error &err)
-                        {
-                            CHATDS_LOG_ERROR("Failed to decrypt unified key %s. Chatid: %s callid: %s", err.msg().c_str(), ID_CSTR(chatid), ID_CSTR(callid));
-                        });
+                                    CHATDS_LOG_ERROR(
+                                        "%sFailed to decrypt unified key %s. Chatid: %s callid: %s",
+                                        mChatdClient.getLoggingName(),
+                                        err.msg().c_str(),
+                                        ID_CSTR(chatid),
+                                        ID_CSTR(callid));
+                                });
                     }
                     else
                     {
@@ -2699,8 +2920,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                 }
 #endif
 
-                CHATDS_LOG_DEBUG("recv %s chatid: %s, callid %s - reason %d", opcode == OP_CALLEND ? "CALLEND" : "DELCALLREASON",
-                                 ID_CSTR(chatid), ID_CSTR(callid), opcode == OP_CALLEND ? -1 : recvReason);
+                CHATDS_LOG_DEBUG("%srecv %s chatid: %s, callid %s - reason %d",
+                                 mChatdClient.getLoggingName(),
+                                 opcode == OP_CALLEND ? "CALLEND" : "DELCALLREASON",
+                                 ID_CSTR(chatid),
+                                 ID_CSTR(callid),
+                                 opcode == OP_CALLEND ? -1 : recvReason);
 #ifndef KARERE_DISABLE_WEBRTC
                 rtcModule::EndCallReason endCallReason = opcode == OP_DELCALLREASON ?
                         static_cast<rtcModule::EndCallReason>(recvReason) :rtcModule::EndCallReason::kEnded;
@@ -2715,19 +2940,30 @@ void Connection::execCommand(const StaticBuffer& buf)
             }
             default:
             {
-                CHATDS_LOG_ERROR("Unknown opcode %d, ignoring all subsequent commands", opcode);
+                CHATDS_LOG_ERROR("%sUnknown opcode %d, ignoring all subsequent commands",
+                                 mChatdClient.getLoggingName(),
+                                 opcode);
                 return;
             }
         }
       }
       catch(BufferRangeError& e)
       {
-            CHATDS_LOG_ERROR("%s: Buffer bound check error while parsing %s:\n\t%s\n\tAborting command processing", ID_CSTR(chatid), Command::opcodeToStr(opcode), e.what());
-            return;
+          CHATDS_LOG_ERROR("%s%s: Buffer bound check error while parsing %s:\n\t%s\n\tAborting "
+                           "command processing",
+                           mChatdClient.getLoggingName(),
+                           ID_CSTR(chatid),
+                           Command::opcodeToStr(opcode),
+                           e.what());
+          return;
       }
       catch(std::exception& e)
       {
-            CHATDS_LOG_ERROR("%s: Exception while processing incoming %s: %s", ID_CSTR(chatid), Command::opcodeToStr(opcode), e.what());
+          CHATDS_LOG_ERROR("%s%s: Exception while processing incoming %s: %s",
+                           mChatdClient.getLoggingName(),
+                           ID_CSTR(chatid),
+                           Command::opcodeToStr(opcode),
+                           e.what());
       }
     }
 }
@@ -4253,6 +4489,11 @@ Client::~Client()
     cancelSeenTimers();
     cancelRetentionTimer();
     mKarereClient->userAttrCache().removeCb(mRichPrevAttrCbHandle);
+}
+
+const char* Client::getLoggingName() const
+{
+    return mKarereClient ? mKarereClient->getLoggingName() : "";
 }
 
 const Id& Client::myHandle() const
