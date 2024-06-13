@@ -116,6 +116,8 @@ protected:
         return mOwnPriv != newPriv;
     }
 
+    const char* getLoggingName() const;
+
 public:
     virtual bool previewMode() const { return false; }
     virtual bool publicChat() const { return false; }
