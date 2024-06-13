@@ -3341,7 +3341,7 @@ void Chat::requestRichLink(Message &message)
 
                 if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
                 {
-                    API_LOG_ERROR("requestRichLink: Json is not valid");
+                    CHATD_LOG_ERROR("requestRichLink: Json is not valid");
                     return;
                 }
 
