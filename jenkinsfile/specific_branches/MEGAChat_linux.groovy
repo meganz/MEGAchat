@@ -31,13 +31,9 @@ pipeline {
             environment{
                 VCPKGPATH = "/opt/vcpkg"
                 BUILD_DIR = "build_dir"
-                WEBRTC_SRC="/home/jenkins/webrtc/src"
             }
             steps{
                 dir(megachat_sources_workspace){
-                    sh """
-                        sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS}#g" tests/sdk_test/sdk_test.h
-                    """
                     sh "echo Building SDK"
                     sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR}"
