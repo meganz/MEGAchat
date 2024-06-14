@@ -537,36 +537,20 @@ public:
         return getIdStrB64(h, "INVALID schedId");
     };
 
-    template <typename T>
+    template<typename T>
     static std::string toChars(T n)
     {
-        const std::string errMsg {"<Invalid number>"};
-        if (!std::is_arithmetic<T>::value)
-        {
-            return errMsg;
-        }
-
+        static_assert(std::is_arithmetic_v<T>, "<Invalid number>");
         constexpr size_t buffer_size = 64;
-        std::array<char, buffer_size> buffer;
-        auto result = std::to_chars(buffer.data(), buffer.data() + buffer.size(), n);
-        if (result.ec == std::errc())
+        std::string buffer(buffer_size, '\0');
+        if (auto [ptr, ec] = std::to_chars(buffer.data(), buffer.data() + buffer.size(), n);
+            ec == std::errc())
         {
-            return std::string(buffer.data(), result.ptr);
+            buffer.resize(ptr - buffer.data());
+            return buffer;
         }
 
-        return errMsg;
-    }
-
-    template <typename T>
-    static std::optional<T> fromChars(const std::string& str)
-    {
-        T result;
-        auto [ptr, ec] = std::from_chars(str.data(), str.data() + str.size(), result);
-        if (ec != std::errc())
-        {
-            return std::nullopt;
-        }
-        return result;
+        return {"<Invalid number>"};
     }
 
     MegaChatApiTest();

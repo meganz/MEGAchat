@@ -4509,7 +4509,8 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     bool* retHistTruncate = boolVars().getVar(a2, "retentionHistTruncate");
     ASSERT_TRUE(retHistTruncate) << "Cannot retrieve retentionHistTruncate for a2";
     ASSERT_EQ(roomFromB->getRetentionTime(), 5);
-    ASSERT_NO_FATAL_FAILURE(removeFromChatRoom(b, {a2}, megaChatApi[a2]->getMyUserHandle(), chatid));
+    ASSERT_NO_FATAL_FAILURE(
+        removeFromChatRoom(b, {a2}, megaChatApi[a2]->getMyUserHandle(), chatid));
     ASSERT_TRUE(waitForResponse(retHistTruncate))
         << "Timeout expired for retention history to be truncated";
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
@@ -4538,38 +4539,30 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
         << megaChatApi[a1]->getMyUserHandle() << ")";
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
 
-    std::unique_ptr<TestChatRoomListener> crl(
-        new TestChatRoomListener(this, megaChatApi, auxchatid));
-    megaChatApi[b]->openChatRoom(auxchatid, crl.get());
-    bool err = false;
-    std::string errMsg;
+    std::shared_ptr<TestChatRoomListener> crl(new TestChatRoomListener(this, megaChatApi, auxchatid));
+    ASSERT_TRUE(megaChatApi[b]->openChatRoom(auxchatid, crl.get()))
+        << "Cannot open chatroom (" << getChatIdStrB64(auxchatid) << ") from account index "
+        << std::to_string(b);
+
+    CleanupFunction testCleanup = [this, crl]() -> void
+    {
+        megaChatApi[b]->closeChatRoom(chatid, crl.get());
+    };
+    MegaMrProper p (testCleanup);
+
     for (int i = 0; i < 10; ++i)
     {
         clearTemporalVars();
         auto m = "M" + toChars<int>(i);
-        if (!addBoolVar(b, "msgConfirmed", false /*val*/))
-        {
-            err = true;
-            break;
-        }
-        MegaChatMessage* messageSent = megaChatApi[b]->sendMessage(auxchatid, m.c_str());
-        if (!messageSent)
-        {
-            errMsg += "Cannot send " + m;
-            err = true;
-            break;
-        }
-
-        if (!waitForResponse(boolVars().getVar(b, "msgConfirmed")))
-        {
-            errMsg += "Msg confirmed not received after " + toChars<unsigned int>(maxTimeout) +
-                      " seconds";
-            err = true;
-            break;
-        }
+        ASSERT_TRUE(addBoolVar(b, "msgConfirmed", false /*val*/))
+            << "Cannot add bool var msgConfirmed";
+        std::unique_ptr<MegaChatMessage> messageSent(
+            megaChatApi[b]->sendMessage(auxchatid, m.c_str()));
+        ASSERT_TRUE(messageSent) << "Cannot send message " << m;
+        ASSERT_TRUE(waitForResponse(boolVars().getVar(b, "msgConfirmed")))
+            << "Msg confirmed not received after " << toChars<unsigned int>(maxTimeout)
+            << "seconds";
     }
-    megaChatApi[b]->closeChatRoom(auxchatid, crl.get());
-    ASSERT_TRUE(!err) << errMsg;
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
     ASSERT_NO_FATAL_FAILURE(testImport(10));
 
@@ -9037,12 +9030,22 @@ bool MegaChatApiTest::removeChatVideoListener(const unsigned int idx, const mega
 }
 #endif
 
-MegaChatHandle MegaChatApiTest::getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, MegaChatPeerList* peers, const bool forceCreate)
+MegaChatHandle
+    MegaChatApiTest::getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts,
+                                                      MegaChatPeerList* peers,
+                                                      const bool forceCreate)
 {
     ChatroomCreationOptions& opt = mData.mChatOptions;
-    return getGroupChatRoom(accounts, peers,
-                            opt.mOpPriv, opt.mCreate, opt.mPublicChat,
-                            opt.mMeetingRoom, opt.mWaitingRoom, opt.mSpeakRequest, opt.mSchedMeetingData.get(), forceCreate);
+    return getGroupChatRoom(accounts,
+                            peers,
+                            opt.mOpPriv,
+                            opt.mCreate,
+                            opt.mPublicChat,
+                            opt.mMeetingRoom,
+                            opt.mWaitingRoom,
+                            opt.mSpeakRequest,
+                            opt.mSchedMeetingData.get(),
+                            forceCreate);
 }
 
 MegaChatHandle MegaChatApiTest::getGroupChatRoom()
