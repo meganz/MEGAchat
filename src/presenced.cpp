@@ -47,19 +47,19 @@ Promise<void> Client::fetchUrl()
     setConnState(kFetchingUrl);
     auto wptr = getDelTracker();
     return mKarereClient->api.call(&::mega::MegaApi::getChatPresenceURL)
-    .then([this, wptr](ReqResult result) -> Promise<void>
+    .then([this, wptr, lname = getLoggingName()](ReqResult result) -> Promise<void>
     {
         if (wptr.deleted())
         {
             PRESENCED_LOG_DEBUG(
                 "%sPresenced URL request completed, but presenced client was deleted",
-                getLoggingName());
+                lname);
             return ::promise::_Void();
         }
 
         if (!result->getLink())
         {
-            PRESENCED_LOG_DEBUG("%sNo Presenced URL received from API", getLoggingName());
+            PRESENCED_LOG_DEBUG("%sNo Presenced URL received from API", lname);
             return ::promise::_Void();
         }
 
@@ -543,13 +543,13 @@ Client::reconnect()
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(mKarereClient->websocketIO, host.c_str(),
-                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+                         [wptr, cachedIPs, this, retryCtrl, attemptNo, lname = getLoggingName()](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
                     PRESENCED_LOG_DEBUG(
                         "%sDNS resolution completed, but presenced client was deleted.",
-                        getLoggingName());
+                        lname);
                     return;
                 }
 
@@ -557,7 +557,7 @@ Client::reconnect()
                 {
                     PRESENCED_LOG_DEBUG(
                         "%sDNS resolution completed but karere client was terminated.",
-                        getLoggingName());
+                        lname);
                     return;
                 }
 
@@ -567,14 +567,14 @@ Client::reconnect()
                     {
                         PRESENCED_LOG_DEBUG("%sDNS resolution completed but ignored: connection is "
                                             "already established using cached IP",
-                                            getLoggingName());
+                                            lname);
                         assert(cachedIPs);
                     }
                     else
                     {
                         PRESENCED_LOG_DEBUG(
                             "%sDNS resolution completed but ignored: connection was aborted",
-                            getLoggingName());
+                            lname);
                     }
                     return;
                 }
@@ -582,14 +582,14 @@ Client::reconnect()
                 {
                     PRESENCED_LOG_DEBUG(
                         "%sDNS resolution completed but ignored: a newer retry has already started",
-                        getLoggingName());
+                        lname);
                     return;
                 }
                 if (mRetryCtrl->currentAttemptNo() != attemptNo)
                 {
                     PRESENCED_LOG_DEBUG("%sDNS resolution completed but ignored: a newer attempt "
                                         "is already started (old: %lu, new: %lu)",
-                                        getLoggingName(),
+                                        lname,
                                         attemptNo,
                                         mRetryCtrl->currentAttemptNo());
                     return;
@@ -602,20 +602,20 @@ Client::reconnect()
                         assert(false);  // this case should be handled already at: if (!mRetryCtrl)
                         PRESENCED_LOG_WARNING(
                             "%sDNS error, but connection is established. Relaying on cached IPs...",
-                            getLoggingName());
+                            lname);
                         return;
                     }
 
                     if (statusDNS < 0)
                     {
                         PRESENCED_LOG_ERROR("%sAsync DNS error in presenced. Error code: %d",
-                                            getLoggingName(),
+                                            lname,
                                             statusDNS);
                     }
                     else
                     {
                         PRESENCED_LOG_ERROR("%sAsync DNS error in presenced. Empty set of IPs",
-                                            getLoggingName());
+                                            lname);
                     }
 
                     assert(!isOnline());
@@ -634,7 +634,7 @@ Client::reconnect()
                 if (!cachedIPs) // connect required DNS lookup
                 {
                     PRESENCED_LOG_DEBUG("%sHostname resolved by first time. Connecting...",
-                                        getLoggingName());
+                                        lname);
                     mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
                     doConnect();
                     return;
@@ -642,13 +642,13 @@ Client::reconnect()
 
                 if (mDnsCache.isMatch(kPresencedShard, ipsv4, ipsv6))
                 {
-                    PRESENCED_LOG_DEBUG("%sDNS resolve matches cached IPs.", getLoggingName());
+                    PRESENCED_LOG_DEBUG("%sDNS resolve matches cached IPs.", lname);
                 }
                 else
                 {
                     PRESENCED_LOG_WARNING(
                         "%sDNS resolve doesn't match cached IPs. Forcing reconnect...",
-                        getLoggingName());
+                        lname);
                     mDnsCache.setIp(kPresencedShard, ipsv4, ipsv6);
                     retryPendingConnection(true);
                 }

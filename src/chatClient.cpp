@@ -2688,7 +2688,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         int len = ::mega::Base64::atob(unifiedKeyB64, *unifiedKey);
         if (len != strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE)
         {
-            KR_LOG_ERROR("%s%sInvalid size for unified key", getLoggingName(), getLoggingName());
+            KR_LOG_ERROR("%sInvalid size for unified key", getLoggingName());
             isUnifiedKeyEncrypted = strongvelope::kUndecryptable;
             parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99002, "invalid unified-key detected", false, static_cast<const char*>(nullptr));
         }

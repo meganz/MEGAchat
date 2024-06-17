@@ -484,10 +484,10 @@ void Chat::connect()
     {
         // attempt a connection ONLY if this is a new shard.
         mConnection.connect().fail(
-            [this](const ::promise::Error& err)
+            [this, lname = mChatdClient.getLoggingName()](const ::promise::Error& err)
             {
                 CHATID_LOG_ERROR("%sChat::connect(): Error connecting to server: %s",
-                                 mChatdClient.getLoggingName(),
+                                 lname,
                                  err.what());
             });
     }
@@ -1297,11 +1297,11 @@ promise::Promise<void> Connection::connect()
         [this]
         {
             return reconnect().fail(
-                [this](const ::promise::Error& err)
+                [this, lname = mChatdClient.getLoggingName()](const ::promise::Error& err)
                 {
                     CHATDS_LOG_ERROR(
                         "%sChat::connect(): Error connecting to server after getting URL: %s",
-                        mChatdClient.getLoggingName(),
+                        lname,
                         err.what());
                 });
         });
@@ -1319,19 +1319,19 @@ promise::Promise<void> Connection::fetchUrl()
     setState(kStateFetchingUrl);
     auto wptr = getDelTracker();
     return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
-    .then([wptr, this](ReqResult result)
+    .then([wptr, this, lname = mChatdClient.getLoggingName()](ReqResult result)
     {
         if (wptr.deleted())
         {
             CHATD_LOG_DEBUG("%sChatd URL request completed, but chatd connection was deleted",
-                            mChatdClient.getLoggingName());
+                            lname);
             return;
         }
 
         if (!result->getLink())
         {
             CHATD_LOG_ERROR("%s[shard %d]: %s: No chatd URL received from API",
-                            mChatdClient.getLoggingName(),
+                            lname,
                             mShardNo,
                             ID_CSTR(karere::Id(*mChatIds.begin())));
             return;
@@ -1382,13 +1382,13 @@ bool Connection::sendBuf(Buffer&& buf)
     {
         mSendPromise = Promise<void>();
         auto wptr = weakHandle();
-        mSendPromise.fail([this, wptr](const promise::Error& err)
+        mSendPromise.fail([this, wptr, lname = mChatdClient.getLoggingName()](const promise::Error& err)
         {
             if (wptr.deleted())
                 return;
 
             CHATDS_LOG_ERROR("%sFailed to send data. Error: %s",
-                             mChatdClient.getLoggingName(),
+                             lname,
                              err.what());
         });
     }
@@ -2921,11 +2921,12 @@ void Connection::execCommand(const StaticBuffer& buf)
                                    }
                                })
                             .fail(
-                                [this, chatid, callid](const ::promise::Error& err)
+                                [this, chatid, callid, lname = mChatdClient.getLoggingName()](
+                                    const ::promise::Error& err)
                                 {
                                     CHATDS_LOG_ERROR(
                                         "%sFailed to decrypt unified key %s. Chatid: %s callid: %s",
-                                        mChatdClient.getLoggingName(),
+                                        lname,
                                         err.msg().c_str(),
                                         ID_CSTR(chatid),
                                         ID_CSTR(callid));
@@ -5297,70 +5298,70 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
 }
 void Chat::handleTruncate(const Message& msg, Idx idx)
 {
-// chatd may re-send a MSGUPD at login, if there are no newer messages in the
-// chat. We have to be prepared to handle this, i.e. handleTruncate() must
-// be idempotent.
-// However, handling the SEEN and RECEIVED pointers in in a replayed truncate
-// is a bit tricky, because if they point to the truncate point (i.e. idx)
-// normally we would set them in a way that makes the truncate management message
-// at the truncation point unseen. But in case of a replay, we don't want it
-// to be unseen, as this will reset the unread message count to '1+' every time
-// the client connects, until someoone posts a new message in the chat.
-// To avoid this, we have to detect the replay. But if we detect it, we can actually
-// avoid the whole replay (even the idempotent part), and just bail out.
+    // chatd may re-send a MSGUPD at login, if there are no newer messages in the
+    // chat. We have to be prepared to handle this, i.e. handleTruncate() must
+    // be idempotent.
+    // However, handling the SEEN and RECEIVED pointers in in a replayed truncate
+    // is a bit tricky, because if they point to the truncate point (i.e. idx)
+    // normally we would set them in a way that makes the truncate management message
+    // at the truncation point unseen. But in case of a replay, we don't want it
+    // to be unseen, as this will reset the unread message count to '1+' every time
+    // the client connects, until someoone posts a new message in the chat.
+    // To avoid this, we have to detect the replay. But if we detect it, we can actually
+    // avoid the whole replay (even the idempotent part), and just bail out.
 
-CHATID_LOG_DEBUG("%sTruncating chat history before msgid %s, idx %d, fwdStart %d",
-                 mChatdClient.getLoggingName(),
-                 ID_CSTR(msg.id()),
-                 idx,
-                 mForwardStart);
-CALL_CRYPTO(resetSendKey); // discard current key, if any
-CALL_DB(truncateHistory, msg);
-mOldestIdxInDb = idx;
-if (idx != CHATD_IDX_INVALID) // message is loaded in RAM
-{
-    // GUI must detach and free any resources associated with
-    // messages older than the one specified
-    CALL_LISTENER(onHistoryTruncated, msg, idx);
-
-    // Reactions must be cleared before call deleteMessagesBefore
-    removeMessageReactions(idx, true);
-
-    // we need to provide next older message to idx, to avoid removing truncation message
-    // as deleteOlderMessagesIncluding removes all mesagges prior to idx (including own idx)
-    deleteOlderMessagesIncluding(idx - 1);
-    removePendingRichLinks(idx);
-
-    // update last-seen pointer
-    if (mLastSeenIdx != CHATD_IDX_INVALID)
+    CHATID_LOG_DEBUG("%sTruncating chat history before msgid %s, idx %d, fwdStart %d",
+                     mChatdClient.getLoggingName(),
+                     ID_CSTR(msg.id()),
+                     idx,
+                     mForwardStart);
+    CALL_CRYPTO(resetSendKey); // discard current key, if any
+    CALL_DB(truncateHistory, msg);
+    mOldestIdxInDb = idx;
+    if (idx != CHATD_IDX_INVALID) // message is loaded in RAM
     {
-        if (mLastSeenIdx <= idx)
+        // GUI must detach and free any resources associated with
+        // messages older than the one specified
+        CALL_LISTENER(onHistoryTruncated, msg, idx);
+
+        // Reactions must be cleared before call deleteMessagesBefore
+        removeMessageReactions(idx, true);
+
+        // we need to provide next older message to idx, to avoid removing truncation message
+        // as deleteOlderMessagesIncluding removes all mesagges prior to idx (including own idx)
+        deleteOlderMessagesIncluding(idx - 1);
+        removePendingRichLinks(idx);
+
+        // update last-seen pointer
+        if (mLastSeenIdx != CHATD_IDX_INVALID)
         {
-            // if we haven't seen even messages before the truncation point,
-            // now we will have not seen any message after the truncation
-            mLastSeenIdx = CHATD_IDX_INVALID;
-            mLastSeenId = 0;
-            CALL_DB(setLastSeen, 0);
+            if (mLastSeenIdx <= idx)
+            {
+                // if we haven't seen even messages before the truncation point,
+                // now we will have not seen any message after the truncation
+                mLastSeenIdx = CHATD_IDX_INVALID;
+                mLastSeenId = 0;
+                CALL_DB(setLastSeen, 0);
+            }
+        }
+
+        // update last-received pointer
+        if (mLastReceivedIdx != CHATD_IDX_INVALID)
+        {
+            if (mLastReceivedIdx <= idx)
+            {
+                mLastReceivedIdx = CHATD_IDX_INVALID;
+                mLastReceivedId = 0;
+                CALL_DB(setLastReceived, 0);
+            }
+        }
+
+        if (mChatdClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
+        {
+            mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
+            // TODO: the update of this variable should be persisted
         }
     }
-
-    // update last-received pointer
-    if (mLastReceivedIdx != CHATD_IDX_INVALID)
-    {
-        if (mLastReceivedIdx <= idx)
-        {
-            mLastReceivedIdx = CHATD_IDX_INVALID;
-            mLastReceivedId = 0;
-            CALL_DB(setLastReceived, 0);
-        }
-    }
-
-    if (mChatdClient.isMessageReceivedConfirmationActive() && mLastIdxReceivedFromServer <= idx)
-    {
-        mLastIdxReceivedFromServer = CHATD_IDX_INVALID;
-        // TODO: the update of this variable should be persisted
-    }
-}
 
     // since we have the truncate message in local history (otherwise chatd wouldn't have sent us
     // the truncate), now we know we have all history and what's the oldest msgid.
@@ -5995,13 +5996,13 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
             }
         }
     })
-    .fail([wptr, this, message](const ::promise::Error& err)
+    .fail([wptr, this, message, lname = mChatdClient.getLoggingName()](const ::promise::Error& err)
     {
         if (wptr.deleted())
         {
             CHATID_LOG_WARNING(
                 "%smsgIncomingAfterAdd: Message %s can't be decrypted: Failure type %s (%d)",
-                mChatdClient.getLoggingName(),
+                lname,
                 ID_CSTR(message->id()),
                 err.what(),
                 err.type());
@@ -6176,13 +6177,13 @@ bool Chat::msgNodeHistIncoming(Message *msg)
         {
             auto wptr = weakHandle();
             mDecryptionAttachmentsHalted = true;
-            pms.then([wptr, this](Message* msg)
+            pms.then([wptr, this, lname = mChatdClient.getLoggingName()](Message* msg)
             {
                 if (wptr.deleted())
                 {
                     CHATID_LOG_WARNING("%smsgNodeHistIncoming: message successfully decrypted, but "
                                        "connection instance has already been deleted",
-                                       mChatdClient.getLoggingName());
+                                       lname);
                     return;
                 }
 
@@ -6205,13 +6206,13 @@ bool Chat::msgNodeHistIncoming(Message *msg)
                     attachmentHistDone();
                 }
             })
-            .fail([wptr, this, msg](const ::promise::Error& /*err*/)
+            .fail([wptr, this, msg, lname = mChatdClient.getLoggingName()](const ::promise::Error& /*err*/)
             {
                 if (wptr.deleted())
                 {
                     CHATID_LOG_WARNING("%smsgNodeHistIncoming: failed to decrypt message, and "
                                        "connection instance has already been deleted",
-                                       mChatdClient.getLoggingName());
+                                       lname);
                     return;
                 }
 
@@ -6461,11 +6462,11 @@ void Chat::onAddReaction(const Id& msgId, const Id& userId, const string& reacti
                }
            })
         .fail(
-            [this, msgId](const ::promise::Error& err)
+            [this, msgId, lname = mChatdClient.getLoggingName()](const ::promise::Error& err)
             {
                 CHATID_LOG_ERROR(
                     "%sonAddReaction: failed to decrypt reaction. msgid: %s, error: %s",
-                    mChatdClient.getLoggingName(),
+                    lname,
                     ID_CSTR(msgId),
                     err.what());
             });

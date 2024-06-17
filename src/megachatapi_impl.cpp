@@ -3920,10 +3920,10 @@ void MegaChatApiImpl::setLoggingName(const char* loggingName)
     SdkMutexGuard g(sdkMutex);
     if (!mClient)
     {
-        assert(false);
         API_LOG_ERROR(
             "%sMegaChatApiImpl::setLoggingName must be called after initializing karere client",
             getLoggingName());
+        assert(false);
         return;
     }
     if (loggingName)
