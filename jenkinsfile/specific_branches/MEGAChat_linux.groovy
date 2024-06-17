@@ -138,8 +138,8 @@ pipeline {
         }
     }
     post {
-        always {
-            archiveArtifacts artifacts: "build/subfolder/test*.log*"
+        always{
+            archiveArtifacts artifacts: 'build_dir/test*.log*, build_dir/core.tar.gz', fingerprint: true
             deleteDir()
         }
     }
