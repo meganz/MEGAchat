@@ -4544,9 +4544,9 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
         << "Cannot open chatroom (" << getChatIdStrB64(auxchatid) << ") from account index "
         << std::to_string(b);
 
-    CleanupFunction testCleanup = [this, crl]() -> void
+    CleanupFunction testCleanup = [this, crl, auxchatid]() -> void
     {
-        megaChatApi[b]->closeChatRoom(chatid, crl.get());
+        megaChatApi[b]->closeChatRoom(auxchatid, crl.get());
     };
     MegaMrProper p (testCleanup);
 
