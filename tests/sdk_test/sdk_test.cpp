@@ -4566,6 +4566,12 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
     ASSERT_NO_FATAL_FAILURE(testImport(10));
 
+    sessionA1.reset(login(a1, sessionA1.get()));
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, auxchatid, crl.get()));
+    std::unique_ptr<MegaChatListItem> item(megaChatApi[a1]->getChatListItem(auxchatid));
+    ASSERT_TRUE(item) << "Cannot get chatlistitem for chatroom: " << getChatIdStrB64(auxchatid);
+    ASSERT_EQ(item->getUnreadCount(), 10) << "Unexpected number of unread messages";
+
     // Looking at code, retention time is not store at DB. It's zero until client connects to chatd.
     // As client 1 doesn't get conneted before calling to import messages. It can't skip messages for which retention time expired (It's zero)
     // Apps lifetime are diffent, maybe, they can use this functionality but I think it isn't possible for automatic tests
