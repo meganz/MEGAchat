@@ -28,6 +28,7 @@
 #include <future>
 #include <fstream> // Win build requires it
 #include <filesystem>
+#include <charconv>
 
 #ifdef __GNUC__
 #pragma GCC diagnostic push
@@ -536,6 +537,22 @@ public:
         return getIdStrB64(h, "INVALID schedId");
     };
 
+    template<typename T>
+    static std::string toChars(T n)
+    {
+        static_assert(std::is_arithmetic_v<T>, "<Invalid number>");
+        constexpr size_t buffer_size = 64;
+        std::string buffer(buffer_size, '\0');
+        if (auto [ptr, ec] = std::to_chars(buffer.data(), buffer.data() + buffer.size(), n);
+            ec == std::errc())
+        {
+            buffer.resize(ptr - buffer.data());
+            return buffer;
+        }
+
+        return {"<Invalid number>"};
+    }
+
     MegaChatApiTest();
     ~MegaChatApiTest() override;
 
@@ -736,7 +753,7 @@ protected:
     std::pair<bool, int> areTestAccountsContacts(const unsigned int invitorIdx, const unsigned int invitedIdx) const;
     bool areContact(unsigned int a1, unsigned int a2);
     bool isChatroomUpdated(unsigned int index, megachat::MegaChatHandle chatid);
-    megachat::MegaChatHandle getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, megachat::MegaChatPeerList* peers);
+    megachat::MegaChatHandle getGroupChatRoomWithParticipants(const std::vector<unsigned int>& accounts, megachat::MegaChatPeerList* peers, const bool forceCreate = false);
     megachat::MegaChatHandle getGroupChatRoom();
     bool addChatVideoListener(const unsigned int idx, const megachat::MegaChatHandle chatid);
     void cleanChatVideoListeners();
@@ -760,7 +777,8 @@ protected:
                                               const bool meetingRoom = false,
                                               const bool waitingRoom = false,
                                               const bool speakRequest = false,
-                                              SchedMeetingData* schedMeetingData = nullptr);
+                                              SchedMeetingData* schedMeetingData = nullptr,
+                                              const bool forceCreate = false);
 
     void createChatroomAndSchedMeeting(megachat::MegaChatHandle& chatid, const unsigned int a1,
                                        const unsigned int a2, const SchedMeetingData& smData);
