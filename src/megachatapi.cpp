@@ -489,6 +489,11 @@ void MegaChatApi::setLogToConsole(bool enable)
     MegaChatApiImpl::setLogToConsole(enable);
 }
 
+void MegaChatApi::setLoggingName(const char* loggingName)
+{
+    pImpl->setLoggingName(loggingName);
+}
+
 int MegaChatApi::init(const char *sid)
 {
     return pImpl->init(sid);

@@ -174,7 +174,7 @@ void UserAttrCache::dbWrite(UserAttrPair key, const Buffer& data)
     mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,?)",
         key.user.val, key.attrType, data);
-    UACACHE_LOG_DEBUG("dbWrite attr %s", key.toString().c_str());
+    UACACHE_LOG_DEBUG("%sdbWrite attr %s", mClient.getLoggingName(), key.toString().c_str());
 }
 
 void UserAttrCache::dbWriteNull(UserAttrPair key)
@@ -187,7 +187,9 @@ void UserAttrCache::dbWriteNull(UserAttrPair key)
     mClient.db.query(
         "insert or replace into userattrs(userid, type, data) values(?,?,NULL)",
         key.user, key.attrType);
-    UACACHE_LOG_DEBUG("dbWriteNull attr %s as NULL", key.toString().c_str());
+    UACACHE_LOG_DEBUG("%sdbWriteNull attr %s as NULL",
+                      mClient.getLoggingName(),
+                      key.toString().c_str());
 }
 
 UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
@@ -201,9 +203,9 @@ UserAttrCache::UserAttrCache(Client& aClient): mClient(aClient)
         UserAttrPair key(stmt.integralCol<uint64_t>(0), stmt.integralCol<uint8_t>(1));
         emplace(std::make_pair(key, std::make_shared<UserAttrCacheItem>(
                 *this, data.release(), kCacheFetchNotPending)));
-//        UACACHE_LOG_DEBUG("loaded attr %s", key.toString().c_str());
+        // UACACHE_LOG_DEBUG("%sloaded attr %s", mClient.getLoggingName(), key.toString().c_str());
     }
-    UACACHE_LOG_DEBUG("loaded %zu entries from db", size());
+    UACACHE_LOG_DEBUG("%sloaded %zu entries from db", mClient.getLoggingName(), size());
     mClient.api.sdk.addGlobalListener(this);
 }
 
@@ -241,7 +243,9 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, uint64_t changed)
         auto it = find(key);
         if (it == end()) //we don't have such attribute
         {
-            UACACHE_LOG_DEBUG("Attr %s change received for unknown user, ignoring", attrName(static_cast<uint8_t>(type)));
+            UACACHE_LOG_DEBUG("%sAttr %s change received for unknown user, ignoring",
+                              mClient.getLoggingName(),
+                              attrName(static_cast<uint8_t>(type)));
             continue;
         }
         auto& item = it->second;
@@ -252,8 +256,9 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, uint64_t changed)
         if (item->cbs.empty()) //we aren't using that item atm
         { //delete it from memory as well, forcing it to be freshly fetched if it's requested
             erase(key);
-            UACACHE_LOG_DEBUG("Attr %s change received, attr is unused -> deleted from cache",
-                key.toString().c_str());
+            UACACHE_LOG_DEBUG("%sAttr %s change received, attr is unused -> deleted from cache",
+                              mClient.getLoggingName(),
+                              key.toString().c_str());
             continue;
         }
 
@@ -261,12 +266,14 @@ void UserAttrCache::onUserAttrChange(uint64_t userid, uint64_t changed)
         {
             // Composed attributes must be re-fetched, if any of the attrs that synthesize it has changed
             //TODO: Shouldn't we schedule a re-fetch?
-            UACACHE_LOG_DEBUG("Attr %s change received, but already fetch in progress, ignoring",
-                key.toString().c_str());
+            UACACHE_LOG_DEBUG("%sAttr %s change received, but already fetch in progress, ignoring",
+                              mClient.getLoggingName(),
+                              key.toString().c_str());
             continue;
         }
-        UACACHE_LOG_DEBUG("Attr %s change received, invalidated and re-fetching",
-            key.toString().c_str());
+        UACACHE_LOG_DEBUG("%sAttr %s change received, invalidated and re-fetching",
+                          mClient.getLoggingName(),
+                          key.toString().c_str());
         item->pending = kCacheFetchUpdatePending;
         fetchAttr(key, item);
     }
@@ -299,14 +306,18 @@ void UserAttrCacheItem::notify()
 void UserAttrCacheItem::resolve(UserAttrPair key)
 {
     pending = kCacheFetchNotPending;
-    UACACHE_LOG_DEBUG("Attr %s fetched, writing to db and doing callbacks...", key.toString().c_str());
+    UACACHE_LOG_DEBUG("%sAttr %s fetched, writing to db and doing callbacks...",
+                      parent.mClient.getLoggingName(),
+                      key.toString().c_str());
     parent.dbWrite(key, *data);
     notify();
 }
 void UserAttrCacheItem::resolveNoDb(UserAttrPair key)
 {
     pending = kCacheFetchNotPending;
-    UACACHE_LOG_DEBUG("Attr %s fetched but not writing to db, doing callbacks...", key.toString().c_str());
+    UACACHE_LOG_DEBUG("%sAttr %s fetched but not writing to db, doing callbacks...",
+                      parent.mClient.getLoggingName(),
+                      key.toString().c_str());
     notify();
 }
 void UserAttrCacheItem::error(UserAttrPair key, int errCode)
@@ -316,11 +327,16 @@ void UserAttrCacheItem::error(UserAttrPair key, int errCode)
     if (errCode == ::mega::API_ENOENT)
     {
         parent.dbWriteNull(key);
-        UACACHE_LOG_DEBUG("Attr %s not found on server, clearing from db and doing callbacks...", key.toString().c_str());
+        UACACHE_LOG_DEBUG("%sAttr %s not found on server, clearing from db and doing callbacks...",
+                          parent.mClient.getLoggingName(),
+                          key.toString().c_str());
     }
     else
     {
-        UACACHE_LOG_DEBUG("Attr %s fetch error %d, not touching db and doing callbacks...", key.toString().c_str(), errCode);
+        UACACHE_LOG_DEBUG("%sAttr %s fetch error %d, not touching db and doing callbacks...",
+                          parent.mClient.getLoggingName(),
+                          key.toString().c_str(),
+                          errCode);
     }
     notify();
 }
@@ -432,7 +448,9 @@ UserAttrCache::Handle UserAttrCache::getAttr(uint64_t userHandle, unsigned type,
     }
 
     //we don't have the attrib item, create it
-    UACACHE_LOG_DEBUG("Attibute %s not found in cache, fetching", key.toString().c_str());
+    UACACHE_LOG_DEBUG("%sAttibute %s not found in cache, fetching",
+                      mClient.getLoggingName(),
+                      key.toString().c_str());
     auto item = std::make_shared<UserAttrCacheItem>(*this, nullptr, fetch ? kCacheFetchNewPending : kCacheNotFetchUntilUse);
     it = emplace(key, item).first;
     Handle handle = cb ? item->addCb(cb, userp, oneShot) : Handle::invalid();
@@ -610,9 +628,10 @@ void UserAttrCache::onLogin()
         fetchAttr(item.first, item.second);
     }
 
-    UACACHE_LOG_WARNING("UserAttrCache::onLogin. skip fetching %u attributes of %u in total",
-                      skippedAttr,
-                      size());
+    UACACHE_LOG_WARNING("%sUserAttrCache::onLogin. skip fetching %u attributes of %u in total",
+                        mClient.getLoggingName(),
+                        skippedAttr,
+                        size());
 }
 
 void UserAttrCache::onLogOut()
