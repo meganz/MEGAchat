@@ -5822,11 +5822,11 @@ std::string InitStats::toJson()
                 jSonShard.AddMember(rapidjson::Value("sh"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage elapsed time
-                jsonValue.SetUint64(shardStats.elapsed);
+                jsonValue.SetInt64(shardStats.elapsed);
                 jSonShard.AddMember(rapidjson::Value("elap"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage elapsed time
-                jsonValue.SetUint64(shardStats.maxElapsed);
+                jsonValue.SetInt64(shardStats.maxElapsed);
                 jSonShard.AddMember(rapidjson::Value("max"), jsonValue, jSonDocument.GetAllocator());
 
                 // Add stage retries
