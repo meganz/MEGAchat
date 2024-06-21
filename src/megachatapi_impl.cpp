@@ -171,7 +171,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     mMegaApi = megaApi;
 
     mClient = NULL;
-    API_LOG_DEBUG("MegaChatApiImpl::init(): karere client is invalid");
+    API_LOG_DEBUG("%sMegaChatApiImpl::init(): karere client is invalid", getLoggingName());
     mTerminating = false;
     waiter = new MegaChatWaiter();
     mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
@@ -264,7 +264,9 @@ void MegaChatApiImpl::sendPendingRequests()
         if (errorCode && request)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
-            API_LOG_WARNING("Error starting request: %s", megaChatError->getErrorString());
+            API_LOG_WARNING("%sError starting request: %s",
+                            getLoggingName(),
+                            megaChatError->getErrorString());
             fireOnChatRequestFinish(request, megaChatError);
         }
 
@@ -284,7 +286,8 @@ void MegaChatApiImpl::sendPendingRequests()
         if (!mClient && request->getType() != MegaChatRequest::TYPE_DELETE)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-            API_LOG_WARNING("Chat engine not initialized yet, cannot process the request");
+            API_LOG_WARNING("%sChat engine not initialized yet, cannot process the request",
+                            getLoggingName());
             fireOnChatRequestFinish(request, megaChatError);
             continue;
         }
@@ -292,7 +295,8 @@ void MegaChatApiImpl::sendPendingRequests()
         if (mTerminating && request->getType() != MegaChatRequest::TYPE_DELETE)
         {
             MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
-            API_LOG_WARNING("Chat engine is terminated, cannot process the request");
+            API_LOG_WARNING("%sChat engine is terminated, cannot process the request",
+                            getLoggingName());
             fireOnChatRequestFinish(request, megaChatError);
             continue;
         }
@@ -398,7 +402,7 @@ int MegaChatApiImpl::performRequest_logout(MegaChatRequestPrivate *request)
             mTerminating = true;
             mClient->terminate(deleteDb);
 
-            API_LOG_INFO("Chat engine is logged out!");
+            API_LOG_INFO("%sChat engine is logged out!", getLoggingName());
             marshallCall([request, this]() //post destruction asynchronously so that all pending messages get processed before that
             {
                 MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
@@ -421,7 +425,7 @@ int MegaChatApiImpl::performRequest_delete(MegaChatRequestPrivate */*request*/)
             {
                 cleanChatHandlers();
                 mClient->terminate();
-                API_LOG_INFO("Chat engine closed!");
+                API_LOG_INFO("%sChat engine closed!", getLoggingName());
 
                 delete mClient;
                 mClient = NULL;
@@ -444,18 +448,24 @@ int MegaChatApiImpl::performRequest_setOnlineStatus(MegaChatRequestPrivate *requ
             }
 
             mClient->setPresence(static_cast<::karere::Presence::Code>(status))
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error setting online status: %s", err.what());
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError setting online status: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -488,7 +498,8 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
             {
                 group = true;
                 request->setFlag(group);
-                API_LOG_INFO("Forcing group chat due to more than 2 participants");
+                API_LOG_INFO("%sForcing group chat due to more than 2 participants",
+                             getLoggingName());
             }
 
             if (group)
@@ -499,7 +510,9 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                     const MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
                     if (!sm)
                     {
-                        API_LOG_ERROR("Error creating a scheduled meeting: invalid scheduled meeting");
+                        API_LOG_ERROR(
+                            "%sError creating a scheduled meeting: invalid scheduled meeting",
+                            getLoggingName());
                         return MegaChatError::ERROR_ARGS;
                     }
 
@@ -507,15 +520,18 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                                || sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP
                                || sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP)
                     {
-
-                        API_LOG_ERROR("Error creating a scheduled meeting: invalid timezone, title, description, start date time or end date time");
+                        API_LOG_ERROR("%sError creating a scheduled meeting: invalid timezone, "
+                                      "title, description, start date time or end date time",
+                                      getLoggingName());
                         return MegaChatError::ERROR_ARGS;
                     }
 
                     if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title())
                             || !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
                     {
-                        API_LOG_ERROR("Error creating a scheduled meeting: title or description length exceeded");
+                        API_LOG_ERROR("%sError creating a scheduled meeting: title or description "
+                                      "length exceeded",
+                                      getLoggingName());
                         return MegaChatError::ERROR_ARGS;
                     }
 
@@ -557,37 +573,56 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                 }
 
                 bool creatingSchedMeeting = megaSchedMeeting != nullptr;
-                mClient->createGroupChat(peers, publicChat, isMeeting, chatOptionsBitMask, title, megaSchedMeeting)
-                .then([request, creatingSchedMeeting, this](std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
-                {
-                    if (creatingSchedMeeting)
-                    {
-                        if (res.second)
+                mClient
+                    ->createGroupChat(peers,
+                                      publicChat,
+                                      isMeeting,
+                                      chatOptionsBitMask,
+                                      title,
+                                      megaSchedMeeting)
+                    .then(
+                        [request, creatingSchedMeeting, this](
+                            std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
                         {
-                            std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-                            l->insert(new MegaChatScheduledMeetingPrivate(res.second->copy()));
-                            request->setMegaChatScheduledMeetingList(l.get());
-                        }
-                        else
+                            if (creatingSchedMeeting)
+                            {
+                                if (res.second)
+                                {
+                                    std::unique_ptr<MegaChatScheduledMeetingList> l(
+                                        MegaChatScheduledMeetingList::createInstance());
+                                    l->insert(
+                                        new MegaChatScheduledMeetingPrivate(res.second->copy()));
+                                    request->setMegaChatScheduledMeetingList(l.get());
+                                }
+                                else
+                                {
+                                    assert(false);
+                                    API_LOG_ERROR("%sError creating scheduled meeting upon Meeting "
+                                                  "room creation",
+                                                  getLoggingName());
+                                    fireOnChatRequestFinish(
+                                        request,
+                                        new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
+                                    return;
+                                }
+                            }
+
+                            request->setChatHandle(res.first);
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                            fireOnChatRequestFinish(request, megaChatError);
+                        })
+                    .fail(
+                        [request, this](const ::promise::Error& err)
                         {
-                            assert(false);
-                            API_LOG_ERROR("Error creating scheduled meeting upon Meeting room creation");
-                            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
-                            return;
-                        }
-                    }
+                            API_LOG_ERROR("%sError creating group chat: %s",
+                                          getLoggingName(),
+                                          err.what());
 
-                    request->setChatHandle(res.first);
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request,this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error creating group chat: %s", err.what());
-
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                            fireOnChatRequestFinish(request, megaChatError);
+                        });
             }
             else    // 1on1 chat
             {
@@ -609,20 +644,26 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                     return MegaChatError::ERROR_OK;
                 }
                 it->second->createChatRoom()
-                .then([request,this](ChatRoom* room)
-                {
-                    request->setChatHandle(room->chatid());
+                    .then(
+                        [request, this](ChatRoom* room)
+                        {
+                            request->setChatHandle(room->chatid());
 
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request,this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error creating 1on1 chat: %s", err.what());
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                            fireOnChatRequestFinish(request, megaChatError);
+                        })
+                    .fail(
+                        [request, this](const ::promise::Error& err)
+                        {
+                            API_LOG_ERROR("%sError creating 1on1 chat: %s",
+                                          getLoggingName(),
+                                          err.what());
 
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                            fireOnChatRequestFinish(request, megaChatError);
+                        });
             }
             return MegaChatError::ERROR_OK;
         }
@@ -677,18 +718,25 @@ int MegaChatApiImpl::performRequest_setChatroomOptions(MegaChatRequestPrivate *r
                 return MegaChatError::ERROR_EXIST;
             }
 
-            ((GroupChatRoom *)chatroom)->setChatRoomOption(option, enabled)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error setting chatroom option : %s", err.what());
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+            ((GroupChatRoom*)chatroom)
+                ->setChatRoomOption(option, enabled)
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError setting chatroom option : %s",
+                                      getLoggingName(),
+                                      err.what());
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -703,21 +751,27 @@ int MegaChatApiImpl::performRequest_inviteToChatroom(MegaChatRequestPrivate *req
 
             if (chatid == MEGACHAT_INVALID_HANDLE || uh == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Invalid chatid: %s or userid %s",
-                               karere::Id(chatid).toString().c_str(), karere::Id(uh).toString().c_str());
+                API_LOG_ERROR(
+                    "%sRequest (TYPE_INVITE_TO_CHATROOM). Invalid chatid: %s or userid %s",
+                    getLoggingName(),
+                    karere::Id(chatid).toString().c_str(),
+                    karere::Id(uh).toString().c_str());
                 return MegaChatError::ERROR_NOENT;
             }
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
-                API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Chatroom not found. chatid: %s",
+                API_LOG_ERROR("%sRequest (TYPE_INVITE_TO_CHATROOM). Chatroom not found. chatid: %s",
+                              getLoggingName(),
                               karere::Id(chatid).toString().c_str());
                 return MegaChatError::ERROR_NOENT;
             }
             if (!chatroom->isGroup())   // invite only for group chats
             {
-                API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Chatroom is not groupal. chatid: %s",
-                              karere::Id(chatid).toString().c_str());
+                API_LOG_ERROR(
+                    "%sRequest (TYPE_INVITE_TO_CHATROOM). Chatroom is not groupal. chatid: %s",
+                    getLoggingName(),
+                    karere::Id(chatid).toString().c_str());
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -726,25 +780,35 @@ int MegaChatApiImpl::performRequest_inviteToChatroom(MegaChatRequestPrivate *req
                 if (chatroom->ownPriv() < static_cast<Priv>(MegaChatPeerList::PRIV_STANDARD) || !chatroom->isOpenInvite())
                 {
                     // only allowed moderators or participants with standard permissions just if openInvite is enabled
-                    API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Insufficient permissions to perform this action, for chat: %s",
+                    API_LOG_ERROR("%sRequest (TYPE_INVITE_TO_CHATROOM). Insufficient permissions "
+                                  "to perform this action, for chat: %s",
+                                  getLoggingName(),
                                   karere::Id(chatid).toString().c_str());
                     return MegaChatError::ERROR_ACCESS;
                 }
             }
 
-            ((GroupChatRoom *)chatroom)->invite(uh, privilege)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Request (TYPE_INVITE_TO_CHATROOM). Error adding user to group chat: %s", err.what());
+            ((GroupChatRoom*)chatroom)
+                ->invite(uh, privilege)
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sRequest (TYPE_INVITE_TO_CHATROOM). Error adding user to "
+                                      "group chat: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -789,18 +853,25 @@ int MegaChatApiImpl::performRequest_autojoinPublicChat(MegaChatRequestPrivate *r
                 return MegaChatError::ERROR_NOENT;
             }
 
-            ((GroupChatRoom *)chatroom)->autojoinPublicChat(ph)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error joining user to public group chat: %s", err.what());
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+            ((GroupChatRoom*)chatroom)
+                ->autojoinPublicChat(ph)
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError joining user to public group chat: %s",
+                                      getLoggingName(),
+                                      err.what());
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
 
             return MegaChatError::ERROR_OK;
         }
@@ -829,19 +900,26 @@ int MegaChatApiImpl::performRequest_updatePeerPermissions(MegaChatRequestPrivate
                 return MegaChatError::ERROR_ACCESS;
             }
 
-            ((GroupChatRoom *)chatroom)->setPrivilege(uh, privilege)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error updating peer privileges: %s", err.what());
+            ((GroupChatRoom*)chatroom)
+                ->setPrivilege(uh, privilege)
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError updating peer privileges: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -870,19 +948,24 @@ int MegaChatApiImpl::performRequest_removeFromChatroom(MegaChatRequestPrivate *r
 
             if ( uh == MEGACHAT_INVALID_HANDLE || uh == mClient->myHandle())
             {
-                ((GroupChatRoom *)chatroom)->leave()
-                .then([request, this]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error leaving chat: %s", err.what());
+                ((GroupChatRoom*)chatroom)
+                    ->leave()
+                    .then(
+                        [request, this]()
+                        {
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                            fireOnChatRequestFinish(request, megaChatError);
+                        })
+                    .fail(
+                        [request, this](const ::promise::Error& err)
+                        {
+                            API_LOG_ERROR("%sError leaving chat: %s", getLoggingName(), err.what());
 
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                            fireOnChatRequestFinish(request, megaChatError);
+                        });
             }
             else
             {
@@ -891,19 +974,26 @@ int MegaChatApiImpl::performRequest_removeFromChatroom(MegaChatRequestPrivate *r
                         return MegaChatError::ERROR_ACCESS;
                 }
 
-                ((GroupChatRoom *)chatroom)->excludeMember(uh)
-                .then([request, this]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error removing peer from chat: %s", err.what());
+                ((GroupChatRoom*)chatroom)
+                    ->excludeMember(uh)
+                    .then(
+                        [request, this]()
+                        {
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                            fireOnChatRequestFinish(request, megaChatError);
+                        })
+                    .fail(
+                        [request, this](const ::promise::Error& err)
+                        {
+                            API_LOG_ERROR("%sError removing peer from chat: %s",
+                                          getLoggingName(),
+                                          err.what());
 
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                            fireOnChatRequestFinish(request, megaChatError);
+                        });
             }
             return MegaChatError::ERROR_OK;
         }
@@ -944,18 +1034,24 @@ int MegaChatApiImpl::performRequest_truncateHistory(MegaChatRequestPrivate *requ
             }
 
             chatroom->truncateHistory(messageid)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error truncating chat history: %s", err.what());
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError truncating chat history: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -990,19 +1086,26 @@ int MegaChatApiImpl::performRequest_editChatroomName(MegaChatRequestPrivate *req
             strTitle = strTitle.substr(0, 30);
             request->setText(strTitle.c_str()); // update, in case it's been truncated
 
-            ((GroupChatRoom *)chatroom)->setTitle(strTitle)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error editing chat title: %s", err.what());
+            ((GroupChatRoom*)chatroom)
+                ->setTitle(strTitle)
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError editing chat title: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -1056,150 +1159,224 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
 
             auto wptr = mClient->weakHandle();
             mClient->openChatPreview(ph)
-            .then([request, this, unifiedKey, ph, wptr](ReqResult result)
-            {
-                assert(result);
+                .then(
+                    [request, this, unifiedKey, ph, wptr](ReqResult result)
+                    {
+                        assert(result);
 
-                std::string encTitle = result->getText() ? result->getText() : "";
-                assert(!encTitle.empty());
+                        std::string encTitle = result->getText() ? result->getText() : "";
+                        assert(!encTitle.empty());
 
-                uint64_t chatId = result->getParentHandle();
+                        uint64_t chatId = result->getParentHandle();
 
-                mClient->decryptChatTitle(chatId, unifiedKey, encTitle, ph)
-                .then([request, this, unifiedKey, result, chatId, wptr](std::string decryptedTitle)
-                {
-                   if (wptr.deleted())
-                   {
-                       mMegaApi->sendEvent(99014, "karere client instance was removed upon TYPE_LOAD_PREVIEW", false, static_cast<const char*>(nullptr));
-                   }
-
-                   bool createChat = request->getFlag();
-                   int numPeers = result->getNumDetails();
-                   request->setChatHandle(chatId);
-                   request->setNumber(numPeers);
-                   request->setText(decryptedTitle.c_str());
-
-                   ::mega::ChatOptions_t opts = static_cast<::mega::ChatOptions_t>(result->getParamType());
-                   request->setPrivilege(opts);
-                   if (result->getMegaHandleList())
-                   {
-                       request->setMegaHandleList(result->getMegaHandleList());
-                   }
-
-                   bool meeting = result->getFlag();
-                   if (meeting)
-                   {
-                       request->setParamType(1);
-                   }
-
-                   const MegaScheduledMeetingList* smList = result->getMegaScheduledMeetingList();
-                   if (smList && smList->size())
-                   {
-                       std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-                       for (unsigned long i = 0; i < smList->size(); ++i)
-                       {
-                           if (smList->at(i) == nullptr)
-                           {
-                               API_LOG_ERROR("Null scheduled meeting at MegaScheduledMeetingList received upon mcphurl");
-                               assert(false);
-                               continue;
-                           }
-
-                           l->insert(new MegaChatScheduledMeetingPrivate(new MegaChatScheduledMeetingPrivate(*smList->at(i))));
-                       }
-                       request->setMegaChatScheduledMeetingList(l.get());
-                   }
-
-                   //Check chat link
-                   if (!createChat)
-                   {
-                       MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                       fireOnChatRequestFinish(request, megaChatError);
-                   }
-                   else //Load chat link
-                   {
-                        GroupChatRoom* room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
-                        if (!room && mClient->mChatdClient->chatFromId(chatId))
-                        {
-                           assert(!mClient->mChatdClient->chatFromId(chatId));
-                           API_LOG_ERROR("Chatid (%s) already exists at mChatForChatId but not at ChatRoomList", karere::Id(chatId).toString().c_str());
-                           MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
-                           fireOnChatRequestFinish(request, megaChatError);
-                           return;
-                        }
-
-                        const Id& ph = result->getNodeHandle();
-                        request->setUserHandle(ph.val);
-                        const bool hasChanged = room && room->hasChatLinkChanged(ph.val, decryptedTitle, meeting, opts);
-                        const std::string url = result->getLink() ? result->getLink() : "";
-                        const int shard = result->getAccess();
-                        const uint32_t ts = static_cast<uint32_t>(result->getNumber());
-                        std::shared_ptr<std::string> key = std::make_shared<std::string>(unifiedKey);
-
-                        if (room) // chatroom already exists
-                        {
-                            if (room->previewMode() &&
-                                hasChanged) // update existing chat in preview mode
-                            {
-                                // if mcphurl information is different respect GroupChatRoom in ram
-                                // we need to remove preview and recreate again, this is simplier than update
-                                // groupchatroom field by field
-                                API_LOG_DEBUG("performRequest_loadPreview: Chat (%s) has changed",
-                                              karere::Id(chatId).toString().c_str());
-                                mClient->chats->removeRoomPreview(chatId);
-                                mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
-                                room = dynamic_cast<GroupChatRoom *> (findChatRoom(chatId));
-                                if (!room)
+                        mClient->decryptChatTitle(chatId, unifiedKey, encTitle, ph)
+                            .then(
+                                [request, this, unifiedKey, result, chatId, wptr](
+                                    std::string decryptedTitle)
                                 {
-                                    API_LOG_DEBUG("performRequest_loadPreview: Cannot re-create chat (%s) preview", karere::Id(chatId).toString().c_str());
-                                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN);
+                                    if (wptr.deleted())
+                                    {
+                                        mMegaApi->sendEvent(99014,
+                                                            "karere client instance was removed "
+                                                            "upon TYPE_LOAD_PREVIEW",
+                                                            false,
+                                                            static_cast<const char*>(nullptr));
+                                    }
+
+                                    bool createChat = request->getFlag();
+                                    int numPeers = result->getNumDetails();
+                                    request->setChatHandle(chatId);
+                                    request->setNumber(numPeers);
+                                    request->setText(decryptedTitle.c_str());
+
+                                    ::mega::ChatOptions_t opts =
+                                        static_cast<::mega::ChatOptions_t>(result->getParamType());
+                                    request->setPrivilege(opts);
+                                    if (result->getMegaHandleList())
+                                    {
+                                        request->setMegaHandleList(result->getMegaHandleList());
+                                    }
+
+                                    bool meeting = result->getFlag();
+                                    if (meeting)
+                                    {
+                                        request->setParamType(1);
+                                    }
+
+                                    const MegaScheduledMeetingList* smList =
+                                        result->getMegaScheduledMeetingList();
+                                    if (smList && smList->size())
+                                    {
+                                        std::unique_ptr<MegaChatScheduledMeetingList> l(
+                                            MegaChatScheduledMeetingList::createInstance());
+                                        for (unsigned long i = 0; i < smList->size(); ++i)
+                                        {
+                                            if (smList->at(i) == nullptr)
+                                            {
+                                                API_LOG_ERROR("%sNull scheduled meeting at "
+                                                              "MegaScheduledMeetingList received "
+                                                              "upon mcphurl",
+                                                              getLoggingName());
+                                                assert(false);
+                                                continue;
+                                            }
+
+                                            l->insert(new MegaChatScheduledMeetingPrivate(
+                                                new MegaChatScheduledMeetingPrivate(
+                                                    *smList->at(i))));
+                                        }
+                                        request->setMegaChatScheduledMeetingList(l.get());
+                                    }
+
+                                    // Check chat link
+                                    if (!createChat)
+                                    {
+                                        MegaChatErrorPrivate* megaChatError =
+                                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                                        fireOnChatRequestFinish(request, megaChatError);
+                                    }
+                                    else // Load chat link
+                                    {
+                                        GroupChatRoom* room =
+                                            dynamic_cast<GroupChatRoom*>(findChatRoom(chatId));
+                                        if (!room && mClient->mChatdClient->chatFromId(chatId))
+                                        {
+                                            assert(!mClient->mChatdClient->chatFromId(chatId));
+                                            API_LOG_ERROR("%sChatid (%s) already exists at "
+                                                          "mChatForChatId but not at ChatRoomList",
+                                                          getLoggingName(),
+                                                          karere::Id(chatId).toString().c_str());
+                                            MegaChatErrorPrivate* megaChatError =
+                                                new MegaChatErrorPrivate(
+                                                    MegaChatError::ERROR_NOENT);
+                                            fireOnChatRequestFinish(request, megaChatError);
+                                            return;
+                                        }
+
+                                        const Id& ph = result->getNodeHandle();
+                                        request->setUserHandle(ph.val);
+                                        const bool hasChanged =
+                                            room && room->hasChatLinkChanged(ph.val,
+                                                                             decryptedTitle,
+                                                                             meeting,
+                                                                             opts);
+                                        const std::string url =
+                                            result->getLink() ? result->getLink() : "";
+                                        const int shard = result->getAccess();
+                                        const uint32_t ts =
+                                            static_cast<uint32_t>(result->getNumber());
+                                        std::shared_ptr<std::string> key =
+                                            std::make_shared<std::string>(unifiedKey);
+
+                                        if (room) // chatroom already exists
+                                        {
+                                            if (room->previewMode() &&
+                                                hasChanged) // update existing chat in preview mode
+                                            {
+                                                // if mcphurl information is different respect
+                                                // GroupChatRoom in ram we need to remove preview
+                                                // and recreate again, this is simplier than update
+                                                // groupchatroom field by field
+                                                API_LOG_DEBUG(
+                                                    "%sperformRequest_loadPreview: Chat (%s) has "
+                                                    "changed",
+                                                    getLoggingName(),
+                                                    karere::Id(chatId).toString().c_str());
+                                                mClient->chats->removeRoomPreview(chatId);
+                                                mClient->createPublicChatRoom(chatId,
+                                                                              ph.val,
+                                                                              shard,
+                                                                              decryptedTitle,
+                                                                              key,
+                                                                              url,
+                                                                              ts,
+                                                                              meeting,
+                                                                              opts,
+                                                                              smList);
+                                                room = dynamic_cast<GroupChatRoom*>(
+                                                    findChatRoom(chatId));
+                                                if (!room)
+                                                {
+                                                    API_LOG_DEBUG(
+                                                        "%sperformRequest_loadPreview: Cannot "
+                                                        "re-create chat (%s) preview",
+                                                        getLoggingName(),
+                                                        karere::Id(chatId).toString().c_str());
+                                                    MegaChatErrorPrivate* megaChatError =
+                                                        new MegaChatErrorPrivate(
+                                                            MegaChatError::ERROR_UNKNOWN);
+                                                    fireOnChatRequestFinish(request, megaChatError);
+                                                    return;
+                                                }
+                                            }
+                                            else if (room->previewMode() &&
+                                                     !room->isActive()) // re-enable preview
+                                            {
+                                                API_LOG_DEBUG(
+                                                    "%sperformRequest_loadPreview: Re-enable chat "
+                                                    "(%s) preview",
+                                                    getLoggingName(),
+                                                    karere::Id(chatId).toString().c_str());
+                                                room->enablePreview(ph);
+                                            }
+                                            else
+                                            {
+                                                API_LOG_ERROR(
+                                                    "%sperformRequest_loadPreview: Chat (%s) "
+                                                    "already exists",
+                                                    getLoggingName(),
+                                                    karere::Id(chatId).toString().c_str());
+                                            }
+
+                                            // update sched meetings if necessary and notify app
+                                            room->updateSchedMeetingsWithList(smList);
+                                            MegaChatErrorPrivate* megaChatError =
+                                                new MegaChatErrorPrivate(
+                                                    MegaChatError::ERROR_EXIST);
+                                            fireOnChatRequestFinish(request, megaChatError);
+                                            return;
+                                        }
+                                        else // create public chat room from info received from API
+                                        {
+                                            mClient->createPublicChatRoom(chatId,
+                                                                          ph.val,
+                                                                          shard,
+                                                                          decryptedTitle,
+                                                                          key,
+                                                                          url,
+                                                                          ts,
+                                                                          meeting,
+                                                                          opts,
+                                                                          smList);
+                                            MegaChatErrorPrivate* megaChatError =
+                                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                                            fireOnChatRequestFinish(request, megaChatError);
+                                        }
+                                    }
+                                })
+                            .fail(
+                                [request, this](const ::promise::Error& err)
+                                {
+                                    API_LOG_ERROR("%sError decrypting chat title: %s",
+                                                  getLoggingName(),
+                                                  err.what());
+
+                                    MegaChatErrorPrivate* megaChatError =
+                                        new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                                     fireOnChatRequestFinish(request, megaChatError);
-                                    return;
-                                }
-                            }
-                            else if (room->previewMode() && !room->isActive() ) // re-enable preview
-                            {
-                                API_LOG_DEBUG(
-                                    "performRequest_loadPreview: Re-enable chat (%s) preview",
-                                    karere::Id(chatId).toString().c_str());
-                                room->enablePreview(ph);
-                            }
-                            else
-                            {
-                                API_LOG_ERROR(
-                                    "performRequest_loadPreview: Chat (%s) already exists",
-                                    karere::Id(chatId).toString().c_str());
-                            }
+                                });
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError loading chat link: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                            // update sched meetings if necessary and notify app
-                            room->updateSchedMeetingsWithList(smList);
-                            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_EXIST);
-                            fireOnChatRequestFinish(request, megaChatError);
-                            return;
-                        }
-                        else // create public chat room from info received from API
-                        {
-                            mClient->createPublicChatRoom(chatId, ph.val, shard, decryptedTitle, key, url, ts, meeting, opts, smList);
-                            MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                            fireOnChatRequestFinish(request, megaChatError);
-                        }
-                   }
-                })
-                .fail([request, this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error decrypting chat title: %s", err.what());
-
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error loading chat link: %s", err.what());
-
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -1290,7 +1467,8 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
 
             if (!del && createifmissing && !room->hasTitle())
             {
-                API_LOG_DEBUG("Cannot create chat-links on chatrooms without title");
+                API_LOG_DEBUG("%sCannot create chat-links on chatrooms without title",
+                              getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
@@ -1304,59 +1482,78 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
                 pms = mClient->getPublicHandle(chatid, createifmissing);
             }
 
-            pms.then([request, del, room, this] (uint64_t ph)
-            {
-                if (del)
-                {
-                    return fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
-                }
-                else if (ph == Id::inval())
-                {
-                    API_LOG_ERROR("Unexpected invalid public handle for query/create chat-link");
-                    return fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT));
-                }
+            pms.then(
+                   [request, del, room, this](uint64_t ph)
+                   {
+                       if (del)
+                       {
+                           return fireOnChatRequestFinish(
+                               request,
+                               new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+                       }
+                       else if (ph == Id::inval())
+                       {
+                           API_LOG_ERROR(
+                               "%sUnexpected invalid public handle for query/create chat-link",
+                               getLoggingName());
+                           return fireOnChatRequestFinish(
+                               request,
+                               new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT));
+                       }
 
-                room->unifiedKey()
-                .then([request, this, ph] (shared_ptr<string> unifiedKey)
-                {
-                    MegaChatErrorPrivate *megaChatError;
-                    if (!unifiedKey || unifiedKey->size() != 16)
+                       room->unifiedKey()
+                           .then(
+                               [request, this, ph](shared_ptr<string> unifiedKey)
+                               {
+                                   MegaChatErrorPrivate* megaChatError;
+                                   if (!unifiedKey || unifiedKey->size() != 16)
+                                   {
+                                       API_LOG_ERROR("%sInvalid unified key after decryption",
+                                                     getLoggingName());
+                                       megaChatError =
+                                           new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                                   }
+                                   else // prepare the link with ph + unifiedKey
+                                   {
+                                       string unifiedKeyB64;
+                                       Base64::btoa(*unifiedKey, unifiedKeyB64);
+
+                                       string phBin((const char*)&ph, MegaClient::CHATLINKHANDLE);
+                                       string phB64;
+                                       Base64::btoa(phBin, phB64);
+
+                                       string link =
+                                           "https://mega.nz/chat/" + phB64 + "#" + unifiedKeyB64;
+                                       request->setText(link.c_str());
+
+                                       megaChatError =
+                                           new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                                   }
+                                   fireOnChatRequestFinish(request, megaChatError);
+                               })
+                           .fail(
+                               [request, this](const ::promise::Error& err)
+                               {
+                                   API_LOG_ERROR("%sFailed to decrypt unified key: %s",
+                                                 getLoggingName(),
+                                                 err.what());
+
+                                   MegaChatErrorPrivate* megaChatError =
+                                       new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                                   fireOnChatRequestFinish(request, megaChatError);
+                               });
+                   })
+                .fail(
+                    [request, this](const ::promise::Error& err)
                     {
-                        API_LOG_ERROR("Invalid unified key after decryption");
-                        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
-                    }
-                    else    // prepare the link with ph + unifiedKey
-                    {
-                        string unifiedKeyB64;
-                        Base64::btoa(*unifiedKey, unifiedKeyB64);
+                        API_LOG_ERROR("%sFailed to query/create/delete chat-link: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                        string phBin((const char*)&ph, MegaClient::CHATLINKHANDLE);
-                        string phB64;
-                        Base64::btoa(phBin, phB64);
-
-                        string link = "https://mega.nz/chat/" + phB64 + "#" + unifiedKeyB64;
-                        request->setText(link.c_str());
-
-                        megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    }
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this] (const ::promise::Error &err)
-                {
-                    API_LOG_ERROR("Failed to decrypt unified key: %s", err.what());
-
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
-
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Failed to query/create/delete chat-link: %s", err.what());
-
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -1376,21 +1573,28 @@ int MegaChatApiImpl::performRequest_getFirstname(MegaChatRequestPrivate *request
             const char* publicHandle = request->getLink();
             MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
 
-            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME, ph)
-            .then([request, this](Buffer *data)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                string firstname = string(data->buf(), data->dataSize());
-                request->setText(firstname.c_str());
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error getting user firstname: %s", err.what());
+            mClient->userAttrCache()
+                .getAttr(uh, MegaApi::USER_ATTR_FIRSTNAME, ph)
+                .then(
+                    [request, this](Buffer* data)
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        string firstname = string(data->buf(), data->dataSize());
+                        request->setText(firstname.c_str());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError getting user firstname: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -1410,21 +1614,28 @@ int MegaChatApiImpl::performRequest_getLastname(MegaChatRequestPrivate *request)
             const char* publicHandle = request->getLink();
             MegaChatHandle ph = publicHandle ? karere::Id(publicHandle, strlen(publicHandle)).val : MEGACHAT_INVALID_HANDLE;
 
-            mClient->userAttrCache().getAttr(uh, MegaApi::USER_ATTR_LASTNAME, ph)
-            .then([request, this](Buffer *data)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                string lastname = string(data->buf(), data->dataSize());
-                request->setText(lastname.c_str());
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error getting user lastname: %s", err.what());
+            mClient->userAttrCache()
+                .getAttr(uh, MegaApi::USER_ATTR_LASTNAME, ph)
+                .then(
+                    [request, this](Buffer* data)
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        string lastname = string(data->buf(), data->dataSize());
+                        request->setText(lastname.c_str());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError getting user lastname: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -1441,21 +1652,28 @@ int MegaChatApiImpl::performRequest_getEmail(MegaChatRequestPrivate* request)
             }
 
             MegaChatHandle uh = request->getUserHandle();
-            mClient->userAttrCache().getAttr(uh, karere::USER_ATTR_EMAIL)
-            .then([request, this](Buffer *data)
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                string email = string(data->buf(), data->dataSize());
-                request->setText(email.c_str());
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error getting user email: %s", err.what());
+            mClient->userAttrCache()
+                .getAttr(uh, karere::USER_ATTR_EMAIL)
+                .then(
+                    [request, this](Buffer* data)
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        string email = string(data->buf(), data->dataSize());
+                        request->setText(email.c_str());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError getting user email: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -1541,7 +1759,8 @@ int MegaChatApiImpl::performRequest_attachNodeMessage(MegaChatRequestPrivate* re
                 MegaChatErrorPrivate *megaChatError = NULL;
                 if (err.code() == MegaChatError::ERROR_EXIST)
                 {
-                    API_LOG_WARNING("Already granted access to this node previously");
+                    API_LOG_WARNING("%sAlready granted access to this node previously",
+                                    getLoggingName());
 
                     int errorCode = MegaChatError::ERROR_ARGS;
                     std::unique_ptr<MegaChatMessage> msg{ sendMessage(request->getChatHandle(), buffer.c_str(), buffer.size(), msgType) };
@@ -1556,7 +1775,7 @@ int MegaChatApiImpl::performRequest_attachNodeMessage(MegaChatRequestPrivate* re
                 else
                 {
                     megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    API_LOG_ERROR("Failed to grant access to some nodes");
+                    API_LOG_ERROR("%sFailed to grant access to some nodes", getLoggingName());
                 }
 
                 fireOnChatRequestFinish(request, megaChatError);
@@ -1586,30 +1805,37 @@ int MegaChatApiImpl::performRequest_revokeNodeMessage(MegaChatRequestPrivate* re
             delete node;
 
             ::promise::when(promise)
-            .then([this, request]()
-            {
-                std::string buf = Id(request->getUserHandle()).toString();
-                buf.insert(buf.begin(), Message::kMsgRevokeAttachment - Message::kMsgOffset);
-                buf.insert(buf.begin(), 0x0);
+                .then(
+                    [this, request]()
+                    {
+                        std::string buf = Id(request->getUserHandle()).toString();
+                        buf.insert(buf.begin(),
+                                   Message::kMsgRevokeAttachment - Message::kMsgOffset);
+                        buf.insert(buf.begin(), 0x0);
 
-                std::unique_ptr<MegaChatMessage> megaMsg{ sendMessage(request->getChatHandle(), buf.c_str(), buf.length()) };
-                request->setMegaChatMessage(megaMsg.get());
+                        std::unique_ptr<MegaChatMessage> megaMsg{
+                            sendMessage(request->getChatHandle(), buf.c_str(), buf.length())};
+                        request->setMegaChatMessage(megaMsg.get());
 
-                int errorCode = MegaChatError::ERROR_OK;
-                if (!megaMsg)
-                {
-                    errorCode = MegaChatError::ERROR_ARGS;
-                }
+                        int errorCode = MegaChatError::ERROR_OK;
+                        if (!megaMsg)
+                        {
+                            errorCode = MegaChatError::ERROR_ARGS;
+                        }
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(errorCode);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([this, request](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Failed to revoke access to attached node (%u)", request->getUserHandle());
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(errorCode);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [this, request](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sFailed to revoke access to attached node (%u)",
+                                      getLoggingName(),
+                                      request->getUserHandle());
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -1643,93 +1869,114 @@ int MegaChatApiImpl::performRequest_pushReceived(MegaChatRequestPrivate* request
             bool wasArchived = (room && room->isArchived());
 
             mClient->pushReceived(chatid)
-            .then([this, request, wasArchived]()
-            {
-                int type = request->getParamType();
-                if (type == 0)  // Android
-                {
-                    // for Android, we prepare a list of msgids for every chatid that are candidates for
-                    // notifications. Android doesn't really know why they received a push, so the previous
-                    // notifications are cleanup and the new set of messages are notified
-
-                    MegaHandleList *chatids = MegaHandleList::createInstance();
-
-                    // for each chatroom, load all unread messages)
-                    for (auto it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+                .then(
+                    [this, request, wasArchived]()
                     {
-                        MegaChatHandle chatid = it->first;
-                        // don't want to generate notifications for archived chats or chats with notifications disabled
-                        if (it->second->isArchived() || !mMegaApi->isChatNotifiable(chatid))
-                            continue;
-
-                        MegaHandleList *msgids = MegaHandleList::createInstance();
-
-                        const Chat &chat = it->second->chat();
-                        Idx lastSeenIdx = chat.lastSeenIdx();
-
-                        // first msg to consider: last-seen if loaded in memory. Otherwise, the oldest loaded msg
-                        Idx first = chat.lownum();
-                        if (lastSeenIdx != CHATD_IDX_INVALID        // message is known locally
-                                && chat.findOrNull(lastSeenIdx))    // message is loaded in RAM
+                        int type = request->getParamType();
+                        if (type == 0) // Android
                         {
-                            first = lastSeenIdx + 1;
-                        }
-                        Idx last = chat.highnum();
-                        int maxCount = 6;   // do not notify more than 6 messages per chat
-                        for (Idx i = last; (i >= first && maxCount > 0); i--)
-                        {
-                            auto& msg = chat.at(i);
-                            if (msg.isValidUnread(mClient->myHandle()))
+                            // for Android, we prepare a list of msgids for every chatid that are
+                            // candidates for notifications. Android doesn't really know why they
+                            // received a push, so the previous notifications are cleanup and the
+                            // new set of messages are notified
+
+                            MegaHandleList* chatids = MegaHandleList::createInstance();
+
+                            // for each chatroom, load all unread messages)
+                            for (auto it = mClient->chats->begin(); it != mClient->chats->end();
+                                 it++)
                             {
-                                maxCount--;
-                                msgids->addMegaHandle(msg.id());
+                                MegaChatHandle chatid = it->first;
+                                // don't want to generate notifications for archived chats or chats
+                                // with notifications disabled
+                                if (it->second->isArchived() || !mMegaApi->isChatNotifiable(chatid))
+                                    continue;
+
+                                MegaHandleList* msgids = MegaHandleList::createInstance();
+
+                                const Chat& chat = it->second->chat();
+                                Idx lastSeenIdx = chat.lastSeenIdx();
+
+                                // first msg to consider: last-seen if loaded in memory. Otherwise,
+                                // the oldest loaded msg
+                                Idx first = chat.lownum();
+                                if (lastSeenIdx != CHATD_IDX_INVALID // message is known locally
+                                    && chat.findOrNull(lastSeenIdx)) // message is loaded in RAM
+                                {
+                                    first = lastSeenIdx + 1;
+                                }
+                                Idx last = chat.highnum();
+                                int maxCount = 6; // do not notify more than 6 messages per chat
+                                for (Idx i = last; (i >= first && maxCount > 0); i--)
+                                {
+                                    auto& msg = chat.at(i);
+                                    if (msg.isValidUnread(mClient->myHandle()))
+                                    {
+                                        maxCount--;
+                                        msgids->addMegaHandle(msg.id());
+                                    }
+                                }
+
+                                if (msgids->size())
+                                {
+                                    chatids->addMegaHandle(chatid);
+                                    request->setMegaHandleListByChat(chatid, msgids);
+                                }
+
+                                delete msgids;
+                            }
+
+                            request->setMegaHandleList(
+                                chatids); // always a valid list, even if empty
+                            delete chatids;
+                        }
+                        else // iOS
+                        {
+                            MegaChatHandle chatid = request->getChatHandle();
+                            ChatRoom* room = findChatRoom(chatid);
+                            if (!room)
+                            {
+                                mMegaApi->sendEvent(99006,
+                                                    "iOS PUSH received for non-existing chatid",
+                                                    false,
+                                                    static_cast<const char*>(nullptr));
+
+                                MegaChatErrorPrivate* megaChatError =
+                                    new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                                fireOnChatRequestFinish(request, megaChatError);
+                                return;
+                            }
+                            else if (wasArchived &&
+                                     room->isArchived()) // don't want to generate notifications for
+                                                         // archived chats
+                            {
+                                mMegaApi->sendEvent(
+                                    99009,
+                                    "PUSH received for archived chatid (and still archived)",
+                                    false,
+                                    static_cast<const char*>(nullptr));
+
+                                // since a PUSH could be received before the actionpacket updating
+                                // flags (
+                                MegaChatErrorPrivate* megaChatError =
+                                    new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+                                fireOnChatRequestFinish(request, megaChatError);
+                                return;
                             }
                         }
 
-                        if (msgids->size())
-                        {
-                            chatids->addMegaHandle(chatid);
-                            request->setMegaHandleListByChat(chatid, msgids);
-                        }
-
-                        delete msgids;
-                    }
-
-                    request->setMegaHandleList(chatids);    // always a valid list, even if empty
-                    delete chatids;
-                }
-                else    // iOS
-                {
-                    MegaChatHandle chatid = request->getChatHandle();
-                    ChatRoom *room = findChatRoom(chatid);
-                    if (!room)
-                    {
-                        mMegaApi->sendEvent(99006, "iOS PUSH received for non-existing chatid", false, static_cast<const char*>(nullptr));
-
-                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_NOENT);
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
                         fireOnChatRequestFinish(request, megaChatError);
-                        return;
-                    }
-                    else if (wasArchived && room->isArchived())    // don't want to generate notifications for archived chats
+                    })
+                .fail(
+                    [this, request](const ::promise::Error& err)
                     {
-                        mMegaApi->sendEvent(99009, "PUSH received for archived chatid (and still archived)", false, static_cast<const char*>(nullptr));
-
-                        // since a PUSH could be received before the actionpacket updating flags (
-                        MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_ACCESS);
+                        API_LOG_ERROR("%sFailed to retrieve current state", getLoggingName());
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
                         fireOnChatRequestFinish(request, megaChatError);
-                        return;
-                    }
-                }
-
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([this, request](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Failed to retrieve current state");
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -1741,7 +1988,7 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
         {
             if (!mClient->rtc)
             {
-                API_LOG_ERROR("Start call - WebRTC is not initialized");
+                API_LOG_ERROR("%sStart call - WebRTC is not initialized", getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
@@ -1749,13 +1996,14 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             ChatRoom* chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
-                API_LOG_ERROR("Start call - Chatroom has not been found");
+                API_LOG_ERROR("%sStart call - Chatroom has not been found", getLoggingName());
                 return MegaChatError::ERROR_NOENT;
             }
 
             if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
             {
-                API_LOG_ERROR("Start call - Invalid value for simultaneous input video tracks");
+                API_LOG_ERROR("%sStart call - Invalid value for simultaneous input video tracks",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -1766,25 +2014,27 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                 Contact *contact = mClient->mContactList->contactFromUserId(uh);
                 if (!contact || contact->visibility() != ::mega::MegaUser::VISIBILITY_VISIBLE)
                 {
-                    API_LOG_ERROR("Start call - Refusing start a call with a non active contact");
+                    API_LOG_ERROR("%sStart call - Refusing start a call with a non active contact",
+                                  getLoggingName());
                     return MegaChatError::ERROR_ACCESS;
                 }
             }
             else if (chatroom->ownPriv() <= Priv::PRIV_RO)
             {
-                API_LOG_ERROR("Start call - Refusing start a call withouth enough privileges");
+                API_LOG_ERROR("%sStart call - Refusing start a call withouth enough privileges",
+                              getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             if (chatroom->previewMode())
             {
-                API_LOG_ERROR("Start call - Chatroom is in preview mode");
+                API_LOG_ERROR("%sStart call - Chatroom is in preview mode", getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             if (chatroom->chatdOnlineState() != kChatStateOnline)
             {
-                API_LOG_ERROR("Start call - chatroom isn't in online state");
+                API_LOG_ERROR("%sStart call - chatroom isn't in online state", getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
@@ -1796,7 +2046,8 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
             {
                if (mClient->rtc->isCallStartInProgress(chatid))
                {
-                   API_LOG_ERROR("Start call - start call attempt already in progress");
+                   API_LOG_ERROR("%sStart call - start call attempt already in progress",
+                                 getLoggingName());
                    return MegaChatError::ERROR_EXIST;
                }
 
@@ -1811,56 +2062,79 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                }
 
                bool isGroup = chatroom->isGroup();
-               pms.then([request, this, chatid, avFlags, isGroup, notRinging] (shared_ptr<string> unifiedKey)
-               {
-                   mClient->rtc->startCall(chatid, avFlags, isGroup, notRinging, unifiedKey)
-                   .then([request, this]()
-                   {
-                       MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                       fireOnChatRequestFinish(request, megaChatError);
-                   })
-                   .fail([request, this](const ::promise::Error& err)
-                   {
-                       API_LOG_ERROR("Error Starting a chat call: %s", err.what());
+               pms.then(
+                      [request, this, chatid, avFlags, isGroup, notRinging](
+                          shared_ptr<string> unifiedKey)
+                      {
+                          mClient->rtc->startCall(chatid, avFlags, isGroup, notRinging, unifiedKey)
+                              .then(
+                                  [request, this]()
+                                  {
+                                      MegaChatErrorPrivate* megaChatError =
+                                          new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                                      fireOnChatRequestFinish(request, megaChatError);
+                                  })
+                              .fail(
+                                  [request, this](const ::promise::Error& err)
+                                  {
+                                      API_LOG_ERROR("%sError Starting a chat call: %s",
+                                                    getLoggingName(),
+                                                    err.what());
 
-                       MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                       fireOnChatRequestFinish(request, megaChatError);
-                   });
-               })
-               .fail([request, this] (const ::promise::Error &err)
-               {
-                   API_LOG_ERROR("Failed to decrypt unified key: %s", err.what());
-                   MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                   fireOnChatRequestFinish(request, megaChatError);
-               });
+                                      MegaChatErrorPrivate* megaChatError =
+                                          new MegaChatErrorPrivate(err.msg(),
+                                                                   err.code(),
+                                                                   err.type());
+                                      fireOnChatRequestFinish(request, megaChatError);
+                                  });
+                      })
+                   .fail(
+                       [request, this](const ::promise::Error& err)
+                       {
+                           API_LOG_ERROR("%sFailed to decrypt unified key: %s",
+                                         getLoggingName(),
+                                         err.what());
+                           MegaChatErrorPrivate* megaChatError =
+                               new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                           fireOnChatRequestFinish(request, megaChatError);
+                       });
             }
             else if (!call->participate())
             {
                 if (call->isJoining())
                 {
-                    API_LOG_ERROR("Start call - joining call attempt already in progress");
+                    API_LOG_ERROR("%sStart call - joining call attempt already in progress",
+                                  getLoggingName());
                     request->setUserHandle(call->getCallid());
                     return MegaChatError::ERROR_EXIST;
                 }
 
                 call->join(avFlags)
-                .then([request, this]()
-                {
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request, this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error Joining a chat call: %s", err.what());
+                    .then(
+                        [request, this]()
+                        {
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                            fireOnChatRequestFinish(request, megaChatError);
+                        })
+                    .fail(
+                        [request, this](const ::promise::Error& err)
+                        {
+                            API_LOG_ERROR("%sError Joining a chat call: %s",
+                                          getLoggingName(),
+                                          err.what());
 
-                    MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
+                            MegaChatErrorPrivate* megaChatError =
+                                new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                            fireOnChatRequestFinish(request, megaChatError);
+                        });
             }
             else
             {
                 // only groupchats allow to join the call in multiple clients, in 1on1 it's not allowed
-                API_LOG_ERROR("A call exists in this chatroom and we already participate or it's not a groupchat");
+                API_LOG_ERROR("%sA call exists in this chatroom and we already participate or it's "
+                              "not a groupchat",
+                              getLoggingName());
                 request->setUserHandle(call->getCallid());
                 return MegaChatError::ERROR_EXIST;
             }
@@ -1877,44 +2151,50 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             ChatRoom* chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
-                API_LOG_ERROR("Answer call - Chatroom has not been found");
+                API_LOG_ERROR("%sAnswer call - Chatroom has not been found", getLoggingName());
                 return MegaChatError::ERROR_NOENT;
             }
 
             if (!chatroom->chat().connection().clientId())
             {
-                API_LOG_ERROR("Answer call - Refusing answer a call, clientid no yet assigned by shard: %d", chatroom->chat().connection().shardNo());
+                API_LOG_ERROR(
+                    "%sAnswer call - Refusing answer a call, clientid no yet assigned by shard: %d",
+                    getLoggingName(),
+                    chatroom->chat().connection().shardNo());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             if (chatroom->chatdOnlineState() != kChatStateOnline)
             {
-                API_LOG_ERROR("Answer call - chatroom isn't in online state");
+                API_LOG_ERROR("%sAnswer call - chatroom isn't in online state", getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
             {
-                API_LOG_ERROR("Answer call - Invalid value for simultaneous input video tracks");
+                API_LOG_ERROR("%sAnswer call - Invalid value for simultaneous input video tracks",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                API_LOG_ERROR("Answer call - There is not any call in that chatroom");
+                API_LOG_ERROR("%sAnswer call - There is not any call in that chatroom",
+                              getLoggingName());
                 return MegaChatError::ERROR_NOENT;
             }
 
             if (call->participate())
             {
-                API_LOG_ERROR("Answer call - You already participate");
+                API_LOG_ERROR("%sAnswer call - You already participate", getLoggingName());
                 return MegaChatError::ERROR_EXIST;
             }
 
             if (call->isJoining())
             {
-                API_LOG_ERROR("Answer call - joining call attempt already in progress");
+                API_LOG_ERROR("%sAnswer call - joining call attempt already in progress",
+                              getLoggingName());
                 return MegaChatError::ERROR_EXIST;
             }
 
@@ -1922,18 +2202,24 @@ int MegaChatApiImpl::performRequest_answerChatCall(MegaChatRequestPrivate* reque
             bool enableVideo = request->getFlag();
             karere::AvFlags avFlags(enableAudio, enableVideo);
             call->join(avFlags)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error Joining a chat call: %s", err.what());
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError Joining a chat call: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
 
             return MegaChatError::ERROR_OK;
         }
@@ -1945,28 +2231,29 @@ int MegaChatApiImpl::performRequest_hangChatCall(MegaChatRequestPrivate* request
         {
             if (!mClient->rtc)
             {
-                API_LOG_ERROR("Hang up call - WebRTC is not initialized");
+                API_LOG_ERROR("%sHang up call - WebRTC is not initialized", getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             MegaChatHandle callid = request->getChatHandle();
             if (callid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("Hang up call - invalid callid");
+                API_LOG_ERROR("%sHang up call - invalid callid", getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = mClient->rtc->findCall(callid);
             if (!call)
             {
-                API_LOG_ERROR("Hang up call - There is not any call with that callid");
+                API_LOG_ERROR("%sHang up call - There is not any call with that callid",
+                              getLoggingName());
                 return MegaChatError::ERROR_NOENT;
             }
 
             ChatRoom *chatroom = findChatRoom(call->getChatid());
             if (!chatroom)
             {
-                API_LOG_ERROR("Hang up call- Chatroom has not been found");
+                API_LOG_ERROR("%sHang up call- Chatroom has not been found", getLoggingName());
                 return MegaChatError::ERROR_NOENT;
             }
 
@@ -1975,7 +2262,7 @@ int MegaChatApiImpl::performRequest_hangChatCall(MegaChatRequestPrivate* request
                     && (static_cast<int>(chatroom->ownPriv()) != static_cast<int>(MegaChatPeerList::PRIV_MODERATOR)))
             {
                 // if chatd permission is non moderator.
-                API_LOG_ERROR("End call withouth enough privileges");
+                API_LOG_ERROR("%sEnd call withouth enough privileges", getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
@@ -1983,18 +2270,24 @@ int MegaChatApiImpl::performRequest_hangChatCall(MegaChatRequestPrivate* request
                     ? call->endCall()  // end call
                     : call->hangup();               // hang up
 
-            pms.then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error hang up a chat call: %s", err.what());
+            pms.then(
+                   [request, this]()
+                   {
+                       MegaChatErrorPrivate* megaChatError =
+                           new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                       fireOnChatRequestFinish(request, megaChatError);
+                   })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError hang up a chat call: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
 
             return MegaChatError::ERROR_OK;
         }
@@ -2010,7 +2303,8 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                API_LOG_ERROR("Disable AV flags  - There is not any call in that chatroom");
+                API_LOG_ERROR("%sDisable AV flags  - There is not any call in that chatroom",
+                              getLoggingName());
                 assert(call);
                 return MegaChatError::ERROR_NOENT;
             }
@@ -2035,7 +2329,9 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
                     }
                     else
                     {
-                        API_LOG_WARNING("Enable audio - isn't allow, peer doesn't have speak permission");
+                        API_LOG_WARNING(
+                            "%sEnable audio - isn't allow, peer doesn't have speak permission",
+                            getLoggingName());
                         return MegaChatError::ERROR_ACCESS;
                     }
                 }
@@ -2069,7 +2365,8 @@ int MegaChatApiImpl::performRequest_setAudioVideoEnable(MegaChatRequestPrivate* 
 
             if (!call->participate())
             {
-                API_LOG_ERROR("Disable audio video - You don't participate in the call");
+                API_LOG_ERROR("%sDisable audio video - You don't participate in the call",
+                              getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
@@ -2091,21 +2388,25 @@ int MegaChatApiImpl::performRequest_setCallOnHold(MegaChatRequestPrivate* reques
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                API_LOG_ERROR("Set call on hold  - There is not any call in that chatroom");
+                API_LOG_ERROR("%sSet call on hold  - There is not any call in that chatroom",
+                              getLoggingName());
                 assert(call);
                 return MegaChatError::ERROR_NOENT;
             }
 
             if (call->getState() != rtcModule::CallState::kStateInProgress)
             {
-                API_LOG_ERROR("The call can't be set onHold until call is in-progres");
+                API_LOG_ERROR("%sThe call can't be set onHold until call is in-progres",
+                              getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             karere::AvFlags currentFlags = call->getLocalAvFlags();
             if (onHold == currentFlags.isOnHold())
             {
-                API_LOG_ERROR("Set call on hold - Call is on hold and try to set on hold or conversely");
+                API_LOG_ERROR(
+                    "%sSet call on hold - Call is on hold and try to set on hold or conversely",
+                    getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
             currentFlags.setOnHold(onHold);
@@ -2120,7 +2421,8 @@ int MegaChatApiImpl::performRequest_setVideoCapturerInDevice(MegaChatRequestPriv
 {
     if (!mClient->rtc)
     {
-        API_LOG_ERROR("Change video streaming source - WebRTC is not initialized");
+        API_LOG_ERROR("%sChange video streaming source - WebRTC is not initialized",
+                      getLoggingName());
         return MegaChatError::ERROR_ACCESS;
     }
 
@@ -2128,7 +2430,7 @@ int MegaChatApiImpl::performRequest_setVideoCapturerInDevice(MegaChatRequestPriv
     int deviceType = request->getPrivilege();
     if (!deviceName || !mClient->rtc->setVideoCapturerInDevice(deviceName, deviceType))
     {
-        API_LOG_ERROR("Change video streaming source - device doesn't exist");
+        API_LOG_ERROR("%sChange video streaming source - device doesn't exist", getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
@@ -2156,18 +2458,22 @@ int MegaChatApiImpl::performRequest_archiveChat(MegaChatRequestPrivate* request)
             }
 
             chatroom->archiveChat(archive)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error archiving chat: %s", err.what());
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError archiving chat: %s", getLoggingName(), err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -2206,7 +2512,10 @@ int MegaChatApiImpl::performRequest_loadUserAttributes(MegaChatRequestPrivate* r
                 MegaChatHandle peerid = handleList->get(i);
                 if (!chatroom->isMember(peerid))
                 {
-                    API_LOG_ERROR("Error %s is not a chat member of chatroom (%s)", Id(peerid).toString().c_str(), Id(chatid).toString().c_str());
+                    API_LOG_ERROR("%sError %s is not a chat member of chatroom (%s)",
+                                  getLoggingName(),
+                                  Id(peerid).toString().c_str(),
+                                  Id(chatid).toString().c_str());
                     isMember = false;
                     break;
                 }
@@ -2247,37 +2556,50 @@ int MegaChatApiImpl::performRequest_setChatRetentionTime(MegaChatRequestPrivate*
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("Request(TYPE_SET_RETENTION_TIME). Invalid chatid");
+                API_LOG_ERROR("%sRequest(TYPE_SET_RETENTION_TIME). Invalid chatid",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             ChatRoom *chatroom = findChatRoom(chatid);
             if (!chatroom)
             {
-                API_LOG_ERROR("Request(TYPE_SET_RETENTION_TIME). Chatroom not found. Chatid: %s", karere::Id(chatid).toString().c_str());
+                API_LOG_ERROR("%sRequest(TYPE_SET_RETENTION_TIME). Chatroom not found. Chatid: %s",
+                              getLoggingName(),
+                              karere::Id(chatid).toString().c_str());
                 return MegaChatError::ERROR_NOENT;
             }
             if (chatroom->ownPriv() != static_cast<Priv>(MegaChatPeerList::PRIV_MODERATOR))
             {
-                API_LOG_ERROR("Request(TYPE_SET_RETENTION_TIME). Insufficient permissions for chatroom: %s", karere::Id(chatid).toString().c_str());
+                API_LOG_ERROR(
+                    "%sRequest(TYPE_SET_RETENTION_TIME). Insufficient permissions for chatroom: %s",
+                    getLoggingName(),
+                    karere::Id(chatid).toString().c_str());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             auto wptr = mClient->weakHandle();
             chatroom->setChatRetentionTime(period)
-            .then([request, wptr, this]()
-            {
-                wptr.throwIfDeleted();
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request, this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Request(TYPE_SET_RETENTION_TIME). Error setting retention time. %s", err.what());
+                .then(
+                    [request, wptr, this]()
+                    {
+                        wptr.throwIfDeleted();
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR(
+                            "%sRequest(TYPE_SET_RETENTION_TIME). Error setting retention time. %s",
+                            getLoggingName(),
+                            err.what());
 
-                MegaChatErrorPrivate *megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -2395,21 +2717,25 @@ int MegaChatApiImpl::performRequest_enableAudioLevelMonitor(MegaChatRequestPriva
             bool enable = request->getFlag();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR - Invalid chatid");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_ENABLE_AUDIO_LEVEL_MONITOR - Invalid chatid",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                API_LOG_ERROR("Enable audio level monitor  - There is not any call in that chatroom");
+                API_LOG_ERROR(
+                    "%sEnable audio level monitor  - There is not any call in that chatroom",
+                    getLoggingName());
                 assert(call);
                 return MegaChatError::ERROR_NOENT;
             }
 
             if (!call->participate())
             {
-                API_LOG_ERROR("Enable audio level monitor - You don't participate in the call");
+                API_LOG_ERROR("%sEnable audio level monitor - You don't participate in the call",
+                              getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
@@ -2437,13 +2763,15 @@ int MegaChatApiImpl::performRequest_addDelspeakRequest(MegaChatRequestPrivate* r
     const std::string errMsg {"MegaChatRequest::TYPE_SPEAKRQ_ADD_DEL" + std::string(add ? "(ADD)" : "(DEL)")};
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("%s - Invalid chatid", errMsg.c_str());
+        API_LOG_ERROR("%s%s - Invalid chatid", getLoggingName(), errMsg.c_str());
         return MegaChatError::ERROR_ARGS;
     }
 
     if (add && user != MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("%s - expected userid for adding speak request", errMsg.c_str());
+        API_LOG_ERROR("%s%s - expected userid for adding speak request",
+                      getLoggingName(),
+                      errMsg.c_str());
         return MegaChatError::ERROR_ARGS;
     }
 
@@ -2451,22 +2779,24 @@ int MegaChatApiImpl::performRequest_addDelspeakRequest(MegaChatRequestPrivate* r
     auto res = getCall(request->getChatHandle(), errMsg, ownPrivMod);
     if (res.first != MegaChatError::ERROR_OK)
     {
-        API_LOG_ERROR("%s - can't get chat call", errMsg.c_str());
+        API_LOG_ERROR("%s%s - can't get chat call", getLoggingName(), errMsg.c_str());
         return res.first;
     }
 
     rtcModule::ICall* call= res.second;
     if (!add && !call->hasUserPendingSpeakRequest(user != MEGACHAT_INVALID_HANDLE ? user : getMyUserHandle()))
     {
-        API_LOG_ERROR("%s - userid doesn't has a pending speak request in flight");
+        API_LOG_ERROR("%s - userid doesn't has a pending speak request in flight", errMsg.c_str());
         return MegaChatError::ERROR_NOENT;
     }
 
     if (add && (call->hasUserSpeakPermission(getMyUserHandle()) || call->hasUserPendingSpeakRequest(getMyUserHandle())))
     {
-        API_LOG_ERROR("%s - userid already has ", call->hasUserSpeakPermission(getMyUserHandle())
-                                                          ? " speak permission"
-                                                          : " a pending speak request in flight" );
+        API_LOG_ERROR("%s%s - userid already has ",
+                      getLoggingName(),
+                      call->hasUserSpeakPermission(getMyUserHandle()) ?
+                          " speak permission" :
+                          " a pending speak request in flight");
         return MegaChatError::ERROR_EXIST;
     }
 
@@ -2485,13 +2815,13 @@ int MegaChatApiImpl::performRequest_addRevokeSpeakePermission(MegaChatRequestPri
             const std::string errMsg = {"MegaChatRequest::TYPE_REQUEST_SPEAK" + std::string(add ? "(ADD)" : "(DEL)")};
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("%s - Invalid chatid", errMsg.c_str());
+                API_LOG_ERROR("%s%s - Invalid chatid", getLoggingName(), errMsg.c_str());
                 return MegaChatError::ERROR_ARGS;
             }
 
             if (add && user == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("%s - Invalid userid", errMsg.c_str());
+                API_LOG_ERROR("%s%s - Invalid userid", getLoggingName(), errMsg.c_str());
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -2500,7 +2830,7 @@ int MegaChatApiImpl::performRequest_addRevokeSpeakePermission(MegaChatRequestPri
             auto res = getCall(request->getChatHandle(), errMsg, isModeratorRoleRequired);
             if (res.first != MegaChatError::ERROR_OK)
             {
-                API_LOG_ERROR("%s - can't get chat call", errMsg.c_str());
+                API_LOG_ERROR("%s%s - can't get chat call", getLoggingName(), errMsg.c_str());
                 return res.first;
             }
 
@@ -2521,33 +2851,41 @@ int MegaChatApiImpl::performRequest_hiResVideo(MegaChatRequestPrivate* request)
 
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid chatid");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid chatid",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             if (request->getFlag() && (quality < MegaChatCall::CALL_QUALITY_HIGH_DEF || quality > MegaChatCall::CALL_QUALITY_HIGH_LOW))
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - Invalid resolution quality");
+                API_LOG_ERROR(
+                    "%sMegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - Invalid resolution quality",
+                    getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - There is not any call in that chatroom");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO  - There is not any "
+                              "call in that chatroom",
+                              getLoggingName());
                 assert(call);
                 return MegaChatError::ERROR_NOENT;
             }
 
             if (!request->getFlag() && (!request->getMegaHandleList() || !request->getMegaHandleList()->size()))
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid list of Cids for removal");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_HIGH_RES_VIDEO - Invalid list of "
+                              "Cids for removal",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("Request high resolution video - Call isn't in progress state");
+                API_LOG_ERROR("%sRequest high resolution video - Call isn't in progress state",
+                              getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
@@ -2580,14 +2918,14 @@ int MegaChatApiImpl::performRequest_raiseHandToSpeak(MegaChatRequestPrivate* req
     const std::string errMsg = {"MegaChatRequest::TYPE_RAISE_HAND_TO_SPEAK" + std::string(add ? "(ADD)" : "(DEL)")};
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("%s - Invalid chatid", errMsg.c_str());
+        API_LOG_ERROR("%s%s - Invalid chatid", getLoggingName(), errMsg.c_str());
         return MegaChatError::ERROR_ARGS;
     }
 
     auto [errCode, call] = getCall(request->getChatHandle(), errMsg, false/*isModeratorRoleRequired*/);
     if (errCode != MegaChatError::ERROR_OK)
     {
-        API_LOG_ERROR("%s - can't get chat call", errMsg.c_str());
+        API_LOG_ERROR("%s%s - can't get chat call", getLoggingName(), errMsg.c_str());
         return errCode;
     }
 
@@ -2604,27 +2942,34 @@ int MegaChatApiImpl::performRequest_lowResVideo(MegaChatRequestPrivate* request)
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Invalid chatid");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Invalid chatid",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall *call = findCall(chatid);
             if (!call)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO  - There is not any call in that chatroom");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO  - There is not any "
+                              "call in that chatroom",
+                              getLoggingName());
                 assert(call);
                 return MegaChatError::ERROR_NOENT;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Call isn't in progress state");
+                API_LOG_ERROR(
+                    "%sMegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Call isn't in progress state",
+                    getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             if (!request->getMegaHandleList() || !request->getMegaHandleList()->size())
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Invalid list of Cids");
+                API_LOG_ERROR(
+                    "%sMegaChatRequest::TYPE_REQUEST_LOW_RES_VIDEO - Invalid list of Cids",
+                    getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -2654,7 +2999,7 @@ int MegaChatApiImpl::performRequest_openCloseVideoDevice(MegaChatRequestPrivate*
 {
     if (!mClient->rtc)
     {
-        API_LOG_ERROR("OpenVideoDevice - WebRTC is not initialized");
+        API_LOG_ERROR("%sOpenVideoDevice - WebRTC is not initialized", getLoggingName());
         return MegaChatError::ERROR_ACCESS;
     }
 
@@ -2673,7 +3018,7 @@ int MegaChatApiImpl::performRequest_openCloseVideoDevice(MegaChatRequestPrivate*
     }
     else
     {
-        API_LOG_ERROR("OpenVideoDevice - invalid capturer type");
+        API_LOG_ERROR("%sOpenVideoDevice - invalid capturer type", getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
@@ -2689,35 +3034,44 @@ int MegaChatApiImpl::performRequest_requestHiResQuality(MegaChatRequestPrivate* 
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - Invalid chatid");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - Invalid chatid",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             rtcModule::ICall* call = findCall(chatid);
             if (!call)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - There is not any call in that chatroom");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - There is not any "
+                              "call in that chatroom",
+                              getLoggingName());
                 assert(call);
                 return MegaChatError::ERROR_NOENT;
             }
 
             if (call->getState() != rtcModule::kStateInProgress)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - Call isn't in progress state");
+                API_LOG_ERROR(
+                    "%sMegaChatRequest::TYPE_REQUEST_HIRES_QUALITY - Call isn't in progress state",
+                    getLoggingName());
                 return MegaChatError::ERROR_ACCESS;
             }
 
             Cid_t cid = static_cast<Cid_t>(request->getUserHandle());
             if (!call->hasVideoSlot(cid, true))
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - Currently not receiving a hi-res stream for this peer");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - Currently not "
+                              "receiving a hi-res stream for this peer",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             int quality = request->getParamType();
             if (quality < MegaChatCall::CALL_QUALITY_HIGH_DEF || quality > MegaChatCall::CALL_QUALITY_HIGH_LOW)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - invalid quality level value (spatial layer offset).");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_REQUEST_HIRES_QUALITY  - invalid quality "
+                              "level value (spatial layer offset).",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -2738,47 +3092,68 @@ int MegaChatApiImpl::performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* 
 
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("%s - Invalid chatid: %s", reqStr.c_str());
+        API_LOG_ERROR("%s%s - Invalid chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         return MegaChatError::ERROR_ARGS;
     }
 
     if (!allowAll && (!handleList || !handleList->size()))
     {
-        API_LOG_ERROR("%s - Invalid list of users provided. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        API_LOG_ERROR("%s%s - Invalid list of users provided. chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         return MegaChatError::ERROR_ARGS;
     }
 
     rtcModule::ICall* call = findCall(chatid);
     if (!call)
     {
-        API_LOG_ERROR("%s - There is not any call in that chatroom. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        API_LOG_ERROR("%s%s - There is not any call in that chatroom. chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         assert(call);
         return MegaChatError::ERROR_NOENT;
     }
 
     if (call->getState() != rtcModule::kStateInProgress)
     {
-        API_LOG_ERROR("%s - Call isn't in progress state. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        API_LOG_ERROR("%s%s - Call isn't in progress state. chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         return MegaChatError::ERROR_ACCESS;
     }
 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
-        API_LOG_ERROR("%s - Chatroom has not been found. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        API_LOG_ERROR("%s%s - Chatroom has not been found. chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         return MegaChatError::ERROR_NOENT;
     }
 
     if (!chatroom->isWaitingRoom())
     {
-        API_LOG_ERROR("%s - Chatroom doesn't have waiting room enabled. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        API_LOG_ERROR("%s%s - Chatroom doesn't have waiting room enabled. chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         return MegaChatError::ERROR_NOENT;
     }
 
     // Push into wr is just allowed for hosts
     if (request->getType() == MegaChatRequest::TYPE_WR_PUSH && chatroom->ownPriv() < (Priv) MegaChatPeerList::PRIV_MODERATOR)
     {
-        API_LOG_ERROR("%s - Insufficient permissions to execute this action. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        API_LOG_ERROR("%s%s - Insufficient permissions to execute this action. chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         return MegaChatError::ERROR_ACCESS;
     }
 
@@ -2786,7 +3161,10 @@ int MegaChatApiImpl::performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* 
     if (chatroom->ownPriv() < (Priv) MegaChatPeerList::PRIV_STANDARD
         || (chatroom->ownPriv() == (Priv) MegaChatPeerList::PRIV_STANDARD && !chatroom->isOpenInvite()))
     {
-        API_LOG_ERROR("%s - Insufficient permissions to execute this action. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        API_LOG_ERROR("%s%s - Insufficient permissions to execute this action. chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         return MegaChatError::ERROR_ACCESS;
     }
 
@@ -2796,7 +3174,10 @@ int MegaChatApiImpl::performRequest_pushOrAllowJoinCall(MegaChatRequestPrivate* 
         // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
         // however we also need to ensure, that we also have received proper information from SFU to
         // initialize waiting room with users on it, and their joining permission
-        API_LOG_ERROR("%s. Can't retrieve waiting room from karere chatroom. chatid: %s", reqStr.c_str(), chatidB64.c_str());
+        API_LOG_ERROR("%s%s. Can't retrieve waiting room from karere chatroom. chatid: %s",
+                      getLoggingName(),
+                      reqStr.c_str(),
+                      chatidB64.c_str());
         assert(false);
         return MegaChatError::ERROR_UNKNOWN;
     }
@@ -2821,7 +3202,8 @@ int MegaChatApiImpl::performRequest_kickUsersFromCall(MegaChatRequestPrivate* re
     const auto handleList = request->getMegaHandleList();
     if (!handleList || !handleList->size())
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK - Empty list of users to be kicked off");
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_WR_KICK - Empty list of users to be kicked off",
+                      getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
@@ -2844,7 +3226,9 @@ int MegaChatApiImpl::performRequest_kickUsersFromCall(MegaChatRequestPrivate* re
         // We have checked that chatroom has waiting room flag enabled at getCallWithModPermissions,
         // however we also need to ensure, that we also have received proper information from SFU to
         // initialize waiting room with users on it, and their joining permission
-        API_LOG_ERROR("MegaChatRequest::TYPE_WR_KICK. Can't retrieve waiting room from karere chatroom. chatid: %s",
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_WR_KICK. Can't retrieve waiting room from karere "
+                      "chatroom. chatid: %s",
+                      getLoggingName(),
                       karere::Id(request->getChatHandle()).toString().c_str());
 
         assert(false);
@@ -2862,7 +3246,7 @@ int MegaChatApiImpl::performRequest_setLimitsInCall(MegaChatRequestPrivate* requ
     const MegaChatHandle chatid = request->getChatHandle();
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - Invalid chatid");
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_SET_LIMIT_CALL - Invalid chatid", getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
@@ -2875,14 +3259,17 @@ int MegaChatApiImpl::performRequest_setLimitsInCall(MegaChatRequestPrivate* requ
     rtcModule::ICall* call = findCall(chatid);
     if (!call)
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - There is not any call in that chatroom");
+        API_LOG_ERROR(
+            "%sMegaChatRequest::TYPE_SET_LIMIT_CALL - There is not any call in that chatroom",
+            getLoggingName());
         assert(call);
         return MegaChatError::ERROR_NOENT;
     }
 
     if (call->getState() != rtcModule::kStateInProgress)
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - Call isn't in progress state");
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_SET_LIMIT_CALL - Call isn't in progress state",
+                      getLoggingName());
         return MegaChatError::ERROR_ACCESS;
     }
 
@@ -2898,7 +3285,8 @@ int MegaChatApiImpl::performRequest_setLimitsInCall(MegaChatRequestPrivate* requ
         && numClients == MegaChatCall::CALL_LIMIT_NO_PRESENT
         && divider == MegaChatCall::CALL_LIMIT_NO_PRESENT)
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_SET_LIMIT_CALL - invalid value for provided params");
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_SET_LIMIT_CALL - invalid value for provided params",
+                      getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
@@ -2913,27 +3301,31 @@ int MegaChatApiImpl::performRequest_mutePeersInCall(MegaChatRequestPrivate* requ
     const MegaChatHandle chatid = request->getChatHandle();
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - Invalid chatid");
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_MUTE - Invalid chatid", getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
     rtcModule::ICall* call = findCall(chatid);
     if (!call)
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - There is not any call in that chatroom");
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_MUTE - There is not any call in that chatroom",
+                      getLoggingName());
         assert(call);
         return MegaChatError::ERROR_NOENT;
     }
 
     if (call->getState() != rtcModule::kStateInProgress)
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - Call isn't in progress state");
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_MUTE - Call isn't in progress state",
+                      getLoggingName());
         return MegaChatError::ERROR_ACCESS;
     }
 
     if (!call->isOwnPrivModerator())
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - moderator role required to perform this action");
+        API_LOG_ERROR(
+            "%sMegaChatRequest::TYPE_MUTE - moderator role required to perform this action",
+            getLoggingName());
         return MegaChatError::ERROR_ACCESS;
     }
 
@@ -2943,8 +3335,10 @@ int MegaChatApiImpl::performRequest_mutePeersInCall(MegaChatRequestPrivate* requ
 
     if (cid != K_INVALID_CID && !call->getIsession(cid))
     {
-        API_LOG_ERROR("MegaChatRequest::TYPE_MUTE - Session with Cid not exists %d. Callid: %s"
-                      , cid, karere::Id(call->getCallid()).toString().c_str());
+        API_LOG_ERROR("%sMegaChatRequest::TYPE_MUTE - Session with Cid not exists %d. Callid: %s",
+                      getLoggingName(),
+                      cid,
+                      karere::Id(call->getCallid()).toString().c_str());
 
         return MegaChatError::ERROR_NOENT;
     }
@@ -2964,13 +3358,15 @@ int MegaChatApiImpl::performRequest_removeScheduledMeeting(MegaChatRequestPrivat
             handle schedId = request->getUserHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid chatid");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid chatid",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
             if (schedId == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid schedId");
+                API_LOG_ERROR("%sMegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING - Invalid schedId",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -2987,18 +3383,23 @@ int MegaChatApiImpl::performRequest_removeScheduledMeeting(MegaChatRequestPrivat
             }
 
             mClient->removeScheduledMeeting(chatid, schedId)
-            .then([request, this]()
-            {
-                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request,this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error removing a scheduled meeting: %s", err.what());
+                .then(
+                    [request, this]()
+                    {
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError removing a scheduled meeting: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
 
             return MegaChatError::ERROR_OK;
         }
@@ -3011,7 +3412,9 @@ int MegaChatApiImpl::performRequest_fetchScheduledMeetingOccurrences(MegaChatReq
             handle chatid = request->getChatHandle();
             if (chatid == MEGACHAT_INVALID_HANDLE)
             {
-                API_LOG_ERROR("MegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES - Invalid chatid");
+                API_LOG_ERROR(
+                    "%sMegaChatRequest::TYPE_FETCH_SCHEDULED_MEETING_OCCURRENCES - Invalid chatid",
+                    getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -3046,25 +3449,42 @@ int MegaChatApiImpl::performRequest_fetchScheduledMeetingOccurrences(MegaChatReq
                 std::shared_ptr<MegaChatScheduledMeetingOccurrList> l(MegaChatScheduledMeetingOccurrList::createInstance());
                 std::for_each(res.begin(), res.end(), [l](const auto &sm) { l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get())); });
 
-                API_LOG_DEBUG("Fetching fresh scheduled meeting occurrences from API");
-                mClient->fetchScheduledMeetingOccurrences(chatid, newSince, until, pendingOccurrences)
-                .then([request, l, this](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
-                {
-                    std::for_each(result.begin(), result.end(), [l](const auto &sm) { l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get())); });
-                    request->setMegaChatScheduledMeetingOccurrList(l.get());
-                    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
-                })
-                .fail([request, this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
-                    std::unique_ptr<MegaChatScheduledMeetingOccurrList> list(MegaChatScheduledMeetingOccurrList::createInstance());
-                    request->setMegaChatScheduledMeetingOccurrList(list.get());
-                    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(err.code()));
-                });
+                API_LOG_DEBUG("%sFetching fresh scheduled meeting occurrences from API",
+                              getLoggingName());
+                mClient
+                    ->fetchScheduledMeetingOccurrences(chatid, newSince, until, pendingOccurrences)
+                    .then(
+                        [request, l, this](
+                            std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> result)
+                        {
+                            std::for_each(
+                                result.begin(),
+                                result.end(),
+                                [l](const auto& sm)
+                                {
+                                    l->insert(new MegaChatScheduledMeetingOccurrPrivate(sm.get()));
+                                });
+                            request->setMegaChatScheduledMeetingOccurrList(l.get());
+                            fireOnChatRequestFinish(
+                                request,
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+                        })
+                    .fail(
+                        [request, this](const ::promise::Error& err)
+                        {
+                            API_LOG_ERROR("%sError fetching scheduled meetings occurrences: %s",
+                                          getLoggingName(),
+                                          err.what());
+                            std::unique_ptr<MegaChatScheduledMeetingOccurrList> list(
+                                MegaChatScheduledMeetingOccurrList::createInstance());
+                            request->setMegaChatScheduledMeetingOccurrList(list.get());
+                            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(err.code()));
+                        });
             }
             else
             {
-                API_LOG_DEBUG("Scheduled meeting occurrences fetched from local");
+                API_LOG_DEBUG("%sScheduled meeting occurrences fetched from local",
+                              getLoggingName());
                 std::unique_ptr<MegaChatScheduledMeetingOccurrList> list(MegaChatScheduledMeetingOccurrList::createInstance());
                 for (auto it = res.begin(); it != res.end(); it++)
                 {
@@ -3087,10 +3507,14 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
             if (!request->getMegaChatScheduledMeetingList()
                     || request->getMegaChatScheduledMeetingList()->size() != 1)
             {
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 1 (list %s, size %ul): %d",
-                              (request->getMegaChatScheduledMeetingList() ? "not-null" : "NULL"),
-                              (request->getMegaChatScheduledMeetingList() ? request->getMegaChatScheduledMeetingList()->size() : 0u),
-                              MegaChatError::ERROR_ARGS);
+                API_LOG_ERROR(
+                    "%sTYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 1 (list %s, size %ul): %d",
+                    getLoggingName(),
+                    (request->getMegaChatScheduledMeetingList() ? "not-null" : "NULL"),
+                    (request->getMegaChatScheduledMeetingList() ?
+                         request->getMegaChatScheduledMeetingList()->size() :
+                         0u),
+                    MegaChatError::ERROR_ARGS);
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -3099,15 +3523,21 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
                     ocurr->endDateTime() == MEGACHAT_INVALID_TIMESTAMP &&
                     ocurr->cancelled() == -1)
             {
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 2 (bad startDateTime, endDateTime, cancelled): %d", MegaChatError::ERROR_NOENT);
+                API_LOG_ERROR("%sTYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 2 (bad "
+                              "startDateTime, endDateTime, cancelled): %d",
+                              getLoggingName(),
+                              MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
 
             GroupChatRoom* chatroom = dynamic_cast<GroupChatRoom *>(findChatRoom(ocurr->chatId()));
             if (!chatroom)
             {
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 3 (chatroom not found for id %s): %d",
-                              Base64Str<MegaClient::CHATHANDLE>(ocurr->chatId()).chars, MegaChatError::ERROR_NOENT);
+                API_LOG_ERROR("%sTYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 3 (chatroom not "
+                              "found for id %s): %d",
+                              getLoggingName(),
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->chatId()).chars,
+                              MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
 
@@ -3117,8 +3547,11 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
             if (it == schedMeetings.end())
             {
                 // scheduled meeting related to occurrence we want to modify, doesn't exists
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 4 (scheduled meeting not found for id %s): %d",
-                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()).chars, MegaChatError::ERROR_NOENT);
+                API_LOG_ERROR("%sTYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 4 (scheduled "
+                              "meeting not found for id %s): %d",
+                              getLoggingName(),
+                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()).chars,
+                              MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
             const KarereScheduledMeeting* occurrSchedMeeting = it->second.get();
@@ -3148,24 +3581,44 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
                 if (res.size() < MegaChatScheduledMeeting::MIN_OCURRENCES)
                 {
                     // load fresh scheduled meeting occurrences from API, as we don't have enough future occurrences in local
-                    mClient->fetchScheduledMeetingOccurrences(ocurr->chatId(), now /*since*/, MEGACHAT_INVALID_TIMESTAMP /*until*/, MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
-                    .then([](std::vector<std::shared_ptr<KarereScheduledMeetingOccurr>> /*result*/)
-                    {
-                        API_LOG_DEBUG("Newer scheduled meetings occurrences retrieved successfully");
-                    })
-                    .fail([](const ::promise::Error& err)
-                    {
-                        API_LOG_ERROR("Error fetching scheduled meetings occurrences: %s", err.what());
-                    });
-                    API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 6 "
-                                  "(scheduled meeting occurrence not found in local for id %s and overrides %d): %d",
-                                  Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()).chars, overrides, MegaChatError::ERROR_TOOMANY);
+                    mClient
+                        ->fetchScheduledMeetingOccurrences(
+                            ocurr->chatId(),
+                            now /*since*/,
+                            MEGACHAT_INVALID_TIMESTAMP /*until*/,
+                            MegaChatScheduledMeeting::NUM_OCURRENCES_REQ)
+                        .then(
+                            [this](std::vector<
+                                   std::shared_ptr<KarereScheduledMeetingOccurr>> /*result*/)
+                            {
+                                API_LOG_DEBUG(
+                                    "%sNewer scheduled meetings occurrences retrieved successfully",
+                                    getLoggingName());
+                            })
+                        .fail(
+                            [this](const ::promise::Error& err)
+                            {
+                                API_LOG_ERROR("%sError fetching scheduled meetings occurrences: %s",
+                                              getLoggingName(),
+                                              err.what());
+                            });
+                    API_LOG_ERROR("%sTYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 6 "
+                                  "(scheduled meeting occurrence not found in local for id %s and "
+                                  "overrides %d): %d",
+                                  getLoggingName(),
+                                  Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()).chars,
+                                  overrides,
+                                  MegaChatError::ERROR_TOOMANY);
 
                     return MegaChatError::ERROR_TOOMANY;
                 }
-                API_LOG_ERROR("TYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 5 "
-                              "(scheduled meeting occurrence not found for id %s and overrides %d): %d",
-                              Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()).chars, overrides, MegaChatError::ERROR_NOENT);
+                API_LOG_ERROR(
+                    "%sTYPE_UPDATE_SCHEDULED_MEETING_OCCURRENCE error 5 "
+                    "(scheduled meeting occurrence not found for id %s and overrides %d): %d",
+                    getLoggingName(),
+                    Base64Str<MegaClient::CHATHANDLE>(ocurr->schedId()).chars,
+                    overrides,
+                    MegaChatError::ERROR_NOENT);
                 return MegaChatError::ERROR_NOENT;
             }
 
@@ -3218,33 +3671,43 @@ int MegaChatApiImpl::performRequest_updateScheduledMeetingOccurrence(MegaChatReq
                                                                                                                 overrides, megaFlags.get(), /*rules*/ nullptr));
             }
 
-            mClient->createOrUpdateScheduledMeeting(megaSchedMeeting.get(), nullptr/*chatTitle*/)
-            .then([request, this](KarereScheduledMeeting* sm)
-            {
-                if (sm)
-                {
-                    std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-                    l->insert(new MegaChatScheduledMeetingPrivate(sm));
-                    request->setMegaChatScheduledMeetingList(l.get());
-                }
-                else
-                {
-                    assert(false);
-                    API_LOG_ERROR("Error updating a scheduled meeting occurrence, updated occurrence has not been received");
-                    fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
-                    return;
-                }
+            mClient->createOrUpdateScheduledMeeting(megaSchedMeeting.get(), nullptr /*chatTitle*/)
+                .then(
+                    [request, this](KarereScheduledMeeting* sm)
+                    {
+                        if (sm)
+                        {
+                            std::unique_ptr<MegaChatScheduledMeetingList> l(
+                                MegaChatScheduledMeetingList::createInstance());
+                            l->insert(new MegaChatScheduledMeetingPrivate(sm));
+                            request->setMegaChatScheduledMeetingList(l.get());
+                        }
+                        else
+                        {
+                            assert(false);
+                            API_LOG_ERROR("%sError updating a scheduled meeting occurrence, "
+                                          "updated occurrence has not been received",
+                                          getLoggingName());
+                            fireOnChatRequestFinish(
+                                request,
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
+                            return;
+                        }
 
-                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                fireOnChatRequestFinish(request, megaChatError);
-            })
-            .fail([request,this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error updating a scheduled meeting occurrence: %s", err.what());
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this](const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError updating a scheduled meeting occurrence: %s",
+                                      getLoggingName(),
+                                      err.what());
 
-                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
 
             return MegaChatError::ERROR_OK;
         }
@@ -3277,7 +3740,9 @@ int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivat
             if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title())
                     || !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
             {
-                API_LOG_ERROR("Error updating a scheduled meeting: title or description length exceeded");
+                API_LOG_ERROR(
+                    "%sError updating a scheduled meeting: title or description length exceeded",
+                    getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
 
@@ -3301,7 +3766,9 @@ int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivat
             const bool titleChanged = sm->title() && currentMeeting->title().compare(sm->title());
             if (updateChatTitle && !titleChanged)
             {
-                API_LOG_ERROR("Error updating a scheduled meeting: updateChatTitle is true but scheduled meeting title has not changed");
+                API_LOG_ERROR("%sError updating a scheduled meeting: updateChatTitle is true but "
+                              "scheduled meeting title has not changed",
+                              getLoggingName());
                 return MegaChatError::ERROR_ARGS;
             }
             std::string newTitle = sm->title() ? sm->title() : currentMeeting->title();
@@ -3344,52 +3811,72 @@ int MegaChatApiImpl::performRequest_updateScheduledMeeting(MegaChatRequestPrivat
             }
 
             auto wptr = mClient->weakHandle();
-            pms.then([this, wptr, request, megaSchedMeeting, &updateChatTitle](const std::shared_ptr<Buffer>& buf)
-            {
-                if (wptr.deleted()) { return; }
+            pms.then(
+                   [this, wptr, request, megaSchedMeeting, &updateChatTitle](
+                       const std::shared_ptr<Buffer>& buf)
+                   {
+                       if (wptr.deleted())
+                       {
+                           return;
+                       }
 
-                auto encTitleB64 = base64urlencode(buf->buf(), buf->dataSize());
-                if (updateChatTitle && encTitleB64.empty())
-                {
-                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_TOOMANY);
-                    fireOnChatRequestFinish(request, megaChatError);
-                    return;
-                }
+                       auto encTitleB64 = base64urlencode(buf->buf(), buf->dataSize());
+                       if (updateChatTitle && encTitleB64.empty())
+                       {
+                           MegaChatErrorPrivate* megaChatError =
+                               new MegaChatErrorPrivate(MegaChatError::ERROR_TOOMANY);
+                           fireOnChatRequestFinish(request, megaChatError);
+                           return;
+                       }
 
-                const char* chatTitle = updateChatTitle ? encTitleB64.c_str() : nullptr;
-                mClient->createOrUpdateScheduledMeeting(megaSchedMeeting.get(), chatTitle)
-                .then([request, this](KarereScheduledMeeting* sm)
-                {
-                    if (sm)
+                       const char* chatTitle = updateChatTitle ? encTitleB64.c_str() : nullptr;
+                       mClient->createOrUpdateScheduledMeeting(megaSchedMeeting.get(), chatTitle)
+                           .then(
+                               [request, this](KarereScheduledMeeting* sm)
+                               {
+                                   if (sm)
+                                   {
+                                       std::unique_ptr<MegaChatScheduledMeetingList> l(
+                                           MegaChatScheduledMeetingList::createInstance());
+                                       l->insert(new MegaChatScheduledMeetingPrivate(sm));
+                                       request->setMegaChatScheduledMeetingList(l.get());
+                                   }
+                                   else
+                                   {
+                                       assert(false);
+                                       API_LOG_ERROR("%sError updating a scheduled meeting, non "
+                                                     "received scheduled meeting",
+                                                     getLoggingName());
+                                       fireOnChatRequestFinish(
+                                           request,
+                                           new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
+                                       return;
+                                   }
+                                   MegaChatErrorPrivate* megaChatError =
+                                       new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                                   fireOnChatRequestFinish(request, megaChatError);
+                               })
+                           .fail(
+                               [request, this](const ::promise::Error& err)
+                               {
+                                   API_LOG_ERROR("%sError updating a scheduled meeting: %s",
+                                                 getLoggingName(),
+                                                 err.what());
+
+                                   MegaChatErrorPrivate* megaChatError =
+                                       new MegaChatErrorPrivate(err.code());
+                                   fireOnChatRequestFinish(request, megaChatError);
+                               });
+                   })
+                .fail(
+                    [request, this](const ::promise::Error& err)
                     {
-                        std::unique_ptr<MegaChatScheduledMeetingList> l(MegaChatScheduledMeetingList::createInstance());
-                        l->insert(new MegaChatScheduledMeetingPrivate(sm));
-                        request->setMegaChatScheduledMeetingList(l.get());
-                    }
-                    else
-                    {
-                        assert(false);
-                        API_LOG_ERROR("Error updating a scheduled meeting, non received scheduled meeting");
-                        fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
-                        return;
-                    }
-                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                    fireOnChatRequestFinish(request, megaChatError);
-                })
-                .fail([request,this](const ::promise::Error& err)
-                {
-                    API_LOG_ERROR("Error updating a scheduled meeting: %s", err.what());
-
-                    MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
-                    fireOnChatRequestFinish(request, megaChatError);
-                });
-            })
-            .fail([request,this](const ::promise::Error& err)
-            {
-                API_LOG_ERROR("Error encrypting chatroom title for all participants: %s", err.what());
-                MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
-                fireOnChatRequestFinish(request, megaChatError);
-            });
+                        API_LOG_ERROR("%sError encrypting chatroom title for all participants: %s",
+                                      getLoggingName(),
+                                      err.what());
+                        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.code());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
             return MegaChatError::ERROR_OK;
         }
 }
@@ -3426,6 +3913,37 @@ void MegaChatApiImpl::setLogToConsole(bool enable)
     {
         loggerHandler->setLogToConsole(enable);
     }
+}
+
+void MegaChatApiImpl::setLoggingName(const char* loggingName)
+{
+    SdkMutexGuard g(sdkMutex);
+    if (!mClient)
+    {
+        API_LOG_ERROR(
+            "%sMegaChatApiImpl::setLoggingName must be called after initializing karere client",
+            getLoggingName());
+        assert(false);
+        return;
+    }
+    if (loggingName)
+    {
+        mClient->api.mClientname = std::string(loggingName) + " ";
+    }
+    else
+    {
+        mClient->api.mClientname.clear();
+    }
+}
+
+const char* MegaChatApiImpl::getLoggingName() const
+{
+    SdkMutexGuard g(sdkMutex);
+    if (!mClient)
+    {
+        return "";
+    }
+    return mClient->getLoggingName();
 }
 
 void MegaChatApiImpl::setLoggerClass(MegaChatLogger *megaLogger)
@@ -3502,7 +4020,7 @@ void MegaChatApiImpl::createKarereClient()
 #else
         mClient = new karere::Client(*mMegaApi, mWebsocketsIO, *this, *mScheduledMeetingHandler, mMegaApi->getBasePath(), caps, this);
 #endif
-        API_LOG_DEBUG("createKarereClient: karere client instance created");
+        API_LOG_DEBUG("%screateKarereClient: karere client instance created", getLoggingName());
         mTerminating = false;
     }
 }
@@ -3550,7 +4068,9 @@ void MegaChatApiImpl::removeChatRoomHandler(MegaChatHandle chatid)
     map<MegaChatHandle, MegaChatRoomHandler*>::iterator it = chatRoomHandler.find(chatid);
     if (it == chatRoomHandler.end())
     {
-        API_LOG_WARNING("removeChatRoomHandler: chatroom handler not found (chatid: %s)", ID_CSTR(chatid));
+        API_LOG_WARNING("%sremoveChatRoomHandler: chatroom handler not found (chatid: %s)",
+                        getLoggingName(),
+                        ID_CSTR(chatid));
         return;
     }
 
@@ -3666,7 +4186,10 @@ bool MegaChatApiImpl::openNodeHistory(MegaChatHandle chatid, MegaChatNodeHistory
         if (it != nodeHistoryHandlers.end())
         {
             sdkMutex.unlock();
-            API_LOG_WARNING("openNodeHistory: node history is already open for this chatroom (chatid: %s), close it before open it again", karere::Id(chatid).toString().c_str());
+            API_LOG_WARNING("%sopenNodeHistory: node history is already open for this chatroom "
+                            "(chatid: %s), close it before open it again",
+                            getLoggingName(),
+                            karere::Id(chatid).toString().c_str());
             throw std::runtime_error("App node history handler is already set, remove it first");
             return false;
         }
@@ -3727,7 +4250,9 @@ void MegaChatApiImpl::addNodeHistoryListener(MegaChatHandle chatid, MegaChatNode
     else
     {
         assert(false);
-        API_LOG_WARNING("addNodeHistoryListener: node history handler not found (chatid: %s)", karere::Id(chatid).toString().c_str());
+        API_LOG_WARNING("%saddNodeHistoryListener: node history handler not found (chatid: %s)",
+                        getLoggingName(),
+                        karere::Id(chatid).toString().c_str());
     }
 
     sdkMutex.unlock();
@@ -3751,7 +4276,9 @@ void MegaChatApiImpl::removeNodeHistoryListener(MegaChatHandle chatid, MegaChatN
     else
     {
         assert(false);
-        API_LOG_WARNING("removeNodeHistoryListener: node history handler not found (chatid: %s)", karere::Id(chatid).toString().c_str());
+        API_LOG_WARNING("%sremoveNodeHistoryListener: node history handler not found (chatid: %s)",
+                        getLoggingName(),
+                        karere::Id(chatid).toString().c_str());
     }
 
     sdkMutex.unlock();
@@ -3776,7 +4303,7 @@ int MegaChatApiImpl::loadAttachments(MegaChatHandle chatid, int count)
         case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
         case kHistSourceNotLoggedIn: ret = MegaChatApi::SOURCE_ERROR; break;
         default:
-            API_LOG_ERROR("Unknown source of messages at loadAttachments()");
+            API_LOG_ERROR("%sUnknown source of messages at loadAttachments()", getLoggingName());
             break;
         }
     }
@@ -3787,7 +4314,7 @@ int MegaChatApiImpl::loadAttachments(MegaChatHandle chatid, int count)
 
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
 {
-    API_LOG_INFO("Request (%s) starting", request->getRequestString());
+    API_LOG_INFO("%sRequest (%s) starting", getLoggingName(), request->getRequestString());
 
     for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
     {
@@ -3805,11 +4332,14 @@ void MegaChatApiImpl::fireOnChatRequestFinish(MegaChatRequestPrivate *request, M
 {
     if(e->getErrorCode())
     {
-        API_LOG_INFO("Request (%s) finished with error: %s", request->getRequestString(), e->getErrorString());
+        API_LOG_INFO("%sRequest (%s) finished with error: %s",
+                     getLoggingName(),
+                     request->getRequestString(),
+                     e->getErrorString());
     }
     else
     {
-        API_LOG_INFO("Request (%s) finished", request->getRequestString());
+        API_LOG_INFO("%sRequest (%s) finished", getLoggingName(), request->getRequestString());
     }
 
     for (set<MegaChatRequestListener *>::iterator it = requestListeners.begin(); it != requestListeners.end() ; it++)
@@ -3949,7 +4479,9 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
         if (sourceType != MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_CAMERA &&
             sourceType != MegaChatApi::TYPE_VIDEO_SOURCE_LOCAL_SCREEN)
         {
-            API_LOG_ERROR("fireOnChatVideoData. Invalid sourceType: %d", sourceType);
+            API_LOG_ERROR("%sfireOnChatVideoData. Invalid sourceType: %d",
+                          getLoggingName(),
+                          sourceType);
             assert(false);
             return;
         }
@@ -3968,7 +4500,9 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
 
     if (sourceType != MegaChatApi::TYPE_VIDEO_SOURCE_REMOTE)
     {
-        API_LOG_ERROR("fireOnChatVideoData. Invalid sourceType: %d", sourceType);
+        API_LOG_ERROR("%sfireOnChatVideoData. Invalid sourceType: %d",
+                      getLoggingName(),
+                      sourceType);
         assert(false);
         return;
     }
@@ -3996,7 +4530,9 @@ void MegaChatApiImpl::fireOnChatVideoData(MegaChatHandle chatid, uint32_t client
             {
                 if (*videoListenerIterator == nullptr)
                 {
-                    API_LOG_WARNING("remote videoListener with CID %u does not exists ", clientId);
+                    API_LOG_WARNING("%sremote videoListener with CID %u does not exists ",
+                                    getLoggingName(),
+                                    clientId);
                     continue;
                 }
 
@@ -5116,14 +5652,18 @@ MegaChatScheduledMeetingList* MegaChatApiImpl::getAllScheduledMeetings()
             {
                 if (!it->second)
                 {
-                    API_LOG_ERROR("getAllScheduledMeetings: scheduled meeting NULL at scheduled meeting list");
+                    API_LOG_ERROR("%sgetAllScheduledMeetings: scheduled meeting NULL at scheduled "
+                                  "meeting list",
+                                  getLoggingName());
                     assert(false);
                     continue;
                 }
 
                 if (it->second->timezone().empty())
                 {
-                    API_LOG_ERROR("getAllScheduledMeetings: scheduled meeting should have a timezone");
+                    API_LOG_ERROR(
+                        "%sgetAllScheduledMeetings: scheduled meeting should have a timezone",
+                        getLoggingName());
                     assert(false);
                     continue;
                 }
@@ -5290,15 +5830,17 @@ bool MegaChatApiImpl::openChatRoom(MegaChatHandle chatid, MegaChatRoomListener *
     ChatRoom* chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
-        API_LOG_WARNING("openChatRoom. chatroom not found. chatid: %s"
-                        , karere::Id(chatid).toString().c_str());
+        API_LOG_WARNING("%sopenChatRoom. chatroom not found. chatid: %s",
+                        getLoggingName(),
+                        karere::Id(chatid).toString().c_str());
         return false;
     }
 
     if (chatroom->appChatHandler())
     {
-        API_LOG_WARNING("App chat handler is already set, remove it first. chatid: %s"
-                        , karere::Id(chatid).toString().c_str());
+        API_LOG_WARNING("%sApp chat handler is already set, remove it first. chatid: %s",
+                        getLoggingName(),
+                        karere::Id(chatid).toString().c_str());
         return false;
     }
     addChatRoomListener(chatid, listener);
@@ -5317,7 +5859,9 @@ void MegaChatApiImpl::closeChatRoom(MegaChatHandle chatid, MegaChatRoomListener 
     }
     else
     {
-        API_LOG_WARNING("closeChatRoom(): chatid not found [%s]", karere::Id(chatid).toString().c_str());
+        API_LOG_WARNING("%scloseChatRoom(): chatid not found [%s]",
+                        getLoggingName(),
+                        karere::Id(chatid).toString().c_str());
     }
 
     removeChatRoomListener(chatid, listener);
@@ -5342,7 +5886,7 @@ int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
 
     if (count > MAX_MESSAGES_PER_BLOCK)
     {
-        API_LOG_WARNING("count value is higher than chatd allows");
+        API_LOG_WARNING("%scount value is higher than chatd allows", getLoggingName());
     }
 
     count = std::clamp(count, MIN_MESSAGES_PER_BLOCK, MAX_MESSAGES_PER_BLOCK);
@@ -5361,13 +5905,14 @@ int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
         case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
         case kHistSourceNotLoggedIn: ret = MegaChatApi::SOURCE_ERROR; break;
         default:
-            API_LOG_ERROR("Unknown source of messages at loadMessages()");
+            API_LOG_ERROR("%sUnknown source of messages at loadMessages()", getLoggingName());
             break;
         }
     }
     else
     {
-        API_LOG_ERROR("loadMessages: chatroom(%s) cannot be found",
+        API_LOG_ERROR("%sloadMessages: chatroom(%s) cannot be found",
+                      getLoggingName(),
                       ::karere::Id(chatid).toString().c_str());
     }
 
@@ -5410,7 +5955,11 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by index, being index retrieved from message id (index: %d, id: %s)", index, ID_CSTR(msgid));
+                API_LOG_ERROR("%sFailed to find message by index, being index retrieved from "
+                              "message id (index: %d, id: %s)",
+                              getLoggingName(),
+                              index,
+                              ID_CSTR(msgid));
             }
         }
         else    // message still not confirmed, search in sending-queue
@@ -5422,13 +5971,15 @@ MegaChatMessage *MegaChatApiImpl::getMessage(MegaChatHandle chatid, MegaChatHand
             }
             else
             {
-                API_LOG_ERROR("Failed to find message by temporal id (id: %s)", ID_CSTR(msgid));
+                API_LOG_ERROR("%sFailed to find message by temporal id (id: %s)",
+                              getLoggingName(),
+                              ID_CSTR(msgid));
             }
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
+        API_LOG_ERROR("%sChatroom not found (chatid: %s)", getLoggingName(), ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -5454,12 +6005,14 @@ MegaChatMessage *MegaChatApiImpl::getMessageFromNodeHistory(MegaChatHandle chati
         }
         else
         {
-            API_LOG_ERROR("Failed to find message at node history (id: %s)", ID_CSTR(msgid));
+            API_LOG_ERROR("%sFailed to find message at node history (id: %s)",
+                          getLoggingName(),
+                          ID_CSTR(msgid));
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
+        API_LOG_ERROR("%sChatroom not found (chatid: %s)", getLoggingName(), ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -5489,12 +6042,12 @@ MegaChatMessage *MegaChatApiImpl::getManualSendingMessage(MegaChatHandle chatid,
         }
         else
         {
-            API_LOG_ERROR("Message not found (rowid: %lu)", rowid);
+            API_LOG_ERROR("%sMessage not found (rowid: %lu)", getLoggingName(), rowid);
         }
     }
     else
     {
-        API_LOG_ERROR("Chatroom not found (chatid: %s)", ID_CSTR(chatid));
+        API_LOG_ERROR("%sChatroom not found (chatid: %s)", getLoggingName(), ID_CSTR(chatid));
     }
 
     sdkMutex.unlock();
@@ -5983,7 +6536,7 @@ MegaStringList* MegaChatApiImpl::getChatScreenDevices()
     }
     else
     {
-        API_LOG_ERROR("Failed to get screen devices");
+        API_LOG_ERROR("%sFailed to get screen devices", getLoggingName());
     }
     return sl;
 }
@@ -5998,7 +6551,7 @@ MegaStringList *MegaChatApiImpl::getChatVideoInDevices()
     }
     else
     {
-        API_LOG_ERROR("Failed to get video-in devices");
+        API_LOG_ERROR("%sFailed to get video-in devices", getLoggingName());
     }
     sdkMutex.unlock();
 
@@ -6030,7 +6583,7 @@ char *MegaChatApiImpl::getCameraDeviceIdSelected()
     }
     else
     {
-        API_LOG_ERROR("Failed to get selected video-in device");
+        API_LOG_ERROR("%sFailed to get selected video-in device", getLoggingName());
     }
 
     return deviceId;
@@ -6041,7 +6594,7 @@ char* MegaChatApiImpl::getVideoDeviceNameById(const std::string& id) const
     SdkMutexGuard g(sdkMutex);
     if (!mClient || !mClient->rtc)
     {
-        API_LOG_ERROR("getVideoDeviceNameById: webrtc not initialized");
+        API_LOG_ERROR("%sgetVideoDeviceNameById: webrtc not initialized", getLoggingName());
         return nullptr;
     }
     return MegaApi::strdup(mClient->rtc->getVideoDeviceNameById(id).c_str());
@@ -6052,7 +6605,7 @@ char* MegaChatApiImpl::getScreenDeviceNameById(const long int id) const
     SdkMutexGuard g(sdkMutex);
     if (!mClient || !mClient->rtc)
     {
-        API_LOG_ERROR("getVideoDeviceNameById: webrtc not initialized");
+        API_LOG_ERROR("%sgetVideoDeviceNameById: webrtc not initialized", getLoggingName());
         return nullptr;
     }
     return MegaApi::strdup(mClient->rtc->getScreenDeviceNameById(id).c_str());
@@ -6073,7 +6626,7 @@ long MegaChatApiImpl::getScreenDeviceIdSelected() const
 
     if (id == MegaChatApi::SCREEN_INVALID_DEVICE_ID)
     {
-        API_LOG_ERROR("Failed to get selected video-in device");
+        API_LOG_ERROR("%sFailed to get selected video-in device", getLoggingName());
     }
     return id;
 }
@@ -6094,28 +6647,28 @@ int MegaChatApiImpl::performRequest_rejectCall(MegaChatRequestPrivate* request)
 {
     if (!mClient->rtc)
     {
-        API_LOG_ERROR("REJECT_CALL - WebRTC is not initialized");
+        API_LOG_ERROR("%sREJECT_CALL - WebRTC is not initialized", getLoggingName());
         return MegaChatError::ERROR_ACCESS;
     }
 
     const MegaChatHandle callId = request->getChatHandle();
     if (callId == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("REJECT_CALL - invalid callId");
+        API_LOG_ERROR("%sREJECT_CALL - invalid callId", getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
     const rtcModule::ICall* call = mClient->rtc->findCall(callId);
     if (!call)
     {
-        API_LOG_ERROR("REJECT_CALL - There is not any call with that callId");
+        API_LOG_ERROR("%sREJECT_CALL - There is not any call with that callId", getLoggingName());
         return MegaChatError::ERROR_NOENT;
     }
 
     ChatRoom* chatroom = findChatRoom(call->getChatid());
     if (!chatroom)
     {
-        API_LOG_ERROR("REJECT_CALL - Chatroom has not been found");
+        API_LOG_ERROR("%sREJECT_CALL - Chatroom has not been found", getLoggingName());
         return MegaChatError::ERROR_NOENT;
     }
 
@@ -6131,33 +6684,35 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
     const auto chatId = request->getChatHandle();
     if (chatId == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("Ring individual in call: invalid chat id");
+        API_LOG_ERROR("%sRing individual in call: invalid chat id", getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
     const auto userIdToCall = request->getUserHandle();
     if (userIdToCall == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("Ring individual in call: invalid user id");
+        API_LOG_ERROR("%sRing individual in call: invalid user id", getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
     if (request->getParamType() <= 0)
     {
-        API_LOG_ERROR("Ring individual in call: invalid ring timeout");
+        API_LOG_ERROR("%sRing individual in call: invalid ring timeout", getLoggingName());
         return MegaChatError::ERROR_ARGS;
     }
 
     ChatRoom *chatroom = findChatRoom(chatId);
     if (!chatroom)
     {
-        API_LOG_ERROR("Error: chat room with id %s not found", ID_CSTR(chatId));
+        API_LOG_ERROR("%sError: chat room with id %s not found", getLoggingName(), ID_CSTR(chatId));
         return MegaChatError::ERROR_NOENT;
     }
 
     auto call = mClient->rtc->findCallByChatid(chatId);
     if (!call)
     {
-        API_LOG_ERROR("Ring individual in call: no call found for chat id %s", ID_CSTR(chatId));
+        API_LOG_ERROR("%sRing individual in call: no call found for chat id %s",
+                      getLoggingName(),
+                      ID_CSTR(chatId));
         return MegaChatError::ERROR_NOENT;
     }
 
@@ -6171,17 +6726,22 @@ int MegaChatApiImpl::performRequest_sendRingIndividualInACall(MegaChatRequestPri
     // we previously did.
     auto wptr = mClient->weakHandle();
     mClient->ringIndividualInACall(chatId, userIdToCall)
-    .then([this, request, wptr](ReqResult)
-    {
-        wptr.throwIfDeleted();
-        fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
-    })
-    .fail([request, this](const ::promise::Error& err)
-    {
-        API_LOG_ERROR("Error sending 'mcru' command to API: %s", err.what());
-        MegaChatErrorPrivate* megaChatError = new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-        fireOnChatRequestFinish(request, megaChatError);
-    });
+        .then(
+            [this, request, wptr](ReqResult)
+            {
+                wptr.throwIfDeleted();
+                fireOnChatRequestFinish(request, new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+            })
+        .fail(
+            [request, this](const ::promise::Error& err)
+            {
+                API_LOG_ERROR("%sError sending 'mcru' command to API: %s",
+                              getLoggingName(),
+                              err.what());
+                MegaChatErrorPrivate* megaChatError =
+                    new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                fireOnChatRequestFinish(request, megaChatError);
+            });
 
     // REMINDER: when Client::ringIndividualInACall call is removed (chatd has applied the required fix) we need to
     // add a call to fireOnChatRequestFinish with MegaChatError::ERROR_OK
@@ -6371,13 +6931,13 @@ bool MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
 {
     if (!mClient->rtc)
     {
-        API_LOG_ERROR("Ignore call - WebRTC is not initialized");
+        API_LOG_ERROR("%sIgnore call - WebRTC is not initialized", getLoggingName());
         return false;
     }
 
     if (chatId == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("Ignore call - Invalid chatId");
+        API_LOG_ERROR("%sIgnore call - Invalid chatId", getLoggingName());
         return false;
     }
 
@@ -6385,13 +6945,14 @@ bool MegaChatApiImpl::setIgnoredCall(MegaChatHandle chatId)
     rtcModule::ICall* call = mClient->rtc->findCallByChatid(chatId);
     if (!call)
     {
-        API_LOG_ERROR("Ignore call - Failed to get the call associated to chat room");
+        API_LOG_ERROR("%sIgnore call - Failed to get the call associated to chat room",
+                      getLoggingName());
         return false;
     }
 
     if (call->isIgnored())
     {
-        API_LOG_ERROR("Ignore call - Call is already marked as ignored");
+        API_LOG_ERROR("%sIgnore call - Call is already marked as ignored", getLoggingName());
         return false;
     }
 
@@ -6404,7 +6965,8 @@ MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
     MegaChatCall *chatCall = nullptr;
     if (!mClient->rtc)
     {
-        API_LOG_ERROR("MegaChatApiImpl::getChatCall - WebRTC is not initialized");
+        API_LOG_ERROR("%sMegaChatApiImpl::getChatCall - WebRTC is not initialized",
+                      getLoggingName());
         return chatCall;
     }
 
@@ -6415,7 +6977,9 @@ MegaChatCall *MegaChatApiImpl::getChatCall(MegaChatHandle chatId)
         rtcModule::ICall* call = mClient->rtc->findCallByChatid(chatId);
         if (!call)
         {
-            API_LOG_ERROR("MegaChatApiImpl::getChatCall - Failed to get the call associated to chat room");
+            API_LOG_ERROR(
+                "%sMegaChatApiImpl::getChatCall - Failed to get the call associated to chat room",
+                getLoggingName());
             return chatCall;
         }
 
@@ -6579,7 +7143,7 @@ bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
 {
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("isAudioLevelMonitorEnabled - Invalid chatId");
+        API_LOG_ERROR("%sisAudioLevelMonitorEnabled - Invalid chatId", getLoggingName());
         return false;
     }
 
@@ -6587,8 +7151,10 @@ bool MegaChatApiImpl::isAudioLevelMonitorEnabled(MegaChatHandle chatid)
     rtcModule::ICall *call = findCall(chatid);
     if (!call)
     {
-       API_LOG_ERROR("isAudioLevelMonitorEnabled - Failed to get the call associated to chat room");
-       return false;
+        API_LOG_ERROR(
+            "%sisAudioLevelMonitorEnabled - Failed to get the call associated to chat room",
+            getLoggingName());
+        return false;
     }
 
     return call->isAudioLevelMonitorEnabled();
@@ -6619,7 +7185,9 @@ void MegaChatApiImpl::enableSpeakRequestSupportForCalls(const bool enable)
 {
     if (!mClient->rtc)
     {
-        API_LOG_ERROR("MegaChatApiImpl::enableSpeakRequestSupportForCalls - WebRTC is not initialized");
+        API_LOG_ERROR(
+            "%sMegaChatApiImpl::enableSpeakRequestSupportForCalls - WebRTC is not initialized",
+            getLoggingName());
         return;
     }
 
@@ -6698,41 +7266,50 @@ MegaChatApiImpl::getCall(const MegaChatHandle chatid, const std::string& msg, co
 {
     if (chatid == MEGACHAT_INVALID_HANDLE)
     {
-        API_LOG_ERROR("%s - Invalid chatid", msg.c_str());
+        API_LOG_ERROR("%s%s - Invalid chatid", getLoggingName(), msg.c_str());
         return std::make_pair(MegaChatError::ERROR_ARGS, nullptr);
     }
 
     const ChatRoom* chatroom = findChatRoom(chatid);
     if (!chatroom)
     {
-        API_LOG_ERROR("%s - There is not any chatroom with chatid: %s",
-                      msg.c_str(), karere::Id(chatid).toString().c_str());
+        API_LOG_ERROR("%s%s - There is not any chatroom with chatid: %s",
+                      getLoggingName(),
+                      msg.c_str(),
+                      karere::Id(chatid).toString().c_str());
         return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
     }
 
     if (!waitingRoom.isUndef() && chatroom->isWaitingRoom() != waitingRoom.get())
     {
-        API_LOG_ERROR("%s - Invalid chatroom with chatid: %s. Expected waiting room state: %s ",
-                      msg.c_str(), karere::Id(chatid).toString().c_str(), waitingRoom.get() ? "Enabled" : "Disabled");
+        API_LOG_ERROR("%s%s - Invalid chatroom with chatid: %s. Expected waiting room state: %s ",
+                      getLoggingName(),
+                      msg.c_str(),
+                      karere::Id(chatid).toString().c_str(),
+                      waitingRoom.get() ? "Enabled" : "Disabled");
         return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
     }
 
     rtcModule::ICall* call = findCall(chatid);
     if (!call)
     {
-        API_LOG_ERROR("%s - There is not any call in that chatroom", msg.c_str());
+        API_LOG_ERROR("%s%s - There is not any call in that chatroom",
+                      getLoggingName(),
+                      msg.c_str());
         return std::make_pair(MegaChatError::ERROR_NOENT, nullptr);
     }
 
     if (call->getState() != rtcModule::kStateInProgress)
     {
-        API_LOG_ERROR("%s - Call isn't in progress state", msg.c_str());
+        API_LOG_ERROR("%s%s - Call isn't in progress state", getLoggingName(), msg.c_str());
         return std::make_pair(MegaChatError::ERROR_ACCESS, nullptr);
     }
 
     if (ownPrivMod && !call->isOwnPrivModerator())
     {
-        API_LOG_ERROR("%s - moderator role %s required for own user to perform this operation", msg.c_str());
+        API_LOG_ERROR("%s%s - moderator role %s required for own user to perform this operation",
+                      getLoggingName(),
+                      msg.c_str());
         return std::make_pair(MegaChatError::ERROR_ACCESS, nullptr);
     }
 
@@ -6861,7 +7438,9 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid,
         }
         else
         {
-            API_LOG_ERROR("addChatVideoListener: Invalid capturer type: %i", capturerType);
+            API_LOG_ERROR("%saddChatVideoListener: Invalid capturer type: %i",
+                          getLoggingName(),
+                          capturerType);
             assert(false);
             return;
         }
@@ -6895,7 +7474,8 @@ void MegaChatApiImpl::addChatVideoListener(MegaChatHandle chatid,
                     }
                     else
                     {
-                        API_LOG_ERROR("addChatVideoListener: Invalid capturer type: %i",
+                        API_LOG_ERROR("%saddChatVideoListener: Invalid capturer type: %i",
+                                      getLoggingName(),
                                       capturerType);
                         assert(false);
                     }
@@ -6928,7 +7508,8 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid,
         (capturerType != MegaChatApi::TYPE_CAPTURER_SCREEN &&
          capturerType != MegaChatApi::TYPE_CAPTURER_VIDEO))
     {
-        API_LOG_ERROR("removeChatVideoListener: Invalid capturer type: %i",
+        API_LOG_ERROR("%sremoveChatVideoListener: Invalid capturer type: %i",
+                      getLoggingName(),
                       capturerType);
         return;
     }
@@ -6997,7 +7578,8 @@ void MegaChatApiImpl::removeChatVideoListener(MegaChatHandle chatid,
     }
     else
     {
-        API_LOG_ERROR("removeChatVideoListener: Invalid video resolution type: %i",
+        API_LOG_ERROR("%sremoveChatVideoListener: Invalid video resolution type: %i",
+                      getLoggingName(),
                       videoResolution);
         assert(false);
     }
@@ -7071,7 +7653,7 @@ int MegaChatApiImpl::getMessageReactionCount(MegaChatHandle chatid, MegaChatHand
     Message *msg = findMessage(chatid, msgid);
     if (!msg)
     {
-        API_LOG_ERROR("Chatroom or message not found");
+        API_LOG_ERROR("%sChatroom or message not found", getLoggingName());
         return -1;
     }
 
@@ -7100,7 +7682,7 @@ MegaStringList* MegaChatApiImpl::getMessageReactions(MegaChatHandle chatid, Mega
     Message *msg = findMessage(chatid, msgid);
     if (!msg)
     {
-        API_LOG_ERROR("Chatroom or message not found");
+        API_LOG_ERROR("%sChatroom or message not found", getLoggingName());
         return new MegaStringListPrivate();
     }
 
@@ -7160,7 +7742,7 @@ MegaHandleList* MegaChatApiImpl::getReactionUsers(MegaChatHandle chatid, MegaCha
     ChatRoom *chatroom = findChatRoom(chatid);
     if (!msg || !chatroom)
     {
-        API_LOG_ERROR("Chatroom or message not found");
+        API_LOG_ERROR("%sChatroom or message not found", getLoggingName());
         return userList;
     }
 
@@ -7259,15 +7841,18 @@ int MegaChatApiImpl::getCurrentInputVideoTracksLimit() const
 {
     if (!mClient)
     {
-       API_LOG_ERROR("getCurrentInputVideoTracksLimit: Karere client not initialized");
-       return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
+        API_LOG_ERROR("%sgetCurrentInputVideoTracksLimit: Karere client not initialized",
+                      getLoggingName());
+        return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
     }
 
     SdkMutexGuard g(sdkMutex);
     if (!isValidSimVideoTracks(mClient->rtc->getNumInputVideoTracks()))
     {
-        API_LOG_ERROR("getCurrentInputVideoTracksLimit: Invalid value for simultaneous input video tracks");
-       return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
+        API_LOG_ERROR(
+            "%sgetCurrentInputVideoTracksLimit: Invalid value for simultaneous input video tracks",
+            getLoggingName());
+        return MegaChatApi::INVALID_CALL_VIDEO_SENDERS;
     }
     return static_cast<int>(mClient->rtc->getNumInputVideoTracks());
 }
@@ -7276,16 +7861,19 @@ bool MegaChatApiImpl::setCurrentInputVideoTracksLimit(const int numInputVideoTra
 {
     if (!mClient)
     {
-       API_LOG_ERROR("setCurrentInputVideoTracksLimit: Karere client not initialized");
-       return false;
+        API_LOG_ERROR("%ssetCurrentInputVideoTracksLimit: Karere client not initialized",
+                      getLoggingName());
+        return false;
     }
 
     const unsigned int auxNumInputVideoTracks = static_cast<unsigned int>(numInputVideoTracks);
     if (!isValidSimVideoTracks(auxNumInputVideoTracks))
     {
-       API_LOG_DEBUG("setCurrentInputVideoTracksLimit: Invalid value for simultaneous input "
-                     "video tracks: %d", auxNumInputVideoTracks);
-       return false;
+        API_LOG_DEBUG("%ssetCurrentInputVideoTracksLimit: Invalid value for simultaneous input "
+                      "video tracks: %d",
+                      getLoggingName(),
+                      auxNumInputVideoTracks);
+        return false;
     }
 
     SdkMutexGuard g(sdkMutex);
@@ -7322,11 +7910,11 @@ void MegaChatApiImpl::cleanChatHandlers()
 
 void MegaChatApiImpl::onInitStateChange(int newState)
 {
-    API_LOG_DEBUG("Karere initialization state has changed: %d", newState);
+    API_LOG_DEBUG("%sKarere initialization state has changed: %d", getLoggingName(), newState);
 
     if (newState == karere::Client::kInitErrSidInvalid)
     {
-        API_LOG_WARNING("Invalid session detected (API_ESID). Logging out...");
+        API_LOG_WARNING("%sInvalid session detected (API_ESID). Logging out...", getLoggingName());
         logout();
         return;
     }
@@ -7550,11 +8138,14 @@ void MegaChatApiImpl::onPresenceChanged(Id userid, Presence pres, bool inProgres
 {
     if (inProgress)
     {
-        API_LOG_INFO("My own presence is being changed to %s", pres.toString());
+        API_LOG_INFO("%sMy own presence is being changed to %s", getLoggingName(), pres.toString());
     }
     else
     {
-        API_LOG_INFO("Presence of user %s has been changed to %s", ID_CSTR(userid), pres.toString());
+        API_LOG_INFO("%sPresence of user %s has been changed to %s",
+                     getLoggingName(),
+                     ID_CSTR(userid),
+                     pres.toString());
     }
     fireOnChatOnlineStatusUpdate(userid.val, pres.status(), inProgress);
 }
@@ -12965,7 +13556,7 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
     rapidjson::Value::ConstMemberIterator iteratorExtra = document.FindMember("extra");
     if (iteratorExtra == document.MemberEnd() || iteratorExtra->value.IsObject())
     {
-        API_LOG_ERROR("parseGeolocation: invalid JSON struct - \"extra\" field not found");
+        API_LOG_ERROR("parseGeolocation: invalid JSON struct - \", extra\" field not found");
         return NULL;
     }
 

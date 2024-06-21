@@ -1441,6 +1441,14 @@ public:
     static void setLoggerClass(MegaChatLogger *megaLogger);
     static void setLogWithColors(bool useColors);
     static void setLogToConsole(bool enable);
+    void setLoggingName(const char* loggingName);
+
+    /**
+     * @brief Aux method to get the logging name from mClient if it is defined.
+     *
+     * @note The return value is guaranteed to be not nullptr. If not defined "" is returned.
+     */
+    const char* getLoggingName() const;
 
     int init(const char *sid, bool waitForFetchnodesToConnect = true);
     int initAnonymous();

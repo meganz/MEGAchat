@@ -192,6 +192,7 @@ bool MegaChatApiTest::chatApiInit(unsigned accountIndex, const char *session)
     // Initialize chat engine
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
     int initializationState = megaChatApi[accountIndex]->init(session);
+    megaChatApi[accountIndex]->setLoggingName(to_string(accountIndex).c_str());
     EXPECT_GE(initializationState, 0) << "MegaChatApiImpl::init returned error";
     if (initializationState < 0) return false;
     MegaApi::removeLoggerObject(logger());

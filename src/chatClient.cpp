@@ -165,7 +165,8 @@ bool Client::openDb(const std::string& sid)
     const bool succeeded = (stat(path.c_str(), &info) == 0);
     if (!succeeded)
     {
-        KR_LOG_WARNING("Error accessing local cache (database) file info. %s",
+        KR_LOG_WARNING("%sError accessing local cache (database) file info. %s",
+                       getLoggingName(),
                        std::strerror(errno));
 
         api.callIgnoreResult(&::mega::MegaApi::sendEvent,
@@ -179,7 +180,7 @@ bool Client::openDb(const std::string& sid)
     bool ok = db.open(path.c_str(), false);
     if (!ok)
     {
-        KR_LOG_WARNING("Error opening database");
+        KR_LOG_WARNING("%sError opening database", getLoggingName());
         return false;
     }
 
@@ -200,7 +201,7 @@ bool Client::openDb(const std::string& sid)
     if (!result)
     {
         db.close();
-        KR_LOG_WARNING("Can't get local database version");
+        KR_LOG_WARNING("%sCan't get local database version", getLoggingName());
         return false;
     }
 
@@ -216,7 +217,7 @@ bool Client::openDb(const std::string& sid)
             std::string cachedVersionSuffix = cachedVersion.substr(cachedVersionSuffixPos + 1);
             if (cachedVersionSuffix == "2" && (strcmp(gDbSchemaVersionSuffix, "3") == 0))
             {
-                KR_LOG_WARNING("Clearing history from cached chats...");
+                KR_LOG_WARNING("%sClearing history from cached chats...", getLoggingName());
 
                 // clients with version 2 missed the call-history msgs, need to clear cached history
                 // in order to fetch fresh history including the missing management messages
@@ -224,7 +225,10 @@ bool Client::openDb(const std::string& sid)
                 db.query("update chat_vars set value = 0 where name = 'have_all_history'");
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
-                KR_LOG_WARNING("Successfully cleared cached history. Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sSuccessfully cleared cached history. Database version has been "
+                               "updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
 
                 ok = true;
             }
@@ -238,15 +242,19 @@ bool Client::openDb(const std::string& sid)
                 stmt.stepMustHaveData("get chats count");
                 if (stmt.integralCol<int>(0) > 0)
                 {
-                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    KR_LOG_WARNING("%sForcing a reload of SDK and MEGAchat caches...",
+                                   getLoggingName());
                     api.sdk.invalidateCache();
                 }
                 else    // no chats --> only invalidate MEGAchat cache (the schema has changed)
                 {
-                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat cache...");
+                    KR_LOG_WARNING("%sForcing a reload of SDK and MEGAchat cache...",
+                                   getLoggingName());
                 }
 
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
             }
             else if (cachedVersionSuffix == "4" && (strcmp(gDbSchemaVersionSuffix, "5") == 0))
             {
@@ -274,8 +282,10 @@ bool Client::openDb(const std::string& sid)
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
 
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
-                KR_LOG_WARNING("%d messages added to node history", count);
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%s%d messages added to node history", getLoggingName(), count);
                 ok = true;
             }
             else if (cachedVersionSuffix == "5" && (strcmp(gDbSchemaVersionSuffix, "6") == 0))
@@ -287,19 +297,22 @@ bool Client::openDb(const std::string& sid)
                 stmt.stepMustHaveData("get chats count");
                 if (stmt.integralCol<int>(0) > 0)
                 {
-                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    KR_LOG_WARNING("%sForcing a reload of SDK and MEGAchat caches...",
+                                   getLoggingName());
                     api.sdk.invalidateCache();
                 }
                 else
                 {
                     // no chats --> only update cache schema
-                    KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                    KR_LOG_WARNING("%sUpdating schema of MEGAchat cache...", getLoggingName());
                     db.query("ALTER TABLE `chats` ADD mode tinyint");
                     db.query("ALTER TABLE `chats` ADD unified_key blob");
                     db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
                     ok = true;
-                    KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                    KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                                   getLoggingName(),
+                                   gDbSchemaVersionSuffix);
                 }
             }
             else if (cachedVersionSuffix == "6" && (strcmp(gDbSchemaVersionSuffix, "7") == 0))
@@ -308,11 +321,13 @@ bool Client::openDb(const std::string& sid)
                 db.query("update history set keyid=0 where type=?", chatd::Message::Type::kMsgTruncate);
                 db.commit();
                 ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
             }
             else if (cachedVersionSuffix == "7" && (strcmp(gDbSchemaVersionSuffix, "8") == 0))
             {
-                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                KR_LOG_WARNING("%sUpdating schema of MEGAchat cache...", getLoggingName());
 
                 // Add reactionsn to chats table
                 db.query("ALTER TABLE `chats` ADD rsn blob");
@@ -326,22 +341,26 @@ bool Client::openDb(const std::string& sid)
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
             }
             else if (cachedVersionSuffix == "8" && (strcmp(gDbSchemaVersionSuffix, "9") == 0))
             {
-                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                KR_LOG_WARNING("%sUpdating schema of MEGAchat cache...", getLoggingName());
 
                 // Add dns_cache table
                 db.simpleQuery("CREATE TABLE dns_cache(shard tinyint primary key, url text, ipv4 text, ipv6 text);");
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
             }
             else if (cachedVersionSuffix == "9" && (strcmp(gDbSchemaVersionSuffix, "10") == 0))
             {
-                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                KR_LOG_WARNING("%sUpdating schema of MEGAchat cache...", getLoggingName());
 
                 // Create new table for chat pending reactions
                 db.simpleQuery("CREATE TABLE chat_pending_reactions(chatid int64 not null, msgid int64 not null,"
@@ -370,12 +389,14 @@ bool Client::openDb(const std::string& sid)
                     db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
                     ok = true;
-                    KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                    KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                                   getLoggingName(),
+                                   gDbSchemaVersionSuffix);
                 }
             }
             else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
             {
-                KR_LOG_WARNING("Purging oldest message per chat...");
+                KR_LOG_WARNING("%sPurging oldest message per chat...", getLoggingName());
                 SqliteStmt stmt(db, "select msgid, min(idx), c.chatid from history as h INNER JOIN chat_vars as c on h.chatid = c.chatid where c.name = 'have_all_history' GROUP BY c.chatid;");
                 while (stmt.step())
                 {
@@ -388,22 +409,26 @@ bool Client::openDb(const std::string& sid)
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
             }
             else if (cachedVersionSuffix == "11" && (strcmp(gDbSchemaVersionSuffix, "12") == 0))
             {
-                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                KR_LOG_WARNING("%sUpdating schema of MEGAchat cache...", getLoggingName());
 
                 // Add tls session blob to dns_cache table
                 db.query("ALTER TABLE `dns_cache` ADD sess_data blob");
                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                 db.commit();
                 ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
             }
             else if (cachedVersionSuffix == "12" && (strcmp(gDbSchemaVersionSuffix, "13") == 0))
             {
-                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                KR_LOG_WARNING("%sUpdating schema of MEGAchat cache...", getLoggingName());
 
                 // We check if we have some pulic chat with creation ts higher than meeting release
                 // in that case we invalidate the cache, because it could a meetings
@@ -412,7 +437,8 @@ bool Client::openDb(const std::string& sid)
                 stmt.stepMustHaveData("get chats count");
                 if (stmt.integralCol<int>(0) > 0)
                 {
-                    KR_LOG_WARNING("Forcing a reload of SDK and MEGAchat caches...");
+                    KR_LOG_WARNING("%sForcing a reload of SDK and MEGAchat caches...",
+                                   getLoggingName());
                     api.sdk.invalidateCache();
                 }
                 else //
@@ -430,21 +456,25 @@ bool Client::openDb(const std::string& sid)
                     db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
                     db.commit();
                     ok = true;
-                    KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                    KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                                   getLoggingName(),
+                                   gDbSchemaVersionSuffix);
                 }
             }
             else if (cachedVersionSuffix == "13" && (strcmp(gDbSchemaVersionSuffix, "14") == 0))
             {
-                 KR_LOG_WARNING("Updating schema of MEGAchat cache...");
-                 db.query("ALTER TABLE `chats` ADD chat_options tinyint default 0");
-                 db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
-                 db.commit();
-                 ok = true;
-                 KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sUpdating schema of MEGAchat cache...", getLoggingName());
+                db.query("ALTER TABLE `chats` ADD chat_options tinyint default 0");
+                db.query("update vars set value = ? where name = 'schema_version'", currentVersion);
+                db.commit();
+                ok = true;
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
             }
             else if (cachedVersionSuffix == "14" && (strcmp(gDbSchemaVersionSuffix, "15") == 0))
             {
-                KR_LOG_WARNING("Updating schema of MEGAchat cache...");
+                KR_LOG_WARNING("%sUpdating schema of MEGAchat cache...", getLoggingName());
                 db.query("CREATE TABLE scheduledMeetings(schedid int64 unique primary key, chatid int64, organizerid int64, parentschedid int64, timezone text,"
                             "startdatetime int64, enddatetime int64, title text, description text, attributes text, overrides int64, cancelled tinyint default 0,"
                             "flags int64 default 0, rules blob, FOREIGN KEY(chatid) REFERENCES chats(chatid) ON DELETE CASCADE)");
@@ -454,7 +484,9 @@ bool Client::openDb(const std::string& sid)
 
                 db.commit();
                 ok = true;
-                KR_LOG_WARNING("Database version has been updated to %s", gDbSchemaVersionSuffix);
+                KR_LOG_WARNING("%sDatabase version has been updated to %s",
+                               getLoggingName(),
+                               gDbSchemaVersionSuffix);
             }
         }
     }
@@ -462,7 +494,9 @@ bool Client::openDb(const std::string& sid)
     if (!ok)
     {
         db.close();
-        KR_LOG_WARNING("Database schema version is not compatible with app version, will rebuild it");
+        KR_LOG_WARNING(
+            "%sDatabase schema version is not compatible with app version, will rebuild it",
+            getLoggingName());
         return false;
     }
 
@@ -486,7 +520,9 @@ int Client::importMessages(const char *externalDbPath)
     SqliteDb dbExternal(app);
     if (!dbExternal.open(externalDbPath, false))
     {
-        KR_LOG_ERROR("importMessages: failed to open external DB (%s)", externalDbPath);
+        KR_LOG_ERROR("%simportMessages: failed to open external DB (%s)",
+                     getLoggingName(),
+                     externalDbPath);
         return -1;
     }
 
@@ -498,7 +534,7 @@ int Client::importMessages(const char *externalDbPath)
     if (!stmtVersion.step())
     {
         dbExternal.close();
-        KR_LOG_ERROR("importMessages: failed to get external DB version");
+        KR_LOG_ERROR("%simportMessages: failed to get external DB version", getLoggingName());
         return -2;
     }
     // check external DB uses the same DB version than the app
@@ -508,7 +544,7 @@ int Client::importMessages(const char *externalDbPath)
     if (cachedVersion != currentVersion)
     {
         dbExternal.close();
-        KR_LOG_ERROR("importMessages: external DB version is too old");
+        KR_LOG_ERROR("%simportMessages: external DB version is too old", getLoggingName());
         return -3;
     }
 
@@ -516,7 +552,9 @@ int Client::importMessages(const char *externalDbPath)
     catch (const std::runtime_error& error)
     {
         const char* dbgWhat = error.what();
-        KR_LOG_ERROR("importMessages: failed to create SQL statement:\n%s", dbgWhat);
+        KR_LOG_ERROR("%simportMessages: failed to create SQL statement:\n%s",
+                     getLoggingName(),
+                     dbgWhat);
         return -5;
     }
 
@@ -525,7 +563,7 @@ int Client::importMessages(const char *externalDbPath)
     if (!stmtMyHandle.step() || stmtMyHandle.integralCol<uint64_t>(0) != myHandle())
     {
         dbExternal.close();
-        KR_LOG_ERROR("importMessages: external DB of a different user");
+        KR_LOG_ERROR("%simportMessages: external DB of a different user", getLoggingName());
         return -4;
     }
 
@@ -573,8 +611,10 @@ int Client::importMessages(const char *externalDbPath)
         }
         else    // no SEEN pointer for this chat on external cache (or chat not found)
         {
-            KR_LOG_WARNING("importMessages: SEEN not imported because chatid not found in external db (chatid: %s)",
-                         chatid.toString().c_str());
+            KR_LOG_WARNING("%simportMessages: SEEN not imported because chatid not found in "
+                           "external db (chatid: %s)",
+                           getLoggingName(),
+                           chatid.toString().c_str());
         }
 
         chatd::Idx newestAppIdx = CHATD_IDX_INVALID;
@@ -614,13 +654,19 @@ int Client::importMessages(const char *externalDbPath)
                     firstMsgidToImport = stmt2.integralCol<uint64_t>(0);
                     firstIdxToImport = stmt2.integralCol<int>(1);
 
-                    KR_LOG_DEBUG("importMessages: truncate detected in chatid: %s msgid: %s idx: %d",
-                                 chatid.toString().c_str(), firstMsgidToImport.toString().c_str(), firstIdxToImport);
+                    KR_LOG_DEBUG(
+                        "%simportMessages: truncate detected in chatid: %s msgid: %s idx: %d",
+                        getLoggingName(),
+                        chatid.toString().c_str(),
+                        firstMsgidToImport.toString().c_str(),
+                        firstIdxToImport);
                 }
                 else
                 {
                     // (it means app is ahead of external DB for this chat, so nothing to import)
-                    KR_LOG_DEBUG("importMessages: no messages to import for chatid: %s", chatid.toString().c_str());
+                    KR_LOG_DEBUG("%simportMessages: no messages to import for chatid: %s",
+                                 getLoggingName(),
+                                 chatid.toString().c_str());
                     continue;
                 }
             }
@@ -675,8 +721,11 @@ int Client::importMessages(const char *externalDbPath)
 
                 if (!isUpdate)
                 {
-                    KR_LOG_DEBUG("importMessages: newest message not changed. Skipping... (chatid: %s msgid: %s)",
-                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    KR_LOG_DEBUG("%simportMessages: newest message not changed. Skipping... "
+                                 "(chatid: %s msgid: %s)",
+                                 getLoggingName(),
+                                 chatid.toString().c_str(),
+                                 msgid.toString().c_str());
                     continue;
                 }
             }
@@ -690,8 +739,11 @@ int Client::importMessages(const char *externalDbPath)
                 stmtKey << chatroom->chatid() << userid << keyid;
                 if (!stmtKey.step())
                 {
-                    KR_LOG_ERROR("importMessages: key not found. chatid: %s msgid: %s keyid %u",
-                                 chatid.toString().c_str(), msgid.toString().c_str(), keyid);
+                    KR_LOG_ERROR("%simportMessages: key not found. chatid: %s msgid: %s keyid %u",
+                                 getLoggingName(),
+                                 chatid.toString().c_str(),
+                                 msgid.toString().c_str(),
+                                 keyid);
                     continue;
                 }
                 Buffer key;
@@ -703,14 +755,20 @@ int Client::importMessages(const char *externalDbPath)
 
             if (retentionTime && ts <= time(nullptr) - retentionTime)
             {
-                KR_LOG_DEBUG("importMessages: skipping msg with msgid %s that must be deleted due to retention time policy", msg->id().toString().c_str());
+                KR_LOG_DEBUG("%simportMessages: skipping msg with msgid %s that must be deleted "
+                             "due to retention time policy",
+                             getLoggingName(),
+                             msg->id().toString().c_str());
                 continue;
             }
 
             chat.msgImport(std::move(msg), isUpdate);
             (isUpdate) ? countUpdated++ : countAdded++;
 
-            KR_LOG_DEBUG("importMessages: message added (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
+            KR_LOG_DEBUG("%simportMessages: message added (chatid: %s msgid: %s)",
+                         getLoggingName(),
+                         chatid.toString().c_str(),
+                         msgid.toString().c_str());
         }
 
         // finally, check if any older message has been updated
@@ -732,15 +790,21 @@ int Client::importMessages(const char *externalDbPath)
                 stmtMsgAppUpdated << chatroom->chatid() << msgid;
                 if (!stmtMsgAppUpdated.step())
                 {
-                    KR_LOG_ERROR("importMessages: message not found in app's db (chatid: %s msgid: %s)",
-                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    KR_LOG_ERROR(
+                        "%simportMessages: message not found in app's db (chatid: %s msgid: %s)",
+                        getLoggingName(),
+                        chatid.toString().c_str(),
+                        msgid.toString().c_str());
                     continue;
                 }
                 uint16_t updatedApp = stmtMsgAppUpdated.integralCol<uint16_t>(0);
                 if (updated <= updatedApp)
                 {
-                    KR_LOG_DEBUG("importMessages: edited message in external db is older. Skipping... (chatid: %s msgid: %s)",
-                                 chatid.toString().c_str(), msgid.toString().c_str());
+                    KR_LOG_DEBUG("%simportMessages: edited message in external db is older. "
+                                 "Skipping... (chatid: %s msgid: %s)",
+                                 getLoggingName(),
+                                 chatid.toString().c_str(),
+                                 msgid.toString().c_str());
                     continue;
                 }
 
@@ -758,13 +822,19 @@ int Client::importMessages(const char *externalDbPath)
 
                 if (retentionTime && ts <= time(nullptr) - retentionTime)
                 {
-                    KR_LOG_DEBUG("importMessages: skipping msg (updated) with msgid %s that must be deleted due to retention time policy", msg->id().toString().c_str());
+                    KR_LOG_DEBUG("%simportMessages: skipping msg (updated) with msgid %s that must "
+                                 "be deleted due to retention time policy",
+                                 getLoggingName(),
+                                 msg->id().toString().c_str());
                     continue;
                 }
                 chat.msgImport(std::move(msg), true);
                 countUpdated++;
 
-                KR_LOG_DEBUG("importMessages: message updated (chatid: %s msgid: %s)", chatid.toString().c_str(), msgid.toString().c_str());
+                KR_LOG_DEBUG("%simportMessages: message updated (chatid: %s msgid: %s)",
+                             getLoggingName(),
+                             chatid.toString().c_str(),
+                             msgid.toString().c_str());
             }
         }
     }
@@ -775,7 +845,11 @@ int Client::importMessages(const char *externalDbPath)
     setCommitMode(oldCommitMode);
 
     int total = countAdded + countUpdated;
-    KR_LOG_DEBUG("Imported messages: %d (added: %d, updated: %d)", total, countAdded, countUpdated);
+    KR_LOG_DEBUG("%sImported messages: %d (added: %d, updated: %d)",
+                 getLoggingName(),
+                 total,
+                 countAdded,
+                 countUpdated);
     return total;
 }
 
@@ -788,7 +862,7 @@ void Client::heartbeat()
 
     if (mConnState != kConnected)
     {
-        KR_LOG_WARNING("Heartbeat timer tick without being connected");
+        KR_LOG_WARNING("%sHeartbeat timer tick without being connected", getLoggingName());
         return;
     }
 
@@ -812,7 +886,8 @@ void Client::retryPendingConnections(bool disconnect, bool refreshURL)
 {
     if (mConnState == kDisconnected)  // already a connection attempt in-progress
     {
-        KR_LOG_WARNING("Retry pending connections called without previous connect");
+        KR_LOG_WARNING("%sRetry pending connections called without previous connect",
+                       getLoggingName());
         return;
     }
 
@@ -925,7 +1000,7 @@ Client::fetchScheduledMeetingOccurrences(uint64_t chatid, ::mega::m_time_t since
 
             if (unordered)
             {
-                KR_LOG_WARNING("Unordered occurrences list received from API");
+                KR_LOG_WARNING("%sUnordered occurrences list received from API", getLoggingName());
                 sortOccurrences(out);
             }
         }
@@ -974,25 +1049,31 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
 
         auto wptr = getDelTracker();
         promise::Promise<std::string> pms = auxCrypto->decryptChatTitleFromApi(buf);
-        return pms.then([wptr, auxCrypto](const std::string title)
-        {
-            wptr.throwIfDeleted();
-            delete auxCrypto;
-            return title;
-        })
-        .fail([wptr, chatId, auxCrypto](const ::promise::Error& err)
-        {
-            wptr.throwIfDeleted();
-            KR_LOG_ERROR("Error decrypting chat title for chat link preview %s:\n%s", ID_CSTR(chatId), err.what());
-            delete auxCrypto;
-            return err;
-        });
+        return pms
+            .then(
+                [wptr, auxCrypto](const std::string title)
+                {
+                    wptr.throwIfDeleted();
+                    delete auxCrypto;
+                    return title;
+                })
+            .fail(
+                [wptr, chatId, auxCrypto, lname = getLoggingName()](const ::promise::Error& err)
+                {
+                    wptr.throwIfDeleted();
+                    KR_LOG_ERROR("%sError decrypting chat title for chat link preview %s:\n%s",
+                                 lname,
+                                 ID_CSTR(chatId),
+                                 err.what());
+                    delete auxCrypto;
+                    return err;
+                });
     }
     catch(std::exception&)
     {
         std::string err("Failed to base64-decode chat title for chat ");
         err.append(ID_CSTR(chatId)).append(": ");
-        KR_LOG_ERROR("%s", err.c_str());
+        KR_LOG_ERROR("%s%s", getLoggingName(), err.c_str());
         return ::promise::Error(err);
     }
 }
@@ -1072,7 +1153,9 @@ void Client::onSyncReceived(const Id& chatid)
 {
     if (mSyncCount <= 0)
     {
-        KR_LOG_WARNING("Unexpected SYNC received for chat: %s", ID_CSTR(chatid));
+        KR_LOG_WARNING("%sUnexpected SYNC received for chat: %s",
+                       getLoggingName(),
+                       ID_CSTR(chatid));
         return;
     }
 
@@ -1107,7 +1190,7 @@ void Client::saveDb()
     }
     catch(std::runtime_error& e)
     {
-        KR_LOG_ERROR("Error saving changes to local cache: %s", e.what());
+        KR_LOG_ERROR("%sError saving changes to local cache: %s", getLoggingName(), e.what());
         setInitState(kInitErrCorruptCache);
     }
 }
@@ -1139,7 +1222,9 @@ promise::Promise<void> Client::pushReceived(Id chatid)
         // if already sent SYNCs or we are not logged in right now...
         if (mSyncTimer)
         {
-            KR_LOG_WARNING("pushReceived: a previous PUSH is being processed. Both will finish at the same time");
+            KR_LOG_WARNING("%spushReceived: a previous PUSH is being processed. Both will finish "
+                           "at the same time",
+                           getLoggingName());
             assert(!mSyncPromise.done());
             return mSyncPromise;
             // promise will resolve once logged in for all chats or after receive all SYNCs back
@@ -1147,12 +1232,14 @@ promise::Promise<void> Client::pushReceived(Id chatid)
 
         if (mSyncPromise.done())
         {
-            KR_LOG_WARNING("pushReceived: previous PUSH was already resolved. New promise to track the progress");
+            KR_LOG_WARNING("%spushReceived: previous PUSH was already resolved. New promise to "
+                           "track the progress",
+                           getLoggingName());
             mSyncPromise = Promise<void>();
         }
         if (!mChatdClient || !mChatdClient->areAllChatsLoggedIn())
         {
-            KR_LOG_WARNING("pushReceived: not logged in into all chats");
+            KR_LOG_WARNING("%spushReceived: not logged in into all chats", getLoggingName());
             return mSyncPromise;
         }
 
@@ -1197,7 +1284,9 @@ Client::InitState Client::initWithAnonymousSession()
 {
     if (mInitState > kInitCreated)
     {
-        KR_LOG_WARNING("init: karere is already initialized. Current state: %s", initStateStr());
+        KR_LOG_WARNING("%sinit: karere is already initialized. Current state: %s",
+                       getLoggingName(),
+                       initStateStr());
         return mInitState;
     }
 
@@ -1227,7 +1316,9 @@ bool Client::initWithNewSession(const char* sid, const std::string& scsn,
     }
     catch (const std::runtime_error& e)
     {
-        KR_LOG_ERROR("Karere log error: initWithNewSession: createDb() threw: %s", e.what());
+        KR_LOG_ERROR("%sKarere log error: initWithNewSession: createDb() threw: %s",
+                     getLoggingName(),
+                     e.what());
         return false;
     }
 
@@ -1281,13 +1372,13 @@ void Client::commit(const std::string& scsn)
 {
     if (scsn.empty())
     {
-        KR_LOG_DEBUG("Committing with empty scsn");
+        KR_LOG_DEBUG("%sCommitting with empty scsn", getLoggingName());
         db.commit();
         return;
     }
     if (scsn == mLastScsn)
     {
-        KR_LOG_DEBUG("Committing with same scsn");
+        KR_LOG_DEBUG("%sCommitting with same scsn", getLoggingName());
         db.commit();
         return;
     }
@@ -1295,7 +1386,7 @@ void Client::commit(const std::string& scsn)
     db.query("insert or replace into vars(name,value) values('scsn', ?)", scsn);
     db.commit();
     mLastScsn = scsn;
-    KR_LOG_DEBUG("Commit with scsn %s", scsn.c_str());
+    KR_LOG_DEBUG("%sCommit with scsn %s", getLoggingName(), scsn.c_str());
 }
 
 void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
@@ -1309,7 +1400,8 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
         const char *pscsn = event->getText();
         if (!pscsn)
         {
-            KR_LOG_ERROR("EVENT_COMMIT_DB --> DB commit triggered by SDK without a valid scsn");
+            KR_LOG_ERROR("%sEVENT_COMMIT_DB --> DB commit triggered by SDK without a valid scsn",
+                         getLoggingName());
             return;
         }
 
@@ -1324,7 +1416,7 @@ void Client::onEvent(::mega::MegaApi* /*api*/, ::mega::MegaEvent* event)
 
             if (db.isOpen())
             {
-                KR_LOG_DEBUG("EVENT_COMMIT_DB --> DB commit triggered by SDK");
+                KR_LOG_DEBUG("%sEVENT_COMMIT_DB --> DB commit triggered by SDK", getLoggingName());
                 commit(scsn);
             }
 
@@ -1393,7 +1485,9 @@ void Client::initWithDbSession(const char* sid)
     }
     catch(std::runtime_error& e)
     {
-        KR_LOG_ERROR("initWithDbSession: Error loading session from local cache: %s", e.what());
+        KR_LOG_ERROR("%sinitWithDbSession: Error loading session from local cache: %s",
+                     getLoggingName(),
+                     e.what());
         setInitState(kInitErrCorruptCache);
         return;
     }
@@ -1407,7 +1501,7 @@ void Client::setInitState(InitState newState)
     if (newState == mInitState)
         return;
     mInitState = newState;
-    KR_LOG_DEBUG("Client reached init state %s", initStateStr());
+    KR_LOG_DEBUG("%sClient reached init state %s", getLoggingName(), initStateStr());
     app.onInitStateChange(mInitState);
 }
 
@@ -1415,13 +1509,15 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
 {
     if (mInitState > kInitCreated)
     {
-        KR_LOG_WARNING("init: karere is already initialized. Current state: %s", initStateStr());
+        KR_LOG_WARNING("%sinit: karere is already initialized. Current state: %s",
+                       getLoggingName(),
+                       initStateStr());
         return mInitState;  // simply honor the current state
     }
 
     if (!waitForFetchnodesToConnect && !sid)
     {
-        KR_LOG_ERROR("init: sid required to initialize in Lean Mode");
+        KR_LOG_ERROR("%sinit: sid required to initialize in Lean Mode", getLoggingName());
         return kInitErrGeneric;
     }
 
@@ -1433,7 +1529,7 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
         if (mInitState == kInitErrNoCache ||    // not found, uncompatible db version, cannot open
                 mInitState == kInitErrCorruptCache)
         {
-            KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::init()");
+            KR_LOG_DEBUG("%sKarere log debug: wipeDb() from Client::init()", getLoggingName());
             wipeDb(sid);
         }
     }
@@ -1447,7 +1543,9 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
     {
         if (mInitState != kInitHasOfflineSession)
         {
-            KR_LOG_ERROR("init: failed to initialize Lean Mode. Current state: %s", initStateStr());
+            KR_LOG_ERROR("%sinit: failed to initialize Lean Mode. Current state: %s",
+                         getLoggingName(),
+                         initStateStr());
             return kInitErrGeneric;
         }
 
@@ -1510,7 +1608,10 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     int errorCode = e->getErrorCode();
     if (errorCode != ::mega::MegaError::API_OK && reqType != ::mega::MegaRequest::TYPE_LOGOUT)
     {
-        KR_LOG_ERROR("Request %s finished with error %s", request->getRequestString(), e->getErrorString());
+        KR_LOG_ERROR("%sRequest %s finished with error %s",
+                     getLoggingName(),
+                     request->getRequestString(),
+                     e->getErrorString());
         return;
     }
 
@@ -1529,10 +1630,12 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 
         bool sessionExpired = request->getParamType() == ::mega::MegaError::API_ESID;       // SDK received ESID during login or any other request
         if (loggedOut)
-            KR_LOG_DEBUG("Logout detected in the SDK. Closing MEGAchat session...");
+            KR_LOG_DEBUG("%sLogout detected in the SDK. Closing MEGAchat session...",
+                         getLoggingName());
 
         if (sessionExpired)
-            KR_LOG_WARNING("Expired session detected. Closing MEGAchat session...");
+            KR_LOG_WARNING("%sExpired session detected. Closing MEGAchat session...",
+                           getLoggingName());
 
         if (loggedOut || sessionExpired)
         {
@@ -1626,7 +1729,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 else
                 {
                     setInitState(kInitErrGeneric);
-                    KR_LOG_ERROR("Failed to initialize MEGAchat");
+                    KR_LOG_ERROR("%sFailed to initialize MEGAchat", getLoggingName());
                     api.sdk.resumeActionPackets();
                 }
             }
@@ -1708,7 +1811,7 @@ void Client::wipeDb(const std::string& sid)
     db.close();
     std::string path = dbPath(sid);
     int removed = remove(path.c_str());
-    KR_LOG_DEBUG("Karere log debug: db wipe: %d, %s", removed, path.c_str());
+    KR_LOG_DEBUG("%sKarere log debug: db wipe: %d, %s", getLoggingName(), removed, path.c_str());
     struct stat info;
     if (stat(path.c_str(), &info) == 0)
         throw std::runtime_error("wipeDb: Could not delete old database file in "+mAppDir);
@@ -1716,7 +1819,7 @@ void Client::wipeDb(const std::string& sid)
 
 void Client::createDb()
 {
-    KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::createDb()");
+    KR_LOG_DEBUG("%sKarere log debug: wipeDb() from Client::createDb()", getLoggingName());
     wipeDb(mSid);
     std::string path = dbPath(mSid);
     if (!db.open(path.c_str(), false))
@@ -1734,14 +1837,17 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
         stmt.stepMustHaveData("get karere scsn");
         if (stmt.stringCol(0) == scsn)
         {
-            KR_LOG_DEBUG("Db sync ok, karere scsn matches with the one from sdk");
+            KR_LOG_DEBUG("%sDb sync ok, karere scsn matches with the one from sdk",
+                         getLoggingName());
             return true;
         }
         api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99012, "Karere db out of sync with sdk - scsn-s don't match", false, static_cast<const char*>(nullptr));
     }
 
     // We are not in sync, probably karere is one or more commits behind
-    KR_LOG_WARNING("Karere db out of sync with sdk - scsn-s don't match. Will reload all state from SDK");
+    KR_LOG_WARNING(
+        "%sKarere db out of sync with sdk - scsn-s don't match. Will reload all state from SDK",
+        getLoggingName());
 
     // invalidate user attrib cache
     mUserAttrCache->invalidate();
@@ -1760,44 +1866,51 @@ bool Client::checkSyncWithSdkDb(const std::string& scsn,
 
 void Client::dumpChatrooms(::mega::MegaTextChatList& chatRooms)
 {
-    KR_LOG_DEBUG("=== Chatrooms received from API: ===");
+    KR_LOG_DEBUG("%s=== Chatrooms received from API: ===", getLoggingName());
     for (int i=0; i<chatRooms.size(); i++)
     {
         auto& room = *chatRooms.get(i);
         if (room.isGroup())
         {
-            KR_LOG_DEBUG("%s(group, ownPriv=%s):",
-                ID_CSTR(room.getHandle()), privToString((chatd::Priv)room.getOwnPrivilege()));
+            KR_LOG_DEBUG("%s%s(group, ownPriv=%s):",
+                         getLoggingName(),
+                         ID_CSTR(room.getHandle()),
+                         privToString((chatd::Priv)room.getOwnPrivilege()));
         }
         else
         {
-            KR_LOG_DEBUG("%s(1on1)", ID_CSTR(room.getHandle()));
+            KR_LOG_DEBUG("%s%s(1on1)", getLoggingName(), ID_CSTR(room.getHandle()));
         }
         auto peers = room.getPeerList();
         if (!peers)
         {
-            KR_LOG_DEBUG("  (room has no peers)");
+            KR_LOG_DEBUG("%s  (room has no peers)", getLoggingName());
             continue;
         }
         for (int j = 0; j<peers->size(); j++)
-            KR_LOG_DEBUG("  %s: %s", ID_CSTR(peers->getPeerHandle(j)),
-                privToString((chatd::Priv)peers->getPeerPrivilege(j)));
+            KR_LOG_DEBUG("%s  %s: %s",
+                         getLoggingName(),
+                         ID_CSTR(peers->getPeerHandle(j)),
+                         privToString((chatd::Priv)peers->getPeerPrivilege(j)));
     }
-    KR_LOG_DEBUG("=== Chatroom list end ===");
+    KR_LOG_DEBUG("%s=== Chatroom list end ===", getLoggingName());
 }
 void Client::dumpContactList(::mega::MegaUserList& clist)
 {
-    KR_LOG_DEBUG("== Contactlist received from API: ==");
+    KR_LOG_DEBUG("%s== Contactlist received from API: ==", getLoggingName());
     for (int i=0; i< clist.size(); i++)
     {
         auto& user = *clist.get(i);
         auto visibility = user.getVisibility();
         if (visibility != ::mega::MegaUser::VISIBILITY_VISIBLE)
-            KR_LOG_DEBUG("  %s (visibility = %d)", ID_CSTR(user.getHandle()), visibility);
+            KR_LOG_DEBUG("%s  %s (visibility = %d)",
+                         getLoggingName(),
+                         ID_CSTR(user.getHandle()),
+                         visibility);
         else
-            KR_LOG_DEBUG("  %s", ID_CSTR(user.getHandle()));
+            KR_LOG_DEBUG("%s  %s", getLoggingName(), ID_CSTR(user.getHandle()));
     }
-    KR_LOG_DEBUG("== Contactlist end ==");
+    KR_LOG_DEBUG("%s== Contactlist end ==", getLoggingName());
 }
 
 void Client::connect()
@@ -1810,11 +1923,16 @@ void Client::connect()
 
     if (mConnState != kDisconnected)
     {
-        KR_LOG_WARNING("connect(): current state is %s", connStateToStr(mConnState));
+        KR_LOG_WARNING("%sconnect(): current state is %s",
+                       getLoggingName(),
+                       connStateToStr(mConnState));
         return;
     }
 
-    KR_LOG_DEBUG("Connecting to account '%s'(%s)...", SdkString(api.sdk.getMyEmail()).c_str(), mMyHandle.toString().c_str());
+    KR_LOG_DEBUG("%sConnecting to account '%s'(%s)...",
+                 getLoggingName(),
+                 SdkString(api.sdk.getMyEmail()).c_str(),
+                 mMyHandle.toString().c_str());
     mInitStats.stageStart(InitStats::kStatsConnection);
     setConnState(kConnecting);
 
@@ -1850,8 +1968,9 @@ void Client::connect()
         if (!buf || buf->empty())
             return;
         auto& name = static_cast<Client*>(userp)->mMyName;
+        const auto& loggingName = static_cast<Client*>(userp)->getLoggingName();
         name.assign(buf->buf(), buf->dataSize());
-        KR_LOG_DEBUG("Own screen name is: '%s'", name.c_str()+1);
+        KR_LOG_DEBUG("%sOwn screen name is: '%s'", loggingName, name.c_str() + 1);
     });
 
     mPresencedClient.connect();
@@ -1861,7 +1980,9 @@ void Client::connect()
 void Client::setConnState(ConnState newState)
 {
     mConnState = newState;
-    KR_LOG_DEBUG("Client connection state changed to %s", connStateToStr(newState));
+    KR_LOG_DEBUG("%sClient connection state changed to %s",
+                 getLoggingName(),
+                 connStateToStr(newState));
 }
 
 void Client::sendStats()
@@ -1872,7 +1993,7 @@ void Client::sendStats()
     }
 
     std::string stats = mInitStats.onCompleted(api.sdk.getNumNodes(), chats->size(), mContactList->size());
-    KR_LOG_DEBUG("Init stats: %s", stats.c_str());
+    KR_LOG_DEBUG("%sInit stats: %s", getLoggingName(), stats.c_str());
     api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99008, jsonUnescape(stats).c_str(), false, static_cast<const char*>(nullptr));
 }
 
@@ -1886,7 +2007,7 @@ karere::Id Client::getMyHandleFromSdk()
     SdkString uh = api.sdk.getMyUserHandle();
     if (!uh.c_str() || !uh.c_str()[0])
         throw std::runtime_error("Could not get our own user handle from API");
-    KR_LOG_INFO("Our user handle is %s", uh.c_str());
+    KR_LOG_INFO("%sOur user handle is %s", getLoggingName(), uh.c_str());
     karere::Id result(uh.c_str());
     if (result == Id::null() || result.val == ::mega::UNDEF)
         throw std::runtime_error("Own handle returned by the SDK is NULL");
@@ -1912,7 +2033,7 @@ std::string Client::getMyEmailFromSdk()
         // For ephemeral accounts email isn't set
         return std::string("");
     }
-    KR_LOG_INFO("Our email address is %s", myEmail.c_str());
+    KR_LOG_INFO("%sOur email address is %s", getLoggingName(), myEmail.c_str());
     return myEmail.c_str();
 }
 
@@ -1936,7 +2057,7 @@ uint64_t Client::getMyIdentityFromDb()
     SqliteStmt stmt(db, "select value from vars where name='clientid_seed'");
     if (!stmt.step())
     {
-        KR_LOG_WARNING("clientid_seed not found in DB. Creating a new one");
+        KR_LOG_WARNING("%sclientid_seed not found in DB. Creating a new one", getLoggingName());
         result = initMyIdentity();
     }
     else
@@ -1944,7 +2065,8 @@ uint64_t Client::getMyIdentityFromDb()
         result = stmt.integralCol<uint64_t>(0);
         if (result == 0)
         {
-            KR_LOG_WARNING("clientid_seed in DB is invalid. Creating a new one");
+            KR_LOG_WARNING("%sclientid_seed in DB is invalid. Creating a new one",
+                           getLoggingName());
             result = initMyIdentity();
         }
     }
@@ -1954,7 +2076,7 @@ uint64_t Client::getMyIdentityFromDb()
 void Client::resetMyIdentity()
 {
    assert(mInitState == kInitWaitingNewSession || mInitState == kInitHasOfflineSession);
-   KR_LOG_WARNING("Reset clientid_seed");
+   KR_LOG_WARNING("%sReset clientid_seed", getLoggingName());
    mMyIdentity = initMyIdentity();
 }
 
@@ -1972,14 +2094,14 @@ bool Client::loadOwnKeysFromApi()
 
     if (!prEd255 || !prCu255)
     {
-        KR_LOG_ERROR("loadOwnKeysFromApi: failure loading keys from API");
+        KR_LOG_ERROR("%sloadOwnKeysFromApi: failure loading keys from API", getLoggingName());
         return false;
     }
 
     auto b64len = strlen(prCu255.get());
     if (b64len != 43)
     {
-        KR_LOG_ERROR("loadOwnKeysFromApi: Invalid size for private cu255 key");
+        KR_LOG_ERROR("%sloadOwnKeysFromApi: Invalid size for private cu255 key", getLoggingName());
         return false;
     }
 
@@ -1988,7 +2110,7 @@ bool Client::loadOwnKeysFromApi()
     b64len = strlen(prEd255.get());
     if (b64len != 43)
     {
-        KR_LOG_ERROR("loadOwnKeysFromApi: Invalid size for private ed255 key");
+        KR_LOG_ERROR("%sloadOwnKeysFromApi: Invalid size for private ed255 key", getLoggingName());
         return false;
     }
 
@@ -1997,7 +2119,7 @@ bool Client::loadOwnKeysFromApi()
     // write to db
     db.query("insert or replace into vars(name,value) values('pr_cu25519', ?)", StaticBuffer(mMyPrivCu25519, sizeof(mMyPrivCu25519)));
     db.query("insert or replace into vars(name,value) values('pr_ed25519', ?)", StaticBuffer(mMyPrivEd25519, sizeof(mMyPrivEd25519)));
-    KR_LOG_DEBUG("loadOwnKeysFromApi: success");
+    KR_LOG_DEBUG("%sloadOwnKeysFromApi: success", getLoggingName());
 
     return true;
 }
@@ -2047,7 +2169,7 @@ void Client::updateAndNotifyLastGreen(const Id& userid)
     mega::m_time_t lastGreenTs = mPresencedClient.getLastGreen(userid);
     if (!lastGreenTs)
     {
-        KR_LOG_DEBUG("Skip notification, last-green not received yet");
+        KR_LOG_DEBUG("%sSkip notification, last-green not received yet", getLoggingName());
         return;
     }
 
@@ -2122,19 +2244,21 @@ void Client::terminate(bool deleteDb)
     {
         if (deleteDb)
         {
-            KR_LOG_DEBUG("Karere log debug: wipeDb() from Client::terminate()");
+            KR_LOG_DEBUG("%sKarere log debug: wipeDb() from Client::terminate()", getLoggingName());
             wipeDb(mSid);
         }
         else if (db.isOpen())
         {
-            KR_LOG_INFO("Doing final COMMIT to database");
+            KR_LOG_INFO("%sDoing final COMMIT to database", getLoggingName());
             db.commit();
             db.close();
         }
     }
     catch(std::runtime_error& e)
     {
-        KR_LOG_ERROR("Error saving changes to local cache during termination: %s", e.what());
+        KR_LOG_ERROR("%sError saving changes to local cache during termination: %s",
+                     getLoggingName(),
+                     e.what());
     }
 }
 
@@ -2381,6 +2505,11 @@ bool ChatRoom::isChatdChatInitialized()
     return mChat;
 }
 
+const char* ChatRoom::getLoggingName() const
+{
+    return parent.mKarereClient.getLoggingName();
+}
+
 strongvelope::ProtocolHandler* Client::newStrongvelope(const karere::Id& chatid, bool isPublic,
         std::shared_ptr<std::string> unifiedKey, int isUnifiedKeyEncrypted, const karere::Id& ph)
 {
@@ -2559,7 +2688,7 @@ GroupChatRoom::GroupChatRoom(ChatRoomList& parent, const mega::MegaTextChat& aCh
         int len = ::mega::Base64::atob(unifiedKeyB64, *unifiedKey);
         if (len != strongvelope::SVCRYPTO_KEY_SIZE + ::mega::MegaClient::USERHANDLE)
         {
-            KR_LOG_ERROR("Invalid size for unified key");
+            KR_LOG_ERROR("%sInvalid size for unified key", getLoggingName());
             isUnifiedKeyEncrypted = strongvelope::kUndecryptable;
             parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99002, "invalid unified-key detected", false, static_cast<const char*>(nullptr));
         }
@@ -2726,7 +2855,7 @@ PeerChatRoom::PeerChatRoom(ChatRoomList& parent, const mega::MegaTextChat& chat)
 //just in case
     parent.mKarereClient.db.query("delete from chat_peers where chatid = ?", mChatid);
 
-    KR_LOG_DEBUG("Added 1on1 chatroom '%s' from API",  ID_CSTR(mChatid));
+    KR_LOG_DEBUG("%sAdded 1on1 chatroom '%s' from API", getLoggingName(), ID_CSTR(mChatid));
 
     initContact(mPeer);
     initWithChatd();
@@ -2867,14 +2996,16 @@ bool ChatRoom::syncOwnPriv(chatd::Priv newPriv)
 
         if (!validPrivInPreviewMode)
         {
-            KR_LOG_ERROR("syncOwnPriv: invalid current privilege in preview mode for chat: ",
+            KR_LOG_ERROR("%ssyncOwnPriv: invalid current privilege in preview mode for chat: ",
+                         getLoggingName(),
                          karere::Id(chatid()).toString().c_str());
             assert(false);
         }
 
         if (newPriv >= chatd::PRIV_RO)
         {
-            KR_LOG_DEBUG("syncOwnPriv: invalidating ph as we are not in preview mode for chat: ",
+            KR_LOG_DEBUG("%ssyncOwnPriv: invalidating ph as we are not in preview mode for chat: ",
+                         getLoggingName(),
                          karere::Id(chatid()).toString().c_str());
 
             // Join
@@ -2965,12 +3096,16 @@ bool GroupChatRoom::removeMember(uint64_t userid)
     auto it = mPeers.find(userid);
     if (it == mPeers.end())
     {
-        KR_LOG_WARNING("GroupChatRoom::removeMember for a member that we don't have, ignoring");
+        KR_LOG_WARNING("%sGroupChatRoom::removeMember for a member that we don't have, ignoring",
+                       getLoggingName());
         return false;
     }
     else
     {
-        KR_LOG_DEBUG("GroupChatRoom[%s]: Removed member %s", ID_CSTR(mChatid), ID_CSTR(userid));
+        KR_LOG_DEBUG("%sGroupChatRoom[%s]: Removed member %s",
+                     getLoggingName(),
+                     ID_CSTR(mChatid),
+                     ID_CSTR(userid));
     }
 
     delete it->second;
@@ -2990,7 +3125,10 @@ promise::Promise<void> GroupChatRoom::setChatRoomOption(int option, bool enabled
     .fail([wptr, this](const ::promise::Error& err)
     {
         wptr.throwIfDeleted();
-        KR_LOG_ERROR("Error setting chatroom option for chat %s: %s", ID_CSTR(chatid()), err.what());
+        KR_LOG_ERROR("%sError setting chatroom option for chat %s: %s",
+                     getLoggingName(),
+                     ID_CSTR(chatid()),
+                     err.what());
         return err;
     });
 }
@@ -3090,7 +3228,9 @@ void ChatRoomList::loadFromDb()
         auto chatid = stmt.integralCol<uint64_t>(0);
         if (find(chatid) != end())
         {
-            KR_LOG_WARNING("ChatRoomList: Attempted to load from db cache a chatid that is already in memory");
+            KR_LOG_WARNING("%sChatRoomList: Attempted to load from db cache a chatid that is "
+                           "already in memory",
+                           mKarereClient.getLoggingName());
             continue;
         }
         auto peer = stmt.integralCol<uint64_t>(4);
@@ -3153,12 +3293,13 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 
         if (mKarereClient.connected())
         {
-            KR_LOG_DEBUG("...connecting new room to chatd...");
+            KR_LOG_DEBUG("%s...connecting new room to chatd...", mKarereClient.getLoggingName());
             room->connect();
         }
         else
         {
-            KR_LOG_DEBUG("...client is not connected, not connecting new room");
+            KR_LOG_DEBUG("%s...client is not connected, not connecting new room",
+                         mKarereClient.getLoggingName());
         }
     }
 }
@@ -3209,12 +3350,14 @@ void ChatRoomList::removeRoomPreview(Id chatid)
     auto it = find(chatid);
     if (it == end())
     {
-        CHATD_LOG_WARNING("removeRoomPreview: room not in chat list");
+        CHATD_LOG_WARNING("%sremoveRoomPreview: room not in chat list",
+                          mKarereClient.getLoggingName());
         return;
     }
     if (!it->second->previewMode())
     {
-        CHATD_LOG_WARNING("removeRoomPreview: room is not a preview");
+        CHATD_LOG_WARNING("%sremoveRoomPreview: room is not a preview",
+                          mKarereClient.getLoggingName());
         return;
     }
 
@@ -3316,21 +3459,22 @@ void GroupChatRoom::rejoinChatOwnUser()
     // now, we upgrade from (invalid) previewer to participant --> enable it back
     if (mChat->isDisabled())
     {
-        KR_LOG_WARNING("Enable chatroom previously in preview mode");
+        KR_LOG_WARNING("%sEnable chatroom previously in preview mode", getLoggingName());
         mChat->disable(false);
     }
 
     // if already connected, need to send a new JOIN to chatd
     if (parent.mKarereClient.connected())
     {
-        KR_LOG_DEBUG("Connecting existing room to chatd after re-join...");
+        KR_LOG_DEBUG("%sConnecting existing room to chatd after re-join...", getLoggingName());
         if (mChat->onlineState() < ::chatd::ChatState::kChatStateJoining)
         {
             mChat->connect();
         }
         else
         {
-            KR_LOG_DEBUG("Skip re-join chatd, since it's already joining right now");
+            KR_LOG_DEBUG("%sSkip re-join chatd, since it's already joining right now",
+                         getLoggingName());
             parent.mKarereClient.api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99003, "Skip re-join chatd", false, static_cast<const char*>(nullptr));
         }
     }
@@ -3349,7 +3493,7 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
     if (!rooms)
     {
         const char *scsn = api.sdk.getSequenceNumber();
-        KR_LOG_DEBUG("Chatrooms up to date with API. scsn: %s", scsn);
+        KR_LOG_DEBUG("%sChatrooms up to date with API. scsn: %s", getLoggingName(), scsn);
         delete [] scsn;
         return;
     }
@@ -3374,7 +3518,8 @@ void Client::onChatsUpdate(::mega::MegaApi*, ::mega::MegaTextChatList* rooms)
             // 2. logout megaChatApi;
             // 3. delete megaChatApi;
             // 4. delete megaApi.
-            CHATD_LOG_ERROR("lambda in marshallCall(): db was closed, cannot notify chats");
+            CHATD_LOG_ERROR("%slambda in marshallCall(): db was closed, cannot notify chats",
+                            getLoggingName());
             assert(db.isOpen());
             return;
         }
@@ -3454,7 +3599,11 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     }
     catch(std::exception& e)
     {
-        KR_LOG_ERROR("Failed to base64-decode chat title for chat %s: %s. Falling back to member names", ID_CSTR(mChatid), e.what());
+        KR_LOG_ERROR(
+            "%sFailed to base64-decode chat title for chat %s: %s. Falling back to member names",
+            getLoggingName(),
+            ID_CSTR(mChatid),
+            e.what());
 
         parent.mKarereClient.api.call(&mega::MegaApi::sendEvent, 99007, "Decryption of chat topic failed", false, static_cast<const char*>(nullptr));
         updateTitleInDb(mEncryptedTitle, strongvelope::kUndecryptable);
@@ -3476,7 +3625,10 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
     {
         wptr.throwIfDeleted();
 
-        KR_LOG_ERROR("Error decrypting chat title for chat %s: %s. Falling back to member names.", ID_CSTR(chatid()), err.what());
+        KR_LOG_ERROR("%sError decrypting chat title for chat %s: %s. Falling back to member names.",
+                     getLoggingName(),
+                     ID_CSTR(chatid()),
+                     err.what());
 
         parent.mKarereClient.api.call(&mega::MegaApi::sendEvent, 99007, "Decryption of chat topic failed", false, static_cast<const char*>(nullptr));
         updateTitleInDb(mEncryptedTitle, strongvelope::kUndecryptable);
@@ -3488,7 +3640,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 
 void GroupChatRoom::updateTitleInDb(const std::string &title, int isEncrypted)
 {
-    KR_LOG_DEBUG("Title update in cache");
+    KR_LOG_DEBUG("%sTitle update in cache", getLoggingName());
     Buffer titleBuf;
     titleBuf.write(0, (uint8_t)isEncrypted);
     titleBuf.append(title.data(), title.size());
@@ -3565,7 +3717,8 @@ void GroupChatRoom::makeTitleFromMemberNames()
     assert(!newTitle.empty());
     if (newTitle == mTitleString)
     {
-        KR_LOG_DEBUG("makeTitleFromMemberNames: same title than existing one, skipping update");
+        KR_LOG_DEBUG("%smakeTitleFromMemberNames: same title than existing one, skipping update",
+                     getLoggingName());
         return;
     }
 
@@ -3748,7 +3901,7 @@ void ChatRoom::init(chatd::Chat& chat, chatd::DbInterface*& dbIntf)
     dbIntf = new ChatdSqliteDb(*mChat, parent.mKarereClient.db);
     if (mAppChatHandler)
     {
-        KR_LOG_WARNING("App chat handler is already set, remove it first");
+        KR_LOG_WARNING("%sApp chat handler is already set, remove it first", getLoggingName());
         assert(!mAppChatHandler); // keep original behavior in case this happens (it shouldn't)
         setAppChatHandler(mAppChatHandler);
     }
@@ -3758,7 +3911,7 @@ bool ChatRoom::setAppChatHandler(IApp::IChatHandler* handler)
 {
     if (mAppChatHandler)
     {
-        KR_LOG_WARNING("App chat handler is already set, remove it first");
+        KR_LOG_WARNING("%sApp chat handler is already set, remove it first", getLoggingName());
         assert(!mAppChatHandler);
         return false;
     }
@@ -3858,11 +4011,16 @@ void PeerChatRoom::onUserJoin(Id userid, chatd::Priv privilege)
     else if (userid.val == mPeer)
         syncPeerPriv(privilege);
     else
-        KR_LOG_ERROR("PeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring");
+        KR_LOG_ERROR(
+            "%sPeerChatRoom: Bug: Received JOIN event from chatd for a third user, ignoring",
+            getLoggingName());
 }
 void PeerChatRoom::onUserLeave(Id userid)
 {
-    KR_LOG_ERROR("PeerChatRoom: Bug: Received leave event for user %s from chatd on a permanent chat, ignoring", ID_CSTR(userid));
+    KR_LOG_ERROR("%sPeerChatRoom: Bug: Received leave event for user %s from chatd on a permanent "
+                 "chat, ignoring",
+                 getLoggingName(),
+                 ID_CSTR(userid));
 }
 
 void ChatRoom::onLastTextMessageUpdated(const chatd::LastTextMsg& msg)
@@ -3899,8 +4057,13 @@ void ChatRoom::onOnlineStateChange(chatd::ChatState state)
 
 void ChatRoom::onMsgOrderVerificationFail(const chatd::Message &msg, chatd::Idx idx, const std::string &errmsg)
 {
-    KR_LOG_ERROR("msgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
-        ID_CSTR(mChatid), ID_CSTR(msg.id()), idx, ID_CSTR(msg.userid), errmsg.c_str());
+    KR_LOG_ERROR("%smsgOrderFail[chatid: %s, msgid %s, idx %d, userid %s]: %s",
+                 getLoggingName(),
+                 ID_CSTR(mChatid),
+                 ID_CSTR(msg.id()),
+                 idx,
+                 ID_CSTR(msg.userid),
+                 errmsg.c_str());
 }
 
 void ChatRoom::onRecvNewMessage(chatd::Idx idx, chatd::Message& msg, chatd::Message::Status status)
@@ -3930,7 +4093,7 @@ void GroupChatRoom::handleTitleChange(const std::string &title, bool saveToDB)
 
     if (mTitleString == title)
     {
-        KR_LOG_DEBUG("Same title has already been notified, skipping update");
+        KR_LOG_DEBUG("%sSame title has already been notified, skipping update", getLoggingName());
         return;
     }
 
@@ -4186,8 +4349,13 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
             auto newPriv = itApiUser->second;
             if (peerPriv != newPriv)
             {
-                KR_LOG_DEBUG("GroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
-                     ID_CSTR(chatid()), ID_CSTR(userid), peerPriv, newPriv);
+                KR_LOG_DEBUG(
+                    "%sGroupChatRoom[%s]:syncMembers: Changed privilege of member %s: %d -> %d",
+                    getLoggingName(),
+                    ID_CSTR(chatid()),
+                    ID_CSTR(userid),
+                    peerPriv,
+                    newPriv);
 
                 onUserJoin(member->mHandle, newPriv);
                 peerPriv = newPriv;
@@ -4220,15 +4388,20 @@ void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted
 
             case strongvelope::kEncrypted:
                 mEncryptedTitle = title;
-                decryptTitle()
-                .fail([this](const ::promise::Error& e)
-                {
-                    KR_LOG_ERROR("GroupChatRoom: failed to decrypt title for chat %s: %s", ID_CSTR(mChatid), e.what());
-                });
+                decryptTitle().fail(
+                    [this](const ::promise::Error& e)
+                    {
+                        KR_LOG_ERROR("%sGroupChatRoom: failed to decrypt title for chat %s: %s",
+                                     getLoggingName(),
+                                     ID_CSTR(mChatid),
+                                     e.what());
+                    });
                 return;
 
             case strongvelope::kUndecryptable:
-                KR_LOG_ERROR("Undecryptable chat title for chat %s", ID_CSTR(mChatid));
+                KR_LOG_ERROR("%sUndecryptable chat title for chat %s",
+                             getLoggingName(),
+                             ID_CSTR(mChatid));
                 // fallback to makeTitleFromMemberNames()
                 break;
         }
@@ -4289,7 +4462,8 @@ void GroupChatRoom::syncChatTitle(const mega::MegaTextChat& chat, const bool mem
     }
     else if (!mHasTitle && membersChanged)
     {
-        KR_LOG_DEBUG("Empty title received for groupchat %s. Peers changed, updating title...",
+        KR_LOG_DEBUG("%sEmpty title received for groupchat %s. Peers changed, updating title...",
+                     getLoggingName(),
                      ID_CSTR(mChatid));
         clearTitle();
     }
@@ -4317,8 +4491,9 @@ void GroupChatRoom::syncSchedMeetings(const mega::MegaTextChat& chat)
     else if (chat.getUpdatedOccurrencesList() && chat.getUpdatedOccurrencesList()->size())
     {
         assert(false);
-        KR_LOG_WARNING("syncWithApi: Chat received from SDK contains updated occurrences, but no "
-                       "related change is set");
+        KR_LOG_WARNING("%ssyncWithApi: Chat received from SDK contains updated occurrences, but no "
+                       "related change is set",
+                       getLoggingName());
     }
 }
 
@@ -4332,7 +4507,8 @@ bool GroupChatRoom::syncOwnPrivilege(const mega::MegaTextChat& chat)
     {
         if (!syncOwnPriv(newPriv))
         {
-            KR_LOG_ERROR("Chatroom[%s]: API event: couldn't update own priv for chat: ",
+            KR_LOG_ERROR("%sChatroom[%s]: API event: couldn't update own priv for chat: ",
+                         getLoggingName(),
                          ID_CSTR(mChatid));
             assert(false);
             return removedFromChat;
@@ -4340,22 +4516,25 @@ bool GroupChatRoom::syncOwnPrivilege(const mega::MegaTextChat& chat)
 
         if (newPriv == chatd::PRIV_RM)
         {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: We were removed from chat: ",
-                            ID_CSTR(mChatid));
+            KR_LOG_DEBUG("%sChatroom[%s]: API event: We were removed from chat: ",
+                         getLoggingName(),
+                         ID_CSTR(mChatid));
             notifyOwnExcludedFromChat();
             removedFromChat = true;
         }
         else if (oldPriv == chatd::PRIV_RM && newPriv != chatd::PRIV_RM)
         {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: We were re/invited or re/joined to chat: ",
-                            ID_CSTR(mChatid));
+            KR_LOG_DEBUG("%sChatroom[%s]: API event: We were re/invited or re/joined to chat: ",
+                         getLoggingName(),
+                         ID_CSTR(mChatid));
             rejoinChatOwnUser();
             notifyRejoinedChat();
         }
         else
         {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: Our own privilege changed for chat: ",
-                            ID_CSTR(mChatid));
+            KR_LOG_DEBUG("%sChatroom[%s]: API event: Our own privilege changed for chat: ",
+                         getLoggingName(),
+                         ID_CSTR(mChatid));
             notifyOwnUserPrivChange();
         }
     }
@@ -4370,7 +4549,9 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         if (!chat.isPublicChat() && publicChat())
         {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: mode changed to private", ID_CSTR(mChatid));
+            KR_LOG_DEBUG("%sChatroom[%s]: API event: mode changed to private",
+                         getLoggingName(),
+                         ID_CSTR(mChatid));
             setChatPrivateMode();
             // in case of previewMode, it's also updated in cache
         }
@@ -4381,7 +4562,9 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
     {
         if (!mChatOptions.areEqual(chat.getChatOptions()))
         {
-            KR_LOG_DEBUG("Chatroom[%s]: API event: chat options have changed", ID_CSTR(mChatid));
+            KR_LOG_DEBUG("%sChatroom[%s]: API event: chat options have changed",
+                         getLoggingName(),
+                         ID_CSTR(mChatid));
             updateChatOptions(chat.getChatOptions());
         }
     };
@@ -4414,7 +4597,7 @@ bool GroupChatRoom::syncWithApi(const mega::MegaTextChat& chat)
         onArchivedChanged(mIsArchived);
     }
 
-    KR_LOG_DEBUG("Synced group chatroom %s with API.", ID_CSTR(mChatid));
+    KR_LOG_DEBUG("%sSynced group chatroom %s with API.", getLoggingName(), ID_CSTR(mChatid));
     return true;
 }
 
@@ -4426,7 +4609,9 @@ void GroupChatRoom::setChatPrivateMode()
     }
 
     //Update strongvelope
-    KR_LOG_DEBUG("GroupChatRoom::setChatPrivateMode: EKR enabled (private chat) for chat: %s", karere::Id(mChatid).toString().c_str());
+    KR_LOG_DEBUG("%sGroupChatRoom::setChatPrivateMode: EKR enabled (private chat) for chat: %s",
+                 getLoggingName(),
+                 karere::Id(mChatid).toString().c_str());
 
     chat().crypto()->setPrivateChatMode();
 
@@ -4449,7 +4634,9 @@ void GroupChatRoom::updateChatOptions(mega::ChatOptions_t opt)
 
     if (!newOptions.isValid())
     {
-        KR_LOG_WARNING("addOrUpdateChatOptions: options value (%u) is out of range", newOptions.value());
+        KR_LOG_WARNING("%saddOrUpdateChatOptions: options value (%u) is out of range",
+                       getLoggingName(),
+                       newOptions.value());
         assert(false);
         return;
     }
@@ -4482,7 +4669,7 @@ void GroupChatRoom::addSchedMeetings(const mega::MegaScheduledMeetingList* sched
         }
         else
         {
-            KR_LOG_WARNING("addSchedMeetings: can't add a scheduled meeting");
+            KR_LOG_WARNING("%saddSchedMeetings: can't add a scheduled meeting", getLoggingName());
         }
     }
 }
@@ -4586,7 +4773,9 @@ void GroupChatRoom::updateSchedMeetings(const mega::MegaTextChat& chat)
             }
             else // if scheduled meeting we want to remove, no longer exists in ram
             {
-                KR_LOG_WARNING("updateSchedMeetings: scheduled meeting %s no longer exists", karere::Id(h).toString().c_str());
+                KR_LOG_WARNING("%supdateSchedMeetings: scheduled meeting %s no longer exists",
+                               getLoggingName(),
+                               karere::Id(h).toString().c_str());
             }
         }
         else
@@ -4940,7 +5129,8 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                 auto chat = static_cast<PeerChatRoom*>(it.second);
                 if (chat->peer() == userid)
                 {
-                    KR_LOG_WARNING("Contact restored (%s) for a 1on1 room (%s)",
+                    KR_LOG_WARNING("%sContact restored (%s) for a 1on1 room (%s)",
+                                   client.getLoggingName(),
                                    Id(userid).toString().c_str(),
                                    Id(chat->chatid()).toString().c_str());
 
@@ -4949,7 +5139,7 @@ void ContactList::syncWithApi(mega::MegaUserList &users)
                 }
             }
 
-            KR_LOG_DEBUG("Added new user from API: %s", email.c_str());
+            KR_LOG_DEBUG("%sAdded new user from API: %s", client.getLoggingName(), email.c_str());
 
             // If the user was part of a group before being added as a contact, we need to update user attributes,
             // currently firstname, lastname and email, in order to ensure that are re-fetched for users
@@ -5101,7 +5291,9 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
 {
     if (mChatRoom)
     {
-        KR_LOG_WARNING("Contact::createChatRoom: chat room already exists, check before calling this method");
+        KR_LOG_WARNING(
+            "%sContact::createChatRoom: chat room already exists, check before calling this method",
+            mChatRoom->getLoggingName());
         return Promise<ChatRoom*>(mChatRoom);
     }
     mega::MegaTextChatPeerListPrivate peers;
@@ -5137,7 +5329,10 @@ void Contact::attachChatRoom(PeerChatRoom& room)
     if (mChatRoom)
         throw std::runtime_error("attachChatRoom[room "+Id(room.chatid()).toString()+ "]: contact "+
             Id(mUserid).toString()+" already has a chat room attached");
-    KR_LOG_DEBUG("Attaching 1on1 chatroom %s to contact %s", ID_CSTR(room.chatid()), ID_CSTR(mUserid));
+    KR_LOG_DEBUG("%sAttaching 1on1 chatroom %s to contact %s",
+                 room.getLoggingName(),
+                 ID_CSTR(room.chatid()),
+                 ID_CSTR(mUserid));
     setChatRoom(room);
 }
 
@@ -5236,7 +5431,7 @@ void Client::updateAliases(Buffer *data)
             Id userid(key.data());
             if (key.empty() || !userid.isValid())
             {
-                KR_LOG_ERROR("Invalid handle in aliases");
+                KR_LOG_ERROR("%sInvalid handle in aliases", getLoggingName());
                 continue;
             }
 

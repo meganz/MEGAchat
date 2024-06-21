@@ -37,7 +37,9 @@ public:
         if (info.getNewestDbId().isNull())
         {
             assert(false);  // if there's an oldest message, there should be always a newest message, even if it's the same one
-            CHATD_LOG_WARNING("Db: Newest msgid in db is null, telling chatd we don't have local history");
+            CHATD_LOG_WARNING(
+                "%sDb: Newest msgid in db is null, telling chatd we don't have local history",
+                mChat.client().getLoggingName());
             info.setOldestDbId(karere::Id::null());
         }
         SqliteStmt stmt3(mDb, "select last_seen, last_recv from chats where chatid=?");
@@ -72,11 +74,17 @@ public:
         int count = stmt.integralCol<int>(2);
         if ((count > 0) && (idx != low-1) && (idx != high+1))
         {
-            CHATD_LOG_ERROR("chatid %s: addMsgToHistory: %s discontinuity detected: "
-                "index of added msg %s is not adjacent to neither end of db history: "
-                "add idx=%d, histlow=%d, histhigh=%d, histcount= %d",
-                table.c_str(), mChat.chatId().toString().c_str(), msg.id().toString().c_str(),
-                idx, low, high, count);
+            CHATD_LOG_ERROR("%schatid %s: addMsgToHistory: %s discontinuity detected: "
+                            "index of added msg %s is not adjacent to neither end of db history: "
+                            "add idx=%d, histlow=%d, histhigh=%d, histcount= %d",
+                            mChat.client().getLoggingName(),
+                            table.c_str(),
+                            mChat.chatId().toString().c_str(),
+                            msg.id().toString().c_str(),
+                            idx,
+                            low,
+                            high,
+                            count);
             assert(false);
         }
 #endif
@@ -444,8 +452,10 @@ public:
              << from;
         if (!stmt.step())
         {
-
-            CHATD_LOG_WARNING("chatid %s: getLastTextMessage cannot find any candidate for last-message", mChat.chatId().toString().c_str());
+            CHATD_LOG_WARNING(
+                "%schatid %s: getLastTextMessage cannot find any candidate for last-message",
+                mChat.client().getLoggingName(),
+                mChat.chatId().toString().c_str());
 
             msg.clear();    // any existing last-msg is now obsolete
 
@@ -585,9 +595,14 @@ public:
             auto tableIdx = stmt.integralCol<int>(5);
             if(tableIdx != idx - (int)messages.size()) //we go backward in history, hence the -messages.size()
             {
-                CHATD_LOG_ERROR("chatid %s: loadMessages from table %s: History discontinuity detected: "
-                    "expected idx %d, retrieved from db:%d", mChat.chatId().toString().c_str(), table.c_str(),
-                    idx - (int)messages.size(), tableIdx);
+                CHATD_LOG_ERROR(
+                    "%schatid %s: loadMessages from table %s: History discontinuity detected: "
+                    "expected idx %d, retrieved from db:%d",
+                    mChat.client().getLoggingName(),
+                    mChat.chatId().toString().c_str(),
+                    table.c_str(),
+                    idx - (int)messages.size(),
+                    tableIdx);
                 assert(false);
             }
 #endif
