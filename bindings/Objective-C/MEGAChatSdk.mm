@@ -1730,19 +1730,15 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)setChatVideoInDevices:(NSString *)devices {
-#ifndef TARGET_OS_SIMULATOR
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->setChatVideoInDevice(devices.UTF8String);
     }
-#endif
 }
 
 - (void)setChatVideoInDevices:(NSString *)devices delegate:(id<MEGAChatRequestDelegate>)delegate {
-#ifndef TARGET_OS_SIMULATOR
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->setChatVideoInDevice(devices.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
-#endif
 }
 
 - (NSString *)videoDeviceSelected {
@@ -1755,18 +1751,18 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)startCallInChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio notRinging:(BOOL)notRinging delegate:(id<MEGAChatRequestDelegate>)delegate {
-#ifdef TARGET_OS_SIMULATOR
-    enableVideo = NO;
-#endif
+    if (!self.cameraSupported) {
+        enableVideo = NO;
+    }
     if (self.megaChatApi) {
         self.megaChatApi->startCallInChat(chatId, enableVideo, enableAudio, notRinging,[self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
 - (void)startCallInChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio notRinging:(BOOL)notRinging {
-#ifdef TARGET_OS_SIMULATOR
-    enableVideo = NO;
-#endif
+    if (!self.cameraSupported) {
+        enableVideo = NO;
+    }
     if (self.megaChatApi) {
         self.megaChatApi->startCallInChat(chatId, enableVideo, enableAudio, notRinging);
     }
@@ -1838,36 +1834,33 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (BOOL)cameraSupported {
+    // [CHT-1284] iOS simulators are not supporting camera devices
+    return [[self chatVideoInDevices] size] > 0;
+}
+
 - (void)enableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-#ifndef TARGET_OS_SIMULATOR
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->enableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
-#endif
 }
 
 - (void)enableVideoForChat:(uint64_t)chatId {
-#ifndef TARGET_OS_SIMULATOR
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->enableVideo(chatId);
     }
-#endif
 }
 
 - (void)disableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-#ifndef TARGET_OS_SIMULATOR
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->disableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
-#endif
 }
 
 - (void)disableVideoForChat:(uint64_t)chatId {
-#ifndef TARGET_OS_SIMULATOR
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->disableVideo(chatId);
     }
-#endif
 }
 
 - (void)setCallOnHoldForChat:(uint64_t)chatId onHold:(BOOL)onHold delegate:(id<MEGAChatRequestDelegate>)delegate {
