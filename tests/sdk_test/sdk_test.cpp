@@ -3614,6 +3614,9 @@ TEST_F(MegaChatApiTest, ClearHistory)
     ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener));
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener));
 
+    // Make sure there is no history in the chat before starting the test
+    clearHistory(a1, a2, chatid, chatroomListener);
+
     LOG_debug << "#### Test1: Send five mesages to chatroom and check history has five messages ####";
     for (int i = 0; i < 5; i++)
     {
