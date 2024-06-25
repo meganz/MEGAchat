@@ -1730,14 +1730,14 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (void)setChatVideoInDevices:(NSString *)devices {
-    if (self.megaChatApi) {
-        return self.megaChatApi->setChatVideoInDevice(devices.UTF8String);
+    if (self.megaChatApi && self.cameraSupported) {
+        self.megaChatApi->setChatVideoInDevice(devices.UTF8String);
     }
 }
 
 - (void)setChatVideoInDevices:(NSString *)devices delegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (self.megaChatApi) {
-        return self.megaChatApi->setChatVideoInDevice(devices.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+    if (self.megaChatApi && self.cameraSupported) {
+        self.megaChatApi->setChatVideoInDevice(devices.UTF8String, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
@@ -1750,15 +1750,22 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return selectedVideoDeviceString;
 }
 
-- (void)startCallInChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio notRinging:(BOOL)notRinging delegate:(id<MEGAChatRequestDelegate>)delegate {
+- (void)startCallInChat:(uint64_t)chatId 
+            enableVideo:(BOOL)enableVideo
+            enableAudio:(BOOL)enableAudio
+             notRinging:(BOOL)notRinging
+               delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (self.megaChatApi) {
-        self.megaChatApi->startCallInChat(chatId, enableVideo, enableAudio, notRinging,[self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
+        self.megaChatApi->startCallInChat(chatId, enableVideo && self.cameraSupported, enableAudio, notRinging,[self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
-- (void)startCallInChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio notRinging:(BOOL)notRinging {
+- (void)startCallInChat:(uint64_t)chatId
+            enableVideo:(BOOL)enableVideo
+            enableAudio:(BOOL)enableAudio
+             notRinging:(BOOL)notRinging {
     if (self.megaChatApi) {
-        self.megaChatApi->startCallInChat(chatId, enableVideo, enableAudio, notRinging);
+        self.megaChatApi->startCallInChat(chatId, enableVideo && self.cameraSupported, enableAudio, notRinging);
     }
 }
 
@@ -1828,26 +1835,31 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
 }
 
+- (BOOL)cameraSupported {
+    // [CHT-1284] iOS simulators are not supporting camera devices
+    return [[self chatVideoInDevices] size] > 0;
+}
+
 - (void)enableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->enableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
 - (void)enableVideoForChat:(uint64_t)chatId {
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->enableVideo(chatId);
     }
 }
 
 - (void)disableVideoForChat:(uint64_t)chatId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->disableVideo(chatId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
     }
 }
 
 - (void)disableVideoForChat:(uint64_t)chatId {
-    if (self.megaChatApi) {
+    if (self.megaChatApi && self.cameraSupported) {
         self.megaChatApi->disableVideo(chatId);
     }
 }

@@ -4899,10 +4899,8 @@ void RtcModuleSfu::openCameraDevice()
     {
         RTCM_LOG_WARNING("%sopenCameraDevice: default camera in device is not set",
                          getLoggingName());
-#ifndef TARGET_OS_SIMULATOR
         // it's expected to not have a camera device in the simulator but we do not want to crash here so that automated tests do not stop
         assert(false);
-#endif
         // Try to get default (it already set in the constructor but just in case)
         mSelectedCameraDeviceId = getDefaultCameraDeviceId();
         // If not present now, return
