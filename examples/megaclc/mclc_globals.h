@@ -43,6 +43,20 @@ extern std::atomic<bool> g_allChatsLoggedIn;
  */
 extern std::atomic<bool> g_chatFinishedLogout;
 
+/**
+ * @brief A flag to check if MEGAChat is already logged into chatroom whose chatId is
+ * g_reviewPublicChatid. This flag will be set true at CLCListener::onChatConnectionStateUpdate, if
+ * g_reviewPublicChatid matches with received chatId and newState ==
+ * c::MegaChatApi::CHAT_CONNECTION_ONLINE
+ */
+extern std::atomic<int> g_reviewedChatLoggedIn;
+
+/**
+ * @brief A flag to check if user wants to load all msg's in chat history ignoring
+ * g_reviewChatMsgCountRemaining
+ */
+extern std::atomic<bool> g_reviewChatLoadAllMsg;
+
 extern std::atomic<bool> g_reviewingPublicChat;
 extern std::atomic<bool> g_dumpingChatHistory;
 extern std::atomic<bool> g_startedPublicChatReview;

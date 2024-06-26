@@ -48,9 +48,8 @@ struct AvailableOption
  * To add a new option, add a new entry here and add the needed fields in the GlobalOptions struct
  */
 const std::vector<AvailableOption> availableGlobalOptions{
-    {.flag = "global_outdir",
-     .description = "Directory to store cache files",
-     .fillOperation = [](GlobalOptions& opts, const std::string& value)
+    {"global_outdir",
+     "Directory to store cache files", [](GlobalOptions& opts, const std::string& value)
      {
          if (value.empty())
          {
@@ -110,7 +109,8 @@ void appAllocate()
 
     fs::create_directories(g_globalOptions.outputDir);
 
-    g_megaApi.reset(new m::MegaApi("VmhTTToK", g_globalOptions.outputDir.c_str(), "MEGAclc"));
+    const std::string outPathStr = g_globalOptions.outputDir.string();
+    g_megaApi.reset(new m::MegaApi("VmhTTToK", outPathStr.c_str(), "MEGAclc"));
     g_megaApi->addListener(&g_megaclcListener);
     g_megaApi->addGlobalListener(&g_globalListener);
     g_chatApi.reset(new c::MegaChatApi(g_megaApi.get()));

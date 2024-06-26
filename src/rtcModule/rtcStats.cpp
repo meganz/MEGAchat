@@ -60,8 +60,94 @@ void ConnStatsCallBack::removeStats()
     mStats = nullptr;
 }
 
-std::string Stats::getJson()
+std::string Stats::statsErrToString(const callstats_bs_t& e)
 {
+    if (e.none())
+    {
+        return "Stats Ok";
+    }
+
+    std::string err;
+    if (e[kStatsProtoErr])
+    {
+        err += "Invalid protocol version | ";
+    }
+    if (e[kStatsMyPeerErr])
+    {
+        err += "Invalid PeerId | ";
+    }
+    if (e[kStatsCidErr])
+    {
+        err += "Invalid Cid | ";
+    }
+    if (e[kStatsDurErr])
+    {
+        err += "Invalid call duration | ";
+    }
+    if (e[kStatsDeviceErr])
+    {
+        err += "Invalid device Id | ";
+    }
+    if (e[kStatsSfuHostErr])
+    {
+        err += "Invalid SFU host | ";
+    }
+    if (e[kStatsCallIdErr])
+    {
+        err += "Invalid CallId | ";
+    }
+
+    if (err.size() > 3)
+    {
+        err.erase(err.length() - 3);
+    }
+    return err;
+}
+
+Stats::callstats_bs_t Stats::validateStatsInfo() const
+{
+    callstats_bs_t bs;
+    if (mSfuProtoVersion != static_cast<uint32_t>(sfu::SfuProtocol::SFU_PROTO_PROD))
+    {
+        bs[Stats::kStatsProtoErr] = true;
+    }
+
+    if (!mPeerId.isValid())
+    {
+        bs[Stats::kStatsMyPeerErr] = true;
+    }
+
+    if (!mCid)
+    {
+        bs[Stats::kStatsCidErr] = true;
+    }
+
+    if (!mDuration)
+    {
+        bs[Stats::kStatsDurErr] = true;
+    }
+
+    if (mDevice.empty())
+    {
+        bs[Stats::kStatsDeviceErr] = true;
+    }
+
+    if (mSfuHost.empty())
+    {
+        bs[Stats::kStatsSfuHostErr] = true;
+    }
+
+    if (!mCallid.isValid())
+    {
+        bs[Stats::kStatsCallIdErr] = true;
+    }
+
+    return bs;
+}
+
+std::pair<Stats::callstats_bs_t, std::string> Stats::getJson()
+{
+    const auto statsValidation = validateStatsInfo();
     rapidjson::Document json(rapidjson::kObjectType);
     rapidjson::Value sfuv(rapidjson::kNumberType);
     sfuv.SetUint(mSfuProtoVersion);
@@ -169,7 +255,7 @@ std::string Stats::getJson()
     rapidjson::Writer<rapidjson::StringBuffer> writer(buffer);
     json.Accept(writer);
     std::string jsonStats(buffer.GetString(), buffer.GetSize());
-    return jsonStats;
+    return std::make_pair(statsValidation, jsonStats);
 }
 
 void Stats::clear()

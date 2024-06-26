@@ -204,6 +204,15 @@ std::string base64NodeHandle(m::MegaHandle h)
     return OwnStr(m::MegaApi::handleToBase64(h));
 }
 
+std::string base64ChatHandle(m::MegaHandle h)
+{
+    if (h == m::INVALID_HANDLE)
+    {
+        return "INVALID_HANDLE";
+    }
+    return OwnStr(m::MegaApi::userHandleToBase64(h));
+}
+
 std::string tohex(const std::string& binary)
 {
     std::ostringstream s;

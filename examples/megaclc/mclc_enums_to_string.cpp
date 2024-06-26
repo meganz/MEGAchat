@@ -48,6 +48,8 @@ std::string msgTypeToString(const int msgType)
             return "TYPE_CONTAINS_META";
         case c::MegaChatMessage::TYPE_VOICE_CLIP:
             return "TYPE_VOICE_CLIP";
+        case c::MegaChatMessage::TYPE_SCHED_MEETING:
+            return "TYPE_SCHED_MEETING";
         default:
             assert(false);
             return "Invalid Msg Type (" + std::to_string(msgType) + ")";

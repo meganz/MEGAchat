@@ -11,6 +11,7 @@
 
 #include <set>
 #include <string_view>
+#include <memory>
 namespace c = ::megachat;
 
 namespace mclc::clc_ccactions
@@ -48,18 +49,18 @@ bool ensureLogout();
 bool login(const char* email, const char* password);
 
 /**
- * @brief Given a link to a public chat, this function opens it.
+ * @brief Given a link to a public chat, this function opens/checks it.
  *
  * NOTE: To call this function the initial state (g_chatApi->getInitState()) must be one of
  * INIT_ONLINE_SESSION or INIT_ANONYMOUS.
  *
  * @param link url to the public chat.
- * @return A std::pair with the chat handle as the first value and the error code associated to the
- * openChatPreview chat api request (to be compare for example with
- * megachat::MegaChatError::ERROR_OK) as second. If something went wrong, the chat handle will hold
- * the MEGACHAT_INVALID_HANDLE value.
+ * @param onlyCheck true if we only want to check chat link, false in case we want to open it.
+ * @return A std::pair of unique pointers with MegaChatError and MegaChatRequest associated to the
+ * result of request type MegaChatRequest::TYPE_LOAD_PREVIEW.
  */
-std::pair<c::MegaChatHandle, int> openChatLink(const std::string& link);
+std::pair<std::unique_ptr<megachat::MegaChatError>, std::unique_ptr<megachat::MegaChatRequest>>
+    processChatLink(const std::string& link, const bool onlyCheck = false);
 
 /**
  * @brief Joins your account to a chat that was previously opened as preview.

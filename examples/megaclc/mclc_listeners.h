@@ -307,8 +307,14 @@ public:
         return request.get();
     }
 
+    megachat::MegaChatError* getMegaChatErrorPtr() const
+    {
+        return error.get();
+    }
+
 private:
     std::unique_ptr<::megachat::MegaChatRequest> request;
+    std::unique_ptr<::megachat::MegaChatError> error;
     megachat::MegaChatApi* mMegaChatApi;
 };
 

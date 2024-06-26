@@ -1,5 +1,6 @@
 #ifndef RTCSTATS_H
 #define RTCSTATS_H
+#include <bitset>
 #include <karereId.h>
 // disable warnings in webrtc headers
 // the same pragma works with both GCC and Clang
@@ -111,7 +112,24 @@ public:
 class Stats
 {
 public:
-    std::string getJson();
+    enum
+    {
+        kStatsProtoErr = 0,
+        kStatsMyPeerErr = 1,
+        kStatsCidErr = 2,
+        kStatsDurErr = 3,
+        kStatsDeviceErr = 4,
+        kStatsSfuHostErr = 5,
+        kStatsCallIdErr = 6,
+        kStatsSize = 7,
+    };
+
+    using callstats_bs_t = std::bitset<kStatsSize>;
+    static constexpr unsigned int httpErrOk = 200;
+
+    static std::string statsErrToString(const callstats_bs_t& e);
+    callstats_bs_t validateStatsInfo() const;
+    std::pair<callstats_bs_t, std::string> getJson();
     void clear();
     bool isEmptyStats();
 

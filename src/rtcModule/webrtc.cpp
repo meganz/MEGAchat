@@ -1360,12 +1360,38 @@ void Call::sendStats(const TermCode& termCode)
     }
 
     assert(isValidConnectionTermcode(termCode));
-    mStats.mDuration = mega::isValidTimeStamp(getConnInitialTimeStamp()) // mInitialTs
-                           ? static_cast<uint64_t>((time(nullptr) - getConnInitialTimeStamp()) * 1000)  // ms
-                           : mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
+    mStats.mDuration =
+        mega::isValidTimeStamp(getConnInitialTimeStamp()) // mInitialTs
+            ?
+            static_cast<uint64_t>((time(nullptr) - getConnInitialTimeStamp()) * 1000) // ms
+            :
+            mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
     mStats.mMaxPeers = mMaxPeers;
     mStats.mTermCode = static_cast<int32_t>(termCode);
-    mMegaApi.sdk.sendChatStats(mStats.getJson().c_str());
+    if (auto [statsValidation, statsJson] = mStats.getJson(); statsValidation.any())
+    {
+        RTCM_LOG_WARNING(
+            "sendStats: discarding callstats due to the following error/s: %s.\nJSON: %s",
+            Stats::statsErrToString(statsValidation).c_str(),
+            statsJson.c_str());
+    }
+    else
+    {
+        mMegaApi.call(&::mega::MegaApi::sendChatStats, statsJson.c_str(), 0)
+            .then(
+                [](ReqResult result)
+                {
+                    if (result->getNumber() != Stats::httpErrOk)
+                    {
+                        RTCM_LOG_WARNING(
+                            "Received error %d from SFU stats server, for this stats JSON: %s",
+                            result->getNumber(),
+                            result->getName());
+                        assert(false);
+                    }
+                });
+    }
+
     RTCM_LOG_DEBUG("Clear local SFU stats");
     mStats.clear();
 }

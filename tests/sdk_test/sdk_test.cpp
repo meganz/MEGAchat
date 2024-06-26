@@ -567,6 +567,9 @@ void MegaChatApiTest::TearDown()
     string name = string(ti->test_suite_name()) + '.' + ti->name();
     LOG_info << "Test " << name << ": TearDown starting.";
 
+    // perform cleanup actions
+    testGlobalCleanup();
+
     for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
     {
         // 1. clear and leave unused chatrooms
@@ -589,17 +592,17 @@ void MegaChatApiTest::TearDown()
                         chatsToSkip.push_back(chatToSkip);
                     }
                 }
-                clearAndLeaveChats(i, chatsToSkip);
+                EXPECT_NO_FATAL_FAILURE(clearAndLeaveChats(i, chatsToSkip));
             }
         }
 
         if (megaApi[i] && megaApi[i]->isLoggedIn())
         {
             std::unique_ptr <MegaNode> cloudNode(megaApi[i]->getRootNode());
-            purgeCloudTree(i, cloudNode.get());
+            EXPECT_NO_FATAL_FAILURE(purgeCloudTree(i, cloudNode.get()));
             std::unique_ptr <MegaNode> rubbishNode(megaApi[i]->getRubbishNode());
-            purgeCloudTree(i, rubbishNode.get());
-            removePendingContactRequest(i);
+            EXPECT_NO_FATAL_FAILURE(purgeCloudTree(i, rubbishNode.get()));
+            EXPECT_NO_FATAL_FAILURE(removePendingContactRequest(i));
 
             // 2. logout megaApi
             ChatLogoutTracker chatLogoutCrt;
@@ -611,8 +614,8 @@ void MegaChatApiTest::TearDown()
 #else
             megaApi[i]->logout(&logoutTracker);
 #endif
-            TEST_LOG_ERROR(logoutRt.waitForResult(60) == API_OK, "Failed to logout from SDK. Error: " + logoutRt.getErrorString());
-            TEST_LOG_ERROR(chatLogoutCrt.waitForResult() == MegaChatError::ERROR_OK, "Failed to auto-logout from chat. Error: " + chatLogoutCrt.getErrorString());
+            EXPECT_EQ(logoutRt.waitForResult(60), API_OK) << "Failed to logout from SDK. Error: " << logoutRt.getErrorString();
+            EXPECT_EQ(chatLogoutCrt.waitForResult(), MegaChatError::ERROR_OK) << "Failed to auto-logout from chat. Error: " << chatLogoutCrt.getErrorString();
             megaChatApi[i]->removeChatRequestListener(&chatLogoutCrt);
         }
 
@@ -621,7 +624,10 @@ void MegaChatApiTest::TearDown()
             // 3. logout megaChatApi
             ChatRequestTracker crtLogout(megaChatApi[i]);
             megaChatApi[i]->logout(&crtLogout);
-            TEST_LOG_ERROR(crtLogout.waitForResult(60) == MegaChatError::ERROR_OK, "Failed to logout from Chat. Error: " + crtLogout.getErrorString());
+            int logout{crtLogout.waitForResult(60)};
+            // Session could already be logged out
+            EXPECT_TRUE(logout == MegaChatError::ERROR_OK || logout == MegaChatError::ERROR_ACCESS)
+                << "Failed to logout from Chat. Error: " << crtLogout.getErrorString();
             MegaApi::addLoggerObject(logger());   // need to restore customized logger
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -795,6 +801,99 @@ bool MegaChatApiTest::exitWait(ExitBoolFlags& eF, const bool waitForAll) const
         ? eF.allEqualTo(true)
         : eF.anyEqualTo(true);
 };
+
+void MegaChatApiTest::testGlobalCleanup()
+{
+    LOG_debug << "Clearing contacts\n";
+    clearContacts();
+
+    LOG_debug << "Clearing contact requests\n";
+    clearContactRequests();
+}
+
+void MegaChatApiTest::clearContacts()
+{
+    for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
+    {
+        for (unsigned int j = 0; j < NUM_ACCOUNTS; ++j)
+        {
+            if (i == j)
+            {
+                continue;
+            }
+
+            if (!megaApi[i] || !megaApi[j] || !megaApi[i]->isLoggedIn() ||
+                !megaApi[j]->isLoggedIn())
+            {
+                continue;
+            }
+
+            std::unique_ptr<char[]> userEmail(megaApi[i]->getMyEmail());
+            if (!userEmail)
+            {
+                continue;
+            }
+
+            std::unique_ptr<::mega::MegaUser> contact(megaApi[j]->getContact(userEmail.get()));
+            if (!contact || contact->getVisibility() == ::mega::MegaUser::VISIBILITY_HIDDEN)
+            {
+                continue;
+            }
+
+            RequestTracker crtRemoveContact(megaApi[j]);
+            megaApi[j]->removeContact(contact.get(), &crtRemoveContact);
+            crtRemoveContact.waitForResult();
+        }
+    }
+}
+
+void MegaChatApiTest::clearContactRequests()
+{
+    auto clearCr = [this](const bool outgoing)
+    {
+        for (unsigned int i = 0; i < NUM_ACCOUNTS; ++i)
+        {
+            if (!megaApi[i] || !megaApi[i]->isLoggedIn())
+            {
+                continue;
+            }
+
+            std::unique_ptr<MegaContactRequestList> crl(
+                outgoing ? megaApi[i]->getOutgoingContactRequests() :
+                           megaApi[i]->getIncomingContactRequests());
+
+            if (!crl)
+            {
+                continue;
+            }
+
+            for (int j = 0; j < crl->size(); ++j)
+            {
+                if (const auto cr = crl->get(j); cr)
+                {
+                    if (outgoing)
+                    {
+                        sendOutgoingContactRequest(i,
+                                                   MEGACHAT_INVALID_INDEX,
+                                                   cr->getTargetEmail(),
+                                                   "Test cleanup removing outgoing contact request",
+                                                   MegaContactRequest::INVITE_ACTION_DELETE);
+                    }
+                    else
+                    {
+                        replyIncomingContactRequest(MEGACHAT_INVALID_INDEX,
+                                                    i,
+                                                    std::unique_ptr<MegaContactRequest>(cr->copy()),
+                                                    MegaContactRequest::REPLY_ACTION_DENY);
+                    }
+                }
+            }
+
+        }
+    };
+    clearCr(true /*outgoing contact requests*/);
+    clearCr(false /*incoming contact requests*/);
+}
 
 bool MegaChatApiTest::waitForMultiResponse(ExitBoolFlags& eF, bool waitForAll, unsigned int timeout) const
 {
@@ -1037,7 +1136,7 @@ TEST_F(MegaChatApiTest, BasicTest)
     mData.mAccounts.emplace(a1, a1Uh);
     mData.mAccounts.emplace(a2, a2Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     // set chat selection criteria
@@ -1106,13 +1205,13 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
         {
             if (add)
             {
-                addBoolVarAndExitFlag(i, eF, "raisedHand", false);
-                addHandleVar(i, "raisedHandUh", MEGACHAT_INVALID_HANDLE);
+                ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(i, eF, "raisedHand", false));
+                ASSERT_NO_FATAL_FAILURE(addHandleVar(i, "raisedHandUh", MEGACHAT_INVALID_HANDLE));
             }
             else
             {
-                addBoolVarAndExitFlag(i, eF, "loweredHand", false);
-                addHandleVar(i, "loweredHandUh", MEGACHAT_INVALID_HANDLE);
+                ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(i, eF, "loweredHand", false));
+                ASSERT_NO_FATAL_FAILURE(addHandleVar(i, "loweredHandUh", MEGACHAT_INVALID_HANDLE));
             }
         });
     };
@@ -1164,26 +1263,41 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
         clearTemporalVars();
         ExitBoolFlags eF;
         // ensure that get reach CALL_STATUS_IN_PROGRESS before continue
-        ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(idx, eF, "CallInProgress", false));
-        addVarRaiseHand(recvIdx,
-                        false,
-                        eF); // add exit flags for lowered hand (SFU automatically does)
-        addVarRaiseHand(recvIdx, true, eF); // add exit flags for raised hand upon reconnect
-        waitForAction(1, /* just one attempt */
-                      eF,
-                      "raise hand",
-                      true /* wait for all exit flags */,
-                      true /* reset flags */,
-                      minTimeout * 2, // 2 min
-                      [this, idx]()
-                      {
-                          ChatRequestTracker crtRetryConnection(megaChatApi[idx]);
-                          megaChatApi[idx]->retryPendingConnections(true, &crtRetryConnection);
-                      });
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(idx,
+                                  eF,
+                                  "CallInProgress",
+                                  false));
 
-        checkVarRaiseHand(recvIdx, false, uh); // check flags for lowered hand
-        checkVarRaiseHand(recvIdx, true, uh); // check flags for raised hand upon reconnect
-        checkUserHasHandRaised(chatid, uh, idx, true /*added*/);
+        ASSERT_NO_FATAL_FAILURE(
+            addVarRaiseHand(recvIdx,
+                            false,
+                            eF)); // add exit flags for lowered hand (SFU automatically does)
+
+        ASSERT_NO_FATAL_FAILURE(
+            addVarRaiseHand(recvIdx, true, eF)); // add exit flags for raised hand upon reconnect
+
+        ASSERT_NO_FATAL_FAILURE(
+            waitForAction(1, /* just one attempt */
+                          eF,
+                          "raise hand",
+                          true /* wait for all exit flags */,
+                          true /* reset flags */,
+                          minTimeout * 2, // 2 min
+                          [this, idx]()
+                          {
+                              ChatRequestTracker crtRetryConnection(megaChatApi[idx]);
+                              megaChatApi[idx]->retryPendingConnections(true, &crtRetryConnection);
+
+                              ASSERT_EQ(crtRetryConnection.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to retry pending connections";
+                          }));
+
+        ASSERT_NO_FATAL_FAILURE(
+            checkVarRaiseHand(recvIdx, false, uh)); // check flags for lowered hand
+        ASSERT_NO_FATAL_FAILURE(
+            checkVarRaiseHand(recvIdx, true, uh)); // check flags for raised hand upon reconnect
+        ASSERT_NO_FATAL_FAILURE(checkUserHasHandRaised(chatid, uh, idx, true /*added*/));
     };
 
     auto raiseHand = [this, &addVarRaiseHand, &checkVarRaiseHand](const bool add,
@@ -1194,26 +1308,27 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
         clearTemporalVars();
         recvIdx.emplace(idx);
         ExitBoolFlags eF;
-        addVarRaiseHand(recvIdx, add, eF);
+        ASSERT_NO_FATAL_FAILURE(addVarRaiseHand(recvIdx, add, eF));
 
-        waitForAction(1, /* just one attempt */
-                      eF,
-                      "raise hand",
-                      true /* wait for all exit flags */,
-                      true /* reset flags */,
-                      minTimeout * 2, // 2 min
-                      [this, chatid = mData.mChatid, add, idx]()
-                      {
-                          ChatRequestTracker crtRaiseHand(megaChatApi[idx]);
-                          add ? megaChatApi[idx]->raiseHandToSpeak(chatid, &crtRaiseHand) :
-                                megaChatApi[idx]->lowerHandToStopSpeak(chatid, &crtRaiseHand);
+        ASSERT_NO_FATAL_FAILURE(
+            waitForAction(1, /* just one attempt */
+                          eF,
+                          "raise hand",
+                          true /* wait for all exit flags */,
+                          true /* reset flags */,
+                          minTimeout * 2, // 2 min
+                          [this, chatid = mData.mChatid, add, idx]()
+                          {
+                              ChatRequestTracker crtRaiseHand(megaChatApi[idx]);
+                              add ? megaChatApi[idx]->raiseHandToSpeak(chatid, &crtRaiseHand) :
+                                    megaChatApi[idx]->lowerHandToStopSpeak(chatid, &crtRaiseHand);
 
-                          ASSERT_EQ(crtRaiseHand.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to " << (add ? "Raise " : "Lower ")
-                              << "hand. Error: " << crtRaiseHand.getErrorString();
-                      });
+                              ASSERT_EQ(crtRaiseHand.waitForResult(), MegaChatError::ERROR_OK)
+                                  << "Failed to " << (add ? "Raise " : "Lower ")
+                                  << "hand. Error: " << crtRaiseHand.getErrorString();
+                          }));
 
-        checkVarRaiseHand(recvIdx, add, uh);
+        ASSERT_NO_FATAL_FAILURE(checkVarRaiseHand(recvIdx, add, uh));
 
         // check call for user that raised hand contains that user in raised hand list
         std::unique_ptr<MegaChatCall> call(megaChatApi[idx]->getChatCall(mData.mChatid));
@@ -1265,7 +1380,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     mData.mAccounts.emplace(a1, a1Uh);
     mData.mAccounts.emplace(a2, a2Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test RaiseHand (lite)";
@@ -1447,20 +1562,20 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
         if (waitForEndCall)
         {
             // CallWillEnd - onChatCallUpdate(CHANGE_TYPE_CALL_WILL_END)
-            addBoolVarAndExitFlag(a1, eF, "CallWillEnd", false);
-            addHandleVar(a1, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
-            addBoolVarAndExitFlag(a2, eF, "CallWillEnd", false);
-            addHandleVar(a2, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
-            addBoolVarAndExitFlag(a3, eF, "CallWillEnd", false);
-            addHandleVar(a3, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP);
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a1, eF, "CallWillEnd", false));
+            ASSERT_NO_FATAL_FAILURE(addHandleVar(a1, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP));
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a2, eF, "CallWillEnd", false));
+            ASSERT_NO_FATAL_FAILURE(addHandleVar(a2, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP));
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a3, eF, "CallWillEnd", false));
+            ASSERT_NO_FATAL_FAILURE(addHandleVar(a3, "CallEndsAt", MEGACHAT_INVALID_TIMESTAMP));
             // callLeft - onChatCallUpdate (CALL_STATUS_TERMINATING_USER_PARTICIPATION)
-            addBoolVarAndExitFlag(a1, eF, "callLeft", false);
-            addBoolVarAndExitFlag(a2, eF, "callLeft", false);
-            addBoolVarAndExitFlag(a3, eF, "callLeft", false);
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a1, eF, "callLeft", false));
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a2, eF, "callLeft", false));
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a3, eF, "callLeft", false));
             // callDestroyed - onChatCallUpdate (CALL_STATUS_DESTROYED)
-            addBoolVarAndExitFlag(a1, eF, "callDestroyed", false);
-            addBoolVarAndExitFlag(a2, eF, "callDestroyed", false);
-            addBoolVarAndExitFlag(a3, eF, "callDestroyed", false);
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a1, eF, "callDestroyed", false));
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a2, eF, "callDestroyed", false));
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(a3, eF, "callDestroyed", false));
 
             termCodeA1 = &mTerminationCode[a1];
             *termCodeA1 = MegaChatCall::TERM_CODE_INVALID;
@@ -1555,14 +1670,14 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
         ExitBoolFlags eF;
         for (auto account: accountsInCall)
         {
-            addBoolVarAndExitFlag(account, eF, "CallLimitsUpdated", false);
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(account, eF, "CallLimitsUpdated", false));
             if (account != performedIdx)
             {
                 mChatListUpdated[account].clear();
             }
             for (unsigned i = 0; i < 4; ++i)
             {
-                addHandleVar(account, varLabels[i], expectedVarVals[i]);
+                ASSERT_NO_FATAL_FAILURE(addHandleVar(account, varLabels[i], expectedVarVals[i]));
             }
         }
 
@@ -1703,9 +1818,9 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     mData.mAccounts.emplace(a2, a2Uh);
     mData.mAccounts.emplace(a3, a3Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a2, a3));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
     ASSERT_NO_FATAL_FAILURE(inviteToChat(a1, a2, a2Uh, crl.get()));
     ASSERT_NO_FATAL_FAILURE(inviteToChat(a1, a3, a3Uh, crl.get()));
@@ -1906,9 +2021,9 @@ TEST_F(MegaChatApiTest, WaitingRoomsJoiningOrder)
     mData.mAccounts.emplace(a2, a2Uh);
     mData.mAccounts.emplace(a3, a3Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a2, a3));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     // set chat selection criteria
@@ -2036,7 +2151,7 @@ TEST_F(MegaChatApiTest, RejectCall)
     mData.mAccounts.emplace(a1, a1Uh);
     mData.mAccounts.emplace(a2, a2Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     // set chat selection criteria
@@ -2192,8 +2307,8 @@ TEST_F(MegaChatApiTest, ResumeSession)
     // MegaChatApiImpl::sendPendingRequests() -> case MegaChatRequest::TYPE_LOGOUT -> delete mClient;
     // which should happen with a delay (how much?), but often will crash after continuing from the breakpoint
     int logoutResult = crtLogout2.waitForResult();
-    TEST_LOG_ERROR(logoutResult == MegaChatError::ERROR_OK, "Error chat logout (2). Error: " +
-                   std::to_string(logoutResult) + " (" + crtLogout2.getErrorString() + ')');
+    ASSERT_EQ(logoutResult, MegaChatError::ERROR_OK) << "Error chat logout (2). Error: " <<
+                   std::to_string(logoutResult) << " (" << crtLogout2.getErrorString() << ')';
     MegaApi::addLoggerObject(logger());   // need to restore customized logger
     delete megaChatApi[accountIndex];
     // create a new MegaChatApi instance
@@ -2514,7 +2629,7 @@ TEST_F(MegaChatApiTest, EditAndDeleteMessages)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -2593,7 +2708,7 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
         user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
@@ -3029,7 +3144,7 @@ TEST_F(MegaChatApiTest, PublicChatManagement)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
     }
     }
@@ -3175,7 +3290,7 @@ TEST_F(MegaChatApiTest, Reactions)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
         user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
@@ -3326,7 +3441,7 @@ TEST_F(MegaChatApiTest, DISABLED_OfflineMode)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
         user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
@@ -3481,7 +3596,7 @@ TEST_F(MegaChatApiTest, ClearHistory)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -3653,7 +3768,7 @@ TEST_F(MegaChatApiTest, Attachment)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -3811,7 +3926,7 @@ TEST_F(MegaChatApiTest, LastMessage)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -3935,7 +4050,7 @@ TEST_F(MegaChatApiTest, SendContact)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -4069,7 +4184,7 @@ TEST_F(MegaChatApiTest, GroupLastMessage)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         delete user;
         user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     }
@@ -4285,8 +4400,23 @@ private:
     std::map<unsigned, std::unique_ptr<TestChatRoomListener>> listeners;
 };
 
-
-
+/**
+ * @brief MegaChatApiTest_RetentionHistory.Import
+ *
+ * Requirements:
+ *      - Both accounts should be contacts
+ * (if not accomplished, the test automatically solves them)
+ *
+ * This test does the following:
+ * - Test1: a1 imports messages from a2(NSE) after history truncation
+ * - Test2: a1 imports messages from a2(NSE) when there are no messages to import from external db
+ * - Test3: a1 imports messages from a2(NSE) after a message has been updated
+ * - Test4: a1 imports messages from a2(NSE) after a message has been deleted
+ * - Test5: a1 imports messages from a2(NSE) when chat history is empty in the app
+ * - Test6: a1 imports messages from a2(NSE) after marking a message as seen
+ * - Test7: a1 imports messages from a2(NSE) when lastSeenId was zero, while having retention time set
+ * - Test8: a1 imports messages from a2(NSE) after being kicked off from the groupchat
+ */
 TEST_F(MegaChatApiTest_RetentionHistory, Import)
 {
     // Login chatting accounts
@@ -4298,7 +4428,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     // Ensure contacts
     if (!areContact(a1, b))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, b));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, b));
     }
 
     // Get a group chatroom with {a1, b}
@@ -4314,12 +4444,12 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
 
+    LOG_debug << "**** MegaChatApiTest_RetentionHistory.import ****"
+              << "\n\t- Chatid (" << getChatIdStrB64(chatid) << ")\n\t- UserId a1 & a2 ("
+              << getUserIdStrB64(megaChatApi[a1]->getMyUserHandle()) << ") \n\t- UserId b ("
+              << getUserIdStrB64(megaChatApi[b]->getMyUserHandle()) << ")\n";
 
-    ///
-    ///  Import messages after history truncation
-    ///
-    cout << "///  Import messages after history truncation" << endl;
-
+    LOG_debug << "#### Test1: a1 imports messages from a2(NSE) after history truncation ####\n";
     // set up NSE-simulation
     const string a2Email(account(a1).getEmail());
     sessionNSE.reset(login(a2, nullptr, a2Email.c_str(), account(a1).getPassword().c_str()));
@@ -4358,11 +4488,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Should (only) have the special 'truncate' message";
 
-    ///
-    ///  Import messages when there are no messages to import from external db
-    ///
-    cout << "///  Import messages when there are no messages to import from external db" << endl;
-
+    LOG_debug << "#### Test2: a1 imports messages from a2(NSE) when there are no messages to import from external db ####\n";
     sessionA1.reset(login(a1));
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
     lastMessageId = MEGACHAT_INVALID_HANDLE;
@@ -4379,15 +4505,9 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
         ASSERT_NE(lastMessageId, MEGACHAT_INVALID_HANDLE);
     }
     ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should have been imported";
 
-    ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported";
-
-
-    ///
-    ///  Import messages after a message has been updated
-    ///
-    cout << "///  Import messages after a message has been updated" << endl;
-
+    LOG_debug << "#### Test3: a1 imports messages from a2(NSE) after a message has been updated ####\n";
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // Load all messages to receive message update
@@ -4400,12 +4520,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Updated message should have been imported";
 
-
-    ///
-    ///  Import messages after a message has been deleted
-    ///
-    cout << "///  Import messages after a message has been deleted" << endl;
-
+    LOG_debug << "#### Test4: a1 imports messages from a2(NSE) after a message has been deleted ####\n";
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
@@ -4417,12 +4532,7 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
 
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "Deleted message has to be imported too";
 
-
-    ///
-    ///  Import messages when chat history is empty in the app
-    ///
-    cout << "///  Import messages when chat history is empty in the app" << endl;
-
+    LOG_debug << "#### Test5: a1 imports messages from a2(NSE) when chat history is empty in the app ####\n";
     // clear history in app
     sessionA1.reset(login(a1, sessionA1.get()));
     ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1))) << "Can't open chatRoom for account a1";
@@ -4445,15 +4555,9 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_TRUE(waitForResponse(&chatroomListener(a2)->msgReceived[a2]));
     ASSERT_EQ(chatroomListener(a2)->msgId[a2].back(), lastMessageId);
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
-
     ASSERT_NO_FATAL_FAILURE(testImport(1)) << "1 new message from B should have been imported";
 
-
-    ///
-    ///  Import messages after marking a message as seen
-    ///
-    cout << "///  Import messages after marking a message as seen" << endl;
-
+    LOG_debug << "#### Test6: a1 imports messages from a2(NSE) after marking a message as seen ####\n";
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2))); // make sure a2 has the last messages
@@ -4461,17 +4565,11 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     bool* flagSeenA2 = &chatroomListener(a2)->msgSeen[a2]; *flagSeenA2 = false;
     ASSERT_TRUE(megaChatApi[a2]->setMessageSeen(chatid, msgSentByB->getMsgId())) << "Couldn't mark message as seen";
     EXPECT_TRUE(waitForResponse(flagSeenA2)) << "Timeout expired for message marked as seen";
-
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
-
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message shold have been imported; marked as read message doesn't count"; // really ?
 
 
-    ///
-    ///  Import messages when lastSeenId was zero, while having retention time set
-    ///
-    cout << "///  Import messages when lastSeenId was zero, while having retention time set" << endl;
-
+    LOG_debug << "#### Test7: a1 imports messages from a2(NSE) when lastSeenId was zero, while having retention time set ####\n";
     sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
     ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2))) << "Can't open chatRoom for account NSE (a2)";
     ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
@@ -4490,9 +4588,37 @@ TEST_F(MegaChatApiTest_RetentionHistory, Import)
     ASSERT_TRUE(chatroom);
     ASSERT_EQ(chatroom->getRetentionTime(), 5);
     ASSERT_NO_FATAL_FAILURE(disconnect(a2));
-
     ASSERT_NO_FATAL_FAILURE(testImport(0)) << "No message should be there, including 'truncate', because they all got truncated";
 
+    LOG_debug << "#### Test8: a1 imports messages from a2(NSE) after being kicked off from the "
+                 "groupchat ####\n";
+    std::unique_ptr<MegaChatRoom> roomFromB(megaChatApi[b]->getChatRoom(chatid));
+    ASSERT_TRUE(roomFromB) << "Cannot get chatroom (" << getChatIdStrB64(chatid) << ") from B";
+    ASSERT_EQ(roomFromB->getOwnPrivilege(), megachat::MegaChatRoom::PRIV_MODERATOR)
+        << "Unexpected permission for B in chatroom (" << getChatIdStrB64(chatid) << ")";
+
+    sessionA1.reset(login(a1, sessionA1.get()));
+    ASSERT_TRUE(megaChatApi[a1]->openChatRoom(chatid, chatroomListener(a1)))
+        << "Can't open chatRoom for account a1";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a1, chatid, chatroomListener(a1)));
+
+    sessionNSE.reset(login(a2, sessionNSE.get(), a2Email.c_str()));
+    ASSERT_TRUE(megaChatApi[a2]->openChatRoom(chatid, chatroomListener(a2)))
+        << "Can't open chatRoom for account a2";
+    ASSERT_NO_FATAL_FAILURE(loadHistory(a2, chatid, chatroomListener(a2)));
+    ASSERT_NO_FATAL_FAILURE(disconnect(a1));
+
+    ASSERT_TRUE(addBoolVar(a2, "retentionHistTruncate", false /*val*/))
+        << "retentionHistTruncate couldn't be added for account " << std::to_string(a2);
+    bool* retHistTruncate = boolVars().getVar(a2, "retentionHistTruncate");
+    ASSERT_TRUE(retHistTruncate) << "Cannot retrieve retentionHistTruncate for a2";
+    ASSERT_EQ(roomFromB->getRetentionTime(), 5);
+    ASSERT_NO_FATAL_FAILURE(removeFromChatRoom(b, {a2}, megaChatApi[a2]->getMyUserHandle(), chatid));
+    ASSERT_TRUE(waitForResponse(retHistTruncate))
+        << "Timeout expired for retention history to be truncated";
+    ASSERT_NO_FATAL_FAILURE(disconnect(a2));
+    ASSERT_NO_FATAL_FAILURE(testImport(0))
+        << "No message should be there, as retention history has been applied";
     ///
     ///  Import messages when app should skip some messages for which retention time expired
     ///
@@ -4535,7 +4661,7 @@ TEST_F(MegaChatApiTest, RetentionHistory)
     std::unique_ptr<MegaUser>user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         user.reset(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     }
 
@@ -4768,197 +4894,227 @@ TEST_F(MegaChatApiTest, GetChatFilters)
 {
     static constexpr unsigned int accountIndex = 0;
     std::unique_ptr<char[]> session(login(accountIndex));
+    ASSERT_TRUE(session);
 
-    const auto getLogTrace = [](const std::string& name, const auto& l) -> std::string
+    const auto postLogTrace = [this](const std::string& name, const auto& l)
     {
-        return std::string{name + ": " + std::to_string(l.size()) + " chats received\n"};
+        return postLog(name + ": " + std::to_string(l.size()) + " chats received");
     };
+    const auto getErrMsg = [](const std::string& name) -> std::string
+    {
+        return std::string{"Error " + name + " [deprecated] chats retrieval"};
+    };
+
     const auto equals = [](const auto& lhs, const auto& rhs) -> bool
     {
-        if (!lhs && !rhs)               return true;
-        if (!lhs || !rhs)               return false;
-        if (lhs->size() != rhs->size()) return false;
+        if (!lhs && !rhs)
+            return true;
+        if (!lhs || !rhs)
+            return false;
+        if (lhs->size() != rhs->size())
+            return false;
 
         const auto s = lhs->size();
         for (unsigned int i = 0; i < s; ++i)
         {
-            if (lhs->get(i)->getChatId() != rhs->get(i)->getChatId()) return false;
+            if (lhs->get(i)->getChatId() != rhs->get(i)->getChatId())
+                return false;
         }
 
         return true;
     };
 
     std::unique_ptr<MegaChatRoomList> chats(megaChatApi[accountIndex]->getChatRooms());
-    postLog(getLogTrace("getChatRooms()", *chats));
-    std::unique_ptr<MegaChatListItemList> allChats(megaChatApi[accountIndex]->getChatListItems(0, 0));
-    postLog(getLogTrace("getChatListItems(0, 0)", *allChats));
+    postLogTrace("getChatRooms()", *chats);
+    std::unique_ptr<MegaChatListItemList> allChats(
+        megaChatApi[accountIndex]->getChatListItems(0, 0));
+    postLogTrace("getChatListItems(0, 0)", *allChats);
     ASSERT_TRUE(equals(allChats, chats)) << "Filterless chat retrieval doesn't match";
 
-    const auto getErrMsg = [](const std::string& name) -> std::string
-    {
-        return std::string {"Error " + name + " [deprecated] chats retrieval"};
-    };
-
-    std::unique_ptr<MegaChatListItemList> nonArchivedChatsDep(megaChatApi[accountIndex]->getChatListItems());
-    postLog(getLogTrace("[deprecated] getChatListItems()", *nonArchivedChatsDep));
-    std::unique_ptr<MegaChatListItemList> byTypeAllNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_ALL));
-    postLog(getLogTrace("[deprecated] getChatListItemsByType(CHAT_TYPE_ALL)", *byTypeAllNADep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedChatsDep(
+        megaChatApi[accountIndex]->getChatListItems());
+    postLogTrace("[deprecated] getChatListItems()", *nonArchivedChatsDep);
+    std::unique_ptr<MegaChatListItemList> byTypeAllNADep(
+        megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_ALL));
+    postLogTrace("[deprecated] getChatListItemsByType(CHAT_TYPE_ALL)", *byTypeAllNADep);
     std::unique_ptr<MegaChatListItemList> nonArchivedChats(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED,
-                                                    MegaChatApi::CHAT_GET_NON_ARCHIVED));
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED));
     static const std::string pref = "getChatListItems(";
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + ", "+ std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + ")", *nonArchivedChats));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) +
+                     ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + ")",
+                 *nonArchivedChats);
     ASSERT_TRUE(equals(nonArchivedChatsDep, byTypeAllNADep)) << getErrMsg("all non-archived");
     ASSERT_TRUE(equals(nonArchivedChats, byTypeAllNADep)) << getErrMsg("byType(CHAT_TYPE_ALL)");
 
-    std::unique_ptr<MegaChatListItemList> nonArchivedActiveChatsDep(megaChatApi[accountIndex]->getActiveChatListItems());
-    postLog(getLogTrace("getActiveChatListItems()", *nonArchivedActiveChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedActiveChatsDep(
+        megaChatApi[accountIndex]->getActiveChatListItems());
+    postLogTrace("getActiveChatListItems()", *nonArchivedActiveChatsDep);
     std::unique_ptr<MegaChatListItemList> nonArchivedActiveChats(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_ACTIVE));
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_ACTIVE));
 
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+"+ std::to_string(MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_ACTIVE)
-                        + ")", *nonArchivedActiveChats));
-    ASSERT_TRUE(equals(nonArchivedActiveChats, nonArchivedActiveChatsDep)) << getErrMsg("non-archived active");
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_ACTIVE) + ")",
+                 *nonArchivedActiveChats);
+    ASSERT_TRUE(equals(nonArchivedActiveChats, nonArchivedActiveChatsDep))
+        << getErrMsg("non-archived active");
 
-    std::unique_ptr<MegaChatListItemList> nonArchivedInactiveChatsDep(megaChatApi[accountIndex]-> getInactiveChatListItems());
-    postLog(getLogTrace("getInactiveChatListItems()",*nonArchivedInactiveChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedInactiveChatsDep(
+        megaChatApi[accountIndex]->getInactiveChatListItems());
+    postLogTrace("getInactiveChatListItems()", *nonArchivedInactiveChatsDep);
     std::unique_ptr<MegaChatListItemList> nonArchivedInactiveChats(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_NON_ACTIVE));
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_NON_ACTIVE));
 
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_NON_ACTIVE)
-                        + ")", *nonArchivedInactiveChats));
-    ASSERT_TRUE(equals(nonArchivedInactiveChats, nonArchivedInactiveChatsDep)) << getErrMsg("non-archived inactive");
-    ASSERT_EQ(nonArchivedInactiveChats->size() + nonArchivedActiveChats->size(), nonArchivedChats->size())
-                     << "Incomplete set non-archived active/non-active";
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_ACTIVE_OR_NON_ACTIVE) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ACTIVE) + ")",
+                 *nonArchivedInactiveChats);
+    ASSERT_TRUE(equals(nonArchivedInactiveChats, nonArchivedInactiveChatsDep))
+        << getErrMsg("non-archived inactive");
+    ASSERT_EQ(nonArchivedInactiveChats->size() + nonArchivedActiveChats->size(),
+              nonArchivedChats->size())
+        << "Incomplete set non-archived active/non-active";
 
-    std::unique_ptr<MegaChatListItemList> archivedChatsDep(megaChatApi[accountIndex]->getArchivedChatListItems());
-    postLog(getLogTrace("getArchivedChatListItems()", *archivedChatsDep));
-    std::unique_ptr<MegaChatListItemList> archivedChats(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    , MegaChatApi::CHAT_GET_ARCHIVED));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_ARCHIVED)
-                        + ")", *archivedChats));
+    std::unique_ptr<MegaChatListItemList> archivedChatsDep(
+        megaChatApi[accountIndex]->getArchivedChatListItems());
+    postLogTrace("getArchivedChatListItems()", *archivedChatsDep);
+    std::unique_ptr<MegaChatListItemList> archivedChats(megaChatApi[accountIndex]->getChatListItems(
+        MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED,
+        MegaChatApi::CHAT_GET_ARCHIVED));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) +
+                     ", " + std::to_string(MegaChatApi::CHAT_GET_ARCHIVED) + ")",
+                 *archivedChats);
     ASSERT_TRUE(equals(archivedChatsDep, archivedChats)) << getErrMsg("archived");
 
-    std::unique_ptr<MegaChatListItemList> nonArchivedUnreadChatsDep(megaChatApi[accountIndex]->getUnreadChatListItems());
-    postLog(getLogTrace("getUnreadChatListItems()", *nonArchivedUnreadChatsDep));
+    std::unique_ptr<MegaChatListItemList> nonArchivedUnreadChatsDep(
+        megaChatApi[accountIndex]->getUnreadChatListItems());
+    postLogTrace("getUnreadChatListItems()", *nonArchivedUnreadChatsDep);
     std::unique_ptr<MegaChatListItemList> nonArchivedUnreadChats(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_UNREAD));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_UNREAD)
-                        + ")", *nonArchivedUnreadChats));
-    ASSERT_TRUE(equals(nonArchivedUnreadChatsDep, nonArchivedUnreadChats)) << getErrMsg("non-archived unread");
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_UNREAD));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_UNREAD) + ")",
+                 *nonArchivedUnreadChats);
+    ASSERT_TRUE(equals(nonArchivedUnreadChatsDep, nonArchivedUnreadChats))
+        << getErrMsg("non-archived unread");
 
     std::unique_ptr<MegaChatListItemList> nonArchivedReadChats(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_READ));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_READ)
-                        + ")", *nonArchivedReadChats));
-    ASSERT_EQ(nonArchivedReadChats->size() + nonArchivedUnreadChats->size(), nonArchivedChats->size())
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_READ));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_READ_OR_UNREAD) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_READ) + ")",
+                 *nonArchivedReadChats);
+    ASSERT_EQ(nonArchivedReadChats->size() + nonArchivedUnreadChats->size(),
+              nonArchivedChats->size())
         << "Error nonArchivedRead chats added to nonArchivedUnread don't equal nonArchived chats";
 
-    std::unique_ptr<MegaChatListItemList> byTypeIndividualNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_INDIVIDUAL));
+    std::unique_ptr<MegaChatListItemList> byTypeIndividualNADep(
+        megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_INDIVIDUAL));
     std::unique_ptr<MegaChatListItemList> nonArchivedIndividual(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_INDIVIDUAL));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_INDIVIDUAL)
-                        + ")", *nonArchivedIndividual));
-    ASSERT_TRUE(equals(byTypeIndividualNADep, nonArchivedIndividual)) << getErrMsg("byType(CHAT_TYPE_INDIVIDUAL)");
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_INDIVIDUAL));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_INDIVIDUAL) + ")",
+                 *nonArchivedIndividual);
+    ASSERT_TRUE(equals(byTypeIndividualNADep, nonArchivedIndividual))
+        << getErrMsg("byType(CHAT_TYPE_INDIVIDUAL)");
 
-    std::unique_ptr<MegaChatListItemList> byTypeGroupNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP));
+    std::unique_ptr<MegaChatListItemList> byTypeGroupNADep(
+        megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP));
     std::unique_ptr<MegaChatListItemList> nonArchivedGroups(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_GROUP));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_GROUP)
-                        + ")",  *nonArchivedGroups));
-    ASSERT_TRUE(equals(byTypeGroupNADep, nonArchivedGroups)) << getErrMsg("byType(CHAT_TYPE_GROUP)");
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_GROUP));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_INDIVIDUAL_OR_GROUP) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_GROUP) + ")",
+                 *nonArchivedGroups);
+    ASSERT_TRUE(equals(byTypeGroupNADep, nonArchivedGroups))
+        << getErrMsg("byType(CHAT_TYPE_GROUP)");
 
-    std::unique_ptr<MegaChatListItemList> byTypePrivateNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP_PRIVATE));
+    std::unique_ptr<MegaChatListItemList> byTypePrivateNADep(
+        megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP_PRIVATE));
     std::unique_ptr<MegaChatListItemList> nonArchivedPrivate(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_PRIVATE));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_PRIVATE)
-                        + ")",  *nonArchivedPrivate));
-    ASSERT_TRUE(equals(byTypePrivateNADep, nonArchivedPrivate)) << getErrMsg("byType(CHAT_TYPE_PRIVATE)");
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_PRIVATE));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_PRIVATE) + ")",
+                 *nonArchivedPrivate);
+    ASSERT_TRUE(equals(byTypePrivateNADep, nonArchivedPrivate))
+        << getErrMsg("byType(CHAT_TYPE_PRIVATE)");
 
-    std::unique_ptr<MegaChatListItemList> byTypePublicNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP_PUBLIC));
+    std::unique_ptr<MegaChatListItemList> byTypePublicNADep(
+        megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_GROUP_PUBLIC));
     std::unique_ptr<MegaChatListItemList> nonArchivedPublic(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_PUBLIC));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_PUBLIC)
-                        + ")",  *nonArchivedPublic));
-    ASSERT_TRUE(equals(byTypePublicNADep, nonArchivedPublic)) << getErrMsg("byType(CHAT_TYPE_PUBLIC)");
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_PUBLIC));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_PUBLIC_OR_PRIVATE) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_PUBLIC) + ")",
+                 *nonArchivedPublic);
+    ASSERT_TRUE(equals(byTypePublicNADep, nonArchivedPublic))
+        << getErrMsg("byType(CHAT_TYPE_PUBLIC)");
 
-    std::unique_ptr<MegaChatListItemList> byTypeMeetingNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_MEETING_ROOM));
+    std::unique_ptr<MegaChatListItemList> byTypeMeetingNADep(
+        megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_MEETING_ROOM));
     std::unique_ptr<MegaChatListItemList> nonArchivedMeeting(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_MEETING));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_MEETING)
-                        + ")", *nonArchivedMeeting));
-    ASSERT_TRUE(equals(byTypeMeetingNADep, nonArchivedMeeting)) << getErrMsg("byType(CHAT_TYPE_MEETING_ROOM)");
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_MEETING));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_MEETING) + ")",
+                 *nonArchivedMeeting);
+    ASSERT_TRUE(equals(byTypeMeetingNADep, nonArchivedMeeting))
+        << getErrMsg("byType(CHAT_TYPE_MEETING_ROOM)");
 
-    std::unique_ptr<MegaChatListItemList> byTypeNonMeetingNADep(megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_NON_MEETING));
+    std::unique_ptr<MegaChatListItemList> byTypeNonMeetingNADep(
+        megaChatApi[accountIndex]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_NON_MEETING));
     std::unique_ptr<MegaChatListItemList> nonArchivedNonMeeting(
-        megaChatApi[accountIndex]->getChatListItems(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING
-                                                    , MegaChatApi::CHAT_GET_NON_ARCHIVED
-                                                    + MegaChatApi::CHAT_GET_NON_MEETING));
-    postLog(getLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING)
-                        + ", " + std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED)
-                        + "+" + std::to_string(MegaChatApi::CHAT_GET_NON_MEETING)
-                        + ")", *nonArchivedNonMeeting));
-    ASSERT_TRUE(equals(byTypeNonMeetingNADep, nonArchivedNonMeeting)) << getErrMsg("byType(CHAT_TYPE_NON_MEETING)");
+        megaChatApi[accountIndex]->getChatListItems(
+            MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED +
+                MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING,
+            MegaChatApi::CHAT_GET_NON_ARCHIVED + MegaChatApi::CHAT_GET_NON_MEETING));
+    postLogTrace(pref + std::to_string(MegaChatApi::CHAT_FILTER_BY_ARCHIVED_OR_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_FILTER_BY_MEETING_OR_NON_MEETING) + ", " +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_ARCHIVED) + "+" +
+                     std::to_string(MegaChatApi::CHAT_GET_NON_MEETING) + ")",
+                 *nonArchivedNonMeeting);
+    ASSERT_TRUE(equals(byTypeNonMeetingNADep, nonArchivedNonMeeting))
+        << getErrMsg("byType(CHAT_TYPE_NON_MEETING)");
 }
 
 #ifndef KARERE_DISABLE_WEBRTC
@@ -4993,7 +5149,7 @@ TEST_F(MegaChatApiTest, Calls)
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     MegaChatHandle chatid = getPeerToPeerChatRoom(a1, a2);
@@ -5217,7 +5373,7 @@ TEST_F(MegaChatApiTest, DISABLED_ManualCalls)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
 
@@ -5481,7 +5637,7 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     // Get a group chatroom with both users
@@ -5885,20 +6041,20 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
         if (approve)
         {
             // requesterIdx - onChatCallUpdate(CHANGE_TYPE_CALL_SPEAK)
-            addBoolVarAndExitFlag(requesterIdx, eF2, "OwnSpeakStatusChanged", false);
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(requesterIdx, eF2, "OwnSpeakStatusChanged", false));
 
             // addBoolVarAndExitFlag(requesterIdx, eF2, "UsersSpeakPermAdd", false);
 
             // moderatorIdx - user handle received at onChatSessionUpdate(CHANGE_TYPE_CALL_SPEAK)
-            handleVars().add(moderatorIdx, "SpeakStatusUserId", MEGACHAT_INVALID_HANDLE);
+            ASSERT_NO_FATAL_FAILURE(handleVars().add(moderatorIdx, "SpeakStatusUserId", MEGACHAT_INVALID_HANDLE));
         }
         else
         {
             // moderatorIdx - onChatCallUpdate(CHANGE_TYPE_SPEAK_REQUESTED)
-            addBoolVarAndExitFlag(moderatorIdx, eF2, "SpeakReqRecv", false);
+            ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(moderatorIdx, eF2, "SpeakReqRecv", false));
 
             // moderatorIdx - [reuse] user handle received at onChatCallUpdate(CHANGE_TYPE_SPEAK_REQUESTED)
-            handleVars().updateIfExists(moderatorIdx, "SpeakRequestPeerId", MEGACHAT_INVALID_HANDLE);
+            ASSERT_NO_FATAL_FAILURE(handleVars().updateIfExists(moderatorIdx, "SpeakRequestPeerId", MEGACHAT_INVALID_HANDLE));
         }
 
         std::string msgSpeakReq = approve ? "approve speak request" : "reject speak request";
@@ -6169,9 +6325,9 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     mData.mAccounts.emplace(a2, a2Uh);
     mData.mAccounts.emplace(a3, a3Uh);
     ASSERT_NO_FATAL_FAILURE(mData.areSessionsValid());
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a1, a3));
-    ASSERT_NO_FATAL_FAILURE(makeContact(a2, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a2, a3));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
     // remove when we bump to SFU v4 protocol
@@ -6235,11 +6391,31 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     auto startCallRinging = [this]()
     {
         ExitBoolFlags eF;
-        addHandleVar(a1, "CallIdInProgress", MEGACHAT_INVALID_HANDLE);                    // a1 - callid received at onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
-        addBoolVarAndExitFlag(a1, eF, "CallReceived"  , false);                      // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
-        addBoolVarAndExitFlag(a2, eF, "CallReceived"  , false);                      // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
-        addBoolVarAndExitFlag(a3, eF, "CallReceived"  , false);                      // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
-        addBoolVarAndExitFlag(a1, eF, "CallInProgress", false);                      // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+        ASSERT_NO_FATAL_FAILURE(
+            addHandleVar(a1,
+                         "CallIdInProgress",
+                         MEGACHAT_INVALID_HANDLE)); // a1 - callid received at
+                                                    // onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(a1,
+                                  eF,
+                                  "CallReceived",
+                                  false)); // a1 - onChatCallUpdate(CALL_STATUS_INITIAL)
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(a2,
+                                  eF,
+                                  "CallReceived",
+                                  false)); // a2 - onChatCallUpdate(CALL_STATUS_INITIAL)
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(a3,
+                                  eF,
+                                  "CallReceived",
+                                  false)); // a3 - onChatCallUpdate(CALL_STATUS_INITIAL)
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(a1,
+                                  eF,
+                                  "CallInProgress",
+                                  false)); // a1 - onChatCallUpdate(CALL_STATUS_IN_PROGRESS)
         ASSERT_NO_FATAL_FAILURE(startChatCall(a1, eF,
                                               mData.mChatid,
                                               false /*audio*/,
@@ -6348,7 +6524,7 @@ TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakCall)
 
     if (!areContact(a1, a2))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     // select/create a chatroom with speak request enabled
@@ -6670,13 +6846,9 @@ TEST_F(MegaChatApiTest, EstablishedCallsRingUserIndividually)
     std::unique_ptr<char[]> primarySession(login(a1));   // user A
     std::unique_ptr<char[]> secondarySession(login(a2)); // user B
     std::unique_ptr<char[]> tertiarySession(login(a3));  // user C
-    const auto ensureContact = [this](unsigned int u1, unsigned int u2)
-    {
-        if (!areContact(u1, u2)) makeContact(u1, u2);
-    };
-    ensureContact(a1, a2);
-    ensureContact(a1, a3);
-    ensureContact(a2, a3);
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a3));
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a2, a3));
 
     LOG_debug << "\tGet or create a group chatroom with all users";
     const auto getContactUserHandle = [this](const auto src, const auto target) -> MegaChatHandle
@@ -6917,7 +7089,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     // Get a group chatroom with both users
@@ -7357,7 +7529,7 @@ TEST_F(MegaChatApiTest, WaitingRooms)
 
     // B picks up the call
     LOG_debug << "B Pickups the call (should not ring)";
-    auxCall = picksUpCallSecondaryAccount(false /*isRingingExpected*/);
+    ASSERT_NO_FATAL_FAILURE(auxCall = picksUpCallSecondaryAccount(false /*isRingingExpected*/));
 
     // B answers call and it's pushed into waiting room
     LOG_debug << "B Answers the call";
@@ -7463,8 +7635,7 @@ TEST_F(MegaChatApiTest, EditMessageFromDifferentSender)
     ASSERT_TRUE(sessionPrimary.get()) << "User A login failed";
     std::unique_ptr<char[]> sessionSecondary {login(a2)};
     ASSERT_TRUE(sessionSecondary.get()) << "User B login failed";
-
-    if (!areContact(a1, a2)) makeContact(a1, a2);
+    ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
 
     LOG_debug << "\tGet or create a peer to peer chatroom with both users";
     MegaChatHandle chatId = getPeerToPeerChatRoom(a1, a2);
@@ -7538,7 +7709,7 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
 
     if (!areContact(a1, a2))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
@@ -7984,13 +8155,13 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                                       const SchedMeetingData& smData) -> void
     {
         // Before calling updateScheduledMeetingOccurrence, ensure the occurrences are in RAM
-        fetchOccurrences(a1, MegaChatError::ERROR_OK, smData);
+        ASSERT_NO_FATAL_FAILURE(fetchOccurrences(a1, MegaChatError::ERROR_OK, smData));
 
         clearTemporalVars();
         std::string actionMsg = "Updating scheduled meeting occurrence";
         ExitBoolFlags eF;
         // index - request finish with expected errCode
-        addBoolVarAndExitFlag(index, eF, "updateOccurrence", false);
+        ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(index, eF, "updateOccurrence", false));
 
         if (expectedError == MegaChatError::ERROR_OK)
         {
@@ -8002,7 +8173,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
             }
         }
 
-        execActionAndWaitForResult(
+        ASSERT_NO_FATAL_FAILURE(execActionAndWaitForResult(
             eF,
             actionMsg,
             [&api = std::as_const(megaChatApi[index]),
@@ -8033,7 +8204,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
                 ASSERT_EQ(res, exp) << "Error " << m << " " << crtUpdateOccurrence.getErrorString();
 
                 boolVars().updateIfExists(i, "updateOccurrence", true);
-            });
+            }));
 
         if (expectedError == MegaChatError::ERROR_OK)
         {
@@ -8193,7 +8364,7 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     std::unique_ptr<MegaUser> user(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || user->getVisibility() != MegaUser::VISIBILITY_VISIBLE)
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
         user.reset(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
         ASSERT_TRUE(user) << "Secondary account is not a contact of primary account yet";
     }
@@ -8549,7 +8720,7 @@ TEST_F(MegaChatApiTest, SendRichLink)
     MegaUser *user = megaApi[a1]->getContact(account(a2).getEmail().c_str());
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
     delete user;
     user = NULL;
@@ -8750,7 +8921,7 @@ void MegaChatApiTest::initChat(unsigned int a1, unsigned int a2, std::unique_ptr
     user.reset(megaApi[a1]->getContact(account(a2).getEmail().c_str()));
     if (!user || (user->getVisibility() != MegaUser::VISIBILITY_VISIBLE))
     {
-        ASSERT_NO_FATAL_FAILURE(makeContact(a1, a2));
+        ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     }
 
     chatid = getPeerToPeerChatRoom(a1, a2);
@@ -8801,37 +8972,148 @@ int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChat
     return chatroomListener->msgCount[accountIndex];
 }
 
-void MegaChatApiTest::makeContact(const unsigned int a1, const unsigned int a2)
+void MegaChatApiTest::sendOutgoingContactRequest(const unsigned int invitorIdx,
+                                                 const unsigned int invitedIdx,
+                                                 const std::string& email,
+                                                 const std::string& msg,
+                                                 const int action)
 {
-    if (areContact(a1, a2)) { return; }
-    const std::string contactRequestMessage = "Contact Request Message";
-    bool* flagContactRequestUpdatedSecondary = &mContactRequestUpdated[a2];
-    *flagContactRequestUpdatedSecondary = false;
-    RequestTracker rtInvite(megaApi[a1]);
-    // a1 sends contact request to a2
-    megaApi[a1]->inviteContact(account(a2).getEmail().c_str(),
-                               contactRequestMessage.c_str(),
-                               MegaContactRequest::INVITE_ACTION_ADD,
-                               &rtInvite);
+    clearTemporalVars();
+    ExitBoolFlags eF;
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitorIdx, eF, "ContactRequestUpdated", false));
 
-    ASSERT_EQ(rtInvite.waitForResult(), API_OK) << "Error invite contact. Error: " << rtInvite.getErrorString();
-    ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedSecondary)) << "Expired timeout for receive contact request at a2";
-    ASSERT_NO_FATAL_FAILURE(getContactRequest(a2, false));
-    ASSERT_TRUE(mContactRequest[a2]) << "Contact request not received for a2";
+    // if invited is not a logged in account in current automated tests execution we do not want to
+    // wait for response for that "account"
+    if (invitedIdx != MEGACHAT_INVALID_INDEX)
+    {
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(invitedIdx, eF, "ContactRequestUpdated", false));
+    }
 
-    // a2 replies contact request
-    bool* flagContactRequestUpdatedPrimary = &mContactRequestUpdated[a1];
-    *flagContactRequestUpdatedPrimary = false;
+    waitForAction(1, /* just one attempt */
+                  eF,
+                  "Send outgoing contact request",
+                  true /* wait for all exit flags */,
+                  true /* reset flags */,
+                  minTimeout * 2, // 2 min
+                  [this, invitorIdx, email, msg, action]()
+                  {
+                      RequestTracker rtInvite(megaApi[invitorIdx]);
+                      megaApi[invitorIdx]->inviteContact(email.c_str(),
+                                                         msg.c_str(),
+                                                         action,
+                                                         &rtInvite);
 
-    bool* usersUpdateA1 = &mUsersUpdate[a1]; *usersUpdateA1 = false;
-    bool* usersUpdateA2 = &mUsersUpdate[a2]; *usersUpdateA2 = false;
+                      ASSERT_EQ(rtInvite.waitForResult(), MegaChatError::ERROR_OK)
+                          << "Failed to send outgoing contact request to " << email;
+                  });
+}
 
-    RequestTracker rtReplyCR(megaApi[a2]);
-    megaApi[a2]->replyContactRequest(mContactRequest[a2].get(), MegaContactRequest::REPLY_ACTION_ACCEPT, &rtReplyCR);
-    ASSERT_EQ(rtReplyCR.waitForResult(), API_OK) << "Error reply contact request. Error: " << rtReplyCR.getErrorString();
-    ASSERT_TRUE(waitForResponse(flagContactRequestUpdatedPrimary)) << "Expired timeout for receive contact request reply at a1";
-    ASSERT_TRUE(waitForResponse(usersUpdateA1)) << "Expired timeout for a2 as contact at a1";
-    ASSERT_TRUE(waitForResponse(usersUpdateA2)) << "Expired timeout for a1 as contact at a2";
+void MegaChatApiTest::replyIncomingContactRequest(const unsigned int invitorIdx,
+                                                  const unsigned int invitedIdx,
+                                                  std::unique_ptr<MegaContactRequest> req,
+                                                  const int action)
+{
+    clearTemporalVars();
+    ASSERT_TRUE(req) << "Invalid MegaContactRequest";
+
+    ExitBoolFlags eF;
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitedIdx, eF, "ContactRequestUpdated", false));
+    ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitedIdx, eF, "UsersUpdate", false));
+
+    // if invitor is not a logged in account in current automated tests execution we do not want to
+    // wait for response for that "account"
+    if (invitorIdx != MEGACHAT_INVALID_INDEX)
+    {
+        ASSERT_NO_FATAL_FAILURE(addBoolVarAndExitFlag(invitorIdx, eF, "UsersUpdate", false));
+        ASSERT_NO_FATAL_FAILURE(
+            addBoolVarAndExitFlag(invitorIdx, eF, "ContactRequestUpdated", false));
+    }
+
+    waitForAction(1, /* just one attempt */
+                  eF,
+                  "Reply incoming contact request",
+                  true /* wait for all exit flags */,
+                  true /* reset flags */,
+                  minTimeout * 2, // 2 min
+                  [this, invitedIdx, r = req.get(), action]()
+                  {
+                      RequestTracker rtReply(megaApi[invitedIdx]);
+                      megaApi[invitedIdx]->replyContactRequest(r, action, &rtReply);
+
+                      ASSERT_EQ(rtReply.waitForResult(), MegaChatError::ERROR_OK)
+                          << "Failed to reply incoming contact request from "
+                          << r->getSourceEmail();
+                  });
+}
+
+void MegaChatApiTest::makeContacts(const unsigned int invitorIdx, const unsigned int invitedIdx)
+{
+    const std::string& invitorEmail{account(invitorIdx).getEmail()};
+    const std::string& invitedEmail{account(invitedIdx).getEmail()};
+
+    auto [areContacts, visibility] = areTestAccountsContacts(invitorIdx, invitedIdx);
+    if (areContacts && visibility == MegaUser::VISIBILITY_VISIBLE)
+    {
+        LOG_debug << "makeContacts: " << invitorEmail << " (invitor) and " << invitedEmail
+                  << " (invited), are already contacts";
+        return;
+    }
+
+    const bool canBeContacts = areContacts || visibility == MegaUser::VISIBILITY_HIDDEN;
+    ASSERT_TRUE(canBeContacts)
+        << "makeContacts: Both accounts cannot be contacts, as invited account visibility is:"
+        << visibility;
+
+    // Invitor sends outgoing contact request (if there's no one)
+    auto outGoingCr = getContactRequestWith(invitorIdx, true /*outgoing*/, invitedEmail);
+    if (!outGoingCr)
+    {
+        auto incomingCr = getContactRequestWith(invitedIdx, false /*outgoing*/, invitorEmail);
+        ASSERT_TRUE(!incomingCr)
+            << invitedEmail << " (invited) already has an incoming contact request from " << invitorEmail
+            << " (invitor) account, but invitor doesn't have an outgoing contact request";
+
+        LOG_debug << "makeContacts: " << invitorEmail << " sends outgoing contact request to "
+                  << invitedEmail;
+
+        ASSERT_NO_FATAL_FAILURE(sendOutgoingContactRequest(invitorIdx,
+                                                           invitedIdx,
+                                                           invitedEmail,
+                                                           "I want to invite you to MEGA",
+                                                           MegaContactRequest::INVITE_ACTION_ADD))
+            << "makeContacts: cannot send outgoing contact request to " << invitedEmail;
+    }
+
+    // Invited replies contact request (if there's an existing incoming contact request)
+    auto incomingCr = getContactRequestWith(invitedIdx, false /*outgoing*/, invitorEmail);
+    ASSERT_TRUE(incomingCr) << invitedEmail
+                            << " (invited) doesn't have an incoming contact request from "
+                            << invitorEmail << " (invitor) account and it should";
+
+    LOG_debug << "makeContacts: " << invitedEmail << " replies to incoming contact request from "
+              << invitorEmail;
+
+    ASSERT_NO_FATAL_FAILURE(replyIncomingContactRequest(invitorIdx,
+                                                        invitedIdx,
+                                                        std::move(incomingCr),
+                                                        MegaContactRequest::REPLY_ACTION_ACCEPT))
+        << "makeContacts: cannot reply incoming contact request from " << invitorEmail;
+}
+
+std::pair<bool, int> MegaChatApiTest::areTestAccountsContacts(unsigned int invitorIdx,
+                                                              unsigned int invitedIdx) const
+{
+    const std::string& invitedEmail{account(invitedIdx).getEmail()};
+    std::unique_ptr<MegaUser> invitedUser(megaApi[invitorIdx]->getContact(invitedEmail.c_str()));
+    if (!invitedUser)
+    {
+        return std::make_pair(false, MegaUser::VISIBILITY_UNKNOWN);
+    }
+    else
+    {
+        return std::make_pair(true, invitedUser->getVisibility());
+    }
 }
 
 bool MegaChatApiTest::areContact(unsigned int a1, unsigned int a2)
@@ -8997,6 +9279,37 @@ void MegaChatApiTest::addBoolVarAndExitFlag(const unsigned int i, ExitBoolFlags 
     ASSERT_TRUE(eF.add(n + std::to_string(i), f)) << n << " couldn't be added to eF for account " << std::to_string(i);
 }
 
+void MegaChatApiTest::removeFromChatRoom(const unsigned int performerIdx,
+                                         const std::set<unsigned int>& recvsIdxs,
+                                         const ::megachat::MegaChatHandle uh,
+                                         const ::megachat::MegaChatHandle chatid)
+{
+    ExitBoolFlags eF;
+    ASSERT_NO_FATAL_FAILURE(std::for_each(recvsIdxs.begin(),
+                                          recvsIdxs.end(),
+                                          [this, &eF](const auto idx)
+                                          {
+                                              addBoolVarAndExitFlag(idx, eF, "ownRemoved", false);
+                                          }));
+
+    std::string errMsg =
+        "removing chatroom participant from account " + std::to_string(performerIdx);
+    waitForAction(1, /* just one attempt */
+                  eF,
+                  errMsg,
+                  true /* wait for all exit flags */,
+                  true /* reset flags */,
+                  minTimeout * 2, // 120 secs
+                  [this, performerIdx, chatid, uh]()
+                  {
+                      ChatRequestTracker crtRemoveFromChat(megaChatApi[performerIdx]);
+                      megaChatApi[performerIdx]->removeFromChat(chatid, uh, &crtRemoveFromChat);
+                      EXPECT_EQ(crtRemoveFromChat.waitForResult(), MegaChatError::ERROR_OK)
+                          << "removeFromChatRoom: Failed to remove participant. Error: "
+                          << crtRemoveFromChat.getErrorString();
+                  });
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId)
 {
@@ -9010,20 +9323,20 @@ void MegaChatApiTest::endChatCall(unsigned int performerIdx, ExitBoolFlags& eF, 
     std::string errMsg = "ending call for all participants from account " + std::to_string(performerIdx);
     LOG_debug << errMsg;
     EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "endChatCall: Invalid callId";
-    waitForAction (1,  /* just one attempt */
-                 eF,
-                 errMsg,
-                 true /* wait for all exit flags */,
-                 true /* reset flags */,
-                 minTimeout*2, // 120 secs
-                 [this, performerIdx, callid = call->getCallId()]()
-                 {
-                     ChatRequestTracker crtEndCall(megaChatApi[performerIdx]);
-                     megaChatApi[performerIdx]->endChatCall(callid, &crtEndCall);
-                     EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
-                         << "endChatCall: Failed to end call. Error: " << crtEndCall.getErrorString();
-                 });
-
+    ASSERT_NO_FATAL_FAILURE(waitForAction(
+        1, /* just one attempt */
+        eF,
+        errMsg,
+        true /* wait for all exit flags */,
+        true /* reset flags */,
+        minTimeout * 2, // 120 secs
+        [this, performerIdx, callid = call->getCallId()]()
+        {
+            ChatRequestTracker crtEndCall(megaChatApi[performerIdx]);
+            megaChatApi[performerIdx]->endChatCall(callid, &crtEndCall);
+            EXPECT_EQ(crtEndCall.waitForResult(), MegaChatError::ERROR_OK)
+                << "endChatCall: Failed to end call. Error: " << crtEndCall.getErrorString();
+        }));
 }
 
 void MegaChatApiTest::hangupChatCall(const unsigned int performerIdx, ExitBoolFlags& eF, const megachat::MegaChatHandle chatId)
@@ -9038,19 +9351,20 @@ void MegaChatApiTest::hangupChatCall(const unsigned int performerIdx, ExitBoolFl
     std::string errMsg = "hanging up call from idx " + std::to_string(performerIdx);
     LOG_debug << errMsg;
     EXPECT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "hangupChatCall: Invalid callId";
-    waitForAction (1,  /* just one attempt */
-                  eF,
-                  errMsg,
-                  true /* wait for all exit flags */,
-                  true /* reset flags */,
-                  minTimeout*2, // 120 secs
-                  [this, performerIdx, callid = call->getCallId()]()
-                  {
-                      ChatRequestTracker crtHangCall(megaChatApi[performerIdx]);
-                      megaChatApi[performerIdx]->hangChatCall(callid, &crtHangCall);
-                      EXPECT_EQ(crtHangCall.waitForResult(), MegaChatError::ERROR_OK)
-                          << "endChatCall: Failed to hangup call. Error: " << crtHangCall.getErrorString();
-                  });
+    ASSERT_NO_FATAL_FAILURE(waitForAction(
+        1, /* just one attempt */
+        eF,
+        errMsg,
+        true /* wait for all exit flags */,
+        true /* reset flags */,
+        minTimeout * 2, // 120 secs
+        [this, performerIdx, callid = call->getCallId()]()
+        {
+            ChatRequestTracker crtHangCall(megaChatApi[performerIdx]);
+            megaChatApi[performerIdx]->hangChatCall(callid, &crtHangCall);
+            EXPECT_EQ(crtHangCall.waitForResult(), MegaChatError::ERROR_OK)
+                << "endChatCall: Failed to hangup call. Error: " << crtHangCall.getErrorString();
+        }));
 }
 
 void MegaChatApiTest::checkCallIdInProgress(unsigned i, const MegaChatHandle chatid)
@@ -9072,9 +9386,18 @@ void MegaChatApiTest::answerCallAndCheckInProgress(const unsigned int callerIdx,
 {
     clearTemporalVars();
     ExitBoolFlags eF;
-    addBoolVarAndExitFlag(receiverIdx, eF, "CallInProgress", false);    // receiverIdx  - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
-    addBoolVarAndExitFlag(callerIdx, eF, "sessInProgress", false);      // callerIdx    - onChatSessionUpdate (CHANGE_TYPE_STATUS & SESSION_STATUS_IN_PROGRESS)
-    answerChatCall(receiverIdx, eF, chatId, enableVideo, enableAudio);
+    EXPECT_NO_FATAL_FAILURE(
+        addBoolVarAndExitFlag(receiverIdx,
+                              eF,
+                              "CallInProgress",
+                              false)); // receiverIdx  - onChatCallUpdate(CALL_STATUS_WAITING_ROOM)
+    EXPECT_NO_FATAL_FAILURE(
+        addBoolVarAndExitFlag(callerIdx,
+                              eF,
+                              "sessInProgress",
+                              false)); // callerIdx    - onChatSessionUpdate (CHANGE_TYPE_STATUS &
+                                       // SESSION_STATUS_IN_PROGRESS)
+    ASSERT_NO_FATAL_FAILURE(answerChatCall(receiverIdx, eF, chatId, enableVideo, enableAudio));
 };
 
 void MegaChatApiTest::startCallAndCheckReceived (const unsigned int performerIdx, const std::set<unsigned int> recvsIdxs, const MegaChatHandle chatId,
@@ -9092,7 +9415,9 @@ void MegaChatApiTest::startCallAndCheckReceived (const unsigned int performerIdx
     });
 
     ASSERT_NO_FATAL_FAILURE(startCallInChat(performerIdx, eF, chatId, enableVideo, enableAudio, notRinging));
-    checkCallIdInProgress(performerIdx, chatId);                             // check received callid for caller(performerIdx)
+    ASSERT_NO_FATAL_FAILURE(
+        checkCallIdInProgress(performerIdx,
+                              chatId)); // check received callid for caller(performerIdx)
 }
 
 void MegaChatApiTest::startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId,
@@ -9843,12 +10168,12 @@ void MegaChatApiTest::leaveChat(unsigned int accountIndex, MegaChatHandle chatid
     bool *chatClosed = &chatItemClosed[accountIndex]; *chatClosed = false;
     ChatRequestTracker crtLeaveChat(megaChatApi[accountIndex]);
     megaChatApi[accountIndex]->leaveChat(chatid, &crtLeaveChat);
-    TEST_LOG_ERROR(crtLeaveChat.waitForResult() == MegaChatError::ERROR_OK, "Failed to leave chatroom. Error: " + crtLeaveChat.getErrorString());
-    TEST_LOG_ERROR(waitForResponse(chatClosed), "Chatroom closed error");
+    ASSERT_EQ(crtLeaveChat.waitForResult(), MegaChatError::ERROR_OK) << "Failed to leave chatroom. Error: " + crtLeaveChat.getErrorString();
+    ASSERT_TRUE(waitForResponse(chatClosed)) << "Chatroom closed error";
     MegaChatRoom *chatroom = megaChatApi[accountIndex]->getChatRoom(chatid);
     if (chatroom->isGroup())
     {
-        TEST_LOG_ERROR(!chatroom->isActive(), "Chatroom active error");
+        ASSERT_TRUE(!chatroom->isActive()) << "Chatroom active error";
     }
     delete chatroom;    chatroom = NULL;
 }
@@ -10003,6 +10328,38 @@ void MegaChatApiTest::getContactRequest(unsigned int accountIndex, bool outgoing
     delete crl;
 }
 
+std::unique_ptr<MegaContactRequest>
+    MegaChatApiTest::getContactRequestWith(unsigned int idx,
+                                           bool outgoing,
+                                           std::string_view email) const
+{
+    const std::unique_ptr<MegaContactRequestList> crl{std::invoke(
+        [&]()
+        {
+            return outgoing ? megaApi[idx]->getOutgoingContactRequests() :
+                              megaApi[idx]->getIncomingContactRequests();
+        })};
+
+    if (crl)
+    {
+        for (int i = 0; i < crl->size(); ++i)
+        {
+            const MegaContactRequest* cr = crl->get(i);
+            if (!cr)
+            {
+                continue;
+            }
+
+            const auto& auxEmail = outgoing ? cr->getTargetEmail() : cr->getSourceEmail();
+            if (!email.compare(auxEmail))
+            {
+                return std::unique_ptr<MegaContactRequest>(cr->copy());
+            }
+        }
+    }
+    return nullptr;
+}
+
 int MegaChatApiTest::purgeLocalTree(const fs::path& path)
 {
     try
@@ -10031,14 +10388,15 @@ void MegaChatApiTest::purgeCloudTree(unsigned int accountIndex, MegaNode *node)
         MegaNode *childrenNode = children->get(i);
         if (childrenNode->isFolder())
         {
-            purgeCloudTree(accountIndex, childrenNode);
+            EXPECT_NO_FATAL_FAILURE(purgeCloudTree(accountIndex, childrenNode));
         }
 
         RequestTracker removeTracker(megaApi[accountIndex]);
         megaApi[accountIndex]->remove(childrenNode, &removeTracker);
         int removeResult = removeTracker.waitForResult();
-        TEST_LOG_ERROR((removeResult == API_OK), "Failed to remove node. Error: "
-                       + std::to_string(removeResult) + ' ' + removeTracker.getErrorString());
+        EXPECT_EQ(removeResult, API_OK)
+                  << "Failed to remove node. Error: " << std::to_string(removeResult) << ' '
+                  << removeTracker.getErrorString();
     }
 
     delete children;
@@ -10056,14 +10414,14 @@ void MegaChatApiTest::clearAndLeaveChats(unsigned accountIndex, const vector<Meg
         {
             ChatRequestTracker crtClearHist(megaChatApi[accountIndex]);
             megaChatApi[accountIndex]->clearChatHistory(chatroom->getChatId(), &crtClearHist);
-            TEST_LOG_ERROR(crtClearHist.waitForResult() == MegaChatError::ERROR_OK, "Failed to truncate history. Error: " + crtClearHist.getErrorString());
+            ASSERT_EQ(crtClearHist.waitForResult(), MegaChatError::ERROR_OK) << "Failed to truncate history. Error: " + crtClearHist.getErrorString();
         }
 
         if (chatroom->isGroup() && chatroom->isActive() &&
             chatroom->getPeerPrivilegeByHandle(megaChatApi[accountIndex]->getMyUserHandle()) != PRIV_UNKNOWN && // only if in that chatroom
             std::find(skipChats.begin(), skipChats.end(), chatroom->getChatId()) == skipChats.end())
         {
-            leaveChat(accountIndex, chatroom->getChatId());
+            ASSERT_NO_FATAL_FAILURE(leaveChat(accountIndex, chatroom->getChatId()));
         }
     }
 }
@@ -10081,8 +10439,9 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
                                              MegaContactRequest::INVITE_ACTION_DELETE,
                                              &inviteContactTracker);
         int inviteContactResult = inviteContactTracker.waitForResult();
-        TEST_LOG_ERROR((inviteContactResult == API_OK), "Failed to remove peer. Error: "
-                       + std::to_string(inviteContactResult) + ' ' + inviteContactTracker.getErrorString());
+        EXPECT_EQ(inviteContactResult, API_OK)
+            << "Failed to remove peer. Error: " << std::to_string(inviteContactResult) << ' '
+            << inviteContactTracker.getErrorString();
     }
 
     delete contactRequests;
@@ -10430,6 +10789,7 @@ void MegaChatApiTest::onContactRequestsUpdate(MegaApi* api, MegaContactRequestLi
     ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onContactRequestsUpdate()";
 
     mContactRequestUpdated[apiIndex] = true;
+    boolVars().updateIfExists(apiIndex, "ContactRequestUpdated", true);
 }
 
 void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* userList)
@@ -10438,6 +10798,7 @@ void MegaChatApiTest::onUsersUpdate(::mega::MegaApi* api, ::mega::MegaUserList* 
 
     unsigned int accountIndex = getMegaApiIndex(api);
     mUsersUpdate[accountIndex] = true;
+    boolVars().updateIfExists(accountIndex, "UsersUpdate", true);
     ASSERT_NE(accountIndex, UINT_MAX) << "MegaChatApiTest::onUsersUpdate()";
     for (int i = 0; i < userList->size(); i++)
     {
@@ -10986,6 +11347,10 @@ void TestChatRoomListener::onChatRoomUpdate(MegaChatApi *api, MegaChatRoom *chat
         {
             chatModeUpdated[apiIndex] = true;
         }
+        else if (chat->hasChanged(MegaChatRoom::CHANGE_TYPE_CLOSED))
+        {
+            t->boolVars().updateIfExists(apiIndex, "ownRemoved", true);
+        }
     }
 
     std::stringstream buffer;
@@ -11102,6 +11467,7 @@ void TestChatRoomListener::onHistoryTruncatedByRetentionTime(MegaChatApi *api, M
     ASSERT_NE(apiIndex, UINT_MAX) << "TestChatRoomListener::onHistoryTruncatedByRetentionTime()";
     mRetentionMessageHandle[apiIndex] = msg->getMsgId();
     retentionHistoryTruncated[apiIndex] = true;
+    t->boolVars().updateIfExists(apiIndex, "retentionHistTruncate", true);
 }
 
 void TestChatRoomListener::onMessageUpdate(MegaChatApi *api, MegaChatMessage *msg)
