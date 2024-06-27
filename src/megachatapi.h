@@ -3401,6 +3401,22 @@ public:
     static void setLogToConsole(bool enable);
 
     /**
+     * @brief Differentiate MegaChatApi log output from different instances.
+     *
+     * If multiple MegaChatApi instances are used in a single application, it can be useful to
+     * distinguish their activity in the log. Setting a name here for this instance will
+     * cause some particularly relevant log lines to contain it.
+     * A very short name is best to avoid increasing the log size too much.
+     *
+     * Important: This method must be called after karere client has been initialized, i.e. after
+     * calling the init() method.
+     *
+     * @param loggingName Name of this instance, to be output in log messages from this MegaChatApi
+     * or NULL to clear a previous logging name.
+     */
+    void setLoggingName(const char* loggingName);
+
+    /**
      * @brief Initializes karere
      *
      * If no session is provided, karere will listen to the fetchnodes event in order to register

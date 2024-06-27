@@ -1571,6 +1571,8 @@ public:
     MyMegaApi *mApi;
     karere::Client *mKarereClient;
 
+    const char* getLoggingName() const;
+
     /* --- getters --- */
     const karere::Id& myHandle() const;
     std::shared_ptr<Chat> chatFromId(const karere::Id& chatid) const;

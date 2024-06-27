@@ -447,7 +447,9 @@ protected:
     // mega::MegaGlobalListener interface, called by worker thread
     void onUsersUpdate(::mega::MegaApi*, ::mega::MegaUserList* users) override;
     void onEvent(::mega::MegaApi* api, ::mega::MegaEvent* event) override;
-    
+
+    const char* getLoggingName() const;
+
 public:
     Client(MyMegaApi *api, karere::Client *client, Listener& listener, uint8_t caps);
 

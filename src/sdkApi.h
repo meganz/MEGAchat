@@ -169,7 +169,16 @@ public:
     std::unique_ptr<MyMegaLogger> mLogger;
     void *appCtx;
     bool logging;
-    
+    std::string mClientname; // A name used as prefix when logging
+
+    /**
+     * @brief Helper method to get the client name as c_str for logging
+     */
+    const char* getLoggingName() const
+    {
+        return mClientname.c_str();
+    }
+
     MyMegaApi(::mega::MegaApi& aSdk, void *ctx, bool addlogger = true)
     :sdk(aSdk), mLogger(new MyMegaLogger), appCtx(ctx), logging(addlogger)
     {
