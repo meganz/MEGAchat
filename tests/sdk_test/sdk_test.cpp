@@ -1451,8 +1451,9 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
 
     LOG_debug << "#### Test9: end call from a1 ####";
     ExitBoolFlags eF;
+    // Ensure the call ends for both users before continuing with the test
     addBoolVarAndExitFlag(a1, eF, "callDestroyed", false);
-    endChatCall(mData.mOpIdx, eF, mData.mChatid);
+    addBoolVarAndExitFlag(a2, eF, "callDestroyed", false);
     ASSERT_NO_FATAL_FAILURE(endChatCall(a1, eF, mData.mChatid));
 
     LOG_debug << "#### Test10: start call with a1 and raise hand, then a2 answers call and raise hand ####";
@@ -11013,6 +11014,9 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         if (api->getNumCalls() > 1)
         {
             // Hangup in coming call
+            LOG_warn << "Call received a CHANGE_TYPE_RINGING_STATUS while other call was in "
+                        "progress, hanging up the new incoming call with ID: "
+                     << getCallIdStrB64(call->getCallId());
             api->hangChatCall(call->getCallId());
         }
 
