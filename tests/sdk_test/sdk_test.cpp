@@ -11012,6 +11012,7 @@ bool MegaChatApiTest::onTransferData(MegaApi */*api*/, MegaTransfer */*transfer*
 
 void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 {
+    ASSERT_TRUE(call) << "onChatCallUpdate: invalid call provided";
     unsigned int apiIndex = getMegaChatApiIndex(api);
     ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatCallUpdate()";
 
