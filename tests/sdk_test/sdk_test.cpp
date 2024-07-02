@@ -2363,6 +2363,17 @@ TEST_F(MegaChatApiTest, ResumeSession)
     MegaApi::removeLoggerObject(logger());
     // full-fetchndoes in SDK to regenerate cache in Karere
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
+
+    /**
+     * If we perform a second fetchnodes in a short period of time, we could try to send a second
+     * sc50 request, without previous one have received response from API. If this happens, we will
+     * discard previous (inflight sc50 request at MegaClient::resetScForFetchnodes as it's obsolete)
+     * and we will send a new one
+     *
+     * Be aware in case of any weird behavior, as API may get locked if there are more than one sc50
+     * requests inflight (API need to fix)
+     *
+     */
     RequestTracker fetchNodesTracker4(megaApi[accountIndex]);
     megaApi[accountIndex]->fetchNodes(&fetchNodesTracker4);
     ASSERT_EQ(fetchNodesTracker4.waitForResult(), API_OK) << "Error fetch nodes. Error: " << fetchNodesTracker4.getErrorString();
