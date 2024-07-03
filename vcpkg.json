@@ -10,7 +10,7 @@
             "dependencies": [
                 "webrtc",
                 { "name" : "libwebsockets", "default-features": false, "features" : [ "boringssl", "ipv6" ] },
-                { "name" : "curl", "version>=": "8.4.0", "default-features": false, "features" : [ "boringssl" ] }
+                { "name" : "curl", "version>=": "8.6.0", "default-features": false, "features" : [ "boringssl" ] }
             ]
         },
         "no-webrtc":
@@ -18,7 +18,7 @@
             "description" : "Disable support for voice and/or video calls",
             "dependencies": [
                 "libwebsockets",
-                "curl"
+                { "name" : "curl", "version>=": "8.6.0"}
             ]
         },
         "use-openssl":
