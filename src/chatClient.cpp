@@ -1676,7 +1676,7 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
         api.sdk.pauseActionPackets();
         mInitStats.stageStart(InitStats::kStatsPostFetchNodes);
 
-        auto state = mInitState;
+        auto oldState = mInitState;
         char* pscsn = api.sdk.getSequenceNumber();
         std::string scsn;
         if (pscsn)
@@ -1694,52 +1694,91 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
 #endif
 
         auto wptr = weakHandle();
-        marshallCall([wptr, this, state, scsn, contactList, chatList, sess = std::move(sid)]()
-        {
-            if (wptr.deleted())
-                return;
-
-            if (state == kInitHasOfflineSession)
+        marshallCall(
+            [wptr,
+             this,
+             lname = std::string{getLoggingName()},
+             oldState,
+             scsn,
+             contactList,
+             chatList,
+             sess = std::move(sid)]()
             {
-// disable this safety checkup, since dumpSession() differs from first-time login value
-//              // we loaded our state from db
-//              // verify the SDK sid is the same as ours
-//              if (mSid != *sid)
-//              {
-//                  setInitState(kInitErrSidMismatch);
-//                  return;
-//              }
-                checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
-                setInitState(kInitHasOnlineSession);
-                mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
-                api.sdk.resumeActionPackets();
+                if (wptr.deleted())
+                    return;
 
-                connect();
-            }
-            else if (state == kInitWaitingNewSession || state == kInitErrNoCache)
-            {
-                if (initWithNewSession(sess.get(), scsn, *contactList, *chatList))
+                auto currentState = mInitState;
+                if (oldState != currentState)
                 {
+                    KR_LOG_WARNING(
+                        "%sOnrequestFinish(TYPE_FETCH_NODES): client state changed old: %d new: %d",
+                        lname.c_str(),
+                        oldState,
+                        currentState);
+                }
+
+                if (currentState == kInitHasOfflineSession)
+                {
+                    // disable this safety checkup, since dumpSession() differs from first-time
+                    // login value
+                    //              // we loaded our state from db
+                    //              // verify the SDK sid is the same as ours
+                    //              if (mSid != *sid)
+                    //              {
+                    //                  setInitState(kInitErrSidMismatch);
+                    //                  return;
+                    //              }
+                    checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
                     setInitState(kInitHasOnlineSession);
                     mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                     api.sdk.resumeActionPackets();
 
                     connect();
                 }
-                else
+                else if (currentState == kInitWaitingNewSession || currentState == kInitErrNoCache)
                 {
-                    setInitState(kInitErrGeneric);
-                    KR_LOG_ERROR("%sFailed to initialize MEGAchat", getLoggingName());
+                    if (initWithNewSession(sess.get(), scsn, *contactList, *chatList))
+                    {
+                        setInitState(kInitHasOnlineSession);
+                        mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
+                        api.sdk.resumeActionPackets();
+
+                        connect();
+                    }
+                    else
+                    {
+                        setInitState(kInitErrGeneric);
+                        KR_LOG_ERROR("%sFailed to initialize MEGAchat", lname.c_str());
+                        api.sdk.resumeActionPackets();
+                    }
+                }
+                else if (currentState == kInitHasOnlineSession) // a full reload happened (triggered
+                                                                // by API or by the user)
+                {
+                    checkSyncWithSdkDb(scsn, *contactList, *chatList, true);
                     api.sdk.resumeActionPackets();
                 }
-            }
-            else    // a full reload happened (triggered by API or by the user)
-            {
-                assert(state == kInitHasOnlineSession);
-                checkSyncWithSdkDb(scsn, *contactList, *chatList, true);
-                api.sdk.resumeActionPackets();
-            }
-        }, appCtx);
+                else if (currentState == kInitTerminated)
+                {
+                    KR_LOG_ERROR("%sOnrequestFinish(TYPE_FETCH_NODES): client state terminated",
+                                 lname.c_str());
+                }
+                else
+                {
+                    // else -> currentState == kInitErrSidInvalid || kInitErrCorruptCache ||
+                    // kInitErrGeneric, any of these initialization states will be reported as
+                    // initialization error to apps
+                    KR_LOG_ERROR("%sOnrequestFinish(TYPE_FETCH_NODES): unexpected client state: %d",
+                                 lname.c_str(),
+                                 currentState);
+                    api.callIgnoreResult(&::mega::MegaApi::sendEvent,
+                                         99020,
+                                         "karere init state error upon fetchnodes completion",
+                                         false,
+                                         static_cast<const char*>(nullptr));
+                }
+            },
+            appCtx);
         break;
     }
 

@@ -994,6 +994,7 @@ public:
 
         /** The session given to init() was different than the session with which
          * the SDK was initialized
+         * @deprecated
          */
         kInitErrSidMismatch = 9,
 
