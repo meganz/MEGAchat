@@ -1058,11 +1058,12 @@ promise::Promise<std::string> Client::decryptChatTitle(uint64_t chatId, const st
                     return title;
                 })
             .fail(
-                [wptr, chatId, auxCrypto, lname = getLoggingName()](const ::promise::Error& err)
+                [wptr, chatId, auxCrypto, lname = std::string{getLoggingName()}](
+                    const ::promise::Error& err)
                 {
                     wptr.throwIfDeleted();
                     KR_LOG_ERROR("%sError decrypting chat title for chat link preview %s:\n%s",
-                                 lname,
+                                 lname.c_str(),
                                  ID_CSTR(chatId),
                                  err.what());
                     delete auxCrypto;
@@ -4389,10 +4390,10 @@ void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted
             case strongvelope::kEncrypted:
                 mEncryptedTitle = title;
                 decryptTitle().fail(
-                    [this](const ::promise::Error& e)
+                    [this, lname = std::string{getLoggingName()}](const ::promise::Error& e)
                     {
                         KR_LOG_ERROR("%sGroupChatRoom: failed to decrypt title for chat %s: %s",
-                                     getLoggingName(),
+                                     lname.c_str(),
                                      ID_CSTR(mChatid),
                                      e.what());
                     });

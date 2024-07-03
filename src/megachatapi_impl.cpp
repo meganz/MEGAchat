@@ -456,10 +456,11 @@ int MegaChatApiImpl::performRequest_setOnlineStatus(MegaChatRequestPrivate *requ
                         fireOnChatRequestFinish(request, megaChatError);
                     })
                 .fail(
-                    [request, this](const ::promise::Error& err)
+                    [request, this, lname = std::string{getLoggingName()}](
+                        const ::promise::Error& err)
                     {
                         API_LOG_ERROR("%sError setting online status: %s",
-                                      getLoggingName(),
+                                      lname.c_str(),
                                       err.what());
 
                         MegaChatErrorPrivate* megaChatError =
@@ -581,7 +582,10 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                                       title,
                                       megaSchedMeeting)
                     .then(
-                        [request, creatingSchedMeeting, this](
+                        [request,
+                         creatingSchedMeeting,
+                         this,
+                         lname = std::string{getLoggingName()}](
                             std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
                         {
                             if (creatingSchedMeeting)
@@ -599,7 +603,7 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                                     assert(false);
                                     API_LOG_ERROR("%sError creating scheduled meeting upon Meeting "
                                                   "room creation",
-                                                  getLoggingName());
+                                                  lname.c_str());
                                     fireOnChatRequestFinish(
                                         request,
                                         new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
@@ -613,10 +617,11 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                             fireOnChatRequestFinish(request, megaChatError);
                         })
                     .fail(
-                        [request, this](const ::promise::Error& err)
+                        [request, this, lname = std::string{getLoggingName()}](
+                            const ::promise::Error& err)
                         {
                             API_LOG_ERROR("%sError creating group chat: %s",
-                                          getLoggingName(),
+                                          lname.c_str(),
                                           err.what());
 
                             MegaChatErrorPrivate* megaChatError =
@@ -654,10 +659,11 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                             fireOnChatRequestFinish(request, megaChatError);
                         })
                     .fail(
-                        [request, this](const ::promise::Error& err)
+                        [request, this, lname = std::string{getLoggingName()}](
+                            const ::promise::Error& err)
                         {
                             API_LOG_ERROR("%sError creating 1on1 chat: %s",
-                                          getLoggingName(),
+                                          lname.c_str(),
                                           err.what());
 
                             MegaChatErrorPrivate* megaChatError =
@@ -1160,7 +1166,8 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
             auto wptr = mClient->weakHandle();
             mClient->openChatPreview(ph)
                 .then(
-                    [request, this, unifiedKey, ph, wptr](ReqResult result)
+                    [request, this, unifiedKey, ph, wptr, lname = std::string{getLoggingName()}](
+                        ReqResult result)
                     {
                         assert(result);
 
@@ -1171,7 +1178,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
 
                         mClient->decryptChatTitle(chatId, unifiedKey, encTitle, ph)
                             .then(
-                                [request, this, unifiedKey, result, chatId, wptr](
+                                [request, this, unifiedKey, result, chatId, wptr, lname](
                                     std::string decryptedTitle)
                                 {
                                     if (wptr.deleted())
@@ -1216,7 +1223,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                                 API_LOG_ERROR("%sNull scheduled meeting at "
                                                               "MegaScheduledMeetingList received "
                                                               "upon mcphurl",
-                                                              getLoggingName());
+                                                              lname.c_str());
                                                 assert(false);
                                                 continue;
                                             }
@@ -1244,7 +1251,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                             assert(!mClient->mChatdClient->chatFromId(chatId));
                                             API_LOG_ERROR("%sChatid (%s) already exists at "
                                                           "mChatForChatId but not at ChatRoomList",
-                                                          getLoggingName(),
+                                                          lname.c_str(),
                                                           karere::Id(chatId).toString().c_str());
                                             MegaChatErrorPrivate* megaChatError =
                                                 new MegaChatErrorPrivate(
@@ -1280,7 +1287,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                                 API_LOG_DEBUG(
                                                     "%sperformRequest_loadPreview: Chat (%s) has "
                                                     "changed",
-                                                    getLoggingName(),
+                                                    lname.c_str(),
                                                     karere::Id(chatId).toString().c_str());
                                                 mClient->chats->removeRoomPreview(chatId);
                                                 mClient->createPublicChatRoom(chatId,
@@ -1300,7 +1307,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                                     API_LOG_DEBUG(
                                                         "%sperformRequest_loadPreview: Cannot "
                                                         "re-create chat (%s) preview",
-                                                        getLoggingName(),
+                                                        lname.c_str(),
                                                         karere::Id(chatId).toString().c_str());
                                                     MegaChatErrorPrivate* megaChatError =
                                                         new MegaChatErrorPrivate(
@@ -1315,7 +1322,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                                 API_LOG_DEBUG(
                                                     "%sperformRequest_loadPreview: Re-enable chat "
                                                     "(%s) preview",
-                                                    getLoggingName(),
+                                                    lname.c_str(),
                                                     karere::Id(chatId).toString().c_str());
                                                 room->enablePreview(ph);
                                             }
@@ -1324,7 +1331,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                                 API_LOG_ERROR(
                                                     "%sperformRequest_loadPreview: Chat (%s) "
                                                     "already exists",
-                                                    getLoggingName(),
+                                                    lname.c_str(),
                                                     karere::Id(chatId).toString().c_str());
                                             }
 
@@ -1355,10 +1362,10 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                     }
                                 })
                             .fail(
-                                [request, this](const ::promise::Error& err)
+                                [request, this, lname](const ::promise::Error& err)
                                 {
                                     API_LOG_ERROR("%sError decrypting chat title: %s",
-                                                  getLoggingName(),
+                                                  lname.c_str(),
                                                   err.what());
 
                                     MegaChatErrorPrivate* megaChatError =
@@ -1367,11 +1374,10 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                                 });
                     })
                 .fail(
-                    [request, this](const ::promise::Error& err)
+                    [request, this, lname = std::string{getLoggingName()}](
+                        const ::promise::Error& err)
                     {
-                        API_LOG_ERROR("%sError loading chat link: %s",
-                                      getLoggingName(),
-                                      err.what());
+                        API_LOG_ERROR("%sError loading chat link: %s", lname.c_str(), err.what());
 
                         MegaChatErrorPrivate* megaChatError =
                             new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
