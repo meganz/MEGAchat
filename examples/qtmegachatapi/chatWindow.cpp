@@ -521,6 +521,11 @@ void ChatWindow::onMessageLoaded(megachat::MegaChatApi*, megachat::MegaChatMessa
                 mPendingLoad = 0;
                 mLogger->postLog("MegachatApi error - Load messages - source error");
             }
+            else if (source == megachat::MegaChatApi::SOURCE_INVALID_CHAT)
+            {
+                mPendingLoad = 0;
+                mLogger->postLog("MegachatApi error - Load messages - invalid chatid");
+            }
         }
     }
 }

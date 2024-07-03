@@ -2520,6 +2520,7 @@ TEST_F(MegaChatApiTest, SetOnlineStatus)
  * - Test2: Load history from one chatroom
  * - Test3: Close chatroom
  * - Test4: Load history from cache
+ * - Test5: Load history from invalid chatroom
  *
  */
 TEST_F(MegaChatApiTest, GetChatRoomsAndMessages)
@@ -2599,6 +2600,10 @@ TEST_F(MegaChatApiTest, GetChatRoomsAndMessages)
         ASSERT_TRUE(megaChatApi[accountIndex]->openChatRoom(chatid, chatroomListener)) << "Can't open chatRoom account " << (accountIndex+1);
         buffer << "Loading messages locally for chat " << chatroom->getTitle() << " (id: " << chatroom->getChatId() << ")" << endl;
         ASSERT_NO_FATAL_FAILURE(loadHistory(accountIndex, chatid, chatroomListener));
+
+        LOG_debug << "#### Test5: Load history from invalid chatroom ####";
+        int source = megaChatApi[accountIndex]->loadMessages(INVALID_HANDLE, 16);
+        ASSERT_EQ(source, MegaChatApi::SOURCE_INVALID_CHAT);
 
         // Close the chatroom
         megaChatApi[accountIndex]->closeChatRoom(chatid, chatroomListener);
@@ -9024,7 +9029,10 @@ int MegaChatApiTest::loadHistory(const unsigned int accountIndex, const MegaChat
         bool *flagHistoryLoaded = &chatroomListener->historyLoaded[accountIndex];
         *flagHistoryLoaded = false;
         int source = megaChatApi[accountIndex]->loadMessages(chatid, 16);
-        if (source == MegaChatApi::SOURCE_NONE || source == MegaChatApi::SOURCE_ERROR)
+        EXPECT_NE(source, MegaChatApi::SOURCE_INVALID_CHAT)
+            << "There is no chat with the given chatid";
+        if (source == MegaChatApi::SOURCE_NONE || source == MegaChatApi::SOURCE_ERROR ||
+            source == MegaChatApi::SOURCE_INVALID_CHAT)
         {
             break;  // no more history or cannot retrieve it
         }
