@@ -2591,7 +2591,7 @@ promise::Promise<void> SfuConnection::reconnect()
 
         // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        mRetryCtrl.reset(createRetryController("sfu", [this](size_t attemptNo, DeleteTrackable::Handle wptr) -> promise::Promise<void>
+        mRetryCtrl.reset(createRetryController("sfu", [this](size_t attemptId, DeleteTrackable::Handle wptr) -> promise::Promise<void>
         {
             if (wptr.deleted())
             {
@@ -2610,7 +2610,7 @@ promise::Promise<void> SfuConnection::reconnect()
 
             auto retryCtrl = mRetryCtrl.get();
             int statusDNS = wsResolveDNS(&mWebsocketIO, mSfuUrl.host.c_str(),
-                         [wptr, cachedIpsByHost, this, retryCtrl, attemptNo, ipv4, ipv6](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+                         [wptr, cachedIpsByHost, this, retryCtrl, attemptId, ipv4, ipv6](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
             {
                 if (wptr.deleted())
                 {
@@ -2636,10 +2636,10 @@ promise::Promise<void> SfuConnection::reconnect()
                     SFU_LOG_DEBUG("DNS resolution completed but ignored: a newer retry has already started");
                     return;
                 }
-                if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                if (mRetryCtrl->currentAttemptId() != attemptId)
                 {
                     SFU_LOG_DEBUG("DNS resolution completed but ignored: a newer attempt is already started (old: %lu, new: %lu)",
-                                     attemptNo, mRetryCtrl->currentAttemptNo());
+                                     attemptId, mRetryCtrl->currentAttemptId());
                     return;
                 }
 

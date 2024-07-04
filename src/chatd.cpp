@@ -911,7 +911,7 @@ Promise<void> Connection::reconnect()
         mRetryCtrl.reset(createRetryController(
             "chatd] [shard " + std::to_string(mShardNo),
             [this, lname = std::string{mChatdClient.getLoggingName()}](
-                size_t attemptNo,
+                size_t attemptId,
                 DeleteTrackable::Handle wptr) -> Promise<void>
             {
                 if (wptr.deleted())
@@ -947,7 +947,7 @@ Promise<void> Connection::reconnect()
                 int statusDNS = wsResolveDNS(
                     mChatdClient.mKarereClient->websocketIO,
                     host.c_str(),
-                    [wptr, cachedIPs, this, retryCtrl, attemptNo, lname](
+                    [wptr, cachedIPs, this, retryCtrl, attemptId, lname](
                         int statusDNS,
                         const std::vector<std::string>& ipsv4,
                         const std::vector<std::string>& ipsv6)
@@ -993,14 +993,14 @@ Promise<void> Connection::reconnect()
                                              lname.c_str());
                             return;
                         }
-                        if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                        if (mRetryCtrl->currentAttemptId() != attemptId)
                         {
                             CHATDS_LOG_DEBUG(
                                 "%sDNS resolution completed but ignored: a newer attempt is "
                                 "already started (old: %lu, new: %lu)",
                                 lname.c_str(),
-                                attemptNo,
-                                mRetryCtrl->currentAttemptNo());
+                                attemptId,
+                                mRetryCtrl->currentAttemptId());
                             return;
                         }
 

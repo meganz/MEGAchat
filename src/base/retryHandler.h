@@ -50,6 +50,7 @@ class IRetryController
 protected:
     State mState = kStateNotStarted;
     size_t mCurrentAttemptNo = 0;
+    size_t mCurrentAttemptId = 0; //used to detect callbacks from stale attempts. Never reset (unlike mCurrentAttemptNo)
     bool mAutoDestruct = false; //used when we use this object on the heap
     std::string mName;
 public:
@@ -60,6 +61,7 @@ public:
     virtual bool abort() = 0;
     virtual void reset() = 0;
     size_t currentAttemptNo() const { return mCurrentAttemptNo; }
+    size_t currentAttemptId() const { return mCurrentAttemptId; }
 /** Tells the retry handler to delete itself after it has resolved the outupt promise.
  * This is convenient in a fire-and-forget scenario. Typically the user keeps
  * a copy of the output promise, obtained via getPromise(), which keeps the promise
@@ -113,7 +115,6 @@ protected:
     enum { kBitness = sizeof(unsigned)*8-10 }; //maximum exponent of mInitialWaitTime that fits into an unsigned
     Func mFunc;
     CancelFunc mCancelFunc;
-    size_t mCurrentAttemptId = 0; //used to detect callbacks from stale attempts. Never reset (unlike mCurrentAttemptNo)
     size_t mMaxAttemptCount;
     unsigned mAttemptTimeout = 0;
     unsigned mMaxAttemptTimeout = 0;
@@ -368,8 +369,8 @@ protected:
         }
         mState = kStateInProgress;
 
-        RETRY_LOG("Starting attempt %zu...", mCurrentAttemptNo);
-        auto pms = mFunc(mCurrentAttemptNo, wptr);
+        RETRY_LOG("Starting attempt %zu - id (%zu)...", mCurrentAttemptNo, mCurrentAttemptId);
+        auto pms = mFunc(mCurrentAttemptId, wptr);
         attachThenHandler(pms, static_cast<unsigned int>(attempt));
         pms.fail([this, attempt](const ::promise::Error& err)
         {
