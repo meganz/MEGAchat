@@ -1422,13 +1422,13 @@ void Call::sendStats(const TermCode& termCode)
     {
         mMegaApi.call(&::mega::MegaApi::sendChatStats, statsJson.c_str(), 0)
             .then(
-                [lname = getLoggingName()](ReqResult result)
+                [lname = std::string{getLoggingName()}](ReqResult result)
                 {
                     if (result->getNumber() != Stats::httpErrOk)
                     {
                         RTCM_LOG_WARNING(
                             "%sReceived error %d from SFU stats server, for this stats JSON: %s",
-                            lname,
+                            lname.c_str(),
                             result->getNumber(),
                             result->getName());
                         assert(false);
@@ -1552,11 +1552,11 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
                }
            })
         .fail(
-            [cid, lname = getLoggingName()](const ::promise::Error&)
+            [cid, lname = std::string{getLoggingName()}](const ::promise::Error&)
             {
                 RTCM_LOG_WARNING(
                     "%shandleAvCommand: PeerVerification promise was rejected for cid: %u",
-                    lname,
+                    lname.c_str(),
                     cid);
                 return;
             });
@@ -1646,18 +1646,20 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
     auto onKeyVerified = [max = peers.size(),
                           keysVerified,
                           keyDerivationPms,
-                          lname = getLoggingName()](const bool verified) -> void
+                          lname = std::string{getLoggingName()}](const bool verified) -> void
     {
         if (keyDerivationPms->done())
         {
-            RTCM_LOG_WARNING("%shandleAnswerCommand: keyDerivationPms already resolved", lname);
+            RTCM_LOG_WARNING("%shandleAnswerCommand: keyDerivationPms already resolved",
+                             lname.c_str());
             assert(keyDerivationPms->succeeded());
             return;
         }
 
         if (!keysVerified)
         {
-            RTCM_LOG_WARNING("%shandleAnswerCommand: invalid keysVerified at onKeyVerified", lname);
+            RTCM_LOG_WARNING("%shandleAnswerCommand: invalid keysVerified at onKeyVerified",
+                             lname.c_str());
             assert(false);
             return;
         }
@@ -1665,7 +1667,7 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         if (!keyDerivationPms)
         {
             RTCM_LOG_WARNING("%shandleAnswerCommand: invalid keyDerivationPms at onKeyVerified",
-                             lname);
+                             lname.c_str());
             assert(false);
             return;
         }
@@ -1797,11 +1799,12 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                             addPeerWithEphemKey(*auxPeer, derived, out);
                         })
                     .fail(
-                        [this, auxPeer, addPeerWithEphemKey](const ::promise::Error&)
+                        [this, auxPeer, addPeerWithEphemKey, lname = std::string{getLoggingName()}](
+                            const ::promise::Error&)
                         {
                             RTCM_LOG_ERROR("%sError verifying ephemeral key signature for for "
                                            "user: %s, cid: %u",
-                                           getLoggingName(),
+                                           lname.c_str(),
                                            auxPeer->getPeerid().toString().c_str(),
                                            auxPeer->getCid());
                             addPeerWithEphemKey(*auxPeer, false, std::string());
@@ -2104,11 +2107,11 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
                }
            })
         .fail(
-            [cid, lname = getLoggingName()](const ::promise::Error&)
+            [cid, lname = std::string{getLoggingName()}](const ::promise::Error&)
             {
                 RTCM_LOG_WARNING(
                     "%shandleKeyCommand: PeerVerification promise was rejected for cid: %u",
-                    lname,
+                    lname.c_str(),
                     cid);
                 return;
             });
@@ -2347,12 +2350,18 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
         auto parsedkey = splitPubKey(keyStr);
         verifySignature(cid, userid, parsedkey.first, parsedkey.second)
             .then(
-                [userid, parsedkey, peer, ephkeypair, addPeerWithEphemKey, this](bool verified)
+                [userid,
+                 parsedkey,
+                 peer,
+                 ephkeypair,
+                 addPeerWithEphemKey,
+                 this,
+                 lname = std::string{getLoggingName()}](bool verified)
                 {
                     if (!verified)
                     {
                         RTCM_LOG_WARNING("%sCan't verify signature for user: %s",
-                                         getLoggingName(),
+                                         lname.c_str(),
                                          karere::Id(userid).toString().c_str());
                         assert(false);
                         addPeerWithEphemKey(*peer, std::string());
@@ -2372,7 +2381,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                     if (!derived)
                     {
                         RTCM_LOG_WARNING("%sCan't derive ephemeral key for peer Cid: %u PeerId: %s",
-                                         getLoggingName(),
+                                         lname.c_str(),
                                          peer->getCid(),
                                          peer->getPeerid().toString().c_str());
 
@@ -2381,10 +2390,11 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                     addPeerWithEphemKey(*peer, out);
                 })
             .fail(
-                [this, userid, peer, addPeerWithEphemKey](const ::promise::Error&)
+                [this, userid, peer, addPeerWithEphemKey, lname = std::string{getLoggingName()}](
+                    const ::promise::Error&)
                 {
                     RTCM_LOG_ERROR("%sCan't retrieve public ED25519 attr for user %s",
-                                   getLoggingName(),
+                                   lname.c_str(),
                                    karere::Id(userid).toString().c_str());
                     addPeerWithEphemKey(*peer, std::string());
                 });
@@ -3387,11 +3397,11 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
                    session->setModerator(enable);
                })
             .fail(
-                [&cid = it.first, lname = getLoggingName()](const ::promise::Error&)
+                [&cid = it.first, lname = std::string{getLoggingName()}](const ::promise::Error&)
                 {
                     RTCM_LOG_WARNING("%supdateUserModeratorStatus: PeerVerification promise was "
                                      "rejected for cid: %u",
-                                     lname,
+                                     lname.c_str(),
                                      cid);
                     return;
                 });
@@ -3657,7 +3667,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                    attachSlotToSession(*sess, slot, false, videoResolution);
                })
             .fail(
-                [cid, slot, wptr, lname = getLoggingName()](const ::promise::Error&)
+                [cid, slot, wptr, lname = std::string{getLoggingName()}](const ::promise::Error&)
                 {
                     if (wptr.deleted())
                     {
@@ -3669,7 +3679,7 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                     }
                     RTCM_LOG_WARNING(
                         "%shandleAvCommand: PeerVerification promise was rejected for cid: %u",
-                        lname,
+                        lname.c_str(),
                         cid);
                     return;
                 });
@@ -3769,7 +3779,7 @@ void Call::addSpeaker(const Cid_t cid, const uint32_t amid)
                 attachSlotToSession(*sess, slot, true, kUndefined);
             })
         .fail(
-            [cid, slot, wptr, lname = getLoggingName()](const ::promise::Error&)
+            [cid, slot, wptr, lname = std::string{getLoggingName()}](const ::promise::Error&)
             {
                 if (wptr.deleted())
                 {
@@ -3781,7 +3791,7 @@ void Call::addSpeaker(const Cid_t cid, const uint32_t amid)
                 }
                 RTCM_LOG_WARNING(
                     "%shandleKeyCommand: PeerVerification promise was rejected for cid: %u",
-                    lname,
+                    lname.c_str(),
                     cid);
                 return;
             });

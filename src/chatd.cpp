@@ -484,10 +484,10 @@ void Chat::connect()
     {
         // attempt a connection ONLY if this is a new shard.
         mConnection.connect().fail(
-            [this, lname = mChatdClient.getLoggingName()](const ::promise::Error& err)
+            [this, lname = std::string{mChatdClient.getLoggingName()}](const ::promise::Error& err)
             {
                 CHATID_LOG_ERROR("%sChat::connect(): Error connecting to server: %s",
-                                 lname,
+                                 lname.c_str(),
                                  err.what());
             });
     }
@@ -593,29 +593,34 @@ void Connection::wsCloseCb(int errcode, int errtype, const char *preason, size_t
     mFetchingUrl = true;
     auto wptr = getDelTracker();
     mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
-    .then([wptr, this](ReqResult result)
-    {
-        if (wptr.deleted())
-        {
-            CHATDS_LOG_ERROR("%sChatd URL request completed, but chatd connection was deleted",
-                             mChatdClient.getLoggingName());
-            return;
-        }
+        .then(
+            [wptr, this, lname = std::string{mChatdClient.getLoggingName()}](ReqResult result)
+            {
+                if (wptr.deleted())
+                {
+                    CHATDS_LOG_ERROR(
+                        "%sChatd URL request completed, but chatd connection was deleted",
+                        lname.c_str());
+                    return;
+                }
 
-        mFetchingUrl = false;
-        const char *url = result->getLink();
-        if (url && url[0] && (karere::Url(url)).host != mDnsCache.getUrl(mShardNo).host) // hosts do not match
-        {
-            // reset mConnSuceeded, to avoid a further succeeded connection attempt, can trigger another URL re-fetch
-            resetConnSuceededAttempts(time(nullptr));
+                mFetchingUrl = false;
+                const char* url = result->getLink();
+                if (url && url[0] &&
+                    (karere::Url(url)).host !=
+                        mDnsCache.getUrl(mShardNo).host) // hosts do not match
+                {
+                    // reset mConnSuceeded, to avoid a further succeeded connection attempt, can
+                    // trigger another URL re-fetch
+                    resetConnSuceededAttempts(time(nullptr));
 
-            // Update DNSCache record with new URL
-            CHATDS_LOG_DEBUG("%sUpdate URL in cache, and start a new retry attempt",
-                             mChatdClient.getLoggingName());
-            mDnsCache.updateRecord(mShardNo, url, true);
-            retryPendingConnection(true);
-        }
-    });
+                    // Update DNSCache record with new URL
+                    CHATDS_LOG_DEBUG("%sUpdate URL in cache, and start a new retry attempt",
+                                     mChatdClient.getLoggingName());
+                    mDnsCache.updateRecord(mShardNo, url, true);
+                    retryPendingConnection(true);
+                }
+            });
 
     onSocketClose(errcode, errtype, reason);
 }
@@ -903,198 +908,230 @@ Promise<void> Connection::reconnect()
 
         // create a new retry controller and return its promise for reconnection
         auto wptr = weakHandle();
-        mRetryCtrl.reset(createRetryController("chatd] [shard "+std::to_string(mShardNo), [this](size_t attemptNo, DeleteTrackable::Handle wptr) -> Promise<void>
-        {
-            if (wptr.deleted())
-            {
-                CHATDS_LOG_DEBUG("%sReconnect attempt initiated, but chatd client was deleted.",
-                                 mChatdClient.getLoggingName());
-                return ::promise::_Void();
-            }
-
-            setState(kStateDisconnected);
-            mConnectPromise = Promise<void>();
-
-            const std::string &host = mDnsCache.getUrl(mShardNo).host;
-
-            string ipv4, ipv6;
-            bool cachedIPs = mDnsCache.getIp(mShardNo, ipv4, ipv6);
-
-            setState(kStateResolving);
-            CHATDS_LOG_DEBUG("%sResolving hostname %s...",
-                             mChatdClient.getLoggingName(),
-                             host.c_str());
-
-            for (auto& chatid: mChatIds)
-            {
-                auto& chat = mChatdClient.chats(chatid);
-                if (!chat.isDisabled())
-                    chat.setOnlineState(kChatStateConnecting);
-            }
-
-            //GET start ts for QueryDns
-            mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
-
-            auto retryCtrl = mRetryCtrl.get();
-            int statusDNS = wsResolveDNS(mChatdClient.mKarereClient->websocketIO, host.c_str(),
-                         [wptr, cachedIPs, this, retryCtrl, attemptNo](int statusDNS, const std::vector<std::string> &ipsv4, const std::vector<std::string> &ipsv6)
+        mRetryCtrl.reset(createRetryController(
+            "chatd] [shard " + std::to_string(mShardNo),
+            [this, lname = std::string{mChatdClient.getLoggingName()}](
+                size_t attemptNo,
+                DeleteTrackable::Handle wptr) -> Promise<void>
             {
                 if (wptr.deleted())
                 {
-                    CHATDS_LOG_DEBUG(
-                        "%sDNS resolution completed but ignored: chatd client was deleted.",
-                        mChatdClient.getLoggingName());
-                    return;
+                    CHATDS_LOG_DEBUG("%sReconnect attempt initiated, but chatd client was deleted.",
+                                     lname.c_str());
+                    return ::promise::_Void();
                 }
 
-                if (mChatdClient.mKarereClient->isTerminated())
+                setState(kStateDisconnected);
+                mConnectPromise = Promise<void>();
+
+                const std::string& host = mDnsCache.getUrl(mShardNo).host;
+
+                string ipv4, ipv6;
+                bool cachedIPs = mDnsCache.getIp(mShardNo, ipv4, ipv6);
+
+                setState(kStateResolving);
+                CHATDS_LOG_DEBUG("%sResolving hostname %s...", lname.c_str(), host.c_str());
+
+                for (auto& chatid: mChatIds)
                 {
-                    CHATDS_LOG_DEBUG("%sDNS resolution completed but karere client was terminated.",
-                                     mChatdClient.getLoggingName());
-                    return;
+                    auto& chat = mChatdClient.chats(chatid);
+                    if (!chat.isDisabled())
+                        chat.setOnlineState(kChatStateConnecting);
                 }
 
-                if (!mRetryCtrl)
+                // GET start ts for QueryDns
+                mChatdClient.mKarereClient->initStats().shardStart(InitStats::kStatsQueryDns,
+                                                                   static_cast<uint8_t>(shardNo()));
+
+                auto retryCtrl = mRetryCtrl.get();
+                int statusDNS = wsResolveDNS(
+                    mChatdClient.mKarereClient->websocketIO,
+                    host.c_str(),
+                    [wptr, cachedIPs, this, retryCtrl, attemptNo, lname](
+                        int statusDNS,
+                        const std::vector<std::string>& ipsv4,
+                        const std::vector<std::string>& ipsv6)
+                    {
+                        if (wptr.deleted())
+                        {
+                            CHATDS_LOG_DEBUG(
+                                "%sDNS resolution completed but ignored: chatd client was deleted.",
+                                lname.c_str());
+                            return;
+                        }
+
+                        if (mChatdClient.mKarereClient->isTerminated())
+                        {
+                            CHATDS_LOG_DEBUG(
+                                "%sDNS resolution completed but karere client was terminated.",
+                                lname.c_str());
+                            return;
+                        }
+
+                        if (!mRetryCtrl)
+                        {
+                            if (isOnline())
+                            {
+                                CHATDS_LOG_DEBUG(
+                                    "%sDNS resolution completed but ignored: connection is "
+                                    "already established using cached IP",
+                                    lname.c_str());
+                                assert(cachedIPs);
+                            }
+                            else
+                            {
+                                CHATDS_LOG_DEBUG("%sDNS resolution completed but ignored: "
+                                                 "connection was aborted",
+                                                 lname.c_str());
+                            }
+                            return;
+                        }
+                        if (mRetryCtrl.get() != retryCtrl)
+                        {
+                            CHATDS_LOG_DEBUG("%sDNS resolution completed but ignored: a newer "
+                                             "RetryController has already started",
+                                             lname.c_str());
+                            return;
+                        }
+                        if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                        {
+                            CHATDS_LOG_DEBUG(
+                                "%sDNS resolution completed but ignored: a newer attempt is "
+                                "already started (old: %lu, new: %lu)",
+                                lname.c_str(),
+                                attemptNo,
+                                mRetryCtrl->currentAttemptNo());
+                            return;
+                        }
+
+                        if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
+                        {
+                            if (isOnline() && cachedIPs)
+                            {
+                                assert(false); // this case should be handled already at: if
+                                               // (!mRetryCtrl)
+                                CHATDS_LOG_WARNING("%sDNS error, but connection is established. "
+                                                   "Relaying on cached IPs...",
+                                                   lname.c_str());
+                                return;
+                            }
+
+                            if (statusDNS < 0)
+                            {
+                                CHATDS_LOG_ERROR(
+                                    "%sAsync DNS error in chatd for shard %d. Error code: %d",
+                                    lname.c_str(),
+                                    mShardNo,
+                                    statusDNS);
+                            }
+                            else
+                            {
+                                CHATDS_LOG_ERROR("%sAsync DNS error in chatd. Empty set of IPs",
+                                                 lname.c_str());
+                            }
+
+                            mChatdClient.mKarereClient->initStats().incrementRetries(
+                                InitStats::kStatsQueryDns,
+                                static_cast<uint8_t>(shardNo()));
+                            assert(!isOnline());
+
+                            if (statusDNS ==
+                                wsGetNoNameErrorCode(mChatdClient.mKarereClient->websocketIO))
+                            {
+                                retryPendingConnection(true, true);
+                            }
+                            else if (mState == kStateResolving)
+                            {
+                                onSocketClose(0, 0, "Async DNS error (chatd)");
+                            }
+                            // else in case kStateConnecting let the connection attempt progress
+                            return;
+                        }
+
+                        if (!cachedIPs) // connect() required initial DNS lookup
+                        {
+                            CHATDS_LOG_DEBUG("%sHostname resolved by first time. Connecting...",
+                                             lname.c_str());
+
+                            // GET end ts for QueryDns
+                            mChatdClient.mKarereClient->initStats().shardEnd(
+                                InitStats::kStatsQueryDns,
+                                static_cast<uint8_t>(shardNo()));
+                            mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
+                            doConnect();
+                            return;
+                        }
+
+                        if (mDnsCache.isMatch(mShardNo, ipsv4, ipsv6))
+                        {
+                            CHATDS_LOG_DEBUG("%sDNS resolve matches cached IPs.", lname.c_str());
+                        }
+                        else
+                        {
+                            // GET end ts for QueryDns
+                            mChatdClient.mKarereClient->initStats().shardEnd(
+                                InitStats::kStatsQueryDns,
+                                static_cast<uint8_t>(shardNo()));
+
+                            // update DNS cache
+                            mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
+                            CHATDS_LOG_WARNING(
+                                "%sDNS resolve doesn't match cached IPs. Forcing reconnect...",
+                                lname.c_str());
+                            retryPendingConnection(true);
+                        }
+                    });
+
+                // immediate error at wsResolveDNS()
+                if (statusDNS < 0)
                 {
-                    if (isOnline())
-                    {
-                        CHATDS_LOG_DEBUG("%sDNS resolution completed but ignored: connection is "
-                                         "already established using cached IP",
-                                         mChatdClient.getLoggingName());
-                        assert(cachedIPs);
-                    }
-                    else
-                    {
-                        CHATDS_LOG_DEBUG(
-                            "%sDNS resolution completed but ignored: connection was aborted",
-                            mChatdClient.getLoggingName());
-                    }
-                    return;
+                    string errStr = "Inmediate DNS error in chatd for shard " +
+                                    std::to_string(mShardNo) +
+                                    ". Error code: " + std::to_string(statusDNS);
+                    CHATDS_LOG_ERROR("%s%s", lname.c_str(), errStr.c_str());
+
+                    mChatdClient.mKarereClient->initStats().incrementRetries(
+                        InitStats::kStatsQueryDns,
+                        static_cast<uint8_t>(shardNo()));
+
+                    assert(!mConnectPromise.done());
+                    mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
                 }
-                if (mRetryCtrl.get() != retryCtrl)
+                else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
+                // no network connection, so it's futile to attempt to connect
                 {
-                    CHATDS_LOG_DEBUG("%sDNS resolution completed but ignored: a newer "
-                                     "RetryController has already started",
-                                     mChatdClient.getLoggingName());
-                    return;
-                }
-                if (mRetryCtrl->currentAttemptNo() != attemptNo)
-                {
-                    CHATDS_LOG_DEBUG("%sDNS resolution completed but ignored: a newer attempt is "
-                                     "already started (old: %lu, new: %lu)",
-                                     mChatdClient.getLoggingName(),
-                                     attemptNo,
-                                     mRetryCtrl->currentAttemptNo());
-                    return;
-                }
-
-                if (statusDNS < 0 || (ipsv4.empty() && ipsv6.empty()))
-                {
-                    if (isOnline() && cachedIPs)
-                    {
-                        assert(false);  // this case should be handled already at: if (!mRetryCtrl)
-                        CHATDS_LOG_WARNING(
-                            "%sDNS error, but connection is established. Relaying on cached IPs...",
-                            mChatdClient.getLoggingName());
-                        return;
-                    }
-
-                    if (statusDNS < 0)
-                    {
-                        CHATDS_LOG_ERROR("%sAsync DNS error in chatd for shard %d. Error code: %d",
-                                         mChatdClient.getLoggingName(),
-                                         mShardNo,
-                                         statusDNS);
-                    }
-                    else
-                    {
-                        CHATDS_LOG_ERROR("%sAsync DNS error in chatd. Empty set of IPs",
-                                         mChatdClient.getLoggingName());
-                    }
-
-                    mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
-                    assert(!isOnline());
-
-                    if (statusDNS == wsGetNoNameErrorCode(mChatdClient.mKarereClient->websocketIO))
-                    {
-                         retryPendingConnection(true, true);
-                    }
-                    else if (mState == kStateResolving)
-                    {
-                        onSocketClose(0, 0, "Async DNS error (chatd)");
-                    }
-                    // else in case kStateConnecting let the connection attempt progress
-                    return;
-                }
-
-                if (!cachedIPs) // connect() required initial DNS lookup
-                {
-                    CHATDS_LOG_DEBUG("%sHostname resolved by first time. Connecting...",
-                                     mChatdClient.getLoggingName());
-
-                    //GET end ts for QueryDns
-                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
-                    mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
                     doConnect();
-                    return;
                 }
 
-                if (mDnsCache.isMatch(mShardNo, ipsv4, ipsv6))
-                {
-                    CHATDS_LOG_DEBUG("%sDNS resolve matches cached IPs.",
-                                     mChatdClient.getLoggingName());
-                }
-                else
-                {
-                    //GET end ts for QueryDns
-                    mChatdClient.mKarereClient->initStats().shardEnd(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
+                return mConnectPromise.then(
+                    [wptr, this]()
+                    {
+                        if (wptr.deleted())
+                            return;
 
-                    // update DNS cache
-                    mDnsCache.setIp(mShardNo, ipsv4, ipsv6);
-                    CHATDS_LOG_WARNING(
-                        "%sDNS resolve doesn't match cached IPs. Forcing reconnect...",
-                        mChatdClient.getLoggingName());
-                    retryPendingConnection(true);
-                }
-            });
-
-            // immediate error at wsResolveDNS()
-            if (statusDNS < 0)
-            {
-                string errStr = "Inmediate DNS error in chatd for shard " + std::to_string(mShardNo) + ". Error code: " + std::to_string(statusDNS);
-                CHATDS_LOG_ERROR("%s%s", mChatdClient.getLoggingName(), errStr.c_str());
-
-                mChatdClient.mKarereClient->initStats().incrementRetries(InitStats::kStatsQueryDns, static_cast<uint8_t>(shardNo()));
-
-                assert(!mConnectPromise.done());
-                mConnectPromise.reject(errStr, statusDNS, kErrorTypeGeneric);
-            }
-            else if (cachedIPs) // if wsResolveDNS() failed immediately, very likely there's
-            // no network connection, so it's futile to attempt to connect
-            {
-                doConnect();
-            }
-
-            return mConnectPromise
-            .then([wptr, this]()
-            {
-                if (wptr.deleted())
-                    return;
-
-                assert(isOnline());
-                sendCommand(Command(OP_CLIENTID)+mChatdClient.mKarereClient->myIdentity());
-                mTsLastRecv = time(NULL);   // data has been received right now, since connection is established
-                mHeartbeatEnabled = true;
-                sendKeepalive();
-                rejoinExistingChats();
-            });
-        }, wptr, mChatdClient.mKarereClient->appCtx
-                         , nullptr                              // cancel function
-                         , KARERE_RECONNECT_ATTEMPT_TIMEOUT     // initial attempt timeout (increases exponentially)
-                         , KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT // maximum attempt timeout
-                         , 0                                    // max number of attempts
-                         , KARERE_RECONNECT_DELAY_MAX           // max single wait between attempts
-                         , 0));                                 // initial single wait between attempts  (increases exponentially)
+                        assert(isOnline());
+                        sendCommand(Command(OP_CLIENTID) +
+                                    mChatdClient.mKarereClient->myIdentity());
+                        mTsLastRecv = time(NULL); // data has been received right now, since
+                                                  // connection is established
+                        mHeartbeatEnabled = true;
+                        sendKeepalive();
+                        rejoinExistingChats();
+                    });
+            },
+            wptr,
+            mChatdClient.mKarereClient->appCtx,
+            nullptr // cancel function
+            ,
+            KARERE_RECONNECT_ATTEMPT_TIMEOUT // initial attempt timeout (increases exponentially)
+            ,
+            KARERE_RECONNECT_MAX_ATTEMPT_TIMEOUT // maximum attempt timeout
+            ,
+            0 // max number of attempts
+            ,
+            KARERE_RECONNECT_DELAY_MAX // max single wait between attempts
+            ,
+            0)); // initial single wait between attempts  (increases exponentially)
 
         return static_cast<Promise<void>&>(mRetryCtrl->start());
     }
@@ -1221,20 +1258,21 @@ void Connection::retryPendingConnection(bool disconnect, bool refreshURL)
         mDnsCache.removeRecord(mShardNo);
 
         auto wptr = getDelTracker();
-        fetchUrl()
-        .then([this, wptr]
-        {
-            if (wptr.deleted())
+        fetchUrl().then(
+            [this, wptr, lname = std::string{mChatdClient.getLoggingName()}]
             {
-                CHATDS_LOG_ERROR("%sChatd URL request completed, but Connection was deleted",
-                                 mChatdClient.getLoggingName());
-                return;
-            }
+                if (wptr.deleted())
+                {
+                    CHATDS_LOG_ERROR("%sChatd URL request completed, but Connection was deleted",
+                                     lname.c_str());
+                    return;
+                }
 
-            // reset mConnSuceeded, to avoid a further succeeded connection attempt, can trigger another URL re-fetch
-            resetConnSuceededAttempts(time(nullptr));
-            retryPendingConnection(true);
-        });
+                // reset mConnSuceeded, to avoid a further succeeded connection attempt, can trigger
+                // another URL re-fetch
+                resetConnSuceededAttempts(time(nullptr));
+                retryPendingConnection(true);
+            });
     }
     else if (disconnect)
     {
@@ -1294,14 +1332,14 @@ int Connection::shardNo() const
 promise::Promise<void> Connection::connect()
 {
     return fetchUrl().then(
-        [this]
+        [this, lname = std::string{mChatdClient.getLoggingName()}]
         {
             return reconnect().fail(
-                [this, lname = mChatdClient.getLoggingName()](const ::promise::Error& err)
+                [this, lname = std::move(lname)](const ::promise::Error& err)
                 {
                     CHATDS_LOG_ERROR(
                         "%sChat::connect(): Error connecting to server after getting URL: %s",
-                        lname,
+                        lname.c_str(),
                         err.what());
                 });
         });
@@ -1319,33 +1357,35 @@ promise::Promise<void> Connection::fetchUrl()
     setState(kStateFetchingUrl);
     auto wptr = getDelTracker();
     return mChatdClient.mApi->call(&::mega::MegaApi::getUrlChat, *mChatIds.begin())
-    .then([wptr, this, lname = mChatdClient.getLoggingName()](ReqResult result)
-    {
-        if (wptr.deleted())
-        {
-            CHATD_LOG_DEBUG("%sChatd URL request completed, but chatd connection was deleted",
-                            lname);
-            return;
-        }
+        .then(
+            [wptr, this, lname = std::string{mChatdClient.getLoggingName()}](ReqResult result)
+            {
+                if (wptr.deleted())
+                {
+                    CHATD_LOG_DEBUG(
+                        "%sChatd URL request completed, but chatd connection was deleted",
+                        lname.c_str());
+                    return;
+                }
 
-        if (!result->getLink())
-        {
-            CHATD_LOG_ERROR("%s[shard %d]: %s: No chatd URL received from API",
-                            lname,
-                            mShardNo,
-                            ID_CSTR(karere::Id(*mChatIds.begin())));
-            return;
-        }
+                if (!result->getLink())
+                {
+                    CHATD_LOG_ERROR("%s[shard %d]: %s: No chatd URL received from API",
+                                    lname.c_str(),
+                                    mShardNo,
+                                    ID_CSTR(karere::Id(*mChatIds.begin())));
+                    return;
+                }
 
-        const char *url = result->getLink();
-        if (!url || !url[0])
-        {
-            return;
-        }
+                const char* url = result->getLink();
+                if (!url || !url[0])
+                {
+                    return;
+                }
 
-        // Add record to db to store new URL
-        mDnsCache.addRecord(mShardNo, url);
-    });
+                // Add record to db to store new URL
+                mDnsCache.addRecord(mShardNo, url);
+            });
 }
 
 void Client::disconnect()
@@ -1382,15 +1422,15 @@ bool Connection::sendBuf(Buffer&& buf)
     {
         mSendPromise = Promise<void>();
         auto wptr = weakHandle();
-        mSendPromise.fail([this, wptr, lname = mChatdClient.getLoggingName()](const promise::Error& err)
-        {
-            if (wptr.deleted())
-                return;
+        mSendPromise.fail(
+            [this, wptr, lname = std::string{mChatdClient.getLoggingName()}](
+                const promise::Error& err)
+            {
+                if (wptr.deleted())
+                    return;
 
-            CHATDS_LOG_ERROR("%sFailed to send data. Error: %s",
-                             lname,
-                             err.what());
-        });
+                CHATDS_LOG_ERROR("%sFailed to send data. Error: %s", lname.c_str(), err.what());
+            });
     }
 
     bool rc = wsSendMessage(buf.buf(), buf.dataSize());
@@ -2064,10 +2104,10 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     {
         // disable the chat if decryption of unified key fails
         mCrypto->getUnifiedKey().fail(
-            [this](const ::promise::Error& err)
+            [this, lname = std::string{mChatdClient.getLoggingName()}](const ::promise::Error& err)
             {
                 CHATID_LOG_ERROR("%sUnified key not available, disabling chatroom. Error: %s",
-                                 mChatdClient.getLoggingName(),
+                                 lname.c_str(),
                                  err.what());
                 disable(true);
                 return err;
@@ -2826,11 +2866,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                                                                                        users);
                                })
                             .fail(
-                                [this, chatid, callid](const ::promise::Error& err)
+                                [this,
+                                 chatid,
+                                 callid,
+                                 lname = std::string{mChatdClient.getLoggingName()}](
+                                    const ::promise::Error& err)
                                 {
                                     CHATDS_LOG_ERROR(
                                         "%sFailed to decrypt unified key %s. Chatid: %s callid: %s",
-                                        mChatdClient.getLoggingName(),
+                                        lname.c_str(),
                                         err.msg().c_str(),
                                         ID_CSTR(chatid),
                                         ID_CSTR(callid));
@@ -2921,12 +2965,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                                    }
                                })
                             .fail(
-                                [this, chatid, callid, lname = mChatdClient.getLoggingName()](
+                                [this,
+                                 chatid,
+                                 callid,
+                                 lname = std::string{mChatdClient.getLoggingName()}](
                                     const ::promise::Error& err)
                                 {
                                     CHATDS_LOG_ERROR(
                                         "%sFailed to decrypt unified key %s. Chatid: %s callid: %s",
-                                        lname,
+                                        lname.c_str(),
                                         err.msg().c_str(),
                                         ID_CSTR(chatid),
                                         ID_CSTR(callid));
@@ -3585,111 +3632,125 @@ void Chat::requestRichLink(Message &message)
         auto wptr = weakHandle();
         const karere::Id& msgId = message.id();
         uint16_t updated = message.updated;
-        client().mKarereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
-        .then([wptr, this, msgId, updated](ReqResult result)
-        {
-            if (wptr.deleted())
-                return;
-
-            const char *requestText = result->getText();
-            if (!requestText || (strlen(requestText) == 0))
-            {
-                CHATID_LOG_ERROR("%srequestRichLink: API request succeed, but returned an empty "
-                                 "metadata for: %s",
-                                 mChatdClient.getLoggingName(),
-                                 result->getLink());
-                return;
-            }
-
-            Idx messageIdx = msgIndexFromId(msgId);
-            Message *msg = (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
-            if (msg && updated == msg->updated)
-            {
-                std::string text = requestText;
-                std::string originalMessage = msg->toText();
-                std::string textMessage;
-                textMessage.reserve(originalMessage.size());
-                for (std::string::size_type i = 0; i < originalMessage.size(); i++)
+        client()
+            .mKarereClient->api.call(&::mega::MegaApi::requestRichPreview, linkRequest.c_str())
+            .then(
+                [wptr, this, msgId, updated](ReqResult result)
                 {
-                    unsigned char character = originalMessage[i];
-                    switch (character)
+                    if (wptr.deleted())
+                        return;
+
+                    const char* requestText = result->getText();
+                    if (!requestText || (strlen(requestText) == 0))
                     {
-                        case '\n':
-                            textMessage.push_back('\\');
-                            textMessage.push_back('n');
-                        break;
-                        case '\r':
-                            textMessage.push_back('\\');
-                            textMessage.push_back('r');
-                        break;
-                        case '\t':
-                            textMessage.push_back('\\');
-                            textMessage.push_back('t');
-                        break;
-                        case '\"':
-                        case '\\':
-                            textMessage.push_back('\\');
-                            textMessage.push_back(character);
-                        break;
-                        default:
-                            if (character > 31 && character != 127) // control ASCII characters are removed
-                            {
-                                textMessage.push_back(character);
-                            }
-                        break;
+                        CHATID_LOG_ERROR(
+                            "%srequestRichLink: API request succeed, but returned an empty "
+                            "metadata for: %s",
+                            mChatdClient.getLoggingName(),
+                            result->getLink());
+                        return;
                     }
-                }
 
-                std::string updateText = std::string("{\"textMessage\":\"") + textMessage + std::string("\",\"extra\":[");
-                updateText = updateText + text + std::string("]}");
+                    Idx messageIdx = msgIndexFromId(msgId);
+                    Message* msg =
+                        (messageIdx != CHATD_IDX_INVALID) ? findOrNull(messageIdx) : NULL;
+                    if (msg && updated == msg->updated)
+                    {
+                        std::string text = requestText;
+                        std::string originalMessage = msg->toText();
+                        std::string textMessage;
+                        textMessage.reserve(originalMessage.size());
+                        for (std::string::size_type i = 0; i < originalMessage.size(); i++)
+                        {
+                            unsigned char character = originalMessage[i];
+                            switch (character)
+                            {
+                                case '\n':
+                                    textMessage.push_back('\\');
+                                    textMessage.push_back('n');
+                                    break;
+                                case '\r':
+                                    textMessage.push_back('\\');
+                                    textMessage.push_back('r');
+                                    break;
+                                case '\t':
+                                    textMessage.push_back('\\');
+                                    textMessage.push_back('t');
+                                    break;
+                                case '\"':
+                                case '\\':
+                                    textMessage.push_back('\\');
+                                    textMessage.push_back(character);
+                                    break;
+                                default:
+                                    if (character > 31 &&
+                                        character != 127) // control ASCII characters are removed
+                                    {
+                                        textMessage.push_back(character);
+                                    }
+                                    break;
+                            }
+                        }
 
-                rapidjson::StringStream stringStream(updateText.c_str());
-                rapidjson::Document document;
-                document.ParseStream(stringStream);
+                        std::string updateText = std::string("{\"textMessage\":\"") + textMessage +
+                                                 std::string("\",\"extra\":[");
+                        updateText = updateText + text + std::string("]}");
 
-                if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                        rapidjson::StringStream stringStream(updateText.c_str());
+                        rapidjson::Document document;
+                        document.ParseStream(stringStream);
+
+                        if (document.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
+                        {
+                            CHATD_LOG_ERROR("%srequestRichLink: Json is not valid",
+                                            mChatdClient.getLoggingName());
+                            return;
+                        }
+
+                        updateText.insert(updateText.begin(),
+                                          Message::ContainsMetaSubType::kRichLink);
+                        updateText.insert(updateText.begin(),
+                                          Message::kMsgContainsMeta - Message::kMsgOffset);
+                        updateText.insert(updateText.begin(), 0x0);
+                        std::string::size_type size = updateText.size();
+
+                        if (!msgModify(*msg,
+                                       updateText.c_str(),
+                                       size,
+                                       NULL,
+                                       Message::kMsgContainsMeta))
+                        {
+                            CHATID_LOG_ERROR("%srequestRichLink: Message can't be updated with the "
+                                             "rich-link (%s)",
+                                             mChatdClient.getLoggingName(),
+                                             ID_CSTR(msgId));
+                        }
+                    }
+                    else if (!msg)
+                    {
+                        CHATID_LOG_WARNING("%srequestRichLink: Message not found (%s)",
+                                           mChatdClient.getLoggingName(),
+                                           ID_CSTR(msgId));
+                    }
+                    else
+                    {
+                        CHATID_LOG_DEBUG("%srequestRichLink: Message has been updated during rich "
+                                         "link request (%s)",
+                                         mChatdClient.getLoggingName(),
+                                         ID_CSTR(msgId));
+                    }
+                })
+            .fail(
+                [wptr, this, lname = std::string{mChatdClient.getLoggingName()}](
+                    const ::promise::Error& err)
                 {
-                    CHATD_LOG_ERROR("%srequestRichLink: Json is not valid",
-                                    mChatdClient.getLoggingName());
-                    return;
-                }
+                    if (wptr.deleted())
+                        return;
 
-                updateText.insert(updateText.begin(), Message::ContainsMetaSubType::kRichLink);
-                updateText.insert(updateText.begin(), Message::kMsgContainsMeta - Message::kMsgOffset);
-                updateText.insert(updateText.begin(), 0x0);
-                std::string::size_type size = updateText.size();
-
-                if (!msgModify(*msg, updateText.c_str(), size, NULL, Message::kMsgContainsMeta))
-                {
-                    CHATID_LOG_ERROR(
-                        "%srequestRichLink: Message can't be updated with the rich-link (%s)",
-                        mChatdClient.getLoggingName(),
-                        ID_CSTR(msgId));
-                }
-            }
-            else if (!msg)
-            {
-                CHATID_LOG_WARNING("%srequestRichLink: Message not found (%s)",
-                                   mChatdClient.getLoggingName(),
-                                   ID_CSTR(msgId));
-            }
-            else
-            {
-                CHATID_LOG_DEBUG(
-                    "%srequestRichLink: Message has been updated during rich link request (%s)",
-                    mChatdClient.getLoggingName(),
-                    ID_CSTR(msgId));
-            }
-        })
-        .fail([wptr, this](const ::promise::Error& err)
-        {
-            if (wptr.deleted())
-                return;
-
-            CHATID_LOG_ERROR("%sFailed to request rich link: request error (%d)",
-                             mChatdClient.getLoggingName(),
-                             err.code());
-        });
+                    CHATID_LOG_ERROR("%sFailed to request rich link: request error (%d)",
+                                     lname.c_str(),
+                                     err.code());
+                });
     }
 }
 
@@ -4084,10 +4145,11 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     });
 
     pms.fail(
-        [this, msg, msgCmd](const ::promise::Error& err)
+        [this, msg, msgCmd, lname = std::string{mChatdClient.getLoggingName()}](
+            const ::promise::Error& err)
         {
             CHATID_LOG_ERROR("%sICrypto::encrypt error encrypting message %s: %s",
-                             mChatdClient.getLoggingName(),
+                             lname.c_str(),
                              ID_CSTR(msg->id()),
                              err.what());
             delete msgCmd;
@@ -5057,104 +5119,124 @@ void Chat::onMsgUpdated(Message* cipherMsg)
 
     auto wptr = weakHandle();
     mCrypto->msgDecrypt(cipherMsg)
-    .fail([wptr, this, cipherMsg](const ::promise::Error& err) -> ::promise::Promise<Message*>
-    {
-        if (wptr.deleted())
-        {
-            CHATID_LOG_WARNING("%sonMsgUpdated: failed to decrypt message, and connection instance "
-                               "has already been deleted",
-                               mChatdClient.getLoggingName());
-            return err;
-        }
+        .fail(
+            [wptr, this, cipherMsg, lname = std::string{mChatdClient.getLoggingName()}](
+                const ::promise::Error& err) -> ::promise::Promise<Message*>
+            {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING(
+                        "%sonMsgUpdated: failed to decrypt message, and connection instance "
+                        "has already been deleted",
+                        lname.c_str());
+                    return err;
+                }
 
-        assert(cipherMsg->isPendingToDecrypt());
+                assert(cipherMsg->isPendingToDecrypt());
 
-        int type = err.type();
-        switch (type)
-        {
-            case SVCRYPTO_EEXPIRED:
-                return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                int type = err.type();
+                switch (type)
+                {
+                    case SVCRYPTO_EEXPIRED:
+                        return ::promise::Error("Strongvelope was deleted, ignore message",
+                                                EINVAL,
+                                                SVCRYPTO_EEXPIRED);
 
-            case SVCRYPTO_ENOMSG:
-                return ::promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+                    case SVCRYPTO_ENOMSG:
+                        return ::promise::Error("History was reloaded, ignore message",
+                                                EINVAL,
+                                                SVCRYPTO_ENOMSG);
 
-            case SVCRYPTO_ENOKEY:
-                //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-                CHATID_LOG_WARNING("%sNo key to decrypt message %s, possibly message was sent just "
-                                   "before user joined",
-                                   mChatdClient.getLoggingName(),
-                                   ID_CSTR(cipherMsg->id()));
-                assert(mChatdClient.chats(mChatId).isGroup());
-                assert(cipherMsg->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
-                cipherMsg->setEncrypted(Message::kEncryptedNoKey);
-                break;
+                    case SVCRYPTO_ENOKEY:
+                        // we have a normal situation where a message was sent just before a user
+                        // joined, so it will be undecryptable
+                        CHATID_LOG_WARNING(
+                            "%sNo key to decrypt message %s, possibly message was sent just "
+                            "before user joined",
+                            mChatdClient.getLoggingName(),
+                            ID_CSTR(cipherMsg->id()));
+                        assert(mChatdClient.chats(mChatId).isGroup());
+                        assert(cipherMsg->keyid < 0xffff0001); // a confirmed keyid should never be
+                                                               // the transactional keyxid
+                        cipherMsg->setEncrypted(Message::kEncryptedNoKey);
+                        break;
 
-            case SVCRYPTO_ESIGNATURE:
-                CHATID_LOG_ERROR("%sSignature verification failure for message: %s",
-                                 mChatdClient.getLoggingName(),
-                                 ID_CSTR(cipherMsg->id()));
-                cipherMsg->setEncrypted(Message::kEncryptedSignature);
-                break;
+                    case SVCRYPTO_ESIGNATURE:
+                        CHATID_LOG_ERROR("%sSignature verification failure for message: %s",
+                                         mChatdClient.getLoggingName(),
+                                         ID_CSTR(cipherMsg->id()));
+                        cipherMsg->setEncrypted(Message::kEncryptedSignature);
+                        break;
 
-            case SVCRYPTO_ENOTYPE:
-                CHATID_LOG_WARNING("%sUnknown type of management message: %u (msgid: %s)",
-                                   mChatdClient.getLoggingName(),
-                                   cipherMsg->type,
-                                   ID_CSTR(cipherMsg->id()));
-                cipherMsg->setEncrypted(Message::kEncryptedNoType);
-                break;
+                    case SVCRYPTO_ENOTYPE:
+                        CHATID_LOG_WARNING("%sUnknown type of management message: %u (msgid: %s)",
+                                           mChatdClient.getLoggingName(),
+                                           cipherMsg->type,
+                                           ID_CSTR(cipherMsg->id()));
+                        cipherMsg->setEncrypted(Message::kEncryptedNoType);
+                        break;
 
-            case SVCRYPTO_EMALFORMED:
-            default:
-                CHATID_LOG_ERROR("%sMalformed message: %s",
-                                 mChatdClient.getLoggingName(),
-                                 ID_CSTR(cipherMsg->id()));
-                cipherMsg->setEncrypted(Message::kEncryptedMalformed);
-                break;
-        }
+                    case SVCRYPTO_EMALFORMED:
+                    default:
+                        CHATID_LOG_ERROR("%sMalformed message: %s",
+                                         mChatdClient.getLoggingName(),
+                                         ID_CSTR(cipherMsg->id()));
+                        cipherMsg->setEncrypted(Message::kEncryptedMalformed);
+                        break;
+                }
 
-        return cipherMsg;
-    })
-    .then([wptr, this, updateTs, richLinkRemoved](Message* msg)
-    {
-        if (wptr.deleted())
-        {
-            CHATID_LOG_WARNING("%sonMsgUpdated: message decrypted successfully, but connection "
-                               "instance has already been deleted",
-                               mChatdClient.getLoggingName());
-            return;
-        }
-        onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, msg);
-    })
-    .fail([wptr, this, cipherMsg](const ::promise::Error& err)
-    {
-        if (wptr.deleted())
-        {
-            CHATID_LOG_WARNING("%sonMsgUpdated: message couldn't be decrypted, and connection "
-                               "instance has already been deleted",
-                               mChatdClient.getLoggingName());
-            return;
-        }
+                return cipherMsg;
+            })
+        .then(
+            [wptr,
+             this,
+             updateTs,
+             richLinkRemoved,
+             lname = std::string{mChatdClient.getLoggingName()}](Message* msg)
+            {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING(
+                        "%sonMsgUpdated: message decrypted successfully, but connection "
+                        "instance has already been deleted",
+                        lname.c_str());
+                    return;
+                }
+                onMsgUpdatedAfterDecrypt(updateTs, richLinkRemoved, msg);
+            })
+        .fail(
+            [wptr, this, cipherMsg, lname = std::string{mChatdClient.getLoggingName()}](
+                const ::promise::Error& err)
+            {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING(
+                        "%sonMsgUpdated: message couldn't be decrypted, and connection "
+                        "instance has already been deleted",
+                        lname.c_str());
+                    return;
+                }
 
-        if (err.type() == SVCRYPTO_ENOMSG)
-        {
-            CHATID_LOG_WARNING("%sMsg has been deleted during decryption process",
-                               mChatdClient.getLoggingName());
+                if (err.type() == SVCRYPTO_ENOMSG)
+                {
+                    CHATID_LOG_WARNING("%sMsg has been deleted during decryption process",
+                                       lname.c_str());
 
-            //if (err.type() == SVCRYPTO_ENOMSG)
-                //TODO: If a message could be deleted individually, decryption process should be restarted again
-                // It isn't a possibilty with actual implementation
-        }
-        else
-        {
-            CHATID_LOG_WARNING("%sMessage %s can't be decrypted: Failure type %s (%d)",
-                               mChatdClient.getLoggingName(),
-                               ID_CSTR(cipherMsg->id()),
-                               err.what(),
-                               err.type());
-            delete cipherMsg;
-        }
-    });
+                    // if (err.type() == SVCRYPTO_ENOMSG)
+                    // TODO: If a message could be deleted individually, decryption process should
+                    // be restarted again
+                    //  It isn't a possibilty with actual implementation
+                }
+                else
+                {
+                    CHATID_LOG_WARNING("%sMessage %s can't be decrypted: Failure type %s (%d)",
+                                       lname.c_str(),
+                                       ID_CSTR(cipherMsg->id()),
+                                       err.what(),
+                                       err.type());
+                    delete cipherMsg;
+                }
+            });
 }
 
 void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Message* msg)
@@ -5734,80 +5816,95 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         {
             Message *message = &msg;
             mCrypto->msgDecrypt(message)
-            .fail([wptr, this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
-            {
-                if (wptr.deleted())
-                {
-                    CHATID_LOG_WARNING(
-                        "%smsgIncomingAfterAdd: failed to decrypt local unknown management msg "
-                        "type, and connection instance has already been deleted",
-                        mChatdClient.getLoggingName());
-                    return err;
-                }
+                .fail(
+                    [wptr, this, message, lname = std::string{mChatdClient.getLoggingName()}](
+                        const ::promise::Error& err) -> ::promise::Promise<Message*>
+                    {
+                        if (wptr.deleted())
+                        {
+                            CHATID_LOG_WARNING(
+                                "%smsgIncomingAfterAdd: failed to decrypt local unknown management "
+                                "msg "
+                                "type, and connection instance has already been deleted",
+                                lname.c_str());
+                            return err;
+                        }
 
-                assert(message->isEncrypted() == Message::kEncryptedNoType);
-                int type = err.type();
-                switch (type)
-                {
-                    case SVCRYPTO_EEXPIRED:
-                        return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+                        assert(message->isEncrypted() == Message::kEncryptedNoType);
+                        int type = err.type();
+                        switch (type)
+                        {
+                            case SVCRYPTO_EEXPIRED:
+                                return ::promise::Error("Strongvelope was deleted, ignore message",
+                                                        EINVAL,
+                                                        SVCRYPTO_EEXPIRED);
 
-                    case SVCRYPTO_ENOTYPE:
-                        CHATID_LOG_WARNING("%sRetry to decrypt unknown type of management message "
-                                           "failed (not yet supported): %u (msgid: %s)",
-                                           mChatdClient.getLoggingName(),
-                                           message->type,
-                                           ID_CSTR(message->id()));
-                        break;
+                            case SVCRYPTO_ENOTYPE:
+                                CHATID_LOG_WARNING(
+                                    "%sRetry to decrypt unknown type of management message "
+                                    "failed (not yet supported): %u (msgid: %s)",
+                                    lname.c_str(),
+                                    message->type,
+                                    ID_CSTR(message->id()));
+                                break;
 
-                    default:
-                        CHATID_LOG_ERROR("%sRetry to decrypt type of management message failed. "
-                                         "Malformed message: %s",
-                                         mChatdClient.getLoggingName(),
-                                         ID_CSTR(message->id()));
-                        message->setEncrypted(Message::kEncryptedMalformed);
-                        break;
-                }
-                return message;
-            })
-            .then([wptr, this, isNew, idx](Message* message)
-            {
-                if (wptr.deleted())
-                {
-                    CHATID_LOG_WARNING("%smsgIncomingAfterAdd: local unknown management message "
-                                       "decrypted successfully (msgDecrypt) but connection "
-                                       "instance has already been deleted",
-                                       mChatdClient.getLoggingName());
-                    return;
-                }
+                            default:
+                                CHATID_LOG_ERROR(
+                                    "%sRetry to decrypt type of management message failed. "
+                                    "Malformed message: %s",
+                                    lname.c_str(),
+                                    ID_CSTR(message->id()));
+                                message->setEncrypted(Message::kEncryptedMalformed);
+                                break;
+                        }
+                        return message;
+                    })
+                .then(
+                    [wptr, this, isNew, idx, lname = std::string{mChatdClient.getLoggingName()}](
+                        Message* message)
+                    {
+                        if (wptr.deleted())
+                        {
+                            CHATID_LOG_WARNING(
+                                "%smsgIncomingAfterAdd: local unknown management message "
+                                "decrypted successfully (msgDecrypt) but connection "
+                                "instance has already been deleted",
+                                lname.c_str());
+                            return;
+                        }
 
-                if (message->isEncrypted() != Message::kEncryptedNoType)
-                {
-                    CALL_DB(updateMsgInHistory, message->id(), *message);   // update 'data' & 'is_encrypted'
-                }
-                msgIncomingAfterDecrypt(isNew, true, *message, idx);
-            })
-            .fail([wptr, this, message](const ::promise::Error& err)
-            {
-                if (wptr.deleted())
-                {
-                    CHATID_LOG_WARNING(
-                        "%smsgIncomingAfterAdd: Retry to decrypt unknown type of management "
-                        "message failed. (msgid: %s, failure type %s (%d))",
-                        mChatdClient.getLoggingName(),
-                        ID_CSTR(message->id()),
-                        err.what(),
-                        err.type());
-                    return;
-                }
+                        if (message->isEncrypted() != Message::kEncryptedNoType)
+                        {
+                            CALL_DB(updateMsgInHistory,
+                                    message->id(),
+                                    *message); // update 'data' & 'is_encrypted'
+                        }
+                        msgIncomingAfterDecrypt(isNew, true, *message, idx);
+                    })
+                .fail(
+                    [wptr, this, message, lname = std::string{mChatdClient.getLoggingName()}](
+                        const ::promise::Error& err)
+                    {
+                        if (wptr.deleted())
+                        {
+                            CHATID_LOG_WARNING("%smsgIncomingAfterAdd: Retry to decrypt unknown "
+                                               "type of management "
+                                               "message failed. (msgid: %s, failure type %s (%d))",
+                                               lname.c_str(),
+                                               ID_CSTR(message->id()),
+                                               err.what(),
+                                               err.type());
+                            return;
+                        }
 
-                CHATID_LOG_WARNING("%sRetry to decrypt unknown type of management message failed. "
-                                   "(msgid: %s, failure type %s (%d))",
-                                   mChatdClient.getLoggingName(),
-                                   ID_CSTR(message->id()),
-                                   err.what(),
-                                   err.type());
-            });
+                        CHATID_LOG_WARNING(
+                            "%sRetry to decrypt unknown type of management message failed. "
+                            "(msgid: %s, failure type %s (%d))",
+                            lname.c_str(),
+                            ID_CSTR(message->id()),
+                            err.what(),
+                            err.type());
+                    });
         }
         return true;    // decrypt was not done immediately, but none checks the returned value in this codepath
     }
@@ -5868,165 +5965,185 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
         mDecryptOldHaltedAt = idx;
 
     auto message = &msg;
-    pms.fail([wptr, this, message](const ::promise::Error& err) -> ::promise::Promise<Message*>
-    {
-        if (wptr.deleted())
-        {
-            CHATID_LOG_WARNING("%smsgIncomingAfterAdd: failed to decrypt message and connection "
-                               "instance has already been deleted",
-                               mChatdClient.getLoggingName());
-            return err;
-        }
+    pms.fail(
+           [wptr, this, message, lname = std::string{mChatdClient.getLoggingName()}](
+               const ::promise::Error& err) -> ::promise::Promise<Message*>
+           {
+               if (wptr.deleted())
+               {
+                   CHATID_LOG_WARNING(
+                       "%smsgIncomingAfterAdd: failed to decrypt message and connection "
+                       "instance has already been deleted",
+                       lname.c_str());
+                   return err;
+               }
 
-        assert(message->isPendingToDecrypt());
+               assert(message->isPendingToDecrypt());
 
-        int type = err.type();
-        switch (type)
-        {
-            case SVCRYPTO_EEXPIRED:
-                return ::promise::Error("Strongvelope was deleted, ignore message", EINVAL, SVCRYPTO_EEXPIRED);
+               int type = err.type();
+               switch (type)
+               {
+                   case SVCRYPTO_EEXPIRED:
+                       return ::promise::Error("Strongvelope was deleted, ignore message",
+                                               EINVAL,
+                                               SVCRYPTO_EEXPIRED);
 
-            case SVCRYPTO_ENOMSG:
-                return ::promise::Error("History was reloaded, ignore message", EINVAL, SVCRYPTO_ENOMSG);
+                   case SVCRYPTO_ENOMSG:
+                       return ::promise::Error("History was reloaded, ignore message",
+                                               EINVAL,
+                                               SVCRYPTO_ENOMSG);
 
-            case SVCRYPTO_ENOKEY:
-                //we have a normal situation where a message was sent just before a user joined, so it will be undecryptable
-                CHATID_LOG_WARNING("%sNo key to decrypt message %s, possibly message was sent just "
-                                   "before user joined",
-                                   mChatdClient.getLoggingName(),
-                                   ID_CSTR(message->id()));
-                assert(mChatdClient.chats(mChatId).isGroup());
-                assert(message->keyid < 0xffff0001);   // a confirmed keyid should never be the transactional keyxid
-                message->setEncrypted(Message::kEncryptedNoKey);
-                break;
+                   case SVCRYPTO_ENOKEY:
+                       // we have a normal situation where a message was sent just before a user
+                       // joined, so it will be undecryptable
+                       CHATID_LOG_WARNING(
+                           "%sNo key to decrypt message %s, possibly message was sent just "
+                           "before user joined",
+                           lname.c_str(),
+                           ID_CSTR(message->id()));
+                       assert(mChatdClient.chats(mChatId).isGroup());
+                       assert(message->keyid < 0xffff0001); // a confirmed keyid should never be the
+                                                            // transactional keyxid
+                       message->setEncrypted(Message::kEncryptedNoKey);
+                       break;
 
-            case SVCRYPTO_ESIGNATURE:
-                CHATID_LOG_ERROR("%sSignature verification failure for message: %s",
-                                 mChatdClient.getLoggingName(),
-                                 ID_CSTR(message->id()));
-                message->setEncrypted(Message::kEncryptedSignature);
-                break;
+                   case SVCRYPTO_ESIGNATURE:
+                       CHATID_LOG_ERROR("%sSignature verification failure for message: %s",
+                                        lname.c_str(),
+                                        ID_CSTR(message->id()));
+                       message->setEncrypted(Message::kEncryptedSignature);
+                       break;
 
-            case SVCRYPTO_ENOTYPE:
-                CHATID_LOG_WARNING("%sUnknown type of management message: %u (msgid: %s)",
-                                   mChatdClient.getLoggingName(),
-                                   message->type,
-                                   ID_CSTR(message->id()));
-                message->setEncrypted(Message::kEncryptedNoType);
-                break;
+                   case SVCRYPTO_ENOTYPE:
+                       CHATID_LOG_WARNING("%sUnknown type of management message: %u (msgid: %s)",
+                                          lname.c_str(),
+                                          message->type,
+                                          ID_CSTR(message->id()));
+                       message->setEncrypted(Message::kEncryptedNoType);
+                       break;
 
-            case SVCRYPTO_EMALFORMED:
-            default:
-                CHATID_LOG_ERROR("%sMalformed message: %s",
-                                 mChatdClient.getLoggingName(),
-                                 ID_CSTR(message->id()));
-                message->setEncrypted(Message::kEncryptedMalformed);
-                break;
-        }
+                   case SVCRYPTO_EMALFORMED:
+                   default:
+                       CHATID_LOG_ERROR("%sMalformed message: %s",
+                                        lname.c_str(),
+                                        ID_CSTR(message->id()));
+                       message->setEncrypted(Message::kEncryptedMalformed);
+                       break;
+               }
 
-        return message;
-    })
-    .then([wptr, this, isNew, idx
+               return message;
+           })
+        .then(
+            [wptr,
+             this,
+             isNew,
+             idx,
+             lname = std::string{mChatdClient.getLoggingName()}
 #ifndef NDEBUG
-          , isLocal
+             ,
+             isLocal
 #endif
-          ](Message* message)
-    {
-        if (wptr.deleted())
-        {
-            CHATID_LOG_WARNING("%smsgIncomingAfterAdd: message has been succeesfully decrypted, "
-                               "but connection instance has already been deleted",
-                               mChatdClient.getLoggingName());
-            return;
-        }
-
-#ifndef NDEBUG
-        if (isNew)
-            assert(mDecryptNewHaltedAt == idx);
-        else
-            assert(mDecryptOldHaltedAt == idx);
-#endif
-        msgIncomingAfterDecrypt(isNew, false, *message, idx);
-        if (isNew)
-        {
-            // Decrypt the rest - try to decrypt immediately (synchromously),
-            // so that order is guaranteed. Bail out of the loop at the first
-            // message that can't be decrypted immediately(msgIncomingAfterAdd()
-            // returns false). Will continue when the delayed decrypt finishes
-
-            auto first = mDecryptNewHaltedAt + 1;
-            mDecryptNewHaltedAt = CHATD_IDX_INVALID;
-            auto last = highnum();
-            for (Idx i = first; i <= last; i++)
+    ](Message* message)
             {
-                if (!msgIncomingAfterAdd(isNew, false, at(i), i))
-                    break;
-            }
-            if ((mServerFetchState == kHistDecryptingNew) &&
-                (mDecryptNewHaltedAt == CHATD_IDX_INVALID)) //all messages decrypted
-            {
-                mServerFetchState = kHistNotFetching;
-            }
-        }
-        else
-        {
-            // Old history
-            // Decrypt the rest synchronously, bail out on first that can't
-            // decrypt synchonously.
-            // Local messages are always decrypted, this is handled
-            // at the start of this func
-
-            assert(!isLocal);
-            auto first = mDecryptOldHaltedAt - 1;
-            mDecryptOldHaltedAt = CHATD_IDX_INVALID;
-            auto last = lownum();
-            for (Idx i = first; i >= last; i--)
-            {
-                if (!msgIncomingAfterAdd(isNew, false, at(i), i))
-                    break;
-            }
-            if ((mServerFetchState == kHistDecryptingOld) &&
-                (mDecryptOldHaltedAt == CHATD_IDX_INVALID))
-            {
-                mServerFetchState = kHistNotFetching;
-                if (mServerOldHistCbEnabled)
+                if (wptr.deleted())
                 {
-                    CALL_LISTENER(onHistoryDone, kHistSourceServer);
+                    CHATID_LOG_WARNING(
+                        "%smsgIncomingAfterAdd: message has been succeesfully decrypted, "
+                        "but connection instance has already been deleted",
+                        lname.c_str());
+                    return;
                 }
-            }
-        }
-    })
-    .fail([wptr, this, message, lname = mChatdClient.getLoggingName()](const ::promise::Error& err)
-    {
-        if (wptr.deleted())
-        {
-            CHATID_LOG_WARNING(
-                "%smsgIncomingAfterAdd: Message %s can't be decrypted: Failure type %s (%d)",
-                lname,
-                ID_CSTR(message->id()),
-                err.what(),
-                err.type());
-            return;
-        }
 
-        if (err.type() == SVCRYPTO_ENOMSG)
-        {
-            CHATID_LOG_WARNING("%sMsg has been deleted during decryption process",
-                               mChatdClient.getLoggingName());
+#ifndef NDEBUG
+                if (isNew)
+                    assert(mDecryptNewHaltedAt == idx);
+                else
+                    assert(mDecryptOldHaltedAt == idx);
+#endif
+                msgIncomingAfterDecrypt(isNew, false, *message, idx);
+                if (isNew)
+                {
+                    // Decrypt the rest - try to decrypt immediately (synchromously),
+                    // so that order is guaranteed. Bail out of the loop at the first
+                    // message that can't be decrypted immediately(msgIncomingAfterAdd()
+                    // returns false). Will continue when the delayed decrypt finishes
 
-            //if (err.type() == SVCRYPTO_ENOMSG)
-                //TODO: If a message could be deleted individually, decryption process should be restarted again
-                // It isn't a possibilty with actual implementation
-        }
-        else
-        {
-            CHATID_LOG_WARNING("%sMessage %s can't be decrypted: Failure type %s (%d)",
-                               mChatdClient.getLoggingName(),
-                               ID_CSTR(message->id()),
-                               err.what(),
-                               err.type());
-        }
-    });
+                    auto first = mDecryptNewHaltedAt + 1;
+                    mDecryptNewHaltedAt = CHATD_IDX_INVALID;
+                    auto last = highnum();
+                    for (Idx i = first; i <= last; i++)
+                    {
+                        if (!msgIncomingAfterAdd(isNew, false, at(i), i))
+                            break;
+                    }
+                    if ((mServerFetchState == kHistDecryptingNew) &&
+                        (mDecryptNewHaltedAt == CHATD_IDX_INVALID)) // all messages decrypted
+                    {
+                        mServerFetchState = kHistNotFetching;
+                    }
+                }
+                else
+                {
+                    // Old history
+                    // Decrypt the rest synchronously, bail out on first that can't
+                    // decrypt synchonously.
+                    // Local messages are always decrypted, this is handled
+                    // at the start of this func
+
+                    assert(!isLocal);
+                    auto first = mDecryptOldHaltedAt - 1;
+                    mDecryptOldHaltedAt = CHATD_IDX_INVALID;
+                    auto last = lownum();
+                    for (Idx i = first; i >= last; i--)
+                    {
+                        if (!msgIncomingAfterAdd(isNew, false, at(i), i))
+                            break;
+                    }
+                    if ((mServerFetchState == kHistDecryptingOld) &&
+                        (mDecryptOldHaltedAt == CHATD_IDX_INVALID))
+                    {
+                        mServerFetchState = kHistNotFetching;
+                        if (mServerOldHistCbEnabled)
+                        {
+                            CALL_LISTENER(onHistoryDone, kHistSourceServer);
+                        }
+                    }
+                }
+            })
+        .fail(
+            [wptr, this, message, lname = std::string{mChatdClient.getLoggingName()}](
+                const ::promise::Error& err)
+            {
+                if (wptr.deleted())
+                {
+                    CHATID_LOG_WARNING("%smsgIncomingAfterAdd: Message %s can't be decrypted: "
+                                       "Failure type %s (%d)",
+                                       lname.c_str(),
+                                       ID_CSTR(message->id()),
+                                       err.what(),
+                                       err.type());
+                    return;
+                }
+
+                if (err.type() == SVCRYPTO_ENOMSG)
+                {
+                    CHATID_LOG_WARNING("%sMsg has been deleted during decryption process",
+                                       lname.c_str());
+
+                    // if (err.type() == SVCRYPTO_ENOMSG)
+                    // TODO: If a message could be deleted individually, decryption process should
+                    // be restarted again
+                    //  It isn't a possibilty with actual implementation
+                }
+                else
+                {
+                    CHATID_LOG_WARNING("%sMessage %s can't be decrypted: Failure type %s (%d)",
+                                       lname.c_str(),
+                                       ID_CSTR(message->id()),
+                                       err.what(),
+                                       err.type());
+                }
+            });
 
     return false; //decrypt was not done immediately
 }
@@ -6177,61 +6294,68 @@ bool Chat::msgNodeHistIncoming(Message *msg)
         {
             auto wptr = weakHandle();
             mDecryptionAttachmentsHalted = true;
-            pms.then([wptr, this, lname = mChatdClient.getLoggingName()](Message* msg)
-            {
-                if (wptr.deleted())
-                {
-                    CHATID_LOG_WARNING("%smsgNodeHistIncoming: message successfully decrypted, but "
-                                       "connection instance has already been deleted",
-                                       lname);
-                    return;
-                }
+            pms.then(
+                   [wptr, this, lname = std::string{mChatdClient.getLoggingName()}](Message* msg)
+                   {
+                       if (wptr.deleted())
+                       {
+                           CHATID_LOG_WARNING(
+                               "%smsgNodeHistIncoming: message successfully decrypted, but "
+                               "connection instance has already been deleted",
+                               lname.c_str());
+                           return;
+                       }
 
-                if (!mTruncateAttachment)
-                {
-                    mAttachmentNodes->addMessage(*msg, false, false);
-                }
-                delete msg;
-                mTruncateAttachment = false;
-                bool decrypt = true;
-                mDecryptionAttachmentsHalted = false;
-                while (!mAttachmentsPendingToDecrypt.empty() && decrypt)
-                {
-                    decrypt = msgNodeHistIncoming(mAttachmentsPendingToDecrypt.front());
-                    mAttachmentsPendingToDecrypt.pop();
-                }
+                       if (!mTruncateAttachment)
+                       {
+                           mAttachmentNodes->addMessage(*msg, false, false);
+                       }
+                       delete msg;
+                       mTruncateAttachment = false;
+                       bool decrypt = true;
+                       mDecryptionAttachmentsHalted = false;
+                       while (!mAttachmentsPendingToDecrypt.empty() && decrypt)
+                       {
+                           decrypt = msgNodeHistIncoming(mAttachmentsPendingToDecrypt.front());
+                           mAttachmentsPendingToDecrypt.pop();
+                       }
 
-                if (mAttachmentsPendingToDecrypt.empty() && decrypt && mAttachmentHistDoneReceived)
-                {
-                    attachmentHistDone();
-                }
-            })
-            .fail([wptr, this, msg, lname = mChatdClient.getLoggingName()](const ::promise::Error& /*err*/)
-            {
-                if (wptr.deleted())
-                {
-                    CHATID_LOG_WARNING("%smsgNodeHistIncoming: failed to decrypt message, and "
-                                       "connection instance has already been deleted",
-                                       lname);
-                    return;
-                }
+                       if (mAttachmentsPendingToDecrypt.empty() && decrypt &&
+                           mAttachmentHistDoneReceived)
+                       {
+                           attachmentHistDone();
+                       }
+                   })
+                .fail(
+                    [wptr, this, msg, lname = std::string{mChatdClient.getLoggingName()}](
+                        const ::promise::Error& /*err*/)
+                    {
+                        if (wptr.deleted())
+                        {
+                            CHATID_LOG_WARNING(
+                                "%smsgNodeHistIncoming: failed to decrypt message, and "
+                                "connection instance has already been deleted",
+                                lname.c_str());
+                            return;
+                        }
 
-                assert(msg->isPendingToDecrypt());
-                delete msg;
-                mTruncateAttachment = false;
-                bool decrypt = true;
-                mDecryptionAttachmentsHalted = false;
-                while (mAttachmentsPendingToDecrypt.size() && decrypt)
-                {
-                    decrypt = msgNodeHistIncoming(mAttachmentsPendingToDecrypt.front());
-                    mAttachmentsPendingToDecrypt.pop();
-                }
+                        assert(msg->isPendingToDecrypt());
+                        delete msg;
+                        mTruncateAttachment = false;
+                        bool decrypt = true;
+                        mDecryptionAttachmentsHalted = false;
+                        while (mAttachmentsPendingToDecrypt.size() && decrypt)
+                        {
+                            decrypt = msgNodeHistIncoming(mAttachmentsPendingToDecrypt.front());
+                            mAttachmentsPendingToDecrypt.pop();
+                        }
 
-                if (!mAttachmentsPendingToDecrypt.empty() && decrypt && mAttachmentHistDoneReceived)
-                {
-                    attachmentHistDone();
-                }
-            });
+                        if (!mAttachmentsPendingToDecrypt.empty() && decrypt &&
+                            mAttachmentHistDoneReceived)
+                        {
+                            attachmentHistDone();
+                        }
+                    });
         }
     }
     else
@@ -6462,11 +6586,12 @@ void Chat::onAddReaction(const Id& msgId, const Id& userId, const string& reacti
                }
            })
         .fail(
-            [this, msgId, lname = mChatdClient.getLoggingName()](const ::promise::Error& err)
+            [this, msgId, lname = std::string{mChatdClient.getLoggingName()}](
+                const ::promise::Error& err)
             {
                 CHATID_LOG_ERROR(
                     "%sonAddReaction: failed to decrypt reaction. msgid: %s, error: %s",
-                    lname,
+                    lname.c_str(),
                     ID_CSTR(msgId),
                     err.what());
             });
@@ -6553,10 +6678,11 @@ void Chat::onDelReaction(const Id& msgId, const Id& userId, const string& reacti
                }
            })
         .fail(
-            [this, msgId](const ::promise::Error& err)
+            [this, msgId, lname = std::string{mChatdClient.getLoggingName()}](
+                const ::promise::Error& err)
             {
                 CHATID_LOG_ERROR("%sonDelReaction: failed to decryp reaction. msgid: %s, error: %s",
-                                 mChatdClient.getLoggingName(),
+                                 lname.c_str(),
                                  ID_CSTR(msgId),
                                  err.what());
             });
