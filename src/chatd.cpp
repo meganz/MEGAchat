@@ -952,6 +952,10 @@ Promise<void> Connection::reconnect()
                         const std::vector<std::string>& ipsv4,
                         const std::vector<std::string>& ipsv6)
                     {
+                        CHATDS_LOG_DEBUG("%sDNS resolution completed (%lu)",
+                                         lname.c_str(),
+                                         attemptId);
+
                         if (wptr.deleted())
                         {
                             CHATDS_LOG_DEBUG(
@@ -1050,8 +1054,10 @@ Promise<void> Connection::reconnect()
 
                         if (!cachedIPs) // connect() required initial DNS lookup
                         {
-                            CHATDS_LOG_DEBUG("%sHostname resolved by first time. Connecting...",
-                                             lname.c_str());
+                            CHATDS_LOG_DEBUG(
+                                "%sHostname resolved by first time. Connecting... (%lu)",
+                                lname.c_str(),
+                                attemptId);
 
                             // GET end ts for QueryDns
                             mChatdClient.mKarereClient->initStats().shardEnd(
