@@ -1720,27 +1720,15 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                 switch (currentState)
                 {
                     case kInitHasOfflineSession:
-                    {
-                        // disable this safety checkup, since dumpSession() differs from first-time
-                        // login value
-                        //              // we loaded our state from db
-                        //              // verify the SDK sid is the same as ours
-                        //              if (mSid != *sid)
-                        //              {
-                        //                  setInitState(kInitErrSidMismatch);
-                        //                  return;
-                        //              }
                         checkSyncWithSdkDb(scsn, *contactList, *chatList, false);
                         setInitState(kInitHasOnlineSession);
                         mInitStats.stageEnd(InitStats::kStatsPostFetchNodes);
                         api.sdk.resumeActionPackets();
 
                         connect();
-                    }
-                    break;
+                        break;
                     case kInitWaitingNewSession:
                     case kInitErrNoCache:
-                    {
                         if (initWithNewSession(sess.get(), scsn, *contactList, *chatList))
                         {
                             setInitState(kInitHasOnlineSession);
@@ -1755,37 +1743,33 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
                             KR_LOG_ERROR("%sFailed to initialize MEGAchat", lname.c_str());
                             api.sdk.resumeActionPackets();
                         }
-                    }
-                    break;
+                        break;
                     case kInitHasOnlineSession:
-                    {
                         // a full reload happened (triggered by API or by the user)
                         checkSyncWithSdkDb(scsn, *contactList, *chatList, true);
                         api.sdk.resumeActionPackets();
-                    }
-                    break;
+                        break;
                     case kInitTerminated:
-                    {
                         KR_LOG_ERROR("%sOnrequestFinish(TYPE_FETCH_NODES): client state terminated",
                                      lname.c_str());
-                    }
-                    break;
-                    default:
-                    {
-                        // else -> currentState == kInitErrSidInvalid || kInitErrCorruptCache ||
-                        // kInitErrGeneric, any of these initialization states will be reported as
-                        // initialization error to apps
+                        break;
+                    case kInitErrCorruptCache:
+                    case kInitErrSidMismatch: // deprecated
+                    case kInitErrGeneric:
+                    case kInitCreated:
+                    case kInitAnonymousMode:
+                    case kInitErrSidInvalid:
                         KR_LOG_ERROR(
                             "%sOnrequestFinish(TYPE_FETCH_NODES): unexpected client state: %d",
                             lname.c_str(),
                             currentState);
-                        api.callIgnoreResult(&::mega::MegaApi::sendEvent,
-                                             99020,
-                                             "karere init state error upon fetchnodes completion",
-                                             false,
-                                             static_cast<const char*>(nullptr));
-                    }
-                    break;
+                        api.callIgnoreResult(
+                            &::mega::MegaApi::sendEvent,
+                            99020,
+                            "unexpected karere init state upon fetchnodes completion",
+                            false,
+                            static_cast<const char*>(nullptr));
+                        break;
                 }
             },
             appCtx);
