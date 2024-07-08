@@ -2623,7 +2623,7 @@ promise::Promise<void> SfuConnection::reconnect()
                     if (isOnline())
                     {
                         SFU_LOG_DEBUG("DNS resolution completed but ignored: connection is already established using cached IP");
-                        assert(cachedIpsByHost);
+                        assert(mDnsCache.getRecordByHost(mSfuUrl.host) != nullptr);
                     }
                     else
                     {

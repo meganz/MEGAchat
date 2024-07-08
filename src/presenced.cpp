@@ -583,7 +583,7 @@ Client::reconnect()
                                     "%sDNS resolution completed but ignored: connection is "
                                     "already established using cached IP",
                                     lname.c_str());
-                                assert(cachedIPs);
+                                assert(mDnsCache.hasRecord(kPresencedShard));
                             }
                             else
                             {
