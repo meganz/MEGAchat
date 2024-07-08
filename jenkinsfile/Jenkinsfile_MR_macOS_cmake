@@ -71,18 +71,15 @@ pipeline {
             }
         }
         stage('Get SDK branch'){
-            when {
-                expression {
-                    env.gitlabMergeRequestDescription.contains('SDK_BRANCH_TO_TEST')
-                }
-            }
             steps {
                 script{
                     env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_BRANCH_TO_TEST | awk -F "SDK_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
                     println SDK_BRANCH
                     if (SDK_BRANCH == ""){
                         echo "SDK_BRANCH was not found on description so develop will be used by default"
+                        env.SDK_BRANCH = "develop"
                     }
+                    echo "SDK_branch: ${env.SDK_BRANCH}"
                 }
             }
             post{
