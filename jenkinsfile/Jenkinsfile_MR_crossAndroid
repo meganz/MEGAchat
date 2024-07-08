@@ -41,7 +41,6 @@ pipeline {
     }
     environment {
         BUILD_OPTIONS = ' '
-        APIURL_TO_TEST = ' '
         PIPELINE_NAME = 'Android build'
     }
     stages {
@@ -79,11 +78,6 @@ pipeline {
             }
         }
         stage('Get SDK branch'){
-            when {
-                expression {
-                    env.gitlabMergeRequestDescription.contains('SDK_BRANCH_TO_TEST')
-                }
-            }
             steps {
                 script{
                     env.SDK_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep SDK_BRANCH_TO_TEST | awk -F "SDK_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
@@ -91,7 +85,7 @@ pipeline {
                         echo "SDK_BRANCH was not found on description so develop will be used by default"
                         env.SDK_BRANCH = 'develop'
                     }
-                    println SDK_BRANCH
+                    echo "SDK_branch: ${env.SDK_BRANCH}"
                 }
             }
             post{
@@ -107,11 +101,6 @@ pipeline {
             }
         }
         stage('Get Android branch'){
-            when {
-                expression {
-                    env.gitlabMergeRequestDescription.contains('ANDROID_BRANCH_TO_TEST')
-                }
-            }
             steps {
                 script{
                     env.ANDROID_BRANCH = sh(script: 'echo "$gitlabMergeRequestDescription" | grep ANDROID_BRANCH_TO_TEST | awk -F "ANDROID_BRANCH_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
@@ -119,41 +108,12 @@ pipeline {
                         echo "ANDROID_BRANCH was not found on description so develop will be used by default"
                         env.ANDROID_BRANCH = 'develop'
                     }
-                    println ANDROID_BRANCH
+                    echo "Android_branch: ${env.ANDROID_BRANCH}"
                 }
             }
             post{
                 failure {
                     setCommitStatus('failure', 'Failure when getting android branch. Is `ANDROID_BRANCH` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
-                }
-            }
-        }
-        stage('Get API URL'){
-            when {
-                expression {
-                    env.gitlabMergeRequestDescription.contains('USE_APIURL_TO_TEST')
-                }
-            }
-            steps {
-                script{
-                    APIURL_TO_TEST = sh(script: 'echo "$gitlabMergeRequestDescription" | grep USE_APIURL_TO_TEST | awk -F "USE_APIURL_TO_TEST="  \'{print \$2}\' | cut -d" " -f1', returnStdout: true).trim()
-                    println APIURL_TO_TEST
-                    if (APIURL_TO_TEST == ""){
-                        APIURL_TO_TEST = "https://g.api.mega.co.nz/"
-                        echo "APIURL_TO_TEST was not found on description so ${APIURL_TO_TEST} will be used by default"
-                    }
-                    echo "APIURL_TO_TEST will be ${APIURL_TO_TEST}"
-                }
-            }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting API URL. Is `APIURL_TO_TEST` variable well defined?')
                 }
                 aborted {
                     setCommitStatus('aborted')
