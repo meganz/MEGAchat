@@ -992,13 +992,8 @@ public:
          */
         kInitErrCorruptCache = 8,
 
-        /** The session given to init() was different than the session with which
-         * the SDK was initialized
-         */
-        kInitErrSidMismatch = 9,
-
         /** The session has expired or has been closed. */
-        kInitErrSidInvalid = 10
+        kInitErrSidInvalid = 9
     };
 
     enum
