@@ -220,6 +220,9 @@ pipeline {
                 }
             }
             post {
+                always {
+                    deleteDir()
+                }
                 success {
                     setCommitStatus('success')
                 }
