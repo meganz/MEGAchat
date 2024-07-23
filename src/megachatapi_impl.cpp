@@ -7960,7 +7960,6 @@ int MegaChatApiImpl::convertInitState(int state)
     {
     case karere::Client::kInitErrGeneric:
     case karere::Client::kInitErrCorruptCache:
-    case karere::Client::kInitErrSidMismatch:
     case karere::Client::kInitErrSidInvalid:
         return MegaChatApi::INIT_ERROR;
 
@@ -8412,6 +8411,8 @@ const char *MegaChatRequestPrivate::getRequestString() const
         case TYPE_SPEAKRQ_ADD_DEL: return "SPEAKRQ_ADD_DEL";
         case TYPE_REJECT_CALL: return "REJECT_CALL";
         case TYPE_SET_LIMIT_CALL: return "SET_LIMIT_CALL";
+        case TYPE_RAISE_HAND_TO_SPEAK:
+            return "TYPE_RAISE_HAND_TO_SPEAK";
     }
     return "UNKNOWN";
 }

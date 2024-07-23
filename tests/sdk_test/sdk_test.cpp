@@ -1431,7 +1431,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
 
     LOG_debug << "#### Test4: a2 checks that it's hand is lowered upon hangs up call and join again. ####";
     ExitBoolFlags eF2;
-    // callDestroyed - onChatCallUpdate(CALL_STATUS_USER_NO_PRESENT)
+    // CallNoPresent - onChatCallUpdate(CALL_STATUS_USER_NO_PRESENT)
     addBoolVarAndExitFlag(a2, eF2, "CallNoPresent", false);
     hangupChatCall(a2, eF2, mData.mChatid);
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a2, mData.mChatid, false /*audio*/, false /*video*/));
@@ -1451,8 +1451,9 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
 
     LOG_debug << "#### Test9: end call from a1 ####";
     ExitBoolFlags eF;
+    // Ensure the call ends for both users before continuing with the test
     addBoolVarAndExitFlag(a1, eF, "callDestroyed", false);
-    endChatCall(mData.mOpIdx, eF, mData.mChatid);
+    addBoolVarAndExitFlag(a2, eF, "callDestroyed", false);
     ASSERT_NO_FATAL_FAILURE(endChatCall(a1, eF, mData.mChatid));
 
     LOG_debug << "#### Test10: start call with a1 and raise hand, then a2 answers call and raise hand ####";
@@ -1757,14 +1758,20 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     };
 
     // ends call for all participants
-    auto endCall = [this](unsigned int opIdx, const megachat::MegaChatHandle chatid)
+    auto endCall = [this](unsigned int opIdx,
+                          std::vector<unsigned int> participants,
+                          const megachat::MegaChatHandle chatid)
     {
         ExitBoolFlags eF;
         clearTemporalVars();
-        addBoolVarAndExitFlag(opIdx,
-                              eF,
-                              "callDestroyed",
-                              false); // opIdx - onChatCallUpdate(CALL_STATUS_DESTROYED)
+        // "callDestroyed" -> onChatCallUpdate(CALL_STATUS_DESTROYED)
+        addBoolVarAndExitFlag(opIdx, eF, "callDestroyed", false);
+        std::for_each(std::begin(participants),
+                      std::end(participants),
+                      [this, &eF](const unsigned int accIdx)
+                      {
+                          addBoolVarAndExitFlag(accIdx, eF, "callDestroyed", false);
+                      });
         ASSERT_NO_FATAL_FAILURE(endChatCall(opIdx, eF, chatid));
     };
 
@@ -1855,7 +1862,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     ASSERT_NO_FATAL_FAILURE(answerCallAndCheckInProgress(a1, a3, mData.mChatid, false /*audio*/, false /*video*/));
     ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, 30, false));
     ASSERT_NO_FATAL_FAILURE(setCallduration(mData.mChatid, MegaChatCall::CALL_LIMIT_RESET /*callDur*/, false));
-    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, mData.mChatid));
+    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, {a2, a3}, mData.mChatid));
 
     LOG_debug << "#### Test3: a1 sets max nuClients to 2, let join a2 and check error when joining "
                  "a3 ####";
@@ -1878,7 +1885,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                                               false /*audio*/,
                                               false /*video*/,
                                               MegaChatCall::TERM_CODE_TOO_MANY_PARTICIPANTS));
-    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, mData.mChatid));
+    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, {a2, a3}, mData.mChatid));
 
     LOG_debug << "#### Test4: a1 sets max numUsers to 2, let join a2 and check error when joining "
                  "a3 ####";
@@ -1901,7 +1908,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                                               false /*audio*/,
                                               false /*video*/,
                                               MegaChatCall::TERM_CODE_CALL_USERS_LIMIT));
-    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, mData.mChatid));
+    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, {a2, a3}, mData.mChatid));
 
     LOG_debug << "#### Test5: wait for call limits received from SFU (at HELLO command) ####";
     CallLimits helloLimits{.mCallDur = 3600,
@@ -1928,7 +1935,7 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     ASSERT_EQ(settedCallLimits.mUsersLimit, helloLimits.mUsersLimit);
     ASSERT_EQ(settedCallLimits.mClientsLimit, helloLimits.mClientsLimit);
     ASSERT_EQ(settedCallLimits.mClientsPerUserLimit, helloLimits.mClientsPerUserLimit);
-    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, mData.mChatid));
+    ASSERT_NO_FATAL_FAILURE(endCall(mData.mOpIdx, {a2, a3}, mData.mChatid));
 
     LOG_debug << "#### Test6: Set of sequential changes in the limits ####";
     // Create the call and join two more participants
@@ -2363,6 +2370,17 @@ TEST_F(MegaChatApiTest, ResumeSession)
     MegaApi::removeLoggerObject(logger());
     // full-fetchndoes in SDK to regenerate cache in Karere
     flagInit = &initStateChanged[accountIndex]; *flagInit = false;
+
+    /**
+     * If we perform a second fetchnodes in a short period of time, we could try to send a second
+     * sc50 request, without previous one have received response from API. If this happens, we will
+     * discard previous (inflight sc50 request at MegaClient::resetScForFetchnodes as it's obsolete)
+     * and we will send a new one
+     *
+     * Be aware in case of any weird behavior, as API may get locked if there are more than one sc50
+     * requests inflight (API need to fix)
+     *
+     */
     RequestTracker fetchNodesTracker4(megaApi[accountIndex]);
     megaApi[accountIndex]->fetchNodes(&fetchNodesTracker4);
     ASSERT_EQ(fetchNodesTracker4.waitForResult(), API_OK) << "Error fetch nodes. Error: " << fetchNodesTracker4.getErrorString();
@@ -11005,6 +11023,7 @@ bool MegaChatApiTest::onTransferData(MegaApi */*api*/, MegaTransfer */*transfer*
 
 void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
 {
+    ASSERT_TRUE(call) << "onChatCallUpdate: invalid call provided";
     unsigned int apiIndex = getMegaChatApiIndex(api);
     ASSERT_NE(apiIndex, UINT_MAX) << "MegaChatApiTest::onChatCallUpdate()";
 
@@ -11013,6 +11032,9 @@ void MegaChatApiTest::onChatCallUpdate(MegaChatApi *api, MegaChatCall *call)
         if (api->getNumCalls() > 1)
         {
             // Hangup in coming call
+            LOG_warn << "Call received a CHANGE_TYPE_RINGING_STATUS while other call was in "
+                        "progress, hanging up the new incoming call with ID: "
+                     << getCallIdStrB64(call->getCallId());
             api->hangChatCall(call->getCallId());
         }
 

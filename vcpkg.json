@@ -10,7 +10,7 @@
             "dependencies": [
                 "webrtc",
                 { "name" : "libwebsockets", "default-features": false, "features" : [ "boringssl", "ipv6" ] },
-                { "name" : "curl", "version>=": "8.4.0", "default-features": false, "features" : [ "boringssl" ] }
+                { "name" : "curl", "version>=": "8.6.0", "default-features": false, "features" : [ "boringssl" ] }
             ]
         },
         "no-webrtc":
@@ -18,7 +18,7 @@
             "description" : "Disable support for voice and/or video calls",
             "dependencies": [
                 "libwebsockets",
-                "curl"
+                { "name" : "curl", "version>=": "8.6.0"}
             ]
         },
         "use-openssl":
@@ -84,8 +84,17 @@
     "dependencies": [
         { "name": "cryptopp", "version>=": "8.9.0" },
         "libsodium",
-        "sqlite3",
+        {
+            "name": "sqlite3",
+            "version>=": "3.46.0#1"
+        },
         "icu"
     ],
-    "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae"
+    "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae",
+    "overrides": [
+        {
+            "name" : "libuv",
+            "version": "1.44.2"
+        }
+    ]
 }
