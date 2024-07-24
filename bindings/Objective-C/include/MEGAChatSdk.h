@@ -34,6 +34,7 @@ typedef NS_ENUM (NSInteger, MEGAChatStatus) {
 };
 
 typedef NS_ENUM (NSInteger, MEGAChatSource) {
+    MEGAChatSourceInvalidChat = -2,
     MEGAChatSourceError = -1,
     MEGAChatSourceNone  = 0,
     MEGAChatSourceLocal,
