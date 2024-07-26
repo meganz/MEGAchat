@@ -911,7 +911,7 @@ Promise<void> Connection::reconnect()
         mRetryCtrl.reset(createRetryController(
             "chatd] [shard " + std::to_string(mShardNo),
             [this, lname = std::string{mChatdClient.getLoggingName()}](
-                size_t attemptNo,
+                size_t attemptId,
                 DeleteTrackable::Handle wptr) -> Promise<void>
             {
                 if (wptr.deleted())
@@ -947,11 +947,15 @@ Promise<void> Connection::reconnect()
                 int statusDNS = wsResolveDNS(
                     mChatdClient.mKarereClient->websocketIO,
                     host.c_str(),
-                    [wptr, cachedIPs, this, retryCtrl, attemptNo, lname](
+                    [wptr, cachedIPs, this, retryCtrl, attemptId, lname](
                         int statusDNS,
                         const std::vector<std::string>& ipsv4,
                         const std::vector<std::string>& ipsv6)
                     {
+                        CHATDS_LOG_DEBUG("%sDNS resolution completed (%lu)",
+                                         lname.c_str(),
+                                         attemptId);
+
                         if (wptr.deleted())
                         {
                             CHATDS_LOG_DEBUG(
@@ -976,7 +980,7 @@ Promise<void> Connection::reconnect()
                                     "%sDNS resolution completed but ignored: connection is "
                                     "already established using cached IP",
                                     lname.c_str());
-                                assert(cachedIPs);
+                                assert(mDnsCache.hasRecord(mShardNo));
                             }
                             else
                             {
@@ -993,14 +997,14 @@ Promise<void> Connection::reconnect()
                                              lname.c_str());
                             return;
                         }
-                        if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                        if (mRetryCtrl->currentAttemptId() != attemptId)
                         {
                             CHATDS_LOG_DEBUG(
                                 "%sDNS resolution completed but ignored: a newer attempt is "
                                 "already started (old: %lu, new: %lu)",
                                 lname.c_str(),
-                                attemptNo,
-                                mRetryCtrl->currentAttemptNo());
+                                attemptId,
+                                mRetryCtrl->currentAttemptId());
                             return;
                         }
 
@@ -1050,8 +1054,10 @@ Promise<void> Connection::reconnect()
 
                         if (!cachedIPs) // connect() required initial DNS lookup
                         {
-                            CHATDS_LOG_DEBUG("%sHostname resolved by first time. Connecting...",
-                                             lname.c_str());
+                            CHATDS_LOG_DEBUG(
+                                "%sHostname resolved by first time. Connecting... (%lu)",
+                                lname.c_str(),
+                                attemptId);
 
                             // GET end ts for QueryDns
                             mChatdClient.mKarereClient->initStats().shardEnd(

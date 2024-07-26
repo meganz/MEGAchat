@@ -528,7 +528,7 @@ Client::reconnect()
         mRetryCtrl.reset(createRetryController(
             "presenced",
             [this,
-             lname = std::string{getLoggingName()}](size_t attemptNo,
+             lname = std::string{getLoggingName()}](size_t attemptId,
                                                     DeleteTrackable::Handle wptr) -> Promise<void>
             {
                 if (wptr.deleted())
@@ -554,7 +554,7 @@ Client::reconnect()
                 int statusDNS = wsResolveDNS(
                     mKarereClient->websocketIO,
                     host.c_str(),
-                    [wptr, cachedIPs, this, retryCtrl, attemptNo, lname](
+                    [wptr, cachedIPs, this, retryCtrl, attemptId, lname](
                         int statusDNS,
                         const std::vector<std::string>& ipsv4,
                         const std::vector<std::string>& ipsv6)
@@ -583,7 +583,7 @@ Client::reconnect()
                                     "%sDNS resolution completed but ignored: connection is "
                                     "already established using cached IP",
                                     lname.c_str());
-                                assert(cachedIPs);
+                                assert(mDnsCache.hasRecord(kPresencedShard));
                             }
                             else
                             {
@@ -600,14 +600,14 @@ Client::reconnect()
                                                 lname.c_str());
                             return;
                         }
-                        if (mRetryCtrl->currentAttemptNo() != attemptNo)
+                        if (mRetryCtrl->currentAttemptId() != attemptId)
                         {
                             PRESENCED_LOG_DEBUG(
                                 "%sDNS resolution completed but ignored: a newer attempt "
                                 "is already started (old: %lu, new: %lu)",
                                 lname.c_str(),
-                                attemptNo,
-                                mRetryCtrl->currentAttemptNo());
+                                attemptId,
+                                mRetryCtrl->currentAttemptId());
                             return;
                         }
 
