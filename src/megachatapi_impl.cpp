@@ -4293,29 +4293,33 @@ void MegaChatApiImpl::removeNodeHistoryListener(MegaChatHandle chatid, MegaChatN
 
 int MegaChatApiImpl::loadAttachments(MegaChatHandle chatid, int count)
 {
-    int ret = MegaChatApi::SOURCE_NONE;
-    sdkMutex.lock();
-
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
+    SdkMutexGuard g(sdkMutex);
+    ChatRoom* chatroom = findChatRoom(chatid);
+    if (!chatroom)
     {
-        Chat &chat = chatroom->chat();
-        HistSource source = chat.getNodeHistory(count);
-        switch (source)
-        {
-        case kHistSourceNone:   ret = MegaChatApi::SOURCE_NONE; break;
-        case kHistSourceRam:
-        case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
-        case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
-        case kHistSourceNotLoggedIn: ret = MegaChatApi::SOURCE_ERROR; break;
-        default:
-            API_LOG_ERROR("%sUnknown source of messages at loadAttachments()", getLoggingName());
-            break;
-        }
+        API_LOG_ERROR("%loadAttachments: chatroom(%s) cannot be found",
+                      getLoggingName(),
+                      ::karere::Id(chatid).toString().c_str());
+        return MegaChatApi::SOURCE_INVALID_CHAT;
     }
 
-    sdkMutex.unlock();
-    return ret;
+    Chat& chat = chatroom->chat();
+    HistSource source = chat.getNodeHistory(static_cast<unsigned int>(count));
+    switch (source)
+    {
+        case kHistSourceNone:
+            return MegaChatApi::SOURCE_NONE;
+        case kHistSourceRam:
+        case kHistSourceDb:
+            return MegaChatApi::SOURCE_LOCAL;
+        case kHistSourceServer:
+            return MegaChatApi::SOURCE_REMOTE;
+        case kHistSourceNotLoggedIn:
+            return MegaChatApi::SOURCE_ERROR;
+        default:
+            API_LOG_ERROR("%sUnknown source of messages at loadAttachments()", getLoggingName());
+            return MegaChatApi::SOURCE_NONE;
+    }
 }
 
 void MegaChatApiImpl::fireOnChatRequestStart(MegaChatRequestPrivate *request)
@@ -5888,42 +5892,39 @@ void MegaChatApiImpl::closeChatPreview(MegaChatHandle chatid)
 
 int MegaChatApiImpl::loadMessages(MegaChatHandle chatid, int count)
 {
-    int ret = MegaChatApi::SOURCE_NONE;
-
     if (count > MAX_MESSAGES_PER_BLOCK)
     {
         API_LOG_WARNING("%scount value is higher than chatd allows", getLoggingName());
     }
-
     count = std::clamp(count, MIN_MESSAGES_PER_BLOCK, MAX_MESSAGES_PER_BLOCK);
-    sdkMutex.lock();
 
-    ChatRoom *chatroom = findChatRoom(chatid);
-    if (chatroom)
-    {
-        Chat &chat = chatroom->chat();
-        HistSource source = chat.getHistory(count);
-        switch (source)
-        {
-        case kHistSourceNone:   ret = MegaChatApi::SOURCE_NONE; break;
-        case kHistSourceRam:
-        case kHistSourceDb:     ret = MegaChatApi::SOURCE_LOCAL; break;
-        case kHistSourceServer: ret = MegaChatApi::SOURCE_REMOTE; break;
-        case kHistSourceNotLoggedIn: ret = MegaChatApi::SOURCE_ERROR; break;
-        default:
-            API_LOG_ERROR("%sUnknown source of messages at loadMessages()", getLoggingName());
-            break;
-        }
-    }
-    else
+    SdkMutexGuard g(sdkMutex);
+    ChatRoom* chatroom = findChatRoom(chatid);
+    if (!chatroom)
     {
         API_LOG_ERROR("%sloadMessages: chatroom(%s) cannot be found",
                       getLoggingName(),
                       ::karere::Id(chatid).toString().c_str());
+        return MegaChatApi::SOURCE_INVALID_CHAT;
     }
 
-    sdkMutex.unlock();
-    return ret;
+    Chat& chat = chatroom->chat();
+    HistSource source = chat.getHistory(static_cast<unsigned int>(count));
+    switch (source)
+    {
+        case kHistSourceNone:
+            return MegaChatApi::SOURCE_NONE;
+        case kHistSourceRam:
+        case kHistSourceDb:
+            return MegaChatApi::SOURCE_LOCAL;
+        case kHistSourceServer:
+            return MegaChatApi::SOURCE_REMOTE;
+        case kHistSourceNotLoggedIn:
+            return MegaChatApi::SOURCE_ERROR;
+        default:
+            API_LOG_ERROR("%sUnknown source of messages at loadMessages()", getLoggingName());
+            return MegaChatApi::SOURCE_NONE;
+    }
 }
 
 bool MegaChatApiImpl::isFullHistoryLoaded(MegaChatHandle chatid)
