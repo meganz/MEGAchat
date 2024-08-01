@@ -1873,13 +1873,47 @@ int MegaChatApiImpl::performRequest_pushReceived(MegaChatRequestPrivate* request
             MegaChatHandle chatid = request->getChatHandle();
             ChatRoom *room = findChatRoom(chatid);
             bool wasArchived = (room && room->isArchived());
+            const int iosPushReceived = request->getParamType();
+            if (iosPushReceived)
+            {
+                if (chatid == MEGACHAT_INVALID_HANDLE)
+                {
+                    API_LOG_ERROR("PUSH_RECEIVED: Invalid chatid");
+                    return MegaChatError::ERROR_ARGS;
+                }
+
+                const bool isOnline = mClient->initState() == karere::Client::kInitHasOnlineSession;
+                if ((!room || room->isArchived()) && !isOnline)
+                {
+                    // if we are offline, probably the app has not performed a fecthnodes() and, in
+                    // consequence, the client cannot retrieve new chatrooms that are still unknown.
+                    return MegaChatError::ERROR_NOENT;
+                }
+
+                if (mClient->initState() != karere::Client::kInitHasOfflineSession)
+                {
+                    API_LOG_ERROR(
+                        "PUSH_RECEIVED: Invalid init state, kInitHasOfflineSession is expected");
+
+                    return MegaChatError::ERROR_ACCESS;
+                }
+
+                if (mClient->isPendingPush())
+                {
+                    API_LOG_ERROR("PUSH_RECEIVED: a previous PUSH is being processed on iOS. "
+                                  "Please wait until it has finished to process next one");
+
+                    return MegaChatError::ERROR_EXIST;
+                }
+
+                mClient->connectLeanMode(chatid);
+            }
 
             mClient->pushReceived(chatid)
                 .then(
-                    [this, request, wasArchived]()
+                    [this, request, wasArchived, iosPushReceived]()
                     {
-                        int type = request->getParamType();
-                        if (type == 0) // Android
+                        if (!iosPushReceived) // Android
                         {
                             // for Android, we prepare a list of msgids for every chatid that are
                             // candidates for notifications. Android doesn't really know why they
@@ -1938,6 +1972,9 @@ int MegaChatApiImpl::performRequest_pushReceived(MegaChatRequestPrivate* request
                         }
                         else // iOS
                         {
+                            // re-enable all chatrooms
+                            mClient->enableAllChats();
+
                             MegaChatHandle chatid = request->getChatHandle();
                             ChatRoom* room = findChatRoom(chatid);
                             if (!room)
@@ -1976,8 +2013,14 @@ int MegaChatApiImpl::performRequest_pushReceived(MegaChatRequestPrivate* request
                         fireOnChatRequestFinish(request, megaChatError);
                     })
                 .fail(
-                    [this, request](const ::promise::Error& err)
+                    [this, request, iosPushReceived](const ::promise::Error& err)
                     {
+                        if (iosPushReceived)
+                        {
+                            // re-enable all chatrooms
+                            mClient->enableAllChats();
+                        }
+
                         API_LOG_ERROR("%sFailed to retrieve current state", getLoggingName());
                         MegaChatErrorPrivate* megaChatError =
                             new MegaChatErrorPrivate(err.msg(), err.code(), err.type());

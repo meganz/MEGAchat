@@ -441,6 +441,16 @@ void Client::setRetentionTimer()
     }, static_cast<unsigned int> (retentionPeriod * 1000) , mKarereClient->appCtx);
 }
 
+void Client::enableChats(const bool enable, const karere::Id& chatId)
+{
+    const auto allChats = !chatId.isValid();
+    for (const auto& [id, chat]: mChatForChatId)
+    {
+        const auto disable = (allChats || id == chatId) ? !enable : enable;
+        chat->disable(disable);
+    }
+}
+
 uint8_t Client::richLinkState() const
 {
     return mRichLinkState;
@@ -476,6 +486,19 @@ bool Client::areAllChatsLoggedIn(int shard)
     }
 
     return allConnected;
+}
+
+bool Client::isChatLoggedIn(const karere::Id& chatId)
+{
+    for (const auto& [id, chat]: mChatForChatId)
+    {
+        if (chat && id == chatId)
+        {
+            return chat->isLoggedIn();
+        }
+    }
+
+    return false;
 }
 
 void Chat::connect()
@@ -755,7 +778,7 @@ void Connection::resetConnSuceededAttempts(const time_t &t)
     mConnSuceeded = 0;
 }
 
-void Connection::setState(State state)
+void Connection::setState(State state, const bool avoidReconnect)
 {
     State oldState = mState;
     if (mState == state)
@@ -807,25 +830,34 @@ void Connection::setState(State state)
             mConnectTimer = 0;
         }
 
-        if (!mChatdClient.mKarereClient->isTerminated())
+        if (!mChatdClient.mKarereClient->isTerminated() || !avoidReconnect)
         {
-            // start a timer to ensure the connection is established after kConnectTimeout. Otherwise, reconnect
+            // start a timer to ensure the connection is established after kConnectTimeout.
+            // Otherwise, reconnect
             auto wptr = weakHandle();
-            mConnectTimer = setTimeout([this, wptr]()
-            {
-                if (wptr.deleted())
-                    return;
+            mConnectTimer = setTimeout(
+                [this, wptr]()
+                {
+                    if (wptr.deleted())
+                        return;
 
-                mConnectTimer = 0;
+                    mConnectTimer = 0;
 
-                CHATDS_LOG_DEBUG("%sReconnection attempt has not succeed after %d. Reconnecting...",
-                                 mChatdClient.getLoggingName(),
-                                 kConnectTimeout);
-                mChatdClient.mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99004, "Reconnection timed out", false, static_cast<const char*>(nullptr));
+                    CHATDS_LOG_DEBUG(
+                        "%sReconnection attempt has not succeed after %d. Reconnecting...",
+                        mChatdClient.getLoggingName(),
+                        kConnectTimeout);
+                    mChatdClient.mKarereClient->api.callIgnoreResult(
+                        &::mega::MegaApi::sendEvent,
+                        99004,
+                        "Reconnection timed out",
+                        false,
+                        static_cast<const char*>(nullptr));
 
-                retryPendingConnection(true);
-
-            }, kConnectTimeout * 1000, mChatdClient.mKarereClient->appCtx);
+                    retryPendingConnection(true);
+                },
+                kConnectTimeout * 1000,
+                mChatdClient.mKarereClient->appCtx);
         }
 
         // notify chatrooms that connection is down
@@ -1158,9 +1190,14 @@ void Connection::abortRetryController()
     mRetryCtrl.reset();
 }
 
-void Connection::disconnect()
+void Connection::disconnect(const bool avoidReconnect)
 {
-    setState(kStateDisconnected);
+    setState(kStateDisconnected, avoidReconnect);
+    if (avoidReconnect)
+    {
+        abortRetryController();
+        setState(kStateNew);
+    }
 }
 
 void Connection::doConnect()
@@ -1394,11 +1431,11 @@ promise::Promise<void> Connection::fetchUrl()
             });
 }
 
-void Client::disconnect()
+void Client::disconnect(const bool avoidReconnect)
 {
     for (auto& conn: mConnections)
     {
-        conn.second->disconnect();
+        conn.second->disconnect(avoidReconnect);
     }
 }
 
@@ -1763,6 +1800,7 @@ string KeyCommand::toString() const
     tmpString.append(to_string(mLocalKeyid));
     return tmpString;
 }
+
 // rejoin all open chats after reconnection (this is mandatory)
 bool Connection::rejoinExistingChats()
 {

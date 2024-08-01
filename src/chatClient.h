@@ -1291,6 +1291,24 @@ public:
     /** @brief There is a call in state in-progress in the chatroom and the client is participating*/
     bool isCallInProgress(const karere::Id& chatid = karere::Id::inval()) const;
 
+    /**
+     * @brief Disables all chatrooms except chatid, and perform Client connect (chatd & presenced)
+     * This method allows NSE to connect just to chatid for which it received push notification
+     * @param chatId The chat handle that identifies chatroom
+     */
+    void connectLeanMode(Id chatId);
+
+    /**
+     * @brief Checks if there's a pending push notification being proccessed at this moment
+     * @return true if there's a push notification in flight, otherwise returns false
+     */
+    bool isPendingPush();
+
+    /**
+     * @brief Enables all chatrooms
+     */
+    void enableAllChats();
+
     /** @brief Catch up with API for pending actionpackets*/
     promise::Promise<void> pushReceived(Id chatid);
     void onSyncReceived(const karere::Id& chatid); // called upon SYNC reception
@@ -1346,6 +1364,11 @@ protected:
     bool checkSyncWithSdkDb(const std::string& scsn, ::mega::MegaUserList& aContactList, ::mega::MegaTextChatList& chats, bool forceReload);
     void commit(const std::string& scsn);
 
+    /**
+     * @brief Performs full karere client disconnection (without reconnect)
+     */
+    void disconnectLeanMode();
+
     /** @brief Does the actual connection to chatd and presenced. Assumes the
      * Mega SDK is already logged in. This must be called after
      * \c initWithNewSession() or \c checkSyncWithDb() completes
@@ -1355,7 +1378,7 @@ protected:
      * avoid to tell chatd that the client is active. Also, the presenced client will
      * prevent to send USERACTIVE 1 in background, since the user is not active.
      */
-    void connect();
+    void connect(const bool connectPresenced = true);
     void setConnState(ConnState newState);
 
     // mega::MegaGlobalListener interface, called by worker thread

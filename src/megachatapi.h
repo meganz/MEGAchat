@@ -6234,11 +6234,16 @@ public:
      * - MegaChatRequest::getParamType - Return 1
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
      * - MegaChatError::ERROR_NOENT - If the chatroom does not does not exist.
-     * - MegaChatError::ERROR_ACCESS - If the chatroom is archived (no notification should be generated).
+     * - MegaChatError::ERROR_EXISTS - If a previous PUSH is being processed. to avoid issues NSE
+     * must proccess pushes sequentially
+     * - MegaChatError::ERROR_ACCESS - If the chatroom is archived (no notification should be
+     * generated), or init state is not INIT_OFFLINE_SESSION.
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
-     * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
+     * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for
+     * all chats
      * @param listener MegaChatRequestListener to track this request
      */
     void pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);
