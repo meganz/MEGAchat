@@ -45,6 +45,7 @@ pipeline {
         APIURL_TO_TEST = ' '
         PIPELINE_NAME = 'Linux build & test'
         RUN_TESTS = false
+        BUILD_DIR="build_dir"
     }
     stages {
         stage('clean previous runs and update gitlab commit status'){
@@ -176,7 +177,6 @@ pipeline {
         stage('Build MEGAchat'){
             environment{
                 VCPKGPATH = "/opt/vcpkg"
-                BUILD_DIR = "build_dir"
             }
             steps{
                 dir(megachat_sources_workspace){
@@ -186,21 +186,24 @@ pipeline {
                     sh "echo Building SDK"
                     sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR}"
-                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j2"
-
+                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j3"
                 }
-
+                script {
+                    uploadMegaclcExecuted = false
+                }
             }
-            post{
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
-                }
+        }
+        stage('Upload MEGAclc'){
+            when {
+                beforeAgent true
+                expression { env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc') }
+            }
+            steps {
+                script {
+                    uploadMegaclcExecuted = true     
+                }                   
+                sh "jf rt del MEGAchat/${env.gitlabMergeRequestIid}/linux/megaclc/ || true"
+                sh "cd ${BUILD_DIR}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/debian10/megaclc/"
             }
         }
         stage('Run MEGAchat tests'){
@@ -208,7 +211,6 @@ pipeline {
                 MEGA_PWD0 = credentials('MEGA_PWD_DEFAULT')
                 MEGA_PWD1 = credentials('MEGA_PWD_DEFAULT')
                 MEGA_PWD2 = credentials('MEGA_PWD_DEFAULT')
-                BUILD_DIR = "build_dir"
             }
             steps{
                 script {
@@ -296,7 +298,7 @@ pipeline {
             post {
                 always{
                     archiveArtifacts artifacts: 'build_dir/test*.log*, build_dir/core.tar.gz', fingerprint: true
-                    deleteDir()
+                    //deleteDir()
                 }
                 success {
                     setCommitStatus('success')

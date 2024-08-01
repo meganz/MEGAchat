@@ -166,7 +166,7 @@ pipeline {
                 script {
                     uploadMegaclcExecuted = true     
                 }                   
-                sh "jf rt del MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/"
+                sh "jf rt del MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/ || true"
                 sh "cd ${BUILD_DIR}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/arm64/"
                 sh "cd ${BUILD_DIR_X64}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/x64/"
             }
