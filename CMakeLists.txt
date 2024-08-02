@@ -105,3 +105,6 @@ if(ENABLE_CHATLIB_TESTS)
     add_subdirectory(third-party/mega/tests)
     add_subdirectory(tests/sdk_test)
 endif()
+
+include(get_clang_format)
+get_clang_format()
