@@ -9142,10 +9142,12 @@ void MegaChatApiTest::makeContacts(const unsigned int invitorIdx, const unsigned
         return;
     }
 
-    const bool canBeContacts = areContacts || visibility == MegaUser::VISIBILITY_HIDDEN;
-    ASSERT_TRUE(canBeContacts)
-        << "makeContacts: Both accounts cannot be contacts, as invited account visibility is:"
-        << visibility;
+    const bool canBeContacts = !areContacts || visibility == MegaUser::VISIBILITY_HIDDEN;
+    ASSERT_TRUE(canBeContacts) << "makeContacts: Both accounts cannot be contacts (invitor: "
+                               << getUserIdStrB64(megaChatApi[invitorIdx]->getMyUserHandle())
+                               << ") as invited account ("
+                               << getUserIdStrB64(megaChatApi[invitedIdx]->getMyUserHandle())
+                               << ") visibility is: " << visibility;
 
     // Invitor sends outgoing contact request (if there's no one)
     auto outGoingCr = getContactRequestWith(invitorIdx, true /*outgoing*/, invitedEmail);
