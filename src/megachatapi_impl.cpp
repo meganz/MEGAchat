@@ -1901,7 +1901,7 @@ int MegaChatApiImpl::performRequest_pushReceived(MegaChatRequestPrivate* request
                 if (mClient->isPendingPush())
                 {
                     API_LOG_ERROR("PUSH_RECEIVED: a previous PUSH is being processed on iOS. "
-                                  "Please wait until it has finished to process next one");
+                                  "Please, wait until it has finished to process next one");
 
                     return MegaChatError::ERROR_EXIST;
                 }

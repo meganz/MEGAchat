@@ -1377,6 +1377,8 @@ protected:
      * background, it should not send KEEPALIVE, but KEEPALIVEAWAY to chatd. Hence, it will
      * avoid to tell chatd that the client is active. Also, the presenced client will
      * prevent to send USERACTIVE 1 in background, since the user is not active.
+     *
+     * @param connectPresenced if false it avoids connect to presenced (i.e for NSE)
      */
     void connect(const bool connectPresenced = true);
     void setConnState(ConnState newState);

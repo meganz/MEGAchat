@@ -1208,7 +1208,7 @@ void Client::connectLeanMode(Id chatId)
     mChatdClient->enableChats(true /*enable*/, chatId);
     notifyUserStatus(true);
 
-    // is mandatory to perform connect (except for presenced) as we are in lean mode
+    // is mandatory to call connect() as we are in lean mode
     connect(false /*connectPresenced*/);
 }
 

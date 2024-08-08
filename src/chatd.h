@@ -1607,6 +1607,7 @@ public:
      * identified by chatId.
      */
     void enableChats(const bool enable, const karere::Id& chatId = karere::Id::inval());
+
     /**
      * @brief Check if we are logged in for a chatroom
      * @param chatId The chat handle that identifies chatroom
