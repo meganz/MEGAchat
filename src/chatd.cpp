@@ -830,7 +830,7 @@ void Connection::setState(State state, const bool avoidReconnect)
             mConnectTimer = 0;
         }
 
-        if (!mChatdClient.mKarereClient->isTerminated() || !avoidReconnect)
+        if (!mChatdClient.mKarereClient->isTerminated() && !avoidReconnect)
         {
             // start a timer to ensure the connection is established after kConnectTimeout.
             // Otherwise, reconnect
