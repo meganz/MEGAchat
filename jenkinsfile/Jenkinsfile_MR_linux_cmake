@@ -298,21 +298,23 @@ pipeline {
             post {
                 always{
                     archiveArtifacts artifacts: 'build_dir/test*.log*, build_dir/core.tar.gz', fingerprint: true
-                    //deleteDir()
-                }
-                success {
-                    setCommitStatus('success')
-                }
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
+                    deleteDir()
                 }
             }
+        }
+    }
+    post {
+        success {
+            setCommitStatus('success')
+        }
+        failure {
+            setCommitStatus('failure')
+        }
+        aborted {
+            setCommitStatus('aborted')
+        }
+        unstable {
+            setCommitStatus('unstable')
         }
     }
 }

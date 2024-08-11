@@ -223,19 +223,21 @@ pipeline {
                 always {
                     deleteDir()
                 }
-                success {
-                    setCommitStatus('success')
-                }
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
-                }
             }
+        }
+    }
+    post {
+        success {
+            setCommitStatus('success')
+        }
+        failure {
+            setCommitStatus('failure')
+        }
+        aborted {
+            setCommitStatus('aborted')
+        }
+        unstable {
+            setCommitStatus('unstable')
         }
     }
 }
