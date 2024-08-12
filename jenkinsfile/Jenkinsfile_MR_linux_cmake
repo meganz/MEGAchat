@@ -45,6 +45,7 @@ pipeline {
         APIURL_TO_TEST = ' '
         PIPELINE_NAME = 'Linux build & test'
         RUN_TESTS = false
+        BUILD_DIR="build_dir"
     }
     stages {
         stage('clean previous runs and update gitlab commit status'){
@@ -75,14 +76,6 @@ pipeline {
                     println GTEST_FILTER                
                     }
             }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-            }
         }
         stage('Get SDK branch'){
             steps {
@@ -96,14 +89,6 @@ pipeline {
                     echo "SDK_branch: ${env.SDK_BRANCH}"
                 }
             }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-            }
         }
         stage('Get API URL'){
             steps {
@@ -114,14 +99,6 @@ pipeline {
                         echo "APIURL_TO_TEST was not found on description so ${APIURL_TO_TEST} will be used by default"
                     }
                     echo "APIURL_TO_TEST: ${APIURL_TO_TEST}"
-                }
-            }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting API URL. Is `APIURL_TO_TEST` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
                 }
             }
         }
@@ -164,19 +141,10 @@ pipeline {
                     sdk_sources_workspace = "${megachat_sources_workspace}/third-party/mega"
                 }
             }
-            post{
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-            }
         }
         stage('Build MEGAchat'){
             environment{
                 VCPKGPATH = "/opt/vcpkg"
-                BUILD_DIR = "build_dir"
             }
             steps{
                 dir(megachat_sources_workspace){
@@ -186,20 +154,7 @@ pipeline {
                     sh "echo Building SDK"
                     sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR}"
-                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j2"
-
-                }
-
-            }
-            post{
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
+                    sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j3"
                 }
             }
         }
@@ -208,7 +163,6 @@ pipeline {
                 MEGA_PWD0 = credentials('MEGA_PWD_DEFAULT')
                 MEGA_PWD1 = credentials('MEGA_PWD_DEFAULT')
                 MEGA_PWD2 = credentials('MEGA_PWD_DEFAULT')
-                BUILD_DIR = "build_dir"
             }
             steps{
                 script {
@@ -298,19 +252,21 @@ pipeline {
                     archiveArtifacts artifacts: 'build_dir/test*.log*, build_dir/core.tar.gz', fingerprint: true
                     deleteDir()
                 }
-                success {
-                    setCommitStatus('success')
-                }
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
-                }
             }
+        }
+    }
+    post {
+        success {
+            setCommitStatus('success')
+        }
+        failure {
+            setCommitStatus('failure')
+        }
+        aborted {
+            setCommitStatus('aborted')
+        }
+        unstable {
+            setCommitStatus('unstable')
         }
     }
 }
