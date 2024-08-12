@@ -72,14 +72,6 @@ pipeline {
                     println BUILD_OPTIONS
                 }
             }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-            }
         }
         stage('Get SDK branch'){
             steps {
@@ -92,14 +84,6 @@ pipeline {
                     echo "SDK_branch: ${env.SDK_BRANCH}"
                 }
             }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-            }
         }
         stage('Get iOS branch'){
             steps {
@@ -110,14 +94,6 @@ pipeline {
                         env.IOS_BRANCH = "develop"
                     }
                     echo "iOS_branch: ${env.IOS_BRANCH}"
-                }
-            }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting iOS branch. Is `IOS_BRANCH` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
                 }
             }
         }
@@ -163,17 +139,6 @@ pipeline {
                     ios_sources_workspace = WORKSPACE
                     sdk_sources_workspace = "${ios_sources_workspace}/Modules/DataSource/MEGASDK/Sources/MEGASDK"
                     megachat_sources_workspace = "${ios_sources_workspace}/Modules/DataSource/MEGAChatSDK/Sources/MEGAChatSDK"
-                }
-            }
-            post {
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-                unstable {
-                    setCommitStatus('unstable')
                 }
             }
         }

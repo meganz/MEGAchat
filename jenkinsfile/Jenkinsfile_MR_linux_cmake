@@ -76,14 +76,6 @@ pipeline {
                     println GTEST_FILTER                
                     }
             }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-            }
         }
         stage('Get SDK branch'){
             steps {
@@ -97,14 +89,6 @@ pipeline {
                     echo "SDK_branch: ${env.SDK_BRANCH}"
                 }
             }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-            }
         }
         stage('Get API URL'){
             steps {
@@ -115,14 +99,6 @@ pipeline {
                         echo "APIURL_TO_TEST was not found on description so ${APIURL_TO_TEST} will be used by default"
                     }
                     echo "APIURL_TO_TEST: ${APIURL_TO_TEST}"
-                }
-            }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting API URL. Is `APIURL_TO_TEST` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
                 }
             }
         }
@@ -163,14 +139,6 @@ pipeline {
                 script{
                     megachat_sources_workspace = WORKSPACE
                     sdk_sources_workspace = "${megachat_sources_workspace}/third-party/mega"
-                }
-            }
-            post{
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
                 }
             }
         }

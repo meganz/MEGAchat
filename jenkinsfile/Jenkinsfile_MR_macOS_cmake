@@ -61,14 +61,6 @@ pipeline {
                     println BUILD_OPTIONS
                     }
             }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting the additional build parameters. Is `BUILD_OPTIONS` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
-                }
-            }
         }
         stage('Get SDK branch'){
             steps {
@@ -80,14 +72,6 @@ pipeline {
                         env.SDK_BRANCH = "develop"
                     }
                     echo "SDK_branch: ${env.SDK_BRANCH}"
-                }
-            }
-            post{
-                failure {
-                    setCommitStatus('failure', 'Failure when getting SDK branch. Is `SDK_BRANCH` variable well defined?')
-                }
-                aborted {
-                    setCommitStatus('aborted')
                 }
             }
         }
@@ -116,14 +100,6 @@ pipeline {
                 }
                 script{
                     megachat_sources_workspace = WORKSPACE
-                }
-            }
-            post{
-                failure {
-                    setCommitStatus('failure')
-                }
-                aborted {
-                    setCommitStatus('aborted')
                 }
             }
         }
