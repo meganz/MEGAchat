@@ -177,7 +177,7 @@ pipeline {
                     }
                     sh """
                         ln -sfrT ${ANDROID_WEBRTC} megachat/webrtc
-                        sed -i 's#JOBS=.*#JOBS=1#' build.sh
+                        sed -i 's#JOBS=.*#JOBS=2#' build.sh
                         sed -i 's#LOG_FILE=/dev/null#LOG_FILE=/dev/stdout#g' build.sh
                         ./build.sh all
                     """
