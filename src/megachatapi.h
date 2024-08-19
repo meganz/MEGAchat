@@ -3227,6 +3227,7 @@ public:
 
     enum
     {
+        SOURCE_INVALID_CHAT = -2,
         SOURCE_ERROR    = -1,
         SOURCE_NONE     = 0,
         SOURCE_LOCAL,
@@ -5576,7 +5577,7 @@ public:
      * registered by calling MegaChatApi::addChatRoomListener).
      *
      * The corresponding callback is MegaChatRoomListener::onMessageLoaded.
-     * 
+     *
      * Messages are always loaded and notified in strict order, from newest to oldest.
      *
      * @note The actual number of messages loaded can be less than \c count. One reason is
@@ -5595,13 +5596,17 @@ public:
      * @param chatid MegaChatHandle that identifies the chat room
      * @param count The number of requested messages to load (Range 1 - 256)
      *
-     * @return Return the source of the messages that is going to be fetched. The possible values are:
-     *   - MegaChatApi::SOURCE_ERROR = -1: history has to be fetched from server, but we are not logged in yet
+     * @return Return the source of the messages that is going to be fetched. The possible values
+     * are:
+     *   - MegaChatApi::SOURCE_INVALID_CHAT = -2: not available chat with the given chatid
+     *   - MegaChatApi::SOURCE_ERROR = -1: history has to be fetched from server, but we are not
+     * logged in yet
      *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
      *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
      *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
      *
-     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when network operation occurs.
+     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when
+     * network operation occurs.
      */
     int loadMessages(MegaChatHandle chatid, int count);
 
@@ -7926,18 +7931,22 @@ public:
      *
      * When there are no more history available from the reported source of messages
      * (local / remote), or when the requested \c count has been already loaded,
-     * the callback  MegaChatNodeHistoryListener::onAttachmentLoaded will be called with a NULL message.
+     * the callback  MegaChatNodeHistoryListener::onAttachmentLoaded will be called with a NULL
+     * message.
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param count The number of requested messages to load.
      *
-     * @return Return the source of the messages that is going to be fetched. The possible values are:
+     * @return Return the source of the messages that is going to be fetched. The possible values
+     * are:
+     *   - MegaChatApi::SOURCE_INVALID_CHAT = -2: not available chat with the given chatid
      *   - MegaChatApi::SOURCE_ERROR = -1: we are not logged in yet
      *   - MegaChatApi::SOURCE_NONE = 0: there's no more history available (not even in the server)
      *   - MegaChatApi::SOURCE_LOCAL: messages will be fetched locally (RAM or DB)
      *   - MegaChatApi::SOURCE_REMOTE: messages will be requested to the server. Expect some delay
      *
-     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when network operation occurs.
+     * The value MegaChatApi::SOURCE_REMOTE can be used to show a progress bar accordingly when
+     * network operation occurs.
      */
     int loadAttachments(MegaChatHandle chatid, int count);
 

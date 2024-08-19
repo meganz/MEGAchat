@@ -178,6 +178,11 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
             std::cout << "Loading messages..." << std::endl;
             break;
         }
+        case c::MegaChatApi::SOURCE_INVALID_CHAT:
+        {
+            std::cout << "Error: There is no chat with the given chatid." << std::endl;
+            break;
+        }
         case c::MegaChatApi::SOURCE_NONE:
         {
             std::string auxMsg =
