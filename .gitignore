@@ -10,3 +10,4 @@ build/
 /contrib/cmake/cmake-build-*
 build-MEGAchat-Desktop-*
 build-cmake-Desktop-*
+.clang-format
