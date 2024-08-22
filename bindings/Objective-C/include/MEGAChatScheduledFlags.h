@@ -9,8 +9,6 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledFlagsType) {
 
 @interface MEGAChatScheduledFlags : NSObject
 
-- (instancetype)clone;
-
 @property (readonly, nonatomic) BOOL emailsEnabled;
 @property (readonly, nonatomic) BOOL isEmpty;
 

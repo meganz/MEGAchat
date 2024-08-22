@@ -106,8 +106,6 @@ enum {
 @property (readonly, nonatomic) NSInteger paramType;
 @property (readonly, nonatomic) NSArray<MEGAChatScheduledMeetingOccurrence *> *chatScheduledMeetingOccurrences;
 
-- (instancetype)clone;
-
 @end
 
 NS_ASSUME_NONNULL_END

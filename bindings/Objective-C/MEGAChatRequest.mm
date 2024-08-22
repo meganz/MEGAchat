@@ -37,10 +37,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return  self.megaChatRequest ? [[MEGAChatRequest alloc] initWithMegaChatRequest:self.megaChatRequest->copy() cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatRequest *)getCPtr {
     return self.megaChatRequest;
 }

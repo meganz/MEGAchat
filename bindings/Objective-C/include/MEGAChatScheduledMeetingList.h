@@ -8,7 +8,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (readonly, nonatomic) NSUInteger size;
 
-- (instancetype)clone;
 - (nullable MEGAChatScheduledMeeting *)scheduledMeetingAtIndex:(NSUInteger)index;
 - (void)insertScheduledMeeting:(MEGAChatScheduledMeeting *)scheduledMeeting;
 
