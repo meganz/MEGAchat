@@ -36,9 +36,8 @@ public interface MegaChatLoggerInterface {
      * - MegaChatApi::LOG_LEVEL_ERROR   = 1
      * - MegaChatApi::LOG_LEVEL_WARNING = 2
      * - MegaChatApi::LOG_LEVEL_INFO    = 3
-     * - MegaChatApi::LOG_LEVEL_VERBOSE = 4
-     * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
-     * - MegaChatApi::LOG_LEVEL_MAX     = 6
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 4
+     * - MegaChatApi::LOG_LEVEL_MAX     = 5
      *
      * For logs generated inside the SDK, this will contain the source file and the line of code.
      * The SDK retains the ownership of this string, it won't be valid after this funtion returns.

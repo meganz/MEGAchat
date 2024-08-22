@@ -12,6 +12,8 @@
 #include <net/websocketsIO.h>
 #include <base/retryHandler.h>
 
+#define PRESENCED_LOG_VERBOSE(fmtString, ...) \
+KARERE_LOG_VERBOSE(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_presenced, fmtString, ##__VA_ARGS__)
 #define PRESENCED_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_presenced, fmtString, ##__VA_ARGS__)

@@ -52,7 +52,7 @@ void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preas
 void WebsocketsClientImpl::wsHandleMsgCb(char *data, size_t len)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
-    WEBSOCKETS_LOG_DEBUG("Received %lu bytes", len);
+    WEBSOCKETS_LOG_VERBOSE("Received %lu bytes", len);
     client->wsHandleMsgCb(data, len);
 }
 
@@ -129,9 +129,9 @@ bool WebsocketsClient::wsSendMessage(char *msg, size_t len)
         return false;
     }
 
-    assert(thread_id == std::this_thread::get_id());    
-    
-    WEBSOCKETS_LOG_DEBUG("Sending %lu bytes", len);
+    assert(thread_id == std::this_thread::get_id());
+
+    WEBSOCKETS_LOG_VERBOSE("Sending %lu bytes", len);
     bool result = ctx->wsSendMessage(msg, len);
     if (!result)
     {

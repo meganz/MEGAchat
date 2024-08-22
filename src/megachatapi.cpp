@@ -474,6 +474,16 @@ void MegaChatApi::setLoggerObject(MegaChatLogger *megaLogger)
     MegaChatApiImpl::setLoggerClass(megaLogger);
 }
 
+int MegaChatApi::getInternalMaxLogLevel()
+{
+    return MegaChatApiImpl::getInternalMaxLogLevel();
+}
+
+bool MegaChatApi::setInternalMaxLogLevel(const unsigned int logLevel)
+{
+    return MegaChatApiImpl::setInternalMaxLogLevel(logLevel);
+}
+
 void MegaChatApi::setLogLevel(int logLevel)
 {
     MegaChatApiImpl::setLogLevel(logLevel);

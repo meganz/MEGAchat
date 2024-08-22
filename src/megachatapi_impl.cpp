@@ -3896,6 +3896,28 @@ void MegaChatApiImpl::sendPendingEvents()
     }
 }
 
+int MegaChatApiImpl::getInternalMaxLogLevel()
+{
+    if (!loggerHandler)
+    {
+        return MegaChatError::ERROR_ACCESS;
+    }
+
+    return static_cast<int>(loggerHandler->getKarereMaxLogLevel());
+}
+
+bool MegaChatApiImpl::setInternalMaxLogLevel(const unsigned int logLevel)
+{
+    if (!loggerHandler || logLevel < MegaChatApi::LOG_LEVEL_ERROR ||
+        logLevel > MegaChatApi::LOG_LEVEL_MAX)
+    {
+        return false;
+    }
+
+    loggerHandler->setKarereMaxLogLevel(logLevel);
+    return true;
+}
+
 void MegaChatApiImpl::setLogLevel(int logLevel)
 {
     if (!loggerHandler)
@@ -12179,8 +12201,8 @@ LoggerHandler::LoggerHandler()
     megaLogger = NULL;
 
     gLogger.addUserLogger("MegaChatApi", this);
-    gLogger.logChannels[krLogChannel_megasdk].logLevel = krLogLevelDebugVerbose;
-    gLogger.logChannels[krLogChannel_websockets].logLevel = krLogLevelDebugVerbose;
+    gLogger.logChannels[krLogChannel_megasdk].logLevel = krLogLevelVerbose;
+    gLogger.logChannels[krLogChannel_websockets].logLevel = krLogLevelVerbose;
     gLogger.logToConsoleUseColors(false);
 }
 
@@ -12194,6 +12216,18 @@ void LoggerHandler::setMegaChatLogger(MegaChatLogger *logger)
     mutex.lock();
     megaLogger = logger;
     mutex.unlock();
+}
+
+void LoggerHandler::setKarereMaxLogLevel(const unsigned int logLevel)
+{
+    std::unique_lock<std::recursive_mutex> g(mutex);
+    karere::Logger::setKarereMaxLogLevel(logLevel);
+}
+
+unsigned int LoggerHandler::getKarereMaxLogLevel()
+{
+    std::unique_lock<std::recursive_mutex> g(mutex);
+    return karere::Logger::getKarereMaxLogLevel();
 }
 
 void LoggerHandler::setLogLevel(int logLevel)
@@ -12214,7 +12248,6 @@ void LoggerHandler::setLogLevel(int logLevel)
             MegaApi::setLogLevel(MegaApi::LOG_LEVEL_INFO);
             break;
 
-        case MegaChatApi::LOG_LEVEL_VERBOSE:
         case MegaChatApi::LOG_LEVEL_DEBUG:
             MegaApi::setLogLevel(MegaApi::LOG_LEVEL_DEBUG);
             break;
