@@ -25,7 +25,6 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledRulesFrequency) {
                         byWeekDay:(nullable NSArray <NSNumber *> *)byWeekDay
                        byMonthDay:(nullable NSArray <NSNumber *> *)byMonthDay
                    byMonthWeekDay:(nullable NSArray<NSArray<NSNumber *> *> *)byMonthWeekDay;
-- (instancetype)clone;
 - (BOOL)isValidFrequency:(MEGAChatScheduledRulesFrequency)frequency;
 - (BOOL)isValidInterval:(NSInteger)interval;
 

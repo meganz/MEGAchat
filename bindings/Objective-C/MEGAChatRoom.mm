@@ -31,10 +31,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatRoom ? [[MEGAChatRoom alloc] initWithMegaChatRoom:self.megaChatRoom cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatRoom *)getCPtr {
     return self.megaChatRoom;
 }

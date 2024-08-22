@@ -43,10 +43,6 @@ using namespace megachat;
     return self.megaChatScheduledFlags;
 }
 
-- (instancetype)clone {
-    return self.megaChatScheduledFlags ? [[MEGAChatScheduledFlags alloc] initWithMegaChatScheduledFlags:self.megaChatScheduledFlags->copy() cMemoryOwn:YES] : nil;
-}
-
 - (BOOL)isEmpty {
     if (!self.megaChatScheduledFlags) { return NO; };
     return self.megaChatScheduledFlags->isEmpty();

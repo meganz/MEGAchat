@@ -34,10 +34,6 @@ using namespace megachat;
     return self.megaChatScheduledMeetingOccurr;
 }
 
-- (instancetype)clone {
-    return self.megaChatScheduledMeetingOccurr ? [[MEGAChatScheduledMeetingOccurrence alloc] initWithMegaChatScheduledMeetingOccurrence:self.megaChatScheduledMeetingOccurr cMemoryOwn:YES] : nil;
-}
-
 - (BOOL)isCancelled {
     return self.megaChatScheduledMeetingOccurr ? self.megaChatScheduledMeetingOccurr->cancelled() : NO;
 }
