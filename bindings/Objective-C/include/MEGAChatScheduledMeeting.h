@@ -41,8 +41,6 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledMeetingChangeType) {
 @property (readonly, nonatomic) MEGAChatScheduledFlags *flags;
 @property (readonly, nonatomic) MEGAChatScheduledRules *rules;
 
-- (instancetype)clone;
-
 - (BOOL)hasChangedForType:(MEGAChatScheduledMeetingChangeType)changeType;
 
 @end

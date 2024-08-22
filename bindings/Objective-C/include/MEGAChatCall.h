@@ -151,8 +151,6 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 
 - (nullable MEGAChatSession *)sessionForClientId:(uint64_t)clientId;
 
-- (instancetype)clone;
-
 - (NSString *)termcodeString:(MEGAChatCallTermCode)termcode;
 
 - (NSString *)genericMessage;
