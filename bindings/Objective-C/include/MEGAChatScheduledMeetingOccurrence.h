@@ -13,8 +13,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property (readonly, nonatomic) uint64_t startDateTime;
 @property (readonly, nonatomic) uint64_t endDateTime;
 
-- (nullable instancetype)clone;
-
 @end
 
 NS_ASSUME_NONNULL_END

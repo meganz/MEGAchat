@@ -61,9 +61,6 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (nonatomic, readonly, getter=isOpenInviteEnabled) BOOL openInviteEnabled;
 @property (nonatomic, readonly, getter=isWaitingRoomEnabled) BOOL waitingRoomEnabled;
 
-
-- (instancetype)clone;
-
 - (MEGAChatRoomPrivilege)peerPrivilegeByHandle:(uint64_t)userHande;
 - (uint64_t)peerHandleAtIndex:(NSUInteger)index;
 - (MEGAChatRoomPrivilege)peerPrivilegeAtIndex:(NSUInteger)index;

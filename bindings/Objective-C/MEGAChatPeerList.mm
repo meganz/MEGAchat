@@ -40,10 +40,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatPeerList ? [[MEGAChatPeerList alloc] initWithMegaChatPeerList:self.megaChatPeerList cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatPeerList *)getCPtr {
     return self.megaChatPeerList;
 }

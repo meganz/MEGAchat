@@ -7,8 +7,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (readonly, nonatomic) NSInteger size;
 
-- (instancetype)clone;
-
 - (nullable MEGAChatRoom *)chatRoomAtIndex:(NSUInteger)index;
 
 @end

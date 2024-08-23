@@ -107,8 +107,6 @@ NS_ASSUME_NONNULL_BEGIN
 @property (readonly, nonatomic) uint64_t rowId;
 @property (readonly, nonatomic, nullable) MEGAChatContainsMeta *containsMeta;
 
-- (instancetype)clone;
-
 - (BOOL)hasChangedForType:(MEGAChatMessageChangeType)changeType;
 - (uint64_t)userHandleAtIndex:(NSUInteger)index;
 - (nullable NSString *)userNameAtIndex:(NSUInteger)index;
