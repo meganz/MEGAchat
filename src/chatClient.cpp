@@ -1298,9 +1298,9 @@ promise::Promise<void> Client::pushReceived(Id chatid)
                 mSyncCount++;
                 if (mSyncCount != 1)
                 {
-                    KR_LOG_WARNING("%spushReceived: iOS mSyncCount: %d (it should be 1)",
-                                   getLoggingName(),
-                                   mSyncCount);
+                    KR_LOG_ERROR("%spushReceived: iOS mSyncCount: %d (it should be 1)",
+                                 getLoggingName(),
+                                 mSyncCount);
                     assert(false);
                 }
                 chat->sendSync();

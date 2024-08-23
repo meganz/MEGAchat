@@ -1292,7 +1292,7 @@ public:
     bool isCallInProgress(const karere::Id& chatid = karere::Id::inval()) const;
 
     /**
-     * @brief Disables all chatrooms except chatid, and perform Client connect (chatd & presenced)
+     * @brief Disables all chatrooms except chatid, and perform Client connect (chatd)
      * This method allows NSE to connect just to chatid for which it received push notification
      * @param chatId The chat handle that identifies chatroom
      */
