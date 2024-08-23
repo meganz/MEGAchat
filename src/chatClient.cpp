@@ -1298,12 +1298,19 @@ promise::Promise<void> Client::pushReceived(Id chatid)
                 mSyncCount++;
                 if (mSyncCount != 1)
                 {
-                    KR_LOG_ERROR("%spushReceived: iOS mSyncCount: %d (it should be 1)",
+                    KR_LOG_ERROR("%spushReceived (iOS): mSyncCount: %d (it should be 1)",
                                  getLoggingName(),
                                  mSyncCount);
                     assert(false);
                 }
                 chat->sendSync();
+            }
+            else
+            {
+                KR_LOG_ERROR("%spushReceived (iOS): chatid should be enabled %s",
+                             getLoggingName(),
+                             chatid.toString().c_str());
+                assert(false);
             }
         }
         else
