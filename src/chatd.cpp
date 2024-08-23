@@ -490,12 +490,9 @@ bool Client::areAllChatsLoggedIn(int shard)
 
 bool Client::isChatLoggedIn(const karere::Id& chatId)
 {
-    for (const auto& [id, chat]: mChatForChatId)
+    if (const auto it = mChatForChatId.find(chatId); it != mChatForChatId.end())
     {
-        if (chat && id == chatId)
-        {
-            return chat->isLoggedIn();
-        }
+        return it->second->isLoggedIn();
     }
 
     return false;
