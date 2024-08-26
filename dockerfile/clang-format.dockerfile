@@ -1,5 +1,5 @@
 # MEGA clang-format Linter
-# mega-docker.artifactory.developers.mega.co.nz:8443/clang-format-sdk:latest
+# mega-docker.artifactory.developers.mega.co.nz:8443/clang-format-megachat:latest
 
 FROM ubuntu:22.04
 
