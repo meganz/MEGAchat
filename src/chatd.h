@@ -488,7 +488,14 @@ protected:
     void onSocketClose(int ercode, int errtype, const std::string& reason);
     promise::Promise<void> reconnect();
     void abortRetryController();
-    void disconnect();
+
+    /**
+     * @brief Perform disconnection from chatd shard
+     *
+     * @param avoidReconnect if true avoids an automatic reconnection
+     * attempt, and leave connection state ready for a new manual reconnect
+     */
+    void disconnect(const bool avoidReconnect = false);
     void doConnect();
 // Destroys the buffer content
     bool sendBuf(Buffer&& buf);
@@ -507,7 +514,12 @@ protected:
     friend class Chat;
 
 public:
-    void setState(State state);
+    /**
+     * @brief Updates connection state
+     * @param state new connection state
+     * @param avoidReconnect if true avoids an automatic reconnection attempt
+     */
+    void setState(State state, const bool avoidReconnect = false);
     State state() const;
     bool isOnline() const;
     const std::set<karere::Id>& chatIds() const;
@@ -1581,6 +1593,28 @@ public:
     uint8_t richLinkState() const;
     bool areAllChatsLoggedIn(int shard = -1);
 
+    /**
+     * @brief Enable or disable all chatrooms, or only one if valid chatId is provided.
+     *
+     * @param enable Indicates whether we want to enable or disable the chatrooms.
+     * @param chatId The chat handle that identifies the chatroom.
+     *  - If chatId is karere::Id::inval(), all chatrooms will be enabled if the "enable" parameter
+     * is true, and disabled if it is false.
+     *  - If chatId is a valid chatId:
+     *      + The chatroom identified by chatId will be enabled if the "enable" parameter is true,
+     * and disabled if it is false.
+     *      + The rest of the chatrooms will take the opposite enabled status of the chatroom
+     * identified by chatId.
+     */
+    void enableChats(const bool enable, const karere::Id& chatId = karere::Id::inval());
+
+    /**
+     * @brief Check if we are logged in for a chatroom
+     * @param chatId The chat handle that identifies chatroom
+     * @return true if we are logged in for a chatroom, otherwise returns false
+     */
+    bool isChatLoggedIn(const karere::Id& chatId);
+
     uint8_t keepaliveType();
     void setKeepaliveType(bool isInBackground);
 
@@ -1593,7 +1627,13 @@ public:
     /** @brief Leaves the specified chatroom */
     void leave(const karere::Id& chatid);
 
-    void disconnect();
+    /**
+     * @brief Perform disconnection from chatd shard for all established connections
+     *
+     * @param avoidReconnect if true avoids an automatic reconnection
+     * attempt, and leave connection state ready for a new manual reconnect
+     */
+    void disconnect(const bool avoidReconnect = false);
     void retryPendingConnections(bool disconnect, bool refreshURL = false);
     void heartbeat();
 
@@ -1643,7 +1683,6 @@ public:
      * will be modified, and a new timer will be set if mRetentionCheckTs > 0
      */
     void setRetentionTimer();
-
     friend class Connection;
     friend class Chat;
 };

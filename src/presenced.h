@@ -410,6 +410,10 @@ protected:
     /** Sequence-number for the list of peers and contacts above (initialized upon completion of catch-up phase) */
     karere::Id mLastScsn = karere::Id::inval();
 
+    /**
+     * @brief Updates presenced client connection state
+     * @param state new connection state
+     */
     void setConnState(ConnState newState);
 
     void wsConnectCb() override;
@@ -471,6 +475,10 @@ public:
     bool isOnline() const { return (mConnState >= kConnected); }
     promise::Promise<void> fetchUrl();
     void connect();
+
+    /**
+     * @brief Perform disconnection from presenced
+     */
     void disconnect();
     void doConnect();
     void retryPendingConnection(bool disconnect, bool refreshURL = false);
