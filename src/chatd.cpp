@@ -13,6 +13,11 @@ using namespace karere;
 #define CHATD_LOG_LISTENER_CALLS
 
 // logging for a specific chatid - prepends the chatid and calls the normal logging macro
+#define CHATID_LOG_VERBOSE(fmtString, ...) \
+CHATD_LOG_VERBOSE("[shard %d]: %s: " fmtString, \
+                  mConnection.shardNo(), \
+                  ID_CSTR(chatId()), \
+                  ##__VA_ARGS__)
 #define CHATID_LOG_DEBUG(fmtString,...) CHATD_LOG_DEBUG("[shard %d]: %s: " fmtString, mConnection.shardNo(), ID_CSTR(chatId()), ##__VA_ARGS__)
 #define CHATID_LOG_WARNING(fmtString,...) CHATD_LOG_WARNING("[shard %d]: %s: " fmtString, mConnection.shardNo(), ID_CSTR(chatId()), ##__VA_ARGS__)
 #define CHATID_LOG_ERROR(fmtString,...) CHATD_LOG_ERROR("[shard %d]: %s: " fmtString, mConnection.shardNo(), ID_CSTR(chatId()), ##__VA_ARGS__)
@@ -23,9 +28,10 @@ using namespace karere;
 #define CHATDS_LOG_ERROR(fmtString,...) CHATD_LOG_ERROR("[shard %d]: " fmtString, shardNo(), ##__VA_ARGS__)
 
 #ifdef CHATD_LOG_LISTENER_CALLS
-    #define CHATD_LOG_LISTENER_CALL(fmtString,...) CHATID_LOG_DEBUG(fmtString, ##__VA_ARGS__)
+#define CHATD_LOG_LISTENER_CALL(fmtString, ...) CHATID_LOG_DEBUG(fmtString, ##__VA_ARGS__)
+#define CHATD_LOG_LISTENER_CALL_VERBOSE(fmtString, ...) CHATID_LOG_VERBOSE(fmtString, ##__VA_ARGS__)
 #else
-    #define CHATD_LOG_LISTENER_CALL(...)
+#define CHATD_LOG_LISTENER_CALL(...)
 #endif
 
 #ifdef CHATD_LOG_CRYPTO_CALLS
@@ -40,15 +46,35 @@ using namespace karere;
     #define CHATD_LOG_DB_CALL(...)
 #endif
 
-#define CALL_LISTENER(methodName,...)                                                           \
-    do {                                                                                        \
-      try {                                                                                     \
-          CHATD_LOG_LISTENER_CALL("Calling Listener::" #methodName "()");                       \
-          mListener->methodName(__VA_ARGS__);                                                   \
-      } catch(std::exception& e) {                                                              \
-          CHATD_LOG_WARNING("Exception thrown from Listener::" #methodName "():\n%s", e.what());\
-      }                                                                                         \
-    } while(0)
+#define CALL_LISTENER_INFO(methodName, ...) \
+do \
+{ \
+try \
+{ \
+CHATD_LOG_LISTENER_CALL("Calling Listener::" #methodName "()"); \
+mListener->methodName(__VA_ARGS__); \
+} \
+catch (std::exception & e) \
+{ \
+CHATD_LOG_WARNING("Exception thrown from Listener::" #methodName "():\n%s", e.what()); \
+} \
+} \
+while (0)
+
+#define CALL_LISTENER_VERBOSE(methodName, ...) \
+do \
+{ \
+try \
+{ \
+CHATD_LOG_LISTENER_CALL_VERBOSE("Calling Listener::" #methodName "()"); \
+mListener->methodName(__VA_ARGS__); \
+} \
+catch (std::exception & e) \
+{ \
+CHATD_LOG_WARNING("Exception thrown from Listener::" #methodName "():\n%s", e.what()); \
+} \
+} \
+while (0)
 
 #define CALL_LISTENER_FH(methodName,...)                                                           \
     do {                                                                                        \
@@ -1872,7 +1898,7 @@ void Chat::onHandleJoinRejected()
     disable(true);
 
     // public-handle is not valid anymore --> notify the app: privilege is now PRIV_RM
-    CALL_LISTENER(onUserLeave, Id::null());
+    CALL_LISTENER_VERBOSE(onUserLeave, Id::null());
 }
 
 void Chat::onDisconnect()
@@ -1890,7 +1916,7 @@ void Chat::onDisconnect()
                 //app has been receiving old history from server, but we are now
                 //about to receive new history (if any), so notify app about end of
                 //old history
-                CALL_LISTENER(onHistoryDone, kHistSourceServer);
+                CALL_LISTENER_VERBOSE(onHistoryDone, kHistSourceServer);
             }
         }
         else if (fetchType == kFetchNodeHistory)
@@ -1969,13 +1995,13 @@ HistSource Chat::getHistory(unsigned count)
                     break;
                 }
 
-                CALL_LISTENER(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
+                CALL_LISTENER_VERBOSE(onRecvHistoryMessage, i, msg, getMsgStatus(msg, i), true);
             }
             countSoFar = mNextHistFetchIdx - fetchEnd;
             mNextHistFetchIdx -= countSoFar;
             if (countSoFar >= (int)count)
             {
-                CALL_LISTENER(onHistoryDone, kHistSourceRam);
+                CALL_LISTENER_VERBOSE(onHistoryDone, kHistSourceRam);
                 return kHistSourceRam;
             }
         }
@@ -1986,12 +2012,12 @@ HistSource Chat::getHistory(unsigned count)
     if (nextSource == kHistSourceNone) //no history in db and server
     {
         auto source = (countSoFar > 0) ? kHistSourceRam : kHistSourceNone;
-        CALL_LISTENER(onHistoryDone, source);
+        CALL_LISTENER_VERBOSE(onHistoryDone, source);
         return source;
     }
     if (nextSource == kHistSourceDb || nextSource == kHistSourceNotLoggedIn)
     {
-        CALL_LISTENER(onHistoryDone, nextSource);
+        CALL_LISTENER_VERBOSE(onHistoryDone, nextSource);
     }
     return nextSource;
 }
@@ -2202,7 +2228,8 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
 }
 Chat::~Chat()
 {
-    CALL_LISTENER(onDestroy); //we don't delete because it may have its own idea of its lifetime (i.e. it could be a GUI class)
+    CALL_LISTENER_INFO(onDestroy); // we don't delete because it may have its own idea of its
+                                   // lifetime (i.e. it could be a GUI class)
     try { delete mCrypto; }
     catch(std::exception& e)
     {
@@ -2272,7 +2299,7 @@ Idx Chat::getHistoryFromDb(unsigned count)
         addPendingReaction(auxReaction.mReactionString, auxReaction.mReactionStringEnc, auxReaction.mMsgId, auxReaction.mStatus);
     }
 
-    CALL_LISTENER(onHistoryDone, kHistSourceDb);
+    CALL_LISTENER_VERBOSE(onHistoryDone, kHistSourceDb);
 
     // If we haven't yet seen the message with the last-seen msgid, then all messages
     // in the buffer (and in the loaded range) are unseen - so we just loaded
@@ -3240,7 +3267,7 @@ void Chat::onFetchHistDone()
         {
             //we are forwarding to the app the history we are receiving from
             //server. Tell app that is complete.
-            CALL_LISTENER(onHistoryDone, kHistSourceServer);
+            CALL_LISTENER_VERBOSE(onHistoryDone, kHistSourceServer);
         }
     }
 
@@ -3290,7 +3317,7 @@ void Chat::replayUnsentNotifications()
         auto& item = *it;
         if (item.opcode() == OP_NEWMSG || item.opcode() == OP_NEWNODEMSG)
         {
-            CALL_LISTENER(onUnsentMsgLoaded, *item.msg);
+            CALL_LISTENER_VERBOSE(onUnsentMsgLoaded, *item.msg);
         }
         else if (item.opcode() == OP_MSGUPD)
         {
@@ -3298,7 +3325,7 @@ void Chat::replayUnsentNotifications()
                              mChatdClient.getLoggingName(),
                              ID_CSTR(item.msg->id()));
             mPendingEdits[item.msg->id()] = item.msg;
-            CALL_LISTENER(onUnsentEditLoaded, *item.msg, false);
+            CALL_LISTENER_VERBOSE(onUnsentEditLoaded, *item.msg, false);
         }
         else if (item.opcode() == OP_MSGUPDX)
         {
@@ -3315,7 +3342,7 @@ void Chat::replayUnsentNotifications()
             CHATID_LOG_DEBUG("%sAdding a pending edit of msgxid %s",
                              mChatdClient.getLoggingName(),
                              ID_CSTR(item.msg->id()));
-            CALL_LISTENER(onUnsentEditLoaded, *item.msg, true);
+            CALL_LISTENER_VERBOSE(onUnsentEditLoaded, *item.msg, true);
         }
     }
 }
@@ -3326,7 +3353,7 @@ void Chat::loadManualSending()
     CALL_DB(loadManualSendItems, items);
     for (auto& item: items)
     {
-        CALL_LISTENER(onManualSendRequired, item.msg, item.rowid, item.reason);
+        CALL_LISTENER_VERBOSE(onManualSendRequired, item.msg, item.rowid, item.reason);
     }
 }
 
@@ -3365,7 +3392,7 @@ void Chat::calculateUnreadCount()
     if (count != mUnreadCount)
     {
         mUnreadCount = count;
-        CALL_LISTENER(onUnreadChanged);
+        CALL_LISTENER_VERBOSE(onUnreadChanged);
     }
 }
 
@@ -3402,7 +3429,7 @@ void Chat::clearHistory()
     initChat();
     CALL_DB(clearHistory);
     CALL_CRYPTO(onHistoryReload);
-    CALL_LISTENER(onHistoryReloaded);
+    CALL_LISTENER_INFO(onHistoryReloaded);
 }
 
 void Chat::sendSync()
@@ -3479,7 +3506,10 @@ void Chat::onReactionReject(const karere::Id &msgId)
             mPendingReactions.erase(auxit);
             if (message)
             {
-                CALL_LISTENER(onReactionUpdate, msgId, reaction.mReactionString.c_str(), message->getReactionCount(reaction.mReactionString));
+                CALL_LISTENER_VERBOSE(onReactionUpdate,
+                                      msgId,
+                                      reaction.mReactionString.c_str(),
+                                      message->getReactionCount(reaction.mReactionString));
             }
         }
     }
@@ -3518,7 +3548,10 @@ void Chat::flushChatPendingReactions()
         else
         {
             const Message &message = at(index);
-            CALL_LISTENER(onReactionUpdate, message.mId, reaction.mReactionString.c_str(), message.getReactionCount(reaction.mReactionString));
+            CALL_LISTENER_VERBOSE(onReactionUpdate,
+                                  message.mId,
+                                  reaction.mReactionString.c_str(),
+                                  message.getReactionCount(reaction.mReactionString));
         }
         CALL_DB(cleanPendingReactions, reaction.mMsgId);
     }
@@ -4464,7 +4497,7 @@ void Chat::onLastReceived(const Id& msgid)
         auto& msg = at(i);
         if (msg.userid == mChatdClient.mMyHandle)
         {
-            CALL_LISTENER(onMessageStatusChange, i, Message::kDelivered, msg);
+            CALL_LISTENER_VERBOSE(onMessageStatusChange, i, Message::kDelivered, msg);
         }
     }
 }
@@ -4577,7 +4610,7 @@ void Chat::onLastSeen(const Id& msgid, bool resend)
             auto& msg = at(i);
             if (msg.userid != mChatdClient.mMyHandle)
             {
-                CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, msg);
+                CALL_LISTENER_VERBOSE(onMessageStatusChange, i, Message::kSeen, msg);
             }
         }
     }
@@ -4637,7 +4670,7 @@ bool Chat::setMessageSeen(Idx idx)
             auto& m = at(i);
             if (m.userid != mChatdClient.mMyHandle)
             {
-                CALL_LISTENER(onMessageStatusChange, i, Message::kSeen, m);
+                CALL_LISTENER_VERBOSE(onMessageStatusChange, i, Message::kSeen, m);
             }
         }
         mLastSeenId = id;
@@ -4689,7 +4722,11 @@ void Chat::moveItemToManualSending(OutputQueue::iterator it, ManualSendReason re
 {
     CALL_DB(deleteSendingItem, it->rowid);
     CALL_DB(saveItemToManualSending, *it, reason);
-    CALL_LISTENER(onManualSendRequired, it->msg, it->rowid, reason); //GUI should put this message at end of that list of messages requiring 'manual' resend
+    CALL_LISTENER_VERBOSE(onManualSendRequired,
+                          it->msg,
+                          it->rowid,
+                          reason); // GUI should put this message at end of that list of messages
+                                   // requiring 'manual' resend
     it->msg = nullptr; //don't delete the Message object, it will be owned by the app
     mSending.erase(it);
 }
@@ -4810,7 +4847,7 @@ bool Chat::msgAlreadySent(const Id& msgxid, const Id& msgid)
                      mChatdClient.getLoggingName(),
                      ID_CSTR(msgxid),
                      ID_CSTR(msgid));
-    CALL_LISTENER(onMessageRejected, *msg, 0);
+    CALL_LISTENER_VERBOSE(onMessageRejected, *msg, 0);
     delete msg;
     return true;
 }
@@ -4908,7 +4945,11 @@ Idx Chat::msgConfirm(const Id& msgxid, const Id& msgid, uint32_t timestamp)
     assert(msg->backRefId);
     if (!mRefidToIdxMap.emplace(msg->backRefId, idx).second)
     {
-        CALL_LISTENER(onMsgOrderVerificationFail, *msg, idx, "A message with that backrefId "+std::to_string(msg->backRefId)+" already exists");
+        CALL_LISTENER_INFO(onMsgOrderVerificationFail,
+                           *msg,
+                           idx,
+                           "A message with that backrefId " + std::to_string(msg->backRefId) +
+                               " already exists");
     }
 
     //update any following MSGUPDX-s referring to this msgxid
@@ -4938,7 +4979,7 @@ Idx Chat::msgConfirm(const Id& msgxid, const Id& msgid, uint32_t timestamp)
                         count);
     }
 
-    CALL_LISTENER(onMessageConfirmed, msgxid, *msg, idx, tsUpdated);
+    CALL_LISTENER_VERBOSE(onMessageConfirmed, msgxid, *msg, idx, tsUpdated);
 
     // if first message is own msg we need to init mNextHistFetchIdx to avoid loading own messages twice
     if (mNextHistFetchIdx == CHATD_IDX_INVALID && size() == 1)
@@ -5055,7 +5096,7 @@ void Chat::onHistReject()
     disable(true);
 
     // We want to notify the app that cannot load more history
-    CALL_LISTENER(onHistoryDone, kHistSourceNotLoggedIn);
+    CALL_LISTENER_VERBOSE(onHistoryDone, kHistSourceNotLoggedIn);
 }
 
 void Chat::rejectMsgupd(const Id& id, uint8_t serverReason)
@@ -5103,7 +5144,7 @@ void Chat::rejectMsgupd(const Id& id, uint8_t serverReason)
     */
     if (serverReason == 2)
     {
-        CALL_LISTENER(onEditRejected, msg, kManualSendEditNoChange);
+        CALL_LISTENER_VERBOSE(onEditRejected, msg, kManualSendEditNoChange);
         CALL_DB(deleteSendingItem, mSending.front().rowid);
         mSending.pop_front();
     }
@@ -5346,7 +5387,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
         if (idx > mNextHistFetchIdx)
         {
             // msg.ts is zero - chatd doesn't send the original timestamp
-            CALL_LISTENER(onMessageEdited, histmsg, idx);
+            CALL_LISTENER_VERBOSE(onMessageEdited, histmsg, idx);
         }
         else
         {
@@ -5445,7 +5486,7 @@ void Chat::handleTruncate(const Message& msg, Idx idx)
     {
         // GUI must detach and free any resources associated with
         // messages older than the one specified
-        CALL_LISTENER(onHistoryTruncated, msg, idx);
+        CALL_LISTENER_INFO(onHistoryTruncated, msg, idx);
 
         // Reactions must be cleared before call deleteMessagesBefore
         removeMessageReactions(idx, true);
@@ -5524,7 +5565,7 @@ time_t Chat::handleRetentionTime(bool updateTimer)
             "recent msg (%s) affected by retention time",
             mChatdClient.getLoggingName(),
             msg->id().toString().c_str());
-        CALL_LISTENER(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
+        CALL_LISTENER_INFO(onHistoryTruncatedByRetentionTime, *msg, idx, getMsgStatus(*msg, idx));
     }
 
     // Clean affected messages in db and RAM
@@ -6146,7 +6187,7 @@ bool Chat::msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx)
                         mServerFetchState = kHistNotFetching;
                         if (mServerOldHistCbEnabled)
                         {
-                            CALL_LISTENER(onHistoryDone, kHistSourceServer);
+                            CALL_LISTENER_VERBOSE(onHistoryDone, kHistSourceServer);
                         }
                     }
                 }
@@ -6244,7 +6285,11 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
 
     if (msg.backRefId && !mRefidToIdxMap.emplace(msg.backRefId, idx).second)
     {
-        CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "A message with that backrefId "+std::to_string(msg.backRefId)+" already exists");
+        CALL_LISTENER_INFO(onMsgOrderVerificationFail,
+                           msg,
+                           idx,
+                           "A message with that backrefId " + std::to_string(msg.backRefId) +
+                               " already exists");
     }
 
     if (isPublic() && msg.userid != mChatdClient.mMyHandle)
@@ -6262,7 +6307,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
             mChatdClient.mKarereClient->updateAndNotifyLastGreen(msg.userid);
         }
 
-        CALL_LISTENER(onRecvNewMessage, idx, msg, status);
+        CALL_LISTENER_VERBOSE(onRecvNewMessage, idx, msg, status);
     }
     else
     {
@@ -6272,7 +6317,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
         bool isChatRoomOpened = mChatdClient.mKarereClient->isChatRoomOpened(mChatId);
         if (isLocal || (mServerOldHistCbEnabled && isChatRoomOpened))
         {
-            CALL_LISTENER(onRecvHistoryMessage, idx, msg, status, isLocal);
+            CALL_LISTENER_VERBOSE(onRecvHistoryMessage, idx, msg, status, isLocal);
         }
     }
     if (msg.type == Message::kMsgTruncate)
@@ -6425,7 +6470,10 @@ void Chat::verifyMsgOrder(const Message& msg, Idx idx)
         Idx targetIdx = it->second;
         if (targetIdx >= idx)
         {
-            CALL_LISTENER(onMsgOrderVerificationFail, msg, idx, "Message order verification failed, possible history tampering");
+            CALL_LISTENER_INFO(onMsgOrderVerificationFail,
+                               msg,
+                               idx,
+                               "Message order verification failed, possible history tampering");
             client().mKarereClient->api.callIgnoreResult(&::mega::MegaApi::sendEvent, 99000, "order tampering native", false, static_cast<const char*>(nullptr));
             return;
         }
@@ -6472,7 +6520,7 @@ void Chat::onUserJoin(const Id& userid, Priv priv)
         CALL_CRYPTO(onUserJoin, userid);
     }
 
-    CALL_LISTENER(onUserJoin, userid, priv);
+    CALL_LISTENER_VERBOSE(onUserJoin, userid, priv);
 }
 
 void Chat::onUserLeave(const Id& userid)
@@ -6506,7 +6554,7 @@ void Chat::onUserLeave(const Id& userid)
                 mChatdClient.getLoggingName());
 
             // notify about own user leave chat preview
-            CALL_LISTENER(onUserLeave, userid);
+            CALL_LISTENER_VERBOSE(onUserLeave, userid);
         }
 
         // due to a race-condition at client-side receiving the removal of own user from API and chatd,
@@ -6519,7 +6567,7 @@ void Chat::onUserLeave(const Id& userid)
         for (auto &it: mUsers)
         {
             CALL_CRYPTO(onUserLeave, it);
-            CALL_LISTENER(onUserLeave, it);
+            CALL_LISTENER_VERBOSE(onUserLeave, it);
         }
 
         // clear mUsers list from chatd::chat
@@ -6542,7 +6590,7 @@ void Chat::onUserLeave(const Id& userid)
     {
         mUsers.erase(userid);
         CALL_CRYPTO(onUserLeave, userid);
-        CALL_LISTENER(onUserLeave, userid);
+        CALL_LISTENER_VERBOSE(onUserLeave, userid);
     }
 }
 
@@ -6620,10 +6668,10 @@ void Chat::onAddReaction(const Id& msgId, const Id& userId, const string& reacti
                    // If reaction is loaded in RAM
                    Message& message = at(messageIdx);
                    message.addReaction(reaction, userId);
-                   CALL_LISTENER(onReactionUpdate,
-                                 msgId,
-                                 reaction.c_str(),
-                                 message.getReactionCount(reaction));
+                   CALL_LISTENER_VERBOSE(onReactionUpdate,
+                                         msgId,
+                                         reaction.c_str(),
+                                         message.getReactionCount(reaction));
                }
            })
         .fail(
@@ -6712,10 +6760,10 @@ void Chat::onDelReaction(const Id& msgId, const Id& userId, const string& reacti
                    // If reaction is loaded in RAM
                    Message& message = at(messageIdx);
                    message.delReaction(reaction, userId);
-                   CALL_LISTENER(onReactionUpdate,
-                                 msgId,
-                                 reaction.c_str(),
-                                 message.getReactionCount(reaction));
+                   CALL_LISTENER_VERBOSE(onReactionUpdate,
+                                         msgId,
+                                         reaction.c_str(),
+                                         message.getReactionCount(reaction));
                }
            })
         .fail(
@@ -6743,7 +6791,7 @@ void Chat::onRetentionTimeUpdated(uint32_t period)
     if (mRetentionTime != period)
     {
         mRetentionTime = period;
-        CALL_LISTENER(onRetentionTimeUpdated, period);
+        CALL_LISTENER_INFO(onRetentionTimeUpdated, period);
     }
 
     handleRetentionTime();
@@ -6758,7 +6806,7 @@ void Chat::onPreviewersUpdate(uint32_t numPrev)
     }
 
     mNumPreviewers = numPrev;
-    CALL_LISTENER(onPreviewersUpdate);
+    CALL_LISTENER_VERBOSE(onPreviewersUpdate);
 }
 
 void Chat::onJoinComplete()
@@ -6796,10 +6844,10 @@ void Chat::setOnlineState(ChatState state)
     if (state == mOnlineState)
         return;
 
-    CHATID_LOG_DEBUG("%sOnline state change: %s --> %s",
-                     mChatdClient.getLoggingName(),
-                     chatStateToStr(mOnlineState),
-                     chatStateToStr(state));
+    CHATID_LOG_VERBOSE("%sOnline state change: %s --> %s",
+                       mChatdClient.getLoggingName(),
+                       chatStateToStr(mOnlineState),
+                       chatStateToStr(state));
 
     mOnlineState = state;
     CALL_CRYPTO(onOnlineStateChange, state);
@@ -6895,7 +6943,7 @@ void Chat::onLastTextMsgUpdated(const Message& msg, Idx idx)
 
 void Chat::notifyLastTextMsg()
 {
-    CALL_LISTENER(onLastTextMessageUpdated, mLastTextMsg);
+    CALL_LISTENER_VERBOSE(onLastTextMessageUpdated, mLastTextMsg);
     mLastTextMsg.mIsNotified = true;
 
     // upon deletion of lastMessage and/or truncate, need to find the new suitable
@@ -6905,7 +6953,7 @@ void Chat::notifyLastTextMsg()
     if (findOrNull(mLastTextMsg.idx())              // message is confirmed
             || getMsgByXid(mLastTextMsg.xid()))     // message is sending
     {
-        CALL_LISTENER(onLastMessageTsUpdated, mLastMsgTs);
+        CALL_LISTENER_VERBOSE(onLastMessageTsUpdated, mLastMsgTs);
     }
 }
 
@@ -7039,7 +7087,7 @@ void Chat::handleBroadcast(const karere::Id& from, uint8_t type)
     if (type == Command::kBroadcastUserTyping)
     {
         CHATID_LOG_DEBUG("%srecv BROADCAST kBroadcastUserTyping", mChatdClient.getLoggingName());
-        CALL_LISTENER(onUserTyping, from);
+        CALL_LISTENER_VERBOSE(onUserTyping, from);
 
         if (isPublic() && from != mChatdClient.mMyHandle)
         {
@@ -7050,7 +7098,7 @@ void Chat::handleBroadcast(const karere::Id& from, uint8_t type)
     {
         CHATID_LOG_DEBUG("%srecv BROADCAST kBroadcastUserStopTyping",
                          mChatdClient.getLoggingName());
-        CALL_LISTENER(onUserStopTyping, from);
+        CALL_LISTENER_VERBOSE(onUserStopTyping, from);
     }
     else
     {

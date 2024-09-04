@@ -706,6 +706,8 @@ public:
     virtual ~LoggerHandler();
 
     void setMegaChatLogger(MegaChatLogger *logger);
+    void setKarereMaxLogLevel(const unsigned int logLevel);
+    unsigned int getKarereMaxLogLevel();
     void setLogLevel(int logLevel);
     void setLogWithColors(bool useColors);
     void setLogToConsole(bool enable);
@@ -1437,6 +1439,8 @@ public:
     void sendPendingRequests();
     void sendPendingEvents();
 
+    static int getInternalMaxLogLevel();
+    static bool setInternalMaxLogLevel(const unsigned int logLevel);
     static void setLogLevel(int logLevel);
     static void setLoggerClass(MegaChatLogger *megaLogger);
     static void setLogWithColors(bool useColors);

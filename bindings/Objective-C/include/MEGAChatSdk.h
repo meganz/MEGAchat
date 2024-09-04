@@ -541,6 +541,7 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark - Debug log messages
 
 + (void)setLogLevel:(MEGAChatLogLevel)level;
++ (void)setInternalMaxLogLevel:(MEGAChatLogLevel)level;
 + (void)setLogToConsole:(BOOL)enable;
 + (void)setLogObject:(nullable id<MEGAChatLoggerDelegate>)delegate;
 + (void)setLogWithColors:(BOOL)userColors;

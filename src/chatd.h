@@ -23,6 +23,8 @@ namespace karere {
 
 class MyMegaApi;
 
+#define CHATD_LOG_VERBOSE(fmtString, ...) \
+KARERE_LOG_VERBOSE(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 #define CHATD_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
