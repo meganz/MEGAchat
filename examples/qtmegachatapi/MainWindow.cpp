@@ -495,7 +495,6 @@ void MainWindow::onSchedMeetingOccurrencesUpdate(MegaChatApi* /*api*/, MegaChatH
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    delete this;
     event->accept();
 }
 
