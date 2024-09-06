@@ -529,9 +529,15 @@ void Chat::connect()
     if ((mConnection.state() == Connection::kStateNew))
     {
         // attempt a connection ONLY if this is a new shard.
+        auto wptr = weakHandle();
         mConnection.connect().fail(
-            [this, lname = std::string{mChatdClient.getLoggingName()}](const ::promise::Error& err)
+            [this, wptr, lname = std::string{mChatdClient.getLoggingName()}](
+                const ::promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    return;
+                }
                 CHATID_LOG_ERROR("%sChat::connect(): Error connecting to server: %s",
                                  lname.c_str(),
                                  err.what());
@@ -1397,12 +1403,21 @@ int Connection::shardNo() const
 
 promise::Promise<void> Connection::connect()
 {
+    auto wptr = weakHandle();
     return fetchUrl().then(
-        [this, lname = std::string{mChatdClient.getLoggingName()}]
+        [this, wptr, lname = std::string{mChatdClient.getLoggingName()}]
         {
+            if (wptr.deleted())
+            {
+                promise::_Void();
+            }
             return reconnect().fail(
-                [this, lname = std::move(lname)](const ::promise::Error& err)
+                [this, wptr, lname = std::move(lname)](const ::promise::Error& err)
                 {
+                    if (wptr.deleted())
+                    {
+                        return;
+                    }
                     CHATDS_LOG_ERROR(
                         "%sChat::connect(): Error connecting to server after getting URL: %s",
                         lname.c_str(),
@@ -2170,9 +2185,15 @@ Chat::Chat(Connection& conn, const Id& chatid, Listener* listener,
     if (isPublic())
     {
         // disable the chat if decryption of unified key fails
+        auto wptr = weakHandle();
         mCrypto->getUnifiedKey().fail(
-            [this, lname = std::string{mChatdClient.getLoggingName()}](const ::promise::Error& err)
+            [this, wptr, lname = std::string{mChatdClient.getLoggingName()}](
+                const ::promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    return err;
+                }
                 CHATID_LOG_ERROR("%sUnified key not available, disabling chatroom. Error: %s",
                                  lname.c_str(),
                                  err.what());
@@ -2936,10 +2957,15 @@ void Connection::execCommand(const StaticBuffer& buf)
                             .fail(
                                 [this,
                                  chatid,
+                                 wptr,
                                  callid,
                                  lname = std::string{mChatdClient.getLoggingName()}](
                                     const ::promise::Error& err)
                                 {
+                                    if (wptr.deleted())
+                                    {
+                                        return;
+                                    }
                                     CHATDS_LOG_ERROR(
                                         "%sFailed to decrypt unified key %s. Chatid: %s callid: %s",
                                         lname.c_str(),
@@ -3036,9 +3062,14 @@ void Connection::execCommand(const StaticBuffer& buf)
                                 [this,
                                  chatid,
                                  callid,
+                                 wptr,
                                  lname = std::string{mChatdClient.getLoggingName()}](
                                     const ::promise::Error& err)
                                 {
+                                    if (wptr.deleted())
+                                    {
+                                        return;
+                                    }
                                     CHATDS_LOG_ERROR(
                                         "%sFailed to decrypt unified key %s. Chatid: %s callid: %s",
                                         lname.c_str(),
@@ -4188,40 +4219,51 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
     CHATID_LOG_DEBUG("%sCan't encrypt message immediately, halting output",
                      mChatdClient.getLoggingName());
 
-    pms.then([this, msg, rowid](std::pair<MsgCommand*, KeyCommand*> result)
-    {
-        assert(mEncryptionHalted);
-        assert(!mSending.empty());
-
-        MsgCommand *msgCmd = result.first;
-        KeyCommand *keyCmd = result.second;
-        if (isPublic())
+    auto wptr = weakHandle();
+    pms.then(
+        [this, msg, wptr, rowid](std::pair<MsgCommand*, KeyCommand*> result)
         {
-            assert(!keyCmd
-                   && msgCmd->keyId() == CHATD_KEYID_INVALID
-                   && msg->keyid == CHATD_KEYID_INVALID);
-        }
-        else
-        {
-            assert(keyCmd                                              // key command required
-                   && keyCmd->localKeyid() == msg->keyid               // and localkeyid is assigned to message
-                   && isValidKeyxId(msgCmd->keyId()));                 // and msgCmd's keyid is within the range of valid keyxid's
-        }
+            if (wptr.deleted())
+            {
+                return;
+            }
+            assert(mEncryptionHalted);
+            assert(!mSending.empty());
 
-        SendingItem &item = mSending.front();
-        item.msgCmd = msgCmd;
-        item.keyCmd = keyCmd;
-        CALL_DB(addBlobsToSendingItem, rowid, item.msgCmd, item.keyCmd, msg->keyid);
+            MsgCommand* msgCmd = result.first;
+            KeyCommand* keyCmd = result.second;
+            if (isPublic())
+            {
+                assert(!keyCmd && msgCmd->keyId() == CHATD_KEYID_INVALID &&
+                       msg->keyid == CHATD_KEYID_INVALID);
+            }
+            else
+            {
+                assert(keyCmd // key command required
+                       &&
+                       keyCmd->localKeyid() == msg->keyid // and localkeyid is assigned to message
+                       && isValidKeyxId(msgCmd->keyId())); // and msgCmd's keyid is within the range
+                                                           // of valid keyxid's
+            }
 
-        sendKeyAndMessage(result);
-        mEncryptionHalted = false;
-        flushOutputQueue();
-    });
+            SendingItem& item = mSending.front();
+            item.msgCmd = msgCmd;
+            item.keyCmd = keyCmd;
+            CALL_DB(addBlobsToSendingItem, rowid, item.msgCmd, item.keyCmd, msg->keyid);
+
+            sendKeyAndMessage(result);
+            mEncryptionHalted = false;
+            flushOutputQueue();
+        });
 
     pms.fail(
-        [this, msg, msgCmd, lname = std::string{mChatdClient.getLoggingName()}](
+        [this, msg, wptr, msgCmd, lname = std::string{mChatdClient.getLoggingName()}](
             const ::promise::Error& err)
         {
+            if (wptr.deleted())
+            {
+                return err;
+            }
             CHATID_LOG_ERROR("%sICrypto::encrypt error encrypting message %s: %s",
                              lname.c_str(),
                              ID_CSTR(msg->id()),
@@ -6675,9 +6717,13 @@ void Chat::onAddReaction(const Id& msgId, const Id& userId, const string& reacti
                }
            })
         .fail(
-            [this, msgId, lname = std::string{mChatdClient.getLoggingName()}](
+            [this, msgId, wptr, lname = std::string{mChatdClient.getLoggingName()}](
                 const ::promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    return;
+                }
                 CHATID_LOG_ERROR(
                     "%sonAddReaction: failed to decrypt reaction. msgid: %s, error: %s",
                     lname.c_str(),
@@ -6767,9 +6813,13 @@ void Chat::onDelReaction(const Id& msgId, const Id& userId, const string& reacti
                }
            })
         .fail(
-            [this, msgId, lname = std::string{mChatdClient.getLoggingName()}](
+            [this, msgId, wptr, lname = std::string{mChatdClient.getLoggingName()}](
                 const ::promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    return;
+                }
                 CHATID_LOG_ERROR("%sonDelReaction: failed to decryp reaction. msgid: %s, error: %s",
                                  lname.c_str(),
                                  ID_CSTR(msgId),

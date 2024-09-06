@@ -372,26 +372,35 @@ protected:
         RETRY_LOG("Starting attempt %zu - id (%zu)...", mCurrentAttemptNo, mCurrentAttemptId);
         auto pms = mFunc(mCurrentAttemptId, wptr);
         attachThenHandler(pms, static_cast<unsigned int>(attempt));
-        pms.fail([this, attempt](const ::promise::Error& err)
-        {
-            if (attempt != mCurrentAttemptId)//we are already in another attempt and this callback is from the old attempt, ignore it
+        auto wptr = weakHandle();
+        pms.fail(
+            [this, wptr, attempt](const ::promise::Error& err)
             {
-                RETRY_LOG("A previous timed-out/aborted attempt returned failure: %s", err.msg().c_str());
-                return err;
-            }
+                if (wptr.deleted())
+                {
+                    return err;
+                }
+                if (attempt != mCurrentAttemptId) // we are already in another attempt and this
+                                                  // callback is from the old attempt, ignore it
+                {
+                    RETRY_LOG("A previous timed-out/aborted attempt returned failure: %s",
+                              err.msg().c_str());
+                    return err;
+                }
 
-            if (mAttemptTimeout)
-            {
-                RETRY_LOG("A previous attempt returned failure before timeout expires: %s", err.msg().c_str());
-                // wait till the attempt timeout expires, it will schedule the next retry
-                return err;
-            }
+                if (mAttemptTimeout)
+                {
+                    RETRY_LOG("A previous attempt returned failure before timeout expires: %s",
+                              err.msg().c_str());
+                    // wait till the attempt timeout expires, it will schedule the next retry
+                    return err;
+                }
 
-            RETRY_LOG("Attempt %zu failed with message '%s'", mCurrentAttemptNo, err.what());
-            cancelTimer();
-            schedNextRetry(err);
-            return err;
-        });
+                RETRY_LOG("Attempt %zu failed with message '%s'", mCurrentAttemptNo, err.what());
+                cancelTimer();
+                schedNextRetry(err);
+                return err;
+            });
     }
     bool schedNextRetry(const ::promise::Error& err)
     {

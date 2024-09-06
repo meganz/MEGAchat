@@ -3874,19 +3874,25 @@ promise::Promise<void> GroupChatRoom::leave()
 {
     auto wptr = getDelTracker();
 
-    return parent.mKarereClient.api.callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, mega::INVALID_HANDLE)
-    .fail([](const ::promise::Error& err) -> Promise<void>
-    {
-        if (err.code() == ::mega::MegaError::API_EARGS) //room does not actually exist on API, ignore room and remove it locally
-            return promise::_Void();
-        else
-            return err;
-    })
-    .then([this, wptr]()
-    {
-        wptr.throwIfDeleted();
-        setOwnUserRemoved();
-    });
+    return parent.mKarereClient.api
+        .callIgnoreResult(&mega::MegaApi::removeFromChat, mChatid, mega::INVALID_HANDLE)
+        .fail(
+            [wptr](const ::promise::Error& err) -> Promise<void>
+            {
+                wptr.throwIfDeleted();
+                if (err.code() ==
+                    ::mega::MegaError::API_EARGS) // room does not actually exist on API, ignore
+                                                  // room and remove it locally
+                    return promise::_Void();
+                else
+                    return err;
+            })
+        .then(
+            [this, wptr]()
+            {
+                wptr.throwIfDeleted();
+                setOwnUserRemoved();
+            });
 }
 
 promise::Promise<void> GroupChatRoom::invite(uint64_t userid, chatd::Priv priv)
@@ -3963,28 +3969,48 @@ promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
     Id myHandle(parent.mKarereClient.myHandle());
     mAutoJoining = true;
 
-    return chat().crypto()->encryptUnifiedKeyToUser(myHandle)
-    .then([this, myHandle, ph](std::string key) -> ApiPromise
-    {
-        //Append [invitorhandle+uk]
-        std::string uKeyBin((const char*)&myHandle, sizeof(myHandle.val));
-        uKeyBin.append(key.data(), key.size());
+    auto wptr = weakHandle();
+    return chat()
+        .crypto()
+        ->encryptUnifiedKeyToUser(myHandle)
+        .then(
+            [this, myHandle, wptr, ph](std::string key) -> ApiPromise
+            {
+                if (wptr.deleted())
+                {
+                    return ::promise::Error("autojoinPublicChat: wptr deleted");
+                }
+                // Append [invitorhandle+uk]
+                std::string uKeyBin((const char*)&myHandle, sizeof(myHandle.val));
+                uKeyBin.append(key.data(), key.size());
 
-        //Encode [invitorhandle+uk] to B64
-        std::string uKeyB64;
-        mega::Base64::btoa(uKeyBin, uKeyB64);
+                // Encode [invitorhandle+uk] to B64
+                std::string uKeyB64;
+                mega::Base64::btoa(uKeyBin, uKeyB64);
 
-        parent.mKarereClient.setCommitMode(false);
-        return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin, ph, uKeyB64.c_str());
-    })
-    .then([this, myHandle](ReqResult)
-    {
-        onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_STANDARD);
-    })
-    .fail([this](const ::promise::Error&)
-    {
-        mAutoJoining = false;
-    });
+                parent.mKarereClient.setCommitMode(false);
+                return parent.mKarereClient.api.call(&mega::MegaApi::chatLinkJoin,
+                                                     ph,
+                                                     uKeyB64.c_str());
+            })
+        .then(
+            [this, wptr, myHandle](ReqResult)
+            {
+                if (wptr.deleted())
+                {
+                    return;
+                }
+                onUserJoin(parent.mKarereClient.myHandle(), chatd::PRIV_STANDARD);
+            })
+        .fail(
+            [this, wptr](const ::promise::Error&)
+            {
+                if (wptr.deleted())
+                {
+                    return;
+                }
+                mAutoJoining = false;
+            });
  }
 
 //chatd::Listener::init
@@ -4462,8 +4488,9 @@ bool GroupChatRoom::syncMembers(const mega::MegaTextChat& chat)
     return peersChanged;
 }
 
-void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted, bool saveToDb)
+void GroupChatRoom::initChatTitle(const std::string& title, int isTitleEncrypted, bool saveToDb)
 {
+    auto wptr = weakHandle();
     mHasTitle = (!title.empty() && title.at(0));
     if (mHasTitle)
     {
@@ -4482,8 +4509,12 @@ void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted
             case strongvelope::kEncrypted:
                 mEncryptedTitle = title;
                 decryptTitle().fail(
-                    [this, lname = std::string{getLoggingName()}](const ::promise::Error& e)
+                    [this, wptr, lname = std::string{getLoggingName()}](const ::promise::Error& e)
                     {
+                        if (wptr.deleted())
+                        {
+                            return;
+                        }
                         KR_LOG_ERROR("%sGroupChatRoom: failed to decrypt title for chat %s: %s",
                                      lname.c_str(),
                                      ID_CSTR(mChatid),
@@ -4501,14 +4532,15 @@ void GroupChatRoom::initChatTitle(const std::string &title, int isTitleEncrypted
     }
 
     // if has no title or it's undecryptable...
-    auto wptr = weakHandle();
-    mMemberNamesResolved.then([wptr, this]()
-    {
-        if (wptr.deleted())
-            return;
-
-        makeTitleFromMemberNames();
-    });
+    mMemberNamesResolved.then(
+        [wptr, this]()
+        {
+            if (wptr.deleted())
+            {
+                return;
+            }
+            makeTitleFromMemberNames();
+        });
 }
 
 bool GroupChatRoom::hasChatLinkChanged(const uint64_t ph, const std::string &decryptedTitle,
@@ -4544,10 +4576,14 @@ void GroupChatRoom::syncChatTitle(const mega::MegaTextChat& chat, const bool mem
         // and decrypt it once per execution
         mEncryptedTitle = title;
         updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
-
+        auto wptr = weakHandle();
         decryptTitle().fail(
-            [](const ::promise::Error& err)
+            [wptr](const ::promise::Error& err)
             {
+                if (wptr.deleted())
+                {
+                    return;
+                }
                 KR_LOG_DEBUG("Can't decrypt chatroom title. In function: "
                              "GroupChatRoom::syncWithApi. Error: %s",
                              err.what());

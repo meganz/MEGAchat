@@ -1467,11 +1467,16 @@ void SfuConnection::doReconnect(const bool applyInitialBackoff)
     {
         if (wptr.deleted()) { return; }
 
-        reconnect()
-        .fail([](const ::promise::Error& err)
-        {
-            SFU_LOG_DEBUG("SfuConnection::reconnect(): Error connecting to SFU server: %s", err.what());
-        });
+        reconnect().fail(
+            [wptr](const ::promise::Error& err)
+            {
+                if (wptr.deleted())
+                {
+                    return;
+                }
+                SFU_LOG_DEBUG("SfuConnection::reconnect(): Error connecting to SFU server: %s",
+                              err.what());
+            });
     };
 
     cancelConnectTimer(); // cancel connect timer in case is set
