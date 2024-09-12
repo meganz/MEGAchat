@@ -17,6 +17,8 @@
 #define WEBSOCKETS_TLS_SESSION_CACHE_ENABLED 1
 
 // WEBSOCKETS LOG
+#define WEBSOCKETS_LOG_VERBOSE(fmtString, ...) \
+KARERE_LOG_VERBOSE(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_DEBUG(fmtString,...) KARERE_LOG_DEBUG(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_INFO(fmtString,...) KARERE_LOG_INFO(krLogChannel_websockets, fmtString, ##__VA_ARGS__)
 #define WEBSOCKETS_LOG_WARNING(fmtString,...) KARERE_LOG_WARNING(krLogChannel_websockets, fmtString, ##__VA_ARGS__)

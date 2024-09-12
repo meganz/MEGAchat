@@ -8,9 +8,9 @@ using namespace karere;
 #define PRESENCED_LOG_LISTENER_CALLS
 
 #ifdef PRESENCED_LOG_LISTENER_CALLS
-    #define LOG_LISTENER_CALL(fmtString,...) PRESENCED_LOG_DEBUG(fmtString, ##__VA_ARGS__)
+#define LOG_LISTENER_CALL(fmtString, ...) PRESENCED_LOG_VERBOSE(fmtString, ##__VA_ARGS__)
 #else
-    #define LOG_LISTENER_CALL(...)
+#define LOG_LISTENER_CALL(...)
 #endif
 
 #define CALL_LISTENER(methodName,...)                                                           \

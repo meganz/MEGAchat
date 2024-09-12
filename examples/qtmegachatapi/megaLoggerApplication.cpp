@@ -28,22 +28,33 @@ void MegaLoggerApplication::postLog(const char *message)
        cout << message << endl;
 }
 
-void MegaLoggerApplication::log(int loglevel, const char *message)
+void MegaLoggerApplication::log(int loglevel, const char* message)
 {
     string levelStr;
     switch (loglevel)
     {
-    case MegaChatApi::LOG_LEVEL_ERROR: levelStr = "err"; break;
-        case MegaChatApi::LOG_LEVEL_WARNING: levelStr = "warn"; break;
-        case MegaChatApi::LOG_LEVEL_INFO: levelStr = "info"; break;
-        case MegaChatApi::LOG_LEVEL_VERBOSE: levelStr = "verb"; break;
-        case MegaChatApi::LOG_LEVEL_DEBUG: levelStr = "debug"; break;
-        case MegaChatApi::LOG_LEVEL_MAX: levelStr = "debug-verbose"; break;
-        default: levelStr = ""; break;
+        case MegaChatApi::LOG_LEVEL_ERROR:
+            levelStr = "err";
+            break;
+        case MegaChatApi::LOG_LEVEL_WARNING:
+            levelStr = "warn";
+            break;
+        case MegaChatApi::LOG_LEVEL_INFO:
+            levelStr = "info";
+            break;
+        case MegaChatApi::LOG_LEVEL_DEBUG:
+            levelStr = "debug";
+            break;
+        case MegaChatApi::LOG_LEVEL_MAX:
+            levelStr = "verbose";
+            break;
+        default:
+            levelStr = "";
+            break;
     }
-    testlog  << message;
-    if(mLogConsole)
-       cout << message << endl;
+    testlog << message;
+    if (mLogConsole)
+        cout << message << endl;
 }
 
 bool MegaLoggerApplication::getLogConsole() const

@@ -161,7 +161,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)requestLastGreen:(uint64_t)userHandle;
 - (BOOL)isSignalActivityRequired;
 - (void)signalPresenceActivity;
-- (MEGAChatPresenceConfig *)presenceConfig;
+- (nullable MEGAChatPresenceConfig *)presenceConfig;
 
 - (MEGAChatStatus)userOnlineStatus:(uint64_t)userHandle;
 - (void)setBackgroundStatus:(BOOL)status delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -460,9 +460,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingsByChat:(uint64_t)chatId;
 
-- (MEGAChatScheduledMeeting *)scheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
+- (nullable MEGAChatScheduledMeeting *)scheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
 
-- (NSArray<MEGAChatScheduledMeeting *> *)getAllScheduledMeetings;
+- (nullable NSArray<MEGAChatScheduledMeeting *> *)getAllScheduledMeetings;
 
 - (void)fetchScheduledMeetingOccurrencesByChat:(uint64_t)chatId;
 
@@ -480,10 +480,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 #ifndef KARERE_DISABLE_WEBRTC
 
-- (MEGAStringList *)chatVideoInDevices;
+- (nullable MEGAStringList *)chatVideoInDevices;
 - (void)setChatVideoInDevices:(NSString *)devices;
 - (void)setChatVideoInDevices:(NSString *)devices delegate:(id<MEGAChatRequestDelegate>)delegate;
-- (NSString *)videoDeviceSelected;
+- (nullable NSString *)videoDeviceSelected;
 - (void)startCallInChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio notRinging:(BOOL)notRinging delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)startCallInChat:(uint64_t)chatId enableVideo:(BOOL)enableVideo enableAudio:(BOOL)enableAudio notRinging:(BOOL)notRinging;
 - (void)ringIndividualInACall:(uint64_t)chatId userId:(uint64_t)userId timeout:(NSInteger)timeout delegate:(id<MEGAChatRequestDelegate>)delegate;
@@ -541,6 +541,7 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark - Debug log messages
 
 + (void)setLogLevel:(MEGAChatLogLevel)level;
++ (void)setInternalMaxLogLevel:(MEGAChatLogLevel)level;
 + (void)setLogToConsole:(BOOL)enable;
 + (void)setLogObject:(nullable id<MEGAChatLoggerDelegate>)delegate;
 + (void)setLogWithColors:(BOOL)userColors;

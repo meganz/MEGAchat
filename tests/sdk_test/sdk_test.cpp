@@ -11679,10 +11679,13 @@ void MegaLoggerTest::log(int loglevel, const char *message)
     {
         case MegaChatApi::LOG_LEVEL_ERROR: levelStr = "err"; break;
         case MegaChatApi::LOG_LEVEL_WARNING: levelStr = "warn"; break;
-        case MegaChatApi::LOG_LEVEL_INFO: levelStr = "info"; break;
-        case MegaChatApi::LOG_LEVEL_VERBOSE: levelStr = "verb"; break;
+        case MegaChatApi::LOG_LEVEL_INFO:
+            levelStr = "info";
+            break;
         case MegaChatApi::LOG_LEVEL_DEBUG: levelStr = "debug"; break;
-        case MegaChatApi::LOG_LEVEL_MAX: levelStr = "debug-verbose"; break;
+        case MegaChatApi::LOG_LEVEL_MAX:
+            levelStr = "verbose";
+            break;
         default: levelStr = ""; break;
     }
 

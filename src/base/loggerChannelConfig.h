@@ -39,6 +39,8 @@ console and application abort.
 
 //TODO: Implement weak import for windows
 
+// Default values for loggers defined in different karere "modules". All log messages with a higher
+// log level than the one configured in this list will be ignored
 KR_LOGGER_CONFIG_START(
         krLogChannel_rtc, krLogChannel_rtcevent,
         krLogChannel_megasdk, krLogChannel_services,
@@ -50,14 +52,14 @@ KR_LOGGER_CONFIG_START(
     KR_LOGCHANNEL(rtc, "rtc", Debug, krLogNoLevel | 8)
     KR_LOGCHANNEL(rtcevent, "rtcevent", Debug, krLogNoLevel | 10)
     KR_LOGCHANNEL(strongvelope, "sv", Debug, 4)
-    KR_LOGCHANNEL(chatd, "chatd", Debug, 4)
+    KR_LOGCHANNEL(chatd, "chatd", Verbose, 4)
     KR_LOGCHANNEL(megasdk, "sdk", Warn, 12)
     KR_LOGCHANNEL(services, "services", Info, 0)
-    KR_LOGCHANNEL(websockets, "websockets", Warn, 13)
+    KR_LOGCHANNEL(websockets, "websockets", Verbose, 13)
     KR_LOGCHANNEL(gui, "gui", Debug, 10)
     KR_LOGCHANNEL(uacache, "uacache", Warn, 2)
     KR_LOGCHANNEL(megachatapi, "megachatapi", Debug, 3)
-    KR_LOGCHANNEL(presenced, "pres", Debug, 14)
+    KR_LOGCHANNEL(presenced, "pres", Verbose, 14)
     KR_LOGCHANNEL(sfu, "sfu", Debug, 15)
     KR_LOGCHANNEL(dnscache, "dnscache", Warn, 16)
 

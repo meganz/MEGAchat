@@ -2072,6 +2072,10 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     MegaChatApi::setLogLevel((int)level);
 }
 
++ (void)setInternalMaxLogLevel:(MEGAChatLogLevel)level {
+    MegaChatApi::setInternalMaxLogLevel((int)level);
+}
+
 + (void)setLogToConsole:(BOOL)enable {
     MegaChatApi::setLogToConsole(enable);
 }

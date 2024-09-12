@@ -122,11 +122,13 @@ class MyMegaLogger: public ::mega::MegaLogger
 #endif
     ) override
     {
-        static krLogLevel sdkToKarereLogLevels[::mega::MegaApi::LOG_LEVEL_MAX+1] =
-        {
-            krLogLevelError, krLogLevelError, krLogLevelWarn,
-            krLogLevelInfo, krLogLevelDebug, krLogLevelDebugVerbose
-        };
+        static krLogLevel sdkToKarereLogLevels[::mega::MegaApi::LOG_LEVEL_MAX + 1] = {
+            krLogLevelError,
+            krLogLevelError,
+            krLogLevelWarn,
+            krLogLevelInfo,
+            krLogLevelDebug,
+            krLogLevelVerbose};
         std::string sourceFile;
         if (source)
         {

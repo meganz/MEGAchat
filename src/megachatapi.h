@@ -3108,9 +3108,8 @@ public:
      * - MegaChatApi::LOG_LEVEL_ERROR   = 1
      * - MegaChatApi::LOG_LEVEL_WARNING = 2
      * - MegaChatApi::LOG_LEVEL_INFO    = 3
-     * - MegaChatApi::LOG_LEVEL_VERBOSE = 4
-     * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
-     * - MegaChatApi::LOG_LEVEL_MAX     = 6
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 4
+     * - MegaChatApi::LOG_LEVEL_MAX     = 5
      *
      * @param message Log message
      *
@@ -3216,13 +3215,14 @@ public:
 
     enum
     {
-        //0 is reserved to overwrite completely disabled logging. Used only by logger itself
-        LOG_LEVEL_ERROR     = 1,    /// Error information but will continue application to keep running.
-        LOG_LEVEL_WARNING   = 2,    /// Information representing errors in application but application will keep running
-        LOG_LEVEL_INFO      = 3,    /// Mainly useful to represent current progress of application.
-        LOG_LEVEL_VERBOSE   = 4,    /// More information than the usual logging mode
-        LOG_LEVEL_DEBUG     = 5,    /// Informational logs, that are useful for developers. Only applicable if DEBUG is defined.
-        LOG_LEVEL_MAX       = 6     /// Maximum level of informational logs
+        // 0 is reserved to overwrite completely disabled logging. Used only by logger itself
+        LOG_LEVEL_ERROR = 1, /// Error information but will continue application to keep running.
+        LOG_LEVEL_WARNING =
+            2, /// Information representing errors in application but application will keep running
+        LOG_LEVEL_INFO = 3, /// Mainly useful to represent current progress of application.
+        LOG_LEVEL_DEBUG = 4, /// Informational logs, that are useful for developers. Only applicable
+                             /// if DEBUG is defined.
+        LOG_LEVEL_MAX = 5, /// Maximum level of informational logs (Verbose mode)
     };
 
     enum
@@ -3373,11 +3373,58 @@ public:
      * - MegaChatApi::LOG_LEVEL_ERROR   = 1
      * - MegaChatApi::LOG_LEVEL_WARNING = 2
      * - MegaChatApi::LOG_LEVEL_INFO    = 3
-     * - MegaChatApi::LOG_LEVEL_VERBOSE = 4
-     * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
-     * - MegaChatApi::LOG_LEVEL_MAX     = 6
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 4
+     * - MegaChatApi::LOG_LEVEL_MAX     = 5
      */
     static void setLogLevel(int logLevel);
+
+    /**
+     * @brief Get the MAX value of log level that is allowed for MEGAchat internal logs (higher
+     * values are ignored)
+     *
+     * Internal MEGAChat logs will be printed, if log level of the line is "lower or equal" than
+     * value returned by this function
+     *
+     * @note: line above is valid, always there's no other default value configured at
+     * KR_LOGGER_CONFIG_START
+     *
+     * Valid values are:
+     * - MegaChatApi::LOG_LEVEL_ERROR   = 1
+     * - MegaChatApi::LOG_LEVEL_WARNING = 2
+     * - MegaChatApi::LOG_LEVEL_INFO    = 3
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 4
+     * - MegaChatApi::LOG_LEVEL_MAX     = 5
+     *
+     * @return ERROR_ACCESS if MegaChatApi::setLogLevel nor MegaChatApi::setLoggerClass have been
+     * called previously, otherwise any of the values above.
+     */
+    static int getInternalMaxLogLevel();
+
+    /**
+     * @brief Set new MAX value of log level that is allowed for MEGAchat internal logs (higher
+     * values are ignored)
+     *
+     * Internal MEGAChat logs will be printed, if log level of the line is "lower or equal" than
+     * value returned by this function
+     *
+     * @note: line above is valid, always there's no other default value configured at
+     * KR_LOGGER_CONFIG_START
+     *
+     * You need to call MegaChatApiImpl::setLogLevel or MegaChatApiImpl::setLoggerClass before
+     * calling this method
+     *
+     * @param logLevel new MAX value of log level that is allowed
+     * Valid values are:
+     * - MegaChatApi::LOG_LEVEL_ERROR   = 1
+     * - MegaChatApi::LOG_LEVEL_WARNING = 2
+     * - MegaChatApi::LOG_LEVEL_INFO    = 3
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 4
+     * - MegaChatApi::LOG_LEVEL_MAX     = 5
+     *
+     * @return False if MegaChatApi::setLogLevel nor MegaChatApi::setLoggerClass have been
+     * called previously, or provided logLevel is invalid, otherwise True.
+     */
+    static bool setInternalMaxLogLevel(const unsigned int logLevel);
 
     /**
      * @brief Enable the usage of colouring for logging in the console
@@ -6234,11 +6281,16 @@ public:
      * - MegaChatRequest::getParamType - Return 1
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+     * - MegaChatError::ERROR_ARGS - If the chatid is invalid
      * - MegaChatError::ERROR_NOENT - If the chatroom does not does not exist.
-     * - MegaChatError::ERROR_ACCESS - If the chatroom is archived (no notification should be generated).
+     * - MegaChatError::ERROR_EXISTS - If a previous PUSH is being processed. to avoid issues NSE
+     * must proccess pushes sequentially
+     * - MegaChatError::ERROR_ACCESS - If the chatroom is archived (no notification should be
+     * generated), or init state is not INIT_OFFLINE_SESSION.
      *
      * @param beep True if push should generate a beep, false if it shouldn't.
-     * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for all chats
+     * @param chatid MegaChatHandle that identifies the chat room, or MEGACHAT_INVALID_HANDLE for
+     * all chats
      * @param listener MegaChatRequestListener to track this request
      */
     void pushReceived(bool beep, MegaChatHandle chatid, MegaChatRequestListener *listener = NULL);

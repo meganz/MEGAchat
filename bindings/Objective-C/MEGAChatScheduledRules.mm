@@ -62,10 +62,6 @@ using namespace mega;
     return self.megaChatScheduledRules;
 }
 
-- (instancetype)clone {
-    return self.megaChatScheduledRules ? [[MEGAChatScheduledRules alloc] initWithMegaChatScheduledRules:self.megaChatScheduledRules->copy() cMemoryOwn:YES] : nil;
-}
-
 - (MEGAChatScheduledRulesFrequency)frequency {
     if (!self.megaChatScheduledRules) { return MEGAChatScheduledRulesFrequencyInvalid; }
     return MEGAChatScheduledRulesFrequency(self.megaChatScheduledRules->freq());

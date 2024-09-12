@@ -25,7 +25,6 @@ public class MegaChatApiJava {
     public final static int LOG_LEVEL_WARNING = MegaChatApi.LOG_LEVEL_WARNING;
     // Mainly useful to represent current progress of application.
     public final static int LOG_LEVEL_INFO = MegaChatApi.LOG_LEVEL_INFO;
-    public final static int LOG_LEVEL_VERBOSE = MegaChatApi.LOG_LEVEL_VERBOSE;
     // Informational logs, that aMegaChatPresenceConfigre useful for developers. Only applicable if DEBUG is defined.
     public final static int LOG_LEVEL_DEBUG = MegaChatApi.LOG_LEVEL_DEBUG;
     public final static int LOG_LEVEL_MAX = MegaChatApi.LOG_LEVEL_MAX;
@@ -4686,30 +4685,75 @@ public class MegaChatApiJava {
     }
 
     /**
-     * Set the active log level.
+     * Set the active log level
      * <p>
      * This function sets the log level of the logging system. If you set a log listener using
-     * MegaApiJava.setLoggerObject(), you will receive logs with the same or a lower level than
+     * MegaApi::setLoggerObject, you will receive logs with the same or a lower level than
      * the one passed to this function.
      *
-     * @param logLevel
-     *            Active log level. These are the valid values for this parameter: <br>
-     *                Valid values are:
+     * @param logLevel Active log level
+     * <p>
+     * Valid values are:
      * - MegaChatApi::LOG_LEVEL_ERROR   = 1
      * - MegaChatApi::LOG_LEVEL_WARNING = 2
      * - MegaChatApi::LOG_LEVEL_INFO    = 3
      * - MegaChatApi::LOG_LEVEL_VERBOSE = 4
-     * - MegaChatApi::LOG_LEVEL_DEBUG   = 5
+     *  - MegaChatApi::LOG_LEVEL_DEBUG   = 5
      * - MegaChatApi::LOG_LEVEL_MAX     = 6
-     *            - MegaApiJava.LOG_LEVEL_FATAL = 0. <br>
-     *            - MegaApiJava.LOG_LEVEL_ERROR = 1. <br>
-     *            - MegaApiJava.LOG_LEVEL_WARNING = 2. <br>
-     *            - MegaApiJava.LOG_LEVEL_INFO = 3. <br>
-     *            - MegaApiJava.LOG_LEVEL_DEBUG = 4. <br>
-     *            - MegaApiJava.LOG_LEVEL_MAX = 5.
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 4
+     * - MegaChatApi::LOG_LEVEL_MAX     = 5
      */
     public static void setLogLevel(int logLevel) {
         MegaChatApi.setLogLevel(logLevel);
+    }
+
+    /**
+     * Get the MAX value of log level that is allowed for MEGAchat internal logs (higher
+     * values are ignored)
+     * <p>
+     * Internal MEGAChat logs will be printed, if log level of the line is "lower or equal" than
+     * value returned by this function
+     *
+     * @return ERROR_ACCESS if MegaChatApi::setLogLevel nor MegaChatApi::setLoggerClass have been
+     * called previously, otherwise any of the values above.
+     * @note: line above is valid, always there's no other default value configured at
+     * KR_LOGGER_CONFIG_START
+     * <p>
+     * Valid values are:
+     * - MegaChatApi::LOG_LEVEL_ERROR   = 1
+     * - MegaChatApi::LOG_LEVEL_WARNING = 2
+     * - MegaChatApi::LOG_LEVEL_INFO    = 3
+     * - MegaChatApi::LOG_LEVEL_DEBUG   = 4
+     * - MegaChatApi::LOG_LEVEL_MAX     = 5
+     */
+    public static int getInternalMaxLogLevel() {
+        return MegaChatApi.getInternalMaxLogLevel();
+    }
+
+    /**
+     * Set new MAX value of log level that is allowed for MEGAchat internal logs (higher
+     * values are ignored)
+     * <p>
+     * Internal MEGAChat logs will be printed, if log level of the line is "lower or equal" than
+     * value returned by this function
+     *
+     * @param logLevel new MAX value of log level that is allowed
+     *                 Valid values are:
+     *                 - MegaChatApi::LOG_LEVEL_ERROR   = 1
+     *                 - MegaChatApi::LOG_LEVEL_WARNING = 2
+     *                 - MegaChatApi::LOG_LEVEL_INFO    = 3
+     *                 - MegaChatApi::LOG_LEVEL_DEBUG   = 4
+     *                 - MegaChatApi::LOG_LEVEL_MAX     = 5
+     * @return False if MegaChatApi::setLogLevel nor MegaChatApi::setLoggerClass have been
+     * called previously, or provided logLevel is invalid, otherwise True.
+     * Note: line above is valid, always there's no other default value configured at
+     * KR_LOGGER_CONFIG_START
+     * <p>
+     * You need to call MegaChatApiImpl::setLogLevel or MegaChatApiImpl::setLoggerClass before
+     * calling this method
+     */
+    public static boolean setInternalMaxLogLevel(int logLevel) {
+        return MegaChatApi.setInternalMaxLogLevel(logLevel);
     }
 
     /**

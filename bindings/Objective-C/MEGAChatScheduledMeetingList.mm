@@ -32,10 +32,6 @@ using namespace megachat;
     }
 }
 
-- (instancetype)clone {
-    return self.megaChatScheduledMeetingList ? [[MEGAChatScheduledMeetingList alloc] initWithMegaChatScheduledMeetingList:self.megaChatScheduledMeetingList->copy() cMemoryOwn:YES] : nil;
-}
-
 - (MegaChatScheduledMeetingList *)getCPtr {
     return self.megaChatScheduledMeetingList;
 }

@@ -31,18 +31,20 @@
     inline struct tm *gmtime_r(const time_t *timep, struct tm *result)
     { return gmtime(timep); }
 #endif
-extern "C"
-{
-//this must be in sync with the enums in logger.h
-typedef const char* KarereLogLevelName[2];
-KRLOGGER_DLLEXPORT KarereLogLevelName krLogLevelNames[krLogLevelLast+1] =
-{
-    {NULL, "off"}, {"ERR", "error"}, {"WRN", "warn"}, {"nfo", "info"},
-    {"vrb", "verbose"}, {"dbg", "debug"},{"dbg", "debugv"}
-};
-
-
-}
+    krLogLevel karere::Logger::mKarereMaxLogLevel = krLogLevelMax;
+    extern "C"
+    {
+        // this must be in sync with the enums in logger.h
+        typedef const char* KarereLogLevelName[2];
+        KRLOGGER_DLLEXPORT KarereLogLevelName krLogLevelNames[krLogLevelMax + 1] = {
+            {NULL,  "off"    },
+            {"ERR", "error"  },
+            {"WRN", "warn"   },
+            {"nfo", "info"   },
+            {"dbg", "debug"  },
+            {"vrb", "verbose"}
+        };
+    }
 namespace karere
 {
 /** Copies maximum maxCount chars from src to dest.
@@ -52,6 +54,16 @@ namespace karere
 * the terminating zero and it is not counted
 */
 static size_t myStrncpy(char* dest, const char* src, size_t maxCount);
+
+void Logger::setKarereMaxLogLevel(const unsigned int v)
+{
+    const auto newVal = static_cast<krLogLevel>(v);
+    if (newVal == mKarereMaxLogLevel || newVal < krLogLevelError || newVal > krLogLevelMax)
+    {
+        return;
+    }
+    mKarereMaxLogLevel = newVal;
+}
 
 void Logger::logToConsole(bool enable)
 {
@@ -407,18 +419,19 @@ KRLOGGER_DLLEXPORT Logger gLogger;
 
 extern "C"
 {
-KRLOGGER_DLLEXPORT KarereLogChannel* krLoggerChannels = karere::gLogger.logChannels;
-KRLOGGER_DLLEXPORT krLogLevel krLogLevelStrToNum(const char* strLevel)
-{
-    for (krLogLevel n = 0; n<=krLogLevelLast; n++)
+    KRLOGGER_DLLEXPORT KarereLogChannel* krLoggerChannels = karere::gLogger.logChannels;
+
+    KRLOGGER_DLLEXPORT krLogLevel krLogLevelStrToNum(const char* strLevel)
     {
-        auto& name = krLogLevelNames[n];
-        if ((strcasecmp(strLevel, name[1]) == 0)
-         || (name[0] && (strcasecmp(strLevel, name[0]) == 0)))
-            return n;
+        for (krLogLevel n = 0; n <= krLogLevelMax; ++n)
+        {
+            auto& name = krLogLevelNames[n];
+            if ((strcasecmp(strLevel, name[1]) == 0) ||
+                (name[0] && (strcasecmp(strLevel, name[0]) == 0)))
+                return n;
+        }
+        return (krLogLevel)-1;
     }
-    return (krLogLevel)-1;
-}
 
 KRLOGGER_DLLEXPORT void krLoggerLog(krLogChannelNo channel, krLogLevel level,
     const char* fmtString, ...)

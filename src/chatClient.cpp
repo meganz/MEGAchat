@@ -1196,13 +1196,41 @@ void Client::saveDb()
     }
 }
 
+void Client::connectLeanMode(Id chatId)
+{
+    assert(chatId.isValid());
+    if (!mChatdClient->isChatLoggedIn(chatId) && mConnState != kDisconnected)
+    {
+        disconnectLeanMode();
+    }
+
+    // enable chatId and disable the rest of chats
+    mChatdClient->enableChats(true /*enable*/, chatId);
+    notifyUserStatus(true);
+
+    // is mandatory to call connect() as we are in lean mode
+    connect(false /*connectPresenced*/);
+}
+
+bool Client::isPendingPush()
+{
+    return mSyncTimer;
+}
+
+void Client::enableAllChats()
+{
+    mChatdClient->enableChats(true /*enable*/);
+}
+
 promise::Promise<void> Client::pushReceived(Id chatid)
 {
+    const bool iosPushReceived = chatid.isValid();
     promise::Promise<void> pms;
     ChatRoomList::const_iterator it = chats->find(chatid);
     ChatRoom *room = (it != chats->end()) ? it->second : NULL;
     if (!room || room->isArchived())
     {
+        assert(!iosPushReceived);
         // room unknown or archived --> need to catchup wiht API to receive pending
         // actionpackets that may notify about a new chat or an existing chat being
         // unarchived (don't want notifications for archived)
@@ -1221,8 +1249,9 @@ promise::Promise<void> Client::pushReceived(Id chatid)
             return promise::Error("Up to date with API, but instance was removed");
 
         // if already sent SYNCs or we are not logged in right now...
-        if (mSyncTimer)
+        if (isPendingPush())
         {
+            assert(!chatid.isValid()); // NSE should not have previous push in flight
             KR_LOG_WARNING("%spushReceived: a previous PUSH is being processed. Both will finish "
                            "at the same time",
                            getLoggingName());
@@ -1244,6 +1273,9 @@ promise::Promise<void> Client::pushReceived(Id chatid)
             return mSyncPromise;
         }
 
+        // we are connected to all chats, sync with push received chatid or all (Android)
+        // mSyncPromise is resolved when we are connected to all chats or when we receive sync from
+        // chatd for chatid or all (Android)
         mSyncCount = 0;
         mSyncTimer = karere::setTimeout([this, wptr]()
         {
@@ -1260,9 +1292,26 @@ promise::Promise<void> Client::pushReceived(Id chatid)
 
         if (chatid.isValid())
         {
-            ChatRoom *chat = chats->at(chatid);
-            mSyncCount++;
-            chat->sendSync();
+            ChatRoom* chat = chats->at(chatid);
+            if (!chat->chat().isDisabled())
+            {
+                mSyncCount++;
+                if (mSyncCount != 1)
+                {
+                    KR_LOG_ERROR("%spushReceived (iOS): mSyncCount: %d (it should be 1)",
+                                 getLoggingName(),
+                                 mSyncCount);
+                    assert(false);
+                }
+                chat->sendSync();
+            }
+            else
+            {
+                KR_LOG_ERROR("%spushReceived (iOS): chatid should be enabled %s",
+                             getLoggingName(),
+                             chatid.toString().c_str());
+                assert(false);
+            }
         }
         else
         {
@@ -1550,15 +1599,7 @@ Client::InitState Client::init(const char* sid, bool waitForFetchnodesToConnect)
             return kInitErrGeneric;
         }
 
-        mInitStats.onCanceled();    // do not collect stats for this initialization mode
-
-        // connect() should be done in main thread, not app's thread, since LWS is single threaded
-        // and the `wsi` context must be created by the main thread, where it runs the event's loop
-        marshallCall([this]()
-        {
-            notifyUserStatus(true);
-            connect();
-        }, appCtx);
+        mInitStats.onCanceled(); // do not collect stats for this initialization mode
     }
 
     mInitStats.stageEnd(InitStats::kStatsInit);
@@ -1946,7 +1987,23 @@ void Client::dumpContactList(::mega::MegaUserList& clist)
     KR_LOG_DEBUG("%s== Contactlist end ==", getLoggingName());
 }
 
-void Client::connect()
+void Client::disconnectLeanMode()
+{
+    assert(mConnState != kDisconnected);
+    mInitStats.onCanceled();
+    setConnState(kDisconnected);
+
+    // stop heartbeats
+    if (mHeartbeatTimer)
+    {
+        karere::cancelInterval(mHeartbeatTimer, appCtx);
+        mHeartbeatTimer = 0;
+    }
+
+    mChatdClient->disconnect(true);
+}
+
+void Client::connect(const bool connectPresenced)
 {
     // cancel stats if connection is done in background (not reliable times)
     if (mIsInBackground && !mInitStats.isCompleted())
@@ -2006,7 +2063,10 @@ void Client::connect()
         KR_LOG_DEBUG("%sOwn screen name is: '%s'", loggingName, name.c_str() + 1);
     });
 
-    mPresencedClient.connect();
+    if (connectPresenced)
+    {
+        mPresencedClient.connect();
+    }
     setConnState(kConnected);
 }
 
