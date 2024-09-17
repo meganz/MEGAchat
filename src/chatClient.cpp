@@ -4576,9 +4576,8 @@ void GroupChatRoom::syncChatTitle(const mega::MegaTextChat& chat, const bool mem
         // and decrypt it once per execution
         mEncryptedTitle = title;
         updateTitleInDb(mEncryptedTitle, strongvelope::kEncrypted);
-        auto wptr = weakHandle();
         decryptTitle().fail(
-            [wptr](const ::promise::Error& err)
+            [wptr = weakHandle()](const ::promise::Error& err)
             {
                 if (wptr.deleted())
                 {

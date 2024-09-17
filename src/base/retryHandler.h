@@ -372,9 +372,8 @@ protected:
         RETRY_LOG("Starting attempt %zu - id (%zu)...", mCurrentAttemptNo, mCurrentAttemptId);
         auto pms = mFunc(mCurrentAttemptId, wptr);
         attachThenHandler(pms, static_cast<unsigned int>(attempt));
-        auto wptr = weakHandle();
         pms.fail(
-            [this, wptr, attempt](const ::promise::Error& err)
+            [this, wptr = weakHandle(), attempt](const ::promise::Error& err)
             {
                 if (wptr.deleted())
                 {

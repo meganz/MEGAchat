@@ -529,9 +529,8 @@ void Chat::connect()
     if ((mConnection.state() == Connection::kStateNew))
     {
         // attempt a connection ONLY if this is a new shard.
-        auto wptr = weakHandle();
         mConnection.connect().fail(
-            [this, wptr, lname = std::string{mChatdClient.getLoggingName()}](
+            [this, wptr = weakHandle(), lname = std::string{mChatdClient.getLoggingName()}](
                 const ::promise::Error& err)
             {
                 if (wptr.deleted())
