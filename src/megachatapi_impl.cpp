@@ -1494,9 +1494,15 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
                 pms = mClient->getPublicHandle(chatid, createifmissing);
             }
 
+            auto wptr = mClient->weakHandle();
             pms.then(
-                   [request, del, room, this](uint64_t ph)
+                   [request, wptr, del, room, this](uint64_t ph)
                    {
+                       if (wptr.deleted())
+                       {
+                           return;
+                       }
+
                        if (del)
                        {
                            return fireOnChatRequestFinish(
@@ -1556,8 +1562,13 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
                                });
                    })
                 .fail(
-                    [request, this](const ::promise::Error& err)
+                    [request, wptr, this](const ::promise::Error& err)
                     {
+                        if (wptr.deleted())
+                        {
+                            return;
+                        }
+
                         API_LOG_ERROR("%sFailed to query/create/delete chat-link: %s",
                                       getLoggingName(),
                                       err.what());
