@@ -112,11 +112,15 @@ pipeline {
                 BUILD_DIR = "build_dir"
             }
             steps{
+                script {
+                    BUILD_TYPE = (env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc')) ? 'Release' : 'Debug'
+                }
                 dir(megachat_sources_workspace){
-                    sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT='${VCPKGPATH}' ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    sh "echo Building in ${BUILD_TYPE} mode"
+                    sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT='${VCPKGPATH}' ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
                     -S '${megachat_sources_workspace}' -B '${megachat_sources_workspace}'\\\\${BUILD_DIR}\\\\"
-                    sh "cmake --build '${megachat_sources_workspace}'\\\\${BUILD_DIR} -j2"
+                    sh "cmake --build '${megachat_sources_workspace}'\\\\${BUILD_DIR} --config ${BUILD_TYPE} -j2"
                 }
                 script {
                     uploadMegaclcExecuted = false
@@ -133,7 +137,7 @@ pipeline {
                 JF_PATH  = "${megachat_sources_workspace}\\.."
             }
             steps {
-                dir('build_dir\\examples\\megaclc\\Debug'){
+                dir('build_dir\\examples\\megaclc\\Release'){
                     script {
                         uploadMegaclcExecuted = true
                         def windows_artifactory_upload = { String ART_UPLOAD_PATH ->
@@ -152,9 +156,7 @@ pipeline {
     }
 
     post{
-        always{
-            deleteDir()
-        }
+
         success {
             script{
                 if (uploadMegaclcExecuted){
