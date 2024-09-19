@@ -3,6 +3,7 @@ pipeline {
     options {
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
+        ansiColor('xterm')
     }
     environment {
         APIURL_TO_TEST = "https://g.api.mega.co.nz/"
