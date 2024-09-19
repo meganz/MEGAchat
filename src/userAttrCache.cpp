@@ -373,14 +373,18 @@ promise::Promise<void> UserAttrCache::getAttributes(uint64_t user, uint64_t ph)
         // so the API refuses the `uge` command with `ENOENT` for privacy reasons)
         // the `ph` is passed here only to decide whether the email should be persisted
         // in DB or not (previews/valid-ph should not persist cached data)
-        ::promise::Promise<Buffer*> promise = getAttr(user, USER_ATTR_EMAIL, ph)
-        .fail([](const ::promise::Error&) -> ::promise::Promise<Buffer*>
-        {
-            ::promise::Promise<Buffer*> p;
-            p.resolve(nullptr);
+        auto wptr = weakHandle();
+        ::promise::Promise<Buffer*> promise =
+            getAttr(user, USER_ATTR_EMAIL, ph)
+                .fail(
+                    [wptr](const ::promise::Error&) -> ::promise::Promise<Buffer*>
+                    {
+                        wptr.throwIfDeleted();
+                        ::promise::Promise<Buffer*> p;
+                        p.resolve(nullptr);
 
-            return p;
-        });
+                        return p;
+                    });
 
         promises.push_back(promise);
     }

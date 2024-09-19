@@ -573,6 +573,7 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                     title = request->getText();
                 }
 
+                auto wptr = mClient->weakHandle();
                 bool creatingSchedMeeting = megaSchedMeeting != nullptr;
                 mClient
                     ->createGroupChat(peers,
@@ -585,9 +586,14 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                         [request,
                          creatingSchedMeeting,
                          this,
+                         wptr,
                          lname = std::string{getLoggingName()}](
                             std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
                         {
+                            if (wptr.deleted())
+                            {
+                                return;
+                            }
                             if (creatingSchedMeeting)
                             {
                                 if (res.second)
@@ -1488,9 +1494,15 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
                 pms = mClient->getPublicHandle(chatid, createifmissing);
             }
 
+            auto wptr = mClient->weakHandle();
             pms.then(
-                   [request, del, room, this](uint64_t ph)
+                   [request, wptr, del, room, this](uint64_t ph)
                    {
+                       if (wptr.deleted())
+                       {
+                           return;
+                       }
+
                        if (del)
                        {
                            return fireOnChatRequestFinish(
@@ -1550,8 +1562,13 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
                                });
                    })
                 .fail(
-                    [request, this](const ::promise::Error& err)
+                    [request, wptr, this](const ::promise::Error& err)
                     {
+                        if (wptr.deleted())
+                        {
+                            return;
+                        }
+
                         API_LOG_ERROR("%sFailed to query/create/delete chat-link: %s",
                                       getLoggingName(),
                                       err.what());
@@ -1909,10 +1926,16 @@ int MegaChatApiImpl::performRequest_pushReceived(MegaChatRequestPrivate* request
                 mClient->connectLeanMode(chatid);
             }
 
+            auto wptr = mClient->weakHandle();
             mClient->pushReceived(chatid)
                 .then(
-                    [this, request, wasArchived, iosPushReceived]()
+                    [this, request, wptr, wasArchived, iosPushReceived]()
                     {
+                        if (wptr.deleted())
+                        {
+                            return;
+                        }
+
                         if (!iosPushReceived) // Android
                         {
                             // for Android, we prepare a list of msgids for every chatid that are
@@ -2013,8 +2036,13 @@ int MegaChatApiImpl::performRequest_pushReceived(MegaChatRequestPrivate* request
                         fireOnChatRequestFinish(request, megaChatError);
                     })
                 .fail(
-                    [this, request, iosPushReceived](const ::promise::Error& err)
+                    [this, request, wptr, iosPushReceived](const ::promise::Error& err)
                     {
+                        if (wptr.deleted())
+                        {
+                            return;
+                        }
+
                         if (iosPushReceived)
                         {
                             // re-enable all chatrooms
@@ -2110,11 +2138,17 @@ int MegaChatApiImpl::performRequest_startChatCall(MegaChatRequestPrivate* reques
                    pms.resolve(std::make_shared<string>());
                }
 
+               auto wptr = mClient->weakHandle();
                bool isGroup = chatroom->isGroup();
                pms.then(
-                      [request, this, chatid, avFlags, isGroup, notRinging](
+                      [request, this, wptr, chatid, avFlags, isGroup, notRinging](
                           shared_ptr<string> unifiedKey)
                       {
+                          if (wptr.deleted())
+                          {
+                              return;
+                          }
+
                           mClient->rtc->startCall(chatid, avFlags, isGroup, notRinging, unifiedKey)
                               .then(
                                   [request, this]()
