@@ -81,5 +81,10 @@ pipeline {
             }
         }
     }
+    post {
+        always {
+            deleteDir()
+        }
+    }
 }
 // vim: syntax=groovy tabstop=4 shiftwidth=4
