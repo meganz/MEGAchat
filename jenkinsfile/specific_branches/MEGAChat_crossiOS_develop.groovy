@@ -43,6 +43,10 @@ pipeline {
                             ]
                     ])
                 }
+                sh """
+                    git submodule update --init iMEGA/Vendor/SVProgressHUD
+                    git submodule update --init iMEGA/Vendor/LTHPasscodeViewController
+                """
                 script{
                     ios_sources_workspace = WORKSPACE
                     sdk_sources_workspace = "${ios_sources_workspace}/Modules/DataSource/MEGASDK/Sources/MEGASDK"
