@@ -39,6 +39,7 @@ pipeline {
         timeout(time: 200, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
+        ansiColor('xterm')
     }
     environment {
         BUILD_OPTIONS = ' '
