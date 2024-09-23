@@ -8554,10 +8554,13 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     smDataTests2.newCancelled = false;
     ASSERT_NO_FATAL_FAILURE(updateOccurrence(a1, {a1, a2}, MegaChatError::ERROR_NOENT, smDataTests2));
 
-    LOG_debug << "#### Test6. A Updates a scheduled meeting occurrence (new child sched meeting created) ####";
-    MegaChatTimeStamp overrides =  startDate;
-    const MegaChatTimeStamp auxStartDate =  startDate + 120;
-    const MegaChatTimeStamp auxEndDate = endDate + 120;
+    LOG_debug << "#### Test6. A Updates a scheduled meeting occurrence (new child sched meeting "
+                 "created) ####";
+    ASSERT_TRUE(occurrences->size())
+        << "There's no occurrences for scheduled meeting id: " << getSchedIdStrB64(schedId);
+    MegaChatTimeStamp overrides = occurrences->at(0)->startDateTime();
+    const MegaChatTimeStamp auxStartDate = overrides + 120;
+    const MegaChatTimeStamp auxEndDate = overrides + 900;
     // update occurrence and ensure that we have received a new child scheduled meeting whose parent is the original sched meeting and contains the updated occurrence
     smDataTests2.schedId = schedId;
     smDataTests2.overrides = overrides;
