@@ -1195,7 +1195,9 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, cons
     if (isConnectedToSfu())
     {
         sendStats(termCode);
-        if (termCode != kSigDisconn) // kSigDisconn is mutually exclusive with BYE command
+        if (termCode != kSigDisconn &&
+            termCode !=
+                kErrNoCall) // kSigDisconn & kErrNoCall are mutually exclusive with BYE command
         {
             // store termcode temporarily until confirm BYE command has been sent
             mTempTermCode = termCode;
@@ -3084,10 +3086,15 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         std::string errMsgStr = errMsg.empty() || !errMsg.compare("Unknown reason") ? connectionTermCodeToString(connectionTermCode): errMsg;
         mCallHandler.onCallError(*this, static_cast<int>(connectionTermCode), errMsgStr);
 
-        if (disconnectCall)
+        if (auto callNotExist = connectionTermCode == kErrNoCall; callNotExist)
         {
-            // disconnect call just if there are no participants or termcode is not recoverable (we don't need to send BYE command upon SFU error reception)
-            // call just can be removed upon OP_DELCALLREASON command received from chatd
+            removeCallImmediately(rtcModule::EndCallReason::kEnded, connectionTermCode);
+        }
+        else if (disconnectCall)
+        {
+            // disconnect call just if there are no participants or termcode is not recoverable (we
+            // don't need to send BYE command upon SFU error reception) call just can be removed
+            // upon OP_DELCALLREASON command received from chatd
             immediateCallDisconnect(connectionTermCode);
         }
     }, mRtc.getAppCtx());
