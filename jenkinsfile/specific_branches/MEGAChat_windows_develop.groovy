@@ -38,7 +38,7 @@ pipeline {
         }
         stage('Build MEGAchat'){
             environment{
-                VCPKGPATH  = "${megachat_sources_workspace}\\..\\vcpkg"
+                VCPKGPATH  = "${megachat_sources_workspace}\\..\\..\\vcpkg"
                 TMP       = "${megachat_sources_workspace}\\tmp"
                 TEMP      = "${megachat_sources_workspace}\\tmp"
                 TMPDIR    = "${megachat_sources_workspace}\\tmp"
