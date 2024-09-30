@@ -520,6 +520,17 @@ public class MegaChatApiJava {
     }
 
     /**
+     * Refresh DNS servers and retry pending connections
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
+     *
+     * @param disconnect boolean
+     */
+    public void retryPendingConnections(boolean disconnect){
+        megaChatApi.retryPendingConnections(disconnect);
+    }
+
+    /**
      * Refresh URLs and establish fresh connections
      *
      * The associated request type with this request is MegaChatRequest::TYPE_RETRY_PENDING_CONNECTIONS
@@ -1748,6 +1759,29 @@ public class MegaChatApiJava {
      */
     public void requestLastGreen(long userid, MegaChatRequestListenerInterface listener){
         megaChatApi.requestLastGreen(userid, createDelegateRequestListener(listener));
+    }
+
+    /**
+     * Request the number of minutes since the user was seen as green by last time.
+     *
+     * Apps may call this function to retrieve the minutes elapsed since the user was seen
+     * as green (MegaChatApi::STATUS_ONLINE) by last time.
+     * Apps must NOT call this function if the current status of the user is already green.
+     *
+     * The number of minutes since the user was seen as green by last time, if any, will
+     * be notified in the MegaChatListener::onChatPresenceLastGreen callback. Note that,
+     * if the user was never seen green by presenced or the user has disabled the visibility
+     * of the last-green with MegaChatApi::setLastGreenVisible, there will be no notification
+     * at all.
+     *
+     * The associated request type with this request is MegaChatRequest::TYPE_LAST_GREEN
+     * Valid data in the MegaChatRequest object received on callbacks:
+     * - MegaChatRequest::getUserHandle() - Returns the handle of the user
+     *
+     * @param userid MegaChatHandle from user that last green has been requested
+     */
+    public void requestLastGreen(long userid){
+        megaChatApi.requestLastGreen(userid);
     }
 
     /**
