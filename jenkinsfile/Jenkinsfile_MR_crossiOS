@@ -82,7 +82,7 @@ pipeline {
                         echo "SDK_BRANCH was not found on description so develop will be used by default"
                         env.SDK_BRANCH = "develop"
                     }
-                    echo "SDK_branch: ${env.SDK_BRANCH}"
+                    echo "SDK_branch: \"${env.SDK_BRANCH}\""
                 }
             }
         }
@@ -94,14 +94,14 @@ pipeline {
                         echo "IOS_BRANCH was not found on description so develop will be used by default"
                         env.IOS_BRANCH = "develop"
                     }
-                    echo "iOS_branch: ${env.IOS_BRANCH}"
+                    echo "iOS_branch: \"${env.IOS_BRANCH}\""
                 }
             }
         }
         stage('Checkout SDK MEGAchat and iOS'){
             steps {
                 deleteDir()
-                //sh "echo Cloning iOS branch ${env.IOS_BRANCH}"
+                sh "echo Cloning iOS branch \"${env.IOS_BRANCH}\""
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: "origin/${env.IOS_BRANCH}"]],
@@ -122,7 +122,7 @@ pipeline {
                     ])
                 }
                 dir('Modules/Datasource/MEGASDK/Sources/MEGASDK'){
-                    sh "echo Cloning megachat branch ${env.SDK_BRANCH}"
+                    sh "echo Cloning megachat branch \"${env.SDK_BRANCH}\""
                     checkout([
                         $class: 'GitSCM',
                         branches: [[name: "origin/${env.SDK_BRANCH}"]],

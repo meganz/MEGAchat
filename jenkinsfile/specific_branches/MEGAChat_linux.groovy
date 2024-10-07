@@ -11,7 +11,7 @@ pipeline {
                 deleteDir()
                 checkout scm
                 dir('third-party/mega'){
-                    sh "echo Cloning SDK branch ${SDK_BRANCH}"
+                    sh "echo Cloning SDK branch \"${SDK_BRANCH}\""
                     checkout([
                         $class: 'GitSCM',
                         branches: [[name: "${SDK_BRANCH}"]],
