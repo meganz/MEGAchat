@@ -80,7 +80,7 @@ pipeline {
                         echo "SDK_BRANCH was not found on description so develop will be used by default"
                         env.SDK_BRANCH = 'develop'
                     }
-                    echo "SDK_branch: ${env.SDK_BRANCH}"
+                    echo "SDK_branch: \"${env.SDK_BRANCH}\""
                 }
             }
         }
@@ -92,7 +92,7 @@ pipeline {
                         echo "ANDROID_BRANCH was not found on description so develop will be used by default"
                         env.ANDROID_BRANCH = 'develop'
                     }
-                    echo "Android_branch: ${env.ANDROID_BRANCH}"
+                    echo "Android_branch: \"${env.ANDROID_BRANCH}\""
                 }
             }
         }
@@ -109,7 +109,7 @@ pipeline {
             steps {
                 updateGitlabCommitStatus(name: 'Android build', state: 'running')
                 deleteDir()
-                sh "echo Cloning android branch ${env.ANDROID_BRANCH}"
+                sh "echo Cloning android branch \"${env.ANDROID_BRANCH}\""
                 checkout([
                     $class: 'GitSCM',
                     branches: [[name: "origin/${env.ANDROID_BRANCH}"]],
@@ -133,7 +133,7 @@ pipeline {
                     }
                 }
                 dir('sdk/src/main/jni/mega/sdk'){
-                    sh "echo Cloning SDK branch ${env.SDK_BRANCH}"
+                    sh "echo Cloning SDK branch \"${env.SDK_BRANCH}\""
                     checkout([
                         $class: 'GitSCM',
                         branches: [[name: "origin/${env.SDK_BRANCH}"]],
