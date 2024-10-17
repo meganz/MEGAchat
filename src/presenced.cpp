@@ -79,13 +79,24 @@ Promise<void> Client::fetchUrl()
 
 void Client::connect()
 {
-    assert (mConnState == kConnNew);
+    assert(mConnState == kConnNew);
+    auto wptr = getDelTracker();
     fetchUrl().then(
-        [this, lname = std::string{getLoggingName()}]
+        [this, wptr, lname = std::string{getLoggingName()}]
         {
+            if (wptr.deleted())
+            {
+                return;
+            }
+
             reconnect().fail(
-                [lname = std::move(lname)](const ::promise::Error& err)
+                [wptr, lname = std::move(lname)](const ::promise::Error& err)
                 {
+                    if (wptr.deleted())
+                    {
+                        return;
+                    }
+
                     PRESENCED_LOG_DEBUG(
                         "%sPresenced::connect(): Error connecting to server after getting URL: %s",
                         lname.c_str(),

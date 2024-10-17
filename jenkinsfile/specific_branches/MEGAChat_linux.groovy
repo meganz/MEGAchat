@@ -35,7 +35,7 @@ pipeline {
             steps{
                 dir(megachat_sources_workspace){
                     sh """
-                        sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS}#g" tests/sdk_test/sdk_test.h
+                        sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS_MEGACHAT}#g" tests/sdk_test/sdk_test.h
                     """
                     sh "echo Building SDK"
                     sh "cmake -DENABLE_CHATLIB_WERROR=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
@@ -72,12 +72,12 @@ pipeline {
                                 ulimit -c unlimited
                                 if [ -z \"${TESTS_PARALLEL}\" ]; then
                                     # Sequential run
-                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} &
+                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS_MEGACHAT} --APIURL:${APIURL_TO_TEST} &
                                     pid=\$!
                                     wait \$pid || FAILED=1
                                 else
                                     # Parallel run
-                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS} --APIURL:${APIURL_TO_TEST} ${TESTS_PARALLEL} 2>&1 | tee tests.stdout
+                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS_MEGACHAT} --APIURL:${APIURL_TO_TEST} ${TESTS_PARALLEL} 2>&1 | tee tests.stdout
                                     [ \"\${PIPESTATUS[0]}\" != \"0\" ] && FAILED=1
                                 fi
 

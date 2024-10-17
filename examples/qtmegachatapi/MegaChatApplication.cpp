@@ -57,9 +57,14 @@ MegaChatApplication::~MegaChatApplication()
     delete megaChatNotificationListenerDelegate;
     delete megaChatRequestListenerDelegate;
     delete megaListenerDelegate;
-    delete mMainWin;
+    if (mMainWin != nullptr)
+    {
+        delete mMainWin;
+        mMainWin = nullptr;
+    }
     delete mMegaChatApi;
     delete mMegaApi;
+    mMegaChatApi->setLoggerObject(nullptr);
     delete mLogger;
     delete [] mSid;
 }

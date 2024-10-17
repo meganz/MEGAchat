@@ -569,31 +569,45 @@ ProtocolHandler::ProtocolHandler(const karere::Id& ownHandle,
 
             //Decrypt unifiedkey
             mUnifiedKeyDecrypted = decryptKey(bufunifiedkey, invitorHandle, invitorHandle);
-            mUnifiedKeyDecrypted.then([this, wptr](std::shared_ptr<UnifiedKey> unifiedKey)
-            {
-                if (wptr.deleted())
-                    return;
+            mUnifiedKeyDecrypted
+                .then(
+                    [this, wptr](std::shared_ptr<UnifiedKey> unifiedKey)
+                    {
+                        if (wptr.deleted())
+                            return;
 
-                mUnifiedKey = unifiedKey;
+                        mUnifiedKey = unifiedKey;
 
-                // Save Unified key decrypted
-                Buffer auxBuf;
-                auxBuf.write(0, (uint8_t)kDecrypted);  // prefix to indicate it's decrypted
-                auxBuf.append(*unifiedKey);
-                mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
-            })
-            .fail([this, wptr, bufunifiedkey](const ::promise::Error& err)
-            {
+                        // Save Unified key decrypted
+                        Buffer auxBuf;
+                        auxBuf.write(0, (uint8_t)kDecrypted); // prefix to indicate it's decrypted
+                        auxBuf.append(*unifiedKey);
+                        mDb.query("update chats set unified_key = ? where chatid = ?",
+                                  auxBuf,
+                                  chatid);
+                    })
+                .fail(
+                    [this, wptr, bufunifiedkey](const ::promise::Error& err)
+                    {
+                        if (wptr.deleted())
+                        {
+                            return err;
+                        }
 
-                STRONGVELOPE_LOG_ERROR("Failed to decrypt unified-key. Error: %s", err.what());
+                        STRONGVELOPE_LOG_ERROR("Failed to decrypt unified-key. Error: %s",
+                                               err.what());
 
-                // Update Unified key
-                Buffer auxBuf;
-                auxBuf.write(0, (uint8_t)kUndecryptable);  // prefix to indicate it's undecryptable
-                auxBuf.append(*bufunifiedkey);
-                mDb.query("update chats set unified_key = ? where chatid = ?", auxBuf, chatid);
-                return err;
-            });
+                        // Update Unified key
+                        Buffer auxBuf;
+                        auxBuf.write(
+                            0,
+                            (uint8_t)kUndecryptable); // prefix to indicate it's undecryptable
+                        auxBuf.append(*bufunifiedkey);
+                        mDb.query("update chats set unified_key = ? where chatid = ?",
+                                  auxBuf,
+                                  chatid);
+                        return err;
+                    });
         }
         else
         {

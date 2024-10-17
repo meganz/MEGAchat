@@ -1195,7 +1195,9 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, cons
     if (isConnectedToSfu())
     {
         sendStats(termCode);
-        if (termCode != kSigDisconn) // kSigDisconn is mutually exclusive with BYE command
+        if (termCode != kSigDisconn &&
+            termCode !=
+                kErrNoCall) // kSigDisconn & kErrNoCall are mutually exclusive with BYE command
         {
             // store termcode temporarily until confirm BYE command has been sent
             mTempTermCode = termCode;
@@ -1552,8 +1554,13 @@ bool Call::handleAvCommand(Cid_t cid, unsigned av, uint32_t aMid)
                }
            })
         .fail(
-            [cid, lname = std::string{getLoggingName()}](const ::promise::Error&)
+            [cid, wptr, lname = std::string{getLoggingName()}](const ::promise::Error&)
             {
+                if (wptr.deleted())
+                {
+                    return;
+                }
+
                 RTCM_LOG_WARNING(
                     "%shandleAvCommand: PeerVerification promise was rejected for cid: %u",
                     lname.c_str(),
@@ -1799,9 +1806,13 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                             addPeerWithEphemKey(*auxPeer, derived, out);
                         })
                     .fail(
-                        [this, auxPeer, addPeerWithEphemKey, lname = std::string{getLoggingName()}](
-                            const ::promise::Error&)
+                        [this,
+                         wptr,
+                         auxPeer,
+                         addPeerWithEphemKey,
+                         lname = std::string{getLoggingName()}](const ::promise::Error&)
                         {
+                            wptr.throwIfDeleted();
                             RTCM_LOG_ERROR("%sError verifying ephemeral key signature for for "
                                            "user: %s, cid: %u",
                                            lname.c_str(),
@@ -2107,8 +2118,13 @@ bool Call::handleKeyCommand(const Keyid_t& keyid, const Cid_t& cid, const std::s
                }
            })
         .fail(
-            [cid, lname = std::string{getLoggingName()}](const ::promise::Error&)
+            [cid, wptr, lname = std::string{getLoggingName()}](const ::promise::Error&)
             {
+                if (wptr.deleted())
+                {
+                    return;
+                }
+
                 RTCM_LOG_WARNING(
                     "%shandleKeyCommand: PeerVerification promise was rejected for cid: %u",
                     lname.c_str(),
@@ -2347,6 +2363,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
             return false;
         }
 
+        auto wptr = getDelTracker();
         auto parsedkey = splitPubKey(keyStr);
         verifySignature(cid, userid, parsedkey.first, parsedkey.second)
             .then(
@@ -2355,9 +2372,15 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                  peer,
                  ephkeypair,
                  addPeerWithEphemKey,
+                 wptr,
                  this,
                  lname = std::string{getLoggingName()}](bool verified)
                 {
+                    if (wptr.deleted())
+                    {
+                        return;
+                    }
+
                     if (!verified)
                     {
                         RTCM_LOG_WARNING("%sCan't verify signature for user: %s",
@@ -2390,9 +2413,18 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                     addPeerWithEphemKey(*peer, out);
                 })
             .fail(
-                [this, userid, peer, addPeerWithEphemKey, lname = std::string{getLoggingName()}](
-                    const ::promise::Error&)
+                [this,
+                 userid,
+                 wptr,
+                 peer,
+                 addPeerWithEphemKey,
+                 lname = std::string{getLoggingName()}](const ::promise::Error&)
                 {
+                    if (wptr.deleted())
+                    {
+                        return;
+                    }
+
                     RTCM_LOG_ERROR("%sCan't retrieve public ED25519 attr for user %s",
                                    lname.c_str(),
                                    karere::Id(userid).toString().c_str());
@@ -3054,10 +3086,15 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         std::string errMsgStr = errMsg.empty() || !errMsg.compare("Unknown reason") ? connectionTermCodeToString(connectionTermCode): errMsg;
         mCallHandler.onCallError(*this, static_cast<int>(connectionTermCode), errMsgStr);
 
-        if (disconnectCall)
+        if (auto callNotExist = connectionTermCode == kErrNoCall; callNotExist)
         {
-            // disconnect call just if there are no participants or termcode is not recoverable (we don't need to send BYE command upon SFU error reception)
-            // call just can be removed upon OP_DELCALLREASON command received from chatd
+            removeCallImmediately(rtcModule::EndCallReason::kEnded, connectionTermCode);
+        }
+        else if (disconnectCall)
+        {
+            // disconnect call just if there are no participants or termcode is not recoverable (we
+            // don't need to send BYE command upon SFU error reception) call just can be removed
+            // upon OP_DELCALLREASON command received from chatd
             immediateCallDisconnect(connectionTermCode);
         }
     }, mRtc.getAppCtx());
@@ -3397,8 +3434,14 @@ bool Call::updateUserModeratorStatus(const karere::Id& userid, const bool enable
                    session->setModerator(enable);
                })
             .fail(
-                [&cid = it.first, lname = std::string{getLoggingName()}](const ::promise::Error&)
+                [&cid = it.first, wptr, lname = std::string{getLoggingName()}](
+                    const ::promise::Error&)
                 {
+                    if (wptr.deleted())
+                    {
+                        return;
+                    }
+
                     RTCM_LOG_WARNING("%supdateUserModeratorStatus: PeerVerification promise was "
                                      "rejected for cid: %u",
                                      lname.c_str(),
