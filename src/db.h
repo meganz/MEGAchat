@@ -122,7 +122,10 @@ public:
             return;
         if (!mCommitEach)
             commitTransaction();
-        sqlite3_close(mDb);
+        if (int err = sqlite3_close(mDb); err)
+        {
+            KR_LOG_DEBUG("sqlite3_close error: %d", err);
+        }
         mDb = nullptr;
         mLastCommitTs = 0;
     }
