@@ -518,12 +518,6 @@ void Client::createDbSchema()
 int Client::importMessages(const char *externalDbPath)
 {
     SqliteDb dbExternal(app);
-    const mega::MrProper cleanUp(
-        [&dbExternal]()
-        {
-            dbExternal.close();
-        });
-
     if (!dbExternal.open(externalDbPath, false))
     {
         KR_LOG_ERROR("%simportMessages: failed to open external DB (%s)",
@@ -531,6 +525,11 @@ int Client::importMessages(const char *externalDbPath)
                      externalDbPath);
         return -1;
     }
+    const mega::MrProper cleanUp(
+        [&dbExternal]()
+        {
+            dbExternal.close();
+        });
 
     // check external DB uses the same DB schema than the app
     try // SqliteStmt constructor can throw
