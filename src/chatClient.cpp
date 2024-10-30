@@ -525,6 +525,11 @@ int Client::importMessages(const char *externalDbPath)
                      externalDbPath);
         return -1;
     }
+    const mega::MrProper cleanUp(
+        [&dbExternal]()
+        {
+            dbExternal.close();
+        });
 
     // check external DB uses the same DB schema than the app
     try // SqliteStmt constructor can throw
@@ -533,7 +538,6 @@ int Client::importMessages(const char *externalDbPath)
     SqliteStmt stmtVersion(dbExternal, "select value from vars where name = 'schema_version'");
     if (!stmtVersion.step())
     {
-        dbExternal.close();
         KR_LOG_ERROR("%simportMessages: failed to get external DB version", getLoggingName());
         return -2;
     }
@@ -543,7 +547,6 @@ int Client::importMessages(const char *externalDbPath)
     std::string cachedVersion(stmtVersion.stringCol(0));
     if (cachedVersion != currentVersion)
     {
-        dbExternal.close();
         KR_LOG_ERROR("%simportMessages: external DB version is too old", getLoggingName());
         return -3;
     }
@@ -562,7 +565,6 @@ int Client::importMessages(const char *externalDbPath)
     SqliteStmt stmtMyHandle(dbExternal, "select value from vars where name = 'my_handle'");
     if (!stmtMyHandle.step() || stmtMyHandle.integralCol<uint64_t>(0) != myHandle())
     {
-        dbExternal.close();
         KR_LOG_ERROR("%simportMessages: external DB of a different user", getLoggingName());
         return -4;
     }
@@ -838,8 +840,6 @@ int Client::importMessages(const char *externalDbPath)
             }
         }
     }
-
-    dbExternal.close();
 
     // commit the transaction of importing msgs and restore previous mode
     setCommitMode(oldCommitMode);
