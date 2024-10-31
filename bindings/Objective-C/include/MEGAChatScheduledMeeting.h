@@ -31,15 +31,15 @@ typedef NS_ENUM (NSInteger, MEGAChatScheduledMeetingChangeType) {
 @property (readonly, nonatomic) uint64_t scheduledId;
 @property (readonly, nonatomic) uint64_t parentScheduledId;
 @property (readonly, nonatomic) uint64_t organizerUserId;
-@property (readonly, nonatomic) NSString *timezone;
+@property (readonly, nonatomic, nullable) NSString *timezone;
 @property (readonly, nonatomic) uint64_t startDateTime;
 @property (readonly, nonatomic) uint64_t endDateTime;
-@property (readonly, nonatomic) NSString *title;
-@property (readonly, nonatomic) NSString *description;
-@property (readonly, nonatomic) NSString *attributes;
+@property (readonly, nonatomic, nullable) NSString *title;
+@property (readonly, nonatomic, nullable) NSString *description;
+@property (readonly, nonatomic, nullable) NSString *attributes;
 @property (readonly, nonatomic) uint64_t overrides;
-@property (readonly, nonatomic) MEGAChatScheduledFlags *flags;
-@property (readonly, nonatomic) MEGAChatScheduledRules *rules;
+@property (readonly, nonatomic, nullable) MEGAChatScheduledFlags *flags;
+@property (readonly, nonatomic, nullable) MEGAChatScheduledRules *rules;
 
 - (BOOL)hasChangedForType:(MEGAChatScheduledMeetingChangeType)changeType;
 
