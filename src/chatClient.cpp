@@ -12,22 +12,25 @@
     #include "rtcCrypto.h"
 #endif
 #include "base/services.h"
-#include "sdkApi.h"
-#include <memory>
-#include <chatd.h>
-#include <db.h>
-#include <buffer.h>
-#include <chatdDb.h>
-#include <megaapi_impl.h>
-#include <autoHandle.h>
-#include <asyncTools.h>
-#include <codecvt> //for nonWhitespaceStr()
-#include <locale>
-#include "strongvelope/strongvelope.h"
 #include "base64url.h"
-#include <sys/types.h>
-#include <sys/stat.h>
 #include "chatclientDb.h"
+#include "sdkApi.h"
+#include "strongvelope/strongvelope.h"
+
+#include <mega/tlv.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+
+#include <asyncTools.h>
+#include <autoHandle.h>
+#include <buffer.h>
+#include <chatd.h>
+#include <chatdDb.h>
+#include <codecvt> //for nonWhitespaceStr()
+#include <db.h>
+#include <locale>
+#include <megaapi_impl.h>
+#include <memory>
 
 #ifdef __ANDROID__
     #include <sys/system_properties.h>
@@ -5545,45 +5548,44 @@ void Client::updateAliases(Buffer *data)
             aliasesUpdated.emplace_back(userid);
         }
     }
-    else    // still some records/aliases in the attribute
+    // still some records/aliases in the attribute
+    else if (std::unique_ptr<::mega::string_map> records{
+                 ::mega::tlv::containerToRecords({data->buf(), data->size()})})
     {
-        // Save the aliases from cache attr in a tlv container
-        const std::string container(data->buf(), data->size());
-        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
-        std::unique_ptr<std::vector<std::string>> keys(tlvRecords->getKeys());
-
         // Create a new map <uhBin, aliasB64> for the aliases that have been updated
-        for (auto &key : *keys)
+        for (const auto& r: *records)
         {
-            Id userid(key.data());
-            if (key.empty() || !userid.isValid())
+            if (r.first.empty())
             {
-                KR_LOG_ERROR("%sInvalid handle in aliases", getLoggingName());
+                KR_LOG_ERROR("%s: Invalid string handle in aliases", getLoggingName());
                 continue;
             }
 
-            std::string newAlias;
-            if (tlvRecords->get(key, newAlias) && mAliasesMap[userid] != newAlias)
+            if (const Id userId(r.first.data()); !userId.isValid())
             {
-                mAliasesMap[userid] = newAlias;
-                aliasesUpdated.emplace_back(userid);
+                KR_LOG_ERROR("%s: Invalid handle in aliases", getLoggingName());
+                continue;
+            }
+            else if (auto& alias = mAliasesMap[userId]; alias != r.second)
+            {
+                aliasesUpdated.emplace_back(userId);
+                alias = r.second;
             }
         }
 
-        AliasesMap::iterator itAliases = mAliasesMap.begin();
-        while (itAliases != mAliasesMap.end())
+        for (auto itA = mAliasesMap.begin(); itA != mAliasesMap.end();)
         {
-            Id userid = itAliases->first;
-            auto it = itAliases++;
-            std::string dummyValue;
-            if (!tlvRecords->get(userid.toString(), dummyValue))
+            if (const Id userId = itA->first; records->find(userId.toString()) == records->end())
             {
-                mAliasesMap.erase(it);
-                aliasesUpdated.emplace_back(userid);
+                aliasesUpdated.emplace_back(userId);
+                mAliasesMap.erase(itA++);
+            }
+            else
+            {
+                ++itA;
             }
         }
     }
-
     // Update those contact's titles without a peer chatroom associated
     for (auto &userid : aliasesUpdated)
     {
