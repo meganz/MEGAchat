@@ -1229,7 +1229,7 @@ void Call::clearResources(const TermCode& termCode)
 
     if (termCode == kUserHangup)
     {
-        // When we intentionally hangs up a call (kUserHangup) we also need to clear mRaiseHands
+        // When we intentionally hang up a call (kUserHangup) we also need to clear mRaiseHands
         // vector. If we join again to the same call later, we should not send JOIN with rh flag.
         mRaiseHands.clear();
     }
