@@ -14,7 +14,7 @@ set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 
 ## Modules location
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/contrib/cmake/modules) # Modules from MEGAchat
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/contrib/cmake/modules) # Modules from MEGAsdk
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/cmake/modules) # Modules from MEGAsdk
 
 ## Configurable options ##
 set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
@@ -44,7 +44,7 @@ if(NOT PROJECT_NAME)
         include(vcpkg_management)
         include(chatlib_vcpkg_management) # For specific MEGAchat configurations
         list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/contrib/cmake) # MEGAchat overlays
-        list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/contrib/cmake) # MEGAsdk overlays
+        list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/cmake) # MEGAsdk overlays
         process_vcpkg_libraries("${vcpkg_overlay}") # Choose and build libraries depending on the configured options.
         process_chatlib_vcpkg_libraries()
     else()
