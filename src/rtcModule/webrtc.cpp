@@ -1227,7 +1227,7 @@ void Call::clearResources(const TermCode& termCode)
                    termCode,
                    connectionTermCodeToString(termCode).c_str());
 
-    if (termCode == kUserHangup)
+    if (termCode == kUserHangup || mTempTermCode == kUserHangup)
     {
         // When we intentionally hang up a call (kUserHangup) we also need to clear mRaiseHands
         // vector. If we join again to the same call later, we should not send JOIN with rh flag.
@@ -1245,6 +1245,7 @@ void Call::clearResources(const TermCode& termCode)
     mAudio.reset();
     mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video local tracks
     clearWrJoiningState();
+    mTempTermCode = kInvalidTermCode;
     if (!isDisconnectionTermcode(termCode))
     {
         resetLocalAvFlags();        // reset local AvFlags: Audio | Video | OnHold => disabled
