@@ -25,34 +25,28 @@ ENV LANG=en_US.UTF-8
 ENV LANGUAGE=en_US
 ENV LC_ALL=en_US.UTF-8
 
+RUN mkdir -p /mega && \
+    chmod 777 /mega
 
-# Add mega user matching host: replace 1000 uid and gid by relevant system user intended
-ENV GID=1000
-ENV UID=1000
-## Create a group 'mega' with GID 1000
-RUN groupadd -g $GID mega
+# Set up work directory
+WORKDIR /mega
 
-## Create a user 'mega' with UID 1000 and assign it to the 'mega' group
-RUN useradd -m -u $UID -g $GID -s /bin/bash mega
+# Set default architecture
+ARG ARCH=x64
 
-## Add the user to the sudoers file (if you want to give sudo permissions)
-RUN echo 'mega ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers
-
-## Set the user 'mega' as the default user
-USER mega
-
-# Set the working directory for the mega user
-WORKDIR /home/mega
 
 # Set entrypoint
-CMD ["bash"]
-
-# This image is meant as a builder so remember to mount VCPKG_ROOT, CHAT-DIR, and BUILD-DIR to use host file system and leave the output after run. Assuming as the name of this image ubu-chat-qt:22.04
-## Example 001 of builder use from host assuming same dir as required resources and bash as host's shell
-##docker run -u $(id -u):$(id -g) -v $PWD/vcpkg:/home/mega/vcpkg -v $PWD/chat:/home/mega/chat -v $PWD/build:/home/mega/build ubu-chat-qt:22.04 cmake -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=/home/mega/vcpkg -S /home/mega/chat -B /home/mega/build
-
-## Example 002 without QtApp and qtbase dependency not installed
-##docker run -u $(id -u):$(id -g) -v $PWD/vcpkg:/home/mega/vcpkg -v $PWD/chat:/home/mega/chat -v $PWD/build:/home/mega/build ubu-chat-qt:22.04 cmake -DCMAKE_BUILD_TYPE=Debug -DENABLE_CHATLIB_QTAPP=OFF -DVCPKG_ROOT=/home/mega/vcpkg -S /home/mega/chat -B /home/mega/build
-
-## Building step is the same no matter the configuration
-##docker run -u $(id -u):$(id -g) -v $PWD/vcpkg:/home/mega/vcpkg -v $PWD/chat:/home/mega/chat -v $PWD/build:/home/mega/build ubu-chat-qt:22.04 cmake --build /home/mega/build --parallel 14
+CMD ["sh", "-c", "\
+    owner_uid=$(stat -c '%u' /mega/chat) && \
+    owner_gid=$(stat -c '%g' /mega/chat) && \
+    groupadd -g $owner_gid mega && \
+    echo 'Adding \"mega\" user...' && \
+    useradd -r -M -u $owner_uid -g $owner_gid -d /mega -s /bin/bash mega && \
+    arch=${ARCH} && \
+    su - mega -w 'PATH,ARCH,LANG,LANGUAGE,LC_ALL' -c ' \
+    cmake -B build -S chat \
+        -DVCPKG_ROOT=/mega/vcpkg \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DENABLE_CHATLIB_QTAPP=OFF && \
+    cmake --build build' && \
+    exec /bin/bash"]
