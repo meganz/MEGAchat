@@ -1956,16 +1956,17 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("sdp", sdpValue, json.GetAllocator());
 
-    rapidjson::Value ivsValue(rapidjson::kObjectType);
-    for (const auto& iv : ivs)
-    {
-        ivsValue.AddMember(rapidjson::Value(iv.first.c_str(), static_cast<rapidjson::SizeType>(iv.first.size())), rapidjson::Value(iv.second.c_str(), static_cast<rapidjson::SizeType>(iv.second.size())), json.GetAllocator());
-    }
-
     rapidjson::Value pubkey(rapidjson::kStringType);
     pubkey.SetString(ephemeralKey.c_str(), static_cast<unsigned int>(ephemeralKey.length()), json.GetAllocator());
     json.AddMember(rapidjson::Value("pubk"), pubkey, json.GetAllocator());
 
+    rapidjson::Value ivsValue(rapidjson::kArrayType);
+    for (const auto& iv: ivs)
+    {
+        rapidjson::Value val(iv.second.c_str(),
+                             static_cast<rapidjson::SizeType>(iv.second.length()));
+        ivsValue.PushBack(val, json.GetAllocator());
+    }
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
 
