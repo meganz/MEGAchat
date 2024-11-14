@@ -47,6 +47,8 @@ CMD ["sh", "-c", "\
     cmake -B build -S chat \
         -DVCPKG_ROOT=/mega/vcpkg \
         -DCMAKE_BUILD_TYPE=Debug \
+        -DUSE_FREEIMAGE=OFF \
+        -DUSE_FFMPEG=OFF \
         -DENABLE_CHATLIB_QTAPP=OFF && \
     cmake --build build' && \
     exec /bin/bash"]
