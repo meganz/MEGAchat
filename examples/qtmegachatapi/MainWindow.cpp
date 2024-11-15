@@ -1726,6 +1726,7 @@ void MainWindow::onChatCheckPushNotificationRestrictionClicked()
 
 void MainWindow::onScreensSet()
 {
+#ifndef KARERE_DISABLE_WEBRTC
     std::unique_ptr<MegaStringList> l(mMegaChatApi->getChatScreenDevices());
     if (!l)
     {
@@ -1747,6 +1748,7 @@ void MainWindow::onScreensSet()
     }
 
     mMegaChatApi->setScreenInDevice(text.toStdString().c_str());
+#endif
 }
 
 void MainWindow::onUseApiStagingClicked(bool enable)
