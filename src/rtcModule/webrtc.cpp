@@ -4158,19 +4158,25 @@ void Call::updateVideoTracks()
         else
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-            if (hasScreenFlags) // not matter if also camera is enabled (screen = hi-res | camera = lowres)
+            if (hasScreenFlags && mRtc.getScreenDevice()) // not matter if also camera is enabled
+                                                          // (screen = hi-res | camera = lowres)
             {
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getScreenDevice()->getVideoTrackSource());
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack(
+                    mRtc.getScreenDevice()->getVideoTrackSource(),
+                    "v" + std::to_string(artc::generateId()));
             }
-            else if (hasCameraFlags) // only camera flags enabled
+            else if (hasCameraFlags && mRtc.getCameraDevice()) // only camera flags enabled
             {
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getCameraDevice()->getVideoTrackSource());
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack(
+                    mRtc.getCameraDevice()->getVideoTrackSource(),
+                    "v" + std::to_string(artc::generateId()));
             }
             else
             {
-                RTCM_LOG_WARNING("%supdateVideoTracks(mHiRes): unexpected video flags: %u",
-                                 getLoggingName(),
-                                 getLocalAvFlags().value());
+                RTCM_LOG_WARNING(
+                    "%supdateVideoTracks(mHiRes): unexpected video flags or device: %u",
+                    getLoggingName(),
+                    getLocalAvFlags().value());
                 assert(false);
             }
             mHiRes->getTransceiver()->sender()->SetTrack(videoTrack.get());
@@ -4187,19 +4193,25 @@ void Call::updateVideoTracks()
         else
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
-            if (hasCameraFlags)  // not matter if also screen is enabled (screen = hi-res | camera = lowres)
+            if (hasCameraFlags && mRtc.getCameraDevice()) // not matter if also screen is enabled
+                                                          // (screen = hi-res | camera = lowres)
             {
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getCameraDevice()->getVideoTrackSource());
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack(
+                    mRtc.getCameraDevice()->getVideoTrackSource(),
+                    "v" + std::to_string(artc::generateId()));
             }
-            else if (hasScreenFlags) // only screen flags enabled
+            else if (hasScreenFlags && mRtc.getScreenDevice()) // only screen flags enabled
             {
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack("v"+std::to_string(artc::generateId()), mRtc.getScreenDevice()->getVideoTrackSource());
+                videoTrack = artc::gWebrtcContext->CreateVideoTrack(
+                    mRtc.getScreenDevice()->getVideoTrackSource(),
+                    "v" + std::to_string(artc::generateId()));
             }
             else
             {
-                RTCM_LOG_WARNING("%supdateVideoTracks(vThumb): unexpected video flags: %u",
-                                 getLoggingName(),
-                                 getLocalAvFlags().value());
+                RTCM_LOG_WARNING(
+                    "%supdateVideoTracks(vThumb): unexpected video flags or device: %u",
+                    getLoggingName(),
+                    getLocalAvFlags().value());
                 assert(false);
             }
             mVThumb->getTransceiver()->sender()->SetTrack(videoTrack.get());

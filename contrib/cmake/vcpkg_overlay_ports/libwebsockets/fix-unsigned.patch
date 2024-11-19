@@ -1,0 +1,14 @@
+diff --git a/lib/tls/openssl/openssl-x509.c b/lib/tls/openssl/openssl-x509.c
+index dac4aa3..c3b6b3a 100644
+--- a/lib/tls/openssl/openssl-x509.c
++++ b/lib/tls/openssl/openssl-x509.c
+@@ -248,7 +248,7 @@ lws_tls_openssl_cert_info(X509 *x509, enum lws_tls_cert_info type,
+                {
+                        const X509V3_EXT_METHOD* method = X509V3_EXT_get(ext);
+                        STACK_OF(CONF_VALUE) *cv;
+-                       int j;
++                       size_t j;
+ 
+                        cv = i2v_GENERAL_NAMES((X509V3_EXT_METHOD*)method, akid->issuer, NULL);
+                        if (!cv)
+

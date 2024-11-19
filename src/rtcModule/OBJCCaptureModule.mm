@@ -96,9 +96,9 @@ namespace artc
         mRunning = false;
     }
 
-    webrtc::VideoTrackSourceInterface* OBJCCaptureModule::getVideoTrackSource()
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> OBJCCaptureModule::getVideoTrackSource()
     {
-        return this;
+        return rtc::scoped_refptr<VideoTrackSourceInterface>(this);
     }
 
     bool OBJCCaptureModule::is_screencast() const
