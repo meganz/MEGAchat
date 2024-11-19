@@ -1881,8 +1881,13 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
     return true;
 }
 
-bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::string> &ivs,
-                            std::string& ephemeralKey, int avFlags, Cid_t prevCid, int vthumbs, const bool hasRaisedHand)
+bool SfuConnection::joinSfu(const Sdp& sdp,
+                            const std::vector<std::string>& ivs,
+                            std::string& ephemeralKey,
+                            int avFlags,
+                            Cid_t prevCid,
+                            int vthumbs,
+                            const bool hasRaisedHand)
 
 {
     rapidjson::Document json(rapidjson::kObjectType);
@@ -1956,16 +1961,16 @@ bool SfuConnection::joinSfu(const Sdp &sdp, const std::map<std::string, std::str
 
     json.AddMember("sdp", sdpValue, json.GetAllocator());
 
-    rapidjson::Value ivsValue(rapidjson::kObjectType);
-    for (const auto& iv : ivs)
-    {
-        ivsValue.AddMember(rapidjson::Value(iv.first.c_str(), static_cast<rapidjson::SizeType>(iv.first.size())), rapidjson::Value(iv.second.c_str(), static_cast<rapidjson::SizeType>(iv.second.size())), json.GetAllocator());
-    }
-
     rapidjson::Value pubkey(rapidjson::kStringType);
     pubkey.SetString(ephemeralKey.c_str(), static_cast<unsigned int>(ephemeralKey.length()), json.GetAllocator());
     json.AddMember(rapidjson::Value("pubk"), pubkey, json.GetAllocator());
 
+    rapidjson::Value ivsValue(rapidjson::kArrayType);
+    for (const auto& iv: ivs)
+    {
+        rapidjson::Value val(iv.c_str(), static_cast<rapidjson::SizeType>(iv.length()));
+        ivsValue.PushBack(val, json.GetAllocator());
+    }
     json.AddMember("ivs", ivsValue, json.GetAllocator());
     json.AddMember("av", avFlags, json.GetAllocator());
 

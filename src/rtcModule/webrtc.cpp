@@ -1060,15 +1060,11 @@ void Call::joinSfu()
         }
 
         sfu::Sdp sdp(mSdpStr);
-        std::map<std::string, std::string> ivs;
-        ivs[std::to_string(kVthumbTrack)] = sfu::Command::binaryToHex(mVThumb->getIv());
-        ivs[std::to_string(kHiResTrack)] = sfu::Command::binaryToHex(mHiRes->getIv());
-        ivs[std::to_string(kAudioTrack)] = sfu::Command::binaryToHex(mAudio->getIv());
 
         // store ivs in MyPeer
-        mMyPeer->setIvs(std::vector<std::string> { ivs[std::to_string(kVthumbTrack)],
-                                                   ivs[std::to_string(kHiResTrack)],
-                                                   ivs[std::to_string(kAudioTrack)] });
+        mMyPeer->setIvs({sfu::Command::binaryToHex(mVThumb->getIv()),
+                         sfu::Command::binaryToHex(mHiRes->getIv()),
+                         sfu::Command::binaryToHex(mAudio->getIv())});
 
         // when reconnecting, send to the SFU the CID of the previous connection, so it can kill it instantly
         setPrevCid(getOwnCid());
@@ -1081,7 +1077,7 @@ void Call::joinSfu()
         }
 
         mSfuConnection->joinSfu(sdp,
-                                ivs,
+                                mMyPeer->getIvs(),
                                 ephemeralKey,
                                 getLocalAvFlags().value(),
                                 getPrevCid(),
@@ -1186,12 +1182,6 @@ void Call::orderedCallDisconnect(TermCode termCode, const std::string &msg, cons
         clearParticipants();
     }
 
-    if (termCode == kUserHangup)
-    {
-        // clear raised hands list just if termCode is kUserHangup
-        mRaiseHands.clear();
-    }
-
     if (isConnectedToSfu())
     {
         sendStats(termCode);
@@ -1232,6 +1222,14 @@ void Call::clearResources(const TermCode& termCode)
                    getLoggingName(),
                    termCode,
                    connectionTermCodeToString(termCode).c_str());
+
+    if (termCode == kUserHangup || mTempTermCode == kUserHangup)
+    {
+        // When we intentionally hang up a call (kUserHangup) we also need to clear mRaiseHands
+        // vector. If we join again to the same call later, we should not send JOIN with rh flag.
+        mRaiseHands.clear();
+    }
+
     disableStats();
     mSessions.clear();              // session dtor will notify apps through onDestroySession callback
     clearPendingPeers();
@@ -1243,6 +1241,7 @@ void Call::clearResources(const TermCode& termCode)
     mAudio.reset();
     mReceiverTracks.clear();        // clear receiver tracks after free sessions and audio/video local tracks
     clearWrJoiningState();
+    mTempTermCode = kInvalidTermCode;
     if (!isDisconnectionTermcode(termCode))
     {
         resetLocalAvFlags();        // reset local AvFlags: Audio | Video | OnHold => disabled
