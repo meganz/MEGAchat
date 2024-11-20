@@ -128,8 +128,23 @@ pipeline {
         }
         stage('Upload MEGAclc'){
             steps {
-                sh "jf rt del MEGAchat/${env.gitlabMergeRequestIid}/ubuntu2204/megaclc/ || true"
-                sh "cd build_ubuntu2204/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/ubuntu2204/megaclc/x64/"
+                withCredentials([string(credentialsId: 'MEGACHAT_ARTIFACTORY_TOKEN', variable: 'MEGACHAT_ARTIFACTORY_TOKEN')]) {
+                    sh """
+                        jf rt del \
+                            --url ${REPO_URL} \
+                            --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
+                            MEGAchat/${env.gitlabMergeRequestIid}/ubuntu2204/megaclc/ \
+                        || true
+                    """
+                    dir ("build_ubuntu2204/examples/megaclc/"){
+                        sh """
+                            jf rt upload \
+                                --url ${REPO_URL} \
+                                --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
+                                megaclc MEGAchat/${env.gitlabMergeRequestIid}/ubuntu2204/megaclc/x64/
+                        """
+                    }
+                }
             }
         }
     }
