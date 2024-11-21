@@ -1481,7 +1481,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
  * @note: SETLIM command is a temporal feature provided by SFU for testing purposes,
  * and it's availability depends on SFU's release plan management
  */
-TEST_F(MegaChatApiTest, CallLimitsFreePlan)
+TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
 {
     // A value to denote a limit can take any value
     static constexpr unsigned long UNKNOWN_LIMIT = std::numeric_limits<unsigned long>::max() - 1;
