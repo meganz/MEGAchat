@@ -5,9 +5,11 @@
 #ifndef _MSC_VER
 #include <codecvt> // deprecated
 #endif
-#include <locale>
+#include <mega/tlv.h>
 #include <mega/types.h>
 #include <mega/utils.h>
+
+#include <locale>
 
 using namespace promise;
 using namespace std;
@@ -35,17 +37,17 @@ Buffer* getAlias(const ::mega::MegaRequest& result)
         return nullptr;
     }
 
-    ::mega::TLVstore tlv;
+    ::mega::string_map records;
     std::unique_ptr<::mega::MegaStringList> keys(stringMap->getKeys());
     const char *key = nullptr;
     for (int i = 0; i < keys->size(); i++)
     {
         key = keys->get(i);
-        tlv.set(std::string(key), std::string(stringMap->get(key)));
+        records[key] = stringMap->get(key);
     }
 
     // If attr alias is empty generate a valid empty buffer with bufsize 1
-    std::unique_ptr<string> aux(tlv.tlvRecordsToContainer());
+    std::unique_ptr<string> aux(::mega::tlv::recordsToContainer(std::move(records)));
     Buffer *buf = aux->size()
             ? new Buffer(aux->data(), aux->size())
             : new Buffer(1);

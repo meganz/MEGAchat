@@ -30,14 +30,17 @@
 #define USE_VARARGS
 #define PREFER_STDARG
 
-#include <megaapi_impl.h>
 #include "megachatapi_impl.h"
+
 #include <base/cservices.h>
 #include <base/logger.h>
-#include <IGui.h>
-#include <chatClient.h>
 #include <mega/base64.h>
+#include <mega/tlv.h>
+
+#include <chatClient.h>
 #include <chatdMsg.h>
+#include <IGui.h>
+#include <megaapi_impl.h>
 
 #ifdef _WIN32
 #pragma warning(push)
@@ -5027,22 +5030,19 @@ const char *MegaChatApiImpl::getUserAliasFromCache(MegaChatHandle userhandle)
 
         if (!buffer || buffer->empty()) return nullptr;
 
-        const std::string container(buffer->buf(), buffer->size());
-        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
-        std::unique_ptr<std::vector<std::string>> keys(tlvRecords->getKeys());
-
-        for (auto &key : *keys)
+        std::unique_ptr<::mega::string_map> records{
+            ::mega::tlv::containerToRecords({buffer->buf(), buffer->size()})};
+        if (!records)
         {
-            Id userid(key.data());
-            if (userid == userhandle)
-            {
-                string valueB64;
-                tlvRecords->get(key.c_str(), valueB64);
-
-                // convert value from B64 to "binary", since the app expects alias in plain text, ready to use
-                string value = Base64::atob(valueB64);
-                return MegaApi::strdup(value.c_str());
-            }
+            return nullptr;
+        }
+        const std::string userIdString = Id(userhandle).toString();
+        if (const auto it = records->find(userIdString); it != records->end())
+        {
+            // convert value from B64 to "binary", since the app expects alias in plain text, ready
+            // to use
+            const string value = Base64::atob(it->second);
+            return MegaApi::strdup(value.c_str());
         }
     }
 
@@ -5058,13 +5058,17 @@ MegaStringMap *MegaChatApiImpl::getUserAliasesFromCache()
 
         if (!buffer || buffer->empty()) return nullptr;
 
-        const std::string container(buffer->buf(), buffer->size());
-        std::unique_ptr<::mega::TLVstore> tlvRecords(::mega::TLVstore::containerToTLVrecords(&container));
+        std::unique_ptr<::mega::string_map> records{
+            ::mega::tlv::containerToRecords({buffer->buf(), buffer->size()})};
+        if (!records)
+        {
+            return nullptr;
+        }
 
-        // convert records from B64 to "binary", since the app expects aliases in plain text, ready to use
-        const string_map *stringMap = tlvRecords->getMap();
+        // convert records from B64 to "binary", since the app expects aliases in plain text, ready
+        // to use
         auto result = new MegaStringMapPrivate();
-        for (const auto &record : *stringMap)
+        for (const auto& record: *records)
         {
             string buffer = Base64::atob(record.second);
             result->set(record.first.c_str(), buffer.c_str());
