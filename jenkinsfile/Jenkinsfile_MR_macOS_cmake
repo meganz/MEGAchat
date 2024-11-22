@@ -145,9 +145,31 @@ pipeline {
                 script {
                     uploadMegaclcExecuted = true     
                 }                   
-                sh "jf rt del MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/ || true"
-                sh "cd ${BUILD_DIR}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/arm64/"
-                sh "cd ${BUILD_DIR_X64}/examples/megaclc/ && jf rt upload megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/x64/"
+                withCredentials([string(credentialsId: 'MEGACHAT_ARTIFACTORY_TOKEN', variable: 'MEGACHAT_ARTIFACTORY_TOKEN')]) {
+                    sh """
+                        jf rt del \
+                            --url ${REPO_URL} \
+                            --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
+                            MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/ \
+                        || true
+                    """
+                    dir("${BUILD_DIR}/examples/megaclc/"){
+                        sh """
+                            jf rt upload \
+                                --url ${REPO_URL} \
+                                --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
+                                megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/arm64/
+                        """
+                    }
+                    dir("${BUILD_DIR_X64}/examples/megaclc/"){
+                        sh """
+                            jf rt upload \
+                                --url ${REPO_URL} \
+                                --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
+                                megaclc MEGAchat/${env.gitlabMergeRequestIid}/macos/megaclc/x64/
+                        """
+                    }
+                }
             }
         }
     }
