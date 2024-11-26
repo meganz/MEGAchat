@@ -36,7 +36,7 @@ pipeline {
                     }
                 }
                 dir('sdk/src/main/jni/mega/sdk'){
-                    sh "echo Cloning SDK branch ${env.SDK_BRANCH}"
+                    sh "echo Cloning SDK branch \"${env.SDK_BRANCH}\""
                     checkout([
                         $class: 'GitSCM',
                         branches: [[name: "origin/${env.SDK_BRANCH}"]],

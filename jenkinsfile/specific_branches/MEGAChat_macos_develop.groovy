@@ -26,7 +26,7 @@ pipeline {
                     userRemoteConfigs: [[ url: "${env.GIT_URL_MEGACHAT}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
                 ])
                 dir('third-party/mega'){
-                    sh "echo Cloning SDK branch ${SDK_BRANCH}"
+                    sh "echo Cloning SDK branch \"${SDK_BRANCH}\""
                     checkout([
                         $class: 'GitSCM',
                         branches: [[name: "origin/${SDK_BRANCH}"]],

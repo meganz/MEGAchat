@@ -71,7 +71,7 @@ pipeline {
                         echo "SDK_BRANCH was not found on description so develop will be used by default"
                         env.SDK_BRANCH = "develop"
                     }
-                    echo "SDK_branch: ${env.SDK_BRANCH}"
+                    echo "SDK_branch: \"${env.SDK_BRANCH}\""
                 }
             }
         }
@@ -88,7 +88,7 @@ pipeline {
                         ]                        
                 ])
                 dir('third-party/mega'){
-                    sh "echo Cloning SDK branch ${SDK_BRANCH}"
+                    sh "echo Cloning SDK branch \"${SDK_BRANCH}\""
                     checkout([
                         $class: 'GitSCM',
                         branches: [[name: "origin/${SDK_BRANCH}"]],
