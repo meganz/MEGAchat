@@ -142,11 +142,11 @@ pipeline {
                         uploadMegaclcExecuted = true
                         def windows_artifactory_upload = { String ART_UPLOAD_PATH ->
                         
-                            powershell """
-                                ${JF_PATH}\\jf config use artifactory
-                                ${JF_PATH}\\jf rt del ${ART_UPLOAD_PATH}
-                                ${JF_PATH}\\jf rt upload megaclc.exe ${ART_UPLOAD_PATH}
-                            """
+                            withCredentials([string(credentialsId: 'MEGACHAT_ARTIFACTORY_TOKEN', variable: 'MEGACHAT_ARTIFACTORY_TOKEN')]) {
+                                powershell """
+                                    ${JF_PATH}\\jf rt del --url ${REPO_URL} --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} ${ART_UPLOAD_PATH}
+                                    ${JF_PATH}\\jf rt upload --url ${REPO_URL} --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} megaclc.exe ${ART_UPLOAD_PATH}
+                                """
                         }
                         windows_artifactory_upload("MEGAchat/${env.gitlabMergeRequestIid}/windows/megaclc/")
                     }

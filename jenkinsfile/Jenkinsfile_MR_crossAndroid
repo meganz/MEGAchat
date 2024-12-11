@@ -155,7 +155,14 @@ pipeline {
         stage('Download prebuilt third-party-sources'){
             steps {
                 dir("sdk/src/main/jni"){
-                    sh "jf rt download third-party-sources-sdk/3rdparty-sdk.tar.gz ."
+                    withCredentials([string(credentialsId: 'MEGACHAT_ARTIFACTORY_TOKEN', variable: 'MEGACHAT_ARTIFACTORY_TOKEN')]) {
+                        sh """
+                            jf rt download \
+                                --url ${REPO_URL} \
+                                --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
+                                third-party-sources-sdk/3rdparty-sdk.tar.gz .
+                        """
+                    }
                     sh "tar -xf 3rdparty-sdk.tar.gz --skip-old-files"
                 }
             }

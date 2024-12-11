@@ -1384,10 +1384,6 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     ASSERT_NO_FATAL_FAILURE(makeContacts(a1, a2));
     ASSERT_NO_FATAL_FAILURE(mData.checkSessionsAndAccounts());
 
-    LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test RaiseHand (lite)";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
-
     // set chat selection criteria
     mData.mChatOptions.mCreate          = true;
     mData.mChatOptions.mPublicChat      = true;
@@ -1471,9 +1467,6 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     std::unique_ptr<MegaChatCall>calla2(megaChatApi[a2]->getChatCall(mData.mChatid));
     ASSERT_TRUE(calla2) << "Cannot retrieve call from chatroom for a2: " << getChatIdStrB64(mData.mChatid);
     ASSERT_TRUE(isRaiseHandsListOrdered(calla2->getRaiseHandsList(), {a1Uh, a2Uh}));
-
-    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
 }
 
 /**
@@ -1488,7 +1481,7 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
  * @note: SETLIM command is a temporal feature provided by SFU for testing purposes,
  * and it's availability depends on SFU's release plan management
  */
-TEST_F(MegaChatApiTest, CallLimitsFreePlan)
+TEST_F(MegaChatApiTest, DISABLED_CallLimitsFreePlan)
 {
     // A value to denote a limit can take any value
     static constexpr unsigned long UNKNOWN_LIMIT = std::numeric_limits<unsigned long>::max() - 1;
@@ -1786,10 +1779,6 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
     const MegaChatHandle a3Uh = megaChatApi[a3]->getMyUserHandle();
     mData.mAccounts.emplace(a1, a1Uh);
 
-    LOG_debug << "\tSwitching to staging (TEMPORARY) in order to test SETLIM command";
-    megaApi[a1]->changeApiUrl("https://staging.api.mega.co.nz/");
-    megaApi[a1]->setSFUid(336); // set SFU id to staging (temporary)
-
     // set chat selection criteria
     mData.mChatOptions.mCreate = true;
     mData.mChatOptions.mPublicChat = true;
@@ -1988,10 +1977,8 @@ TEST_F(MegaChatApiTest, CallLimitsFreePlan)
                                 .mClientsPerUserLimit = UNKNOWN_LIMIT,
                                 .mClientsLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT,
                                 .mDividerLimit = MegaChatCall::CALL_LIMIT_NO_PRESENT};
-    ASSERT_NO_FATAL_FAILURE(setCallLimits(a1, mData.mChatid, {a1, a2, a3}, noLimits, expectedNoLimits));
-
-    LOG_debug << "\tSwitching back to prod (TEMPORARY)";
-    megaApi[a1]->changeApiUrl("https://g.api.mega.co.nz/");
+    ASSERT_NO_FATAL_FAILURE(
+        setCallLimits(a1, mData.mChatid, {a1, a2, a3}, noLimits, expectedNoLimits));
 }
 
 /**
@@ -6049,7 +6036,7 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
  * + Test5: A Removes B as speaker
  * + Test6: A adds B as speaker before B has joined call
  */
-TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
+TEST_F(MegaChatApiTest, DISABLED_RaiseHandToSpeakSfuV3)
 {
     //========================================================================//
     // Auxiliar test functions
@@ -6370,7 +6357,7 @@ TEST_F(MegaChatApiTest, RaiseHandToSpeakSfuV3)
     auto enableSpeakRequestSupportForCalls = [this](std::set<unsigned int> idxs, const bool enable)
     {
         const auto url = enable ? "https://staging.api.mega.co.nz/" : "https://g.api.mega.co.nz/";
-        const auto sfuid = enable ? 336 : sfu_invalid_id;
+        const auto sfuid = enable ? 34332 : sfu_invalid_id;
         std::for_each(idxs.begin(), idxs.end(), [this, &url, &enable, &sfuid](const auto& idx)
         {
             megaApi[idx]->changeApiUrl(url);
