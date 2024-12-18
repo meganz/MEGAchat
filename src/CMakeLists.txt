@@ -98,6 +98,12 @@ set_target_properties(CHATlib PROPERTIES
     DEBUG_POSTFIX "d"
 )
 
+if(ENABLE_JAVA_BINDINGS)
+    set_target_properties(CHATlib PROPERTIES
+        POSITION_INDEPENDENT_CODE ON
+    )
+endif()
+
 # Add definitions for the compiler
 target_compile_definitions(CHATlib
     PRIVATE
