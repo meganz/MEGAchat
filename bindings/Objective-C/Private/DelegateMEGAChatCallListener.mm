@@ -22,7 +22,7 @@ void DelegateMEGAChatCallListener::onChatCallUpdate(megachat::MegaChatApi *api, 
         MegaChatCall *tempCall = call->copy();
         MEGAChatSdk *tempMEGAChatSdk = this->megaChatSdk;
         id<MEGAChatCallDelegate>tempListener = this->listener;
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch(this->queueType, ^{
             [tempListener onChatCallUpdate:tempMEGAChatSdk call:[[MEGAChatCall alloc] initWithMegaChatCall:tempCall cMemoryOwn:YES]];
         });
     }
@@ -33,7 +33,7 @@ void DelegateMEGAChatCallListener::onChatSessionUpdate(megachat::MegaChatApi *ap
         MegaChatSession *tempSession = session->copy();
         MEGAChatSdk *tempMEGAChatSdk = this->megaChatSdk;
         id<MEGAChatCallDelegate>tempListener = this->listener;
-        dispatch_async(dispatch_get_main_queue(), ^{
+        dispatch(this->queueType, ^{
             [tempListener onChatSessionUpdate:tempMEGAChatSdk chatId:chatid callId:callid session:[MEGAChatSession.alloc initWithMegaChatSession:tempSession cMemoryOwn:YES]];
         });
     }

@@ -116,8 +116,8 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 @property (nonatomic, readonly) uint64_t peeridCallCompositionChange;
 @property (nonatomic, readonly) MEGAChatCallCompositionChange callCompositionChange;
 @property (nonatomic, readonly) NSInteger numParticipants;
-@property (nonatomic, readonly) MEGAHandleList *participants;
-@property (nonatomic, readonly) MEGAHandleList *sessionsClientId;
+@property (nonatomic, readonly, nullable) MEGAHandleList *participants;
+@property (nonatomic, readonly, nullable) MEGAHandleList *sessionsClientId;
 
 @property (nonatomic, readonly, getter=hasLocalAudio) BOOL localAudio;
 @property (nonatomic, readonly, getter=hasLocalVideo) BOOL localVideo;
@@ -132,19 +132,19 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
 @property (nonatomic, readonly, getter=isOwnClientCaller) BOOL ownClientCaller;
 @property (nonatomic, readonly, getter=isSpeakPermissionFlagEnabled) BOOL speakPermissionFlagEnabled;
 
-@property (nonatomic, readonly) MEGAHandleList *moderators;
+@property (nonatomic, readonly, nullable) MEGAHandleList *moderators;
 
 @property (nonatomic, readonly) MEGAChatWaitingRoomStatus waitingRoomJoiningStatus;
-@property (nonatomic, readonly) MEGAChatWaitingRoom *waitingRoom;
-@property (nonatomic, readonly) MEGAHandleList *waitingRoomHandleList;
+@property (nonatomic, readonly, nullable) MEGAChatWaitingRoom *waitingRoom;
+@property (nonatomic, readonly, nullable) MEGAHandleList *waitingRoomHandleList;
 
-@property (nonatomic, readonly) MEGAHandleList *speakersList;
-@property (nonatomic, readonly) MEGAHandleList *speakRequestsList;
-@property (nonatomic, readonly) MEGAHandleList *raiseHandsList;
+@property (nonatomic, readonly, nullable) MEGAHandleList *speakersList;
+@property (nonatomic, readonly, nullable) MEGAHandleList *speakRequestsList;
+@property (nonatomic, readonly, nullable) MEGAHandleList *raiseHandsList;
 
 - (BOOL)hasChangedForType:(MEGAChatCallChangeType)changeType;
 
-- (MEGAHandleList *)sessionsClientIdByUserHandle:(uint64_t)userHandle;
+- (nullable MEGAHandleList *)sessionsClientIdByUserHandle:(uint64_t)userHandle;
 
 - (BOOL)hasUserSpeakPermission:(uint64_t)userHandle;
 - (BOOL)hasUserPendingSpeakRequest:(uint64_t)userHandle;
