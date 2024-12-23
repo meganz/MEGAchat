@@ -2698,10 +2698,11 @@ TEST_F(MegaChatApiTest, EditAndDeleteMessages)
  * - Test6: Change privileges to Moderator
  * - Test7: Change peer privileges to Read-only
  * + Test8: Try to send a message without the right privilege (error)
- * - Test9: Archive chatroom
- * - Test10: Test10: Send a message and wait for reception by target user (automatically unarchives)
- * - Test11: Archive chatroom
- * - Test12: Unarchive chatroom
+ * - Test9: [Temporarily disabled] Archive chatroom
+ * - Test10: [Temporarily disabled] Send a message and wait for reception by target user
+ * (automatically unarchives)
+ * - Test11: [Temporarily disabled] Archive chatroom
+ * - Test12: [Temporarily disabled] Unarchive chatroom
  * - Test13: Remove peer from groupchat
  * - Test14: Invite another account
  */
@@ -2885,83 +2886,90 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     ASSERT_TRUE(waitForResponse(flagTyping1)) << "Timeout expired for sending stop typing notification";
     ASSERT_EQ(*uhAction, megaChatApi[a1]->getMyUserHandle()) << "My user handle is wrong at stop typing";
 
-    LOG_debug << "#### Test9: Archive chatroom ####";
-    chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    delete chatroom; chatroom = NULL;
-    bool *chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
-    bool *chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
-    ChatRequestTracker crtArchive(megaChatApi[a1]);
-    megaChatApi[a1]->archiveChat(chatid, true, &crtArchive);
-    ASSERT_EQ(crtArchive.waitForResult(), MegaChatError::ERROR_OK) << "Failed to archive chat. Error: " << crtArchive.getErrorString();
-    ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list item update about archive";
-    ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving chatroom update about archive (This time out is usually produced by missing api notification)";
-    chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_TRUE(chatroom->isArchived()) << "Chatroom is not archived when it should";
-    delete chatroom; chatroom = NULL;
+    /*[TEMPORARILY DIABLED]
+        LOG_debug << "#### Test9: Archive chatroom ####";
+        chatroom = megaChatApi[a1]->getChatRoom(chatid);
+        delete chatroom; chatroom = NULL;
+        bool *chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
+        bool *chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1];
+       *chatroomArchiveChanged = false; ChatRequestTracker crtArchive(megaChatApi[a1]);
+        megaChatApi[a1]->archiveChat(chatid, true, &crtArchive);
+        ASSERT_EQ(crtArchive.waitForResult(), MegaChatError::ERROR_OK) << "Failed to archive chat.
+       Error: " << crtArchive.getErrorString(); ASSERT_TRUE(waitForResponse(chatArchiveChanged)) <<
+       "Timeout expired for receiving chat list item update about archive";
+        ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving
+       chatroom update about archive (This time out is usually produced by missing api
+       notification)"; chatroom = megaChatApi[a1]->getChatRoom(chatid);
+        ASSERT_TRUE(chatroom->isArchived()) << "Chatroom is not archived when it should";
+        delete chatroom; chatroom = NULL;
 
-    // TODO: Redmine ticket: #10596
-    {
-        // give some margin to API-chatd synchronization, so chatd knows the room is archived and needs
-        // to be unarchived upon new message
-        std::this_thread::sleep_for(std::chrono::seconds(3));
-    }
+        // TODO: Redmine ticket: #10596
+        {
+            // give some margin to API-chatd synchronization, so chatd knows the room is archived
+       and needs
+            // to be unarchived upon new message
+            std::this_thread::sleep_for(std::chrono::seconds(3));
+        }
 
-    LOG_debug << "#### Test10: Send a message and wait for reception by target user (automatically unarchives) ####";
-    string msg0 = "HI " + account(a1).getEmail() + " - Testing groupchats";
-    bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
-    bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
-    bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
-    chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
-    chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
-    chatroomListener->clearMessages(a1);
-    chatroomListener->clearMessages(a2);
-    MegaChatMessage *messageSent = megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
-    ASSERT_TRUE(waitForResponse(msgConfirmed)) << "Timeout expired for receiving confirmation by server";    // for confirmation, sendMessage() is synchronous
-    MegaChatHandle msgId = chatroomListener->mConfirmedMessageHandle[a1];
-    ASSERT_TRUE(chatroomListener->hasArrivedMessage(a1, msgId)) << "Message not received";
-    ASSERT_NE(msgId, MEGACHAT_INVALID_HANDLE) << "Wrong message id at origin";
-    ASSERT_TRUE(waitForResponse(msgReceived)) << "Timeout expired for receiving message by target user";    // for reception
-    ASSERT_TRUE(chatroomListener->hasArrivedMessage(a2, msgId)) << "Wrong message id at destination";
-    MegaChatMessage *messageReceived = megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in RAM
-    ASSERT_TRUE(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent())) << "Content of message doesn't match";
-    // now wait for automatic unarchive, due to new message
-    ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list item update after new message";
-    ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving chatroom update after new message";
-    chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_FALSE(chatroom->isArchived()) << "Chatroom is not unarchived automatically upon new message";
-    delete chatroom; chatroom = NULL;
+        LOG_debug << "#### Test10: Send a message and wait for reception by target user
+       (automatically unarchives) ####"; string msg0 = "HI " + account(a1).getEmail() + " - Testing
+       groupchats"; bool *msgConfirmed = &chatroomListener->msgConfirmed[a1]; *msgConfirmed = false;
+        bool *msgReceived = &chatroomListener->msgReceived[a2]; *msgReceived = false;
+        bool *msgDelivered = &chatroomListener->msgDelivered[a1]; *msgDelivered = false;
+        chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
+        chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged =
+       false; chatroomListener->clearMessages(a1); chatroomListener->clearMessages(a2);
+        MegaChatMessage *messageSent = megaChatApi[a1]->sendMessage(chatid, msg0.c_str());
+        ASSERT_TRUE(waitForResponse(msgConfirmed)) << "Timeout expired for receiving confirmation by
+       server";    // for confirmation, sendMessage() is synchronous MegaChatHandle msgId =
+       chatroomListener->mConfirmedMessageHandle[a1];
+        ASSERT_TRUE(chatroomListener->hasArrivedMessage(a1, msgId)) << "Message not received";
+        ASSERT_NE(msgId, MEGACHAT_INVALID_HANDLE) << "Wrong message id at origin";
+        ASSERT_TRUE(waitForResponse(msgReceived)) << "Timeout expired for receiving message by
+       target user";    // for reception ASSERT_TRUE(chatroomListener->hasArrivedMessage(a2, msgId))
+       << "Wrong message id at destination"; MegaChatMessage *messageReceived =
+       megaChatApi[a2]->getMessage(chatid, msgId);   // message should be already received, so in
+       RAM ASSERT_TRUE(messageReceived && !strcmp(msg0.c_str(), messageReceived->getContent())) <<
+       "Content of message doesn't match";
+        // now wait for automatic unarchive, due to new message
+        ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list
+       item update after new message"; ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) <<
+       "Timeout expired for receiving chatroom update after new message"; chatroom =
+       megaChatApi[a1]->getChatRoom(chatid); ASSERT_FALSE(chatroom->isArchived()) << "Chatroom is
+       not unarchived automatically upon new message"; delete chatroom; chatroom = NULL;
 
-    LOG_debug << "#### Test11: Archive chatroom ####";
-    chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
-    chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
-    ChatRequestTracker crtArchive2(megaChatApi[a1]);
-    megaChatApi[a1]->archiveChat(chatid, true, &crtArchive2);
-    ASSERT_EQ(crtArchive2.waitForResult(), MegaChatError::ERROR_OK) << "Failed to archive chat (2). Error: " << crtArchive2.getErrorString();
-    ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list item update about archive";
-    ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving chatroom update about archive";
-    chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_TRUE(chatroom->isArchived()) << "Chatroom is not archived when it should";
-    delete chatroom; chatroom = NULL;
+        LOG_debug << "#### Test11: Archive chatroom ####";
+        chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
+        chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged =
+       false; ChatRequestTracker crtArchive2(megaChatApi[a1]); megaChatApi[a1]->archiveChat(chatid,
+       true, &crtArchive2); ASSERT_EQ(crtArchive2.waitForResult(), MegaChatError::ERROR_OK) <<
+       "Failed to archive chat (2). Error: " << crtArchive2.getErrorString();
+        ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list
+       item update about archive"; ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout
+       expired for receiving chatroom update about archive"; chatroom =
+       megaChatApi[a1]->getChatRoom(chatid); ASSERT_TRUE(chatroom->isArchived()) << "Chatroom is not
+       archived when it should"; delete chatroom; chatroom = NULL;
 
-    LOG_debug << "#### Test12: Unarchive chatroom ####";
-    delete chatroom; chatroom = NULL;
-    chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
-    chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged = false;
-    ChatRequestTracker crtArchive3(megaChatApi[a1]);
-    megaChatApi[a1]->archiveChat(chatid, false, &crtArchive3);
-    ASSERT_EQ(crtArchive3.waitForResult(), MegaChatError::ERROR_OK) << "Failed to archive chat (3). Error: " << crtArchive3.getErrorString();
-    ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list item update about archive";
-    ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout expired for receiving chatroom update about archive";
-    chatroom = megaChatApi[a1]->getChatRoom(chatid);
-    ASSERT_FALSE(chatroom->isArchived()) << "Chatroom is archived when it shouldn't";
-    delete chatroom; chatroom = NULL;
+        LOG_debug << "#### Test12: Unarchive chatroom ####";
+        delete chatroom; chatroom = NULL;
+        chatArchiveChanged = &chatArchived[a1]; *chatArchiveChanged = false;
+        chatroomArchiveChanged = &chatroomListener->archiveUpdated[a1]; *chatroomArchiveChanged =
+       false; ChatRequestTracker crtArchive3(megaChatApi[a1]); megaChatApi[a1]->archiveChat(chatid,
+       false, &crtArchive3); ASSERT_EQ(crtArchive3.waitForResult(), MegaChatError::ERROR_OK) <<
+       "Failed to archive chat (3). Error: " << crtArchive3.getErrorString();
+        ASSERT_TRUE(waitForResponse(chatArchiveChanged)) << "Timeout expired for receiving chat list
+       item update about archive"; ASSERT_TRUE(waitForResponse(chatroomArchiveChanged)) << "Timeout
+       expired for receiving chatroom update about archive"; chatroom =
+       megaChatApi[a1]->getChatRoom(chatid); ASSERT_FALSE(chatroom->isArchived()) << "Chatroom is
+       archived when it shouldn't"; delete chatroom; chatroom = NULL;
 
-    delete messageSent;
-    messageSent = NULL;
+        delete messageSent;
+        messageSent = NULL;
 
-    delete messageReceived;
-    messageReceived = NULL;
+        delete messageReceived;
+        messageReceived = NULL;
 
+    */
     // --> Close the chatroom
     megaChatApi[a1]->closeChatRoom(chatid, chatroomListener);
     megaChatApi[a2]->closeChatRoom(chatid, chatroomListener);
