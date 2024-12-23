@@ -2701,8 +2701,8 @@ TEST_F(MegaChatApiTest, EditAndDeleteMessages)
  * - Test9: [Temporarily disabled] Archive chatroom
  * - Test10: [Temporarily disabled] Send a message and wait for reception by target user
  * (automatically unarchives)
- * - Test11: Archive chatroom
- * - Test12: Unarchive chatroom
+ * - Test11: [Temporarily disabled] Archive chatroom
+ * - Test12: [Temporarily disabled] Unarchive chatroom
  * - Test13: Remove peer from groupchat
  * - Test14: Invite another account
  */
