@@ -76,6 +76,7 @@ public:
 
 private:
     struct lws *wsi;
+    bool disconnecting;
     void doWsDisconnect(bool immediate);
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     void saveTlsSessionToPersistentStorage();
