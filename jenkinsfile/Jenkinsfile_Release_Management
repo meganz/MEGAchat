@@ -117,7 +117,7 @@ pipeline {
                 dir("automation"){
                     sh 'gpg --batch --import $gpg_key'
                     sh 'gpg --list-secret-keys'
-                    //sh 'python3 ./make_release.py config.toml'
+                    sh 'python3 ./make_release.py config.toml'
                 }
             }
         }
@@ -136,7 +136,7 @@ pipeline {
                 dir("automation"){
                     sh 'gpg --batch --import $gpg_key'
                     sh 'gpg --list-secret-keys'
-                    //sh 'python3 ./make_another_rc.py config.toml'
+                    sh 'python3 ./make_another_rc.py config.toml'
                 }
             }
         }
@@ -155,7 +155,7 @@ pipeline {
                 dir("automation"){
                     sh 'gpg --batch --import $gpg_key'
                     sh 'gpg --list-secret-keys'
-                    //sh 'python3 ./close_release.py config.toml'
+                    sh 'python3 ./close_release.py config.toml'
                 }
             }
         }
@@ -174,7 +174,7 @@ pipeline {
                 dir("automation"){
                     sh 'gpg --batch --import $gpg_key'
                     sh 'gpg --list-secret-keys'
-                    //sh 'python3 ./patch_release.py config.toml'
+                    sh 'python3 ./patch_release.py config.toml'
                 }
             }
         }
@@ -186,3 +186,5 @@ pipeline {
         }
     }
 }
+
+// vim: syntax=groovy tabstop=4 shiftwidth=4
