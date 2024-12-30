@@ -17,7 +17,7 @@ pipeline {
         booleanParam(name: 'REBUILD_IMAGE', defaultValue: false, description: 'Rebuild docker image. Only needed if the scripts has been modified')
     }
     environment {
-        //JIRA_SDK_CREDS = credentials('SDK_JIRA')
+        SDK_BRANCH = "develop"
         SLACK_TOKEN = credentials('sdk_slack_bot_releases')
         GITLAB_TOKEN = credentials('SDK_releases_gitlab_token')
         GPG_KEYGRIP = credentials('sdk_gpg_keygrip_release_management')
@@ -38,9 +38,23 @@ pipeline {
     }
 
     stages {
+        stage('Checkout SDK'){
+           steps{
+               dir('third-party/mega'){
+                   checkout([
+                       $class: 'GitSCM',
+                       branches: [[name: "origin/${SDK_BRANCH}"]],
+                       userRemoteConfigs: [[ url: "${env.GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                       extensions: [
+                           [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                       ]
+                   ])
+               }
+           }
+        }
         stage('Replace config file'){
             steps {
-                dir("automation"){
+                dir("third-party/mega/automation"){
                     sh 'cp config.toml.template config.toml'
                     script {
                         sh """
@@ -68,8 +82,8 @@ pipeline {
                 expression { return params.REBUILD_IMAGE }
             }
             steps {
-                sh "cp -v automation/requirements.txt dockerfile/requirements.txt"
-                dir ("dockerfile") {
+                dir ("third-party/mega/dockerfile") {
+                    sh "cp -v ../automation/requirements.txt requirements.txt"
                     sh """
                         docker build \
                             -f release-management.dockerfile \
@@ -78,13 +92,13 @@ pipeline {
                     """
                 }
                 withCredentials([usernamePassword(credentialsId: 'artifactory-jenkins-docker', usernameVariable: 'ART_USER', passwordVariable: 'ART_PASS')]) {
-                    sh """ 
+                    sh """
                         echo \$ART_PASS | docker login \
                                             -u \$ART_USER \
                                             --password-stdin \
                                             ${env.MEGA_INTERNAL_DOCKER_REGISTRY}:8443
                         docker push ${env.MEGA_INTERNAL_DOCKER_REGISTRY}:8443/sdk-release-management:latest
-                   """ 
+                   """
                 }
             }
         }
