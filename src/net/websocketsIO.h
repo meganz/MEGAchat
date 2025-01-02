@@ -243,8 +243,7 @@ class WebsocketsClientImpl
 {
 protected:
     WebsocketsClient *client;
-    WebsocketsIO::Mutex &mutex;
-    bool disconnecting;
+    WebsocketsIO::Mutex& mutex;
 
 public:
     WebsocketsClientImpl(WebsocketsIO::Mutex &mutex, WebsocketsClient *client);

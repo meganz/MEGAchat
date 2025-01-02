@@ -18,7 +18,6 @@ WebsocketsClientImpl::WebsocketsClientImpl(WebsocketsIO::Mutex &m, WebsocketsCli
     : mutex(m)
 {
     this->client = client;
-    this->disconnecting = false;
 }
 
 WebsocketsClientImpl::~WebsocketsClientImpl()
@@ -36,16 +35,6 @@ void WebsocketsClientImpl::wsConnectCb()
 void WebsocketsClientImpl::wsCloseCb(int errcode, int errtype, const char *preason, size_t reason_len)
 {
     WebsocketsIO::MutexGuard lock(this->mutex);
-
-    if (disconnecting)
-    {
-        WEBSOCKETS_LOG_DEBUG("Connection closed gracefully");
-    }
-    else
-    {
-        WEBSOCKETS_LOG_DEBUG("Connection closed by server");
-    }
-
     client->wsCloseCbPrivate(errcode, errtype, preason, reason_len);
 }
 

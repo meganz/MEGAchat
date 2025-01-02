@@ -172,10 +172,11 @@ int LibwebsocketsIO::wsGetNoNameErrorCode()
     return UV__EAI_NONAME;
 }
 
-LibwebsocketsClient::LibwebsocketsClient(WebsocketsIO::Mutex &mutex, WebsocketsClient *client) : WebsocketsClientImpl(mutex, client)
-{
-    wsi = NULL;
-}
+LibwebsocketsClient::LibwebsocketsClient(WebsocketsIO::Mutex& mutex, WebsocketsClient* client):
+    WebsocketsClientImpl(mutex, client),
+    wsi{nullptr},
+    disconnecting{false}
+{}
 
 LibwebsocketsClient::~LibwebsocketsClient()
 {
@@ -279,47 +280,69 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
 
 void LibwebsocketsClient::doWsDisconnect(bool immediate)
 {
-    if (!wsi)
-    {
+    if (!isConnected())
         return;
-    }
 
-    if (immediate)
+    if (disconnecting)
     {
-        struct lws *dwsi = wsi;
-        wsi = NULL;
-        lws_set_wsi_user(dwsi, NULL);
-        WEBSOCKETS_LOG_DEBUG("Pointer detached from libwebsockets");
-        
-        if (!disconnecting)
+        if (immediate)
         {
-            lws_callback_on_writable(dwsi);
-            WEBSOCKETS_LOG_DEBUG("Requesting a forced disconnection to libwebsockets");
+            removeConnection();
+            disconnecting = false;
+            WEBSOCKETS_LOG_DEBUG("Requesting a forced disconnection to libwebsockets while "
+                                 "graceful disconnection in progress");
         }
         else
         {
-            disconnecting = false;
-            WEBSOCKETS_LOG_DEBUG("Already disconnecting from libwebsockets");
+            WEBSOCKETS_LOG_WARNING(
+                "Ignoring graceful disconnect. Already disconnecting gracefully");
         }
     }
     else
     {
-        if (!disconnecting)
+        const auto lwsContext = lws_get_context(wsi);
+        markAsDisconnecting();
+        if (immediate)
         {
-            disconnecting = true;
-            lws_callback_on_writable(wsi);
-            WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
+            removeConnection();
+            WEBSOCKETS_LOG_DEBUG("Requesting a forced disconnection to libwebsockets");
         }
         else
         {
-            WEBSOCKETS_LOG_WARNING("Ignoring graceful disconnect. Already disconnecting gracefully");
+            disconnecting = true;
+            WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
         }
+        lws_cancel_service(lwsContext);
     }
 }
 
 bool LibwebsocketsClient::wsIsConnected()
 {
-    return wsi != NULL;
+    return isConnected();
+}
+
+bool LibwebsocketsClient::isConnected() const
+{
+    return wsi != nullptr;
+}
+
+void LibwebsocketsClient::removeConnection()
+{
+    if (!isConnected())
+        return;
+    lws_set_wsi_user(std::exchange(wsi, nullptr), NULL);
+    WEBSOCKETS_LOG_DEBUG("Pointer detached from libwebsockets");
+}
+
+std::mutex LibwebsocketsClient::accessDisconnectingWsiMtx{};
+std::set<struct lws*> LibwebsocketsClient::disconnectingWsiSet{};
+
+void LibwebsocketsClient::markAsDisconnecting()
+{
+    if (!isConnected())
+        return;
+    std::lock_guard g(accessDisconnectingWsiMtx);
+    disconnectingWsiSet.insert(wsi);
 }
 
 const char *LibwebsocketsClient::getOutputBuffer()
@@ -477,6 +500,17 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             break;
         }
 
+        case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
+        {
+            lock_guard g(accessDisconnectingWsiMtx);
+            while (!disconnectingWsiSet.empty())
+            {
+                auto firstEl = disconnectingWsiSet.begin();
+                lws_callback_on_writable(*firstEl);
+                disconnectingWsiSet.erase(firstEl);
+            }
+            break;
+        }
         case LWS_CALLBACK_CLIENT_CLOSED:
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
@@ -484,7 +518,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             if (!client)
             {
                 WEBSOCKETS_LOG_DEBUG("Forced disconnect completed");
-                return -1;
+                break;
             }
             if (client->disconnecting)
             {
@@ -502,12 +536,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 WEBSOCKETS_LOG_DEBUG("Diagnostic: %s", buf.c_str());
             }
 
-            if (client->wsIsConnected())
-            {
-                struct lws *dwsi = client->wsi;
-                client->wsi = NULL;
-                lws_set_wsi_user(dwsi, NULL);
-            }
+            client->removeConnection();
             client->wsCloseCb(reason, 0, "closed", 7);
             break;
         }
