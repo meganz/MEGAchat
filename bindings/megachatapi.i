@@ -4,6 +4,8 @@
 
 %module(directors="1") megachat
 %{
+
+/* Includes the header */
 #include "megachatapi.h"
 
 extern JavaVM *MEGAjvm;
@@ -121,5 +123,6 @@ typedef long long time_t;
 typedef long long uint64_t;
 typedef long long int64_t;
 
+/* generate the wrappers */
 %include "megachatapi.h"
 
