@@ -161,12 +161,6 @@ void ChatListItemController::updateScheduledMeeting()
                                          cancelled, sm->flags(), sm->rules(),
                                          updateChatTitle == "y");
 }
-void ChatListItemController::removeScheduledMeeting()
-{
-    std::string aux = mMainWindow->mApp->getText("Sched meeting Id to remove: ", false).c_str();
-    uint64_t schedId = mMegaApi->base64ToUserHandle(aux.c_str());
-    mMegaApi->removeScheduledMeeting(mItemId, schedId);
-}
 
 void ChatListItemController::fetchScheduledMeeting()
 {
