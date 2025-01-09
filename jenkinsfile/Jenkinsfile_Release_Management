@@ -74,6 +74,7 @@ pipeline {
                         """
                     }
                 }
+                sh 'mv -v third-party/mega/automation/config.toml .'
             }
         }
         stage('Build docker image') {
@@ -114,11 +115,9 @@ pipeline {
                 }
             }
             steps {
-                dir("automation"){
-                    sh 'gpg --batch --import $gpg_key'
-                    sh 'gpg --list-secret-keys'
-                    sh 'python3 ./make_release.py config.toml'
-                }
+                sh 'gpg --batch --import $gpg_key'
+                sh 'gpg --list-secret-keys'
+                sh 'python3 third-party/mega/automation/make_release.py config.toml'
             }
         }
         stage ('Create Release Candidate'){
@@ -133,11 +132,9 @@ pipeline {
                 }
             }
             steps {
-                dir("automation"){
-                    sh 'gpg --batch --import $gpg_key'
-                    sh 'gpg --list-secret-keys'
-                    sh 'python3 ./make_another_rc.py config.toml'
-                }
+                sh 'gpg --batch --import $gpg_key'
+                sh 'gpg --list-secret-keys'
+                sh 'python3 third-party/mega/automation/make_another_rc.py config.toml'
             }
         }
         stage ('Close Release'){
@@ -152,11 +149,9 @@ pipeline {
                 }
             }
             steps {
-                dir("automation"){
-                    sh 'gpg --batch --import $gpg_key'
-                    sh 'gpg --list-secret-keys'
-                    sh 'python3 ./close_release.py config.toml'
-                }
+                sh 'gpg --batch --import $gpg_key'
+                sh 'gpg --list-secret-keys'
+                sh 'python3 third-party/mega/automation/close_release.py config.toml'
             }
         }
         stage ('Patch Release'){
@@ -171,11 +166,9 @@ pipeline {
                 }
             }
             steps {
-                dir("automation"){
-                    sh 'gpg --batch --import $gpg_key'
-                    sh 'gpg --list-secret-keys'
-                    sh 'python3 ./patch_release.py config.toml'
-                }
+                sh 'gpg --batch --import $gpg_key'
+                sh 'gpg --list-secret-keys'
+                sh 'python3 third-party/mega/automation/patch_release.py config.toml'
             }
         }
     }
