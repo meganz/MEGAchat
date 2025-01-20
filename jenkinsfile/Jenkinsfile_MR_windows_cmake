@@ -166,15 +166,19 @@ pipeline {
                    setCommitStatus('success') 
                 }
             }
+            deleteDir()
         }
         failure {
             setCommitStatus('failure')
+            deleteDir()
         }
         aborted {
             setCommitStatus('aborted')
+            deleteDir()
         }
         unstable {
             setCommitStatus('unstable')
+            deleteDir()
         }
     }
 }
