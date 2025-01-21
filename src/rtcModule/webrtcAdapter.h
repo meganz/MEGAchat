@@ -41,8 +41,8 @@ typedef struct objc_object AVCaptureDevice;
 typedef struct objc_object RTCCameraVideoCapturer;
 #endif
 
-#ifdef __ANDROID__
 #include <absl/types/optional.h>
+#ifdef __ANDROID__
 #include <sdk/android/native_api/video/video_source.h>
 #endif
 
