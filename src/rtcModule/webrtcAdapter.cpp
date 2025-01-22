@@ -80,8 +80,8 @@ bool init(void*)
 
         rtc::scoped_refptr<webrtc::AudioDeviceModule> audioDeviceModule;
 #ifdef __ANDROID__
-        audioDeviceModule = webrtc::CreateAndroidAudioDeviceModule(
-            webrtc::AudioDeviceModule::kPlatformDefaultAudio);
+        audioDeviceModule =
+            webrtc::CreateAndroidAudioDeviceModule(webrtc::AudioDeviceModule::kAndroidJavaAudio);
 #endif
 
         gAudioProcessing = rtc::scoped_refptr<webrtc::AudioProcessing>(webrtc::AudioProcessingBuilder().Create());
