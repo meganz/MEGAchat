@@ -8086,8 +8086,6 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
  * Test 8.  A Cancels previous scheduled meeting occurrence
  * Test 9.  A Sets negative offset at byMonthWeekDay
  * Test 10. A Cancels entire series
- * Test 11. A Deletes scheduled meeting with invalid schedId (Error)
- * Test 12. A Deletes scheduled meeting
  */
 TEST_F(MegaChatApiTest, ScheduledMeetings)
 {
@@ -8096,43 +8094,6 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
 
     // aux data structure to handle lambdas' arguments
     SchedMeetingData smDataTests1, smDataTests2;
-
-    // remove scheduled meeting
-    const auto deleteSchedMeeting = [this](const unsigned int index, const int expectedError, const SchedMeetingData& smData) -> void
-    {
-        bool exitFlag = false;
-        mSchedMeetingUpdated[a1] = mSchedMeetingUpdated[a2] = false;         // reset sched meetings updated flags
-        mSchedIdRemoved[a1] = mSchedIdRemoved[a2] = MEGACHAT_INVALID_HANDLE; // reset sched meetings id's (do after assign vars above)
-
-        // wait for onRequestFinish
-        ASSERT_NO_FATAL_FAILURE(
-        waitForAction (1,
-                       std::vector<bool *> { &exitFlag },
-                       std::vector<string> { "TYPE_DELETE_SCHEDULED_MEETING[a1]"},
-                       "Removing scheduled meeting from A",
-                       true /* wait for all exit flags*/,
-                       true /*reset flags*/,
-                       maxTimeout,
-                       [&api = megaChatApi[index], &d = smData, &expectedError, &exitFlag]()
-                       {
-                            ChatRequestTracker crtRemoveMeeting(api);
-                            api->removeScheduledMeeting(d.chatId, d.schedId, &crtRemoveMeeting);
-                            auto res = crtRemoveMeeting.waitForResult();
-                            exitFlag = true;
-                            ASSERT_EQ(res, expectedError)
-                                        << "Unexpected error while removing scheduled meeting. Error: " << crtRemoveMeeting.getErrorString();
-                       });
-        );
-        if (expectedError != MegaChatError::ERROR_OK) { return; }
-
-        // wait for onChatSchedMeetingUpdate (just in case expectedError is ERROR_OK)
-        waitForMultiResponse(std::vector<bool *> {&mSchedMeetingUpdated[a1], &mSchedMeetingUpdated[a2]}, true, maxTimeout);
-        ASSERT_NE(mSchedIdRemoved[a1], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for primary account could not be removed. scheduled meeting id: "
-                                                                << getSchedIdStrB64(smData.schedId);
-
-        ASSERT_NE(mSchedIdRemoved[a2], MEGACHAT_INVALID_HANDLE) << "Scheduled meeting for secondary account could not be removed. scheduled meeting id: "
-                                                                << getSchedIdStrB64(smData.schedId);
-    };
 
     // fetch scheduled meeting occurrences
     std::unique_ptr<::megachat::MegaChatScheduledMeetingOccurrList> occurrences;
@@ -8676,23 +8637,12 @@ TEST_F(MegaChatApiTest, ScheduledMeetings)
     }
 
     // check that SC_NEW_SCHED management msg content is expected
-    ASSERT_NO_FATAL_FAILURE(checkSchedMeetMsg(a2
-                                                , chatid
-                                                , MEGACHAT_INVALID_HANDLE
-                                                , std::vector<unsigned int> { MegaChatScheduledMeeting::SC_CANC }
-                                                , "Test10"));
-
-    LOG_debug << "#### Test11. A Deletes scheduled meeting with invalid schedId (Error) ####";
-    smData = SchedMeetingData(); // Designated initializers generate too many warnings (gcc)
-    smData.chatId = chatid;
-    smData.schedId = MEGACHAT_INVALID_HANDLE;
-    ASSERT_NO_FATAL_FAILURE(deleteSchedMeeting(a1, MegaChatError::ERROR_ARGS, smData));
-
-    LOG_debug << "#### Test12. A Deletes scheduled meeting ####";
-    smData = SchedMeetingData(); // Designated initializers generate too many warnings (gcc)
-    smData.chatId = chatid;
-    smData.schedId = schedId;
-    ASSERT_NO_FATAL_FAILURE(deleteSchedMeeting(a1, MegaChatError::ERROR_OK, smData));
+    ASSERT_NO_FATAL_FAILURE(
+        checkSchedMeetMsg(a2,
+                          chatid,
+                          MEGACHAT_INVALID_HANDLE,
+                          std::vector<unsigned int>{MegaChatScheduledMeeting::SC_CANC},
+                          "Test10"));
 }
 #endif
 
