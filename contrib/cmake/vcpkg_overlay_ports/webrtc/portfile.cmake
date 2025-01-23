@@ -178,7 +178,6 @@ set(treat_warnings_as_errors false)
 set(fatal_linker_warnings false)
 set(rtc_include_tests false)
 set(libyuv_include_tests false)
-set(export_compile_commands false)
 set(rtc_disable_logging true)
 
 if("enable-debug-log" IN_LIST FEATURES)
