@@ -10486,7 +10486,7 @@ void MegaChatApiTest::removePendingContactRequest(unsigned int accountIndex)
 
     for (int i = 0; i < contactRequests->size(); i++)
     {
-        MegaContactRequest *contactRequest = contactRequests->get(i);
+        const MegaContactRequest* contactRequest = contactRequests->get(i);
         RequestTracker inviteContactTracker(megaApi[accountIndex]);
         megaApi[accountIndex]->inviteContact(contactRequest->getTargetEmail(),
                                              "Removing you",
