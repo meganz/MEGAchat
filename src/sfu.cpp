@@ -2664,14 +2664,7 @@ promise::Promise<void> SfuConnection::reconnect()
 
                     if (statusDNS < 0)
                     {
-                        /* don't send log error to SFU stats server, if DNS error is:
-                         *  - UV__EAI_AGAIN  (-3001)
-                         *  - UV__EAI_NODATA (-3007)
-                         *  - UV__EAI_NONAME (-3008)
-                         */
-                        (statusDNS == 3001 || statusDNS == 3007 || statusDNS == 3008)
-                            ? SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Error code: %d", statusDNS)
-                            : SFU_LOG_ERROR("Async DNS error in sfu. Error code: %d", statusDNS);
+                        SFU_LOG_ERROR_NO_STATS("Async DNS error in sfu. Error code: %d", statusDNS);
                     }
                     else
                     {
