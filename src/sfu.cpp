@@ -1518,7 +1518,8 @@ void SfuConnection::doConnect(const std::string &ipv4, const std::string &ipv6)
     assert (mSfuUrl.isValid());
     if (ipv4.empty() && ipv6.empty())
     {
-        SFU_LOG_ERROR("Trying to connect sfu (%s) using empty Ip's (ipv4 and ipv6)", mSfuUrl.host.c_str());
+        SFU_LOG_ERROR_NO_STATS("Trying to connect sfu (%s) using empty Ip's (ipv4 and ipv6)",
+                               mSfuUrl.host.c_str());
         onSocketClose(0, 0, "sfu doConnect error, empty Ip's (ipv4 and ipv6)");
     }
 
@@ -1714,7 +1715,7 @@ void SfuConnection::checkThreadId()
 {
     if (mMainThreadId != std::this_thread::get_id())
     {
-        SFU_LOG_ERROR("Current thread id doesn't match with expected");
+        SFU_LOG_ERROR_NO_STATS("Current thread id doesn't match with expected");
         assert(false);
     }
 }
@@ -2541,7 +2542,8 @@ void SfuConnection::onSocketClose(int errcode, int errtype, const std::string &r
         SFU_LOG_DEBUG("onSocketClose: we are already in kDisconnected state");
         if (!mRetryCtrl)
         {
-            SFU_LOG_ERROR("There's no retry controller instance when calling onSocketClose in kDisconnected state");
+            SFU_LOG_ERROR_NO_STATS("There's no retry controller instance when calling "
+                                   "onSocketClose in kDisconnected state");
             doReconnect(false /*initialBackoff*/); // start retry controller
         }
         return;
