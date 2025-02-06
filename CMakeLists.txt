@@ -89,6 +89,11 @@ if(ENABLE_QT_BINDINGS)
     add_subdirectory(bindings/qt)
 endif()
 
+# Load Java bindings
+if(ENABLE_JAVA_BINDINGS)
+    add_subdirectory(bindings/java)
+endif()
+
 # Load Qt App example.
 if(ENABLE_CHATLIB_QTAPP)
     add_subdirectory(examples/qtmegachatapi)

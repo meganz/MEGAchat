@@ -4985,8 +4985,9 @@ public:
     /**
      * @brief Removes a scheduled meeting by scheduled meeting id and chatid
      *
-     * The associated request type with this request is MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING
-     * Valid data in the MegaChatRequest object received on callbacks:
+     * The associated request type with this request is
+     * MegaChatRequest::TYPE_DELETE_SCHEDULED_MEETING Valid data in the MegaChatRequest object
+     * received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
      * - MegaChatRequest::getUserHandle - Returns the scheduled meeting id
      *
@@ -4997,7 +4998,12 @@ public:
      * @param chatid MegaChatHandle that identifies a chat room
      * @param schedId MegaChatHandle that identifies a scheduled meeting
      * @param listener MegaChatRequestListener to track this request
+     *
+     * @deprecated This function is deprecated. Please don't use it in new code.
+     * Use createOrUpdateScheduledMeeting and set cancelled flag `True` at MegaScheduledMeeting.
+     * Note: You can use MegaScheduledMeeting::createInstance with cancelled param `True
      */
+    MEGA_DEPRECATED
     void removeScheduledMeeting(MegaChatHandle chatid, MegaChatHandle schedId, MegaChatRequestListener* listener = NULL);
 
     /**

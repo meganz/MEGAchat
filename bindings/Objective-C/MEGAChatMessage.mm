@@ -176,11 +176,15 @@ using namespace megachat;
 }
 
 - (NSString *)userNameAtIndex:(NSUInteger)index {
-    return self.megaChatMessage ? [[NSString alloc] initWithUTF8String:self.megaChatMessage->getUserName((unsigned int)index)] : nil;
+    if (!self.megaChatMessage) return nil;
+    const char *ret = self.megaChatMessage->getUserName((unsigned int)index);
+    return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
 }
 
 - (NSString *)userEmailAtIndex:(NSUInteger)index {
-    return self.megaChatMessage ? [[NSString alloc] initWithUTF8String:self.megaChatMessage->getUserEmail((unsigned int)index)] : nil;
+    if (!self.megaChatMessage) return nil;
+    const char *ret = self.megaChatMessage->getUserEmail((unsigned int)index);
+    return ret ? [[NSString alloc] initWithUTF8String:ret] : nil;
 }
 
 - (BOOL)hasScheduledMeetingChangeForType:(MEGAChatMessageScheduledMeetingChangeType)changeType {
