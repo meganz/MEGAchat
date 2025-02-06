@@ -1635,16 +1635,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     self.megaChatApi->updateScheduledMeetingOccurrence(chatId, scheduledId, overrides, newStartDate, newEndDate, newCancelled, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeGlobalUserInitiated]);
 }
 
-- (void)removeScheduledMeeting:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId {
-    if (!self.megaChatApi) { return; }
-    self.megaChatApi->removeScheduledMeeting(chatId, scheduledId);
-}
-
-- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (!self.megaChatApi) { return; }
-    self.megaChatApi->removeScheduledMeeting(chatId, scheduledId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
-}
-
 - (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingsByChat:(uint64_t)chatId {
     if (!self.megaChatApi) { return [NSArray new]; }
     MegaChatScheduledMeetingList *scheduledMeetingsList = self.megaChatApi->getScheduledMeetingsByChat(chatId);
