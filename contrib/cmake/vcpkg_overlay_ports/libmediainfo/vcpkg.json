@@ -4,7 +4,10 @@
   "description": "Get most relevant technical and tag data from video and audio files",
   "homepage": "https://github.com/MediaArea/MediaInfoLib",
   "dependencies": [
-    "curl",
+    {
+      "name" : "curl",
+      "default-features" : false
+    },
     "libzen",
     "tinyxml2",
     {
