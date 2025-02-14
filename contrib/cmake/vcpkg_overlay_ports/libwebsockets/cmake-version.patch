@@ -1,0 +1,1398 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 2e41eb4..3df9a5e 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -22,7 +22,7 @@
+ # IN THE SOFTWARE.
+ #
+ 
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ include(CheckFunctionExists)
+ include(CheckSymbolExists)
+ include(CheckIncludeFile)
+diff --git a/minimal-examples-lowlevel/raw/minimal-raw-client/CMakeLists.txt b/minimal-examples-lowlevel/raw/minimal-raw-client/CMakeLists.txt
+index 4ff5c55..aadda65 100644
+--- a/minimal-examples-lowlevel/raw/minimal-raw-client/CMakeLists.txt
++++ b/minimal-examples-lowlevel/raw/minimal-raw-client/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-client C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/abstract/protocols/smtp-client/CMakeLists.txt b/minimal-examples/abstract/protocols/smtp-client/CMakeLists.txt
+index 5264313..d703efd 100644
+--- a/minimal-examples/abstract/protocols/smtp-client/CMakeLists.txt
++++ b/minimal-examples/abstract/protocols/smtp-client/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-smtp_client C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-async-dns/CMakeLists.txt b/minimal-examples/api-tests/api-test-async-dns/CMakeLists.txt
+index f2954d0..089a352 100644
+--- a/minimal-examples/api-tests/api-test-async-dns/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-async-dns/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-async-dns C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ 
+ set(SAMP lws-api-test-async-dns)
+diff --git a/minimal-examples/api-tests/api-test-cose/CMakeLists.txt b/minimal-examples/api-tests/api-test-cose/CMakeLists.txt
+index bd6b142..d1c0352 100644
+--- a/minimal-examples/api-tests/api-test-cose/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-cose/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-cose C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-dhcpc/CMakeLists.txt b/minimal-examples/api-tests/api-test-dhcpc/CMakeLists.txt
+index 1bb2dcd..3d6ddcb 100644
+--- a/minimal-examples/api-tests/api-test-dhcpc/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-dhcpc/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-dhcpc C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-fts/CMakeLists.txt b/minimal-examples/api-tests/api-test-fts/CMakeLists.txt
+index 5a81ae8..0f5c99f 100644
+--- a/minimal-examples/api-tests/api-test-fts/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-fts/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-fts C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-gencrypto/CMakeLists.txt b/minimal-examples/api-tests/api-test-gencrypto/CMakeLists.txt
+index a3678d5..dfa4156 100644
+--- a/minimal-examples/api-tests/api-test-gencrypto/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-gencrypto/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-gencrypto C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-jose/CMakeLists.txt b/minimal-examples/api-tests/api-test-jose/CMakeLists.txt
+index 3a53382..1158560 100644
+--- a/minimal-examples/api-tests/api-test-jose/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-jose/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-jose C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lecp/CMakeLists.txt b/minimal-examples/api-tests/api-test-lecp/CMakeLists.txt
+index b09ee02..18fde6d 100644
+--- a/minimal-examples/api-tests/api-test-lecp/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lecp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lecp C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lejp/CMakeLists.txt b/minimal-examples/api-tests/api-test-lejp/CMakeLists.txt
+index ccdb9b5..c087818 100644
+--- a/minimal-examples/api-tests/api-test-lejp/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lejp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lejp C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lws_cache/CMakeLists.txt b/minimal-examples/api-tests/api-test-lws_cache/CMakeLists.txt
+index 72ae86a..6315846 100644
+--- a/minimal-examples/api-tests/api-test-lws_cache/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lws_cache/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lws_cache C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lws_dsh/CMakeLists.txt b/minimal-examples/api-tests/api-test-lws_dsh/CMakeLists.txt
+index 59d08cd..b0e439d 100644
+--- a/minimal-examples/api-tests/api-test-lws_dsh/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lws_dsh/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lws_dsh C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lws_map/CMakeLists.txt b/minimal-examples/api-tests/api-test-lws_map/CMakeLists.txt
+index 897042c..429b030 100644
+--- a/minimal-examples/api-tests/api-test-lws_map/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lws_map/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lws_map C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lws_sequencer/CMakeLists.txt b/minimal-examples/api-tests/api-test-lws_sequencer/CMakeLists.txt
+index 59333d8..523d654 100644
+--- a/minimal-examples/api-tests/api-test-lws_sequencer/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lws_sequencer/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lws_sequencer C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lws_smd/CMakeLists.txt b/minimal-examples/api-tests/api-test-lws_smd/CMakeLists.txt
+index e282706..c6d25e0 100644
+--- a/minimal-examples/api-tests/api-test-lws_smd/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lws_smd/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lws_smd C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lws_struct-json/CMakeLists.txt b/minimal-examples/api-tests/api-test-lws_struct-json/CMakeLists.txt
+index 9068028..cdf262b 100644
+--- a/minimal-examples/api-tests/api-test-lws_struct-json/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lws_struct-json/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lws_struct-json C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lws_struct_sqlite/CMakeLists.txt b/minimal-examples/api-tests/api-test-lws_struct_sqlite/CMakeLists.txt
+index ac8b161..8f2b64c 100644
+--- a/minimal-examples/api-tests/api-test-lws_struct_sqlite/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lws_struct_sqlite/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lws_struct-sqlite C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lws_tokenize/CMakeLists.txt b/minimal-examples/api-tests/api-test-lws_tokenize/CMakeLists.txt
+index 503f25d..9100a59 100644
+--- a/minimal-examples/api-tests/api-test-lws_tokenize/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lws_tokenize/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lws_tokenize C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-lwsac/CMakeLists.txt b/minimal-examples/api-tests/api-test-lwsac/CMakeLists.txt
+index f7d0aaf..1fa487c 100644
+--- a/minimal-examples/api-tests/api-test-lwsac/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-lwsac/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-lwsac C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/api-tests/api-test-secure-streams/CMakeLists.txt b/minimal-examples/api-tests/api-test-secure-streams/CMakeLists.txt
+index b4f39ca..de7d270 100644
+--- a/minimal-examples/api-tests/api-test-secure-streams/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-secure-streams/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-api-test-secure-streams C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ include(CheckCSourceCompiles)
+ include(LwsCheckRequirements)
+ 
+diff --git a/minimal-examples/api-tests/api-test-smtp_client/CMakeLists.txt b/minimal-examples/api-tests/api-test-smtp_client/CMakeLists.txt
+index 49e67ff..b64a79d 100644
+--- a/minimal-examples/api-tests/api-test-smtp_client/CMakeLists.txt
++++ b/minimal-examples/api-tests/api-test-smtp_client/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-unit-tests-smtp-client C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/client-server/minimal-ws-proxy/CMakeLists.txt b/minimal-examples/client-server/minimal-ws-proxy/CMakeLists.txt
+index 65a01b6..fabac7f 100644
+--- a/minimal-examples/client-server/minimal-ws-proxy/CMakeLists.txt
++++ b/minimal-examples/client-server/minimal-ws-proxy/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-proxy C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/crypto/minimal-crypto-cose-key/CMakeLists.txt b/minimal-examples/crypto/minimal-crypto-cose-key/CMakeLists.txt
+index 6ee78ae..19bdd3c 100644
+--- a/minimal-examples/crypto/minimal-crypto-cose-key/CMakeLists.txt
++++ b/minimal-examples/crypto/minimal-crypto-cose-key/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-crypto-cose-key C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/crypto/minimal-crypto-cose-sign/CMakeLists.txt b/minimal-examples/crypto/minimal-crypto-cose-sign/CMakeLists.txt
+index b49b417..b7a2b8f 100644
+--- a/minimal-examples/crypto/minimal-crypto-cose-sign/CMakeLists.txt
++++ b/minimal-examples/crypto/minimal-crypto-cose-sign/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-crypto-cose-sign C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/crypto/minimal-crypto-jwe/CMakeLists.txt b/minimal-examples/crypto/minimal-crypto-jwe/CMakeLists.txt
+index 4896dfc..e000864 100644
+--- a/minimal-examples/crypto/minimal-crypto-jwe/CMakeLists.txt
++++ b/minimal-examples/crypto/minimal-crypto-jwe/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-crypto-jwe C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/crypto/minimal-crypto-jwk/CMakeLists.txt b/minimal-examples/crypto/minimal-crypto-jwk/CMakeLists.txt
+index a5b2d07..65fb789 100644
+--- a/minimal-examples/crypto/minimal-crypto-jwk/CMakeLists.txt
++++ b/minimal-examples/crypto/minimal-crypto-jwk/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-crypto-jwk C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/crypto/minimal-crypto-jws/CMakeLists.txt b/minimal-examples/crypto/minimal-crypto-jws/CMakeLists.txt
+index b566fb2..ac2d46f 100644
+--- a/minimal-examples/crypto/minimal-crypto-jws/CMakeLists.txt
++++ b/minimal-examples/crypto/minimal-crypto-jws/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-crypto-jws C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/crypto/minimal-crypto-x509/CMakeLists.txt b/minimal-examples/crypto/minimal-crypto-x509/CMakeLists.txt
+index 74d7732..796b2cd 100644
+--- a/minimal-examples/crypto/minimal-crypto-x509/CMakeLists.txt
++++ b/minimal-examples/crypto/minimal-crypto-x509/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-crypto-x509 C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/dbus-client/minimal-dbus-client/CMakeLists.txt b/minimal-examples/dbus-client/minimal-dbus-client/CMakeLists.txt
+index 6496e17..af79c42 100644
+--- a/minimal-examples/dbus-client/minimal-dbus-client/CMakeLists.txt
++++ b/minimal-examples/dbus-client/minimal-dbus-client/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-dbus-client C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/dbus-client/minimal-dbus-ws-proxy-testclient/CMakeLists.txt b/minimal-examples/dbus-client/minimal-dbus-ws-proxy-testclient/CMakeLists.txt
+index 5c69398..8cfb6d6 100644
+--- a/minimal-examples/dbus-client/minimal-dbus-ws-proxy-testclient/CMakeLists.txt
++++ b/minimal-examples/dbus-client/minimal-dbus-ws-proxy-testclient/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-dbus-ws-proxy-testclient C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/dbus-server/minimal-dbus-server/CMakeLists.txt b/minimal-examples/dbus-server/minimal-dbus-server/CMakeLists.txt
+index 0c0b7cf..f031a7f 100644
+--- a/minimal-examples/dbus-server/minimal-dbus-server/CMakeLists.txt
++++ b/minimal-examples/dbus-server/minimal-dbus-server/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-dbus-server C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/dbus-server/minimal-dbus-ws-proxy/CMakeLists.txt b/minimal-examples/dbus-server/minimal-dbus-ws-proxy/CMakeLists.txt
+index cd699a2..4d78d3d 100644
+--- a/minimal-examples/dbus-server/minimal-dbus-ws-proxy/CMakeLists.txt
++++ b/minimal-examples/dbus-server/minimal-dbus-ws-proxy/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-dbus-ws-proxy C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/gtk/minimal-gtk/CMakeLists.txt b/minimal-examples/gtk/minimal-gtk/CMakeLists.txt
+index 27587f4..2a2f4fc 100644
+--- a/minimal-examples/gtk/minimal-gtk/CMakeLists.txt
++++ b/minimal-examples/gtk/minimal-gtk/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-gtk C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-client/minimal-http-client-attach/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-attach/CMakeLists.txt
+index 909efca..c5ba3a5 100644
+--- a/minimal-examples/http-client/minimal-http-client-attach/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-attach/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-attach C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/http-client/minimal-http-client-captive-portal/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-captive-portal/CMakeLists.txt
+index f332dc5..406ac0d 100644
+--- a/minimal-examples/http-client/minimal-http-client-captive-portal/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-captive-portal/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-captive-portal C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/http-client/minimal-http-client-certinfo/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-certinfo/CMakeLists.txt
+index 07ff4e2..7d113c0 100644
+--- a/minimal-examples/http-client/minimal-http-client-certinfo/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-certinfo/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-certinfo C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-client/minimal-http-client-custom-headers/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-custom-headers/CMakeLists.txt
+index 0a69c0b..35720d4 100644
+--- a/minimal-examples/http-client/minimal-http-client-custom-headers/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-custom-headers/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-custom-headers C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-client/minimal-http-client-h2-rxflow/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-h2-rxflow/CMakeLists.txt
+index 9a2dc65..884a039 100644
+--- a/minimal-examples/http-client/minimal-http-client-h2-rxflow/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-h2-rxflow/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-h2-rxflow C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-client/minimal-http-client-hugeurl/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-hugeurl/CMakeLists.txt
+index cb42d1f..8d509a9 100644
+--- a/minimal-examples/http-client/minimal-http-client-hugeurl/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-hugeurl/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-hugeurl C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-client/minimal-http-client-jit-trust/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-jit-trust/CMakeLists.txt
+index eef5cd8..7160e51 100644
+--- a/minimal-examples/http-client/minimal-http-client-jit-trust/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-jit-trust/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-jit-trust C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-client/minimal-http-client-multi/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-multi/CMakeLists.txt
+index 22d138c..e0d4130 100644
+--- a/minimal-examples/http-client/minimal-http-client-multi/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-multi/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-multi C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-client/minimal-http-client-post/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client-post/CMakeLists.txt
+index b4e4b74..08fc5cf 100644
+--- a/minimal-examples/http-client/minimal-http-client-post/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client-post/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client-post C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-client/minimal-http-client/CMakeLists.txt b/minimal-examples/http-client/minimal-http-client/CMakeLists.txt
+index 8c42ae9..ee34f9e 100644
+--- a/minimal-examples/http-client/minimal-http-client/CMakeLists.txt
++++ b/minimal-examples/http-client/minimal-http-client/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-client C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-basicauth/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-basicauth/CMakeLists.txt
+index ac5e278..8ebe8b6 100644
+--- a/minimal-examples/http-server/minimal-http-server-basicauth/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-basicauth/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-basicauth C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-cgi/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-cgi/CMakeLists.txt
+index 18ef350..7d5b781 100644
+--- a/minimal-examples/http-server/minimal-http-server-cgi/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-cgi/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-cgi C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-custom-headers/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-custom-headers/CMakeLists.txt
+index f113424..a25d634 100644
+--- a/minimal-examples/http-server/minimal-http-server-custom-headers/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-custom-headers/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-custom-headers C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-deaddrop/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-deaddrop/CMakeLists.txt
+index fee8fbc..3494c8f 100644
+--- a/minimal-examples/http-server/minimal-http-server-deaddrop/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-deaddrop/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-deaddrop C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-dynamic/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-dynamic/CMakeLists.txt
+index e8affdb..f7b2993 100644
+--- a/minimal-examples/http-server/minimal-http-server-dynamic/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-dynamic/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-dynamic C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-eventlib-custom/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-eventlib-custom/CMakeLists.txt
+index 5f023f9..9ae570a 100644
+--- a/minimal-examples/http-server/minimal-http-server-eventlib-custom/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-eventlib-custom/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-eventlib-custom C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-eventlib-demos/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-eventlib-demos/CMakeLists.txt
+index 6fe0548..2f0fdfe 100644
+--- a/minimal-examples/http-server/minimal-http-server-eventlib-demos/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-eventlib-demos/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-eventlib-demos C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-eventlib-foreign/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-eventlib-foreign/CMakeLists.txt
+index fc22523..19049c9 100644
+--- a/minimal-examples/http-server/minimal-http-server-eventlib-foreign/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-eventlib-foreign/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-eventlib-foreign C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/http-server/minimal-http-server-eventlib-smp/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-eventlib-smp/CMakeLists.txt
+index 087202d..4ac46e2 100644
+--- a/minimal-examples/http-server/minimal-http-server-eventlib-smp/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-eventlib-smp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-eventlib-smp C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/http-server/minimal-http-server-eventlib/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-eventlib/CMakeLists.txt
+index 57badf3..d158dcf 100644
+--- a/minimal-examples/http-server/minimal-http-server-eventlib/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-eventlib/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-eventlib C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-form-get/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-form-get/CMakeLists.txt
+index 0ef0f3c..6f8b00b 100644
+--- a/minimal-examples/http-server/minimal-http-server-form-get/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-form-get/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-form-get C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-form-post-file/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-form-post-file/CMakeLists.txt
+index f1b5c36..50b96ed 100644
+--- a/minimal-examples/http-server/minimal-http-server-form-post-file/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-form-post-file/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-form-post-file C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-form-post-lwsac/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-form-post-lwsac/CMakeLists.txt
+index c7e0a11..c91ea64 100644
+--- a/minimal-examples/http-server/minimal-http-server-form-post-lwsac/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-form-post-lwsac/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-form-post-lwsac C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-form-post/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-form-post/CMakeLists.txt
+index ac3e4ff..72b9f0b 100644
+--- a/minimal-examples/http-server/minimal-http-server-form-post/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-form-post/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-form-post C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-fulltext-search/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-fulltext-search/CMakeLists.txt
+index 160e054..40c9b21 100644
+--- a/minimal-examples/http-server/minimal-http-server-fulltext-search/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-fulltext-search/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-fulltext-search C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-h2-long-poll/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-h2-long-poll/CMakeLists.txt
+index 2cabcc3..89e20e8 100644
+--- a/minimal-examples/http-server/minimal-http-server-h2-long-poll/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-h2-long-poll/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-h2-long-poll C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-mimetypes/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-mimetypes/CMakeLists.txt
+index c0e9328..5dd7e2c 100644
+--- a/minimal-examples/http-server/minimal-http-server-mimetypes/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-mimetypes/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-mimetypes C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-multivhost/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-multivhost/CMakeLists.txt
+index c4c5c45..ba06cef 100644
+--- a/minimal-examples/http-server/minimal-http-server-multivhost/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-multivhost/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-multivhost C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-proxy/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-proxy/CMakeLists.txt
+index 59c53a3..7454bb5 100644
+--- a/minimal-examples/http-server/minimal-http-server-proxy/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-proxy/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-proxy C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-smp/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-smp/CMakeLists.txt
+index 3f6a91d..3047a33 100644
+--- a/minimal-examples/http-server/minimal-http-server-smp/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-smp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-smp C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/http-server/minimal-http-server-sse-ring/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-sse-ring/CMakeLists.txt
+index e5e2e7b..4ee1bee 100644
+--- a/minimal-examples/http-server/minimal-http-server-sse-ring/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-sse-ring/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-sse-ring C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ include(CheckIncludeFile)
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-sse/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-sse/CMakeLists.txt
+index 116052d..e90b458 100644
+--- a/minimal-examples/http-server/minimal-http-server-sse/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-sse/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-sse C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-tls-80/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-tls-80/CMakeLists.txt
+index 46ac74c..26f5630 100644
+--- a/minimal-examples/http-server/minimal-http-server-tls-80/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-tls-80/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-tls-80 C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-tls-mem/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-tls-mem/CMakeLists.txt
+index 1f8f63f..57ae85b 100644
+--- a/minimal-examples/http-server/minimal-http-server-tls-mem/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-tls-mem/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-tls-mem C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server-tls/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server-tls/CMakeLists.txt
+index 9e771b3..89a3f1c 100644
+--- a/minimal-examples/http-server/minimal-http-server-tls/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server-tls/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server-tls C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/http-server/minimal-http-server/CMakeLists.txt b/minimal-examples/http-server/minimal-http-server/CMakeLists.txt
+index b1df7af..22f767d 100644
+--- a/minimal-examples/http-server/minimal-http-server/CMakeLists.txt
++++ b/minimal-examples/http-server/minimal-http-server/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-http-server C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/mqtt-client/minimal-mqtt-client-multi/CMakeLists.txt b/minimal-examples/mqtt-client/minimal-mqtt-client-multi/CMakeLists.txt
+index bb03aae..f7773a3 100644
+--- a/minimal-examples/mqtt-client/minimal-mqtt-client-multi/CMakeLists.txt
++++ b/minimal-examples/mqtt-client/minimal-mqtt-client-multi/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-mqtt-client-multi C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/mqtt-client/minimal-mqtt-client/CMakeLists.txt b/minimal-examples/mqtt-client/minimal-mqtt-client/CMakeLists.txt
+index 1b688c7..1de2b80 100644
+--- a/minimal-examples/mqtt-client/minimal-mqtt-client/CMakeLists.txt
++++ b/minimal-examples/mqtt-client/minimal-mqtt-client/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-mqtt-client C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ include(CheckCSourceCompiles)
+ include(LwsCheckRequirements)
+ 
+diff --git a/minimal-examples/raw/minimal-raw-adopt-tcp/CMakeLists.txt b/minimal-examples/raw/minimal-raw-adopt-tcp/CMakeLists.txt
+index ec79159..74ebb6a 100644
+--- a/minimal-examples/raw/minimal-raw-adopt-tcp/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-adopt-tcp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-adopt-tcp C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-adopt-udp/CMakeLists.txt b/minimal-examples/raw/minimal-raw-adopt-udp/CMakeLists.txt
+index 84f8cd4..9d31947 100644
+--- a/minimal-examples/raw/minimal-raw-adopt-udp/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-adopt-udp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-adopt-udp C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-audio/CMakeLists.txt b/minimal-examples/raw/minimal-raw-audio/CMakeLists.txt
+index 21361e7..86fffc9 100644
+--- a/minimal-examples/raw/minimal-raw-audio/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-audio/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-audio C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-fallback-http-server/CMakeLists.txt b/minimal-examples/raw/minimal-raw-fallback-http-server/CMakeLists.txt
+index c52810a..8e8ac1b 100644
+--- a/minimal-examples/raw/minimal-raw-fallback-http-server/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-fallback-http-server/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-fallback-http-server C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-file/CMakeLists.txt b/minimal-examples/raw/minimal-raw-file/CMakeLists.txt
+index 986dc06..8b33aef 100644
+--- a/minimal-examples/raw/minimal-raw-file/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-file/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-file C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-netcat/CMakeLists.txt b/minimal-examples/raw/minimal-raw-netcat/CMakeLists.txt
+index 4e4b2ba..38dec77 100644
+--- a/minimal-examples/raw/minimal-raw-netcat/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-netcat/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-netcat C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-proxy-fallback/CMakeLists.txt b/minimal-examples/raw/minimal-raw-proxy-fallback/CMakeLists.txt
+index bd08cd4..7c65bf0 100644
+--- a/minimal-examples/raw/minimal-raw-proxy-fallback/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-proxy-fallback/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-proxy-fallback C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-proxy/CMakeLists.txt b/minimal-examples/raw/minimal-raw-proxy/CMakeLists.txt
+index 75fb8f9..2c03355 100644
+--- a/minimal-examples/raw/minimal-raw-proxy/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-proxy/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-proxy C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-serial/CMakeLists.txt b/minimal-examples/raw/minimal-raw-serial/CMakeLists.txt
+index 5dfae02..177ee1f 100644
+--- a/minimal-examples/raw/minimal-raw-serial/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-serial/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-serial C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/raw/minimal-raw-vhost/CMakeLists.txt b/minimal-examples/raw/minimal-raw-vhost/CMakeLists.txt
+index 4e578df..d756084 100644
+--- a/minimal-examples/raw/minimal-raw-vhost/CMakeLists.txt
++++ b/minimal-examples/raw/minimal-raw-vhost/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-raw-vhost C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-alexa/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-alexa/CMakeLists.txt
+index 5400c24..a8d50aa 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-alexa/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-alexa/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-alexa C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-avs/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-avs/CMakeLists.txt
+index 1ec1318..a7f80f0 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-avs/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-avs/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-avs C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-binance/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-binance/CMakeLists.txt
+index e1f3647..f956c0f 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-binance/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-binance/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-binance C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-blob/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-blob/CMakeLists.txt
+index 7fc59da..7727056 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-blob/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-blob/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-blob C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-client-tx/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-client-tx/CMakeLists.txt
+index 1a943b9..bc1867c 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-client-tx/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-client-tx/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-client-tx C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-cpp/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-cpp/CMakeLists.txt
+index 1f26c57..70701a2 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-cpp/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-cpp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-cpp CXX)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-hugeurl/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-hugeurl/CMakeLists.txt
+index e0ac200..e778c7d 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-hugeurl/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-hugeurl/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-hugeurl C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-metadata/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-metadata/CMakeLists.txt
+index 67c946a..ff34313 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-metadata/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-metadata/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-metadata C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-perf/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-perf/CMakeLists.txt
+index c0beb26..7368b08 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-perf/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-perf/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-perf C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-policy2c/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-policy2c/CMakeLists.txt
+index f8272f3..cc419f7 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-policy2c/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-policy2c/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-policy2c C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-post/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-post/CMakeLists.txt
+index ea23d84..9184bb2 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-post/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-post/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-post C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-proxy/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-proxy/CMakeLists.txt
+index 0d0f548..9db1ec0 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-proxy/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-proxy/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-proxy C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-seq/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-seq/CMakeLists.txt
+index 47317ba..4dadb46 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-seq/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-seq/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-seq C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-server-raw/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-server-raw/CMakeLists.txt
+index 205f502..1980f1c 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-server-raw/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-server-raw/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-server-raw C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-server/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-server/CMakeLists.txt
+index 19dff5a..1f4f040 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-server/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-server/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-server C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-sigv4/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-sigv4/CMakeLists.txt
+index 47deb88..7667b25 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-sigv4/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-sigv4/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-sigv4 C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-smd/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-smd/CMakeLists.txt
+index db2f9eb..5d56196 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-smd/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-smd/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-smd C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-staticpolicy/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-staticpolicy/CMakeLists.txt
+index da53721..6b357f2 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-staticpolicy/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-staticpolicy/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-staticpolicy C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-stress/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-stress/CMakeLists.txt
+index 6944e7f..b416923 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-stress/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-stress/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-stress C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-testsfail/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-testsfail/CMakeLists.txt
+index cd194e1..d2463af 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-testsfail/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-testsfail/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-testsfail C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams-threads/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams-threads/CMakeLists.txt
+index 5272d8f..7e72509 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams-threads/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams-threads/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams-threads C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/secure-streams/minimal-secure-streams/CMakeLists.txt b/minimal-examples/secure-streams/minimal-secure-streams/CMakeLists.txt
+index 7f576ed..2d0625c 100644
+--- a/minimal-examples/secure-streams/minimal-secure-streams/CMakeLists.txt
++++ b/minimal-examples/secure-streams/minimal-secure-streams/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-secure-streams C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-client/minimal-ws-client-binance/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client-binance/CMakeLists.txt
+index d3ccf8c..52eb04d 100644
+--- a/minimal-examples/ws-client/minimal-ws-client-binance/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client-binance/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-binance C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-client/minimal-ws-client-echo/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client-echo/CMakeLists.txt
+index 4e88dbc..57a0d50 100644
+--- a/minimal-examples/ws-client/minimal-ws-client-echo/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client-echo/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-echo C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-client/minimal-ws-client-ping/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client-ping/CMakeLists.txt
+index 976f468..d7cd16b 100644
+--- a/minimal-examples/ws-client/minimal-ws-client-ping/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client-ping/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-ping C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-client/minimal-ws-client-pmd-bulk/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client-pmd-bulk/CMakeLists.txt
+index 09fb3e1..22ccae9 100644
+--- a/minimal-examples/ws-client/minimal-ws-client-pmd-bulk/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client-pmd-bulk/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-pmd-bulk C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-client/minimal-ws-client-rx/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client-rx/CMakeLists.txt
+index faad60e..421abe5 100644
+--- a/minimal-examples/ws-client/minimal-ws-client-rx/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client-rx/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-rx C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-client/minimal-ws-client-spam-tx-rx/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client-spam-tx-rx/CMakeLists.txt
+index 5398798..7fccbac 100644
+--- a/minimal-examples/ws-client/minimal-ws-client-spam-tx-rx/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client-spam-tx-rx/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-spam-tx-rx C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-client/minimal-ws-client-spam/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client-spam/CMakeLists.txt
+index 34164e1..5889e8c 100644
+--- a/minimal-examples/ws-client/minimal-ws-client-spam/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client-spam/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-spam C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-client/minimal-ws-client-tx/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client-tx/CMakeLists.txt
+index 45d75c0..159e601 100644
+--- a/minimal-examples/ws-client/minimal-ws-client-tx/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client-tx/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-tx C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-client/minimal-ws-client/CMakeLists.txt b/minimal-examples/ws-client/minimal-ws-client/CMakeLists.txt
+index 9638145..849737c 100644
+--- a/minimal-examples/ws-client/minimal-ws-client/CMakeLists.txt
++++ b/minimal-examples/ws-client/minimal-ws-client/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-client-ping C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-server/minimal-ws-broker/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-broker/CMakeLists.txt
+index 0972dd3..0d5a20f 100644
+--- a/minimal-examples/ws-server/minimal-ws-broker/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-broker/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-broker C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-server/minimal-ws-raw-proxy/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-raw-proxy/CMakeLists.txt
+index 3730212..b080b61 100644
+--- a/minimal-examples/ws-server/minimal-ws-raw-proxy/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-raw-proxy/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-raw-proxy C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-echo/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-echo/CMakeLists.txt
+index 0b8a4e5..11e837d 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-echo/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-echo/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-echo C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-pmd-bulk/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-pmd-bulk/CMakeLists.txt
+index 5bb69d0..9ebf367 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-pmd-bulk/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-pmd-bulk/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-pmd-bulk C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-pmd-corner/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-pmd-corner/CMakeLists.txt
+index 9be9eb9..d4733e0 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-pmd-corner/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-pmd-corner/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-pmd-corner C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-pmd/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-pmd/CMakeLists.txt
+index 507ec3e..ba59e05 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-pmd/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-pmd/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-pmd C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-ring/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-ring/CMakeLists.txt
+index 7f58124..c61e600 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-ring/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-ring/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-ring C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-threadpool/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-threadpool/CMakeLists.txt
+index b7c153f..5af05f7 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-threadpool/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-threadpool/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-threadpool C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-threads-foreign-libuv-smp/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-threads-foreign-libuv-smp/CMakeLists.txt
+index 78fbf29..fe0e10a 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-threads-foreign-libuv-smp/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-threads-foreign-libuv-smp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-threads-foreign-libuv-smp C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-threads-smp/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-threads-smp/CMakeLists.txt
+index 098a174..d138500 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-threads-smp/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-threads-smp/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-threads-smp C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-threads/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-threads/CMakeLists.txt
+index 513ea9d..e42edfa 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-threads/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-threads/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-threads C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckIncludeFile)
+diff --git a/minimal-examples/ws-server/minimal-ws-server-timer/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server-timer/CMakeLists.txt
+index bc95805..b626f25 100644
+--- a/minimal-examples/ws-server/minimal-ws-server-timer/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server-timer/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server-timer C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/minimal-examples/ws-server/minimal-ws-server/CMakeLists.txt b/minimal-examples/ws-server/minimal-ws-server/CMakeLists.txt
+index 69a6481..8751325 100644
+--- a/minimal-examples/ws-server/minimal-ws-server/CMakeLists.txt
++++ b/minimal-examples/ws-server/minimal-ws-server/CMakeLists.txt
+@@ -1,5 +1,5 @@
+ project(lws-minimal-ws-server C)
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ list(APPEND CMAKE_MODULE_PATH ${LWS_CMAKE_DIR})
+ include(CheckCSourceCompiles)
+diff --git a/plugin-standalone/CMakeLists.txt b/plugin-standalone/CMakeLists.txt
+index 71926b7..93ed479 100644
+--- a/plugin-standalone/CMakeLists.txt
++++ b/plugin-standalone/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 2.8.12)
++cmake_minimum_required(VERSION 3.5)
+ find_package(libwebsockets CONFIG REQUIRED)
+ 
+ if(NOT DEFINED CMAKE_BUILD_TYPE)
