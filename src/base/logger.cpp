@@ -2,16 +2,19 @@
 	#define LOGGER_SPRINTF_BUF_SIZE 10240
 #endif
 
+#define KRLOGGER_BUILDING //sets DLLIMPEXPs in logger.h to 'export' mode
+#include "logger.h"
+
+#include "loggerConsole.h"
+#include "loggerFile.h"
+#include "sdkApi.h"
+#include "stringUtils.h" //needed for parsing the KRLOG env variable
+
+#include <chrono>
 #include <functional>
 #include <iostream>
 #include <stdarg.h>
 #include <string.h>
-#define KRLOGGER_BUILDING //sets DLLIMPEXPs in logger.h to 'export' mode
-#include "logger.h"
-#include "loggerFile.h"
-#include "loggerConsole.h"
-#include "../stringUtils.h" //needed for parsing the KRLOG env variable
-#include "sdkApi.h"
 
 #ifdef _WIN32
 #if !defined(va_copy) && defined(_MSC_VER)
