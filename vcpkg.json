@@ -11,7 +11,11 @@
                 "webrtc",
                 { "name" : "libwebsockets", "default-features": false, "features" : [ "boringssl", "ipv6" ] },
                 { "name" : "curl", "version>=": "8.6.0", "default-features": false, "features" : [ "boringssl" ] },
-                { "name" : "vcpkg-tool-gn", "version>=": "2024-02-22", "host" : true}
+                {
+                    "name": "vcpkg-tool-gn",
+                    "version>=": "2025-01-27",
+                    "host": true
+                }
             ]
         },
         "no-webrtc":
