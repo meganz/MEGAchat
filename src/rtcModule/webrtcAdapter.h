@@ -41,6 +41,7 @@ typedef struct objc_object AVCaptureDevice;
 typedef struct objc_object RTCCameraVideoCapturer;
 #endif
 
+#include <absl/types/optional.h>
 #ifdef __ANDROID__
 #include <sdk/android/native_api/video/video_source.h>
 #endif
@@ -431,12 +432,16 @@ protected:
 class VideoCapturerManager : public rtc::RefCountedObject<webrtc::VideoTrackSourceInterface>
 {
 public:
-    virtual ~VideoCapturerManager(){}
-    static VideoCapturerManager* createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string& deviceName, rtc::Thread* thread);
+    virtual ~VideoCapturerManager() {}
+
+    static rtc::scoped_refptr<VideoCapturerManager>
+        createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities,
+                             const std::string& deviceName,
+                             rtc::Thread* thread);
     static VideoCapturerManager* createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread* thread);
     virtual void openDevice(const std::string &deviceName) = 0;
     virtual void releaseDevice() = 0;
-    virtual webrtc::VideoTrackSourceInterface* getVideoTrackSource() = 0;
+    virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() = 0;
     static std::set<std::pair<std::string, std::string>> getCameraDevices();
     static std::set<std::pair<std::string, long int>> getScreenDevices();
 };
@@ -468,9 +473,9 @@ public:
         mScreenCapturer.reset();
     }
 
-    webrtc::VideoTrackSourceInterface* getVideoTrackSource() override
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override
     {
-        return this;
+        return rtc::scoped_refptr<VideoTrackSourceInterface>(this);
     }
 
     // ---- VideoTrackSourceInterface methods ----
@@ -525,7 +530,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;
     void releaseDevice() override;
-    VideoTrackSourceInterface* getVideoTrackSource() override;
+    rtc::scoped_refptr<VideoTrackSourceInterface> getVideoTrackSource() override;
 
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
@@ -569,7 +574,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;
     void releaseDevice() override;
-    webrtc::VideoTrackSourceInterface* getVideoTrackSource() override;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
 
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;
@@ -609,7 +614,7 @@ public:
     static std::set<std::pair<std::string, std::string>> getVideoDevices();
     void openDevice(const std::string &videoDevice) override;
     void releaseDevice() override;
-    webrtc::VideoTrackSourceInterface* getVideoTrackSource() override;
+    rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> getVideoTrackSource() override;
 
     bool is_screencast() const override;
     absl::optional<bool> needs_denoising() const override;

@@ -10,6 +10,7 @@ vcpkg_from_github(
         export-include-path.patch
         fix-find-openssl.patch
         fix-find-boringssl.patch
+        fix-unsigned.patch
 )
 
 string(COMPARE EQUAL "${VCPKG_LIBRARY_LINKAGE}" "static" LWS_WITH_STATIC)

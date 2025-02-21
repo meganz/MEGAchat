@@ -39,7 +39,7 @@ endfunction()
 vcpkg_from_git(
     OUT_SOURCE_PATH SOURCE_PATH
     URL https://webrtc.googlesource.com/src
-    REF 93081d594f7efff72958a79251f53731b99e902b # Release M108
+    REF 5a6a8fe6b3b39a96c212576050693516b5626b05 # Release M131
 )
 
 message(STATUS " * Working on submodules and other dependencies, it may take a while...")
@@ -47,68 +47,76 @@ message(STATUS " * Working on submodules and other dependencies, it may take a w
 vcpkg_sub_from_git(
     DESTINATION build
     URL https://chromium.googlesource.com/chromium/src/build
-    REF 1c4f38fd4f534d78b72cefc376a03b3e8b486e7c
+    REF 2fb4df2b33c448ad00d076c10369a7b703cae563
 )
 file(WRITE ${SOURCE_PATH}/build/config/gclient_args.gni "generate_location_tags = true")
+# Required a file with name LASTCHANGE.committime for configuration process
+file(WRITE ${SOURCE_PATH}/build/util/LASTCHANGE.committime "1724250631")
 
 vcpkg_sub_from_git(
     DESTINATION third_party
     URL https://chromium.googlesource.com/chromium/src/third_party
-    REF 28a4580f804c4fc4279ecf10100a409811030235
+    REF eb289deb6a994795eccb6ac6a8b878b22cb62b27
 )
 
 vcpkg_sub_from_git(
     DESTINATION testing
     URL https://chromium.googlesource.com/chromium/src/testing
-    REF 6f2362298838e8789b09282cf198c8582f9c4555
+    REF 489a5b43e434d385083af1dce14a508e10f82e0c
 )
 
 vcpkg_sub_from_git(
     DESTINATION tools
     URL https://chromium.googlesource.com/chromium/src/tools
-    REF d97453670f86a8cc5050802a4a49083c5db3b39a
+    REF 2449f923ca04700c0f5289e5df3059e3ad7daeb3
+)
+
+vcpkg_sub_from_git(
+    DESTINATION base
+    URL https://chromium.googlesource.com/chromium/src/base
+    REF 033588ef8013baaa58c42ef8bb25a52505c71e55
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/libyuv
     URL https://chromium.googlesource.com/libyuv/libyuv
-    REF 00950840d1c9bcbb3eb6ebc5aac5793e71166c8b
+    REF 679e851f653866a49e21f69fe8380bd20123f0ee
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/libsrtp
     URL https://chromium.googlesource.com/chromium/deps/libsrtp
-    REF 5b7c744eb8310250ccc534f3f86a2015b3887a0a
+    REF 7a7e64c8b5a632f55929cb3bb7d3e6fb48c3205a
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/catapult
     URL https://chromium.googlesource.com/catapult
-    REF 4793433248183dd073e608f655204d4acfdc7193
+    REF 48294e2bd1e5ecaa3c54036abdcaac85f76af2f4
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/nasm
     URL https://chromium.googlesource.com/chromium/deps/nasm
-    REF 9215e8e1d0fe474ffd3e16c1a07a0f97089e6224
+    REF f477acb1049f5e043904b87b825c5915084a9a29
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/boringssl/src
     URL https://boringssl.googlesource.com/boringssl
-    REF 1ee71185a2322dc354bee5e5a0abfb1810a27dc6
+    REF 11f334121fd0d13830fefdf08041183da2d30ef3
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/libjpeg_turbo
     URL https://chromium.googlesource.com/chromium/deps/libjpeg_turbo
-    REF ed683925e4897a84b3bffc5c1414c85b97a129a3
+    REF ccfbe1c82a3b6dbe8647ceb36a3f9ee711fba3cf
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/icu
     URL https://chromium.googlesource.com/chromium/deps/icu
-    REF 20f8ac695af59b6c830def7d4e95bfeb13dd7be5
+    REF 9408c6fd4a39e6fef0e1c4077602e1c83b15f3fb
 )
 
 vcpkg_sub_from_git(
@@ -120,19 +128,19 @@ vcpkg_sub_from_git(
 vcpkg_sub_from_git(
     DESTINATION third_party/libvpx/source/libvpx
     URL https://chromium.googlesource.com/webm/libvpx
-    REF 9d6d0624d7943a09cc0be9df1a7402522989ac1a
+    REF 428f3104fa7259a369e88df30f8b02644c8c1e24
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/libaom/source/libaom
     URL https://aomedia.googlesource.com/aom
-    REF 7f32eb35ff2589369f095388701e3dfc4d6a9381
+    REF 68bc71348beb562d1a83b18d36ae875bc45a585e
 )
 
 vcpkg_sub_from_git(
     DESTINATION third_party/dav1d/libdav1d
     URL https://chromium.googlesource.com/external/github.com/videolan/dav1d
-    REF 87f9a81cd770e49394a45deca7a3df41243de00b
+    REF 5ef6b241f05a2b9058b58136da4b25842aefba96
 )
 
 vcpkg_sub_from_git(
@@ -144,7 +152,19 @@ vcpkg_sub_from_git(
 vcpkg_sub_from_git(
     DESTINATION third_party/grpc/src
     URL https://chromium.googlesource.com/external/github.com/grpc/grpc
-    REF dd77c67217b10ffeaf766e25eb8b46d2d59de4ff
+    REF 822dab21d9995c5cf942476b35ca12a1aa9d2737
+)
+
+vcpkg_sub_from_git(
+    DESTINATION third_party/perfetto
+    URL https://android.googlesource.com/platform/external/perfetto
+    REF 4a7ddbf3bf09b42381841dd7b5d34fc2bf9b62ec
+)
+
+vcpkg_sub_from_git(
+    DESTINATION third_party/protobuf-javascript/src
+    URL https://chromium.googlesource.com/external/github.com/protocolbuffers/protobuf-javascript
+    REF e34549db516f8712f678fcd4bc411613b5cc5295
 )
 
 # Parameters for "gn gen" command.
