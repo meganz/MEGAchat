@@ -1,6 +1,9 @@
 #From boringssl port
 
 function(install_pc_file name pc_data)
+    if(VCPKG_TARGET_IS_ANDROID OR VCPKG_TARGET_IS_IOS)
+        string(REPLACE "Libs.private: -lX11" "" pc_data "${pc_data}")
+    endif()
     if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
         configure_file("${CMAKE_CURRENT_LIST_DIR}/openssl.pc.in" "${CURRENT_PACKAGES_DIR}/lib/pkgconfig/${name}.pc" @ONLY)
     endif()

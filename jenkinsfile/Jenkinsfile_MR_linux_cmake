@@ -145,7 +145,6 @@ pipeline {
         stage('Build MEGAchat'){
             environment{
                 VCPKGPATH = "/opt/vcpkg"
-                PATH = "${env.HOME}/tools:${env.PATH}"
             }
             steps{
                 dir(megachat_sources_workspace){

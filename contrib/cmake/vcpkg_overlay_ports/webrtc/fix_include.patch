@@ -1,0 +1,13 @@
+diff --git a/rtc_base/ssl_stream_adapter.h b/rtc_base/ssl_stream_adapter.h
+index dcaaf3a0d1..6e2959a47e 100644
+--- a/rtc_base/ssl_stream_adapter.h
++++ b/rtc_base/ssl_stream_adapter.h
+@@ -17,6 +17,7 @@
+ #include <memory>
+ #include <string>
+ #include <vector>
++#include <optional>
+ 
+ #include "absl/functional/any_invocable.h"
+ #include "absl/memory/memory.h"
+
