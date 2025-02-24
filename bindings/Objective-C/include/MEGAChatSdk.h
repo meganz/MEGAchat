@@ -153,7 +153,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setOnlineStatus:(MEGAChatStatus)status;
 - (MEGAChatStatus)onlineStatus;
 
-- (void)setPresenceAutoaway:(BOOL)enable timeout:(NSInteger)timeout;
+- (void)setPresenceAutoaway:(BOOL)enable timeout:(int64_t)timeout;
 - (void)setPresencePersist:(BOOL)enable;
 - (void)setLastGreenVisible:(BOOL)enable delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)setLastGreenVisible:(BOOL)enable;
