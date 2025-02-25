@@ -3254,7 +3254,8 @@ void exec_setCameraUploadsFolderSecondary(ac::ACState& s)
     }
     else
     {
-        g_megaApi->setCameraUploadsFolderSecondary(
+        g_megaApi->setCameraUploadsFolders(
+            mega::UNDEF,
             srcnode->getHandle(),
             new OneShotRequestListener(
                 [](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
