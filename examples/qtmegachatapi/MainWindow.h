@@ -239,7 +239,7 @@ class MainWindow :
         void onBackgroundStatusClicked(bool status);
         void onConfirmAccountClicked();
         void onImportMessages();
-        void onAccountConfirmation(const std::string& email, const std::string& password);
+        void onAccountConfirmation(const std::string& email);
         void onCancelAccountConfirmation();
         void onJoinAsGuest();
         // Allows to select a screen device
