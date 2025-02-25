@@ -1859,7 +1859,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         generateAndSendNewMediakey(true);
         std::string sdpUncompress = sdp->unCompress();
         webrtc::SdpParseError error;
-        std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(webrtc::CreateSessionDescription("answer", sdpUncompress, &error));
+        std::unique_ptr<webrtc::SessionDescriptionInterface> sdpInterface(
+            webrtc::CreateSessionDescription(webrtc::SdpType::kAnswer, sdpUncompress, &error));
         if (!sdpInterface)
         {
             orderedCallDisconnect(TermCode::kErrSdp, "Error parsing peer SDP answer: line= " + error.line +"  \nError: " + error.description);
