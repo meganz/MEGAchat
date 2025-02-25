@@ -35,9 +35,6 @@ set(USE_SQLITE 1)
 
 find_package(Cryptopp REQUIRED)
 set(USE_CRYPTOPP 1)
-    
-findlib(CARES libcares ares.h)
-set(USE_CARES 1)
 
 set(USE_MEGAAPI 1)
 
@@ -140,7 +137,7 @@ if (optBuildShared)
 	add_definitions(-DCRYPTOPP_EXPORTS -DMEGA_CREATE_SHARED_LIBRARY=1)
     add_library(libmega SHARED ${SRCS})
 else()
-    add_definitions(-DPCRE_STATIC -DCARES_STATICLIB -DCURL_STATICLIB)
+    add_definitions(-DPCRE_STATIC -DCURL_STATICLIB)
     add_library(libmega ${SRCS})
 endif()
 
@@ -174,7 +171,7 @@ list(REMOVE_ITEM MEGA_PRIVHDR_SUBDIRS ${removed})
 set_target_properties(libmega PROPERTIES PUBLIC_HEADER "${MEGASDK_PUBHDR}")
 set_target_properties(libmega PROPERTIES PRIVATE_HEADER "${MEGA_PRIVHDR}")
 
-target_link_libraries(libmega ${CURL_LIBRARIES} ${OPENSSL_LIBRARIES} cryptopp cares zlib sqlite3 ${SYSLIBS})
+target_link_libraries(libmega ${CURL_LIBRARIES} ${OPENSSL_LIBRARIES} cryptopp zlib sqlite3 ${SYSLIBS})
 if (USE_SODIUM)
     find_package(Sodium REQUIRED)
     target_link_libraries(libmega ${LIBSODIUM_LIBRARIES})

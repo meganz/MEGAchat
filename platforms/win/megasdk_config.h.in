@@ -43,9 +43,6 @@
 
 #cmakedefine USE_CURL
 
-/* Define to use c-ares */
-#cmakedefine USE_CARES
-
 /* Define to use libcryptopp */
 #cmakedefine USE_CRYPTOPP
 

@@ -195,7 +195,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\include;..\third_party\utf8proc;.;3rdparty\include\curl;3rdparty\include\cares;3rdparty\include\zlib;3rdparty\include;..\include\mega\wincurl;3rdparty\include\cryptopp;3rdparty\include\libsodium;C:\Program Files (x86)\Java\jdk1.8.0_77\include;C:\Program Files (x86)\Java\jdk1.8.0_77\include\win32;debug;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\third_party\utf8proc;.;3rdparty\include\curl;3rdparty\include\zlib;3rdparty\include;..\include\mega\wincurl;3rdparty\include\cryptopp;3rdparty\include\libsodium;C:\Program Files (x86)\Java\jdk1.8.0_77\include;C:\Program Files (x86)\Java\jdk1.8.0_77\include\win32;debug;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=0;WIN32_LEAN_AND_MEAN;ZLIB_WINAPI;_WINDOWS;UNICODE;WIN32;USE_FREEIMAGE;USE_SQLITE;USE_CRYPTOPP;ENABLE_SYNC;SODIUM_STATIC;PCRE_STATIC;USE_CURL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -205,7 +205,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>3rdparty\libs\x32;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>cryptopp.lib;FreeImage.lib;crypt32.lib;shlwapi.lib;libcurl.lib;cares.lib;libeay32.lib;ssleay32.lib;winhttp.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cryptopp.lib;FreeImage.lib;crypt32.lib;shlwapi.lib;libcurl.lib;libeay32.lib;ssleay32.lib;winhttp.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
@@ -215,7 +215,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\include;..\third_party\utf8proc;.;3rdparty\include\curl;3rdparty\include\cares;3rdparty\include\zlib;3rdparty\include;..\include\mega\wincurl;3rdparty\include\cryptopp;3rdparty\include\libsodium;C:\Program Files (x86)\Java\jdk1.8.0_77\include;C:\Program Files (x86)\Java\jdk1.8.0_77\include\win32;debug;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\third_party\utf8proc;.;3rdparty\include\curl;3rdparty\include\zlib;3rdparty\include;..\include\mega\wincurl;3rdparty\include\cryptopp;3rdparty\include\libsodium;C:\Program Files (x86)\Java\jdk1.8.0_77\include;C:\Program Files (x86)\Java\jdk1.8.0_77\include\win32;debug;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <TreatWChar_tAsBuiltInType>false</TreatWChar_tAsBuiltInType>
       <RuntimeTypeInfo>true</RuntimeTypeInfo>
       <PreprocessorDefinitions>_ITERATOR_DEBUG_LEVEL=0;WIN32_LEAN_AND_MEAN;ZLIB_WINAPI;_WINDOWS;UNICODE;WIN32;USE_FREEIMAGE;USE_SQLITE;USE_CRYPTOPP;ENABLE_SYNC;SODIUM_STATIC;PCRE_STATIC;USE_CURL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -225,7 +225,7 @@
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>3rdparty\libs\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>cryptopp.lib;FreeImage.lib;crypt32.lib;shlwapi.lib;libcurl.lib;cares.lib;libeay32.lib;ssleay32.lib;winhttp.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cryptopp.lib;FreeImage.lib;crypt32.lib;shlwapi.lib;libcurl.lib;libeay32.lib;ssleay32.lib;winhttp.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ProjectReference>
       <LinkLibraryDependencies>true</LinkLibraryDependencies>
@@ -237,7 +237,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;_CRT_SECURE_NO_WARNINGS;ZLIB_WINAPI;_WINDOWS;UNICODE;WIN32;USE_SQLITE;USE_CRYPTOPP;ENABLE_SYNC;PCRE_STATIC;CARES_STATICLIB;CURL_STATICLIB;USE_CURL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;_CRT_SECURE_NO_WARNINGS;ZLIB_WINAPI;_WINDOWS;UNICODE;WIN32;USE_SQLITE;USE_CRYPTOPP;ENABLE_SYNC;PCRE_STATIC;CURL_STATICLIB;USE_CURL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <AdditionalIncludeDirectories>..\include;..\third_party\utf8proc;..\include\mega\wincurl;release;$(buildroot)\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -247,7 +247,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>$(buildroot)\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>cryptopp.lib;crypt32.lib;shlwapi.lib;libcurl.lib;cares.lib;libeay32.lib;ssleay32.lib;sqlite3.lib;Ws2_32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cryptopp.lib;crypt32.lib;shlwapi.lib;libcurl.lib;libeay32.lib;ssleay32.lib;sqlite3.lib;Ws2_32.lib;winhttp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -257,14 +257,14 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32_LEAN_AND_MEAN;ZLIB_WINAPI;_WINDOWS;UNICODE;WIN32;USE_FREEIMAGE;USE_SQLITE;USE_CRYPTOPP;ENABLE_SYNC;SODIUM_STATIC;PCRE_STATIC;USE_CURL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <AdditionalIncludeDirectories>..\include;..\third_party\utf8proc;.;3rdparty\include\curl;3rdparty\include\cares;3rdparty\include\zlib;3rdparty\include;..\include\mega\wincurl;3rdparty\include\cryptopp;3rdparty\include\libsodium;C:\Program Files (x86)\Java\jdk1.8.0_77\include;C:\Program Files (x86)\Java\jdk1.8.0_77\include\\win32;release;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\third_party\utf8proc;.;3rdparty\include\curl;3rdparty\include\zlib;3rdparty\include;..\include\mega\wincurl;3rdparty\include\cryptopp;3rdparty\include\libsodium;C:\Program Files (x86)\Java\jdk1.8.0_77\include;C:\Program Files (x86)\Java\jdk1.8.0_77\include\\win32;release;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalLibraryDirectories>3rdparty\libs\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>cryptopp.lib;FreeImage.lib;crypt32.lib;shlwapi.lib;libcurl.lib;cares.lib;libeay32.lib;ssleay32.lib;winhttp.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>cryptopp.lib;FreeImage.lib;crypt32.lib;shlwapi.lib;libcurl.lib;libeay32.lib;ssleay32.lib;winhttp.lib;Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

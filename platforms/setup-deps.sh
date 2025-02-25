@@ -413,11 +413,6 @@ function buildInstall_standard
   buildInstall_cmake "$@"
 }
 
-function buildInstall_cares
-{
-    cp "$owndir/win/cares_CMakeLists.txt" ./CMakeLists.txt
-    buildInstall_cmake "$@"
-}
 function buildInstall_sqlite
 {
     if [[ $shared == "1" ]]; then
@@ -457,7 +452,6 @@ fi
 #==============================================================
 if [[ "$platform" != linux ]]; then
     fetchInstall openssl   "https://www.openssl.org/source/openssl-1.0.2g.tar.gz"
-    fetchInstall cares     "http://c-ares.haxx.se/download/c-ares-1.11.0.tar.gz"
     fetchInstall curl      "https://curl.haxx.se/download/curl-7.48.0.tar.bz2" "--disable-ftp --disable-gopher --disable-smtp --disable-imap --disable-pop --disable-smb --disable-manual --disable-tftt --disable-telnet --disable-dict --disable-rtsp --disable-ldap --disable-ldaps --disable-file --disable-sspi --disable-tls-srp --disable-ntlm-wb --disable-unix-sockets"
     fetchInstall cryptopp  "https://www.cryptopp.com/cryptopp563.zip" "" "" "cryptopp563"
     fetchInstall libsodium "https://download.libsodium.org/libsodium/releases/libsodium-1.0.10.tar.gz"
