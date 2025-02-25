@@ -2351,15 +2351,26 @@ void exec_recentactions(ac::ACState& s)
 {
     std::unique_ptr<m::MegaRecentActionBucketList> ra;
 
+    unsigned days{30};
+    unsigned maxNodes{50};
+
     if (s.words.size() == 3)
     {
-        ra.reset(g_megaApi->getRecentActions(static_cast<unsigned>(atoi(s.words[1].s.c_str())),
-                                             static_cast<unsigned>(atoi(s.words[2].s.c_str()))));
+        days = static_cast<unsigned>(atoi(s.words[1].s.c_str()));
+        maxNodes = static_cast<unsigned>(atoi(s.words[2].s.c_str()));
     }
-    else
-    {
-        ra.reset(g_megaApi->getRecentActions());
-    }
+
+    g_megaApi->getRecentActionsAsync(
+        days,
+        maxNodes,
+        new OneShotRequestListener(
+            [&ra](m::MegaApi*, m::MegaRequest* request, m::MegaError* error)
+            {
+                if (check_err("getRecentActionsAsync", error, ReportResult))
+                {
+                    ra.reset(request->getRecentActions());
+                }
+            }));
 
     auto l = conlock(std::cout);
     for (int b = 0; b < ra->size(); ++b)
