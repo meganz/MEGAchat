@@ -2962,6 +2962,8 @@ void exec_exportNode(ac::ACState& s)
             {
                 g_megaApi->exportNode(node.get(),
                                       expireTime,
+                                      false,
+                                      false,
                                       new OneShotRequestListener(
                                           [](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                                           {
@@ -2976,6 +2978,9 @@ void exec_exportNode(ac::ACState& s)
             else
             {
                 g_megaApi->exportNode(node.get(),
+                                      0,
+                                      false,
+                                      false,
                                       new OneShotRequestListener(
                                           [](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                                           {
