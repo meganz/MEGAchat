@@ -2193,7 +2193,7 @@ void exec_getfingerprint(ac::ACState& s)
     {
         if (auto n = GetNodeByPath(s.words[2].s))
         {
-            char* fp = g_megaApi->getFingerprint(n.get());
+            const char* fp = n.get()->getFingerprint();
             conlock(std::cout) << (fp ? fp : "<NULL>") << std::endl;
             delete[] fp;
         }
