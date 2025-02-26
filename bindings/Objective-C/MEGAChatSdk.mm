@@ -209,9 +209,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatStatus)self.megaChatApi->getOnlineStatus();
 }
 
-- (void)setPresenceAutoaway:(BOOL)enable timeout:(NSInteger)timeout {
+- (void)setPresenceAutoaway:(BOOL)enable timeout:(int64_t)timeout {
     if (self.megaChatApi) {
-        self.megaChatApi->setPresenceAutoaway(enable, (int)timeout);
+        self.megaChatApi->setPresenceAutoaway(enable, timeout);
     }
 }
 
