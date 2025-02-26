@@ -4195,7 +4195,7 @@ TEST_F(MegaChatApiTest, SelfChat)
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "SelfChat: invalid chatid for self-chat room";
     ASSERT_TRUE(!selfRoom->isGroup());
     ASSERT_EQ(selfRoom->getPeerCount(), 0);
-    ASSERT_EQ(selfRoom->getOwnPrivilege(), PRIV_MODERATOR);
+    ASSERT_EQ(selfRoom->getOwnPrivilege(), PRIV_MODERATOR) << "we aren't moderator in self-chat";
     ASSERT_EQ(selfRoom->getPeerHandle(0), MEGACHAT_INVALID_HANDLE);
     // Wait until room is connected to chatd
     while (megaChatApi[0]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
