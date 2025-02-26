@@ -2703,7 +2703,7 @@ void PeerChatRoom::connect()
 
 const std::string& PeerChatRoom::titleString() const
 {
-    // for self-chat room, return our own name
+    // for self-chat room, return our own name as title
     return mPeer ? mTitleString : parent.mKarereClient.myName();
 }
 
