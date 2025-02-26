@@ -3277,6 +3277,7 @@ public:
         CHAT_TYPE_GROUP_PUBLIC    = 4,  /// Public group chats  (non meeting rooms)
         CHAT_TYPE_MEETING_ROOM    = 5,  /// Meeting rooms
         CHAT_TYPE_NON_MEETING     = 6,  /// Non meeting rooms (1on1 and groupchats public and private ones)
+        CHAT_TYPE_SELF = 7 /// 1on1 chat with self (no peers)
     };
 
     enum

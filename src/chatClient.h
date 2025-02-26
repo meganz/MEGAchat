@@ -271,7 +271,6 @@ protected:
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    void connect() override;
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
@@ -303,6 +302,7 @@ public:
 
     void initContact(const uint64_t& peer);
     void updateChatRoomTitle();
+    void connect() override;
 
     bool isMember(const karere::Id& peerid) const override;
 
@@ -600,6 +600,13 @@ public:
 class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
 {
 /** @cond PRIVATE */
+
+protected:
+/** @brief Pointer to the 1on1 self-chatroom that has no peer. Owned by the chat room map.
+ * The value is \c nullptr if it doesn't exist
+ */
+PeerChatRoom* mSelfChat = nullptr;
+
 public:
     Client& mKarereClient;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
@@ -611,6 +618,11 @@ public:
     void loadFromDb();
     void deleteRoomFromDb(const Id &chatid);
     void onChatsUpdate(mega::MegaTextChatList& chats, bool checkDeleted = false);
+
+    PeerChatRoom* selfChat() const
+    {
+        return mSelfChat;
+    }
 /** @endcond PRIVATE */
 };
 
@@ -1274,6 +1286,9 @@ public:
      */
     promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = nullptr, std::shared_ptr<mega::MegaScheduledMeeting> sm = nullptr);
+
+    /** @brief Creates the mSelfChat chatroom, if it doesn't exist, and returns it */
+    promise::Promise<void> createSelfChat();
     void setCommitMode(bool commitEach);
     bool commitEach();
     void saveDb();  // forces a commit

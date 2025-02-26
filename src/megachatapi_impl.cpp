@@ -477,175 +477,219 @@ int MegaChatApiImpl::performRequest_setOnlineStatus(MegaChatRequestPrivate *requ
 int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *request)
 {
     // keep indent and dummy scope from original code in sendPendingRequests(), for a smaller diff
+    {
+        bool isMeeting = request->getNumber();
+        bool publicChat = request->getPrivilege();
+        bool group = request->getFlag();
+        auto peerList = request->getMegaChatPeerList();
+        auto numPeers = peerList ? peerList->size() : 0;
+        if (!group && publicChat)
         {
-            MegaChatPeerList *peersList = request->getMegaChatPeerList();
-            if (!peersList)   // force to provide a list, even without participants
+            return MegaChatError::ERROR_ACCESS;
+        }
+
+        if (!group && numPeers > 1)
+        {
+            group = true;
+            request->setFlag(group);
+            API_LOG_INFO("%sForcing group chat due to more than 2 participants", getLoggingName());
+        }
+
+        if (group)
+        {
+            std::shared_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting;
+            if (request->getMegaChatScheduledMeetingList() &&
+                request->getMegaChatScheduledMeetingList()->size() == 1)
+            {
+                const MegaChatScheduledMeeting* sm =
+                    request->getMegaChatScheduledMeetingList()->at(0);
+                if (!sm)
+                {
+                    API_LOG_ERROR("%sError creating a scheduled meeting: invalid scheduled meeting",
+                                  getLoggingName());
+                    return MegaChatError::ERROR_ARGS;
+                }
+
+                if (!sm->timezone() || !sm->title() ||
+                    sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP ||
+                    sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP)
+                {
+                    API_LOG_ERROR("%sError creating a scheduled meeting: invalid timezone, "
+                                  "title, description, start date time or end date time",
+                                  getLoggingName());
+                    return MegaChatError::ERROR_ARGS;
+                }
+
+                if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title()) ||
+                    !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
+                {
+                    API_LOG_ERROR("%sError creating a scheduled meeting: title or description "
+                                  "length exceeded",
+                                  getLoggingName());
+                    return MegaChatError::ERROR_ARGS;
+                }
+
+                std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(
+                    !sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
+                if (megaFlags)
+                {
+                    assert(sm->flags());
+                    megaFlags->importFlagsValue(
+                        static_cast<MegaChatScheduledFlagsPrivate*>(sm->flags())
+                            ->getNumericValue());
+                }
+
+                std::unique_ptr<::mega::MegaScheduledRules> megaRules(
+                    !sm->rules() ?
+                        nullptr :
+                        ::mega::MegaScheduledRules::createInstance(sm->rules()->freq(),
+                                                                   sm->rules()->interval(),
+                                                                   sm->rules()->until(),
+                                                                   sm->rules()->byWeekDay(),
+                                                                   sm->rules()->byMonthDay(),
+                                                                   sm->rules()->byMonthWeekDay()));
+
+                megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(sm->chatId(),
+                                                                            sm->schedId(),
+                                                                            sm->parentSchedId(),
+                                                                            sm->organizerUserId(),
+                                                                            sm->cancelled(),
+                                                                            sm->timezone(),
+                                                                            sm->startDateTime(),
+                                                                            sm->endDateTime(),
+                                                                            sm->title(),
+                                                                            sm->description(),
+                                                                            sm->attributes(),
+                                                                            sm->overrides(),
+                                                                            megaFlags.get(),
+                                                                            megaRules.get()));
+            }
+
+            int chatOptionsBitMask = request->getParamType();
+            if (!isValidChatOptionsBitMask(
+                    chatOptionsBitMask)) // empty bitmask is considered as a valid value
             {
                 return MegaChatError::ERROR_ACCESS;
             }
 
-            bool isMeeting = request->getNumber();
-            bool publicChat = request->getPrivilege();
-            bool group = request->getFlag();
-            const userpriv_vector *userpriv = ((MegaChatPeerListPrivate*)peersList)->getList();
-            if (!userpriv || (!group && publicChat))
+            const char* title = request->getText();
+            vector<std::pair<handle, Priv>> peers;
+            if (numPeers)
             {
-                return MegaChatError::ERROR_ACCESS;
+                for (auto& item: *((MegaChatPeerListPrivate*)peerList)->getList())
+                {
+                    peers.emplace_back(item.first, (Priv)item.second);
+                }
             }
 
-            if (!group && peersList->size() == 0)
+            if (title) // not mandatory
             {
-                return MegaChatError::ERROR_ACCESS;
+                string strTitle(title);
+                strTitle = strTitle.substr(0, 30);
+                request->setText(strTitle.c_str()); // update, in case it's been truncated
+                title = request->getText();
             }
 
-            if (!group && peersList->size() > 1)
-            {
-                group = true;
-                request->setFlag(group);
-                API_LOG_INFO("%sForcing group chat due to more than 2 participants",
-                             getLoggingName());
-            }
-
-            if (group)
-            {
-                std::shared_ptr<::mega::MegaScheduledMeeting> megaSchedMeeting;
-                if (request->getMegaChatScheduledMeetingList() && request->getMegaChatScheduledMeetingList()->size() == 1)
-                {
-                    const MegaChatScheduledMeeting* sm = request->getMegaChatScheduledMeetingList()->at(0);
-                    if (!sm)
+            auto wptr = mClient->weakHandle();
+            bool creatingSchedMeeting = megaSchedMeeting != nullptr;
+            mClient
+                ->createGroupChat(peers,
+                                  publicChat,
+                                  isMeeting,
+                                  chatOptionsBitMask,
+                                  title,
+                                  megaSchedMeeting)
+                .then(
+                    [request,
+                     creatingSchedMeeting,
+                     this,
+                     wptr,
+                     lname = std::string{getLoggingName()}](
+                        std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
                     {
-                        API_LOG_ERROR(
-                            "%sError creating a scheduled meeting: invalid scheduled meeting",
-                            getLoggingName());
-                        return MegaChatError::ERROR_ARGS;
-                    }
-
-                    if (!sm->timezone() || !sm->title()
-                               || sm->startDateTime() == MEGACHAT_INVALID_TIMESTAMP
-                               || sm->endDateTime() == MEGACHAT_INVALID_TIMESTAMP)
-                    {
-                        API_LOG_ERROR("%sError creating a scheduled meeting: invalid timezone, "
-                                      "title, description, start date time or end date time",
-                                      getLoggingName());
-                        return MegaChatError::ERROR_ARGS;
-                    }
-
-                    if (!MegaChatScheduledMeeting::isValidTitleLength(sm->title())
-                            || !MegaChatScheduledMeeting::isValidDescriptionLength(sm->description()))
-                    {
-                        API_LOG_ERROR("%sError creating a scheduled meeting: title or description "
-                                      "length exceeded",
-                                      getLoggingName());
-                        return MegaChatError::ERROR_ARGS;
-                    }
-
-                    std::unique_ptr<::mega::MegaScheduledFlags> megaFlags(!sm->flags() ? nullptr : ::mega::MegaScheduledFlags::createInstance());
-                    if (megaFlags)
-                    {
-                         assert(sm->flags());
-                         megaFlags->importFlagsValue(static_cast<MegaChatScheduledFlagsPrivate *>(sm->flags())->getNumericValue());
-                    }
-
-                    std::unique_ptr<::mega::MegaScheduledRules> megaRules(!sm->rules() ? nullptr : ::mega::MegaScheduledRules::createInstance(sm->rules()->freq(), sm->rules()->interval(), sm->rules()->until(),
-                                                                                                                      sm->rules()->byWeekDay(), sm->rules()->byMonthDay(), sm->rules()->byMonthWeekDay()));
-
-                    megaSchedMeeting.reset(MegaScheduledMeeting::createInstance(sm->chatId(), sm->schedId(), sm->parentSchedId(), sm->organizerUserId(),
-                                                                                                                        sm->cancelled(), sm->timezone(), sm->startDateTime(), sm->endDateTime(),
-                                                                                                                        sm->title(), sm->description(), sm->attributes(), sm->overrides(),
-                                                                                                                        megaFlags.get(), megaRules.get()));
-                }
-
-                int chatOptionsBitMask = request->getParamType();
-                if (!isValidChatOptionsBitMask (chatOptionsBitMask)) // empty bitmask is considered as a valid value
-                {
-                    return MegaChatError::ERROR_ACCESS;
-                }
-
-                const char *title = request->getText();
-                vector<std::pair<handle, Priv>> peers;
-                for (unsigned int i = 0; i < userpriv->size(); i++)
-                {
-                    peers.push_back(std::make_pair(userpriv->at(i).first, (Priv) userpriv->at(i).second));
-                }
-
-                if (title)  // not mandatory
-                {
-                    string strTitle(title);
-                    strTitle = strTitle.substr(0, 30);
-                    request->setText(strTitle.c_str()); // update, in case it's been truncated
-                    title = request->getText();
-                }
-
-                auto wptr = mClient->weakHandle();
-                bool creatingSchedMeeting = megaSchedMeeting != nullptr;
-                mClient
-                    ->createGroupChat(peers,
-                                      publicChat,
-                                      isMeeting,
-                                      chatOptionsBitMask,
-                                      title,
-                                      megaSchedMeeting)
-                    .then(
-                        [request,
-                         creatingSchedMeeting,
-                         this,
-                         wptr,
-                         lname = std::string{getLoggingName()}](
-                            std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>> res)
+                        if (wptr.deleted())
                         {
-                            if (wptr.deleted())
+                            return;
+                        }
+                        if (creatingSchedMeeting)
+                        {
+                            if (res.second)
                             {
+                                std::unique_ptr<MegaChatScheduledMeetingList> l(
+                                    MegaChatScheduledMeetingList::createInstance());
+                                l->insert(new MegaChatScheduledMeetingPrivate(res.second->copy()));
+                                request->setMegaChatScheduledMeetingList(l.get());
+                            }
+                            else
+                            {
+                                assert(false);
+                                API_LOG_ERROR("%sError creating scheduled meeting upon Meeting "
+                                              "room creation",
+                                              lname.c_str());
+                                fireOnChatRequestFinish(
+                                    request,
+                                    new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
                                 return;
                             }
-                            if (creatingSchedMeeting)
-                            {
-                                if (res.second)
-                                {
-                                    std::unique_ptr<MegaChatScheduledMeetingList> l(
-                                        MegaChatScheduledMeetingList::createInstance());
-                                    l->insert(
-                                        new MegaChatScheduledMeetingPrivate(res.second->copy()));
-                                    request->setMegaChatScheduledMeetingList(l.get());
-                                }
-                                else
-                                {
-                                    assert(false);
-                                    API_LOG_ERROR("%sError creating scheduled meeting upon Meeting "
-                                                  "room creation",
-                                                  lname.c_str());
-                                    fireOnChatRequestFinish(
-                                        request,
-                                        new MegaChatErrorPrivate(MegaChatError::ERROR_UNKNOWN));
-                                    return;
-                                }
-                            }
+                        }
 
-                            request->setChatHandle(res.first);
-                            MegaChatErrorPrivate* megaChatError =
-                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                            fireOnChatRequestFinish(request, megaChatError);
+                        request->setChatHandle(res.first);
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
+                        fireOnChatRequestFinish(request, megaChatError);
+                    })
+                .fail(
+                    [request, this, lname = std::string{getLoggingName()}](
+                        const ::promise::Error& err)
+                    {
+                        API_LOG_ERROR("%sError creating group chat: %s", lname.c_str(), err.what());
+
+                        MegaChatErrorPrivate* megaChatError =
+                            new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
+                        fireOnChatRequestFinish(request, megaChatError);
+                    });
+        }
+        else // 1on1 chat
+        {
+            if (!numPeers) // chat with self
+            {
+                auto& chats = *mClient->chats;
+                // chat with self - return it if already exists
+                if (chats.selfChat())
+                {
+                    request->setChatHandle(chats.selfChat()->chatid());
+                    fireOnChatRequestFinish(request,
+                                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
+                    return MegaChatError::ERROR_OK;
+                }
+                auto wptr = mClient->weakHandle();
+                mClient->createSelfChat()
+                    .then(
+                        [this, request, wptr, &chats]()
+                        {
+                            request->setChatHandle(chats.selfChat()->chatid());
+                            fireOnChatRequestFinish(
+                                request,
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
                         })
                     .fail(
-                        [request, this, lname = std::string{getLoggingName()}](
+                        [this, request, lname = std::string{getLoggingName()}](
                             const ::promise::Error& err)
                         {
-                            API_LOG_ERROR("%sError creating group chat: %s",
+                            API_LOG_ERROR("%sError creating self-chat: %s",
                                           lname.c_str(),
                                           err.what());
-
-                            MegaChatErrorPrivate* megaChatError =
-                                new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                            fireOnChatRequestFinish(request, megaChatError);
+                            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(err));
                         });
             }
-            else    // 1on1 chat
+            else // numPeers > 0, peerList is not null
             {
-                if (peersList->getPeerHandle(0) == mClient->myHandle())
+                if (peerList->getPeerHandle(0) == mClient->myHandle())
                 {
-                    // can't create a 1on1 chat with own user.
+                    // shouldn't specify own handle for a 1on1 chat with self
                     return MegaChatError::ERROR_NOENT;
                 }
-                ContactList::iterator it = mClient->mContactList->find(peersList->getPeerHandle(0));
+                ContactList::iterator it = mClient->mContactList->find(peerList->getPeerHandle(0));
                 if (it == mClient->mContactList->end())
                 {
                     // contact not found
@@ -655,6 +699,8 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                 {
                     // chat already exists
                     request->setChatHandle(it->second->chatRoom()->chatid());
+                    fireOnChatRequestFinish(request,
+                                            new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
                     return MegaChatError::ERROR_OK;
                 }
                 it->second->createChatRoom()
@@ -662,10 +708,9 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                         [request, this](ChatRoom* room)
                         {
                             request->setChatHandle(room->chatid());
-
-                            MegaChatErrorPrivate* megaChatError =
-                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK);
-                            fireOnChatRequestFinish(request, megaChatError);
+                            fireOnChatRequestFinish(
+                                request,
+                                new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
                         })
                     .fail(
                         [request, this, lname = std::string{getLoggingName()}](
@@ -674,14 +719,12 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                             API_LOG_ERROR("%sError creating 1on1 chat: %s",
                                           lname.c_str(),
                                           err.what());
-
-                            MegaChatErrorPrivate* megaChatError =
-                                new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
-                            fireOnChatRequestFinish(request, megaChatError);
+                            fireOnChatRequestFinish(request, new MegaChatErrorPrivate(err));
                         });
             }
-            return MegaChatError::ERROR_OK;
         }
+        return MegaChatError::ERROR_OK;
+    }
 }
 
 int MegaChatApiImpl::performRequest_setChatroomOptions(MegaChatRequestPrivate *request)
@@ -4209,22 +4252,21 @@ ChatRoom *MegaChatApiImpl::findChatRoom(MegaChatHandle chatid)
 
 karere::ChatRoom *MegaChatApiImpl::findChatRoomByUser(MegaChatHandle userhandle)
 {
-    ChatRoom *chatroom = NULL;
-
-    sdkMutex.lock();
-
-    if (mClient && !mTerminating)
+    SdkMutexGuard g(sdkMutex);
+    if (!mClient || mTerminating)
     {
-        ContactList::iterator it = mClient->mContactList->find(userhandle);
-        if (it != mClient->mContactList->end())
-        {
-            chatroom = it->second->chatRoom();
-        }
+        return nullptr;
     }
-
-    sdkMutex.unlock();
-
-    return chatroom;
+    if (userhandle == mClient->myHandle().val)
+    {
+        return mClient->chats->selfChat();
+    }
+    ContactList::iterator it = mClient->mContactList->find(userhandle);
+    if (it != mClient->mContactList->end())
+    {
+        return it->second->chatRoom();
+    }
+    return nullptr;
 }
 
 chatd::Message *MegaChatApiImpl::findMessage(MegaChatHandle chatid, MegaChatHandle msgid)
@@ -5215,12 +5257,23 @@ MegaChatRoomList* MegaChatApiImpl::getChatRoomsByType(int type)
 {
     MegaChatRoomListPrivate* chats = new MegaChatRoomListPrivate();
     SdkMutexGuard g(sdkMutex);
-    if (type < MegaChatApi::CHAT_TYPE_ALL || type > MegaChatApi::CHAT_TYPE_NON_MEETING)
+    if (type < MegaChatApi::CHAT_TYPE_ALL || type > MegaChatApi::CHAT_TYPE_SELF)
     {
         return chats;
     }
-
-    if (mClient && !mTerminating)
+    if (!mClient || mTerminating)
+    {
+        return chats;
+    }
+    if (type == MegaChatApi::CHAT_TYPE_SELF)
+    {
+        auto selfChat = mClient->chats->selfChat();
+        if (selfChat)
+        {
+            chats->addChatRoom(new MegaChatRoomPrivate(*selfChat));
+        }
+    }
+    else
     {
         ChatRoomList::iterator it;
         for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
@@ -5231,7 +5284,6 @@ MegaChatRoomList* MegaChatApiImpl::getChatRoomsByType(int type)
             }
         }
     }
-
     return chats;
 }
 
@@ -8619,9 +8671,11 @@ void MegaChatRequestPrivate::setFlag(bool flag)
 void MegaChatRequestPrivate::setMegaChatPeerList(MegaChatPeerList *peerList)
 {
     if (mPeerList)
+    {
         delete mPeerList;
-
-    mPeerList = peerList ? peerList->copy() : NULL;
+    }
+    mPeerList =
+        peerList ? peerList->copy() : static_cast<MegaChatPeerList*>(new MegaChatPeerListPrivate());
 }
 
 void MegaChatRequestPrivate::setChatHandle(MegaChatHandle chatid)
@@ -10358,6 +10412,12 @@ MegaChatErrorPrivate::MegaChatErrorPrivate(int code, int type)
     setHandled();
 }
 
+MegaChatErrorPrivate::MegaChatErrorPrivate(const ::promise::Error& err):
+    ::promise::Error(err.msg(), err.code(), err.type())
+{
+    setHandled();
+}
+
 const char* MegaChatErrorPrivate::getGenericErrorString(int errorCode)
 {
     switch(errorCode)
@@ -10927,9 +10987,11 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
     else
     {
         PeerChatRoom &peerchat = (PeerChatRoom&) chat;
-        privilege_t priv = (privilege_t) peerchat.peerPrivilege();
-        handle uh = peerchat.peer();
-        mPeers.push_back(userpriv_pair(uh, priv));
+        handle peerHandle = peerchat.peer();
+        if (peerHandle) // not a self-chat
+        {
+            mPeers.emplace_back(peerHandle, (privilege_t)peerchat.peerPrivilege());
+        }
     }
 }
 
