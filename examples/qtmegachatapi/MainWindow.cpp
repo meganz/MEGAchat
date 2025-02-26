@@ -1783,10 +1783,10 @@ void MainWindow::onImportMessages()
     mMegaChatApi->importMessages(text.toStdString().c_str());
 }
 
-void MainWindow::onAccountConfirmation(const std::string &email, const std::string &password)
+void MainWindow::onAccountConfirmation(const std::string& email)
 {
     unique_ptr<char[]> name = unique_ptr<char[]>(mMegaChatApi->getMyFirstname());
-    mMegaApi->sendSignupLink(email.c_str(), name.get(), password.c_str());
+    mMegaApi->resendSignupLink(email.c_str(), name.get());
     mConfirmAccount->deleteLater();
     mConfirmAccount = nullptr;
 }
