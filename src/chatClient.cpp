@@ -1,9 +1,10 @@
 #include "chatClient.h"
 #ifdef _WIN32
-    #include <winsock2.h>
-    #include <direct.h>
-    #include <sys/timeb.h>  
-    #define mkdir(dir, mode) _mkdir(dir)
+#include <sys/timeb.h>
+
+#include <direct.h>
+#include <winsock2.h>
+#define mkdir(dir, mode) _mkdir(dir)
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -2700,6 +2701,12 @@ void PeerChatRoom::connect()
     mChat->connect();
 }
 
+const std::string& PeerChatRoom::titleString() const
+{
+    // for self-chat room, return our own name
+    return mPeer ? mTitleString : parent.mKarereClient.myName();
+}
+
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
     std::vector<ApiPromise> promises;
@@ -3767,7 +3774,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 {
     assert(!mEncryptedTitle.empty());
 
-    Buffer buf(mEncryptedTitle.size());    
+    Buffer buf(mEncryptedTitle.size());
     try
     {
         size_t decLen = base64urldecode(mEncryptedTitle.c_str(), mEncryptedTitle.size(), buf.buf(), buf.bufSize());

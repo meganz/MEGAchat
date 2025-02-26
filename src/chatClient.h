@@ -22,7 +22,9 @@
 
 #ifdef _WIN32
 #pragma warning(push)
-#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#pragma warning( \
+    disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide
+                   // typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.)
 #endif
 
 #include <rapidjson/document.h>
@@ -302,6 +304,7 @@ public:
 
     void initContact(const uint64_t& peer);
     void updateChatRoomTitle();
+    virtual const std::string& titleString() const;
     void connect() override;
 
     bool isMember(const karere::Id& peerid) const override;
