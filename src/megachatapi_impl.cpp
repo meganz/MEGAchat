@@ -576,7 +576,7 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
             vector<std::pair<handle, Priv>> peers;
             if (numPeers)
             {
-                for (auto& item: *((MegaChatPeerListPrivate*)peerList)->getList())
+                for (auto& item: *(dynamic_cast<MegaChatPeerListPrivate*>(peerList))->getList())
                 {
                     peers.emplace_back(item.first, (Priv)item.second);
                 }
@@ -639,10 +639,11 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                         fireOnChatRequestFinish(request, megaChatError);
                     })
                 .fail(
-                    [request, this, lname = std::string{getLoggingName()}](
-                        const ::promise::Error& err)
+                    [request, this](const ::promise::Error& err)
                     {
-                        API_LOG_ERROR("%sError creating group chat: %s", lname.c_str(), err.what());
+                        API_LOG_ERROR("%sError creating group chat: %s",
+                                      getLoggingName(),
+                                      err.what());
 
                         MegaChatErrorPrivate* megaChatError =
                             new MegaChatErrorPrivate(err.msg(), err.code(), err.type());
@@ -673,11 +674,10 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                                 new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
                         })
                     .fail(
-                        [this, request, lname = std::string{getLoggingName()}](
-                            const ::promise::Error& err)
+                        [this, request](const ::promise::Error& err)
                         {
                             API_LOG_ERROR("%sError creating self-chat: %s",
-                                          lname.c_str(),
+                                          getLoggingName(),
                                           err.what());
                             fireOnChatRequestFinish(request, new MegaChatErrorPrivate(err));
                         });
@@ -687,6 +687,8 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                 if (peerList->getPeerHandle(0) == mClient->myHandle())
                 {
                     // shouldn't specify own handle for a 1on1 chat with self
+                    API_LOG_ERROR("%sError creating self-chat: own handle provided in peerlist",
+                                  getLoggingName());
                     return MegaChatError::ERROR_NOENT;
                 }
                 ContactList::iterator it = mClient->mContactList->find(peerList->getPeerHandle(0));
@@ -713,11 +715,10 @@ int MegaChatApiImpl::performRequest_createChatroom(MegaChatRequestPrivate *reque
                                 new MegaChatErrorPrivate(MegaChatError::ERROR_OK));
                         })
                     .fail(
-                        [request, this, lname = std::string{getLoggingName()}](
-                            const ::promise::Error& err)
+                        [request, this](const ::promise::Error& err)
                         {
                             API_LOG_ERROR("%sError creating 1on1 chat: %s",
-                                          lname.c_str(),
+                                          getLoggingName(),
                                           err.what());
                             fireOnChatRequestFinish(request, new MegaChatErrorPrivate(err));
                         });
@@ -5257,7 +5258,7 @@ MegaChatRoomList* MegaChatApiImpl::getChatRoomsByType(int type)
 {
     MegaChatRoomListPrivate* chats = new MegaChatRoomListPrivate();
     SdkMutexGuard g(sdkMutex);
-    if (type < MegaChatApi::CHAT_TYPE_ALL || type > MegaChatApi::CHAT_TYPE_SELF)
+    if (type < MegaChatApi::CHAT_TYPE_FIRST || type > MegaChatApi::CHAT_TYPE_LAST)
     {
         return chats;
     }
@@ -5267,8 +5268,7 @@ MegaChatRoomList* MegaChatApiImpl::getChatRoomsByType(int type)
     }
     if (type == MegaChatApi::CHAT_TYPE_SELF)
     {
-        auto selfChat = mClient->chats->selfChat();
-        if (selfChat)
+        if (auto selfChat = mClient->chats->selfChat())
         {
             chats->addChatRoom(new MegaChatRoomPrivate(*selfChat));
         }
@@ -5418,7 +5418,7 @@ MegaChatListItemList* MegaChatApiImpl::getChatListItemsByType(int type)
 {
     MegaChatListItemListPrivate* items = new MegaChatListItemListPrivate();
     SdkMutexGuard g(sdkMutex);
-    if (type < MegaChatApi::CHAT_TYPE_ALL || type > MegaChatApi::CHAT_TYPE_NON_MEETING)
+    if (type < MegaChatApi::CHAT_TYPE_FIRST || type > MegaChatApi::CHAT_TYPE_LAST)
     {
         return items;
     }
@@ -10990,7 +10990,7 @@ MegaChatRoomPrivate::MegaChatRoomPrivate(const ChatRoom &chat)
         handle peerHandle = peerchat.peer();
         if (peerHandle) // not a self-chat
         {
-            mPeers.emplace_back(peerHandle, (privilege_t)peerchat.peerPrivilege());
+            mPeers.emplace_back(peerHandle, static_cast<privilege_t>(peerchat.peerPrivilege()));
         }
     }
 }

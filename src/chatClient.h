@@ -277,6 +277,7 @@ protected:
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
+    friend class Client;
 
     //Resume from cache
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
@@ -304,7 +305,6 @@ public:
 
     void initContact(const uint64_t& peer);
     void updateChatRoomTitle();
-    virtual const std::string& titleString() const override;
     void connect() override;
 
     bool isMember(const karere::Id& peerid) const override;
@@ -1400,6 +1400,7 @@ protected:
      */
     void connect(const bool connectPresenced = true);
     void setConnState(ConnState newState);
+    void setOwnName(const Buffer& data, bool isInitial);
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);

@@ -976,6 +976,10 @@ promise::Promise<void> Client::createSelfChat()
                     assert(chats->selfChat());
                     chat->connect();
                 }
+                else
+                {
+                    KR_LOG_DEBUG("%screateChat: Self chat created meanwhile", getLoggingName());
+                }
                 return promise::_Void();
             });
 }
@@ -1548,15 +1552,17 @@ void Client::initWithDbSession(const char* sid)
         mMyEmail = getMyEmailFromDb();
 
         mMyIdentity = getMyIdentityFromDb();
-
-        mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
-        [](Buffer* buf, void* userp)
-        {
-            if (!buf || buf->empty())
-                return;
-            auto& name = static_cast<Client*>(userp)->mMyName;
-            name.assign(buf->buf(), buf->dataSize());
-        });
+        mOwnNameAttrHandle =
+            mUserAttrCache->getAttr(mMyHandle,
+                                    USER_ATTR_FULLNAME,
+                                    this,
+                                    [](Buffer* buf, void* userp)
+                                    {
+                                        if (buf && !buf->empty())
+                                        {
+                                            static_cast<Client*>(userp)->setOwnName(*buf, false);
+                                        }
+                                    });
 
         loadOwnKeysFromDb();
         mDnsCache.loadFromDb();
@@ -2103,11 +2109,14 @@ void Client::connect(const bool connectPresenced)
     [](Buffer* buf, void* userp)
     {
         if (!buf || buf->empty())
+        {
             return;
-        auto& name = static_cast<Client*>(userp)->mMyName;
-        const auto& loggingName = static_cast<Client*>(userp)->getLoggingName();
-        name.assign(buf->buf(), buf->dataSize());
-        KR_LOG_DEBUG("%sOwn screen name is: '%s'", loggingName, name.c_str() + 1);
+        }
+        auto& client = *static_cast<Client*>(userp);
+        client.setOwnName(*buf, true);
+        KR_LOG_DEBUG("%sOwn screen name is: '%s'",
+                     client.getLoggingName(),
+                     client.myName().c_str() + 1);
     });
 
     if (connectPresenced)
@@ -2125,6 +2134,15 @@ void Client::setConnState(ConnState newState)
                  connStateToStr(newState));
 }
 
+void Client::setOwnName(const Buffer& data, bool isInitial)
+{
+    assert(!data.empty());
+    mMyName.assign(data.buf(), data.dataSize());
+    if (chats->selfChat())
+    {
+        chats->selfChat()->updateTitle(std::string(mMyName.c_str() + 1, mMyName.size() - 1));
+    }
+}
 void Client::sendStats()
 {
     if (mInitStats.isCompleted())
@@ -2701,12 +2719,6 @@ void PeerChatRoom::connect()
     mChat->connect();
 }
 
-const std::string& PeerChatRoom::titleString() const
-{
-    // for self-chat room, return our own name as title
-    return mPeer ? mTitleString : parent.mKarereClient.myName();
-}
-
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
     std::vector<ApiPromise> promises;
@@ -3034,10 +3046,19 @@ PeerChatRoom::~PeerChatRoom()
 
 void PeerChatRoom::initContact(const uint64_t& peer)
 {
-    if (peer == 0) // chat with self
+    if (!peer) // chat with self
     {
         mContact = nullptr;
         mEmail = parent.mKarereClient.myEmail();
+        const auto& myName = parent.mKarereClient.myName();
+        if (!myName.empty())
+        {
+            mTitleString.assign(myName.c_str() + 1, myName.size() - 1);
+        }
+        else
+        {
+            mTitleString = mEmail;
+        }
         return;
     }
     mContact = parent.mKarereClient.mContactList->contactFromUserId(peer);
@@ -3216,8 +3237,7 @@ bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
     }
     if (mPeer)
     {
-        changed |= syncOwnPriv(
-            (chatd::Priv)chat.getOwnPrivilege()); // returns true if own privilege has changed
+        changed |= syncOwnPriv((chatd::Priv)chat.getOwnPrivilege()); // true if own priv changed
         changed |= syncPeerPriv((chatd::Priv)peers->getPeerPrivilege(0));
     }
     return changed;

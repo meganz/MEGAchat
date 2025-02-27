@@ -4195,8 +4195,9 @@ TEST_F(MegaChatApiTest, SelfChat)
     ASSERT_EQ(selfRoom->getPeerCount(), 0);
     ASSERT_EQ(selfRoom->getOwnPrivilege(), PRIV_MODERATOR) << "we aren't moderator in self-chat";
     ASSERT_EQ(selfRoom->getPeerHandle(0), MEGACHAT_INVALID_HANDLE);
+    std::unique_ptr<char[]> myName(megaChatApi[0]->getMyFullname());
     // Wait until room is connected to chatd
-    while (megaChatApi[0]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+    if (megaChatApi[0]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
         postLog("SelfChat: waiting for connection to chatd...");
         ASSERT_TRUE(waitForResponse(&mChatConnectionOnline[0]))
@@ -4205,12 +4206,22 @@ TEST_F(MegaChatApiTest, SelfChat)
     TestChatRoomListener chatroomListener(this, megaChatApi, chatid);
     ASSERT_TRUE(megaChatApi[0]->openChatRoom(chatid, &chatroomListener))
         << "Can't open self-chat room";
+    const char* title;
+    while (!(title = selfRoom->getTitle()) || title[0] == 0)
+    {
+        printf("Wait chat title...\n");
+        ASSERT_TRUE(waitForResponse(&chatroomListener.chatUpdated[0]));
+    }
+    printf("self-room title: '%s'\n", selfRoom->getTitle());
+    ASSERT_TRUE(strcmp(selfRoom->getTitle(), myName.get()) == 0)
+        << "Self-chat room name is not same as our user's";
+
     ASSERT_NO_FATAL_FAILURE(loadHistory(0, chatid, &chatroomListener));
     chatroomListener.clearMessages(0);
-    std::string formatDate = dateToString();
+    std::string text = dateToString() + ": Test mesage to self-chat";
 
-    MegaChatMessage* msgSent =
-        sendTextMessageOrUpdate(0, UINT_MAX, chatid, formatDate, &chatroomListener);
+    std::unique_ptr<MegaChatMessage> msgSent(
+        sendTextMessageOrUpdate(0, UINT_MAX, chatid, text, &chatroomListener));
     ASSERT_TRUE(msgSent);
     MegaChatHandle msgId = msgSent->getMsgId();
 
@@ -4218,21 +4229,15 @@ TEST_F(MegaChatApiTest, SelfChat)
     bool hasArrived = chatroomListener.hasArrivedMessage(0, msgId);
     ASSERT_TRUE(hasArrived) << "Id of sent message has not been received yet";
 
-    MegaChatListItem* hist = megaChatApi[0]->getChatListItem(chatid);
-    ASSERT_STREQ(formatDate.c_str(), hist->getLastMessage())
+    std::unique_ptr<MegaChatListItem> hist(megaChatApi[0]->getChatListItem(chatid));
+    ASSERT_STREQ(text.c_str(), hist->getLastMessage())
         << "Content of last-message doesn't match.\n Sent vs Received.";
     ASSERT_EQ(hist->getLastMessageId(), msgId)
         << "Last message id is different from message sent id";
-    MegaChatMessage* messageConfirm = megaChatApi[0]->getMessage(chatid, msgId);
+    std::unique_ptr<MegaChatMessage> messageConfirm(megaChatApi[0]->getMessage(chatid, msgId));
     ASSERT_STREQ(messageConfirm->getContent(), hist->getLastMessage())
         << "Content of last-message reported id is different than last-message reported content";
 
-    delete hist;
-    hist = NULL;
-    delete msgSent;
-    msgSent = NULL;
-    delete messageConfirm;
-    messageConfirm = NULL;
     ASSERT_NO_FATAL_FAILURE(clearHistory(0, 0, chatid, &chatroomListener));
     chatroomListener.clearMessages(0);
     megaChatApi[0]->closeChatRoom(chatid, &chatroomListener);
