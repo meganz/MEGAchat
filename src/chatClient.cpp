@@ -978,7 +978,7 @@ promise::Promise<void> Client::createSelfChat()
                 }
                 else
                 {
-                    KR_LOG_DEBUG("%screateChat: Self chat created meanwhile", getLoggingName());
+                    KR_LOG_DEBUG("%screateChat: Self-chat created meanwhile", getLoggingName());
                 }
                 return promise::_Void();
             });
