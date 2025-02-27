@@ -4209,10 +4209,8 @@ TEST_F(MegaChatApiTest, SelfChat)
     const char* title;
     while (!(title = selfRoom->getTitle()) || title[0] == 0)
     {
-        printf("Wait chat title...\n");
         ASSERT_TRUE(waitForResponse(&chatroomListener.chatUpdated[0]));
     }
-    printf("self-room title: '%s'\n", selfRoom->getTitle());
     ASSERT_TRUE(strcmp(selfRoom->getTitle(), myName.get()) == 0)
         << "Self-chat room name is not same as our user's";
 
