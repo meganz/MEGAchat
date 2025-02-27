@@ -4177,14 +4177,12 @@ TEST_F(MegaChatApiTest, SendContact)
 
 TEST_F(MegaChatApiTest, SelfChat)
 {
-    char* session = login(0);
+    std::unique_ptr<char[]> session(login(0));
     ASSERT_TRUE(session);
-    delete[] session;
     LOG_debug << "#### Test1: Create/get self-chat ####";
     ChatRequestTracker crt(megaChatApi[0]);
     megaChatApi[0]->createChat(false /*group*/, nullptr /*peers*/, &crt);
-    auto result = crt.waitForResult();
-    EXPECT_EQ(result, MegaChatError::ERROR_OK)
+    EXPECT_EQ(crt.waitForResult(), MegaChatError::ERROR_OK)
         << "SelfChat: failed to create new chatroom. Error: " << crt.getErrorString();
 
     std::unique_ptr<MegaChatRoom> selfRoom(

@@ -304,7 +304,7 @@ public:
 
     void initContact(const uint64_t& peer);
     void updateChatRoomTitle();
-    virtual const std::string& titleString() const;
+    virtual const std::string& titleString() const override;
     void connect() override;
 
     bool isMember(const karere::Id& peerid) const override;

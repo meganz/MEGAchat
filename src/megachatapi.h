@@ -4567,10 +4567,11 @@ public:
 
     /**
      * @brief Creates a chat for one or more participants, allowing you to specify their
-     * permissions and if the chat should be a group chat or not (when it is just for 2 participants).
+     * permissions and if the chat should be a group chat or not (when it is a private chat with a
+     * peer or a note-to-self chat).
      *
-     * There are two types of chat: permanent an group. A permanent chat is between two people, and
-     * participants can not leave it.
+     * There are two types of chat: permanent an group. A permanent chat is between two people, or a
+     * chat to ourselves (note-to-self chat), and participants can not leave it.
      *
      * The creator of the chat will have moderator level privilege and should not be included in the
      * list of peers.
@@ -4579,7 +4580,8 @@ public:
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getFlag - Returns if the new chat is a group chat or permanent chat
      * - MegaChatRequest::getPrivilege - Returns zero (private mode)
-     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level
+     * - MegaChatRequest::getMegaChatPeerList - List of participants and their privilege level. For
+     * a note-to-self chat, there are no peers, so this function returns \c nullptr
      *
      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
      * is MegaError::ERROR_OK:
@@ -4588,17 +4590,19 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
      * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
-     * - MegaChatError::ERROR_ACCESS - If no peers are provided for a 1on1 chatroom.
      *
-     * @note If you are trying to create a chat with more than 1 other person, then it will be forced
-     * to be a group chat.
+     * @note If you are trying to create a chat with more than 1 other person, then it will be
+     * forced to be a group chat.
      *
-     * @note If peers list contains only one person, group chat is not set and a permament chat already
-     * exists with that person, then this call will return the information for the existing chat, rather
-     * than a new chat.
+     * @note If peers list contains only one person, \c group is not set, and a permament chat
+     * already exists with that person, then this call will return the information for the existing
+     * chat, rather than a new chat.
+     * @note If peers list is \c nullptr, and \c group is not set, a note-to-self chat will be
+     * created, if it doesn't exist. If it exists, the existing chat will be returned.
      *
      * @param group Flag to indicate if the chat is a group chat or not
-     * @param peers MegaChatPeerList including other users and their privilege level
+     * @param peers MegaChatPeerList including other users and their privilege level. \c nullptr for
+     * a note-to-self chat (in that case \c group should be false)
      * @param listener MegaChatRequestListener to track this request
      */
     void createChat(bool group, MegaChatPeerList *peers, MegaChatRequestListener *listener = NULL);

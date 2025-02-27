@@ -3110,7 +3110,7 @@ bool PeerChatRoom::isMember(const Id& peerid) const
 
 unsigned long PeerChatRoom::numMembers() const
 {
-    return 2;
+    return mPeer ? 2 : 1;
 }
 
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
@@ -3201,26 +3201,24 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
     auto peers = chat.getPeerList();
-    if (!mPeer)
+    if (!mPeer && (peers && peers->size() > 0))
     {
-        if (peers && peers->size() > 0)
-        {
-            KR_LOG_ERROR(
-                "%ssyncWithApi: Asked to sync a self-chat with a chat from API with non-zero peers",
-                getLoggingName(),
-                karere::Id(chatid()).toString().c_str());
-        }
-        return false; // chat with self - can't change
+        KR_LOG_ERROR(
+            "%ssyncWithApi: Asked to sync a self-chat with a chat from API with non-zero peers",
+            getLoggingName(),
+            karere::Id(chatid()).toString().c_str());
     }
-    bool changed = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());   // returns true if own privilege has changed
-    bool changedArchived = syncArchive(chat.isArchived());
-    changed |= changedArchived;
-    changed |= syncPeerPriv((chatd::Priv)peers->getPeerPrivilege(0));
-
-    if (changedArchived)
+    bool changed = syncArchive(chat.isArchived());
+    if (changed)
     {
         mIsArchived = chat.isArchived();
         onArchivedChanged(mIsArchived);
+    }
+    if (mPeer)
+    {
+        changed |= syncOwnPriv(
+            (chatd::Priv)chat.getOwnPrivilege()); // returns true if own privilege has changed
+        changed |= syncPeerPriv((chatd::Priv)peers->getPeerPrivilege(0));
     }
     return changed;
 }
