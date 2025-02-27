@@ -4206,6 +4206,7 @@ TEST_F(MegaChatApiTest, SelfChat)
     TestChatRoomListener chatroomListener(this, megaChatApi, chatid);
     ASSERT_TRUE(megaChatApi[0]->openChatRoom(chatid, &chatroomListener))
         << "Can't open self-chat room";
+    // Wait till client gets own user's full name and self-chat gets a title update event
     const char* title;
     while (!(title = selfRoom->getTitle()) || title[0] == 0)
     {
