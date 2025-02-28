@@ -41,6 +41,8 @@ RUN apt-get update && apt-get install -y \
     unzip \
     zip
 
+ENV MAKEFLAGS="-j 20"
+
 CMD ["sh", "-c", "\
         git clone https://github.com/microsoft/vcpkg.git && \
         cmake \
