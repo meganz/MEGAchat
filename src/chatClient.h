@@ -22,7 +22,9 @@
 
 #ifdef _WIN32
 #pragma warning(push)
-#pragma warning(disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.) 
+#pragma warning( \
+    disable: 4996) // rapidjson: The std::iterator class template (used as a base class to provide
+                   // typedefs) is deprecated in C++17. (The <iterator> header is NOT deprecated.)
 #endif
 
 #include <rapidjson/document.h>
@@ -271,11 +273,11 @@ protected:
     static uint64_t getSdkRoomPeer(const ::mega::MegaTextChat& chat);
     static chatd::Priv getSdkRoomPeerPriv(const ::mega::MegaTextChat& chat);
     void initWithChatd();
-    void connect() override;
     UserAttrCache::Handle mUsernameAttrCbId;
     void updateTitle(const std::string& title);
     friend class Contact;
     friend class ChatRoomList;
+    friend class Client;
 
     //Resume from cache
     PeerChatRoom(ChatRoomList& parent, const uint64_t& chatid,
@@ -303,6 +305,7 @@ public:
 
     void initContact(const uint64_t& peer);
     void updateChatRoomTitle();
+    void connect() override;
 
     bool isMember(const karere::Id& peerid) const override;
 
@@ -600,6 +603,13 @@ public:
 class ChatRoomList: public std::map<uint64_t, ChatRoom*> //don't use shared_ptr here as we want to be able to immediately delete a chatroom once the API tells us it's deleted
 {
 /** @cond PRIVATE */
+
+protected:
+/** @brief Pointer to the 1on1 self-chatroom that has no peer. Owned by the chat room map.
+ * The value is \c nullptr if it doesn't exist
+ */
+PeerChatRoom* mSelfChat = nullptr;
+
 public:
     Client& mKarereClient;
     void addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, karere::SetOfIds& chatids);
@@ -611,6 +621,11 @@ public:
     void loadFromDb();
     void deleteRoomFromDb(const Id &chatid);
     void onChatsUpdate(mega::MegaTextChatList& chats, bool checkDeleted = false);
+
+    PeerChatRoom* selfChat() const
+    {
+        return mSelfChat;
+    }
 /** @endcond PRIVATE */
 };
 
@@ -1274,6 +1289,9 @@ public:
      */
     promise::Promise<std::pair<karere::Id, std::shared_ptr<KarereScheduledMeeting>>>
     createGroupChat(std::vector<std::pair<uint64_t, chatd::Priv>> peers, bool publicchat, bool meeting, int options = 0, const char* title = nullptr, std::shared_ptr<mega::MegaScheduledMeeting> sm = nullptr);
+
+    /** @brief Creates the mSelfChat chatroom, if it doesn't exist, and returns it */
+    promise::Promise<void> createSelfChat();
     void setCommitMode(bool commitEach);
     bool commitEach();
     void saveDb();  // forces a commit
@@ -1382,6 +1400,7 @@ protected:
      */
     void connect(const bool connectPresenced = true);
     void setConnState(ConnState newState);
+    void setOwnName(const Buffer& data, bool isInitial);
 
     // mega::MegaGlobalListener interface, called by worker thread
     virtual void onChatsUpdate(mega::MegaApi*, mega::MegaTextChatList* rooms);

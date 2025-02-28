@@ -799,6 +799,7 @@ public:
 
     MegaChatErrorPrivate(const std::string& msg, int code=ERROR_OK, int type=promise::kErrorTypeGeneric);
     MegaChatErrorPrivate(int code=ERROR_OK, int type=promise::kErrorTypeGeneric);
+    MegaChatErrorPrivate(const ::promise::Error& err);
     virtual ~MegaChatErrorPrivate() {}
 
 private:
