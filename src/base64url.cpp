@@ -1,4 +1,6 @@
 #include "base64url.h"
+
+#include <cstdint>
 #include <stdexcept>
 
 static char b64enctable[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

@@ -1,11 +1,12 @@
 #ifndef __BUFFER_H__
 #define __BUFFER_H__
-#include <stdlib.h>
 #include <assert.h>
+#include <cstdint>
+#include <sstream>
 #include <stdexcept>
+#include <stdlib.h>
 #include <string.h>
 #include <vector>
-#include <sstream>
 
 #if !defined(__arm__) && !defined(__aarch64__)
     #define BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS 1

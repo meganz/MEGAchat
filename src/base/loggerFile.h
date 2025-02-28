@@ -2,7 +2,9 @@
 #define FILE_LOGGER_INCLUDED
 
 #include "logger.h"
+
 #include <assert.h>
+#include <stdexcept>
 
 namespace karere
 {
