@@ -4,7 +4,7 @@
 # - ubuntu:22.04
 # - ubuntu:24.04
 #
-# docker run -v /path/to/vcpkg:/mega/vcpkg -v /path/to/megachat:/mega/megachat megachat-linux-build
+# docker run -v /path/to/megachat:/mega/megachat megachat-linux-build
 
 ARG DISTRO=ubuntu:22.04
 
@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y \
     zip
 
 CMD ["sh", "-c", "\
-    git config --global --add safe.directory /mega/vcpkg && \
+    git clone https://github.com/microsoft/vcpkg.git && \
     cmake \
         -DVCPKG_ROOT=/mega/vcpkg \
         -DCMAKE_BUILD_TYPE=Debug \
