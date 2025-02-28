@@ -13,6 +13,9 @@ FROM $DISTRO
 ARG DISTRO
 ENV DISTRO=$DISTRO
 
+ENV DEBCONF_NOWARNINGS=yes
+ENV DEBIAN_FRONTEND=noninteractive
+
 WORKDIR /mega
 
 RUN apt-get update && apt-get install -y \
