@@ -2792,7 +2792,8 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
     bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
-    *flagChatsUpdated1 = &mChatsUpdated[a2]; *flagChatsUpdated1 = false;
+    flagChatsUpdated1 = &mChatsUpdated[a2];
+    *flagChatsUpdated1 = false;
     mChatListUpdated[a2].clear();
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
