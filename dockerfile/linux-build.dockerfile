@@ -42,11 +42,11 @@ RUN apt-get update && apt-get install -y \
     zip
 
 CMD ["sh", "-c", "\
-    git clone https://github.com/microsoft/vcpkg.git && \
-    cmake \
-        -DVCPKG_ROOT=/mega/vcpkg \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -S /mega/megachat \
-        -B build && \
-    cmake --build build \
-"]
+        git clone https://github.com/microsoft/vcpkg.git && \
+        cmake \
+            -DVCPKG_ROOT=/mega/vcpkg \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -S /mega/megachat \
+            -B build && \
+        cmake --build build \
+    "]
