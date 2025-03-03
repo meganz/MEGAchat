@@ -45,5 +45,5 @@ CMD ["sh", "-c", "\
             -DCMAKE_BUILD_TYPE=Debug \
             -S /mega/megachat \
             -B build && \
-        cmake --build build \
+        cmake --build build -j $(nproc) \
     "]
