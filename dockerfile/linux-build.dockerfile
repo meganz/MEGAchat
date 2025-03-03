@@ -13,8 +13,6 @@ FROM $DISTRO
 ENV DEBCONF_NOWARNINGS=yes
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /mega
-
 RUN apt-get update && apt-get install -y \
     autoconf \
     autoconf-archive \
@@ -37,6 +35,8 @@ RUN apt-get update && apt-get install -y \
     tar \
     unzip \
     zip
+
+WORKDIR /mega
 
 CMD ["sh", "-c", "\
         git clone https://github.com/microsoft/vcpkg.git && \
