@@ -4194,7 +4194,8 @@ TEST_F(MegaChatApiTest, SelfChat)
         megaChatApi[0]->getChatRoomsByType(MegaChatApi::CHAT_TYPE_SELF));
     ASSERT_TRUE(rooms->size() == 1);
     auto room0 = rooms->get(0);
-    ASSERT_TRUE(!room0->isGroup() && room0->getPeerCount() == 0);
+    ASSERT_TRUE(room0->isNoteToSelf());
+    ASSERT_TRUE(!room0->isGroup() && (room0->getPeerCount() == 0));
     std::shared_ptr<MegaChatRoom> room(
         megaChatApi[0]->getChatRoomByUser(megaChatApi[0]->getMyUserHandle()));
     ASSERT_TRUE(!room->isGroup() && room->getPeerCount() == 0);

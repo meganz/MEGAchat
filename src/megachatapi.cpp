@@ -1859,6 +1859,11 @@ bool MegaChatRoom::isPublic() const
     return false;
 }
 
+bool MegaChatRoom::isNoteToSelf() const
+{
+    return false;
+}
+
 bool MegaChatRoom::isPreview() const
 {
     return false;
