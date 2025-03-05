@@ -11065,7 +11065,7 @@ bool MegaChatRoomPrivate::isPublic() const
 
 bool MegaChatRoomPrivate::isNoteToSelf() const
 {
-    return !isGroup() && (getPeerCount() == 0);
+    return !isGroup() && getPeerCount() == 0;
 }
 bool MegaChatRoomPrivate::isPreview() const
 {
