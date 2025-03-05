@@ -289,6 +289,7 @@ protected:
     ~PeerChatRoom();
 
 public:
+    static constexpr const char* kSelfChatTitle = "Note to self";
     IApp::IChatListItem* roomGui() override { return mRoomGui; }
     /** @brief The userid of the other person in the 1on1 chat */
     uint64_t peer() const { return mPeer; }
