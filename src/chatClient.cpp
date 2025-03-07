@@ -3048,7 +3048,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     {
         mContact = nullptr;
         mEmail = parent.mKarereClient.myEmail();
-        mTitleString.assign(kSelfChatTitle);
+        mTitleString.assign(SELF_CHAT_TITLE);
         return;
     }
     mContact = parent.mKarereClient.mContactList->contactFromUserId(peer);
