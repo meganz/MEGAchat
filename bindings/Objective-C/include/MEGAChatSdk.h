@@ -239,8 +239,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 #pragma mark - Chat management
 
-- (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers delegate:(id<MEGAChatRequestDelegate>)delegate;
-- (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers;
+- (void)createChatGroup:(BOOL)group peers:(nullable MEGAChatPeerList *)peers delegate:(id<MEGAChatRequestDelegate>)delegate;
+- (void)createChatGroup:(BOOL)group peers:(nullable MEGAChatPeerList *)peers;
 - (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers title:(nullable NSString *)title delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)createChatGroup:(BOOL)group peers:(MEGAChatPeerList *)peers title:(nullable NSString *)title;
 
