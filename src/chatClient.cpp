@@ -955,23 +955,23 @@ promise::Promise<void> Client::createSelfChat()
             [this, wptr](ReqResult result) -> Promise<void>
             {
                 wptr.throwIfDeleted();
-                auto& list = *result->getMegaTextChatList();
-                if (list.size() < 1)
+                auto list = result->getMegaTextChatList();
+                if (list->size() < 1)
                 {
                     return promise::Error("Empty chat list returned from API");
                 }
-                auto apiRoom = *list.get(0);
-                if (apiRoom.isGroup())
+                auto apiRoom = list->get(0);
+                if (apiRoom->isGroup())
                 {
                     return promise::Error("API returned a group self-chat instead of 1on1");
                 }
-                if (apiRoom.getPeerList())
+                if (apiRoom->getPeerList())
                 {
                     return promise::Error("API returned a self-chat with more than 0 peers");
                 }
                 if (!chats->selfChat()) // if not created meanwhile
                 {
-                    auto chat = chats->addRoom(apiRoom);
+                    auto chat = chats->addRoom(*apiRoom);
                     assert(!chat->isGroup());
                     assert(chats->selfChat());
                     chat->connect();
