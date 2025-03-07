@@ -66,6 +66,7 @@ typedef NS_ENUM (NSInteger, MEGAChatType) {
     MEGAChatTypeGroupPublic     = 4,
     MEGAChatTypeMeeting         = 5,
     MEGAChatTypeNonMeeting      = 6,
+    MEGAChatTypeSelf            = 7,
 };
 
 typedef NS_ENUM (NSUInteger, MEGAChatOption) {
