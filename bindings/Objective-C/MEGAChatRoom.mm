@@ -77,6 +77,10 @@ using namespace megachat;
     return self.megaChatRoom ? self.megaChatRoom->isPreview() : NO;
 }
 
+- (BOOL)isNoteToSelf {
+    return self.megaChatRoom ? self.megaChatRoom->isNoteToSelf() : NO;
+}
+
 - (NSString *)authorizationToken {
     const char *val = self.megaChatRoom->getAuthorizationToken();
     if (!val) return nil;

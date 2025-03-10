@@ -11063,6 +11063,10 @@ bool MegaChatRoomPrivate::isPublic() const
     return mPublicChat;
 }
 
+bool MegaChatRoomPrivate::isNoteToSelf() const
+{
+    return !isGroup() && getPeerCount() == 0;
+}
 bool MegaChatRoomPrivate::isPreview() const
 {
     return mAuthToken.isValid();

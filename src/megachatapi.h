@@ -8399,6 +8399,12 @@ public:
     virtual bool isPublic() const;
 
     /**
+     * @brief Returns whether this chat is a note-to-self 1on1 chat.
+     * @return True if it's a note-to-self chat.
+     */
+    virtual bool isNoteToSelf() const;
+
+    /**
      * @brief Returns whether this chat is in preview mode or not
      * @return True if this chat is in preview mode.
      */
