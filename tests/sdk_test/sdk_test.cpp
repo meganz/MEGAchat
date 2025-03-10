@@ -4189,22 +4189,25 @@ TEST_F(MegaChatApiTest, SelfChat)
     std::unique_ptr<MegaChatRoom> selfRoom(
         megaChatApi[0]->getChatRoomByUser(megaChatApi[0]->getMyUserHandle()));
     ASSERT_TRUE(selfRoom) << "SelfChat: failed to get newly created chatroom with self";
+    ASSERT_TRUE(selfRoom->isNoteToSelf());
+    ASSERT_TRUE(!selfRoom->isGroup() && selfRoom->getPeerCount() == 0);
+    ASSERT_EQ(selfRoom->getOwnPrivilege(), PRIV_MODERATOR) << "we aren't moderator in self-chat";
+    ASSERT_EQ(selfRoom->getPeerHandle(0), MEGACHAT_INVALID_HANDLE);
 
     std::unique_ptr<MegaChatRoomList> rooms(
         megaChatApi[0]->getChatRoomsByType(MegaChatApi::CHAT_TYPE_SELF));
     ASSERT_TRUE(rooms->size() == 1);
     auto room0 = rooms->get(0);
+    ASSERT_TRUE(room0->isNoteToSelf());
     ASSERT_TRUE(!room0->isGroup() && room0->getPeerCount() == 0);
+
     std::shared_ptr<MegaChatRoom> room(
         megaChatApi[0]->getChatRoomByUser(megaChatApi[0]->getMyUserHandle()));
+    ASSERT_TRUE(room0->isNoteToSelf());
     ASSERT_TRUE(!room->isGroup() && room->getPeerCount() == 0);
 
     auto chatid = selfRoom->getChatId();
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "SelfChat: invalid chatid for self-chat room";
-    ASSERT_TRUE(!selfRoom->isGroup());
-    ASSERT_EQ(selfRoom->getPeerCount(), 0);
-    ASSERT_EQ(selfRoom->getOwnPrivilege(), PRIV_MODERATOR) << "we aren't moderator in self-chat";
-    ASSERT_EQ(selfRoom->getPeerHandle(0), MEGACHAT_INVALID_HANDLE);
     std::unique_ptr<char[]> myName(megaChatApi[0]->getMyFullname());
     // Wait until room is connected to chatd
     if (megaChatApi[0]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)

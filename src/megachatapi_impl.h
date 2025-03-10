@@ -871,6 +871,7 @@ public:
     MegaChatHandle getPeerHandle(unsigned int i) const override;
     bool isGroup() const override;
     bool isPublic() const override;
+    bool isNoteToSelf() const override;
     bool isPreview() const override;
     const char *getAuthorizationToken() const override;
     const char *getTitle() const override;
