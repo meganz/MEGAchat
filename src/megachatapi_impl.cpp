@@ -8189,38 +8189,22 @@ bool MegaChatApiImpl::isChatroomFromType(const ChatRoom& chat, int type) const
     switch (type)
     {
         case MegaChatApi::CHAT_TYPE_ALL:
-        {
             return true;
-        }
         case MegaChatApi::CHAT_TYPE_INDIVIDUAL:
-        {
             return !chat.isGroup();
-        }
         case MegaChatApi::CHAT_TYPE_GROUP:
-        {
             return chat.isGroup() && !chat.isMeeting();
-        }
+            // private groupchats can't be meeting rooms
         case MegaChatApi::CHAT_TYPE_GROUP_PRIVATE:
-        {
-            return chat.isGroup() &&
-                   !chat.publicChat(); // private groupchats can't be meeting rooms
-        }
+            return chat.isGroup() && !chat.publicChat();
         case MegaChatApi::CHAT_TYPE_GROUP_PUBLIC:
-        {
             return chat.isGroup() && chat.publicChat() && !chat.isMeeting();
-        }
         case MegaChatApi::CHAT_TYPE_MEETING_ROOM:
-        {
             return chat.isMeeting();
-        }
         case MegaChatApi::CHAT_TYPE_NON_MEETING:
-        {
             return !chat.isMeeting();
-        }
         case MegaChatApi::CHAT_TYPE_SELF:
-        {
             return chat.isGroup() ? false : static_cast<const PeerChatRoom&>(chat).peer() == 0;
-        }
     }
     return false;
 }
