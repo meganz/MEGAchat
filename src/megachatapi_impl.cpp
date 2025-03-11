@@ -5423,18 +5423,25 @@ MegaChatListItemList* MegaChatApiImpl::getChatListItemsByType(int type)
         return items;
     }
 
-    if (mClient && !mTerminating)
+    if (!mClient || mTerminating)
     {
-        ChatRoomList::iterator it;
-        for (it = mClient->chats->begin(); it != mClient->chats->end(); it++)
+        return items;
+    }
+    if (type == MegaChatApi::CHAT_TYPE_SELF)
+    {
+        if (auto chat = mClient->chats->selfChat())
         {
-            if (!it->second->isArchived() && isChatroomFromType(*it->second, type))
-            {
-                items->addChatListItem(new MegaChatListItemPrivate(*it->second));
-            }
+            items->addChatListItem(new MegaChatListItemPrivate(*chat));
+        }
+        return items;
+    }
+    for (auto& chat: *mClient->chats)
+    {
+        if (!chat.second->isArchived() && isChatroomFromType(*chat.second, type))
+        {
+            items->addChatListItem(new MegaChatListItemPrivate(*chat.second));
         }
     }
-
     return items;
 }
 
@@ -8187,51 +8194,32 @@ bool MegaChatApiImpl::isChatroomFromType(const ChatRoom& chat, int type) const
         }
         case MegaChatApi::CHAT_TYPE_INDIVIDUAL:
         {
-            if (!chat.isGroup())
-            {
-                return true;
-            }
-            break;
+            return !chat.isGroup();
         }
         case MegaChatApi::CHAT_TYPE_GROUP:
         {
-            if (chat.isGroup() && !chat.isMeeting())
-            {
-                return true;
-            }
-            break;
+            return chat.isGroup() && !chat.isMeeting();
         }
         case MegaChatApi::CHAT_TYPE_GROUP_PRIVATE:
         {
-            if (chat.isGroup() && !chat.publicChat()) // private groupchats can't be meeting rooms
-            {
-                return true;
-            }
-            break;
+            return chat.isGroup() &&
+                   !chat.publicChat(); // private groupchats can't be meeting rooms
         }
         case MegaChatApi::CHAT_TYPE_GROUP_PUBLIC:
         {
-            if (chat.isGroup() && chat.publicChat() && !chat.isMeeting())
-            {
-                return true;
-            }
-            break;
+            return chat.isGroup() && chat.publicChat() && !chat.isMeeting();
         }
         case MegaChatApi::CHAT_TYPE_MEETING_ROOM:
         {
-            if (chat.isMeeting())
-            {
-                return true;
-            }
-            break;
+            return chat.isMeeting();
         }
         case MegaChatApi::CHAT_TYPE_NON_MEETING:
         {
-            if (!chat.isMeeting())
-            {
-                return true;
-            }
-            break;
+            return !chat.isMeeting();
+        }
+        case MegaChatApi::CHAT_TYPE_SELF:
+        {
+            return chat.isGroup() ? false : static_cast<const PeerChatRoom&>(chat).peer() == 0;
         }
     }
     return false;
@@ -11599,6 +11587,11 @@ bool MegaChatListItemPrivate::isGroup() const
 bool MegaChatListItemPrivate::isPublic() const
 {
     return mPublicChat;
+}
+
+bool MegaChatListItemPrivate::isNoteToSelf() const
+{
+    return !group && peerHandle == 0;
 }
 
 bool MegaChatListItemPrivate::isPreview() const

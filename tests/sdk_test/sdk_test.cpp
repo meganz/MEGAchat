@@ -4206,6 +4206,11 @@ TEST_F(MegaChatApiTest, SelfChat)
     ASSERT_TRUE(room0->isNoteToSelf());
     ASSERT_TRUE(!room->isGroup() && room->getPeerCount() == 0);
 
+    auto items = megaChatApi[0]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_SELF);
+    ASSERT_TRUE(items);
+    ASSERT_TRUE(items->size() == 1);
+    ASSERT_TRUE(items->get(0)->isNoteToSelf());
+
     auto chatid = selfRoom->getChatId();
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "SelfChat: invalid chatid for self-chat room";
     std::unique_ptr<char[]> myName(megaChatApi[0]->getMyFullname());

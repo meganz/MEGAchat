@@ -2120,6 +2120,11 @@ bool MegaChatListItem::isPublic() const
     return false;
 }
 
+bool MegaChatListItem::isNoteToSelf() const
+{
+    return false;
+}
+
 bool MegaChatListItem::isPreview() const
 {
     return false;
