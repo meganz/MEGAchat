@@ -2723,6 +2723,10 @@ void PeerChatRoom::connect()
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
+    if (!mPeer)
+    {
+        return promise::_Void();
+    }
     std::vector<ApiPromise> promises;
 
     for (int i = 0; i < nodes->size(); ++i)
