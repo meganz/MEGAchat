@@ -4208,7 +4208,6 @@ TEST_F(MegaChatApiTest, SelfChat)
 
     auto chatid = selfRoom->getChatId();
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "SelfChat: invalid chatid for self-chat room";
-    std::unique_ptr<char[]> myName(megaChatApi[0]->getMyFullname());
     // Wait until room is connected to chatd
     if (megaChatApi[0]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
@@ -4219,13 +4218,7 @@ TEST_F(MegaChatApiTest, SelfChat)
     TestChatRoomListener chatroomListener(this, megaChatApi, chatid);
     ASSERT_TRUE(megaChatApi[0]->openChatRoom(chatid, &chatroomListener))
         << "Can't open self-chat room";
-    // Wait till client gets own user's full name and self-chat gets a title update event
-    const char* title;
-    while (!(title = selfRoom->getTitle()) || title[0] == 0)
-    {
-        ASSERT_TRUE(waitForResponse(&chatroomListener.chatUpdated[0]));
-    }
-    ASSERT_TRUE(strcmp(selfRoom->getTitle(), myName.get()) == 0)
+    ASSERT_STREQ(selfRoom->getTitle(), "Note to self")
         << "Self-chat room name is not same as our user's";
 
     ASSERT_NO_FATAL_FAILURE(loadHistory(0, chatid, &chatroomListener));

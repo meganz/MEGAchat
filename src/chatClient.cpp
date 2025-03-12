@@ -2140,10 +2140,6 @@ void Client::setOwnName(const Buffer& data, bool isInitial)
 {
     assert(!data.empty());
     mMyName.assign(data.buf(), data.dataSize());
-    if (chats->selfChat())
-    {
-        chats->selfChat()->updateTitle(std::string(mMyName.c_str() + 1, mMyName.size() - 1));
-    }
 }
 void Client::sendStats()
 {
@@ -3052,15 +3048,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     {
         mContact = nullptr;
         mEmail = parent.mKarereClient.myEmail();
-        const auto& myName = parent.mKarereClient.myName();
-        if (!myName.empty())
-        {
-            mTitleString.assign(myName.c_str() + 1, myName.size() - 1);
-        }
-        else
-        {
-            mTitleString = mEmail;
-        }
+        mTitleString.assign(SELF_CHAT_TITLE);
         return;
     }
     mContact = parent.mKarereClient.mContactList->contactFromUserId(peer);
