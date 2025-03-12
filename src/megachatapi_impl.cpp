@@ -8194,8 +8194,8 @@ bool MegaChatApiImpl::isChatroomFromType(const ChatRoom& chat, int type) const
             return !chat.isGroup();
         case MegaChatApi::CHAT_TYPE_GROUP:
             return chat.isGroup() && !chat.isMeeting();
-            // private groupchats can't be meeting rooms
         case MegaChatApi::CHAT_TYPE_GROUP_PRIVATE:
+            // private groupchats can't be meeting rooms
             return chat.isGroup() && !chat.publicChat();
         case MegaChatApi::CHAT_TYPE_GROUP_PUBLIC:
             return chat.isGroup() && chat.publicChat() && !chat.isMeeting();
