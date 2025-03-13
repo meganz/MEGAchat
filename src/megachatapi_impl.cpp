@@ -8204,7 +8204,7 @@ bool MegaChatApiImpl::isChatroomFromType(const ChatRoom& chat, int type) const
         case MegaChatApi::CHAT_TYPE_NON_MEETING:
             return !chat.isMeeting();
         case MegaChatApi::CHAT_TYPE_SELF:
-            return chat.isGroup() ? false : static_cast<const PeerChatRoom&>(chat).peer() == 0;
+            return chat.isGroup() ? false : static_cast<const PeerChatRoom&>(chat).isNoteToSelf();
     }
     return false;
 }
@@ -11575,7 +11575,7 @@ bool MegaChatListItemPrivate::isPublic() const
 
 bool MegaChatListItemPrivate::isNoteToSelf() const
 {
-    return !group && peerHandle == 0;
+    return !group && peerHandle == MEGACHAT_SELFCHAT_NULL_PEER_HANDLE;
 }
 
 bool MegaChatListItemPrivate::isPreview() const

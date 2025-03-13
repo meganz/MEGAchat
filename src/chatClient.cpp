@@ -3224,7 +3224,7 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
     auto peers = chat.getPeerList();
-    if (!mPeer && (peers && peers->size() > 0))
+    if (isNoteToSelf() && (peers && peers->size() > 0))
     {
         KR_LOG_ERROR(
             "%ssyncWithApi: Asked to sync a self-chat with a chat from API with non-zero peers",
@@ -3433,7 +3433,7 @@ void ChatRoomList::loadFromDb()
                                              stmt.integralCol<int>(1),
                                              stmt.integralCol<int>(7));
             room = peerRoom;
-            if (peerRoom->peer() == 0)
+            if (peerRoom->isNoteToSelf())
             {
                 mSelfChat = peerRoom;
             }
@@ -3516,7 +3516,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     {
         auto peerRoom = new PeerChatRoom(*this, apiRoom);
         room = peerRoom;
-        if (peerRoom->peer() == 0) // chat with self
+        if (peerRoom->isNoteToSelf()) // chat with self
         {
             mSelfChat = peerRoom;
         }
