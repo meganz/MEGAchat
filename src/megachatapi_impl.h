@@ -509,6 +509,7 @@ public:
     int64_t getLastTimestamp() const override;
     bool isGroup() const override;
     bool isPublic() const override;
+    bool isNoteToSelf() const override;
     bool isPreview() const override;
     bool isActive() const override;
     bool isArchived() const override;

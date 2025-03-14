@@ -38,6 +38,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege);
 @property (readonly, nonatomic, getter=isActive) BOOL active;
 @property (readonly, nonatomic, getter=isDeleted) BOOL deleted;
 @property (readonly, nonatomic, getter=isMeeting) BOOL meeting;
+@property (readonly, nonatomic, getter=isNoteToSelf) BOOL noteToSelf;
 @property (readonly, nonatomic) NSUInteger previewersCount;
 @property (readonly, nonatomic) uint64_t lastMessageId;
 @property (readonly, nonatomic) MEGAChatMessageType lastMessageType;
