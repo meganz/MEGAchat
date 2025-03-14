@@ -1,8 +1,8 @@
 
 # MEGAChat specific options
-if(UNIX AND NOT APPLE) # Linux
+if((CMAKE_SYSTEM_NAME STREQUAL "iOS") OR (UNIX AND NOT APPLE)) # iOS or Linux/Android
     option(USE_WEBRTC "Support for voice and/or video calls" ON)
-else()
+else() # Win and mac
     option(USE_WEBRTC "Support for voice and/or video calls" OFF)
 endif()
 if (ENABLE_CHATLIB_QTAPP)

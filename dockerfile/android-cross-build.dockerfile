@@ -22,7 +22,7 @@
 #    #Build for x64:   export ARCH=x64 && export VCPKG_TRIPLET='x64-android-mega' && export ANDROID_ARCH='x86_64'
 #    #Build for x86:   export ARCH=x86 && export VCPKG_TRIPLET='x86-android-mega' && export ANDROID_ARCH='x86'
 #
-#    cmake -B buildAndroid_${ARCH} -S megachat -DVCPKG_ROOT=/mega/vcpkg -DCMAKE_BUILD_TYPE=Debug -DUSE_FREEIMAGE=OFF -DUSE_FFMPEG=OFF -DUSE_PDFIUM=OFF -DUSE_READLINE=OFF -DVCPKG_TARGET_TRIPLET=${VCPKG_TRIPLET} -DENABLE_JAVA_BINDINGS=ON -DENABLE_CHATLIB_MEGACLC=OFF -DENABLE_CHATLIB_TESTS=OFF -DENABLE_CHATLIB_QTAPP=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_API=26 -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON -DENABLE_CHATLIB_WERROR=OFF -DUSE_WEBRTC=OFF
+#    cmake -B buildAndroid_${ARCH} -S megachat -DVCPKG_ROOT=/mega/vcpkg -DCMAKE_BUILD_TYPE=Debug -DUSE_FREEIMAGE=OFF -DUSE_FFMPEG=OFF -DUSE_PDFIUM=OFF -DUSE_READLINE=OFF -DVCPKG_TARGET_TRIPLET=${VCPKG_TRIPLET} -DENABLE_JAVA_BINDINGS=ON -DENABLE_CHATLIB_MEGACLC=OFF -DENABLE_CHATLIB_TESTS=OFF -DENABLE_CHATLIB_QTAPP=OFF -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_API=26 -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON -DENABLE_CHATLIB_WERROR=OFF
 #
 #    cmake --build buildAndroid_${ARCH} -j10
 
@@ -56,9 +56,6 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /mega
 
-RUN git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
-ENV PATH=$PATH:/mega/depot_tools
-
 # Download, extract and set the Android NDK
 ARG MEGA_NDK_RELEASE=27b
 ARG MEGA_NDK_ZIP=android-ndk-r${MEGA_NDK_RELEASE}-linux.zip
@@ -83,6 +80,7 @@ CMD ["sh", "-c", "\
     groupadd -g $owner_gid me && \
     echo 'Adding \"me\" user...' && \
     useradd -r -M -u $owner_uid -g $owner_gid -d /mega -s /bin/bash me && \
+    [ -d /mega/.cache ] && chown me:me /mega/.cache && \
     case ${ARCH} in \
       arm) \
         export VCPKG_TRIPLET='arm-android-mega' && \
@@ -117,7 +115,6 @@ CMD ["sh", "-c", "\
         -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} \
         -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} \
         -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON \
-        -DENABLE_CHATLIB_WERROR=OFF \
-        -DUSE_WEBRTC=OFF && \
+        -DENABLE_CHATLIB_WERROR=OFF && \
     cmake --build buildAndroid_${ANDROID_ARCH}' && \
     exec /bin/bash"]

@@ -41,6 +41,10 @@ public:
 struct SetOfIds: public std::set<karere::Id>
 {
     typedef std::set<karere::Id> Base;
+
+    explicit SetOfIds(const karere::Id& id):
+        Base({id})
+    {}
     template <class T>
     SetOfIds(const T& src) { load(src); }
     SetOfIds(){}

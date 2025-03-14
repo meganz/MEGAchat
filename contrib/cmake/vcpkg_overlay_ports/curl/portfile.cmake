@@ -26,7 +26,6 @@ vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS
         mbedtls     CURL_USE_MBEDTLS
         ssh         CURL_USE_LIBSSH2
         tool        BUILD_CURL_EXE
-        c-ares      ENABLE_ARES
         sspi        CURL_WINDOWS_SSPI
         brotli      CURL_BROTLI
         schannel    CURL_USE_SCHANNEL

@@ -209,9 +209,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     return (MEGAChatStatus)self.megaChatApi->getOnlineStatus();
 }
 
-- (void)setPresenceAutoaway:(BOOL)enable timeout:(NSInteger)timeout {
+- (void)setPresenceAutoaway:(BOOL)enable timeout:(int64_t)timeout {
     if (self.megaChatApi) {
-        self.megaChatApi->setPresenceAutoaway(enable, (int)timeout);
+        self.megaChatApi->setPresenceAutoaway(enable, timeout);
     }
 }
 
@@ -1633,16 +1633,6 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled delegate:(id<MEGAChatRequestDelegate>)delegate {
     if (!self.megaChatApi) { return; }
     self.megaChatApi->updateScheduledMeetingOccurrence(chatId, scheduledId, overrides, newStartDate, newEndDate, newCancelled, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES queueType:ListenerQueueTypeGlobalUserInitiated]);
-}
-
-- (void)removeScheduledMeeting:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId {
-    if (!self.megaChatApi) { return; }
-    self.megaChatApi->removeScheduledMeeting(chatId, scheduledId);
-}
-
-- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId delegate:(id<MEGAChatRequestDelegate>)delegate {
-    if (!self.megaChatApi) { return; }
-    self.megaChatApi->removeScheduledMeeting(chatId, scheduledId, [self createDelegateMEGAChatRequestListener:delegate singleListener:YES]);
 }
 
 - (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingsByChat:(uint64_t)chatId {

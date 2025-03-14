@@ -2193,7 +2193,7 @@ void exec_getfingerprint(ac::ACState& s)
     {
         if (auto n = GetNodeByPath(s.words[2].s))
         {
-            char* fp = g_megaApi->getFingerprint(n.get());
+            const char* fp = n.get()->getFingerprint();
             conlock(std::cout) << (fp ? fp : "<NULL>") << std::endl;
             delete[] fp;
         }
@@ -2351,15 +2351,26 @@ void exec_recentactions(ac::ACState& s)
 {
     std::unique_ptr<m::MegaRecentActionBucketList> ra;
 
+    unsigned days{30};
+    unsigned maxNodes{50};
+
     if (s.words.size() == 3)
     {
-        ra.reset(g_megaApi->getRecentActions(static_cast<unsigned>(atoi(s.words[1].s.c_str())),
-                                             static_cast<unsigned>(atoi(s.words[2].s.c_str()))));
+        days = static_cast<unsigned>(atoi(s.words[1].s.c_str()));
+        maxNodes = static_cast<unsigned>(atoi(s.words[2].s.c_str()));
     }
-    else
-    {
-        ra.reset(g_megaApi->getRecentActions());
-    }
+
+    g_megaApi->getRecentActionsAsync(
+        days,
+        maxNodes,
+        new OneShotRequestListener(
+            [&ra](m::MegaApi*, m::MegaRequest* request, m::MegaError* error)
+            {
+                if (check_err("getRecentActionsAsync", error, ReportResult))
+                {
+                    ra.reset(request->getRecentActions());
+                }
+            }));
 
     auto l = conlock(std::cout);
     for (int b = 0; b < ra->size(); ++b)
@@ -2951,6 +2962,8 @@ void exec_exportNode(ac::ACState& s)
             {
                 g_megaApi->exportNode(node.get(),
                                       expireTime,
+                                      false,
+                                      false,
                                       new OneShotRequestListener(
                                           [](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                                           {
@@ -2965,6 +2978,9 @@ void exec_exportNode(ac::ACState& s)
             else
             {
                 g_megaApi->exportNode(node.get(),
+                                      0,
+                                      false,
+                                      false,
                                       new OneShotRequestListener(
                                           [](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)
                                           {
@@ -3238,7 +3254,8 @@ void exec_setCameraUploadsFolderSecondary(ac::ACState& s)
     }
     else
     {
-        g_megaApi->setCameraUploadsFolderSecondary(
+        g_megaApi->setCameraUploadsFolders(
+            mega::UNDEF,
             srcnode->getHandle(),
             new OneShotRequestListener(
                 [](m::MegaApi*, m::MegaRequest* r, m::MegaError* e)

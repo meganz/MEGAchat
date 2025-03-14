@@ -2792,7 +2792,8 @@ TEST_F(MegaChatApiTest, GroupChatManagement)
     bool *chatItemJoined1 = &chatItemUpdated[a2]; *chatItemJoined1 = false;
     bool *chatJoined0 = &chatroomListener->chatUpdated[a1]; *chatJoined0 = false;
     bool *chatJoined1 = &chatroomListener->chatUpdated[a2]; *chatJoined1 = false;
-    *flagChatsUpdated1 = &mChatsUpdated[a2]; *flagChatsUpdated1 = false;
+    flagChatsUpdated1 = &mChatsUpdated[a2];
+    *flagChatsUpdated1 = false;
     mChatListUpdated[a2].clear();
     mngMsgRecv = &chatroomListener->msgReceived[a1]; *mngMsgRecv = false;
     uhAction = &chatroomListener->uhAction[a1]; *uhAction = MEGACHAT_INVALID_HANDLE;
@@ -4175,6 +4176,82 @@ TEST_F(MegaChatApiTest, SendContact)
     secondarySession = NULL;
 }
 
+TEST_F(MegaChatApiTest, SelfChat)
+{
+    std::unique_ptr<char[]> session(login(0));
+    ASSERT_TRUE(session);
+    LOG_debug << "#### Test1: Create/get self-chat ####";
+    ChatRequestTracker crt(megaChatApi[0]);
+    megaChatApi[0]->createChat(false /*group*/, nullptr /*peers*/, &crt);
+    EXPECT_EQ(crt.waitForResult(), MegaChatError::ERROR_OK)
+        << "SelfChat: failed to create new chatroom. Error: " << crt.getErrorString();
+
+    std::unique_ptr<MegaChatRoom> selfRoom(
+        megaChatApi[0]->getChatRoomByUser(megaChatApi[0]->getMyUserHandle()));
+    ASSERT_TRUE(selfRoom) << "SelfChat: failed to get newly created chatroom with self";
+
+    std::unique_ptr<MegaChatRoomList> rooms(
+        megaChatApi[0]->getChatRoomsByType(MegaChatApi::CHAT_TYPE_SELF));
+    ASSERT_TRUE(rooms->size() == 1);
+    auto room0 = rooms->get(0);
+    ASSERT_TRUE(!room0->isGroup() && room0->getPeerCount() == 0);
+    std::shared_ptr<MegaChatRoom> room(
+        megaChatApi[0]->getChatRoomByUser(megaChatApi[0]->getMyUserHandle()));
+    ASSERT_TRUE(!room->isGroup() && room->getPeerCount() == 0);
+
+    auto chatid = selfRoom->getChatId();
+    ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "SelfChat: invalid chatid for self-chat room";
+    ASSERT_TRUE(!selfRoom->isGroup());
+    ASSERT_EQ(selfRoom->getPeerCount(), 0);
+    ASSERT_EQ(selfRoom->getOwnPrivilege(), PRIV_MODERATOR) << "we aren't moderator in self-chat";
+    ASSERT_EQ(selfRoom->getPeerHandle(0), MEGACHAT_INVALID_HANDLE);
+    std::unique_ptr<char[]> myName(megaChatApi[0]->getMyFullname());
+    // Wait until room is connected to chatd
+    if (megaChatApi[0]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
+    {
+        postLog("SelfChat: waiting for connection to chatd...");
+        ASSERT_TRUE(waitForResponse(&mChatConnectionOnline[0]))
+            << "SelfChat: connect to chatd timed out";
+    }
+    TestChatRoomListener chatroomListener(this, megaChatApi, chatid);
+    ASSERT_TRUE(megaChatApi[0]->openChatRoom(chatid, &chatroomListener))
+        << "Can't open self-chat room";
+    // Wait till client gets own user's full name and self-chat gets a title update event
+    const char* title;
+    while (!(title = selfRoom->getTitle()) || title[0] == 0)
+    {
+        ASSERT_TRUE(waitForResponse(&chatroomListener.chatUpdated[0]));
+    }
+    ASSERT_TRUE(strcmp(selfRoom->getTitle(), myName.get()) == 0)
+        << "Self-chat room name is not same as our user's";
+
+    ASSERT_NO_FATAL_FAILURE(loadHistory(0, chatid, &chatroomListener));
+    chatroomListener.clearMessages(0);
+    std::string text = dateToString() + ": Test mesage to self-chat";
+
+    std::unique_ptr<MegaChatMessage> msgSent(
+        sendTextMessageOrUpdate(0, UINT_MAX, chatid, text, &chatroomListener));
+    ASSERT_TRUE(msgSent);
+    MegaChatHandle msgId = msgSent->getMsgId();
+
+    LOG_debug << "#### Test2: Receive message ####";
+    bool hasArrived = chatroomListener.hasArrivedMessage(0, msgId);
+    ASSERT_TRUE(hasArrived) << "Id of sent message has not been received yet";
+
+    std::unique_ptr<MegaChatListItem> hist(megaChatApi[0]->getChatListItem(chatid));
+    ASSERT_STREQ(text.c_str(), hist->getLastMessage())
+        << "Content of last-message doesn't match.\n Sent vs Received.";
+    ASSERT_EQ(hist->getLastMessageId(), msgId)
+        << "Last message id is different from message sent id";
+    std::unique_ptr<MegaChatMessage> messageConfirm(megaChatApi[0]->getMessage(chatid, msgId));
+    ASSERT_STREQ(messageConfirm->getContent(), hist->getLastMessage())
+        << "Content of last-message reported id is different than last-message reported content";
+
+    ASSERT_NO_FATAL_FAILURE(clearHistory(0, 0, chatid, &chatroomListener));
+    chatroomListener.clearMessages(0);
+    megaChatApi[0]->closeChatRoom(chatid, &chatroomListener);
+    ASSERT_NO_FATAL_FAILURE(logout(0));
+}
 /**
  * @brief MegaChatApiTest.GroupLastMessage
  *

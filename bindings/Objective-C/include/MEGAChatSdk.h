@@ -153,7 +153,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)setOnlineStatus:(MEGAChatStatus)status;
 - (MEGAChatStatus)onlineStatus;
 
-- (void)setPresenceAutoaway:(BOOL)enable timeout:(NSInteger)timeout;
+- (void)setPresenceAutoaway:(BOOL)enable timeout:(int64_t)timeout;
 - (void)setPresencePersist:(BOOL)enable;
 - (void)setLastGreenVisible:(BOOL)enable delegate:(id<MEGAChatRequestDelegate>)delegate;
 - (void)setLastGreenVisible:(BOOL)enable;
@@ -453,10 +453,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled;
 
 - (void)updateScheduledMeetingOccurrence:(uint64_t)chatId  scheduledId:(uint64_t)scheduledId overrides:(uint64_t)overrides newStartDate:(uint64_t)newStartDate newEndDate:(uint64_t)newEndDate newCancelled:(BOOL)newCancelled delegate:(id<MEGAChatRequestDelegate>)delegate;
-
-- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId;
-
-- (void)removeScheduledMeeting:(uint64_t)chatId scheduledId:(uint64_t)scheduledId delegate:(id<MEGAChatRequestDelegate>)delegate;
 
 - (NSArray<MEGAChatScheduledMeeting *> *)scheduledMeetingsByChat:(uint64_t)chatId;
 

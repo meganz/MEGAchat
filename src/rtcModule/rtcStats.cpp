@@ -388,7 +388,6 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             return;
         }
 
-        uint32_t packetLost = 0;
         mStats->mSamples.mRoundTripTime.push_back(0.0);
         mStats->mSamples.mOutGoingBitrate.push_back(0.0);
         mStats->mSamples.mBytesReceived.push_back(0);
@@ -406,10 +405,11 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
 
         if (mStats->mInitialTs == 0)
         {
-            mStats->mInitialTs = report->timestamp_us();
+            mStats->mInitialTs = report->timestamp().us();
         }
 
-        mStats->mSamples.mT.push_back(static_cast<int32_t>((report->timestamp_us() - mStats->mInitialTs)/ 1000));
+        mStats->mSamples.mT.push_back(
+            static_cast<int32_t>((report->timestamp().us() - mStats->mInitialTs) / 1000));
 
         for (auto it = report->begin(); it != report->end(); it++)
         {
@@ -427,30 +427,31 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
             }
             else if (strcmp(it->type(), "inbound-rtp") == 0)
             {
-                std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
                 std::string kind;
                 int32_t audioJitter = 0;
-                for (const webrtc::RTCStatsMemberInterface* member : members)
+                std::vector<webrtc::Attribute> attributes = it->Attributes();
+                for (const webrtc::Attribute& attribute: attributes)
                 {
-                    if (!member->is_defined())
+                    if (!attribute.has_value())
                     {
                         continue;
                     }
-                    if (strcmp(member->name(), "packetsLost") == 0)
+
+                    if (strcmp(attribute.name(), "packetsLost") == 0)
                     {
-                        packetLost = *member->cast_to<const webrtc::RTCStatsMember<int32_t>>();
+                        int32_t packetLost = attribute.get<int32_t>();
                         mStats->mSamples.mPacketLost.back() = mStats->mSamples.mPacketLost.back() + packetLost;
                     }
 
-                    if (strcmp(member->name(), "jitter") == 0)
+                    if (strcmp(attribute.name(), "jitter") == 0)
                     {
-                        double value = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        double value = attribute.get<double>();
                         audioJitter = static_cast<int32_t>(round(value * 1000.0));
                     }
 
-                    if (strcmp(member->name(), "kind") == 0)
+                    if (strcmp(attribute.name(), "kind") == 0)
                     {
-                        kind = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
+                        kind = attribute.get<std::string>();
                     }
                 }
 
@@ -466,41 +467,43 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
                 uint32_t height = 0;
                 double fps = 0;
                 uint32_t ssrc = 0;
-                for (const webrtc::RTCStatsMemberInterface* member : it->Members())
+                std::vector<webrtc::Attribute> attributes = it->Attributes();
+                for (const webrtc::Attribute& attribute: attributes)
                 {
-                    if (!member->is_defined())
+                    if (!attribute.has_value())
                     {
                         continue;
                     }
-                    if (strcmp(member->name(), "frameWidth") == 0)
+
+                    if (strcmp(attribute.name(), "frameWidth") == 0)
                     {
-                        width = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                        width = attribute.get<uint32_t>();
                     }
-                    else if (strcmp(member->name(), "frameHeight") == 0)
+                    else if (strcmp(attribute.name(), "frameHeight") == 0)
                     {
-                        height = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                        height = attribute.get<uint32_t>();
                     }
-                    else if (strcmp(member->name(), "framesPerSecond") == 0)
+                    else if (strcmp(attribute.name(), "framesPerSecond") == 0)
                     {
-                        fps = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        fps = attribute.get<double>();
                     }
-                    else if (strcmp(member->name(), "ssrc") == 0)
+                    else if (strcmp(attribute.name(), "ssrc") == 0)
                     {
-                        ssrc = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
+                        ssrc = attribute.get<uint32_t>();
                     }
-                    else if (strcmp(member->name(), "packetsSent") == 0)
+                    else if (strcmp(attribute.name(), "packetsSent") == 0)
                     {
-                        uint32_t packetSent = *member->cast_to<const webrtc::RTCStatsMember<uint32_t>>();
-                        mStats->mSamples.mPacketSent.back() = packetSent;
+                        uint64_t packetSent = attribute.get<uint64_t>();
+                        mStats->mSamples.mPacketSent.back() = static_cast<uint32_t>(packetSent);
                     }
-                    else if (strcmp(member->name(), "totalPacketSendDelay") == 0)
+                    else if (strcmp(attribute.name(), "totalPacketSendDelay") == 0)
                     {
-                        double totalPacketSendDelay = *member->cast_to<const webrtc::RTCStatsMember<double>>();
+                        double totalPacketSendDelay = attribute.get<double>();
                         mStats->mSamples.mTotalPacketSendDelay.back() = totalPacketSendDelay;
                     }
-                    else if (strcmp(member->name(), "qualityLimitationReason") == 0)
+                    else if (strcmp(attribute.name(), "qualityLimitationReason") == 0)
                     {
-                        std::string limitationReason = *member->cast_to<const webrtc::RTCStatsMember<std::string>>();
+                        std::string limitationReason = attribute.get<std::string>();
                         mStats->mSamples.mQualityLimitations.addIncident(limitationReason);
                     }
                 }
@@ -524,28 +527,28 @@ void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::
 
 void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend)
 {
-    std::vector<const webrtc::RTCStatsMemberInterface*>members = it->Members();
-    for (const webrtc::RTCStatsMemberInterface* member : members)
+    std::vector<webrtc::Attribute> attributes = it->Attributes();
+    for (const webrtc::Attribute& attribute: attributes)
     {
-        if (!member->is_defined())
+        if (!attribute.has_value())
         {
             continue;
         }
-        if (strcmp(member->name(), "currentRoundTripTime") == 0)
+        if (strcmp(attribute.name(), "currentRoundTripTime") == 0)
         {
-            rtt = *member->cast_to<const webrtc::RTCStatsMember<double>>() * 1000;
+            rtt = attribute.get<double>() * 1000;
         }
-        else if (strcmp(member->name(), "availableOutgoingBitrate") == 0)
+        else if (strcmp(attribute.name(), "availableOutgoingBitrate") == 0)
         {
-            txBwe = round(static_cast<double>(*member->cast_to<const webrtc::RTCStatsMember<double>>()) / 1024.0);
+            txBwe = round(attribute.get<double>() / 1024.0);
         }
-        else if (strcmp(member->name(), "bytesReceived") == 0)
+        else if (strcmp(attribute.name(), "bytesReceived") == 0)
         {
-           bytesRecv = *member->cast_to<const webrtc::RTCStatsMember<uint64_t>>() / 128;
+            bytesRecv = attribute.get<uint64_t>() / 128;
         }
-        else if (strcmp(member->name(), "bytesSent") == 0)
+        else if (strcmp(attribute.name(), "bytesSent") == 0)
         {
-            bytesSend = *member->cast_to<const webrtc::RTCStatsMember<uint64_t>>() / 128;
+            bytesSend = attribute.get<uint64_t>() / 128;
         }
     }
 }

@@ -250,7 +250,7 @@ public:
 
     void onContactRequestsUpdate(m::MegaApi*, m::MegaContactRequestList* requests) override;
 
-    void onReloadNeeded(m::MegaApi* api) override;
+    void onReloadNeeded(m::MegaApi* api);
 
 #ifdef ENABLE_SYNC
     void onSyncFileStateChanged(m::MegaApi*, m::MegaSync*, std::string*, int) override {}
@@ -278,7 +278,7 @@ public:
 
     void onContactRequestsUpdate(m::MegaApi*, m::MegaContactRequestList*) override {}
 
-    void onReloadNeeded(m::MegaApi*) override {}
+    void onReloadNeeded(m::MegaApi*) {}
 
 #ifdef ENABLE_SYNC
     void onGlobalSyncStateChanged(m::MegaApi*) override {}

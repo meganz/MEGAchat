@@ -2,11 +2,11 @@
 #define KARERE_STRINGUTILS_H
 
 #include <map>
-#include <string>
-#include <vector>
-#include <time.h>
+#include <stdexcept>
 #include <string.h>
-
+#include <string>
+#include <time.h>
+#include <vector>
 
 namespace karere
 {

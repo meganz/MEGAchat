@@ -1,16 +1,29 @@
-#include "rtcmPrivate.h"
 #include "webrtcAdapter.h"
-#include <api/create_peerconnection_factory.h>
-#include <api/audio_codecs/builtin_audio_encoder_factory.h>
+
+#include "rtcmPrivate.h"
+
 #include <api/audio_codecs/builtin_audio_decoder_factory.h>
-#include <api/video_codecs/builtin_video_encoder_factory.h>
-#include <api/video_codecs/builtin_video_decoder_factory.h>
-#include <modules/video_capture/video_capture_factory.h>
+#include <api/audio_codecs/builtin_audio_encoder_factory.h>
+#include <api/create_peerconnection_factory.h>
+#include <api/video_codecs/video_decoder_factory.h>
+#include <api/video_codecs/video_decoder_factory_template.h>
+#include <api/video_codecs/video_decoder_factory_template_dav1d_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_libvpx_vp8_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_libvpx_vp9_adapter.h>
+#include <api/video_codecs/video_decoder_factory_template_open_h264_adapter.h>
+#include <api/video_codecs/video_encoder_factory_template.h>
+#include <api/video_codecs/video_encoder_factory_template_libaom_av1_adapter.h>
+#include <api/video_codecs/video_encoder_factory_template_libvpx_vp8_adapter.h>
+#include <api/video_codecs/video_encoder_factory_template_libvpx_vp9_adapter.h>
+#include <api/video_codecs/video_encoder_factory_template_open_h264_adapter.h>
+#include <media/base/video_common.h>
 #include <modules/audio_processing/include/audio_processing.h>
+#include <modules/video_capture/video_capture_factory.h>
 #include <rtc_base/ssl_adapter.h>
 #include <system_wrappers/include/field_trial.h>
 
 #ifdef __ANDROID__
+#include <sdk/android/native_api/audio_device_module/audio_device_android.h>
 extern JavaVM *MEGAjvm;
 extern JNIEnv *jenv;
 extern jclass applicationClass;
@@ -21,6 +34,19 @@ extern jobject surfaceTextureHelper;
 #endif
 
 using namespace CryptoPP;
+
+namespace webrtc
+{
+VideoDecoderFactory::CodecSupport
+    VideoDecoderFactory::QueryCodecSupport(const SdpVideoFormat& format,
+                                           bool reference_scaling) const
+{
+    // Default implementation, query for supported formats and check if the
+    // specified format is supported. Returns false if `reference_scaling` is
+    // true.
+    return {.is_supported = !reference_scaling && format.IsCodecInList(GetSupportedFormats())};
+}
+}
 
 namespace artc
 {
@@ -52,18 +78,35 @@ bool init(void*)
         gSignalingThread = rtc::Thread::Create();
         gSignalingThread->Start();
 
+        rtc::scoped_refptr<webrtc::AudioDeviceModule> audioDeviceModule;
+#ifdef __ANDROID__
+        audioDeviceModule =
+            webrtc::CreateAndroidAudioDeviceModule(webrtc::AudioDeviceModule::kAndroidJavaAudio);
+#endif
+
         gAudioProcessing = rtc::scoped_refptr<webrtc::AudioProcessing>(webrtc::AudioProcessingBuilder().Create());
         webrtc::AudioProcessing::Config audioConfig = gAudioProcessing->GetConfig();
         gAudioProcessing->ApplyConfig(audioConfig);
 
         gWebrtcContext = webrtc::CreatePeerConnectionFactory(
-                    nullptr /*networThread*/, gWorkerThread.get() /*workThread*/,
-                    gSignalingThread.get() /*signaledThread*/, nullptr,
-                    webrtc::CreateBuiltinAudioEncoderFactory(),
-                    webrtc::CreateBuiltinAudioDecoderFactory(),
-                    webrtc::CreateBuiltinVideoEncoderFactory(),
-                    webrtc::CreateBuiltinVideoDecoderFactory(),
-                    nullptr /* audio_mixer */, gAudioProcessing);
+            nullptr /*networThread*/,
+            gWorkerThread.get() /*workThread*/,
+            gSignalingThread.get() /*signaledThread*/,
+            audioDeviceModule,
+            webrtc::CreateBuiltinAudioEncoderFactory(),
+            webrtc::CreateBuiltinAudioDecoderFactory(),
+            std::make_unique<
+                webrtc::VideoEncoderFactoryTemplate<webrtc::LibvpxVp8EncoderTemplateAdapter,
+                                                    webrtc::LibvpxVp9EncoderTemplateAdapter,
+                                                    webrtc::OpenH264EncoderTemplateAdapter,
+                                                    webrtc::LibaomAv1EncoderTemplateAdapter>>(),
+            std::make_unique<
+                webrtc::VideoDecoderFactoryTemplate<webrtc::LibvpxVp8DecoderTemplateAdapter,
+                                                    webrtc::LibvpxVp9DecoderTemplateAdapter,
+                                                    webrtc::OpenH264DecoderTemplateAdapter,
+                                                    webrtc::Dav1dDecoderTemplateAdapter>>(),
+            nullptr /* audio_mixer */,
+            gAudioProcessing);
     }
 
     if (!gWebrtcContext)
@@ -213,9 +256,10 @@ void CaptureCameraModuleLinux::releaseDevice()
     }
 }
 
-webrtc::VideoTrackSourceInterface* CaptureCameraModuleLinux::getVideoTrackSource()
+rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>
+    CaptureCameraModuleLinux::getVideoTrackSource()
 {
-    return this;
+    return rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(this);
 }
 #endif
 
@@ -272,22 +316,28 @@ rtc::scoped_refptr<webrtc::VideoTrackInterface> LocalStreamHandle::video()
     return mVideo;
 }
 
-VideoCapturerManager* VideoCapturerManager::createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities, const std::string &
+rtc::scoped_refptr<artc::VideoCapturerManager>
+    VideoCapturerManager::createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities,
+                                               const std::string&
 #if defined(__APPLE__) || defined(__ANDROID__)
-                                   deviceName
+                                                   deviceName
 #endif
-                                   , rtc::Thread *
+                                               ,
+                                               rtc::Thread*
 #ifdef __ANDROID__
-                                   thread
+                                                   thread
 #endif
-                                   )
+    )
 {
 #ifdef __APPLE__
-    return new OBJCCaptureModule(capabilities, deviceName);
+    return rtc::scoped_refptr<artc::VideoCapturerManager>(
+        new OBJCCaptureModule(capabilities, deviceName));
 #elif __ANDROID__
-    return new CaptureModuleAndroid(capabilities, deviceName, thread);
+    return rtc::scoped_refptr<artc::VideoCapturerManager>(
+        new CaptureModuleAndroid(capabilities, deviceName, thread));
 #else
-    return new CaptureCameraModuleLinux(capabilities);
+    return rtc::scoped_refptr<artc::VideoCapturerManager>(
+        new CaptureCameraModuleLinux(capabilities));
 #endif
 }
 
@@ -766,9 +816,9 @@ void CaptureModuleAndroid::releaseDevice()
     }
 }
 
-webrtc::VideoTrackSourceInterface* CaptureModuleAndroid::getVideoTrackSource()
+rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CaptureModuleAndroid::getVideoTrackSource()
 {
-    return this;
+    return rtc::scoped_refptr<webrtc::VideoTrackSourceInterface>(this);
 }
 
 bool CaptureModuleAndroid::is_screencast() const

@@ -26,12 +26,6 @@
         "brotli"
       ]
     },
-    "c-ares": {
-      "description": "c-ares support",
-      "dependencies": [
-        "c-ares"
-      ]
-    },
     "http2": {
       "description": "HTTP2 support",
       "dependencies": [

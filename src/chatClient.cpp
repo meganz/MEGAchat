@@ -1,9 +1,10 @@
 #include "chatClient.h"
 #ifdef _WIN32
-    #include <winsock2.h>
-    #include <direct.h>
-    #include <sys/timeb.h>  
-    #define mkdir(dir, mode) _mkdir(dir)
+#include <sys/timeb.h>
+
+#include <direct.h>
+#include <winsock2.h>
+#define mkdir(dir, mode) _mkdir(dir)
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -936,6 +937,55 @@ promise::Promise<void> Client::notifyUserStatus(bool background)
     return mChatdClient->notifyUserStatus();
 }
 
+promise::Promise<void> Client::createSelfChat()
+{
+    if (chats->selfChat())
+    {
+        return promise::_Void();
+    }
+    auto wptr = getDelTracker();
+    return api
+        .call(&mega::MegaApi::createChat,
+              false,
+              nullptr,
+              nullptr,
+              mega::ChatOptions::kEmpty,
+              nullptr)
+        .then(
+            [this, wptr](ReqResult result) -> Promise<void>
+            {
+                wptr.throwIfDeleted();
+                auto& list = *result->getMegaTextChatList();
+                if (list.size() < 1)
+                {
+                    return promise::Error("Empty chat list returned from API");
+                }
+                auto apiRoom = *list.get(0);
+                if (apiRoom.isGroup())
+                {
+                    return promise::Error("API returned a group self-chat instead of 1on1");
+                }
+                if (apiRoom.getPeerList())
+                {
+                    return promise::Error("API returned a self-chat with more than 0 peers");
+                }
+                if (!chats->selfChat()) // if not created meanwhile
+                {
+                    auto chat = chats->addRoom(apiRoom);
+                    assert(!chat->isGroup());
+                    assert(chats->selfChat());
+                    chat->connect();
+                }
+                else
+                {
+                    KR_LOG_DEBUG(
+                        "%screateChat: Self-chat created by someone else created meanwhile",
+                        getLoggingName());
+                }
+                return promise::_Void();
+            });
+}
+
 promise::Promise<ReqResult> Client::openChatPreview(uint64_t publicHandle)
 {
     auto wptr = weakHandle();
@@ -1504,15 +1554,17 @@ void Client::initWithDbSession(const char* sid)
         mMyEmail = getMyEmailFromDb();
 
         mMyIdentity = getMyIdentityFromDb();
-
-        mOwnNameAttrHandle = mUserAttrCache->getAttr(mMyHandle, USER_ATTR_FULLNAME, this,
-        [](Buffer* buf, void* userp)
-        {
-            if (!buf || buf->empty())
-                return;
-            auto& name = static_cast<Client*>(userp)->mMyName;
-            name.assign(buf->buf(), buf->dataSize());
-        });
+        mOwnNameAttrHandle =
+            mUserAttrCache->getAttr(mMyHandle,
+                                    USER_ATTR_FULLNAME,
+                                    this,
+                                    [](Buffer* buf, void* userp)
+                                    {
+                                        if (buf && !buf->empty())
+                                        {
+                                            static_cast<Client*>(userp)->setOwnName(*buf, false);
+                                        }
+                                    });
 
         loadOwnKeysFromDb();
         mDnsCache.loadFromDb();
@@ -2059,11 +2111,14 @@ void Client::connect(const bool connectPresenced)
     [](Buffer* buf, void* userp)
     {
         if (!buf || buf->empty())
+        {
             return;
-        auto& name = static_cast<Client*>(userp)->mMyName;
-        const auto& loggingName = static_cast<Client*>(userp)->getLoggingName();
-        name.assign(buf->buf(), buf->dataSize());
-        KR_LOG_DEBUG("%sOwn screen name is: '%s'", loggingName, name.c_str() + 1);
+        }
+        auto& client = *static_cast<Client*>(userp);
+        client.setOwnName(*buf, true);
+        KR_LOG_DEBUG("%sOwn screen name is: '%s'",
+                     client.getLoggingName(),
+                     client.myName().c_str() + 1);
     });
 
     if (connectPresenced)
@@ -2081,6 +2136,15 @@ void Client::setConnState(ConnState newState)
                  connStateToStr(newState));
 }
 
+void Client::setOwnName(const Buffer& data, bool isInitial)
+{
+    assert(!data.empty());
+    mMyName.assign(data.buf(), data.dataSize());
+    if (chats->selfChat())
+    {
+        chats->selfChat()->updateTitle(std::string(mMyName.c_str() + 1, mMyName.size() - 1));
+    }
+}
 void Client::sendStats()
 {
     if (mInitStats.isCompleted())
@@ -2644,7 +2708,12 @@ void callAfterInit(T* self, F&& func, void *ctx)
 
 void PeerChatRoom::initWithChatd()
 {
-    createChatdChat(SetOfIds({Id(mPeer), parent.mKarereClient.myHandle()}));
+    SetOfIds peers{parent.mKarereClient.myHandle()};
+    if (mPeer)
+    {
+        peers.insert(karere::Id{mPeer});
+    }
+    createChatdChat(peers);
 }
 
 void PeerChatRoom::connect()
@@ -2979,6 +3048,21 @@ PeerChatRoom::~PeerChatRoom()
 
 void PeerChatRoom::initContact(const uint64_t& peer)
 {
+    if (!peer) // chat with self
+    {
+        mContact = nullptr;
+        mEmail = parent.mKarereClient.myEmail();
+        const auto& myName = parent.mKarereClient.myName();
+        if (!myName.empty())
+        {
+            mTitleString.assign(myName.c_str() + 1, myName.size() - 1);
+        }
+        else
+        {
+            mTitleString = mEmail;
+        }
+        return;
+    }
     mContact = parent.mKarereClient.mContactList->contactFromUserId(peer);
     mEmail = mContact ? mContact->email() : "Inactive account";
     if (mContact)
@@ -3049,29 +3133,27 @@ bool PeerChatRoom::isMember(const Id& peerid) const
 
 unsigned long PeerChatRoom::numMembers() const
 {
-    return 2;
+    return mPeer ? 2 : 1;
 }
 
 uint64_t PeerChatRoom::getSdkRoomPeer(const ::mega::MegaTextChat& chat)
 {
-    if (!chat.getPeerList())
-    {
-        KR_LOG_ERROR("1on1 room without peer: %s", Id(chat.getHandle()).toString().c_str());
-        return Id::inval();
-    }
     auto peers = chat.getPeerList();
-    assert(peers);
+    if (!peers || peers->size() == 0)
+    {
+        return 0; // self chat
+    }
     assert(peers->size() == 1);
     return peers->getPeerHandle(0);
 }
 
 chatd::Priv PeerChatRoom::getSdkRoomPeerPriv(const mega::MegaTextChat &chat)
 {
-    if (!chat.getPeerList())
+    auto peers = chat.getPeerList();
+    if (!peers)
     {
         return chatd::PRIV_INVALID;
     }
-    auto peers = chat.getPeerList();
     assert(peers);
     assert(peers->size() == 1);
     return (chatd::Priv) peers->getPeerPrivilege(0);
@@ -3141,15 +3223,24 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
-    bool changed = syncOwnPriv((chatd::Priv) chat.getOwnPrivilege());   // returns true if own privilege has changed
-    bool changedArchived = syncArchive(chat.isArchived());
-    changed |= changedArchived;
-    changed |= syncPeerPriv((chatd::Priv)chat.getPeerList()->getPeerPrivilege(0));
-
-    if (changedArchived)
+    auto peers = chat.getPeerList();
+    if (!mPeer && (peers && peers->size() > 0))
+    {
+        KR_LOG_ERROR(
+            "%ssyncWithApi: Asked to sync a self-chat with a chat from API with non-zero peers",
+            getLoggingName(),
+            karere::Id(chatid()).toString().c_str());
+    }
+    bool changed = syncArchive(chat.isArchived());
+    if (changed)
     {
         mIsArchived = chat.isArchived();
         onArchivedChanged(mIsArchived);
+    }
+    if (mPeer)
+    {
+        changed |= syncOwnPriv((chatd::Priv)chat.getOwnPrivilege()); // true if own priv changed
+        changed |= syncPeerPriv((chatd::Priv)peers->getPeerPrivilege(0));
     }
     return changed;
 }
@@ -3333,7 +3424,19 @@ void ChatRoomList::loadFromDb()
         ChatRoom* room;
         if (peer != uint64_t(-1))
         {
-            room = new PeerChatRoom(*this, chatid, stmt.integralCol<unsigned char>(2), stmt.integralCol<chatd::Priv>(3), peer, stmt.integralCol<chatd::Priv>(5), stmt.integralCol<int>(1), stmt.integralCol<int>(7));
+            auto peerRoom = new PeerChatRoom(*this,
+                                             chatid,
+                                             stmt.integralCol<unsigned char>(2),
+                                             stmt.integralCol<chatd::Priv>(3),
+                                             peer,
+                                             stmt.integralCol<chatd::Priv>(5),
+                                             stmt.integralCol<int>(1),
+                                             stmt.integralCol<int>(7));
+            room = peerRoom;
+            if (peerRoom->peer() == 0)
+            {
+                mSelfChat = peerRoom;
+            }
         }
         else
         {
@@ -3403,7 +3506,6 @@ void ChatRoomList::addMissingRoomsFromApi(const mega::MegaTextChatList& rooms, S
 ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
 {
     auto chatid = apiRoom.getHandle();
-
     ChatRoom* room;
     if(apiRoom.isGroup())
     {
@@ -3412,7 +3514,12 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     }
     else    // 1on1
     {
-        room = new PeerChatRoom(*this, apiRoom);
+        auto peerRoom = new PeerChatRoom(*this, apiRoom);
+        room = peerRoom;
+        if (peerRoom->peer() == 0) // chat with self
+        {
+            mSelfChat = peerRoom;
+        }
     }
 
 #ifndef NDEBUG
@@ -3687,7 +3794,7 @@ promise::Promise<void> GroupChatRoom::decryptTitle()
 {
     assert(!mEncryptedTitle.empty());
 
-    Buffer buf(mEncryptedTitle.size());    
+    Buffer buf(mEncryptedTitle.size());
     try
     {
         size_t decLen = base64urldecode(mEncryptedTitle.c_str(), mEncryptedTitle.size(), buf.buf(), buf.bufSize());
