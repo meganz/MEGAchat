@@ -1,0 +1,3 @@
+if (CMAKE_SYSTEM_NAME STREQUAL "Android")
+    set(CMAKE_SYSTEM_VERSION 26)
+endif()
