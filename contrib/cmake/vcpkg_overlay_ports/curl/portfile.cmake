@@ -48,6 +48,10 @@ if("sectransp" IN_LIST FEATURES)
     list(APPEND OPTIONS -DCURL_CA_PATH=none -DCURL_CA_BUNDLE=none)
 endif()
 
+if("boringssl" IN_LIST FEATURES)
+    list(APPEND OPTIONS -DCURL_USE_OPENSSL=ON)
+endif()
+
 # UWP targets
 if(VCPKG_TARGET_IS_UWP)
     list(APPEND OPTIONS
