@@ -554,8 +554,6 @@ void MegaChatApiTest::SetUp()
     LOG_info << "Test " << name << ": SetUp finished.";
 }
 
-void clearMegaChatApiImplLeftovers();
-
 void MegaChatApiTest::TearDown()
 {
     // Required order:
@@ -649,9 +647,6 @@ void MegaChatApiTest::TearDown()
             megaApi[i] = NULL;
         }
     }
-
-    // Clear MegaChatApi leftovers AFTER MegaApi instances have been released
-    clearMegaChatApiImplLeftovers();
 
     LOG_info << "Test " << name << ": TearDown finished.";
 }
