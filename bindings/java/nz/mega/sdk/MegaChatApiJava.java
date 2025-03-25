@@ -3204,7 +3204,8 @@ public class MegaChatApiJava {
     /**
      * Edit a geolocation message
      *
-     * Message's edits are only allowed during a short timeframe, usually 1 hour.
+     * Message's edits are only allowed during a short timeframe, usually 1 hour,
+     * except for note-to-self-chats where a message can be edited at any time.
      * Message's deletions are equivalent to message's edits, but with empty content.
      *
      * There is only one pending edit for not-yet confirmed edits. Therefore, this function will
@@ -3219,11 +3220,11 @@ public class MegaChatApiJava {
      * to know when an edit has been delivered to the target user, but only when the edit has been
      * received by the server, so for convenience the status of the original message is kept.
      * if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
-     * reach the status delivered, since the target user will not send the required acknowledge to the
-     * server upon reception.
+     * reach the status delivered, since the target user will not send the required acknowledge to
+     * the server upon reception.
      *
-     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
-     * that it isn't typing
+     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify
+     * other clients that it isn't typing
      *
      * You take the ownership of the returned value.
      *
@@ -3335,7 +3336,8 @@ public class MegaChatApiJava {
     /**
      * Edits an existing message
      *
-     * Message's edits are only allowed during a short timeframe, usually 1 hour.
+     * Message's edits are only allowed during a short timeframe, usually 1 hour,
+     * except for note-to-self-chats where a message can be edited at any time.
      * Message's deletions are equivalent to message's edits, but with empty content.
      *
      * There is only one pending edit for not-yet confirmed edits. Therefore, this function will

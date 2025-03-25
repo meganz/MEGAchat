@@ -205,6 +205,7 @@ ac::ACN autocompleteSyntax()
            sequence(text("revokeattachmentmessage"), param("roomid"), param("msgid")));
     p->Add(exec_editmessage,
            sequence(text("editmessage"), param("roomid"), param("msgid"), param("text")));
+    p->Add(exec_deletemessage, sequence(text("deletemessage"), param("roomid"), param("msgid")));
     p->Add(exec_setmessageseen, sequence(text("setmessageseen"), param("roomid"), param("msgid")));
     p->Add(exec_getLastMessageSeen, sequence(text("getLastMessageSeen"), param("roomid")));
     p->Add(exec_removeunsentmessage,

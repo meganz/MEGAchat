@@ -1095,7 +1095,8 @@ public:
     uint32_t ts;
     uint16_t updated;
     KeyId keyid;
-    unsigned char type;
+    Type type;
+    bool isNoteToSelf;
     BackRefId backRefId = 0;
     std::vector<BackRefId> backRefs;
     mutable void* userp;
@@ -1114,23 +1115,71 @@ public:
     bool isUndecryptable() const { return (mIsEncrypted == kEncryptedMalformed || mIsEncrypted == kEncryptedSignature); }
     void setEncrypted(uint8_t encrypted) { mIsEncrypted = encrypted; }
 
-    explicit Message(const karere::Id& aMsgid, const karere::Id& aUserid, uint32_t aTs, uint16_t aUpdated,
-          Buffer&& buf, bool aIsSending=false, KeyId aKeyid=CHATD_KEYID_INVALID,
-          unsigned char aType=kMsgNormal, void* aUserp=nullptr)
-      :Buffer(std::forward<Buffer>(buf)), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid),
-          ts(aTs), updated(aUpdated), keyid(aKeyid), type(aType), userp(aUserp){}
+    explicit Message(const karere::Id& aMsgid,
+                     const karere::Id& aUserid,
+                     uint32_t aTs,
+                     uint16_t aUpdated,
+                     Buffer&& buf,
+                     bool aIsSending = false,
+                     KeyId aKeyid = CHATD_KEYID_INVALID,
+                     bool aIsNoteToSelf = false,
+                     Type aType = kMsgNormal,
+                     void* aUserp = nullptr):
+        Buffer(std::forward<Buffer>(buf)),
+        mId(aMsgid),
+        mIdIsXid(aIsSending),
+        userid(aUserid),
+        ts(aTs),
+        updated(aUpdated),
+        keyid(aKeyid),
+        type(aType),
+        isNoteToSelf(aIsNoteToSelf),
+        userp(aUserp)
+    {}
 
-    explicit Message(const karere::Id& aMsgid, const karere::Id& aUserid, uint32_t aTs, uint16_t aUpdated,
-            const char* msg, size_t msglen, bool aIsSending=false,
-            KeyId aKeyid=CHATD_KEYID_INVALID, unsigned char aType=kMsgInvalid, void* aUserp=nullptr,
-            BackRefId aBackRefId = 0, std::vector<BackRefId> aBackRefs = std::vector<BackRefId>())
-        :Buffer(msg, msglen), mId(aMsgid), mIdIsXid(aIsSending), userid(aUserid), ts(aTs),
-            updated(aUpdated), keyid(aKeyid), type(aType), backRefId(aBackRefId), backRefs(aBackRefs), userp(aUserp){}
+    explicit Message(const karere::Id& aMsgid,
+                     const karere::Id& aUserid,
+                     uint32_t aTs,
+                     uint16_t aUpdated,
+                     const char* msg,
+                     size_t msglen,
+                     bool aIsSending = false,
+                     KeyId aKeyid = CHATD_KEYID_INVALID,
+                     bool aIsNoteToSelf = false,
+                     Type aType = kMsgInvalid,
+                     void* aUserp = nullptr,
+                     BackRefId aBackRefId = 0,
+                     std::vector<BackRefId> aBackRefs = std::vector<BackRefId>()):
+        Buffer(msg, msglen),
+        mId(aMsgid),
+        mIdIsXid(aIsSending),
+        userid(aUserid),
+        ts(aTs),
+        updated(aUpdated),
+        keyid(aKeyid),
+        type(aType),
+        isNoteToSelf(aIsNoteToSelf),
+        backRefId(aBackRefId),
+        backRefs(aBackRefs),
+        userp(aUserp)
+    {}
 
-    Message(const Message& msg)
-        : Buffer(msg.buf(), msg.dataSize()), mId(msg.id()), mIdIsXid(msg.mIdIsXid), mIsEncrypted(msg.mIsEncrypted),
-          userid(msg.userid), ts(msg.ts), updated(msg.updated), keyid(msg.keyid), type(msg.type), backRefId(msg.backRefId),
-          backRefs(msg.backRefs), userp(msg.userp), userFlags(msg.userFlags), richLinkRemoved(msg.richLinkRemoved)
+    Message(const Message& msg):
+        Buffer(msg.buf(), msg.dataSize()),
+        mId(msg.id()),
+        mIdIsXid(msg.mIdIsXid),
+        mIsEncrypted(msg.mIsEncrypted),
+        userid(msg.userid),
+        ts(msg.ts),
+        updated(msg.updated),
+        keyid(msg.keyid),
+        type(msg.type),
+        isNoteToSelf(msg.isNoteToSelf),
+        backRefId(msg.backRefId),
+        backRefs(msg.backRefs),
+        userp(msg.userp),
+        userFlags(msg.userFlags),
+        richLinkRemoved(msg.richLinkRemoved)
     {}
 
     /** @brief Returns the ManagementInfo structure contained within the message

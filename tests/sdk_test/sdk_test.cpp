@@ -4233,6 +4233,8 @@ TEST_F(MegaChatApiTest, SelfChat)
     std::unique_ptr<MegaChatMessage> msgSent(
         sendTextMessageOrUpdate(0, UINT_MAX, chatid, text, &chatroomListener));
     ASSERT_TRUE(msgSent);
+    ASSERT_TRUE(msgSent->isNoteToSelf());
+    ASSERT_TRUE(msgSent->isEditable());
     MegaChatHandle msgId = msgSent->getMsgId();
 
     LOG_debug << "#### Test2: Receive message ####";

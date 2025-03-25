@@ -983,7 +983,15 @@ public:
      * into memory*/
     Idx size() const { return static_cast<Idx>(mForwardList.size() + mBackwardList.size()); }
     /** @brief Whether we have any messages in the history buffer */
-    bool empty() const { return mForwardList.empty() && mBackwardList.empty();}
+    bool empty() const
+    {
+        return mForwardList.empty() && mBackwardList.empty();
+    }
+
+    bool isNoteToSelf() const
+    {
+        return !mIsGroup && mUsers.size() == 1;
+    }
     bool isDisabled() const { return mIsDisabled; }
     bool isFirstJoin() const { return mIsFirstJoin; }
     void disable(bool state);
@@ -1222,7 +1230,7 @@ public:
      * application-specific type like link, share, picture etc.
      * @param userp - An optional user pointer to associate with the message object
      */
-    Message* msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp);
+    Message* msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp);
 
     /** @brief Queues a message as an edit message for the specified original message.
      * @param msg - the original message
@@ -1236,7 +1244,11 @@ public:
      * The user is responsible to clear any reference to a previous edit to avoid a
      * dangling pointer.
      */
-    Message* msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype);
+    Message* msgModify(Message& msg,
+                       const char* newdata,
+                       size_t newlen,
+                       void* userp,
+                       Message::Type newtype);
 
     /**
      * @brief Import a message into the history
