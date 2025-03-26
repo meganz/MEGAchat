@@ -653,7 +653,8 @@ int Client::importMessages(const char *externalDbPath)
             else    // not found
             {
                 // check if a truncate in external DB has cleared this message (idx greater than newest app msg)
-                query = "select msgid, idx, type from history where chatid = ?1 and idx > ?2";
+                query = "select msgid, idx, type from history where chatid = ?1 and idx > ?2 order "
+                        "by idx asc";
                 SqliteStmt stmt2(dbExternal, query.c_str());
                 stmt2 << chatid << newestAppIdx;
                 if (stmt2.step())
