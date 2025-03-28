@@ -646,12 +646,15 @@ int Client::importMessages(const char *externalDbPath)
                 firstIdxToImport = stmt1.integralCol<int>(0);
 
                 // ts of oldest message in app that could have been updated/deleted
-                editableMsgsTs = newestAppMsg->ts - CHATD_MAX_EDIT_AGE;
+                // If it's a self-chat, any message is editable, so force search for message updates
+                // to start from oldest message in external db.
+                editableMsgsTs = chat.isNoteToSelf() ? 1 : (newestAppMsg->ts - CHATD_MAX_EDIT_AGE);
             }
             else    // not found
             {
                 // check if a truncate in external DB has cleared this message (idx greater than newest app msg)
-                query = "select msgid, idx, type from history where chatid = ?1 and idx > ?2";
+                query = "select msgid, idx, type from history where chatid = ?1 and idx > ?2 order "
+                        "by idx asc";
                 SqliteStmt stmt2(dbExternal, query.c_str());
                 stmt2 << chatid << newestAppIdx;
                 if (stmt2.step())
@@ -708,12 +711,20 @@ int Client::importMessages(const char *externalDbPath)
             karere::Id userid(stmtMsg.integralCol<uint64_t>(0));
             karere::Id msgid(stmtMsg.integralCol<uint64_t>(9));
             uint32_t ts = stmtMsg.integralCol<uint32_t>(1);
-            unsigned char type = stmtMsg.integralCol<unsigned char>(2);
+            auto type = stmtMsg.integralCol<chatd::Message::Type>(2);
             uint16_t updated = stmtMsg.integralCol<uint16_t>(7);
             chatd::KeyId keyid = stmtMsg.integralCol<chatd::KeyId>(5);
             Buffer buf;
             stmtMsg.blobCol(3, buf);
-            msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+            msg.reset(new chatd::Message(msgid,
+                                         userid,
+                                         ts,
+                                         updated,
+                                         std::move(buf),
+                                         false,
+                                         keyid,
+                                         chatroom->isNoteToSelf(),
+                                         type));
             msg->backRefId = stmtMsg.integralCol<uint64_t>(6);
             msg->setEncrypted(stmtMsg.integralCol<uint8_t>(8));
 
@@ -818,11 +829,19 @@ int Client::importMessages(const char *externalDbPath)
                 std::unique_ptr<chatd::Message> msg;
                 karere::Id userid(stmtMsgUpdated.integralCol<uint64_t>(0));
                 uint32_t ts = stmtMsgUpdated.integralCol<uint32_t>(1);
-                unsigned char type = stmtMsgUpdated.integralCol<unsigned char>(2);
+                auto type = stmtMsgUpdated.integralCol<chatd::Message::Type>(2);
                 Buffer buf;
                 stmtMsgUpdated.blobCol(3, buf);
                 chatd::KeyId keyid = stmtMsgUpdated.integralCol<chatd::KeyId>(5);
-                msg.reset(new chatd::Message(msgid, userid, ts, updated, std::move(buf), false, keyid, type));
+                msg.reset(new chatd::Message(msgid,
+                                             userid,
+                                             ts,
+                                             updated,
+                                             std::move(buf),
+                                             false,
+                                             keyid,
+                                             chatroom->isNoteToSelf(),
+                                             type));
                 msg->backRefId = stmtMsgUpdated.integralCol<uint64_t>(7);
                 msg->setEncrypted(stmtMsgUpdated.integralCol<uint8_t>(8));
 

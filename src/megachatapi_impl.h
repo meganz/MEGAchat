@@ -1217,6 +1217,7 @@ public:
     bool isDeleted() const override;
     bool isEditable() const override;
     bool isDeletable() const override;
+    bool isNoteToSelf() const override;
     bool isManagementMessage() const override;
     MegaChatHandle getHandleOfAction() const override;
     int getPrivilege() const override;
@@ -1269,6 +1270,7 @@ private:
     const char *mMsg;
     bool edited;
     bool deleted;
+    bool mIsNoteToSelf;
     int priv;               // certain messages need additional info, like priv changes
     int mCode;               // generic field for additional information (ie. the reason of manual sending)
     bool mHasReactions;

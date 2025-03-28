@@ -6257,7 +6257,8 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        Message *m = chatroom->chat().msgSubmit(msg, msgLen, static_cast<unsigned char>(type), NULL);
+        Message* m =
+            chatroom->chat().msgSubmit(msg, msgLen, static_cast<Message::Type>(type), NULL);
 
         if (!m)
         {
@@ -6441,9 +6442,10 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            unsigned char newtype = (originalMsg->containMetaSubtype() == Message::ContainsMetaSubType::kRichLink)
-                    ? (unsigned char) Message::kMsgNormal
-                    : originalMsg->type;
+            Message::Type newtype =
+                (originalMsg->containMetaSubtype() == Message::ContainsMetaSubType::kRichLink) ?
+                    Message::kMsgNormal :
+                    originalMsg->type;
 
             if (msg && newtype == Message::kMsgNormal)    // actually not deletion, but edit
             {
@@ -11812,6 +11814,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     changed = msg->getChanges();
     edited = msg->isEdited();
     deleted = msg->isDeleted();
+    mIsNoteToSelf = msg->isNoteToSelf();
     priv = msg->getPrivilege();
     mCode = msg->getCode();
     rowId = msg->getRowId();
@@ -11841,7 +11844,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
-    if (msg.type == TYPE_NORMAL || msg.type == TYPE_CHAT_TITLE)
+    auto msgType = static_cast<int>(msg.type);
+    if (msgType == TYPE_NORMAL || msgType == TYPE_CHAT_TITLE)
     {
         string tmp(msg.buf(), msg.size());
         mMsg = msg.size() ? MegaApi::strdup(tmp.c_str()) : NULL;
@@ -11854,7 +11858,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     mTempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
     rowId = MEGACHAT_INVALID_HANDLE;
-    type = msg.type;
+    type = msgType;
     mHasReactions = msg.hasConfirmedReactions();
     ts = msg.ts;
     mStatus = status;
@@ -11862,6 +11866,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     changed = 0;
     edited = msg.updated && msg.size();
     deleted = msg.updated && !msg.size();
+    mIsNoteToSelf = msg.isNoteToSelf;
     mCode = 0;
     priv = MegaChatPeerList::PRIV_UNKNOWN;
     hAction = MEGACHAT_INVALID_HANDLE;
@@ -12100,15 +12105,22 @@ bool MegaChatMessagePrivate::isDeleted() const
 
 bool MegaChatMessagePrivate::isEditable() const
 {
-    return ((type == TYPE_NORMAL || type == TYPE_CONTAINS_META) && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE) && !isGiphy());
+    return ((type == TYPE_NORMAL || type == TYPE_CONTAINS_META) && !isDeleted() &&
+            (((time(NULL) - ts) < CHATD_MAX_EDIT_AGE) || isNoteToSelf()) && !isGiphy());
 }
 
 bool MegaChatMessagePrivate::isDeletable() const
 {
-    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT || type == TYPE_NODE_ATTACHMENT || type == TYPE_CONTAINS_META || type == TYPE_VOICE_CLIP)
-            && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
+    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT ||
+             type == TYPE_NODE_ATTACHMENT || type == TYPE_CONTAINS_META ||
+             type == TYPE_VOICE_CLIP) &&
+            !isDeleted() && (((time(NULL) - ts) < CHATD_MAX_EDIT_AGE) || isNoteToSelf()));
 }
 
+bool MegaChatMessagePrivate::isNoteToSelf() const
+{
+    return mIsNoteToSelf;
+}
 bool MegaChatMessagePrivate::isManagementMessage() const
 {
     return (type >= TYPE_LOWEST_MANAGEMENT

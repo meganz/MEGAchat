@@ -2280,6 +2280,11 @@ bool MegaChatMessage::isDeletable() const
     return false;
 }
 
+bool MegaChatMessage::isNoteToSelf() const
+{
+    return false;
+}
+
 bool MegaChatMessage::isManagementMessage() const
 {
     return false;
