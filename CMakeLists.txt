@@ -37,6 +37,7 @@ else()
 endif()
 
 include(chatlib_options)
+include(chatlib_variables)
 
 if(NOT PROJECT_NAME)
     if(VCPKG_ROOT)

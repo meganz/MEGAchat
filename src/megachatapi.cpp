@@ -1859,6 +1859,11 @@ bool MegaChatRoom::isPublic() const
     return false;
 }
 
+bool MegaChatRoom::isNoteToSelf() const
+{
+    return false;
+}
+
 bool MegaChatRoom::isPreview() const
 {
     return false;
@@ -2111,6 +2116,11 @@ bool MegaChatListItem::isGroup() const
 }
 
 bool MegaChatListItem::isPublic() const
+{
+    return false;
+}
+
+bool MegaChatListItem::isNoteToSelf() const
 {
     return false;
 }

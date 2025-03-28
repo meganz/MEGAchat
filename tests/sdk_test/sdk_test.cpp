@@ -4189,23 +4189,30 @@ TEST_F(MegaChatApiTest, SelfChat)
     std::unique_ptr<MegaChatRoom> selfRoom(
         megaChatApi[0]->getChatRoomByUser(megaChatApi[0]->getMyUserHandle()));
     ASSERT_TRUE(selfRoom) << "SelfChat: failed to get newly created chatroom with self";
+    ASSERT_TRUE(selfRoom->isNoteToSelf());
+    ASSERT_TRUE(!selfRoom->isGroup() && selfRoom->getPeerCount() == 0);
+    ASSERT_EQ(selfRoom->getOwnPrivilege(), PRIV_MODERATOR) << "we aren't moderator in self-chat";
+    ASSERT_EQ(selfRoom->getPeerHandle(0), MEGACHAT_INVALID_HANDLE);
 
     std::unique_ptr<MegaChatRoomList> rooms(
         megaChatApi[0]->getChatRoomsByType(MegaChatApi::CHAT_TYPE_SELF));
     ASSERT_TRUE(rooms->size() == 1);
     auto room0 = rooms->get(0);
+    ASSERT_TRUE(room0->isNoteToSelf());
     ASSERT_TRUE(!room0->isGroup() && room0->getPeerCount() == 0);
+
     std::shared_ptr<MegaChatRoom> room(
         megaChatApi[0]->getChatRoomByUser(megaChatApi[0]->getMyUserHandle()));
+    ASSERT_TRUE(room0->isNoteToSelf());
     ASSERT_TRUE(!room->isGroup() && room->getPeerCount() == 0);
+
+    auto items = megaChatApi[0]->getChatListItemsByType(MegaChatApi::CHAT_TYPE_SELF);
+    ASSERT_TRUE(items);
+    ASSERT_TRUE(items->size() == 1);
+    ASSERT_TRUE(items->get(0)->isNoteToSelf());
 
     auto chatid = selfRoom->getChatId();
     ASSERT_NE(chatid, MEGACHAT_INVALID_HANDLE) << "SelfChat: invalid chatid for self-chat room";
-    ASSERT_TRUE(!selfRoom->isGroup());
-    ASSERT_EQ(selfRoom->getPeerCount(), 0);
-    ASSERT_EQ(selfRoom->getOwnPrivilege(), PRIV_MODERATOR) << "we aren't moderator in self-chat";
-    ASSERT_EQ(selfRoom->getPeerHandle(0), MEGACHAT_INVALID_HANDLE);
-    std::unique_ptr<char[]> myName(megaChatApi[0]->getMyFullname());
     // Wait until room is connected to chatd
     if (megaChatApi[0]->getChatConnectionState(chatid) != MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
@@ -4216,13 +4223,7 @@ TEST_F(MegaChatApiTest, SelfChat)
     TestChatRoomListener chatroomListener(this, megaChatApi, chatid);
     ASSERT_TRUE(megaChatApi[0]->openChatRoom(chatid, &chatroomListener))
         << "Can't open self-chat room";
-    // Wait till client gets own user's full name and self-chat gets a title update event
-    const char* title;
-    while (!(title = selfRoom->getTitle()) || title[0] == 0)
-    {
-        ASSERT_TRUE(waitForResponse(&chatroomListener.chatUpdated[0]));
-    }
-    ASSERT_TRUE(strcmp(selfRoom->getTitle(), myName.get()) == 0)
+    ASSERT_STREQ(selfRoom->getTitle(), "Note to self")
         << "Self-chat room name is not same as our user's";
 
     ASSERT_NO_FATAL_FAILURE(loadHistory(0, chatid, &chatroomListener));

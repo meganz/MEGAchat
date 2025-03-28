@@ -45,6 +45,7 @@ typedef int MegaChatIndex;  // int32_t
 const MegaChatHandle MEGACHAT_INVALID_HANDLE = ~(MegaChatHandle)0;
 const MegaChatIndex MEGACHAT_INVALID_INDEX = 0x7fffffff;
 const MegaChatTimeStamp MEGACHAT_INVALID_TIMESTAMP = 0;
+const MegaChatHandle MEGACHAT_SELFCHAT_NULL_PEER_HANDLE = 0;
 const int MAX_MESSAGES_PER_BLOCK = 256;
 const int MIN_MESSAGES_PER_BLOCK = 1;
 
@@ -1338,7 +1339,7 @@ public:
      * @brief Returns a MegaChatWaitingRoom instance for this call, if any
      *
      * This method can be called just by users with moderator role
-     * 
+     *
      * The MegaChatCall retains the ownership of returned value.
      *
      * @return a MegaChatWaitingRoom for this call, if any
@@ -1923,7 +1924,7 @@ public:
      * Meta contained is from geolocation type
      *
      *  - MegaChatContainsMeta::CONTAINS_META_GIPHY  = 2
-     * Meta contained is from giphy type  
+     * Meta contained is from giphy type
      * @return Type from meta contained of the message
      */
     virtual int getType() const;
@@ -1969,7 +1970,7 @@ public:
      * @return MegaChatGeolocation with details about geolocation.
      */
     virtual const MegaChatGeolocation *getGeolocation() const;
-    
+
     /**
      * @brief Returns data about giphy
      *
@@ -3635,7 +3636,7 @@ public:
      * @return The state of connection
      */
     int getChatConnectionState(MegaChatHandle chatid);
-    
+
     /**
      * @brief Check whether client is logged in into all chats
      *
@@ -4500,14 +4501,16 @@ public:
 
     /**
      * @brief Allows to enable/disable the open invite option for a chat room
-     * 
-     * The open invite option allows users with MegaChatRoom::PRIV_STANDARD privilege, to invite other users into the chat
+     *
+     * The open invite option allows users with MegaChatRoom::PRIV_STANDARD privilege, to invite
+     * other users into the chat
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
      * - MegaChatRequest::getPrivilege - Returns MegaChatApi::CHAT_OPTION_OPEN_INVITE
-     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return
+     * false
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
@@ -4523,14 +4526,16 @@ public:
 
     /**
      * @brief Allows to enable/disable the speak request option for a chat room
-     * 
-     * If speak request option is enabled, during calls non moderator users, must request permission to speak
+     *
+     * If speak request option is enabled, during calls non moderator users, must request permission
+     * to speak
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
      * - MegaChatRequest::getPrivilege - Returns MegaChatApi::CHAT_OPTION_SPEAK_REQUEST
-     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return
+     * false
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
@@ -4546,14 +4551,16 @@ public:
 
     /**
      * @brief Allows to enable/disable the waiting room option for a chat room
-     * 
-     * If waiting room option is enabled, during calls non moderator members, will be placed into a waiting room.
+     *
+     * If waiting room option is enabled, during calls non moderator members, will be placed into a
+     * waiting room.
      *
      * The associated request type with this request is MegaChatRequest::TYPE_SET_CHATROOM_OPTIONS
      * Valid data in the MegaChatRequest object received on callbacks:
      * - MegaChatRequest::getChatHandle - Returns the handle of the chatroom
      * - MegaChatRequest::getPrivilege - Returns MegaChatApi:::CHAT_OPTION_WAITING_ROOM
-     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return false
+     * - MegaChatRequest::getFlag - Returns true if enabled was set true, otherwise it will return
+     * false
      *
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT - If the chatroom does not exists or the chatid is invalid.
@@ -5759,16 +5766,17 @@ public:
      * That id is not the definitive id, which will be assigned by the server. You can obtain the
      * temporal id with MegaChatMessage::getTempId
      *
-     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
-     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
-     * At this point, the app should refresh the message identified by the temporal id and move it to
-     * the final position in the history, based on the reported index in the callback.
+     * When the server confirms the reception of the message, the
+     * MegaChatRoomListener::onMessageUpdate is called, including the definitive id and the new
+     * status: MegaChatMessage::STATUS_SERVER_RECEIVED. At this point, the app should refresh the
+     * message identified by the temporal id and move it to the final position in the history, based
+     * on the reported index in the callback.
      *
-     * If the message is rejected by the server, the message will keep its temporal id and will have its
-     * a message id set to MEGACHAT_INVALID_HANDLE.
+     * If the message is rejected by the server, the message will keep its temporal id and will have
+     * its a message id set to MEGACHAT_INVALID_HANDLE.
      *
      * You take the ownership of the returned value.
-     *     
+     *
      *
      * @param chatid MegaChatHandle that identifies the chat room
      * @param srcMp4 Source location of the mp4
@@ -5780,7 +5788,7 @@ public:
      * @param title Title of the giphy
      *
      * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
-    */
+     */
     MegaChatMessage *sendGiphy(MegaChatHandle chatid, const char* srcMp4, const char* srcWebp, long long sizeMp4, long long sizeWebp, int width, int height, const char* title);
 
     /**
@@ -6086,18 +6094,18 @@ public:
      *
      * If the edit is rejected because the original message is too old, this function return NULL.
      *
-     * When an already delivered message (MegaChatMessage::STATUS_DELIVERED) is edited, the status 
+     * When an already delivered message (MegaChatMessage::STATUS_DELIVERED) is edited, the status
      * of the message will change from STATUS_SENDING directly to STATUS_DELIVERED again, without
      * the transition through STATUS_SERVER_RECEIVED. In other words, the protocol doesn't allow
      * to know when an edit has been delivered to the target user, but only when the edit has been
      * received by the server, so for convenience the status of the original message is kept.
      * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
-     * reach the status delivered, since the target user will not send the required acknowledge to the
-     * server upon reception.
+     * reach the status delivered, since the target user will not send the required acknowledge to
+     * the server upon reception.
      *
-     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
-     * that it isn't typing
-     * 
+     * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify
+     * other clients that it isn't typing
+     *
      * You take the ownership of the returned value.
      *
      * @param chatid MegaChatHandle that identifies the chat room
@@ -7362,12 +7370,15 @@ public:
     /**
      * @brief Enables or disables support for speak request feature in calls
      *
-     * In order to start/answer a call with speak request feature, we need to call this method with enable param (true).
-     * This feature is only available for those chats that MegaChatRoom::isSpeakRequest returns true. Check 
-     * MegaChatApi::setSpeakRequest to enable or disable option in chatroom.
-     * @note Do not call this method if there's any call in progress, as it could generate side effects
-     * 
-     * @param enable set true if we want to enable support for speak request feature in calls, otherwise set false
+     * In order to start/answer a call with speak request feature, we need to call this method with
+     * enable param (true). This feature is only available for those chats that
+     * MegaChatRoom::isSpeakRequest returns true. Check MegaChatApi::setSpeakRequest to enable or
+     * disable option in chatroom.
+     * @note Do not call this method if there's any call in progress, as it could generate side
+     * effects
+     *
+     * @param enable set true if we want to enable support for speak request feature in calls,
+     * otherwise set false
      */
     void enableSpeakRequestSupportForCalls(bool enable);
 
@@ -8205,9 +8216,16 @@ public:
     virtual bool isPublic() const;
 
     /**
+     * @brief Returns whether this chat is a note-to-self 1on1 chat.
+     * @return True if it's a note-to-self chat.
+     */
+
+    virtual bool isNoteToSelf() const;
+    /**
      * @brief Returns whether a public chat is in preview mode or not
      * @return True if this public chat is in preview mode.
      */
+
     virtual bool isPreview() const;
 
     /**
@@ -8397,6 +8415,12 @@ public:
      * @return True if this chat is a public chat.
      */
     virtual bool isPublic() const;
+
+    /**
+     * @brief Returns whether this chat is a note-to-self 1on1 chat.
+     * @return True if it's a note-to-self chat.
+     */
+    virtual bool isNoteToSelf() const;
 
     /**
      * @brief Returns whether this chat is in preview mode or not

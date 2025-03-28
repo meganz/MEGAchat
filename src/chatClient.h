@@ -289,11 +289,23 @@ protected:
     ~PeerChatRoom();
 
 public:
+    static constexpr const char* SELF_CHAT_TITLE = "Note to self";
     IApp::IChatListItem* roomGui() override { return mRoomGui; }
     /** @brief The userid of the other person in the 1on1 chat */
-    uint64_t peer() const { return mPeer; }
-    chatd::Priv peerPrivilege() const { return mPeerPriv; }
+    uint64_t peer() const
+    {
+        return mPeer;
+    }
 
+    chatd::Priv peerPrivilege() const
+    {
+        return mPeerPriv;
+    }
+
+    bool isNoteToSelf() const
+    {
+        return !mPeer;
+    }
     /**
      * @brief The contact object representing the peer of the 1on1 chat.
      * @note Returns nullptr when the 1on1 chat is with a user who canceled the account

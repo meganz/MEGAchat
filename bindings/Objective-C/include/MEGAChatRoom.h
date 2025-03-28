@@ -44,6 +44,7 @@ typedef NS_ENUM (NSInteger, MEGAChatRoomPrivilege) {
 @property (readonly, nonatomic, getter=isGroup) BOOL group;
 @property (readonly, nonatomic, getter=isPublicChat) BOOL publicChat;
 @property (readonly, nonatomic, getter=isPreview) BOOL preview;
+@property (readonly, nonatomic, getter=isNoteToSelf) BOOL noteToSelf;
 @property (readonly, nonatomic, nullable) NSString *authorizationToken;
 @property (readonly, nonatomic, nullable) NSString *title;
 @property (readonly, nonatomic, getter=hasCustomTitle) BOOL customTitle;

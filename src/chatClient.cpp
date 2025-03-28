@@ -955,23 +955,23 @@ promise::Promise<void> Client::createSelfChat()
             [this, wptr](ReqResult result) -> Promise<void>
             {
                 wptr.throwIfDeleted();
-                auto& list = *result->getMegaTextChatList();
-                if (list.size() < 1)
+                auto list = result->getMegaTextChatList();
+                if (list->size() < 1)
                 {
                     return promise::Error("Empty chat list returned from API");
                 }
-                auto apiRoom = *list.get(0);
-                if (apiRoom.isGroup())
+                auto apiRoom = list->get(0);
+                if (apiRoom->isGroup())
                 {
                     return promise::Error("API returned a group self-chat instead of 1on1");
                 }
-                if (apiRoom.getPeerList())
+                if (apiRoom->getPeerList())
                 {
                     return promise::Error("API returned a self-chat with more than 0 peers");
                 }
                 if (!chats->selfChat()) // if not created meanwhile
                 {
-                    auto chat = chats->addRoom(apiRoom);
+                    auto chat = chats->addRoom(*apiRoom);
                     assert(!chat->isGroup());
                     assert(chats->selfChat());
                     chat->connect();
@@ -2140,10 +2140,6 @@ void Client::setOwnName(const Buffer& data, bool isInitial)
 {
     assert(!data.empty());
     mMyName.assign(data.buf(), data.dataSize());
-    if (chats->selfChat())
-    {
-        chats->selfChat()->updateTitle(std::string(mMyName.c_str() + 1, mMyName.size() - 1));
-    }
 }
 void Client::sendStats()
 {
@@ -2723,6 +2719,10 @@ void PeerChatRoom::connect()
 
 promise::Promise<void> PeerChatRoom::requesGrantAccessToNodes(mega::MegaNodeList *nodes)
 {
+    if (!mPeer)
+    {
+        return promise::_Void();
+    }
     std::vector<ApiPromise> promises;
 
     for (int i = 0; i < nodes->size(); ++i)
@@ -3052,15 +3052,7 @@ void PeerChatRoom::initContact(const uint64_t& peer)
     {
         mContact = nullptr;
         mEmail = parent.mKarereClient.myEmail();
-        const auto& myName = parent.mKarereClient.myName();
-        if (!myName.empty())
-        {
-            mTitleString.assign(myName.c_str() + 1, myName.size() - 1);
-        }
-        else
-        {
-            mTitleString = mEmail;
-        }
+        mTitleString.assign(SELF_CHAT_TITLE);
         return;
     }
     mContact = parent.mKarereClient.mContactList->contactFromUserId(peer);
@@ -3224,7 +3216,7 @@ bool PeerChatRoom::syncPeerPriv(chatd::Priv priv)
 bool PeerChatRoom::syncWithApi(const mega::MegaTextChat &chat)
 {
     auto peers = chat.getPeerList();
-    if (!mPeer && (peers && peers->size() > 0))
+    if (isNoteToSelf() && (peers && peers->size() > 0))
     {
         KR_LOG_ERROR(
             "%ssyncWithApi: Asked to sync a self-chat with a chat from API with non-zero peers",
@@ -3433,7 +3425,7 @@ void ChatRoomList::loadFromDb()
                                              stmt.integralCol<int>(1),
                                              stmt.integralCol<int>(7));
             room = peerRoom;
-            if (peerRoom->peer() == 0)
+            if (peerRoom->isNoteToSelf())
             {
                 mSelfChat = peerRoom;
             }
@@ -3516,7 +3508,7 @@ ChatRoom* ChatRoomList::addRoom(const mega::MegaTextChat& apiRoom)
     {
         auto peerRoom = new PeerChatRoom(*this, apiRoom);
         room = peerRoom;
-        if (peerRoom->peer() == 0) // chat with self
+        if (peerRoom->isNoteToSelf()) // chat with self
         {
             mSelfChat = peerRoom;
         }
