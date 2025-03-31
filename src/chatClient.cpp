@@ -401,11 +401,15 @@ bool Client::openDb(const std::string& sid)
             else if (cachedVersionSuffix == "10" && (strcmp(gDbSchemaVersionSuffix, "11") == 0))
             {
                 KR_LOG_WARNING("%sPurging oldest message per chat...", getLoggingName());
-                SqliteStmt stmt(db, "select msgid, min(idx), c.chatid from history as h INNER JOIN chat_vars as c on h.chatid = c.chatid where c.name = 'have_all_history' GROUP BY c.chatid;");
+                SqliteStmt stmt(
+                    db,
+                    "SELECT msgid, chatid FROM history AS h"
+                    " WHERE idx = (SELECT min(idx) FROM history WHERE chatid=h.chatid)"
+                    " AND chatid IN (SELECT chatid FROM chat_vars WHERE name = 'have_all_history'");
                 while (stmt.step())
                 {
                    karere::Id msgid = stmt.integralCol<uint64_t>(0);
-                   karere::Id chatid = stmt.integralCol<uint64_t>(2);
+                   karere::Id chatid = stmt.integralCol<uint64_t>(1);
                    db.query("delete from history where chatid = ? and msgid = ?", chatid, msgid);
                    db.query("delete from chat_vars where chatid = ? and name = 'have_all_history'", chatid);
                 }
@@ -683,13 +687,13 @@ int Client::importMessages(const char *externalDbPath)
         else    // chat history is empty in the app
         {
             // find the oldest message in external DB: first msgid to import
-            query = "select min(idx), msgid, idx from history where chatid = ?1";
+            query = "select msgid, idx from history where chatid = ?1 order by idx asc, limit 1";
             SqliteStmt stmt(dbExternal, query.c_str());
             stmt << chatid;
             if (stmt.step())
             {
-                firstMsgidToImport = stmt.integralCol<uint64_t>(1);
-                firstIdxToImport = stmt.integralCol<int>(2);
+                firstMsgidToImport = stmt.integralCol<uint64_t>(0);
+                firstIdxToImport = stmt.integralCol<int>(1);
             }
             else
             {
