@@ -404,7 +404,7 @@ bool Client::openDb(const std::string& sid)
                 SqliteStmt stmt(
                     db,
                     "SELECT msgid, chatid FROM history AS h"
-                    " WHERE idx = (SELECT min(idx) FROM history WHERE chatid=h.chatid)"
+                    " WHERE idx = (SELECT min(idx) FROM history WHERE chatid = h.chatid)"
                     " AND chatid IN (SELECT chatid FROM chat_vars WHERE name = 'have_all_history'");
                 while (stmt.step())
                 {
@@ -687,7 +687,7 @@ int Client::importMessages(const char *externalDbPath)
         else    // chat history is empty in the app
         {
             // find the oldest message in external DB: first msgid to import
-            query = "select msgid, idx from history where chatid = ?1 order by idx asc, limit 1";
+            query = "SELECT msgid, idx FROM history WHERE chatid = ?1 ORDER BY idx ASC, LIMIT 1";
             SqliteStmt stmt(dbExternal, query.c_str());
             stmt << chatid;
             if (stmt.step())
