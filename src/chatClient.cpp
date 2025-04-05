@@ -687,7 +687,7 @@ int Client::importMessages(const char *externalDbPath)
         else    // chat history is empty in the app
         {
             // find the oldest message in external DB: first msgid to import
-            query = "SELECT msgid, idx FROM history WHERE chatid = ?1 ORDER BY idx ASC, LIMIT 1";
+            query = "SELECT msgid, idx FROM history WHERE chatid = ?1 ORDER BY idx ASC LIMIT 1";
             SqliteStmt stmt(dbExternal, query.c_str());
             stmt << chatid;
             if (stmt.step())
