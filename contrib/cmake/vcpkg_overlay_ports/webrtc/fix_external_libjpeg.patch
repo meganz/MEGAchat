@@ -1,0 +1,26 @@
+diff --git a/third_party/BUILD.gn b/third_party/BUILD.gn
+index 256fd09..cfacc7b 100644
+--- a/third_party/BUILD.gn
++++ b/third_party/BUILD.gn
+@@ -15,6 +15,7 @@ assert(
+ config("system_libjpeg_config") {
+   libs = [ "jpeg" ]
+   defines = [ "USE_SYSTEM_LIBJPEG" ]
++  include_dirs = [ "$libjpeg_include_dirs" ]
+ }
+ 
+ config("libjpeg_turbo_config") {
+diff --git a/third_party/libjpeg.gni b/third_party/libjpeg.gni
+index 3bf669f..b38ee04 100644
+--- a/third_party/libjpeg.gni
++++ b/third_party/libjpeg.gni
+@@ -6,6 +6,9 @@ declare_args() {
+   # Uses system libjpeg. If true, overrides use_libjpeg_turbo.
+   use_system_libjpeg = false
+ 
++  # Directory for the libjpeg headers to be used in WebRTC.
++  libjpeg_include_dirs = ""
++
+   # Uses libjpeg_turbo as the jpeg implementation. Has no effect if
+   # use_system_libjpeg is set.
+   use_libjpeg_turbo = true

@@ -68,7 +68,9 @@ if(NOT EXISTS ${SOURCE_PATH}/sources.ready)
     if (VCPKG_TARGET_IS_LINUX)
         vcpkg_apply_patches(
             SOURCE_PATH ${WEBRTC_SOURCES_PATH}
-            PATCHES fix_include.patch
+            PATCHES
+                fix_include.patch
+                fix_external_libjpeg.patch
         )
     endif()
 
@@ -109,6 +111,7 @@ elseif (VCPKG_TARGET_IS_IOS)
 elseif (VCPKG_TARGET_IS_LINUX)
     set(is_clang false) # Set to true when compiling with the Clang compiler
     set(use_sysroot false) # Use in-tree sysroot if true
+    set(use_system_libjpeg true) # Use system libjpeg. In our case, the one provided by VCPKG.
 else()
     message(FATAL_ERROR "WebRTC port is only adapted for Linux, Android and iOS.")
 endif()
@@ -132,6 +135,12 @@ if(DEFINED ios_enable_code_signing)
 endif()
 if(DEFINED use_sysroot)
     set(EXTRA_OPTIONS "${EXTRA_OPTIONS} use_sysroot=${use_sysroot}")
+endif()
+if(DEFINED use_system_libjpeg)
+    set(EXTRA_OPTIONS "${EXTRA_OPTIONS} use_system_libjpeg=${use_system_libjpeg}")
+    # Path to the VCPKG installed include directory to find the haders of the lijpeg-turbo.
+    # libjpeg_include_dirs variable does not exist by default in WebRTC source code, it has been added in a patch.
+    set(EXTRA_OPTIONS "${EXTRA_OPTIONS} libjpeg_include_dirs=\"${CURRENT_INSTALLED_DIR}/include\"")
 endif()
 if(DEFINED ios_deployment_target)
     set(EXTRA_OPTIONS "${EXTRA_OPTIONS} ios_deployment_target=\"${ios_deployment_target}\"")

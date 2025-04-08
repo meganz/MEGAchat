@@ -5,7 +5,8 @@
     "description": "Real-time communication. It supports audio and video peer-to-peer communication.",
     "homepage": "https://webrtc.googlesource.com/src/",
     "dependencies": [
-        {"name" : "vcpkg-gn", "host" : true }
+        {"name" : "vcpkg-gn", "host" : true },
+        {"name" : "libjpeg-turbo", "platform" : "linux"}
     ],
     "features":
     {
