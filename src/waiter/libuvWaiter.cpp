@@ -28,7 +28,12 @@ LibuvWaiter::~LibuvWaiter()
     },
     nullptr);
 
-    uv_run(evtloop.get(), UV_RUN_NOWAIT); // allow running uv_close() callbacks
+    // Run event loop until all of the following callbacks are executed:
+    // - uv_close() callback (empty callback, set just above);
+    // - callbacks for finished requests, if any were pending;
+    // - callbacks with status=UV_ECANCELED for in-progress requests, if any were pending.
+    while (uv_run(evtloop.get(), UV_RUN_NOWAIT))
+    {}
 
     uv_loop_close(evtloop.get());
 }

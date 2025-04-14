@@ -554,8 +554,6 @@ void MegaChatApiTest::SetUp()
     LOG_info << "Test " << name << ": SetUp finished.";
 }
 
-void clearMegaChatApiImplLeftovers();
-
 void MegaChatApiTest::TearDown()
 {
     // Required order:
@@ -649,9 +647,6 @@ void MegaChatApiTest::TearDown()
             megaApi[i] = NULL;
         }
     }
-
-    // Clear MegaChatApi leftovers AFTER MegaApi instances have been released
-    clearMegaChatApiImplLeftovers();
 
     LOG_info << "Test " << name << ": TearDown finished.";
 }
@@ -4233,6 +4228,8 @@ TEST_F(MegaChatApiTest, SelfChat)
     std::unique_ptr<MegaChatMessage> msgSent(
         sendTextMessageOrUpdate(0, UINT_MAX, chatid, text, &chatroomListener));
     ASSERT_TRUE(msgSent);
+    ASSERT_TRUE(msgSent->isNoteToSelf());
+    ASSERT_TRUE(msgSent->isEditable());
     MegaChatHandle msgId = msgSent->getMsgId();
 
     LOG_debug << "#### Test2: Receive message ####";

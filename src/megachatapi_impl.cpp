@@ -76,59 +76,6 @@ using namespace chatd;
 
 LoggerHandler *MegaChatApiImpl::loggerHandler = NULL;
 
-class MegaChatApiImplLeftovers
-{
-public:
-    void clear()
-    {
-        // Clear WebsocketsIO instances before LibuvWaiter ones.
-        // The former use evtloop from the latter.
-        mWebsocketsIOs.clear();
-        mWaiters.clear();
-    }
-
-    void add(WebsocketsIO* wio)
-    {
-        mWebsocketsIOs.emplace_back(wio);
-    }
-
-    void add(Waiter* w)
-    {
-        mWaiters.emplace_back(w);
-    }
-
-    ~MegaChatApiImplLeftovers()
-    {
-        // this could rely on the order of destruction of member variables,
-        // but make sure future changes will not break it.
-        clear();
-    }
-
-private:
-    std::vector<std::unique_ptr<Waiter>> mWaiters;
-    std::vector<std::unique_ptr<WebsocketsIO>> mWebsocketsIOs;
-};
-
-static MegaChatApiImplLeftovers& getLeftovers()
-{
-    static MegaChatApiImplLeftovers leftoverPile;
-    return leftoverPile;
-}
-
-// Use this with care!
-// Some resources owned by a MegaChatApiImpl instance need to outlive it. The destructor will
-// not release them, but add them to 'leftovers'. Leftovers can be cleared by the app, AFTER
-// the MegaApi instance related to this MegaChatApi has been released.
-//
-// This is especially useful if the app will create and destroy multiple MegaChatApiImpl instances
-// (like automated tests do). If these resources are not released, they can pile up and exceed
-// limits (like open FD limit) that will lead to runtime failures and crashes.
-void clearMegaChatApiImplLeftovers()
-{
-    getLeftovers().clear();
-}
-
-
 MegaChatApiImpl::MegaChatApiImpl(MegaChatApi *chatApi, MegaApi *megaApi)
 {
     init(chatApi, megaApi);
@@ -152,15 +99,9 @@ MegaChatApiImpl::~MegaChatApiImpl()
         delete *it;
     }
 
-    // Destruction of waiter cannot be done before mWebsocketsIO. It also used to hang forever
-    // due to incorrect closing of the event loop (which should be fixed now though);
-    // do not delete it directly
-    getLeftovers().add(waiter);
+    delete mWebsocketsIO;
 
-    // Destruction of network layer may cause hangs on MegaApi's network layer.
-    // It may terminate the OpenSSL required by cUrl in SDK, so better to postpone it.
-    // do not delete it directly
-    getLeftovers().add(mWebsocketsIO);
+    delete waiter;
 }
 
 void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
@@ -6257,7 +6198,8 @@ MegaChatMessage *MegaChatApiImpl::sendMessage(MegaChatHandle chatid, const char 
     ChatRoom *chatroom = findChatRoom(chatid);
     if (chatroom)
     {
-        Message *m = chatroom->chat().msgSubmit(msg, msgLen, static_cast<unsigned char>(type), NULL);
+        Message* m =
+            chatroom->chat().msgSubmit(msg, msgLen, static_cast<Message::Type>(type), NULL);
 
         if (!m)
         {
@@ -6441,9 +6383,10 @@ MegaChatMessage *MegaChatApiImpl::editMessage(MegaChatHandle chatid, MegaChatHan
 
         if (originalMsg)
         {
-            unsigned char newtype = (originalMsg->containMetaSubtype() == Message::ContainsMetaSubType::kRichLink)
-                    ? (unsigned char) Message::kMsgNormal
-                    : originalMsg->type;
+            Message::Type newtype =
+                (originalMsg->containMetaSubtype() == Message::ContainsMetaSubType::kRichLink) ?
+                    Message::kMsgNormal :
+                    originalMsg->type;
 
             if (msg && newtype == Message::kMsgNormal)    // actually not deletion, but edit
             {
@@ -11812,6 +11755,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
     changed = msg->getChanges();
     edited = msg->isEdited();
     deleted = msg->isDeleted();
+    mIsNoteToSelf = msg->isNoteToSelf();
     priv = msg->getPrivilege();
     mCode = msg->getCode();
     rowId = msg->getRowId();
@@ -11841,7 +11785,8 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const MegaChatMessage *msg)
 
 MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Status status, Idx index)
 {
-    if (msg.type == TYPE_NORMAL || msg.type == TYPE_CHAT_TITLE)
+    auto msgType = static_cast<int>(msg.type);
+    if (msgType == TYPE_NORMAL || msgType == TYPE_CHAT_TITLE)
     {
         string tmp(msg.buf(), msg.size());
         mMsg = msg.size() ? MegaApi::strdup(tmp.c_str()) : NULL;
@@ -11854,7 +11799,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     msgId = msg.isSending() ? MEGACHAT_INVALID_HANDLE : (MegaChatHandle) msg.id();
     mTempId = msg.isSending() ? (MegaChatHandle) msg.id() : MEGACHAT_INVALID_HANDLE;
     rowId = MEGACHAT_INVALID_HANDLE;
-    type = msg.type;
+    type = msgType;
     mHasReactions = msg.hasConfirmedReactions();
     ts = msg.ts;
     mStatus = status;
@@ -11862,6 +11807,7 @@ MegaChatMessagePrivate::MegaChatMessagePrivate(const Message &msg, Message::Stat
     changed = 0;
     edited = msg.updated && msg.size();
     deleted = msg.updated && !msg.size();
+    mIsNoteToSelf = msg.isNoteToSelf;
     mCode = 0;
     priv = MegaChatPeerList::PRIV_UNKNOWN;
     hAction = MEGACHAT_INVALID_HANDLE;
@@ -12100,15 +12046,22 @@ bool MegaChatMessagePrivate::isDeleted() const
 
 bool MegaChatMessagePrivate::isEditable() const
 {
-    return ((type == TYPE_NORMAL || type == TYPE_CONTAINS_META) && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE) && !isGiphy());
+    return ((type == TYPE_NORMAL || type == TYPE_CONTAINS_META) && !isDeleted() &&
+            (((time(NULL) - ts) < CHATD_MAX_EDIT_AGE) || isNoteToSelf()) && !isGiphy());
 }
 
 bool MegaChatMessagePrivate::isDeletable() const
 {
-    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT || type == TYPE_NODE_ATTACHMENT || type == TYPE_CONTAINS_META || type == TYPE_VOICE_CLIP)
-            && !isDeleted() && ((time(NULL) - ts) < CHATD_MAX_EDIT_AGE));
+    return ((type == TYPE_NORMAL || type == TYPE_CONTACT_ATTACHMENT ||
+             type == TYPE_NODE_ATTACHMENT || type == TYPE_CONTAINS_META ||
+             type == TYPE_VOICE_CLIP) &&
+            !isDeleted() && (((time(NULL) - ts) < CHATD_MAX_EDIT_AGE) || isNoteToSelf()));
 }
 
+bool MegaChatMessagePrivate::isNoteToSelf() const
+{
+    return mIsNoteToSelf;
+}
 bool MegaChatMessagePrivate::isManagementMessage() const
 {
     return (type >= TYPE_LOWEST_MANAGEMENT

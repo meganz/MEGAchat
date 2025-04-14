@@ -2210,7 +2210,7 @@ public:
      *
      * Currently, messages are editable only during a timeframe (1 hour). Later on, the
      * edit will be rejected. The same applies to deletions.
-     *
+     * The only exception are note-to-self chats, where messages can be edited at any time
      * @return True if the message can be edited. Otherwise, false.
      */
     virtual bool isEditable() const;
@@ -2220,11 +2220,16 @@ public:
      *
      * Currently, messages can be deleted only during a timeframe (1 hour). Later on, the
      * deletion will be rejected.
-     *
+     * The only exception are note-to-self chats, where messages can be edited at any time
      * @return True if the message can be deleted. Otherwise, false.
      */
     virtual bool isDeletable() const;
-
+    /**
+     * @brief Returns whether the message belongs to a note-to-self chat. Such messages are always
+     * editable/deletable, regardless of their age.
+     * @returns True if the message belongs to a note-to-self chat
+     */
+    virtual bool isNoteToSelf() const;
     /**
      * @brief Returns whether the message is a management message
      *
@@ -5900,7 +5905,8 @@ public:
      /**
       * @brief Edit a geolocation message
       *
-      * Message's edits are only allowed during a short timeframe, usually 1 hour.
+      * Message's edits are only allowed during a short timeframe, usually 1 hour,
+      * except for note-to-self-chats where a message can be edited at any time.
       * Message's deletions are equivalent to message's edits, but with empty content.
       *
       * There is only one pending edit for not-yet confirmed edits. Therefore, this function will
@@ -5915,11 +5921,11 @@ public:
       * to know when an edit has been delivered to the target user, but only when the edit has been
       * received by the server, so for convenience the status of the original message is kept.
       * @note if MegaChatApi::isMessageReceptionConfirmationActive returns false, messages may never
-      * reach the status delivered, since the target user will not send the required acknowledge to the
-      * server upon reception.
+      * reach the status delivered, since the target user will not send the required acknowledge to
+      * the server upon reception.
       *
-      * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify other clients
-      * that it isn't typing
+      * After this function, MegaChatApi::sendStopTypingNotification has to be called. To notify
+      * other clients that it isn't typing
       *
       * You take the ownership of the returned value.
       *
@@ -5930,80 +5936,92 @@ public:
       * @param img Preview as a byte array encoded in Base64URL. It can be NULL
       * @return MegaChatMessage that will be sent. The message id is not definitive, but temporal.
       */
-      MegaChatMessage *editGeolocation(MegaChatHandle chatid, MegaChatHandle msgid, float longitude, float latitude, const char *img = NULL);
+     MegaChatMessage* editGeolocation(MegaChatHandle chatid,
+                                      MegaChatHandle msgid,
+                                      float longitude,
+                                      float latitude,
+                                      const char* img = NULL);
 
-    /**
-     * @brief Revoke the access to a node in the specified chatroom
-     *
-     * In contrast to other functions to send messages, such as
-     * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
-     * is asynchronous and does not return a MegaChatMessage directly. Instead, the
-     * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::geUserHandle - Returns the handle of the node
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
-     *
-     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
-     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
-     * At this point, the app should refresh the message identified by the temporal id and move it to
-     * the final position in the history, based on the reported index in the callback.
-     *
-     * If the message is rejected by the server, the message will keep its temporal id and will have its
-     * a message id set to MEGACHAT_INVALID_HANDLE.
-     *
-     * @deprecated This function must NOT be used in new developments. It will eventually become obsolete.
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
-     * @param listener MegaChatRequestListener to track this request
-     */
-    void revokeAttachment(MegaChatHandle chatid, MegaChatHandle nodeHandle, MegaChatRequestListener *listener = NULL);
+     /**
+      * @brief Revoke the access to a node in the specified chatroom
+      *
+      * In contrast to other functions to send messages, such as
+      * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
+      * is asynchronous and does not return a MegaChatMessage directly. Instead, the
+      * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
+      *
+      * The associated request type with this request is MegaChatRequest::TYPE_REVOKE_NODE_MESSAGE
+      * Valid data in the MegaChatRequest object received on callbacks:
+      * - MegaChatRequest::getChatHandle - Returns the chat identifier
+      * - MegaChatRequest::geUserHandle - Returns the handle of the node
+      *
+      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+      * is MegaError::ERROR_OK:
+      * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
+      *
+      * When the server confirms the reception of the message, the
+      * MegaChatRoomListener::onMessageUpdate is called, including the definitive id and the new
+      * status: MegaChatMessage::STATUS_SERVER_RECEIVED. At this point, the app should refresh the
+      * message identified by the temporal id and move it to the final position in the history,
+      * based on the reported index in the callback.
+      *
+      * If the message is rejected by the server, the message will keep its temporal id and will
+      * have its a message id set to MEGACHAT_INVALID_HANDLE.
+      *
+      * @deprecated This function must NOT be used in new developments. It will eventually become
+      * obsolete.
+      *
+      * @param chatid MegaChatHandle that identifies the chat room
+      * @param nodeHandle MegaChatHandle that identifies the node to revoke access to
+      * @param listener MegaChatRequestListener to track this request
+      */
+     void revokeAttachment(MegaChatHandle chatid,
+                           MegaChatHandle nodeHandle,
+                           MegaChatRequestListener* listener = NULL);
 
-    /**
-     * @brief Sends a node to the specified chatroom
-     *
-     * The attachment message includes information about the node, so the receiver can download
-     * or import the node.
-     *
-     * In contrast to other functions to send messages, such as
-     * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
-     * is asynchronous and does not return a MegaChatMessage directly. Instead, the
-     * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
-     *
-     * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
-     * Valid data in the MegaChatRequest object received on callbacks:
-     * - MegaChatRequest::getChatHandle - Returns the chat identifier
-     * - MegaChatRequest::getUserHandle - Returns the handle of the node
-     * - MegaChatRequest::getParamType - Returns 0 (to identify the attachment as regular attachment message)
-     *
-     * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
-     * is MegaError::ERROR_OK:
-     * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
-     *
-     * When the server confirms the reception of the message, the MegaChatRoomListener::onMessageUpdate
-     * is called, including the definitive id and the new status: MegaChatMessage::STATUS_SERVER_RECEIVED.
-     * At this point, the app should refresh the message identified by the temporal id and move it to
-     * the final position in the history, based on the reported index in the callback.
-     *
-     * If the message is rejected by the server, the message will keep its temporal id and will have its
-     * a message id set to MEGACHAT_INVALID_HANDLE.
-     *
-     * On the onRequestFinish error, the error code associated to the MegaChatError can be:
-     * - MegaChatError::ERROR_NOENT - If the chatroom, the node or the target user don't exists
-     * - MegaChatError::ERROR_ACCESS - If the target user is the same as caller
-     * - MegaChatError::ERROR_ACCESS - If the target user is anonymous but the chat room is in private mode
-     * - MegaChatError::ERROR_ACCESS - If caller is not an operator or the target user is not a chat member
-     *
-     * @param chatid MegaChatHandle that identifies the chat room
-     * @param nodehandle Handle of the node that the user wants to attach
-     * @param listener MegaChatRequestListener to track this request
-     */
+     /**
+      * @brief Sends a node to the specified chatroom
+      *
+      * The attachment message includes information about the node, so the receiver can download
+      * or import the node.
+      *
+      * In contrast to other functions to send messages, such as
+      * MegaChatApi::sendMessage or MegaChatApi::attachContacts, this function
+      * is asynchronous and does not return a MegaChatMessage directly. Instead, the
+      * MegaChatMessage can be obtained as a result of the corresponding MegaChatRequest.
+      *
+      * The associated request type with this request is MegaChatRequest::TYPE_ATTACH_NODE_MESSAGE
+      * Valid data in the MegaChatRequest object received on callbacks:
+      * - MegaChatRequest::getChatHandle - Returns the chat identifier
+      * - MegaChatRequest::getUserHandle - Returns the handle of the node
+      * - MegaChatRequest::getParamType - Returns 0 (to identify the attachment as regular
+      * attachment message)
+      *
+      * Valid data in the MegaChatRequest object received in onRequestFinish when the error code
+      * is MegaError::ERROR_OK:
+      * - MegaChatRequest::getMegaChatMessage - Returns the message that has been sent
+      *
+      * When the server confirms the reception of the message, the
+      * MegaChatRoomListener::onMessageUpdate is called, including the definitive id and the new
+      * status: MegaChatMessage::STATUS_SERVER_RECEIVED. At this point, the app should refresh the
+      * message identified by the temporal id and move it to the final position in the history,
+      * based on the reported index in the callback.
+      *
+      * If the message is rejected by the server, the message will keep its temporal id and will
+      * have its a message id set to MEGACHAT_INVALID_HANDLE.
+      *
+      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
+      * - MegaChatError::ERROR_NOENT - If the chatroom, the node or the target user don't exists
+      * - MegaChatError::ERROR_ACCESS - If the target user is the same as caller
+      * - MegaChatError::ERROR_ACCESS - If the target user is anonymous but the chat room is in
+      * private mode
+      * - MegaChatError::ERROR_ACCESS - If caller is not an operator or the target user is not a
+      * chat member
+      *
+      * @param chatid MegaChatHandle that identifies the chat room
+      * @param nodehandle Handle of the node that the user wants to attach
+      * @param listener MegaChatRequestListener to track this request
+      */
      void attachNode(MegaChatHandle chatid, MegaChatHandle nodehandle, MegaChatRequestListener *listener = NULL);
 
     /**
@@ -6085,7 +6103,8 @@ public:
     /**
      * @brief Edits an existing message
      *
-     * Message's edits are only allowed during a short timeframe, usually 1 hour.
+     * Message's edits are only allowed during a short timeframe, usually 1 hour,
+     * except for note-to-self-chats where a message can be edited at any time.
      * Message's deletions are equivalent to message's edits, but with empty content.
      *
      * There is only one pending edit for not-yet confirmed edits. Therefore, this function will

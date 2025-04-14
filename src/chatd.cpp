@@ -2469,9 +2469,17 @@ void Connection::execCommand(const StaticBuffer& buf)
                     ts,
                     updated);
 
-                std::unique_ptr<Message> msg(new Message(msgid, userid, ts, updated, msgdata, msglen, false, keyid));
-                msg->setEncrypted(Message::kEncryptedPending);
                 Chat& chat = mChatdClient.chats(chatid);
+                std::unique_ptr<Message> msg(new Message(msgid,
+                                                         userid,
+                                                         ts,
+                                                         updated,
+                                                         msgdata,
+                                                         msglen,
+                                                         false,
+                                                         keyid,
+                                                         chat.isNoteToSelf()));
+                msg->setEncrypted(Message::kEncryptedPending);
                 if (opcode == OP_MSGUPD)
                 {
                     chat.onMsgUpdated(msg.release());
@@ -3980,7 +3988,7 @@ promise::Promise<void> Chat::requestUserAttributes(const Id& sender)
     return mChatdClient.mKarereClient->userAttrCache().getAttributes(sender, getPublicHandle());
 }
 
-Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, void* userp)
+Message* Chat::msgSubmit(const char* msg, size_t msglen, Message::Type type, void* userp)
 {
     if (msglen > kMaxMsgSize)
     {
@@ -3998,8 +4006,18 @@ Message* Chat::msgSubmit(const char* msg, size_t msglen, unsigned char type, voi
     }
 
     // write the new message to the message buffer and mark as in sending state
-    auto message = new Message(makeRandomId(), client().myHandle(), static_cast<uint32_t>(time(NULL)),
-        0, msg, msglen, true, CHATD_KEYID_INVALID, type, userp, generateRefId(mCrypto));
+    auto message = new Message(makeRandomId(),
+                               client().myHandle(),
+                               static_cast<uint32_t>(time(NULL)),
+                               0,
+                               msg,
+                               msglen,
+                               true,
+                               CHATD_KEYID_INVALID,
+                               isNoteToSelf(),
+                               type,
+                               userp,
+                               generateRefId(mCrypto));
 
     auto wptr = weakHandle();
     SetOfIds recipients = mUsers;
@@ -4285,11 +4303,15 @@ bool Chat::msgEncryptAndSend(OutputQueue::iterator it)
 }
 
 // Can be called for a message in history or a NEWMSG,MSGUPD,MSGUPDX message in sending queue
-Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void* userp, uint8_t newtype)
+Message* Chat::msgModify(Message& msg,
+                         const char* newdata,
+                         size_t newlen,
+                         void* userp,
+                         Message::Type newtype)
 {
     uint32_t now = static_cast<uint32_t>(time(NULL));
     uint32_t age = now - msg.ts;
-    if (!msg.isSending() && age > CHATD_MAX_EDIT_AGE)
+    if (!msg.isSending() && !isNoteToSelf() && age > CHATD_MAX_EDIT_AGE)
     {
         CHATID_LOG_DEBUG("%smsgModify: Denying edit of msgid %s because message is too old",
                          mChatdClient.getLoggingName(),
@@ -4305,7 +4327,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
     }
     if (msg.userid != mChatdClient.mMyHandle)
     {
-        CHATID_LOG_WARNING("%smsgModify: Denying edit of msgid %s because message the sender %s is "
+        CHATID_LOG_WARNING("%smsgModify: Denying edit of msgid %s because the message sender %s is "
                            "not the original sender %s",
                            mChatdClient.getLoggingName(),
                            ID_CSTR(msg.id()),
@@ -4314,7 +4336,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         return nullptr;
     }
 
-    SetOfIds recipients;    // empty for already confirmed messages, since they already have a keyid
+    SendingItem* sendItem = nullptr;
     if (msg.isSending())
     {
         // recipients must be the same from original message/s
@@ -4325,20 +4347,19 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         // unconfirmed edit, for both confirmed or unconfirmed messages)
 
         // find the most-recent item in the queue, which has the most recent timestamp
-        SendingItem* item = nullptr;
         for (list<SendingItem>::reverse_iterator loopItem = mSending.rbegin();
              loopItem != mSending.rend(); loopItem++)
         {
             if (loopItem->msg->id() == msg.id())
             {
-                item = &(*loopItem);
+                sendItem = &(*loopItem);
                 break;
             }
         }
-        assert(item);
+        assert(sendItem);
 
         // avoid same "delta" for different edits
-        switch (item->opcode())
+        switch (sendItem->opcode())
         {
             case OP_NEWMSG:
             case OP_NEWNODEMSG:
@@ -4350,7 +4371,7 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
 
             case OP_MSGUPD:
             case OP_MSGUPDX:
-                if (item->msg->updated == age)
+                if (sendItem->msg->updated == age)
                 {
                     age++;
                 }
@@ -4369,9 +4390,8 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         msg.assign((void*)newdata, newlen);
         // ...and also for all messages with same msgid in the sending queue , trying to avoid sending the original content
         int count = 0;
-        for (auto& it: mSending)
+        for (auto& item: mSending)
         {
-            SendingItem &item = it;
             if (item.msg->id() == msg.id())
             {
                 item.msg->assign((void*)newdata, newlen);
@@ -4391,9 +4411,6 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
                 mChatdClient.getLoggingName(),
                 count);
         }
-
-        // recipients must not change
-        recipients = SetOfIds(item->recipients);
     }
     else if (age <= msg.updated)
     {
@@ -4401,39 +4418,54 @@ Message* Chat::msgModify(Message& msg, const char* newdata, size_t newlen, void*
         age = msg.updated + 1;
     }
 
-    auto upd = new Message(msg.id(), msg.userid, msg.ts, static_cast<uint16_t>(age), newdata, newlen,
-        msg.isSending(), msg.keyid, newtype, userp, msg.backRefId, msg.backRefs);
+    auto upd = new Message(msg.id(),
+                           msg.userid,
+                           msg.ts,
+                           static_cast<uint16_t>(age),
+                           newdata,
+                           newlen,
+                           msg.isSending(),
+                           msg.keyid,
+                           isNoteToSelf(),
+                           newtype,
+                           userp,
+                           msg.backRefId,
+                           msg.backRefs);
 
     auto wptr = weakHandle();
-    marshallCall([wptr, this, upd, recipients]()
-    {
-        if (wptr.deleted())
-            return;
-
-        Id lastMsgId = mLastTextMsg.idx() == CHATD_IDX_INVALID
-                ? mLastTextMsg.xid()
-                : mLastTextMsg.id();
-
-        postMsgToSending(static_cast<uint8_t>(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD), upd, recipients);
-        if (lastMsgId == upd->id())
+    // If message is confirmed, recipient list is empty, since message already has a keyid
+    // If message is not confirmed (is in send queue), recipients must stay the same
+    marshallCall(
+        [wptr, this, upd, rcpts = sendItem ? sendItem->recipients : SetOfIds()]()
         {
-            if (upd->isValidLastMessage())
+            if (wptr.deleted())
+                return;
+
+            Id lastMsgId =
+                mLastTextMsg.idx() == CHATD_IDX_INVALID ? mLastTextMsg.xid() : mLastTextMsg.id();
+
+            postMsgToSending(static_cast<uint8_t>(upd->isSending() ? OP_MSGUPDX : OP_MSGUPD),
+                             upd,
+                             rcpts);
+            if (lastMsgId == upd->id())
             {
-                onLastTextMsgUpdated(*upd, msgIndexFromId(upd->id()));
-            }
-            else //our last text msg is not valid anymore, find another one
-            {
-                findAndNotifyLastTextMsg();
-                if (!mLastTextMsg.isValid() && mHaveAllHistory)
+                if (upd->isValidLastMessage())
                 {
-                    CHATID_LOG_DEBUG(
-                        "%smsgModify: lastTextMessage not found, no text message in whole history",
-                        mChatdClient.getLoggingName());
+                    onLastTextMsgUpdated(*upd, msgIndexFromId(upd->id()));
+                }
+                else // our last text msg is not valid anymore, find another one
+                {
+                    findAndNotifyLastTextMsg();
+                    if (!mLastTextMsg.isValid() && mHaveAllHistory)
+                    {
+                        CHATID_LOG_DEBUG("%smsgModify: lastTextMessage not found, no text message "
+                                         "in whole history",
+                                         mChatdClient.getLoggingName());
+                    }
                 }
             }
-        }
-
-    }, mChatdClient.mKarereClient->appCtx);
+        },
+        mChatdClient.mKarereClient->appCtx);
 
     return upd;
 }
@@ -5373,7 +5405,7 @@ void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Messa
                 "received, but its length is 1. Assuming type of normal message",
                 mChatdClient.getLoggingName());
         else
-            msg->type = static_cast<unsigned char>(msg->buf()[1] + Message::Type::kMsgOffset);
+            msg->type = static_cast<Message::Type>(msg->buf()[1] + Message::Type::kMsgOffset);
     }
 
     //update in memory, if loaded
@@ -6298,7 +6330,7 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
                                  "received, but its length is 1. Assuming type of normal message",
                                  mChatdClient.getLoggingName());
             else
-                msg.type = static_cast<unsigned char>(msg.buf()[1] + Message::Type::kMsgOffset);
+                msg.type = static_cast<Message::Type>(msg.buf()[1] + Message::Type::kMsgOffset);
         }
 
         verifyMsgOrder(msg, idx);
@@ -7425,7 +7457,7 @@ void FilteredHistory::addMessage(Message &msg, bool isNew, bool isLocal)
 {
     if (msg.size()) // protect against deleted node-attachment messages
     {
-        msg.type = static_cast<unsigned char>(msg.buf()[1] + Message::Type::kMsgOffset);
+        msg.type = static_cast<Message::Type>(msg.buf()[1] + Message::Type::kMsgOffset);
         assert(msg.type == Message::Type::kMsgAttachment);
     }
 

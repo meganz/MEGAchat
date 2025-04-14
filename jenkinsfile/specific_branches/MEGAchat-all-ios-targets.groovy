@@ -52,18 +52,24 @@ pipeline {
                 PATH = "/usr/local/bin:${env.PATH}"
                 VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
                 BUILD_DIR_ARM64 = "build_dir_arm64"
-                BUILD_DIR_X64 = "build_dir_x64"
+                BUILD_DIR_ARM64_SIM = "build_dir_arm64_simulator"
+                BUILD_DIR_X64_SIM = "build_dir_x64_simulator"
             }
             steps{
                 //Build MEGAchat for arm64
                 sh "echo Building MEGAchat for iOS arm64"
-                sh "cmake -DVCPKG_TARGET_TRIPLET=arm64-ios -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DENABLE_CHATLIB_MEGACLC=OFF -DENABLE_CHATLIB_TESTS=OFF -DCMAKE_SYSTEM_NAME=iOS -DENABLE_CHATLIB_QTAPP=OFF -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_ARM64}"
+                sh "cmake -DVCPKG_TARGET_TRIPLET=arm64-ios-mega -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_ARM64}"
                 sh "cmake --build ${WORKSPACE}/${BUILD_DIR_ARM64} -j2"
 
-                //Build MEGAchat for x64
-                sh "echo \"Building MEGAchat iOS x64 (crosscompiling)\""
-                sh "cmake -DVCPKG_TARGET_TRIPLET=x64-ios -DENABLE_SDKLIB_EXAMPLES=OFF -DENABLE_SDKLIB_TESTS=OFF -DENABLE_CHATLIB_TESTS=OFF -DENABLE_CHATLIB_MEGACLC=OFF -DCMAKE_SYSTEM_NAME=iOS -DENABLE_CHATLIB_QTAPP=OFF -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_X64}"
-                sh "cmake --build ${WORKSPACE}/${BUILD_DIR_X64} -j2"
+                //Build MEGAchat for arm64 simulator
+                sh "echo \"Building MEGAchat for iOS arm64 simulator (crosscompiling)\""
+                sh "cmake -DVCPKG_TARGET_TRIPLET=arm64-ios-simulator-mega -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_ARM64_SIM}"
+                sh "cmake --build ${WORKSPACE}/${BUILD_DIR_ARM64_SIM} -j2"
+
+                //Build MEGAchat for x64 simulator
+                sh "echo \"Building MEGAchat for iOS x64 simulator (crosscompiling)\""
+                sh "cmake -DVCPKG_TARGET_TRIPLET=x64-ios-simulator-mega -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_X64_SIM}"
+                sh "cmake --build ${WORKSPACE}/${BUILD_DIR_X64_SIM} -j2"
             }
         }
     }

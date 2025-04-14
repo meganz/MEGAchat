@@ -208,7 +208,7 @@ public:
             karere::Id msgid = stmt.integralCol<uint64_t>(2);
             karere::Id userid = mChat.client().myHandle();
             chatd::KeyId keyid = stmt.integralCol<chatd::KeyId>(3);
-            unsigned char type = stmt.integralCol<unsigned char>(5);
+            auto type = stmt.integralCol<chatd::Message::Type>(5);
             uint32_t ts = stmt.integralCol<uint32_t>(6);
             uint16_t updated = stmt.integralCol<uint16_t>(7);
 
@@ -217,7 +217,16 @@ public:
                    || (opcode == chatd::OP_MSGUPD)
                    || (opcode == chatd::OP_MSGUPDX));
 
-            auto msg = new chatd::Message(msgid, userid, ts, updated, nullptr, 0, true, keyid, type);
+            auto msg = new chatd::Message(msgid,
+                                          userid,
+                                          ts,
+                                          updated,
+                                          nullptr,
+                                          0,
+                                          true,
+                                          keyid,
+                                          mChat.isNoteToSelf(),
+                                          type);
             stmt.blobCol(4, *msg);  // set plain-text content
             msg->backRefId = stmt.integralCol<uint64_t>(8);
             if (stmt.hasBlobCol(9))
@@ -348,9 +357,15 @@ public:
         {
             Buffer buf;
             stmt.blobCol(5, buf);
-            auto msg = new chatd::Message(stmt.integralCol<uint64_t>(1), mChat.client().myHandle(),
-                stmt.integralCol<uint32_t>(3), stmt.integralCol<uint16_t>(4), std::move(buf), true,
-                CHATD_KEYID_INVALID, stmt.integralCol<unsigned char>(2));
+            auto msg = new chatd::Message(stmt.integralCol<uint64_t>(1),
+                                          mChat.client().myHandle(),
+                                          stmt.integralCol<uint32_t>(3),
+                                          stmt.integralCol<uint16_t>(4),
+                                          std::move(buf),
+                                          true,
+                                          CHATD_KEYID_INVALID,
+                                          mChat.isNoteToSelf(),
+                                          stmt.integralCol<chatd::Message::Type>(2));
             items.emplace_back(msg,
                                stmt.integralCol<uint64_t>(0),
                                stmt.integralCol<uint8_t>(6),
@@ -371,9 +386,15 @@ public:
 
         Buffer buf;
         stmt.blobCol(4, buf);
-        auto msg = new chatd::Message(stmt.integralCol<uint64_t>(0), mChat.client().myHandle(),
-                                      stmt.integralCol<uint32_t>(2), stmt.integralCol<uint16_t>(3), std::move(buf), true,
-                                      CHATD_KEYID_INVALID, stmt.integralCol<unsigned char>(1));
+        auto msg = new chatd::Message(stmt.integralCol<uint64_t>(0),
+                                      mChat.client().myHandle(),
+                                      stmt.integralCol<uint32_t>(2),
+                                      stmt.integralCol<uint16_t>(3),
+                                      std::move(buf),
+                                      true,
+                                      CHATD_KEYID_INVALID,
+                                      mChat.isNoteToSelf(),
+                                      stmt.integralCol<chatd::Message::Type>(1));
         item.msg = msg;
         item.rowid = rowid;
         item.opcode = stmt.integralCol<uint8_t>(5);
@@ -606,8 +627,15 @@ public:
                 assert(false);
             }
 #endif
-            auto msg = new chatd::Message(msgid, userid, ts, stmt.integralCol<uint16_t>(8), std::move(buf),
-                false, keyid, stmt.integralCol<unsigned char>(3));
+            auto msg = new chatd::Message(msgid,
+                                          userid,
+                                          ts,
+                                          stmt.integralCol<uint16_t>(8),
+                                          std::move(buf),
+                                          false,
+                                          keyid,
+                                          mChat.isNoteToSelf(),
+                                          stmt.integralCol<chatd::Message::Type>(3));
             msg->backRefId = stmt.integralCol<uint64_t>(7);
             msg->setEncrypted(stmt.integralCol<uint8_t>(9));
             messages.push_back(msg);

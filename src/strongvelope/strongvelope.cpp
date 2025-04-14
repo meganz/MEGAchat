@@ -1187,7 +1187,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 
         // Get type
         auto parsedMsg = std::make_shared<ParsedMessage>(*message, *this);
-        message->type = parsedMsg->type;
+        message->type = static_cast<Message::Type>(parsedMsg->type);
 
         if (message->isManagementMessage())
         {
@@ -1221,7 +1221,7 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
         else    // message was posted with key-rotation enabled (closed mode)
         {
             symPms = getKey(UserKeyId(message->userid, keyid));
-        }        
+        }
         symPms.then([ctx](const std::shared_ptr<SendKey>& key)
         {
             ctx->sendKey = key;

@@ -1327,7 +1327,7 @@ void exec_editmessage(ac::ACState& s)
 {
     auto room = s_ch(s.words[1].s);
     std::unique_ptr<c::MegaChatMessage> msg(
-        g_chatApi->editMessage(room, s_ch(s.words[2].s), s.words[2].s.c_str()));
+        g_chatApi->editMessage(room, s_ch(s.words[2].s), s.words[3].s.c_str()));
 
     if (!msg)
     {

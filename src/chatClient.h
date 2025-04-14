@@ -128,7 +128,16 @@ public:
     virtual bool syncWithApi(const mega::MegaTextChat& chat) = 0;
     virtual IApp::IChatListItem* roomGui() = 0;
     virtual bool isMember(const karere::Id& peerid) const = 0;
-    virtual bool isMeeting() const { return false; }
+
+    virtual bool isMeeting() const
+    {
+        return false;
+    }
+
+    virtual bool isNoteToSelf() const
+    {
+        return false;
+    }
     virtual bool isWaitingRoom() const { return false; }
     virtual bool isSpeakRequest() const { return false; }
     virtual bool isOpenInvite() const { return false; }
@@ -302,7 +311,7 @@ public:
         return mPeerPriv;
     }
 
-    bool isNoteToSelf() const
+    bool isNoteToSelf() const override
     {
         return !mPeer;
     }
