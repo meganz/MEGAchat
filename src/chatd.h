@@ -32,7 +32,8 @@ KARERE_LOG_VERBOSE(krLogChannel_chatd, fmtString, ##__VA_ARGS__)
 
 enum: uint32_t { kPromiseErrtype_chatd = 0x3e9ac47d }; //should resemble 'megachtd'
 
-#define CHATD_MAX_EDIT_AGE 3600
+// Allow message edit up to 24h after message is created
+#define CHATD_MAX_EDIT_AGE 86400
 namespace chatd
 {
 
