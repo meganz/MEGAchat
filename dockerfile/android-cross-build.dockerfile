@@ -81,7 +81,7 @@ CMD ["sh", "-c", "\
     groupadd -g $owner_gid me && \
     echo 'Adding \"me\" user...' && \
     useradd -r -M -u $owner_uid -g $owner_gid -d /mega -s /bin/bash me && \
-    [ -d /mega/.cache ] && chown me:me /mega/.cache && \
+    ( [ -d /mega/.cache ] && chown me:me /mega/.cache || :) && \
     case ${ARCH} in \
       arm) \
         export VCPKG_TRIPLET='arm-android-mega' && \
