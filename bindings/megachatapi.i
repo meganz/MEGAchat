@@ -8,13 +8,18 @@
 /* Includes the header */
 #include "megachatapi.h"
 
+#ifdef __ANDROID__
 extern JavaVM *MEGAjvm;
 
-#ifdef __ANDROID__
 extern jstring strEncodeUTF8;
+extern jclass applicationClass;
 extern jclass clsString;
 extern jmethodID ctorString;
+extern jmethodID deviceListMID;
 extern jmethodID getBytes;
+extern jmethodID startVideoCaptureMID;
+extern jmethodID stopVideoCaptureMID;
+extern jobject surfaceTextureHelper;
 extern int sdkVersion;
 #endif
 

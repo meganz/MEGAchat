@@ -27,8 +27,8 @@
 extern JavaVM *MEGAjvm;
 extern JNIEnv *jenv;
 extern jclass applicationClass;
-extern jmethodID startVideoCaptureMID;
-extern jmethodID stopVideoCaptureMID;
+jmethodID startVideoCaptureMID = nullptr;
+jmethodID stopVideoCaptureMID = nullptr;
 extern jmethodID deviceListMID;
 extern jobject surfaceTextureHelper;
 #endif
