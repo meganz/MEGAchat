@@ -75,6 +75,7 @@ pipeline {
                         steps {
                             sh """
                                  docker run \
+                                    --rm \
                                     -v ${WORKSPACE}:/mega/megachat \
                                     megachat-linux-build:${IMAGE_TAG}
                             """
@@ -93,10 +94,10 @@ pipeline {
         always {
             script {
                 if (params.RESULT_TO_SLACK) {
-                    megachat_commit = sh(script: "git -C ${megachat_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
-                    sdk_comit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
-                    messageStatus = currentBuild.currentResult
-                    messageColor = messageStatus == 'SUCCESS'? "#00FF00": "#FF0000" //green or red
+                    def megachat_commit = sh(script: "git -C ${megachat_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
+                    def sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
+                    def messageStatus = currentBuild.currentResult
+                    def messageColor = messageStatus == 'SUCCESS'? "#00FF00": "#FF0000" //green or red
                     message = """
                         *MEGAchat* nightly build <${BUILD_URL}|Build result>: '${messageStatus}'.
                         SDK branch: `${SDK_BRANCH}`
