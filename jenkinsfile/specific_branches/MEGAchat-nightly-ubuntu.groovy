@@ -67,9 +67,13 @@ pipeline {
                 }
                 post {
                     always {
-                        deleteDir()
                         sh "docker rmi -f megachat-linux-build:${IMAGE_TAG}"
                     }
+                }
+            }
+            post {
+                always {
+                    deleteDir()
                 }
             }
         }
