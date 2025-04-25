@@ -1,7 +1,7 @@
 # Dockerfile used to exercise the development environment of MEGAchat.
 #
 # How to build:
-# docker build --build-arg DISTRO=<DISTRO> -f /path/to/linux-build.dockerfile -t megachat-linux-build .
+# docker build [--build-arg DISTRO=<DISTRO>] -f /path/to/linux-build.dockerfile -t megachat-linux-build .
 #
 # Where <DISTRO> is one of the following:
 # - ubuntu:22.04
