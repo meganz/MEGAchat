@@ -68,9 +68,9 @@ EOF
 
 CMD ["sh", "-c", "\
         cmake \
-            -DVCPKG_ROOT=/mega/vcpkg \
+            -DVCPKG_ROOT=vcpkg \
             -DCMAKE_BUILD_TYPE=Debug \
-            -S /mega/megachat \
+            -S megachat \
             -B build && \
         cmake --build build -j $(nproc) \
     "]
