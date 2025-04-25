@@ -99,7 +99,7 @@ pipeline {
                     def messageStatus = currentBuild.currentResult
                     def messageColor = messageStatus == 'SUCCESS'? "#00FF00": "#FF0000" //green or red
                     message = """
-                        *MEGAchat* nightly build <${BUILD_URL}|Build result>: '${messageStatus}'.
+                        *MEGAchat Linux* <${BUILD_URL}|Build result>: '${messageStatus}'.
                         SDK branch: `${SDK_BRANCH}`
                         SDK commit: `${sdk_commit}`
                         MEGAchat branch: `${MEGACHAT_BRANCH}`
