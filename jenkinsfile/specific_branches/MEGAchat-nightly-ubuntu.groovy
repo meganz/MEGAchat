@@ -71,7 +71,7 @@ pipeline {
                             """
                         }
                     }
-                    stage("Build MEGAChat") {
+                    stage("Build MEGAchat") {
                         steps {
                             sh """
                                  docker run \
