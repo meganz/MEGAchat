@@ -23,6 +23,7 @@ RUN apt-get update && apt-get install -y \
     libasound2-dev \
     libglib2.0-dev \
     libpulse-dev \
+    libtool \
     libx11-dev \
     libxcomposite-dev \
     libxdamage-dev \
