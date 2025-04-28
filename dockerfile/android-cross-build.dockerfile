@@ -76,6 +76,7 @@ ARG ARCH=x64
 
 # Configure and build CMake command, this will be executed when running the container
 CMD ["sh", "-c", "\
+    userdel -f ubuntu && \
     owner_uid=$(stat -c '%u' /mega/megachat) && \
     owner_gid=$(stat -c '%g' /mega/megachat) && \
     groupadd -g $owner_gid me && \
