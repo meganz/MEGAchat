@@ -71,12 +71,12 @@ pipeline {
                             """
                         }
                     }
-                    stage("Build MEGAChat") {
+                    stage("Build MEGAchat") {
                         steps {
                             sh """
                                  docker run \
                                     --rm \
-                                    -v ${WORKSPACE}:/mega/megachat \
+                                    -v ${WORKSPACE}:/mega/MEGAchat \
                                     megachat-linux-build:${IMAGE_TAG}
                             """
                         }
