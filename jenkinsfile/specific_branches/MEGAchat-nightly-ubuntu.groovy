@@ -76,7 +76,7 @@ pipeline {
                             sh """
                                  docker run \
                                     --rm \
-                                    -v ${WORKSPACE}:/mega/megachat \
+                                    -v ${WORKSPACE}:/mega/MEGAchat \
                                     megachat-linux-build:${IMAGE_TAG}
                             """
                         }

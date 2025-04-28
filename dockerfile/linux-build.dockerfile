@@ -8,7 +8,7 @@
 # - ubuntu:24.04
 #
 # How to run:
-# docker run -v /path/to/megachat:/mega/megachat megachat-linux-build
+# docker run -v /path/to/MEGAchat:/mega/MEGAchat megachat-linux-build
 
 ARG DISTRO=ubuntu:24.04
 
@@ -70,7 +70,7 @@ CMD ["sh", "-c", "\
         cmake \
             -DVCPKG_ROOT=vcpkg \
             -DCMAKE_BUILD_TYPE=Debug \
-            -S megachat \
+            -S MEGAchat \
             -B build && \
         cmake --build build -j $(nproc) \
     "]
