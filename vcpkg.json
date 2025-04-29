@@ -1,56 +1,57 @@
 {
-    "$schema" : "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
-    "name" : "chatlib",
-    "homepage" : "https://github.com/meganz/megachat",
-    "features" :
-    {
-        "use-webrtc":
-        {
-            "description" : "Enable support for voice and/or video calls",
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+    "name": "chatlib",
+    "homepage": "https://github.com/meganz/megachat",
+    "features": {
+        "use-webrtc": {
+            "description": "Enable support for voice and/or video calls",
             "dependencies": [
                 "webrtc",
-                { "name" : "libwebsockets", "default-features": false, "features" : [ "boringssl", "ipv6" ] },
-                { "name" : "curl", "version>=": "8.6.0", "default-features": false, "features" : [ "boringssl" ] },
                 {
-                    "name": "vcpkg-tool-gn",
-                    "version>=": "2025-01-27",
-                    "host": true
+                    "name": "libwebsockets",
+                    "default-features": false,
+                    "features": [
+                        "boringssl"
+                    ]
+                },
+                {
+                    "name": "curl",
+                    "default-features": false,
+                    "features": [
+                        "boringssl"
+                    ]
                 }
             ]
         },
-        "no-webrtc":
-        {
-            "description" : "Disable support for voice and/or video calls",
+        "no-webrtc": {
+            "description": "Disable support for voice and/or video calls",
             "dependencies": [
                 "libwebsockets",
-                { "name" : "curl", "version>=": "8.6.0"}
+                "curl"
             ]
         },
-        "use-openssl":
-        {
+        "use-openssl": {
             "description": "OpenSSL library",
-            "dependencies": [ "openssl" ]
+            "dependencies": [
+                "openssl"
+            ]
         },
         "use-mediainfo": {
             "description": "MediaInfo library",
             "dependencies": [
-                { "name" : "libmediainfo", "default-features": false }
+                {
+                    "name": "libmediainfo",
+                    "default-features": false
+                }
             ]
         },
         "use-freeimage": {
             "description": "FreeImage library",
             "dependencies": [
-                {
-                    "name": "freeimage",
-                    "version>=" : "3.18.0#27"
-                },
+                "freeimage",
                 {
                     "name": "jasper",
                     "default-features": false
-                },
-                {
-                    "name": "tiff",
-                    "version>=": "4.7.0"
                 }
             ]
         },
@@ -59,46 +60,57 @@
             "dependencies": [
                 {
                     "name": "ffmpeg",
-                    "version>=": "5.1.2#10",
                     "default-features": false,
-                    "features": ["avcodec", "avformat", "swresample", "swscale"]
+                    "features": [
+                        "avcodec",
+                        "avformat",
+                        "swresample",
+                        "swscale"
+                    ]
                 }
             ]
         },
         "use-libuv": {
             "description": "libuv library",
-            "dependencies": [ "libuv" ]
+            "dependencies": [
+                "libuv"
+            ]
         },
         "use-pdfium": {
             "description": "pdfium library",
-            "dependencies": [ "pdfium" ]
+            "dependencies": [
+                "pdfium"
+            ]
         },
         "use-readline": {
             "description": "Readline library",
-            "dependencies": [ "readline" ]
+            "dependencies": [
+                "readline"
+            ]
         },
         "chat-tests": {
             "description": "gtests library for the integration and unit tests",
-            "dependencies": [ "gtest" ]
+            "dependencies": [
+                "gtest"
+            ]
         },
         "megaclc-example": {
             "description": "gtests library for the integration and unit tests",
-            "dependencies": [ "boost-program-options" ]
+            "dependencies": [
+                "boost-program-options"
+            ]
         }
     },
     "dependencies": [
-        { "name": "cryptopp", "version>=": "8.9.0" },
+        "cryptopp",
+        "icu",
         "libsodium",
-        {
-            "name": "sqlite3",
-            "version>=": "3.46.0#1"
-        },
-        "icu"
+        "sqlite3"
     ],
-    "builtin-baseline" : "7476f0d4e77d3333fbb249657df8251c28c4faae",
+    "builtin-baseline": "d5ec528843d29e3a52d745a64b469f810b2cedbf",
     "overrides": [
         {
-            "name" : "libuv",
+            "name": "libuv",
             "version": "1.44.2"
         }
     ]

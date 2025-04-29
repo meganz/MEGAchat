@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-dev \
     libgtk-3-dev \
     libpulse-dev \
+    libtool-bin \
     nasm \
     openjdk-21-jdk \
     pkg-config \
