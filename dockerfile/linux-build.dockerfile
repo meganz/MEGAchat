@@ -68,7 +68,7 @@ EOF
 
 CMD ["sh", "-c", "\
         cmake \
-            -DVCPKG_ROOT=vcpkg \
+            --preset dev-unix \
             -DCMAKE_BUILD_TYPE=Debug \
             -S MEGAchat \
             -B build && \
