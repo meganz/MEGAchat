@@ -1328,11 +1328,12 @@ public:
 private:
     MegaChatApi *mChatApi;
     mega::MegaApi *mMegaApi;
-    WebsocketsIO *mWebsocketsIO;
+    WebsocketsIO* mWebsocketsIO{nullptr};
     karere::Client *mClient;
     bool mTerminating;
 
     mega::MegaThread thread;
+    std::promise<void> mThreadSpecificInit;
     int threadExit;
     static void *threadEntryPoint(void *param);
     void loop();
