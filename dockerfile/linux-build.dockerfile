@@ -72,7 +72,8 @@ CMD ["sh", "-c", "\
         cmake \
             --preset dev-unix \
             -DCMAKE_BUILD_TYPE=Debug \
-            -S MEGAchat \
-            -B build && \
-        cmake --build build -j $(nproc) \
+            -S MEGAchat && \
+        cmake \
+            --build build-MEGAchat-dev-unix \
+            -j $(nproc) \
     "]
