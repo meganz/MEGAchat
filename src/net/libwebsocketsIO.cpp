@@ -546,6 +546,10 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
         case LWS_CALLBACK_CLIENT_CLOSED:
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
+            {
+                lock_guard g(accessDisconnectingWsiMtx);
+                disconnectingWsiSet.erase(wsi);
+            }
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
             if (!client)
             {
