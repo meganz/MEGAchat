@@ -13,12 +13,15 @@
 class LibwebsocketsIO : public WebsocketsIO
 {
     struct lws_context *wscontext;
+    std::thread::id mLwsContextThread;
     uv_loop_t* eventloop;
 
 public:
     LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
     ~LibwebsocketsIO() override;
-    
+
+    void verifyLwsContextThread() const;
+
     void addevents(::mega::Waiter*, int) override;
     
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
@@ -55,6 +58,8 @@ public:
     bool connectViaClientInfo(const char *ip, const char *host, int port, const char *path, bool ssl, lws_context *wscontext);
 
 private:
+    void verifyLwsThread() const;
+    std::thread::id mLwsThread;
     std::string recbuffer;
     std::string sendbuffer;
 

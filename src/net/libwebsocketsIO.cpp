@@ -58,13 +58,20 @@ LibwebsocketsIO::LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::M
     // LLL_NOTICE | LLL_INFO | LLL_DEBUG | LLL_PARSER | LLL_HEADER | LLL_EXT | LLL_CLIENT | LLL_LATENCY | LLL_USER | LLL_THREAD
     lws_set_log_level(LLL_ERR | LLL_WARN, NULL);
     wscontext = lws_create_context(&info);
+    mLwsContextThread = this_thread::get_id();
 
     WEBSOCKETS_LOG_DEBUG("Libwebsockets is using libuv");
 }
 
 LibwebsocketsIO::~LibwebsocketsIO()
 {
+    verifyLwsContextThread();
     lws_context_destroy(wscontext);
+}
+
+void LibwebsocketsIO::verifyLwsContextThread() const
+{
+    assert(mLwsContextThread == std::this_thread::get_id());
 }
 
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
@@ -149,6 +156,8 @@ static void onDnsResolved(uv_getaddrinfo_t *req, int status, struct addrinfo *re
 
 bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int, const vector<string>&, const vector<string>&)> f)
 {
+    verifyLwsContextThread();
+
     uv_getaddrinfo_t *h = new uv_getaddrinfo_t();
     Msg *msg = new Msg(appCtx, f);
     h->data = msg;
@@ -157,6 +166,8 @@ bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int
 
 WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
 {
+    verifyLwsContextThread();
+
     LibwebsocketsClient *libwebsocketsClient = new LibwebsocketsClient(mutex, client);
     
     if (!libwebsocketsClient->connectViaClientInfo(ip, host, port, path, ssl, wscontext))
@@ -169,6 +180,8 @@ WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *hos
 
 int LibwebsocketsIO::wsGetNoNameErrorCode()
 {
+    verifyLwsContextThread();
+
     return UV__EAI_NONAME;
 }
 
@@ -183,8 +196,14 @@ LibwebsocketsClient::~LibwebsocketsClient()
     doWsDisconnect(true); // do not call wsDisconnect() virtual function during destruction
 }
 
+void LibwebsocketsClient::verifyLwsThread() const
+{
+    assert(mLwsThread == std::this_thread::get_id());
+}
+
 void LibwebsocketsClient::appendMessageFragment(char *data, size_t len, size_t remaining)
 {
+    verifyLwsThread();
     if (!recbuffer.size() && remaining)
     {
         recbuffer.reserve(len + remaining);
@@ -194,26 +213,31 @@ void LibwebsocketsClient::appendMessageFragment(char *data, size_t len, size_t r
 
 bool LibwebsocketsClient::hasFragments()
 {
+    verifyLwsThread();
     return recbuffer.size();
 }
 
 const char *LibwebsocketsClient::getMessage()
 {
+    verifyLwsThread();
     return recbuffer.data();
 }
 
 size_t LibwebsocketsClient::getMessageLength()
 {
+    verifyLwsThread();
     return recbuffer.size();
 }
 
 void LibwebsocketsClient::resetMessage()
 {
+    verifyLwsThread();
     recbuffer.clear();
 }
 
 bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
 {
+    verifyLwsThread();
     assert(wsi);
     
     if (!wsi)
@@ -222,7 +246,7 @@ bool LibwebsocketsClient::wsSendMessage(char *msg, size_t len)
         assert(false);
         return false;
     }
-    
+
     if (!sendbuffer.size())
     {
         sendbuffer.reserve(LWS_PRE + len);
@@ -270,6 +294,8 @@ bool LibwebsocketsClient::connectViaClientInfo(const char *ip, const char *host,
 
     wsi = lws_client_connect_via_info(&i);
 
+    mLwsThread = this_thread::get_id();
+
     return wsi != nullptr;
 }
 
@@ -280,6 +306,8 @@ void LibwebsocketsClient::wsDisconnect(bool immediate)
 
 void LibwebsocketsClient::doWsDisconnect(bool immediate)
 {
+    verifyLwsThread();
+
     if (!isConnected())
         return;
 
@@ -323,6 +351,7 @@ bool LibwebsocketsClient::wsIsConnected()
 
 bool LibwebsocketsClient::isConnected() const
 {
+    verifyLwsThread();
     return wsi != nullptr;
 }
 
@@ -347,16 +376,19 @@ void LibwebsocketsClient::markAsDisconnecting()
 
 const char *LibwebsocketsClient::getOutputBuffer()
 {
+    verifyLwsThread();
     return sendbuffer.size() ? sendbuffer.data() + LWS_PRE : NULL;
 }
 
 size_t LibwebsocketsClient::getOutputBufferLength()
 {
+    verifyLwsThread();
     return sendbuffer.size() ? sendbuffer.size() - LWS_PRE : 0;
 }
 
 void LibwebsocketsClient::resetOutputBuffer()
 {
+    verifyLwsThread();
     sendbuffer.clear();
 }
 
@@ -578,7 +610,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 WEBSOCKETS_LOG_DEBUG("Completing forced disconnect");
                 return -1;
             }
-            
+
             if (client->disconnecting)
             {
                 WEBSOCKETS_LOG_DEBUG("Completing graceful disconnect");
