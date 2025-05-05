@@ -29,6 +29,7 @@ case "${DISTRO}" in
             build-essential \
             cmake \
             curl \
+            default-jdk \
             git \
             libasound2-dev \
             libglib2.0-dev \
@@ -44,6 +45,7 @@ case "${DISTRO}" in
             pkg-config \
             python3 \
             qtbase5-dev \
+            swig \
             tar \
             unzip \
             zip \
