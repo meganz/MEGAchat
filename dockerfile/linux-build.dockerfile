@@ -29,7 +29,6 @@ case "${DISTRO}" in
             build-essential \
             cmake \
             curl \
-            default-jdk \
             git \
             libasound2-dev \
             libglib2.0-dev \
@@ -42,6 +41,7 @@ case "${DISTRO}" in
             libxtst-dev \
             make \
             nasm \
+            openjdk-21-jdk \
             pkg-config \
             python3 \
             qtbase5-dev \
