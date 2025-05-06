@@ -15,6 +15,14 @@
             "generator": "Unix Makefiles"
         },
         {
+            "name": "android",
+            "hidden": true,
+            "inherits": "unix",
+            "cacheVariables": {
+                "CMAKE_SYSTEM_NAME": "Android"
+            }
+        },
+        {
             "name": "dev",
             "hidden": true,
             "inherits": "default",
@@ -28,11 +36,33 @@
             }
         },
         {
+            "name": "mega",
+            "hidden": true,
+            "inherits": "default",
+            "cacheVariables": {
+                "ENABLE_CHATLIB_MEGACLC": "OFF",
+                "ENABLE_CHATLIB_QTAPP": "OFF",
+                "ENABLE_CHATLIB_TESTS": "OFF",
+                "ENABLE_CHATLIB_WERROR": "OFF",
+                "ENABLE_QT_BINDINGS": "OFF"
+            }
+        },
+        {
             "name": "dev-unix",
             "inherits": [
                 "unix",
                 "dev"
             ]
+        },
+        {
+            "name": "mega-android",
+            "inherits": [
+                "android",
+                "mega"
+            ],
+            "cacheVariables": {
+                "ENABLE_JAVA_BINDINGS ": "ON"
+            }
         }
     ]
 }

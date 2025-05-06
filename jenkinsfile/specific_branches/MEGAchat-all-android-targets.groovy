@@ -75,8 +75,8 @@ pipeline {
                         expression { params.BUILD_ARM == true }
                     }
                     steps {
-                        sh "docker run --name megachat-android-builder-arm-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/megachat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                        sh "docker run --name megachat-android-builder-arm-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/megachat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh "docker run --name megachat-android-builder-arm-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh "docker run --name megachat-android-builder-arm-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
                     }
                     post{
                         aborted {
@@ -98,8 +98,8 @@ pipeline {
                         expression { params.BUILD_ARM64 == true }
                     }
                     steps {
-                        sh "docker run --name megachat-android-builder-arm64-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/megachat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm64 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                        sh "docker run --name megachat-android-builder-arm64-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/megachat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm64 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh "docker run --name megachat-android-builder-arm64-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm64 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh "docker run --name megachat-android-builder-arm64-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm64 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
                     }
                     post{
                         aborted {
@@ -121,8 +121,8 @@ pipeline {
                         expression { params.BUILD_X86 == true }
                     }
                     steps {
-                        sh "docker run --name megachat-android-builder-x86-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/megachat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x86 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                        sh "docker run --name megachat-android-builder-x86-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/megachat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x86 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh "docker run --name megachat-android-builder-x86-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x86 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh "docker run --name megachat-android-builder-x86-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x86 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
                      }
                     post{
                         aborted {
@@ -144,8 +144,8 @@ pipeline {
                         expression { params.BUILD_X64 == true }
                     }
                     steps {
-                        sh "docker run --name megachat-android-builder-x64-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/megachat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x64 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                        sh "docker run --name megachat-android-builder-x64-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/megachat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x64 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh "docker run --name megachat-android-builder-x64-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x64 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh "docker run --name megachat-android-builder-x64-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x64 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
                     }
                     post{
                         aborted {
