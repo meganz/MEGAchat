@@ -29,6 +29,7 @@ case "${DISTRO}" in
             build-essential \
             cmake \
             curl \
+            default-jdk \
             git \
             libasound2-dev \
             libglib2.0-dev \
@@ -63,6 +64,9 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get upgrade -y
 apt-get install -y $PACKAGES
+
+export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+export PATH="${JAVA_HOME}/bin:$PATH"
 
 git clone https://github.com/microsoft/vcpkg.git
 
