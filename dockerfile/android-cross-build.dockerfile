@@ -110,14 +110,15 @@ CMD ["sh", "-c", "\
         echo 'Build stopped.' && exit 1;; \
     esac && \
     su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,VCPKG_TRIPLET,ANDROID_ARCH,DEFINE_BUILD_SHARED_LIBS_ON' -c ' \
-    cmake -B buildAndroid_${ANDROID_ARCH} -S megachat \
+    cmake \
+        --preset mega-android \
+        -S megachat \
         ${DEFINE_BUILD_SHARED_LIBS_ON} \
-        -DVCPKG_ROOT=/mega/vcpkg \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DVCPKG_TARGET_TRIPLET=${VCPKG_TRIPLET} \
-        -DCMAKE_SYSTEM_NAME=Android \
         -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} \
         -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} \
         -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON && \
-    cmake --build buildAndroid_${ANDROID_ARCH}' && \
+    cmake \
+        --build build-megachat-mega-android' && \
     exec /bin/bash"]
