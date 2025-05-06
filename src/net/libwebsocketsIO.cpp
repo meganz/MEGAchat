@@ -358,6 +358,18 @@ void LibwebsocketsClient::doWsDisconnect(bool immediate)
             disconnecting = true;
             WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
         }
+
+        // TODO (Future investigation / rework / refactoring):
+        // The call to verifyLwsThread() above ensures that this gets executed in the context of the
+        // thread that owns LWS. Before commit d7e39db115f7398b4fccd42475f82ddb64032318,
+        // lws_callback_on_writable() was called directly from here, which, considering the above,
+        // was fine. After that commit, the latter was defered to be called from the handler of
+        // LWS_CALLBACK_EVENT_WAIT_CANCELLED, which is now triggered by the call below.
+        //
+        // One thing to consider is whether calling lws_callback_on_writable() when disconnecting is
+        // needed at all. Even if it truly is, the changes in the commit mentioned above were
+        // probably not needed (although there's no obvious harm to them either, just made the code
+        // slightly more complicated).
         lws_cancel_service(lwsContext);
     }
 }
