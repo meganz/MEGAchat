@@ -77,7 +77,21 @@ void LibwebsocketsIO::verifyLwsContextThread() const
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
 {
-    if (sessions.empty())  return;
+    // This call will typically be made from a thread that is not the owner of LWS context. In which
+    // case, loading cached sessions cannot be done from here. Save them to be available before the
+    // first connection.
+    if (sessions.empty())
+        return;
+
+    std::lock_guard<std::mutex> sessionLock{mTlsSessionsMutex};
+    mTlsSessionsToRestore.insert(mTlsSessionsToRestore.end(),
+                                 std::make_move_iterator(sessions.begin()),
+                                 std::make_move_iterator(sessions.end()));
+}
+
+void LibwebsocketsIO::restoreTlsSessions()
+{
+    verifyLwsContextThread();
 
     lws_vhost *vh = lws_get_vhost_by_name(wscontext, DEFAULT_VHOST);
     if (!vh) // should never happen, as "default vhost is created along with the context"
@@ -86,7 +100,8 @@ void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
         return;
     }
 
-    for (auto& s : sessions)
+    std::lock_guard<std::mutex> sessionLock{mTlsSessionsMutex};
+    for (auto& s: mTlsSessionsToRestore)
     {
         if (LwsCache::load(vh, &s))
         {
@@ -99,6 +114,7 @@ void LibwebsocketsIO::restoreSessions(vector<CachedSession> &&sessions)
                                  s.hostname.c_str(), s.port);
         }
     }
+    mTlsSessionsToRestore.clear();
 }
 #endif // WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
 
@@ -167,6 +183,8 @@ bool LibwebsocketsIO::wsResolveDNS(const char *hostname, std::function<void (int
 WebsocketsClientImpl *LibwebsocketsIO::wsConnect(const char *ip, const char *host, int port, const char *path, bool ssl, WebsocketsClient *client)
 {
     verifyLwsContextThread();
+
+    restoreTlsSessions(); // load sessions cached in earlier runs, if any
 
     LibwebsocketsClient *libwebsocketsClient = new LibwebsocketsClient(mutex, client);
     

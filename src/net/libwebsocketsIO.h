@@ -37,6 +37,10 @@ private:
     int wsGetNoNameErrorCode() override;
 
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
+    void restoreTlsSessions(); // call from LWS thread only
+    std::mutex mTlsSessionsMutex;
+    std::vector<CachedSession> mTlsSessionsToRestore;
+
     // Note: While theoretically a LWS context can have multiple vhosts, it's a
     //       feature applicable to servers, and they need to be explicitly created.
     //       Implicitly, as in our case, only the default vhost will be created.
