@@ -8,7 +8,6 @@
 /* Includes the header */
 #include "megachatapi.h"
 
-#ifdef __ANDROID__
 extern JavaVM *MEGAjvm;
 
 extern jstring strEncodeUTF8;
@@ -21,7 +20,6 @@ extern jmethodID startVideoCaptureMID;
 extern jmethodID stopVideoCaptureMID;
 extern jobject surfaceTextureHelper;
 extern int sdkVersion;
-#endif
 
 %}
 %import "megaapi.h"

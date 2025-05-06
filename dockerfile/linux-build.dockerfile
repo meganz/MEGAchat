@@ -41,9 +41,11 @@ case "${DISTRO}" in
             libxtst-dev \
             make \
             nasm \
+            openjdk-21-jdk \
             pkg-config \
             python3 \
             qtbase5-dev \
+            swig \
             tar \
             unzip \
             zip \
@@ -68,9 +70,10 @@ EOF
 
 CMD ["sh", "-c", "\
         cmake \
-            -DVCPKG_ROOT=vcpkg \
+            --preset dev-unix \
             -DCMAKE_BUILD_TYPE=Debug \
-            -S MEGAchat \
-            -B build && \
-        cmake --build build -j $(nproc) \
+            -S MEGAchat && \
+        cmake \
+            --build build-MEGAchat-dev-unix \
+            -j $(nproc) \
     "]
