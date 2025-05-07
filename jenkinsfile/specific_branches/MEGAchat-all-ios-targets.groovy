@@ -58,17 +58,17 @@ pipeline {
             steps{
                 //Build MEGAchat for arm64
                 sh "echo Building MEGAchat for iOS arm64"
-                sh "cmake -DVCPKG_TARGET_TRIPLET=arm64-ios-mega -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_ARM64}"
+                sh "cmake --preset mega-ios -DVCPKG_TARGET_TRIPLET=arm64-ios-mega -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_ARM64}"
                 sh "cmake --build ${WORKSPACE}/${BUILD_DIR_ARM64} -j2"
 
                 //Build MEGAchat for arm64 simulator
                 sh "echo \"Building MEGAchat for iOS arm64 simulator (crosscompiling)\""
-                sh "cmake -DVCPKG_TARGET_TRIPLET=arm64-ios-simulator-mega -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_ARM64_SIM}"
+                sh "cmake --preset mega-ios -DVCPKG_TARGET_TRIPLET=arm64-ios-simulator-mega -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_ARM64_SIM}"
                 sh "cmake --build ${WORKSPACE}/${BUILD_DIR_ARM64_SIM} -j2"
 
                 //Build MEGAchat for x64 simulator
                 sh "echo \"Building MEGAchat for iOS x64 simulator (crosscompiling)\""
-                sh "cmake -DVCPKG_TARGET_TRIPLET=x64-ios-simulator-mega -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_SYSTEM_NAME=iOS -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_X64_SIM}"
+                sh "cmake --preset mega-ios -DVCPKG_TARGET_TRIPLET=x64-ios-simulator-mega -DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_X64_SIM}"
                 sh "cmake --build ${WORKSPACE}/${BUILD_DIR_X64_SIM} -j2"
             }
         }
