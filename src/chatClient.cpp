@@ -2378,7 +2378,6 @@ void Client::terminate(bool deleteDb)
     api.sdk.removeRequestListener(this);
     api.sdk.removeGlobalListener(this);
 
-
     // pre-destroy chatrooms in preview mode (cleanup from DB + send HANDLELEAVE)
     // Otherwise, DB will be already closed when the GroupChatRoom dtor is called
     for (auto it = chats->begin(); it != chats->end();)
@@ -2395,6 +2394,8 @@ void Client::terminate(bool deleteDb)
             it++;
         }
     }
+
+    chats->clearSelfChat();
 
     if (mConnState != kDisconnected)
     {
@@ -3792,6 +3793,11 @@ void ChatRoomList::onChatsUpdate(::mega::MegaTextChatList& rooms, bool checkDele
                 listItem->onChatDeleted();
 
             // delete from the list, from RAM and from DB
+            if (chatroom == mSelfChat)
+            {
+                clearSelfChat();
+            }
+
             erase(it);
             delete chatroom;
             deleteRoomFromDb(chatid);

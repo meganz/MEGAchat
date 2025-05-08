@@ -647,6 +647,11 @@ public:
     {
         return mSelfChat;
     }
+
+    void clearSelfChat()
+    {
+        mSelfChat = nullptr;
+    }
 /** @endcond PRIVATE */
 };
 
