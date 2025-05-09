@@ -59,12 +59,12 @@ pipeline {
             steps {
                 dir("sdk/src/main/jni"){
                     withCredentials([string(credentialsId: 'MEGACHAT_ARTIFACTORY_TOKEN', variable: 'MEGACHAT_ARTIFACTORY_TOKEN')]) {
-                        sh """
+                        sh '''
                             jf rt download \
                                 --url ${REPO_URL} \
                                 --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
                                 third-party-sources-sdk/3rdparty-sdk.tar.gz .
-                        """
+                        '''
                     }
                     sh "tar -xf 3rdparty-sdk.tar.gz --skip-old-files"
                 }
