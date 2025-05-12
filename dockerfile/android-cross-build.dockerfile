@@ -6,7 +6,7 @@
 #     -f : Specify dockerfile to be build, replace /path/to/your/megachat with your local path to it
 #
 # Run the Docker container and build the project for a specific architecture:
-#   docker run -v /path/to/your/megachat:/mega/megachat -v /path/to/your/vcpkg:/mega/vcpkg -e ARCH=[arm, arm64, x86, x64] -it megachat-android-cross-build
+#   docker run -v /path/to/your/megachat:/mega/megachat -v /path/to/your/vcpkg:/mega/vcpkg -e ARCH=[arm, arm64, x86, x64] [-e BUILD_SHARED_LIBS=ON] -it megachat-android-cross-build
 #     -v : Mounts a local directory into the container, replace /path/to/your/megachat and /path/to/your/vcpkg with your local paths
 #     -e : Sets an environment variable, `ARCH` environment variable is used to specify the target architecture
 #     -it : Starts an interactive terminal session inside the container after the cmake project is configured and build
@@ -19,16 +19,16 @@
 #
 #    #Build for arm64: export ARCH=arm64 && export VCPKG_TRIPLET='arm64-android-mega' && export ANDROID_ARCH='arm64-v8a'
 #    #Build for arm:   export ARCH=arm && export VCPKG_TRIPLET='arm-android-mega' && export ANDROID_ARCH='armeabi-v7a'
-#    #Build for x64:   export ARCH=x64 && export VCPKG_TRIPLET='x64-android-mega' && export ANDROID_ARCH='x86_64'
+#    #Build for x64:   export ARCH=x64 VCPKG_TRIPLET='x64-android-mega' ANDROID_ARCH='x86_64' DEFINE_BUILD_SHARED_LIBS_ON='BUILD_SHARED_LIBS=ON'
 #    #Build for x86:   export ARCH=x86 && export VCPKG_TRIPLET='x86-android-mega' && export ANDROID_ARCH='x86'
 #
-#    cmake -B buildAndroid_${ARCH} -S megachat -DVCPKG_ROOT=/mega/vcpkg -DCMAKE_BUILD_TYPE=Debug -DVCPKG_TARGET_TRIPLET=${VCPKG_TRIPLET} -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON
+#    cmake -B buildAndroid_${ARCH} -S megachat -DVCPKG_ROOT=/mega/vcpkg -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_TARGET_TRIPLET=${VCPKG_TRIPLET} -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON ${DEFINE_BUILD_SHARED_LIBS_ON}
 #
 #    cmake --build buildAndroid_${ARCH} -j10
 
 
 # Base image
-FROM ubuntu:22.04
+FROM ubuntu:24.04
 
 # Install dependencies
 RUN apt-get update && apt-get install -y \
@@ -76,12 +76,13 @@ ARG ARCH=x64
 
 # Configure and build CMake command, this will be executed when running the container
 CMD ["sh", "-c", "\
+    userdel -f ubuntu && \
     owner_uid=$(stat -c '%u' /mega/megachat) && \
     owner_gid=$(stat -c '%g' /mega/megachat) && \
     groupadd -g $owner_gid me && \
     echo 'Adding \"me\" user...' && \
     useradd -r -M -u $owner_uid -g $owner_gid -d /mega -s /bin/bash me && \
-    [ -d /mega/.cache ] && chown me:me /mega/.cache && \
+    ( [ -d /mega/.cache ] && chown me:me /mega/.cache || :) && \
     case ${ARCH} in \
       arm) \
         export VCPKG_TRIPLET='arm-android-mega' && \
@@ -98,8 +99,19 @@ CMD ["sh", "-c", "\
       *) \
         echo 'Unsupported architecture: ${ARCH}' && exit 1;; \
     esac && \
-    su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,VCPKG_TRIPLET,ANDROID_ARCH' -c ' \
+    case ${BUILD_SHARED_LIBS} in \
+      ON) \
+        export DEFINE_BUILD_SHARED_LIBS_ON=-DBUILD_SHARED_LIBS=ON;; \
+      OFF|'') \
+        ;; \
+      *) \
+        echo 'error: Unsupported value for BUILD_SHARED_LIBS:' ${BUILD_SHARED_LIBS} && \
+        echo 'Valid values are: ON | OFF' && \
+        echo 'Build stopped.' && exit 1;; \
+    esac && \
+    su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,VCPKG_TRIPLET,ANDROID_ARCH,DEFINE_BUILD_SHARED_LIBS_ON' -c ' \
     cmake -B buildAndroid_${ANDROID_ARCH} -S megachat \
+        ${DEFINE_BUILD_SHARED_LIBS_ON} \
         -DVCPKG_ROOT=/mega/vcpkg \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DVCPKG_TARGET_TRIPLET=${VCPKG_TRIPLET} \

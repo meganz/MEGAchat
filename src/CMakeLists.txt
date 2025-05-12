@@ -125,6 +125,11 @@ if(WIN32)
     target_link_libraries(CHATlib PRIVATE
         Dbghelp.lib
     )
+elseif(ANDROID)
+    target_link_libraries(CHATlib PRIVATE
+        log
+        OpenSLES
+    )
 endif()
 
 # Link with the SDK library
