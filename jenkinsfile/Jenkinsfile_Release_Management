@@ -123,7 +123,7 @@ pipeline {
         stage ('Create Release Candidate'){
             when {
                 beforeAgent true
-                expression { params.ACTION == "Create_Release_CANDIDATE" }
+                expression { params.ACTION == "Create_Release_Candidate" }
             }
             agent {
                 docker {
