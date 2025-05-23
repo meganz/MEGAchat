@@ -110,6 +110,9 @@ pipeline {
                         [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
                     ]
                 ])
+                withCredentials([gitUsernamePassword(credentialsId: 'jenkins_sdk_token_with_user', gitToolName: 'Default')]) {
+                    sh "git submodule update --init --recursive"
+                }
                 dir("Modules/DataSource/MEGAChatSDK/Sources/MEGAChatSDK"){
                     checkout([
                         $class: 'GitSCM',
@@ -131,11 +134,6 @@ pipeline {
                             [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
                         ]
                     ])
-                }
-                sh "git submodule update --init iMEGA/Vendor/SVProgressHUD"
-                sh "git submodule update --init iMEGA/Vendor/LTHPasscodeViewController"
-                withCredentials([gitUsernamePassword(credentialsId: 'jenkins_sdk_token_with_user', gitToolName: 'Default')]) {
-                    sh "git submodule update --init Modules/MEGASharedRepo"
                 }
                 script{
                     ios_sources_workspace = WORKSPACE

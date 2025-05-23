@@ -29,6 +29,7 @@ case "${DISTRO}" in
             build-essential \
             cmake \
             curl \
+            default-jdk \
             git \
             libasound2-dev \
             libglib2.0-dev \
@@ -41,9 +42,11 @@ case "${DISTRO}" in
             libxtst-dev \
             make \
             nasm \
+            openjdk-21-jdk \
             pkg-config \
             python3 \
             qtbase5-dev \
+            swig \
             tar \
             unzip \
             zip \
@@ -62,15 +65,19 @@ apt-get update
 apt-get upgrade -y
 apt-get install -y $PACKAGES
 
+export JAVA_HOME="/usr/lib/jvm/java-21-openjdk-amd64"
+export PATH="${JAVA_HOME}/bin:$PATH"
+
 git clone https://github.com/microsoft/vcpkg.git
 
 EOF
 
 CMD ["sh", "-c", "\
         cmake \
-            -DVCPKG_ROOT=vcpkg \
+            --preset dev-unix \
             -DCMAKE_BUILD_TYPE=Debug \
-            -S MEGAchat \
-            -B build && \
-        cmake --build build -j $(nproc) \
+            -S MEGAchat && \
+        cmake \
+            --build build-MEGAchat-dev-unix \
+            -j $(nproc) \
     "]

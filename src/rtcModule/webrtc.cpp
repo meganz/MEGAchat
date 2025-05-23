@@ -5432,7 +5432,6 @@ bool RemoteAudioSlot::enableAudioMonitor(const bool enable)
     else
     {
         mAudioLevelMonitorEnabled = false;
-        mAudioLevelMonitor->onAudioDetected(false);
         audioTrack->RemoveSink(mAudioLevelMonitor.get()); // disable AudioLevelMonitor
     }
     return true;
