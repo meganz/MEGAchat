@@ -41,12 +41,16 @@ pipeline {
     }
     environment {
         VCPKGPATH = "/opt/vcpkg"
-        VCPKGPATH_CACHE = "${HOME}/.cache/vcpkg"
+        // VCPKGPATH_CACHE = "${HOME}/.cache/vcpkg"
         PIPELINE_NAME = 'MEGAclc Ubuntu build'
+        VCPKG_BINARY_SOURCES = 'clear;x-aws,s3://vcpkg-cache/archives/,readwrite'
+        AWS_ACCESS_KEY_ID = credentials('s4_access_key_id_vcpkg_cache')
+        AWS_SECRET_ACCESS_KEY = credentials('s4_secret_access_key_vcpkg_cache')
+        AWS_ENDPOINT_URL = "https://s3.g.s4.mega.io"
     }
     stages {
         stage('Clean previous runs'){
-            steps{
+            steps {
                 deleteDir()
                 setCommitStatus('running')
                 updateGitlabCommitStatus(name: 'MEGAclc Ubuntu build', state: 'running')
@@ -110,7 +114,7 @@ pipeline {
         stage('Build MEGAchat docker image'){
             steps{
                 dir("dockerfile"){
-                    sh "docker build -t meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER} -f ./megachat-ubuntu2204-build.dockerfile ."
+                    sh "docker build -t meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER} --build-arg VCPKG_BINARY_SOURCES --build-arg AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY --build-arg AWS_ENDPOINT_URL -f ./megachat-ubuntu2204-build.dockerfile ."
                 }
             }
         }
@@ -118,7 +122,7 @@ pipeline {
         stage('Build with docker'){
             steps {
                 sh "mkdir build_ubuntu2204"
-                sh "docker run --name megachat-builder-x64-ubuntu2204-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}/build_ubuntu2204:/mega/build -v ${WORKSPACE}:/mega/chat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER}"
+                sh "docker run --name megachat-builder-x64-ubuntu2204-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}/build_ubuntu2204:/mega/build -v ${WORKSPACE}:/mega/chat -v ${VCPKGPATH}:/mega/vcpkg -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_ENDPOINT_URL -e VCPKG_BINARY_SOURCES meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER}"
             }
             post{
                 aborted {
