@@ -121,16 +121,16 @@ pipeline {
                     //Build for arm64
                     sh "echo Building for arm64 in ${BUILD_TYPE} mode"
                     sh "mkdir ${BUILD_DIR}"
-                    sh "cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    sh "cmake --preset dev-unix -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR} -DCMAKE_PREFIX_PATH=${MEGAQTPATH} \
-                    -DCMAKE_OSX_ARCHITECTURES=arm64 -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF" 
+                    -DCMAKE_OSX_ARCHITECTURES=arm64"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j3"
                     
                     //build for x64
                     sh "echo Building for x64-crosscompiling in ${BUILD_TYPE} mode"
                     sh "mkdir ${BUILD_DIR_X64}"
-                    sh "cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
-                    -DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
+                    sh "cmake --preset dev-unix -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    -DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_QT_BINDINGS=OFF \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR_X64} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR_X64} -j3"
                 }
