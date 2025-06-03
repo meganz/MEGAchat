@@ -89,10 +89,7 @@
             "inherits": [
                 "ios",
                 "mega"
-            ],
-            "cacheVariables": {
-                "ENABLE_JAVA_BINDINGS ": "OFF"
-            }
+            ]
         }
     ]
 }
