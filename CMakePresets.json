@@ -54,7 +54,6 @@
             "inherits": "default",
             "cacheVariables": {
                 "ENABLE_CHATLIB_MEGACLC": "OFF",
-                "ENABLE_CHATLIB_QTAPP": "OFF",
                 "ENABLE_CHATLIB_TESTS": "OFF",
                 "ENABLE_CHATLIB_WERROR": "OFF",
                 "ENABLE_QT_BINDINGS": "OFF"
