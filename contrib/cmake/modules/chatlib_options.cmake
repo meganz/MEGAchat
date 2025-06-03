@@ -13,6 +13,11 @@ if (ENABLE_CHATLIB_QTAPP)
     set(USE_LIBUV ON) # Used by the QtApp: Includes the library and turns on internal web and ftp server functionality in the SDK.
 endif()
 
+if(WIN32)
+    option(USE_FFMPEG "Use FFmpeg library" OFF)
+    option(USE_FREEIMAGE "Use FreeImage library" OFF)
+endif()
+
 option(ENABLE_CHATLIB_MEGACLC "MEGAclc example app is built if enabled" OFF)
 option(ENABLE_CHATLIB_QTAPP "Qt example app is built if enabled" OFF)
 option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" OFF)
