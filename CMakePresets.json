@@ -51,10 +51,7 @@
         {
             "name": "mega",
             "hidden": true,
-            "inherits": "default",
-            "cacheVariables": {
-                "ENABLE_CHATLIB_WERROR": "OFF"
-            }
+            "inherits": "default"
         },
         {
             "name": "dev-unix",

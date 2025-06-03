@@ -16,6 +16,7 @@ endif()
 option(ENABLE_CHATLIB_MEGACLC "MEGAclc example app is built if enabled" OFF)
 option(ENABLE_CHATLIB_QTAPP "Qt example app is built if enabled" OFF)
 option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" OFF)
+option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" OFF)
 option(ENABLE_JAVA_BINDINGS "Enable the target to build the Java Bindings" OFF)
 option(ENABLE_QT_BINDINGS "Enable the target to build the Qt Bindings" OFF)
 
