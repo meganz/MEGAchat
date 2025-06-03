@@ -21,10 +21,10 @@ set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages d
 
 # If PROJECT_NAME is not set before project() we are the main project.
 if(NOT PROJECT_NAME)
-    message(STATUS "[CHATlib] is a top-level project. Install target, examples and tests will be enabled by default.")
+    message(STATUS "[CHATlib] is a top-level project.")
     set(CHATLIB_STANDALONE 1)
 else()
-    message(STATUS "[CHATlib] is building under project [${PROJECT_NAME}] Install target, examples and tests will not be enabled by default.")
+    message(STATUS "[CHATlib] is building under project [${PROJECT_NAME}].")
     set(CHATLIB_STANDALONE 0)
 endif()
 
