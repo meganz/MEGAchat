@@ -15,6 +15,11 @@
             "generator": "Unix Makefiles"
         },
         {
+            "name": "windows",
+            "hidden": true,
+            "generator": "Visual Studio 17 2022"
+        },
+        {
             "name": "android",
             "hidden": true,
             "inherits": "unix",
@@ -59,6 +64,13 @@
             "name": "dev-unix",
             "inherits": [
                 "unix",
+                "dev"
+            ]
+        },
+        {
+            "name": "dev-windows",
+            "inherits": [
+                "windows",
                 "dev"
             ]
         },
