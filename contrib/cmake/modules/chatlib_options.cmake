@@ -1,5 +1,11 @@
+# MEGAchat options
+option(ENABLE_CHATLIB_MEGACLC "MEGAclc example app is built if enabled" OFF)
+option(ENABLE_CHATLIB_QTAPP "Qt example app is built if enabled" OFF)
+option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" OFF)
+option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" OFF)
+option(ENABLE_JAVA_BINDINGS "Enable the target to build the Java Bindings" OFF)
+option(ENABLE_QT_BINDINGS "Enable the target to build the Qt Bindings" OFF)
 
-# MEGAChat specific options
 if((CMAKE_SYSTEM_NAME STREQUAL "iOS") OR (UNIX AND NOT APPLE)) # iOS or Linux/Android
     option(USE_WEBRTC "Support for voice and/or video calls" ON)
 else() # Win and mac
@@ -17,12 +23,5 @@ if(WIN32)
     option(USE_FFMPEG "Use FFmpeg library" OFF)
     option(USE_FREEIMAGE "Use FreeImage library" OFF)
 endif()
-
-option(ENABLE_CHATLIB_MEGACLC "MEGAclc example app is built if enabled" OFF)
-option(ENABLE_CHATLIB_QTAPP "Qt example app is built if enabled" OFF)
-option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" OFF)
-option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" OFF)
-option(ENABLE_JAVA_BINDINGS "Enable the target to build the Java Bindings" OFF)
-option(ENABLE_QT_BINDINGS "Enable the target to build the Qt Bindings" OFF)
 
 include(sdklib_options)
