@@ -19,9 +19,4 @@ if (ENABLE_CHATLIB_QTAPP)
     set(USE_LIBUV ON) # Used by the QtApp: Includes the library and turns on internal web and ftp server functionality in the SDK.
 endif()
 
-if(WIN32)
-    option(USE_FFMPEG "Use FFmpeg library" OFF)
-    option(USE_FREEIMAGE "Use FreeImage library" OFF)
-endif()
-
 include(sdklib_options)
