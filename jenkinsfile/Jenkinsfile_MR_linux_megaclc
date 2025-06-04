@@ -137,7 +137,7 @@ pipeline {
                         jf rt del \
                             --url ${REPO_URL} \
                             --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
-                            MEGAchat/${env.gitlabMergeRequestIid}/ubuntu2204/megaclc/ \
+                            MEGAchat/${gitlabMergeRequestIid}/ubuntu2204/megaclc/ \
                         || true
                     '''
                     dir ("build_ubuntu2204/examples/megaclc/"){
@@ -145,7 +145,7 @@ pipeline {
                             jf rt upload \
                                 --url ${REPO_URL} \
                                 --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
-                                megaclc MEGAchat/${env.gitlabMergeRequestIid}/ubuntu2204/megaclc/x64/
+                                megaclc MEGAchat/${gitlabMergeRequestIid}/ubuntu2204/megaclc/x64/
                         '''
                     }
                 }

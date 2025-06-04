@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install required packages
 RUN apt-get update -qq && apt-get upgrade -y
 # SDK
-RUN apt-get install -y build-essential curl zip unzip automake autoconf autoconf-archive nasm cmake git
+RUN apt-get install -y build-essential libtool curl zip unzip automake autoconf autoconf-archive nasm cmake git
 # MEGAchat
 RUN apt-get install -y python3-pkg-resources libglib2.0-dev libgtk-3-dev libasound2-dev libpulse-dev
 # QtApp example / in case we don't want to build it cmake step should include ENABLE_CHATLIB_QTAPP=OFF
