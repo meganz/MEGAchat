@@ -237,6 +237,10 @@ pipeline {
                                 -v ${WORKSPACE}:/mega/MEGAchat \
                                 -v ${VCPKGPATH}:/mega/vcpkg \
                                 -e ARCH=x64 \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
                                 meganz/megachat-android-build-env:${env.BUILD_NUMBER}
                         """
                         sh """
@@ -247,6 +251,10 @@ pipeline {
                                 -v ${VCPKGPATH}:/mega/vcpkg \
                                 -e ARCH=x64 \
                                 -e BUILD_SHARED_LIBS=ON \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
                                 meganz/megachat-android-build-env:${env.BUILD_NUMBER}
                         """
                     }
