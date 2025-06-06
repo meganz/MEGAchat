@@ -107,7 +107,7 @@ pipeline {
             environment{
                 PATH = "/usr/local/bin:${env.PATH}"
                 VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
-                MEGAQTPATH= "${env.HOME}/Qt-build/5.15.13/5.15.13/arm64"
+                MEGAQTPATH= "${env.HOME}/Qt-build/5.15.13/5.15.13"
                 VCPKG_BINARY_SOURCES = 'clear;x-aws,s3://vcpkg-cache/archives/,readwrite'
                 AWS_ACCESS_KEY_ID = credentials('s4_access_key_id_vcpkg_cache')
                 AWS_SECRET_ACCESS_KEY = credentials('s4_secret_access_key_vcpkg_cache')
@@ -122,7 +122,7 @@ pipeline {
                     sh "echo Building for arm64 in ${BUILD_TYPE} mode"
                     sh "mkdir ${BUILD_DIR}"
                     sh "cmake --preset dev-unix -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
-                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR} -DCMAKE_PREFIX_PATH=${MEGAQTPATH} \
+                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}/arm64 \
                     -DCMAKE_OSX_ARCHITECTURES=arm64"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j3"
                     
@@ -130,8 +130,8 @@ pipeline {
                     sh "echo Building for x64-crosscompiling in ${BUILD_TYPE} mode"
                     sh "mkdir ${BUILD_DIR_X64}"
                     sh "cmake --preset dev-unix -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
-                    -DCMAKE_OSX_ARCHITECTURES=x86_64 -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_QT_BINDINGS=OFF \
-                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR_X64} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}"
+                    -DCMAKE_OSX_ARCHITECTURES=x86_64 \
+                    -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR_X64} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}/x86_64"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR_X64} -j3"
                 }
                 script {
