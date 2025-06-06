@@ -18,7 +18,8 @@
                     "name": "curl",
                     "default-features": false,
                     "features": [
-                        "boringssl"
+                        "boringssl",
+                        "zstd"
                     ]
                 }
             ]
@@ -27,7 +28,10 @@
             "description": "Disable support for voice and/or video calls",
             "dependencies": [
                 "libwebsockets",
-                "curl"
+                {
+                    "name": "curl",
+                    "features": [ "zstd" ]
+                }
             ]
         },
         "use-openssl": {
