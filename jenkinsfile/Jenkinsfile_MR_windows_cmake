@@ -119,7 +119,7 @@ pipeline {
                     sh "echo Building in ${BUILD_TYPE} mode"
                     sh "mkdir -v tmp"
                     sh "cmake --preset dev-windows -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT='${VCPKGPATH}' ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
-                    -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_JAVA_BINDINGS=OFF -DENABLE_QT_BINDINGS=OFF \
+                    -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_QT_BINDINGS=OFF -DSWIG_EXECUTABLE='C:\\swigwin-4.0.2\\swig.exe' \
                     -S '${megachat_sources_workspace}' -B '${megachat_sources_workspace}'\\\\${BUILD_DIR}\\\\"
                     sh "cmake --build '${megachat_sources_workspace}'\\\\${BUILD_DIR} --config ${BUILD_TYPE} -j2"
                 }
