@@ -11,3 +11,4 @@ build/
 build-MEGAchat-Desktop-*
 build-cmake-Desktop-*
 .clang-format
+/CMakeUserPresets.json
