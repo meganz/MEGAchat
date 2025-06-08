@@ -56,22 +56,22 @@
         {
             "name": "dev-unix",
             "inherits": [
-                "unix",
-                "dev"
+                "dev",
+                "unix"
             ]
         },
         {
             "name": "dev-windows",
             "inherits": [
-                "windows",
-                "dev"
+                "dev",
+                "windows"
             ]
         },
         {
             "name": "mega-android",
             "inherits": [
-                "android",
-                "mega"
+                "mega",
+                "android"
             ],
             "cacheVariables": {
                 "ENABLE_JAVA_BINDINGS ": "ON"
@@ -80,8 +80,8 @@
         {
             "name": "mega-ios",
             "inherits": [
-                "ios",
-                "mega"
+                "mega",
+                "ios"
             ]
         }
     ]
