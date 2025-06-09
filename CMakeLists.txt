@@ -7,7 +7,7 @@
 #    target_link_libraries(<target> PRIVATE MEGA::CHATlib)
 #
 
-cmake_minimum_required(VERSION 3.18)
+cmake_minimum_required(VERSION 3.20)
 
 # Qt Creator configures VCPKG automatically. Disable it, we may want to use different tripplets, paths...
 set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
@@ -21,25 +21,11 @@ set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages d
 
 # If PROJECT_NAME is not set before project() we are the main project.
 if(NOT PROJECT_NAME)
-    message(STATUS "[CHATlib] is a top-level project. Install target, examples and tests will be enabled by default.")
+    message(STATUS "[CHATlib] is a top-level project.")
     set(CHATLIB_STANDALONE 1)
-    if((CMAKE_SYSTEM_NAME STREQUAL "iOS") OR (CMAKE_SYSTEM_NAME STREQUAL "Android"))
-        option(ENABLE_CHATLIB_QTAPP "Qt example app is built if enabled" OFF)
-        option(ENABLE_CHATLIB_MEGACLC "MEGAclc example app is built if enabled" OFF)
-        option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" OFF)
-    else()
-        option(ENABLE_CHATLIB_QTAPP "Qt example app is built if enabled" ON)
-        option(ENABLE_CHATLIB_MEGACLC "MEGAclc example app is built if enabled" ON)
-        option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" ON)
-    endif()
-    option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" ON)
 else()
-    message(STATUS "[CHATlib] is building under project [${PROJECT_NAME}] Install target, examples and tests will not be enabled by default.")
+    message(STATUS "[CHATlib] is building under project [${PROJECT_NAME}].")
     set(CHATLIB_STANDALONE 0)
-    option(ENABLE_CHATLIB_QTAPP "Example application is built if enabled" OFF)
-    option(ENABLE_CHATLIB_MEGACLC "MEGAclc example application is built if enabled" OFF)
-    option(ENABLE_CHATLIB_TESTS "Integration and unit tests are built if enabled" OFF)
-    option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" OFF)
 endif()
 
 include(chatlib_options)
