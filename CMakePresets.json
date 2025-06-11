@@ -74,7 +74,7 @@
                 "android"
             ],
             "cacheVariables": {
-                "ENABLE_JAVA_BINDINGS ": "ON"
+                "ENABLE_JAVA_BINDINGS": "ON"
             }
         },
         {
