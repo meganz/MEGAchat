@@ -9,12 +9,17 @@
 
 cmake_minimum_required(VERSION 3.20)
 
+# Set SDK directory
+set(DEFAULT_SDK_DIR third-party/mega)
+set(SDK_DIR ${CMAKE_CURRENT_LIST_DIR}/${DEFAULT_SDK_DIR} CACHE PATH "SDK directory")
+message(STATUS "SDK directory: ${SDK_DIR}")
+
 # Qt Creator configures VCPKG automatically. Disable it, we may want to use different tripplets, paths...
 set(QT_CREATOR_SKIP_VCPKG_SETUP TRUE CACHE BOOL "")
 
 ## Modules location
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/contrib/cmake/modules) # Modules from MEGAchat
-list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/cmake/modules) # Modules from MEGAsdk
+list(APPEND CMAKE_MODULE_PATH ${SDK_DIR}/cmake/modules) # Modules from SDK
 
 ## Configurable options ##
 set(VCPKG_ROOT "" CACHE PATH "If set, it will build and use the VCPKG packages defined in the manifest file")
@@ -37,12 +42,12 @@ if(NOT PROJECT_NAME)
         include(vcpkg_management)
         include(chatlib_vcpkg_management) # For specific MEGAchat configurations
         list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/contrib/cmake) # MEGAchat overlays
-        list(APPEND vcpkg_overlay ${CMAKE_CURRENT_LIST_DIR}/third-party/mega/cmake) # MEGAsdk overlays
+        list(APPEND vcpkg_overlay ${SDK_DIR}/cmake) # SDK overlays
         process_vcpkg_libraries("${vcpkg_overlay}") # Choose and build libraries depending on the configured options.
         process_chatlib_vcpkg_libraries()
     else()
         # For packages with no pkg-config in the system.
-        list(APPEND CMAKE_MODULE_PATH third-party/mega/contrib/cmake/modules/packages)
+        list(APPEND CMAKE_MODULE_PATH ${SDK_DIR}/cmake/modules/packages)
         message(STATUS "Using system dependencies")
     endif()
 endif()
@@ -69,7 +74,7 @@ include(target_platform_compile_options) # To add compile options depeding on th
 ## Load targets
 
 # Load SDK project
-add_subdirectory(third-party/mega)
+add_subdirectory(${SDK_DIR} ${CMAKE_BINARY_DIR}/${DEFAULT_SDK_DIR})
 
 # Load global CMake configuration for the project
 include(chatlib_configuration)
@@ -100,7 +105,7 @@ endif()
 # Load integration tests
 if(ENABLE_CHATLIB_TESTS)
     # Load test_tools target from the SDK
-    add_subdirectory(third-party/mega/tests)
+    add_subdirectory(${SDK_DIR}/tests ${CMAKE_BINARY_DIR}/${DEFAULT_SDK_DIR}/tests)
     add_subdirectory(tests/sdk_test)
 endif()
 

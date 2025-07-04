@@ -24,7 +24,7 @@ if(NOT USE_WEBRTC)
     list(APPEND ADDITIONAL_SWIG_DEFINES -DKARERE_DISABLE_WEBRTC)
 endif()
 
-set(CMAKE_SWIG_FLAGS -c++ -package "nz.mega.sdk" ${ADDITIONAL_SWIG_DEFINES} -I${CMAKE_CURRENT_LIST_DIR}/../../src -I${CMAKE_CURRENT_LIST_DIR}/../../third-party/mega/include)
+set(CMAKE_SWIG_FLAGS -c++ -package "nz.mega.sdk" ${ADDITIONAL_SWIG_DEFINES} -I${CMAKE_CURRENT_LIST_DIR}/../../src -I${SDK_DIR}/include)
 
 # Generate java binding files
 swig_add_library(MEGAchatJavaBindings
