@@ -140,13 +140,13 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 
     MegaChatApiImpl *chatApiImpl = (MegaChatApiImpl *)param;
 
-    // init event-loop and websockets, then sync with main thread
-    static thread_local MegaChatWaiter chatWaiter;
+    // Init event-loop and websockets, then sync with main thread
+    thread_local MegaChatWaiter chatWaiter;
     chatApiImpl->waiter = &chatWaiter;
-    static thread_local MegaWebsocketsIO chatWebsockets(chatApiImpl->sdkMutex,
-                                                        chatApiImpl->waiter,
-                                                        chatApiImpl->mMegaApi,
-                                                        chatApiImpl);
+    thread_local MegaWebsocketsIO chatWebsockets(chatApiImpl->sdkMutex,
+                                                 chatApiImpl->waiter,
+                                                 chatApiImpl->mMegaApi,
+                                                 chatApiImpl);
     chatApiImpl->mWebsocketsIO = &chatWebsockets;
     chatApiImpl->mThreadSpecificInit.set_value(); // Signal that the thread is initialized
 
