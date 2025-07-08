@@ -4604,6 +4604,8 @@ public:
      * On the onRequestFinish error, the error code associated to the MegaChatError can be:
      * - MegaChatError::ERROR_NOENT  - If the target user is the same user as caller
      * - MegaChatError::ERROR_ACCESS - If the target is not actually contact of the user.
+     * - MegaChatError::ERROR_ACCESS - If we are creating a self chat without waiting for fetchnodes
+     * completion
      *
      * @note If you are trying to create a chat with more than 1 other person, then it will be
      * forced to be a group chat.
