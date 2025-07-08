@@ -125,7 +125,7 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     threadExit = 0;
     thread.start(threadEntryPoint, this);
 
-    threadSpecificInitDone.get();
+    threadSpecificInitDone.get(); // Wait until the thread is initialized
 }
 
 //Entry point for the blocking thread
@@ -148,7 +148,7 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
                                                         chatApiImpl->mMegaApi,
                                                         chatApiImpl);
     chatApiImpl->mWebsocketsIO = &chatWebsockets;
-    chatApiImpl->mThreadSpecificInit.set_value();
+    chatApiImpl->mThreadSpecificInit.set_value(); // Signal that the thread is initialized
 
     chatApiImpl->loop();
     return 0;
