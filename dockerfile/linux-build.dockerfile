@@ -8,7 +8,7 @@
 # - ubuntu:24.04
 #
 # How to run:
-# docker run -v /path/to/MEGAchat:/mega/MEGAchat megachat-linux-build
+# docker run -v /path/to/MEGAchat:/mega/MEGAchat [-v /path/to/sdk:/mega/sdk] megachat-linux-build
 
 ARG DISTRO=ubuntu:24.04
 
@@ -80,6 +80,7 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 CMD ["sh", "-c", "\
         cmake \
             --preset dev-unix \
+            $(test -d /mega/sdk && echo -DSDK_DIR=/mega/sdk) \
             -DCMAKE_BUILD_TYPE=Debug \
             -S MEGAchat && \
         cmake \
