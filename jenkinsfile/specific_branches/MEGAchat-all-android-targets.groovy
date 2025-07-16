@@ -18,7 +18,11 @@ pipeline {
     }
     environment {
         VCPKGPATH = "/opt/vcpkg"
-        VCPKGPATH_CACHE = "${HOME}/.cache/vcpkg"
+        // VCPKGPATH_CACHE = "${HOME}/.cache/vcpkg"
+        VCPKG_BINARY_SOURCES = 'clear;x-aws,s3://vcpkg-cache/archives/,readwrite'
+        AWS_ACCESS_KEY_ID = credentials('s4_access_key_id_vcpkg_cache')
+        AWS_SECRET_ACCESS_KEY = credentials('s4_secret_access_key_vcpkg_cache')
+        AWS_ENDPOINT_URL = "https://s3.g.s4.mega.io"
     }
     stages {
         stage('Checkout SDK and MEGAchat'){
@@ -75,12 +79,40 @@ pipeline {
                         expression { params.BUILD_ARM == true }
                     }
                     steps {
-                        sh "docker run --name megachat-android-builder-arm-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                        sh "docker run --name megachat-android-builder-arm-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh """
+                            docker run \
+                                --name megachat-android-builder-arm-${env.BUILD_NUMBER} \
+                                --rm \
+                                -v ${WORKSPACE}:/mega/MEGAchat \
+                                -v ${VCPKGPATH}:/mega/vcpkg \
+                                -e ARCH=arm \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
+                                meganz/megachat-android-build-env:${env.BUILD_NUMBER}
+                        """
+                        sh """
+                            docker run \
+                                --name megachat-android-builder-arm-dynamiclib-${env.BUILD_NUMBER} \
+                                --rm \
+                                -v ${WORKSPACE}:/mega/MEGAchat \
+                                -v ${VCPKGPATH}:/mega/vcpkg \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
+                                -e ARCH=arm \
+                                -e BUILD_SHARED_LIBS=ON \
+                                meganz/megachat-android-build-env:${env.BUILD_NUMBER}
+                        """
                     }
                     post{
                         aborted {
-                            sh "docker kill megachat-android-builder-arm-${env.BUILD_NUMBER}; docker kill megachat-android-builder-arm-dynamiclib-${env.BUILD_NUMBER}"
+                            sh """
+                                docker kill megachat-android-builder-arm-${env.BUILD_NUMBER}
+                                docker kill megachat-android-builder-arm-dynamiclib-${env.BUILD_NUMBER}
+                            """
                             script {
                                 failedTargets.add("arm")
                             }
@@ -98,12 +130,39 @@ pipeline {
                         expression { params.BUILD_ARM64 == true }
                     }
                     steps {
-                        sh "docker run --name megachat-android-builder-arm64-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm64 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                        sh "docker run --name megachat-android-builder-arm64-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=arm64 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh """
+                            docker run \
+                                --name megachat-android-builder-arm64-${env.BUILD_NUMBER} \
+                                --rm \
+                                -v ${WORKSPACE}:/mega/MEGAchat \
+                                -v ${VCPKGPATH}:/mega/vcpkg \
+                                -e ARCH=arm64 \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
+                                meganz/megachat-android-build-env:${env.BUILD_NUMBER}
+                        """
+                        sh """
+                            docker run \
+                                --name megachat-android-builder-arm64-dynamiclib-${env.BUILD_NUMBER} \
+                                --rm -v ${WORKSPACE}:/mega/MEGAchat \
+                                -v ${VCPKGPATH}:/mega/vcpkg \
+                                -e ARCH=arm64 \
+                                -e BUILD_SHARED_LIBS=ON \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
+                                meganz/megachat-android-build-env:${env.BUILD_NUMBER}
+                        """
                     }
                     post{
                         aborted {
-                            sh "docker kill megachat-android-builder-arm64-${env.BUILD_NUMBER}; docker kill megachat-android-builder-arm64-dynamiclib-${env.BUILD_NUMBER}" 
+                            sh """
+                                docker kill megachat-android-builder-arm64-${env.BUILD_NUMBER}
+                                docker kill megachat-android-builder-arm64-dynamiclib-${env.BUILD_NUMBER}
+                            """
                             script {
                                 failedTargets.add("arm64")
                             }
@@ -121,12 +180,39 @@ pipeline {
                         expression { params.BUILD_X86 == true }
                     }
                     steps {
-                        sh "docker run --name megachat-android-builder-x86-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x86 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                        sh "docker run --name megachat-android-builder-x86-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x86 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                     }
+                        sh """
+                            docker run \
+                                --name megachat-android-builder-x86-${env.BUILD_NUMBER} \
+                                --rm \
+                                -v ${WORKSPACE}:/mega/MEGAchat \
+                                -v ${VCPKGPATH}:/mega/vcpkg \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
+                                -e ARCH=x86 meganz/megachat-android-build-env:${env.BUILD_NUMBER}
+                        """
+                        sh """
+                            docker run \
+                                --name megachat-android-builder-x86-dynamiclib-${env.BUILD_NUMBER} \
+                                --rm \
+                                -v ${WORKSPACE}:/mega/MEGAchat \
+                                -v ${VCPKGPATH}:/mega/vcpkg \
+                                -e ARCH=x86 \
+                                -e BUILD_SHARED_LIBS=ON \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
+                                meganz/megachat-android-build-env:${env.BUILD_NUMBER}
+                        """
+                    }
                     post{
                         aborted {
-                            sh "docker kill megachat-android-builder-x86-${env.BUILD_NUMBER}; docker kill megachat-android-builder-x86-dynamiclib-${env.BUILD_NUMBER}" 
+                            sh """
+                                docker kill megachat-android-builder-x86-${env.BUILD_NUMBER}
+                                docker kill megachat-android-builder-x86-dynamiclib-${env.BUILD_NUMBER}
+                            """
                             script {
                                 failedTargets.add("x86")
                             }
@@ -144,12 +230,40 @@ pipeline {
                         expression { params.BUILD_X64 == true }
                     }
                     steps {
-                        sh "docker run --name megachat-android-builder-x64-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x64 meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
-                        sh "docker run --name megachat-android-builder-x64-dynamiclib-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -v ${VCPKGPATH_CACHE}:/mega/.cache/vcpkg -e ARCH=x64 -e BUILD_SHARED_LIBS=ON meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
+                        sh """
+                            docker run \
+                                --name megachat-android-builder-x64-${env.BUILD_NUMBER} \
+                                --rm \
+                                -v ${WORKSPACE}:/mega/MEGAchat \
+                                -v ${VCPKGPATH}:/mega/vcpkg \
+                                -e ARCH=x64 \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
+                                meganz/megachat-android-build-env:${env.BUILD_NUMBER}
+                        """
+                        sh """
+                            docker run \
+                                --name megachat-android-builder-x64-dynamiclib-${env.BUILD_NUMBER} \
+                                --rm \
+                                -v ${WORKSPACE}:/mega/MEGAchat \
+                                -v ${VCPKGPATH}:/mega/vcpkg \
+                                -e ARCH=x64 \
+                                -e BUILD_SHARED_LIBS=ON \
+                                -e VCPKG_BINARY_SOURCES \
+                                -e AWS_ACCESS_KEY_ID \
+                                -e AWS_SECRET_ACCESS_KEY \
+                                -e AWS_ENDPOINT_URL \
+                                meganz/megachat-android-build-env:${env.BUILD_NUMBER}
+                        """
                     }
                     post{
                         aborted {
-                            sh "docker kill megachat-android-builder-x64-${env.BUILD_NUMBER}; docker kill megachat-android-builder-x64-dynamiclib-${env.BUILD_NUMBER}" 
+                            sh """
+                                docker kill megachat-android-builder-x64-${env.BUILD_NUMBER}
+                                docker kill megachat-android-builder-x64-dynamiclib-${env.BUILD_NUMBER}
+                            """
                             script {
                                 failedTargets.add("x64")
                             }

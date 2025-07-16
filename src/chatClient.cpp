@@ -966,6 +966,12 @@ promise::Promise<void> Client::createSelfChat()
     {
         return promise::_Void();
     }
+    if (!mChatdClient)
+    {
+        return promise::Error("Cannot create self chat if chatdClient is not initialized yet",
+                              kErrException,
+                              kErrorAccess);
+    }
     auto wptr = getDelTracker();
     return api
         .call(&mega::MegaApi::createChat,

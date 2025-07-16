@@ -145,6 +145,10 @@ pipeline {
         stage('Build MEGAchat'){
             environment{
                 VCPKGPATH = "/opt/vcpkg"
+                VCPKG_BINARY_SOURCES = 'clear;x-aws,s3://vcpkg-cache/archives/,readwrite'
+                AWS_ACCESS_KEY_ID = credentials('s4_access_key_id_vcpkg_cache')
+                AWS_SECRET_ACCESS_KEY = credentials('s4_secret_access_key_vcpkg_cache')
+                AWS_ENDPOINT_URL = "https://s3.g.s4.mega.io"
             }
             steps{
                 dir(megachat_sources_workspace){
@@ -152,7 +156,7 @@ pipeline {
                         sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS_MEGACHAT}#g" tests/sdk_test/sdk_test.h
                     """
                     sh "echo Building SDK"
-                    sh "cmake -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    sh "cmake --preset dev-unix -DCMAKE_BUILD_TYPE=Debug -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR}"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j3"
                 }

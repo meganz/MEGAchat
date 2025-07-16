@@ -72,6 +72,11 @@ git clone https://github.com/microsoft/vcpkg.git
 
 EOF
 
+# Install AWS cli to use VCPKG cache in S4
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install
+
 CMD ["sh", "-c", "\
         cmake \
             --preset dev-unix \

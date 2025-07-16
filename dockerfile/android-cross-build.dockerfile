@@ -74,6 +74,11 @@ ENV PATH=$PATH:$JAVA_HOME
 # Set default architecture
 ARG ARCH=x64
 
+# Install AWS cli to use VCPKG cache in S4
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
+    unzip awscliv2.zip && \
+    ./aws/install
+
 # Configure and build CMake command, this will be executed when running the container
 CMD ["sh", "-c", "\
     userdel -f ubuntu && \
@@ -109,7 +114,7 @@ CMD ["sh", "-c", "\
         echo 'Valid values are: ON | OFF' && \
         echo 'Build stopped.' && exit 1;; \
     esac && \
-    su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,VCPKG_TRIPLET,ANDROID_ARCH,DEFINE_BUILD_SHARED_LIBS_ON' -c ' \
+    su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,VCPKG_TRIPLET,ANDROID_ARCH,DEFINE_BUILD_SHARED_LIBS_ON,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_ENDPOINT_URL,VCPKG_BINARY_SOURCES' -c ' \
     cmake \
         --preset mega-android \
         -S MEGAchat \
