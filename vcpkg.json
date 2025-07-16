@@ -18,9 +18,16 @@
                     "name": "curl",
                     "default-features": false,
                     "features": [
-                        "boringssl",
                         "zstd"
                     ]
+                },
+                {
+                    "name": "curl",
+                    "default-features": false,
+                    "features": [
+                        "boringssl"
+                    ],
+                    "platform": "!ios"
                 }
             ]
         },
