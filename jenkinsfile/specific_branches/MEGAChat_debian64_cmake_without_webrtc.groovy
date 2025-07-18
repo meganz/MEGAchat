@@ -42,7 +42,7 @@ pipeline {
                         sed -i "s#MEGAChatTest#${env.USER_AGENT_TESTS_MEGACHAT}#g" tests/sdk_test/sdk_test.h
                     """
                     sh "echo Building SDK"
-                    sh "cmake -DUSE_WEBRTC=OFF -DCMAKE_BUILD_TYPE=${BUILD_TYPE}  -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    sh "cmake -DUSE_WEBRTC=OFF -DENABLE_MEDIA_FILE_METADATA=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE}  -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR}"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j1"
                 }

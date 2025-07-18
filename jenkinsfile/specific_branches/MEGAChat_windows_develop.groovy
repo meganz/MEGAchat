@@ -45,7 +45,7 @@ pipeline {
             }
             steps{
                 dir(megachat_sources_workspace){
-                    sh "cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT='${VCPKGPATH}' ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    sh "cmake -DENABLE_MEDIA_FILE_METADATA=ON -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT='${VCPKGPATH}' ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                         -DENABLE_CHATLIB_QTAPP=OFF -DENABLE_CHATLIB_TESTS=ON -DUSE_FFMPEG=OFF -DUSE_FREEIMAGE=OFF \
                         -S '${megachat_sources_workspace}' -B '${megachat_sources_workspace}'\\\\${BUILD_DIR}\\\\"
                     sh "cmake --build '${megachat_sources_workspace}'\\\\${BUILD_DIR} --config ${BUILD_TYPE} -j2"
