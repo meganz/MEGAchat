@@ -98,10 +98,6 @@ MegaChatApiImpl::~MegaChatApiImpl()
     {
         delete *it;
     }
-
-    delete mWebsocketsIO;
-
-    delete waiter;
 }
 
 void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
@@ -117,17 +113,19 @@ void MegaChatApiImpl::init(MegaChatApi *chatApi, MegaApi *megaApi)
     mClient = NULL;
     API_LOG_DEBUG("%sMegaChatApiImpl::init(): karere client is invalid", getLoggingName());
     mTerminating = false;
-    waiter = new MegaChatWaiter();
-    mWebsocketsIO = new MegaWebsocketsIO(sdkMutex, waiter, megaApi, this);
     reqtag = 0;
 #ifndef KARERE_DISABLE_WEBRTC
     mCallHandler = std::make_unique<MegaChatCallHandler>(this);
 #endif
     mScheduledMeetingHandler = std::make_unique<MegaChatScheduledMeetingHandler>(this);
 
+    std::future<void> threadSpecificInitDone = mThreadSpecificInit.get_future();
+
     //Start blocking thread
     threadExit = 0;
     thread.start(threadEntryPoint, this);
+
+    threadSpecificInitDone.get(); // Wait until the thread is initialized
 }
 
 //Entry point for the blocking thread
@@ -141,6 +139,17 @@ void *MegaChatApiImpl::threadEntryPoint(void *param)
 #endif
 
     MegaChatApiImpl *chatApiImpl = (MegaChatApiImpl *)param;
+
+    // Init event-loop and websockets, then sync with main thread
+    thread_local MegaChatWaiter chatWaiter;
+    chatApiImpl->waiter = &chatWaiter;
+    thread_local MegaWebsocketsIO chatWebsockets(chatApiImpl->sdkMutex,
+                                                 chatApiImpl->waiter,
+                                                 chatApiImpl->mMegaApi,
+                                                 chatApiImpl);
+    chatApiImpl->mWebsocketsIO = &chatWebsockets;
+    chatApiImpl->mThreadSpecificInit.set_value(); // Signal that the thread is initialized
+
     chatApiImpl->loop();
     return 0;
 }

@@ -13,12 +13,15 @@
 class LibwebsocketsIO : public WebsocketsIO
 {
     struct lws_context *wscontext;
+    std::thread::id mLwsContextThread;
     uv_loop_t* eventloop;
 
 public:
     LibwebsocketsIO(Mutex &mutex, ::mega::Waiter* waiter, ::mega::MegaApi *api, void *ctx);
     ~LibwebsocketsIO() override;
-    
+
+    void verifyLwsContextThread() const;
+
     void addevents(::mega::Waiter*, int) override;
     
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
@@ -34,6 +37,10 @@ private:
     int wsGetNoNameErrorCode() override;
 
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
+    void restoreTlsSessions(); // call from LWS thread only
+    std::mutex mTlsSessionsMutex;
+    std::vector<CachedSession> mTlsSessionsToRestore;
+
     // Note: While theoretically a LWS context can have multiple vhosts, it's a
     //       feature applicable to servers, and they need to be explicitly created.
     //       Implicitly, as in our case, only the default vhost will be created.
@@ -55,6 +62,8 @@ public:
     bool connectViaClientInfo(const char *ip, const char *host, int port, const char *path, bool ssl, lws_context *wscontext);
 
 private:
+    void verifyLwsThread() const;
+    std::thread::id mLwsThread;
     std::string recbuffer;
     std::string sendbuffer;
 
