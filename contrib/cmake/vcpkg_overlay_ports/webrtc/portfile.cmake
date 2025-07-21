@@ -180,6 +180,56 @@ vcpkg_gn_install(
     TARGETS :webrtc
 )
 
+# Install (and fix) extra libraries for iOS
+if(VCPKG_TARGET_IS_IOS)
+    set(LIB_NAMES
+        "native_api"
+        "native_video"
+        "videocapture_objc"
+        "videoframebuffer_objc"
+    )
+
+    macro(install_ios_extra lib_name)
+
+        if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
+            list(APPEND build_types "dbg")
+        endif()
+        if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
+            list(APPEND build_types "rel")
+        endif()
+
+        foreach(build_type_suffix IN LISTS build_types)
+            # Convert thin libraries to normal libraries
+            vcpkg_execute_required_process(
+                COMMAND zsh -c
+                    "for i in $(nm ${TARGET_TRIPLET}-${build_type_suffix}/obj/sdk/lib${lib_name}.a | grep -E '^[^ ]+\.o:$' | sed 's/:$//'); do
+                        ar rcs ${TARGET_TRIPLET}-${build_type_suffix}/obj/lib${lib_name}.a ${TARGET_TRIPLET}-${build_type_suffix}/obj/sdk/\$i;
+                    done"
+                WORKING_DIRECTORY ${CURRENT_BUILDTREES_DIR}
+                LOGNAME rebuild_extra_ios_libraries
+            )
+
+            if(build_type_suffix STREQUAL "dbg")
+                file(INSTALL "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-${build_type_suffix}/obj/lib${lib_name}.a"
+                    DESTINATION "${CURRENT_PACKAGES_DIR}/debug/lib"
+                )
+            else()
+                file(INSTALL "${CURRENT_BUILDTREES_DIR}/${TARGET_TRIPLET}-${build_type_suffix}/obj/lib${lib_name}.a"
+                    DESTINATION "${CURRENT_PACKAGES_DIR}/lib"
+                )
+            endif()
+
+        endforeach()
+
+        unset(build_type_suffix)
+        unset(build_types)
+    endmacro()
+
+    foreach(lib_name IN LISTS LIB_NAMES)
+        install_ios_extra(${lib_name})
+    endforeach()
+endif()
+
 # Install libwebrtc.jar for Android builds
 if(VCPKG_TARGET_IS_ANDROID)
     if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
@@ -390,6 +440,9 @@ if(VCPKG_TARGET_IS_IOS)
             LIBYUV_DISABLE_SVE
         )
     endif()
+
+    set(cmake_target_name_extra ${LIB_NAMES})
+
 endif()
 
 list(JOIN cmake_target_definitions " " cmake_target_definitions) # INTERFACE_COMPILE_DEFINITIONS in the targets file requires a space separated list
