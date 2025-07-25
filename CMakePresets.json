@@ -45,13 +45,17 @@
                 "ENABLE_CHATLIB_TESTS": "ON",
                 "ENABLE_CHATLIB_WERROR": "ON",
                 "ENABLE_JAVA_BINDINGS": "ON",
+                "ENABLE_MEDIA_FILE_METADATA" : "ON",
                 "ENABLE_QT_BINDINGS": "ON"
             }
         },
         {
             "name": "mega",
             "hidden": true,
-            "inherits": "default"
+            "inherits": "default",
+            "cacheVariables": {
+                "ENABLE_MEDIA_FILE_METADATA" : "ON"
+            }
         },
         {
             "name": "dev-unix",
