@@ -14,10 +14,13 @@ LibuvWaiter::LibuvWaiter()
     
     asynchandle = std::make_unique<uv_async_t>();
     uv_async_init(evtloop.get(), asynchandle.get(), break_libuv_loop);
+    mEventLoopThread = std::this_thread::get_id();
 }
 
 LibuvWaiter::~LibuvWaiter()
 {
+    verifyEventLoopThread();
+
     // Request closing all active handles.
     uv_walk(evtloop.get(), [](uv_handle_t* handle, void*)
     {
@@ -38,6 +41,11 @@ LibuvWaiter::~LibuvWaiter()
     uv_loop_close(evtloop.get());
 }
 
+void LibuvWaiter::verifyEventLoopThread() const
+{
+    assert(mEventLoopThread == std::this_thread::get_id());
+}
+
 void LibuvWaiter::init(dstime ds)
 {
     Waiter::init(ds);
@@ -45,6 +53,8 @@ void LibuvWaiter::init(dstime ds)
 
 int LibuvWaiter::wait()
 {
+    verifyEventLoopThread();
+
     uv_run(evtloop.get(), UV_RUN_DEFAULT);
     return NEEDEXEC;
 }

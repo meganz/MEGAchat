@@ -16,11 +16,17 @@ struct LibuvWaiter : public Waiter
 
     void notify() override;
 
-    uv_loop_t* eventloop() const { return evtloop.get(); }
+    uv_loop_t* eventloop() const
+    {
+        verifyEventLoopThread();
+        return evtloop.get();
+    }
 
 private:
+    void verifyEventLoopThread() const;
     std::unique_ptr<uv_loop_t> evtloop;
     std::unique_ptr<uv_async_t> asynchandle;
+    std::thread::id mEventLoopThread;
 };
 } // namespace
 
