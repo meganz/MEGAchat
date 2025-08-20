@@ -13,10 +13,6 @@ pipeline {
     environment {
         SDK_BRANCH = "${params.SDK_BRANCH}"
         MEGACHAT_BRANCH = "${params.MEGACHAT_BRANCH}"
-        VCPKG_BINARY_SOURCES = 'clear;x-aws,s3://vcpkg-cache/archives/,readwrite'
-        AWS_ACCESS_KEY_ID = credentials('s4_access_key_id_vcpkg_cache')
-        AWS_SECRET_ACCESS_KEY = credentials('s4_secret_access_key_vcpkg_cache')
-        AWS_ENDPOINT_URL = "https://s3.g.s4.mega.io"
     }
     stages {
         stage('Checkout SDK and MEGAchat'){
