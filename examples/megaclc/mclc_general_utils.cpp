@@ -131,7 +131,9 @@ fs::path pathFromLocalPath(const std::string& s, bool mustexist)
 namespace str_utils
 {
 
-// Chat links look like this: https://<mega-domain>/chat/<public-handle>#<chat-key>
+// Chat links look like this:
+// https://mega.app/chat/E1foobar#EFa7vexblahJwjNglfooxg
+//                      ^handle  ^key
 std::string extractChatLink(const char* message)
 {
     constexpr size_t handleSize = 8;
