@@ -1129,7 +1129,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                 return MegaChatError::ERROR_ARGS;
             }
 
-            //link format: https://mega.nz/chat/<public-handle>#<chat-key>
+            // link format: https://mega.app/chat/<public-handle>#<chat-key>
             string separator = "chat/";
             size_t pos = parsedLink.find(separator);
             if (pos == string::npos)

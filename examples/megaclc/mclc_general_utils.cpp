@@ -132,7 +132,7 @@ namespace str_utils
 {
 
 // Chat links look like this:
-// https://mega.nz/chat/E1foobar#EFa7vexblahJwjNglfooxg
+// https://mega.app/chat/E1foobar#EFa7vexblahJwjNglfooxg
 //                      ^handle  ^key
 std::string extractChatLink(const char* message)
 {

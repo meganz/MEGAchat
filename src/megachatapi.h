@@ -3181,7 +3181,7 @@ public:
  * @brief Allows to manage the chat-related features of a MEGA account
  *
  * You must provide an appKey to use this SDK. You can generate an appKey for your app for free here:
- * - https://mega.nz/#sdk
+ * - https://mega.io/developers
  *
  * To properly initialize the chat engine and start using the chat features, you should follow this sequence:
  *     1. Create an object of MegaApi class (see https://github.com/meganz/sdk/tree/master#usage)

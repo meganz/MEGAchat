@@ -76,7 +76,7 @@ namespace str_utils
  * @brief Extracts a link to a chat from an arbitrary message and returns it as a std::string
  *
  * Chat links look like this:
- * https://mega.nz/chat/E1foobar#EFa7vexblahJwjNglfooxg
+ * https://mega.app/chat/E1foobar#EFa7vexblahJwjNglfooxg
  *                      ^handle  ^key
  *
  * @param message The message where the link is expected to be.
