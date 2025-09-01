@@ -335,31 +335,27 @@ pipeline {
                     if (params.BUILD_ARM64) archs << "arm64"
                     if (params.BUILD_X86)   archs << "x86"
                     if (params.BUILD_X64)   archs << "x64"
-                    // 1. Clean bindings
-                    archs.each { arch ->
-                        def outputDir = "${WORKSPACE}/output/android-dynamic/${arch}"
-                        echo "Cleaning bindings in ${outputDir}"
-                        sh "rm -rf ${outputDir}/bindings/java/nz/mega/sdk/nz/* || true"
-                    }
-                    // 2. Collect .so with symbols for debug
+
+                    // 1. Collect .so with symbols and bindings .java
                     archs.each { arch ->
                         def outputDir = "${WORKSPACE}/output/android-dynamic/${arch}"
                         def archTargetDir = "${WORKSPACE}/debug_symbols/${arch}"
                         sh """
-                            mkdir -p ${archTargetDir}
+                            mkdir -p ${archTargetDir}/bindings
                             echo "=== Listing ${outputDir} ==="
                             ls -lR ${outputDir} || true
                             cp ${outputDir}/third-party/mega/libSDKlib.so ${archTargetDir}/
                             cp ${outputDir}/third-party/mega/bindings/java/libSDKJavaBindings.so ${archTargetDir}/
                             cp ${outputDir}/src/libCHATlib.so ${archTargetDir}/
                             cp ${outputDir}/bindings/java/libMEGAchatJavaBindings.so ${archTargetDir}/
+                            cp -r ${outputDir}/bindings/java/nz ${archTargetDir}/bindings/
                         """
                     }
-                    // 3. Tarball with symbols
+                    // 2. Tarball with symbols
                     def tarball = "debug_symbols_${env.BUILD_NUMBER}.tar.gz"
                     sh "tar czf ${WORKSPACE}/${tarball} -C ${WORKSPACE} debug_symbols"
                     
-                    // 4. Upload to artifactory
+                    // 3. Upload to artifactory
                     withCredentials([string(credentialsId: 'MEGACHAT_ARTIFACTORY_TOKEN', variable: 'MEGACHAT_ARTIFACTORY_TOKEN')]) {
                         sh """
                             jf rt upload \
