@@ -164,8 +164,15 @@ std::string extractChatLink(const char* message)
     {
         return {};
     }
-    return "https://mega.nz/" +
-           std::string(chatPtr, chatPtr + base.size() + handleSize + 1 + keySize);
+
+    auto siteFlag = clc_global::g_megaApi->getFlag("site");
+    constexpr int USE_APP_URL = 1;
+    std::string rootURL = (siteFlag->getType() == mega::MegaFlag::FLAG_TYPE_FEATURE &&
+                           siteFlag->getGroup() == USE_APP_URL) ?
+                              "https://mega.app/" :
+                              "https://mega.nz/";
+
+    return rootURL + std::string(chatPtr, chatPtr + base.size() + handleSize + 1 + keySize);
 }
 
 // convert string to handle
