@@ -134,6 +134,15 @@ extern int sdkVersion;
 %newobject megachat::MegaChatScheduledMeetingList::copy;
 %newobject megachat::MegaChatScheduledMeetingOccurrList::copy;
 %newobject megachat::MegaChatWaitingRoom::copy;
+%newobject megachat::MegaChatRoomList::copy;
+%newobject megachat::MegaChatListItemList::copy;
+%newobject megachat::MegaChatPeerList::copy;
+%newobject megachat::MegaChatRichPreview::copy;
+%newobject megachat::MegaChatGeolocation::copy;
+%newobject megachat::MegaChatGiphy::copy;
+%newobject megachat::MegaChatContainsMeta::copy;
+%newobject megachat::MegaChatSession::copy;
+%newobject megachat::MegaChatPresenceConfig::copy;
 
 %newobject megachat::MegaChatApi::getMessageReactions;
 %newobject megachat::MegaChatApi::getReactionUsers;
