@@ -8,7 +8,7 @@ pipeline {
     environment {
         PATH = "/usr/local/bin:${env.PATH}"
         VCPKGPATH = "${env.HOME}/jenkins/vcpkg"
-        MEGAQTPATH= "${env.HOME}/Qt-build/5.15.13/5.15.13/arm64"
+        MEGAQTPATH= "${env.HOME}/Qt-build/5.15.16/5.15.16/arm64"
         BUILD_TYPE= "Release"
         APIURL_TO_TEST = "https://g.api.mega.co.nz/"
         SDK_BRANCH = "develop"
