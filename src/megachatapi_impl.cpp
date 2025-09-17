@@ -1129,7 +1129,7 @@ int MegaChatApiImpl::performRequest_loadPreview(MegaChatRequestPrivate *request)
                 return MegaChatError::ERROR_ARGS;
             }
 
-            //link format: https://mega.nz/chat/<public-handle>#<chat-key>
+            // link format: https://mega.app/chat/<public-handle>#<chat-key>
             string separator = "chat/";
             size_t pos = parsedLink.find(separator);
             if (pos == string::npos)
@@ -1537,8 +1537,16 @@ int MegaChatApiImpl::performRequest_chatLinkHandle(MegaChatRequestPrivate *reque
                                        string phB64;
                                        Base64::btoa(phBin, phB64);
 
-                                       string link =
-                                           "https://mega.nz/chat/" + phB64 + "#" + unifiedKeyB64;
+                                       auto siteFlag = mMegaApi->getFlag("site");
+                                       constexpr int USE_APP_URL = 1;
+                                       std::string rootURL =
+                                           (siteFlag->getType() == MegaFlag::FLAG_TYPE_FEATURE &&
+                                            siteFlag->getGroup() == USE_APP_URL) ?
+                                               "https://mega.app/" :
+                                               "https://mega.nz/";
+
+                                       std::string link =
+                                           rootURL + "chat/" + phB64 + "#" + unifiedKeyB64;
                                        request->setText(link.c_str());
 
                                        megaChatError =
