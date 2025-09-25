@@ -26,12 +26,28 @@ endif()
 
 set(CMAKE_SWIG_FLAGS -c++ -package "nz.mega.sdk" ${ADDITIONAL_SWIG_DEFINES} -I${CMAKE_CURRENT_LIST_DIR}/../../src -I${SDK_DIR}/include)
 
+set(CHATLIB_ANDROID_LIBRARY_TYPE USE_BUILD_SHARED_LIBS)
+if(ENABLE_CHATLIB_ANDROID_DYNAMIC_LIBRARY)
+    set(CHATLIB_ANDROID_LIBRARY_TYPE SHARED)
+endif()
+
 # Generate java binding files
 swig_add_library(MEGAchatJavaBindings
-    TYPE USE_BUILD_SHARED_LIBS
+    TYPE ${CHATLIB_ANDROID_LIBRARY_TYPE}
     LANGUAGE java
     SOURCES ${SWIG_INTERFACE_FILE}
     OUTPUT_DIR ${JAVA_OUTPUT_DIR}
+)
+
+if (ENABLE_CHATLIB_ANDROID_DYNAMIC_LIBRARY)
+    # Rename when a single dynamic library is produced
+    set_target_properties(MEGAchatJavaBindings PROPERTIES
+      OUTPUT_NAME "mega"  # libmega.so
+    )
+endif()
+
+set_target_properties(MEGAchatJavaBindings PROPERTIES
+    POSITION_INDEPENDENT_CODE ON
 )
 
 # For Android we do not need JNI

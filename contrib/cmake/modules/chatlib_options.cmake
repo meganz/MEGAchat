@@ -5,6 +5,7 @@ option(ENABLE_CHATLIB_TESTS "Integration tests are built if enabled" OFF)
 option(ENABLE_CHATLIB_WERROR "Enable warnings as errors" OFF)
 option(ENABLE_JAVA_BINDINGS "Enable the target to build the Java Bindings" OFF)
 option(ENABLE_QT_BINDINGS "Enable the target to build the Qt Bindings" OFF)
+option(ENABLE_CHATLIB_ANDROID_DYNAMIC_LIBRARY "It builds a final dynamic library for Android." OFF)
 
 if((CMAKE_SYSTEM_NAME STREQUAL "iOS") OR (UNIX AND NOT APPLE)) # iOS or Linux/Android
     option(USE_WEBRTC "Support for voice and/or video calls" ON)
