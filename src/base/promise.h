@@ -598,10 +598,18 @@ public:
     void resolve(V&& val)
     {
         if (mSharedObj->mResolved == kSucceeded)
-            throw std::runtime_error("Already resolved");
+        {
+            // throw std::runtime_error("Already resolved");
+            assert(false && "Already resolved");
+            return;
+        }
 
         if (mSharedObj->mResolved == kFailed)
-            throw std::runtime_error("Already rejected");
+        {
+            // throw std::runtime_error("Already rejected");
+            assert(false && "Already rejected");
+            return;
+        }
 
         mSharedObj->mResult = std::forward<V>(val);
         mSharedObj->mResolved = kSucceeded;
@@ -664,10 +672,19 @@ public:
     {
         assert(err);
         if (mSharedObj->mResolved == kSucceeded)
-            throw std::runtime_error("Already resolved");
+        {
+            // throw std::runtime_error("Already resolved");
+            assert(false && "Already resolved");
+            PROMISE_LOG_REF("when: %p: numready = %d", state.get(), state->numready);
+            return;
+        }
 
         if (mSharedObj->mResolved == kFailed)
-            throw std::runtime_error("Already rejected");
+        {
+            // throw std::runtime_error("Already rejected");
+            assert(false && "Already rejected");
+            return;
+        }
 
         mSharedObj->mError = err;
         mSharedObj->mResolved = kFailed;
