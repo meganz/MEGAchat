@@ -13,18 +13,18 @@ set_source_files_properties(${SWIG_INTERFACE_FILE} PROPERTIES
 
 # Set SWIG flags for generating Java code
 if(ENABLE_SYNC)
-    list(APPEND ADDITIONAL_SWIG_DEFINES -DENABLE_SYNC)
+    list(APPEND ADDITIONAL_CHAT_SWIG_DEFINES -DENABLE_SYNC)
 endif()
 
 if(USE_LIBUV)
-    list(APPEND ADDITIONAL_SWIG_DEFINES -DHAVE_LIBUV)
+    list(APPEND ADDITIONAL_CHAT_SWIG_DEFINES -DHAVE_LIBUV)
 endif()
 
 if(NOT USE_WEBRTC)
-    list(APPEND ADDITIONAL_SWIG_DEFINES -DKARERE_DISABLE_WEBRTC)
+    list(APPEND ADDITIONAL_CHAT_SWIG_DEFINES -DKARERE_DISABLE_WEBRTC)
 endif()
 
-set(CMAKE_SWIG_FLAGS -c++ -package "nz.mega.sdk" ${ADDITIONAL_SWIG_DEFINES} -I${CMAKE_CURRENT_LIST_DIR}/../../src -I${SDK_DIR}/include)
+set(CMAKE_SWIG_FLAGS -c++ -package "nz.mega.sdk" ${ADDITIONAL_CHAT_SWIG_DEFINES} -I${CMAKE_CURRENT_LIST_DIR}/../../src -I${SDK_DIR}/include)
 
 set(CHATLIB_ANDROID_LIBRARY_TYPE USE_BUILD_SHARED_LIBS)
 if(ENABLE_CHATLIB_ANDROID_DYNAMIC_LIBRARY)
@@ -58,6 +58,15 @@ if(ANDROID)
     )
 else()
     find_package(JNI REQUIRED)
+endif()
+
+# If the library needs JNI_OnLoad
+if(CHATLIB_STANDALONE AND (BUILD_SHARED_LIBS OR ENABLE_CHATLIB_ANDROID_DYNAMIC_LIBRARY))
+    message(STATUS "JNI_OnLoad will be available in the MEGAchat bindings dynamic library.")
+    target_compile_definitions(MEGAchatJavaBindings
+        PRIVATE
+        CHATLIB_ONLOAD
+    )
 endif()
 
 target_include_directories(MEGAchatJavaBindings

@@ -26,11 +26,11 @@
 #include <sdk/android/native_api/audio_device_module/audio_device_android.h>
 extern JavaVM *MEGAjvm;
 extern JNIEnv *jenv;
-extern jclass applicationClass;
+jclass applicationClass;
 jmethodID startVideoCaptureMID = nullptr;
 jmethodID stopVideoCaptureMID = nullptr;
-extern jmethodID deviceListMID;
-extern jobject surfaceTextureHelper;
+jmethodID deviceListMID;
+jobject surfaceTextureHelper;
 #endif
 
 using namespace CryptoPP;
