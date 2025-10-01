@@ -343,6 +343,25 @@ if(VCPKG_TARGET_IS_ANDROID)
             LIBYUV_DISABLE_SVE
         )
     endif()
+
+    # Keep the folowing symbols, they are used from Java through JNI but are not referenced from C++ code.
+    # The linker removes them unless we explicitly tell it to keep them.
+    string(JOIN "" cmake_target_options
+        "-Wl,"
+        "--undefined=Java_org_webrtc_PeerConnectionFactory_nativeInitializeAndroidGlobals,"
+        "--undefined=Java_org_webrtc_VideoTrack_nativeAddRenderer,"
+        "--undefined=Java_org_webrtc_VideoFileRenderer_nativeCreateNativeByteBuffer,"
+        "--undefined=Java_org_webrtc_WrappedNativeI420Buffer_nativeAddRef,"
+        "--undefined=Java_org_webrtc_VideoRenderer_freeWrappedVideoRenderer,"
+        "--undefined=Java_org_webrtc_PeerConnectionFactory_nativeCreateVideoSource,"
+        "--undefined=Java_org_webrtc_VideoDecoderWrapperCallback_nativeOnDecodedFrame,"
+        "--undefined=Java_org_webrtc_VideoSource_nativeAdaptOutputFormat,"
+        "--undefined=Java_org_webrtc_Metrics_nativeEnable,"
+        "--undefined=Java_org_webrtc_NetworkMonitor_nativeNotifyConnectionTypeChanged,"
+        "--undefined=Java_org_webrtc_Histogram_nativeCreateCounts,"
+        "--undefined=Java_org_webrtc_JniCommon_nativeAllocateByteBuffer,"
+        "--undefined=Java_org_webrtc_JniCommon_nativeFreeByteBuffer"
+    )
 endif()
 
 if(VCPKG_TARGET_IS_IOS)
