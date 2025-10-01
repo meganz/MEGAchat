@@ -268,6 +268,8 @@ pipeline {
                             echo "=== Listing ${outputDir} ==="
                             ls -lR ${outputDir} || true
                             cp ${outputDir}/bindings/java/libmega.so ${archTargetDir}/
+                            cp `find ${outputDir} -name "libwebrtc.jar"` ${WORKSPACE}/debug_symbols/
+                            cp -r ${outputDir}/bindings/java/nz ${archTargetDir}/bindings/
                             cp -r ${outputDir}/bindings/java/nz ${archTargetDir}/bindings/
                         """
                     }
