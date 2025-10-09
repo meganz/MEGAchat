@@ -1,0 +1,16 @@
+diff --git a/build/config/ios/BUILD.gn b/build/config/ios/BUILD.gn
+index 295f36de0..eb5b219dc 100644
+--- a/build/config/ios/BUILD.gn
++++ b/build/config/ios/BUILD.gn
+@@ -136,6 +136,11 @@ config("runtime_library") {
+   asmflags = common_flags
+   cflags = common_flags
+   ldflags = common_flags
++
++  if (xcode_version_int >= 2600) {
++    framework_dirs = [ "$ios_sdk_path/System/Library/SubFrameworks" ]
++  }
++
+ }
+ 
+ config("ios_executable_flags") {

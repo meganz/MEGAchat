@@ -1,0 +1,15 @@
+diff --git a/build/config/ios/BUILD.gn b/build/config/ios/BUILD.gn
+index 507e2a86..3558c65 100644
+--- a/build/config/ios/BUILD.gn
++++ b/build/config/ios/BUILD.gn
+@@ -156,6 +156,10 @@
+   }
+ 
+   ldflags += [ "-Wl,-rpath,@executable_path/Frameworks" ]
++
++  if (xcode_version_int >= 2600) {
++    framework_dirs = [ "$ios_sdk_path/System/Library/SubFrameworks" ]
++  }
+ }
+ 
+ config("ios_extension_executable_flags") {
