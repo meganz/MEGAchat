@@ -90,6 +90,7 @@ typedef NS_ENUM (NSInteger, MEGAChatCallNotificationType) {
     MEGAChatCallNotificationTypeSfuDeny = 2,
 };
 
+NS_SWIFT_SENDABLE
 @interface MEGAChatCall : NSObject
 
 @property (nonatomic, readonly) uint64_t chatId;
