@@ -86,6 +86,7 @@ enum {
 @class MEGAChatScheduledMeetingOccurrence;
 @class MEGAChatScheduledMeeting;
 
+NS_SWIFT_SENDABLE
 @interface MEGAChatRequest : NSObject
 
 @property (readonly, nonatomic, nullable) NSArray<MEGAChatScheduledMeeting *> *scheduledMeetingList;
