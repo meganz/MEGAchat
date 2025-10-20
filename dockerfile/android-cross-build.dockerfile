@@ -6,7 +6,7 @@
 #     -f : Specify dockerfile to be build, replace /path/to/your/MEGAchat with your local path to it
 #
 # Run the Docker container and build the project for a specific architecture:
-#   docker run -v /path/to/your/MEGAchat:/mega/MEGAchat -v /path/to/your/vcpkg:/mega/vcpkg -e ARCH=[arm, arm64, x86, x64] [-e BUILD_SHARED_LIBS=ON] -it megachat-android-cross-build
+#   docker run -v /path/to/your/MEGAchat:/mega/MEGAchat -v /path/to/your/vcpkg:/mega/vcpkg -e ARCH=[arm, arm64, x86, x64] -it megachat-android-cross-build
 #     -v : Mounts a local directory into the container, replace /path/to/your/MEGAchat and /path/to/your/vcpkg with your local paths
 #     -e : Sets an environment variable, `ARCH` environment variable is used to specify the target architecture
 #     -it : Starts an interactive terminal session inside the container after the cmake project is configured and build
@@ -17,12 +17,12 @@
 #    docker build -t megachat-android-cross-build -f android-cross-build.dockerfile .
 #    docker run -v /c/_dev/mega/MEGAchat:/mega/MEGAchat -v /c/_dev/mega/vcpkg:/mega/vcpkg -it megachat-android-cross-build /bin/bash
 #
-#    #Build for arm64: export ARCH=arm64 && export VCPKG_TRIPLET='arm64-android-mega' && export ANDROID_ARCH='arm64-v8a'
-#    #Build for arm:   export ARCH=arm && export VCPKG_TRIPLET='arm-android-mega' && export ANDROID_ARCH='armeabi-v7a'
-#    #Build for x64:   export ARCH=x64 VCPKG_TRIPLET='x64-android-mega' ANDROID_ARCH='x86_64' DEFINE_BUILD_SHARED_LIBS_ON='BUILD_SHARED_LIBS=ON'
-#    #Build for x86:   export ARCH=x86 && export VCPKG_TRIPLET='x86-android-mega' && export ANDROID_ARCH='x86'
+#    #Build for arm64: export ANDROID_ARCH='arm64-v8a'
+#    #Build for arm:   export ANDROID_ARCH='armeabi-v7a'
+#    #Build for x64:   export ANDROID_ARCH='x86_64'
+#    #Build for x86:   export export ANDROID_ARCH='x86'
 #
-#    cmake -B buildAndroid_${ARCH} -S MEGAchat -DVCPKG_ROOT=/mega/vcpkg -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_TARGET_TRIPLET=${VCPKG_TRIPLET} -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON ${DEFINE_BUILD_SHARED_LIBS_ON}
+#    cmake -B buildAndroid_${ARCH} -S MEGAchat -DVCPKG_ROOT=/mega/vcpkg -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME}
 #
 #    cmake --build buildAndroid_${ARCH} -j10
 
@@ -90,40 +90,23 @@ CMD ["sh", "-c", "\
     ( [ -d /mega/.cache ] && chown me:me /mega/.cache || :) && \
     case ${ARCH} in \
       arm) \
-        export VCPKG_TRIPLET='arm-android-mega' && \
         export ANDROID_ARCH='armeabi-v7a';; \
       arm64) \
-        export VCPKG_TRIPLET='arm64-android-mega' && \
         export ANDROID_ARCH='arm64-v8a';; \
       x86) \
-        export VCPKG_TRIPLET='x86-android-mega' && \
         export ANDROID_ARCH='x86';; \
       x64) \
-        export VCPKG_TRIPLET='x64-android-mega' && \
         export ANDROID_ARCH='x86_64';; \
       *) \
         echo 'Unsupported architecture: ${ARCH}' && exit 1;; \
     esac && \
-    case ${BUILD_SHARED_LIBS} in \
-      ON) \
-        export DEFINE_BUILD_SHARED_LIBS_ON=-DBUILD_SHARED_LIBS=ON;; \
-      OFF|'') \
-        ;; \
-      *) \
-        echo 'error: Unsupported value for BUILD_SHARED_LIBS:' ${BUILD_SHARED_LIBS} && \
-        echo 'Valid values are: ON | OFF' && \
-        echo 'Build stopped.' && exit 1;; \
-    esac && \
-    su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,VCPKG_TRIPLET,ANDROID_ARCH,DEFINE_BUILD_SHARED_LIBS_ON,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_ENDPOINT_URL,VCPKG_BINARY_SOURCES' -c ' \
+    su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,ANDROID_ARCH,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_ENDPOINT_URL,VCPKG_BINARY_SOURCES' -c ' \
     cmake \
         --preset mega-android \
         -S MEGAchat \
-        ${DEFINE_BUILD_SHARED_LIBS_ON} \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DVCPKG_TARGET_TRIPLET=${VCPKG_TRIPLET} \
         -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} \
-        -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} \
-        -DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON && \
+        -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} && \
     cmake \
         --build build-MEGAchat-mega-android' && \
     exec /bin/bash"]
