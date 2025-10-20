@@ -1,0 +1,15 @@
+diff --git a/build/config/ios/BUILD.gn b/build/config/ios/BUILD.gn
+index 3558c65..6a4195b1 100644
+--- a/build/config/ios/BUILD.gn
++++ b/build/config/ios/BUILD.gn
+@@ -252,6 +252,10 @@
+     "Foundation.framework",
+     "XCTest.framework",
+   ]
++
++  if (xcode_version_int >= 2600) {
++    framework_dirs = [ "$ios_sdk_path/System/Library/SubFrameworks" ]
++  }
+ }
+ 
+ # TODO(crbug.com/40911785): any target that uses this config will miscompile.
