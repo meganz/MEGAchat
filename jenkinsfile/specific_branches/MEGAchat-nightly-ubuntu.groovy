@@ -66,61 +66,67 @@ pipeline {
                 stages{
                     stage('checkout'){
                         steps {
-                            dir(megachat_sources_workspace){
-                                checkout([
-                                    $class: 'GitSCM',
-                                    branches: [[name: "${MEGACHAT_BRANCH}"]],
-                                        userRemoteConfigs: [[ url: "${GIT_URL_MEGACHAT}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                            lock ("megachat-nightly-build-checkout"){
+                                dir(megachat_sources_workspace){
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${MEGACHAT_BRANCH}"]],
+                                            userRemoteConfigs: [[ url: "${GIT_URL_MEGACHAT}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                                            extensions: [
+                                                [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                                            ]
+                                        ])
+                                }
+                                dir(sdk_sources_workspace){
+                                    checkout([
+                                        $class: 'GitSCM',
+                                        branches: [[name: "${SDK_BRANCH}"]],
+                                        userRemoteConfigs: [[ url: "${GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
                                         extensions: [
                                             [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
                                         ]
                                     ])
-                            }
-                            dir(sdk_sources_workspace){
-                                checkout([
-                                    $class: 'GitSCM',
-                                    branches: [[name: "${SDK_BRANCH}"]],
-                                    userRemoteConfigs: [[ url: "${GIT_URL_SDK}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
-                                    extensions: [
-                                        [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
-                                    ]
-                                ])
+                                }
                             }
                         }
                     }
                     stage("Build image") {
                         steps {
-                            sh """
-                                case "${IMAGE_TAG}" in
-                                    ubuntu-2204)
-                                        DISTRO='ubuntu:22.04'
-                                        ;;
-                                    ubuntu-2404)
-                                        DISTRO='ubuntu:24.04'
-                                        ;;
-                                esac
-                                docker build \
-                                    --build-arg DISTRO=\${DISTRO} \
-                                    -f ${megachat_sources_workspace}/dockerfile/linux-build.dockerfile \
-                                    -t ${image_name} \
-                                    ${megachat_sources_workspace} \
-                                    --no-cache --pull --progress=plain
-                            """
+                            lock ("megachat-nightly-build-image"){
+                                sh """
+                                    case "${IMAGE_TAG}" in
+                                        ubuntu-2204)
+                                            DISTRO='ubuntu:22.04'
+                                            ;;
+                                        ubuntu-2404)
+                                            DISTRO='ubuntu:24.04'
+                                            ;;
+                                    esac
+                                    docker build \
+                                        --build-arg DISTRO=\${DISTRO} \
+                                        -f ${megachat_sources_workspace}/dockerfile/linux-build.dockerfile \
+                                        -t ${image_name} \
+                                        ${megachat_sources_workspace} \
+                                        --no-cache --pull --progress=plain
+                                """
+                            }
                         }
                     }
                     stage("Build MEGAchat") {
                         steps {
-                            sh """
-                                 docker run \
-                                    --rm \
-                                    -v ${megachat_sources_workspace}:/mega/MEGAchat \
-                                    ${sdk_volume} \
-                                    -e VCPKG_BINARY_SOURCES \
-                                    -e AWS_ACCESS_KEY_ID \
-                                    -e AWS_SECRET_ACCESS_KEY \
-                                    -e AWS_ENDPOINT_URL \
-                                    ${image_name}
-                            """
+                            lock ("megachat-nightly-build"){
+                                sh """
+                                     docker run \
+                                        --rm \
+                                        -v ${megachat_sources_workspace}:/mega/MEGAchat \
+                                        ${sdk_volume} \
+                                        -e VCPKG_BINARY_SOURCES \
+                                        -e AWS_ACCESS_KEY_ID \
+                                        -e AWS_SECRET_ACCESS_KEY \
+                                        -e AWS_ENDPOINT_URL \
+                                        ${image_name}
+                                """
+                            }
                         }
                     }
                 }
@@ -136,8 +142,8 @@ pipeline {
         always {
             script {
                 if (params.RESULT_TO_SLACK) {
-                    def megachat_sources_workspace = get_megachat_src("ubuntu-2204", "false")
-                    def sdk_sources_workspace = get_sdk_src("ubuntu-2204", "false")
+                    def megachat_sources_workspace = get_megachat_src("ubuntu-2404", "true")
+                    def sdk_sources_workspace = get_sdk_src("ubuntu-2404", "true")
                     def megachat_commit = sh(script: "git -C ${megachat_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                     def sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                     def messageStatus = currentBuild.currentResult
