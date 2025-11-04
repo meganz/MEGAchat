@@ -1,21 +1,22 @@
 def failedTargets = []
 
 pipeline {
-    agent { label 'linux && amd64 && docker' }
+    agent { label 'linux && amd64 && docker && android' }
     options {
         timeout(time: 300, unit: 'MINUTES')
         buildDiscarder(logRotator(numToKeepStr: '135', daysToKeepStr: '21'))
         gitLabConnection('GitLabConnectionJenkins')
     }
     parameters {
-        booleanParam(name: 'RESULT_TO_SLACK', defaultValue: true, description: 'Should the job result be sent to slack?')
-        booleanParam(name: 'UPLOAD_TO_ARTIFACTORY', defaultValue: false, description: 'Upload debug symbols tarball to Artifactory?')        
+        booleanParam(name: 'NIGHTLY_RESULTS_TO_SLACK', defaultValue: true, description: 'Should the job result be sent to slack? (ignored when BUILD_AARS=true)')
+        booleanParam(name: 'BUILD_AARS', defaultValue: false, description: 'Build & publish AARs with sdk-packer')        
         booleanParam(name: 'BUILD_ARM', defaultValue: true, description: 'Build for ARM')
         booleanParam(name: 'BUILD_ARM64', defaultValue: true, description: 'Build for ARM64')
         booleanParam(name: 'BUILD_X86', defaultValue: true, description: 'Build for X86')
         booleanParam(name: 'BUILD_X64', defaultValue: true, description: 'Build for X64')
         string(name: 'MEGACHAT_BRANCH', defaultValue: 'develop', description: 'Define a custom SDK branch.')
         string(name: 'SDK_BRANCH', defaultValue: 'develop', description: 'Define a custom SDK branch.')
+        string(name: 'BUILD_TYPE', defaultValue: 'dev', description: 'sdk-packer -Pbuild-type (dev|rel)')
     }
     environment {
         VCPKGPATH = "/opt/vcpkg"
@@ -56,7 +57,7 @@ pipeline {
             }
         }
 
-        stage('Override static build if needed') {
+        stage('Define build trigger') {
             steps {
                 script {
                     def cause = currentBuild.getBuildCauses().toString()
@@ -245,49 +246,64 @@ pipeline {
                 }
             }
         }
-        stage('Post-processing: cleanup, .so collection, and upload to artifactory') {
-            when {
-                expression {
-                    return env.BUILD_TRIGGERED_BY_TIMER == 'false' && params.UPLOAD_TO_ARTIFACTORY 
-                }
+        stage('Prepare sdk-packer input, checkout and run it') {
+            when { expression { return env.BUILD_TRIGGERED_BY_TIMER == 'false' && params.BUILD_AARS } }
+            environment {
+                ANDROID_HOME = "/home/jenkins/android-cmdlinetools/"
+                ANDROID_NDK_HOME ="/home/jenkins/android-ndk/"
+
             }
-            steps{
+            steps {
                 script {
                     def archs = []
                     if (params.BUILD_ARM)   archs << "arm"
                     if (params.BUILD_ARM64) archs << "arm64"
                     if (params.BUILD_X86)   archs << "x86"
-                    if (params.BUILD_X64)   archs << "x64"
+                    if (params.BUILD_X64)   archs << "x64"  
 
-                    // 1. Collect .so with symbols and bindings .java
+                    packerRootDir = "${WORKSPACE}/output/sdk_packer/"
                     archs.each { arch ->
                         def outputDir = "${WORKSPACE}/output/android-dynamic/${arch}"
-                        def archTargetDir = "${WORKSPACE}/debug_symbols/${arch}"
+                        def packerArchDir = "${packerRootDir}/${arch}"
                         sh """
-                            mkdir -p ${archTargetDir}/bindings
+                            mkdir -p ${packerArchDir}/bindings
                             echo "=== Listing ${outputDir} ==="
                             ls -lR ${outputDir} || true
-                            cp ${outputDir}/bindings/java/libmega.so ${archTargetDir}/
-                            cp `find ${outputDir} -name "libwebrtc.jar"` ${WORKSPACE}/debug_symbols/
-                            cp -r ${outputDir}/bindings/java/nz ${archTargetDir}/bindings/
-                            cp -r ${outputDir}/bindings/java/nz ${archTargetDir}/bindings/
+                            cp ${outputDir}/bindings/java/libmega.so ${packerArchDir}/
+                            cp `find ${outputDir} -name "libwebrtc.jar"` ${packerRootDir}/
+                            cp -r ${outputDir}/bindings/java/nz ${packerArchDir}/bindings/
+                            cp -r ${outputDir}/bindings/java/nz ${packerArchDir}/bindings/
                         """
                     }
-                    // 2. Tarball with symbols
-                    def tarball = "debug_symbols_${env.BUILD_NUMBER}.tar.gz"
-                    sh "tar czf ${WORKSPACE}/${tarball} -C ${WORKSPACE} debug_symbols"
-                    
-                    // 3. Upload to artifactory
-                    withCredentials([string(credentialsId: 'MEGACHAT_ARTIFACTORY_TOKEN', variable: 'MEGACHAT_ARTIFACTORY_TOKEN')]) {
-                        sh """
-                            jf rt upload \
-                                ${tarball} \
-                                --url ${REPO_URL} \
-                                --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
-                                MEGAchat/android-build/
-                        """
+                }
+                dir("${workspace}/packer") {
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "main"]],
+                        userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:mobile/android/ci-cd/sdk-packer.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                        ]
+                    ])
+                    script{
+                        withCredentials([
+                            usernamePassword(credentialsId: 'ANDROID_ARTIFACTORY_TOKEN', usernameVariable: 'ARTIFACTORY_USER', passwordVariable: 'ARTIFACTORY_ACCESS_TOKEN')
+                        ]) {
+                            withEnv(["ARTIFACTORY_BASE_URL=${env.REPOSITORY_URL}"]) {
+                                sh """
+                                    ls -lR ${packerRootDir}
+                                    chmod +x ./gradlew
+                                    ./gradlew clean
+                                    ./gradlew sdk-packer:artifactoryPublish \\
+                                    -Psdk-root='${sdk_sources_workspace}' \\
+                                    -Pchat-root='${megachat_sources_workspace}' \\
+                                    -Poutput-root='${packerRootDir}' \\
+                                    -Pbuild-type='${BUILD_TYPE}'
+                                """   
+                            }
+                        }                        
                     }
-                    echo "Packages successfully uploaded. URL: [${env.REPO_URL}/MEGAchat/android-build/${tarball}]"
+                    sh "ls -l sdk-packer/build/outputs/aar || true"
                 }
             }
         }
@@ -296,7 +312,7 @@ pipeline {
         always {
             sh "docker image rm meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
             script {
-                if (params.RESULT_TO_SLACK) {
+                if (params.NIGHTLY_RESULTS_TO_SLACK && !params.BUILD_AARS) {
                     def sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                     def megachat_commit = sh(script: "git -C ${megachat_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                     def messageStatus = currentBuild.currentResult
