@@ -36,13 +36,17 @@ pipeline {
                     def SDK_BRANCH_FROM_TRIGGER = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-sdk-branch=[^ ]*" | awk -F "sdk-branch="  \'{print \$2}\'|| :', returnStdout: true).trim()
                     def MEGACHAT_BRANCH_FROM_TRIGGER = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-chat-branch=[^ ]*" | awk -F "chat-branch="  \'{print \$2}\'|| :', returnStdout: true).trim()
                     def BUILD_TYPE_FROM_TRIGGER = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-lib-type=[^ ]*" | awk -F "lib-type="  \'{print \$2}\'|| :', returnStdout: true).trim()
-                    env.SDK_BRANCH     = SDK_BRANCH_FROM_TRIGGER  ?: params.SDK_BRANCH
-                    env.MEGACHAT_BRANCH= MEGACHAT_BRANCH_FROM_TRIGGER ?: params.MEGACHAT_BRANCH
-                    env.BUILD_TYPE     = BUILD_TYPE_FROM_TRIGGER ?: params.BUILD_TYPE
-                    env.BUILD_AARS     = true
+                    env.SDK_COMMIT      = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-sdk-commit=[^ ]*" | awk -F "sdk-commit="  \'{print \$2}\'|| :', returnStdout: true).trim()
+                    env.MEGACHAT_COMMIT = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-chat-commit=[^ ]*" | awk -F "chat-commit="  \'{print \$2}\'|| :', returnStdout: true).trim()
+                    env.SDK_BRANCH      = SDK_BRANCH_FROM_TRIGGER  ?: params.SDK_BRANCH
+                    env.MEGACHAT_BRANCH = MEGACHAT_BRANCH_FROM_TRIGGER ?: params.MEGACHAT_BRANCH
+                    env.BUILD_TYPE      = BUILD_TYPE_FROM_TRIGGER ?: params.BUILD_TYPE
+                    env.BUILD_AARS      = true
                     env.NIGHTLY_RESULTS_TO_SLACK = false
                     echo "SDK_BRANCH=${env.SDK_BRANCH}"
                     echo "MEGACHAT_BRANCH=${env.MEGACHAT_BRANCH}"
+                    echo "SDK_COMMIT=${env.SDK_COMMIT}"
+                    echo "MEGACHAT_COMMIT=${env.MEGACHAT_COMMIT}"                    
                     echo "BUILD_TYPE=${env.BUILD_TYPE}"
                     echo "BUILD_AARS=${env.BUILD_AARS}"
                 }
@@ -60,6 +64,11 @@ pipeline {
                         [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
                     ]
                 ])
+                script {
+                    if (env.MEGACHAT_COMMIT?.trim()) {
+                        sh "git checkout ${env.MEGACHAT_COMMIT}"
+                    }
+                }
                 dir('third-party/mega'){
                     sh "echo Cloning SDK branch \"${env.SDK_BRANCH}\""
                     checkout([
@@ -70,6 +79,11 @@ pipeline {
                             [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
                         ]
                     ])
+                    script {
+                        if (env.SDK_COMMIT?.trim()) {
+                            sh "git checkout ${env.SDK_COMMIT}"
+                        }
+                    }
                 }
                 script{
                     megachat_sources_workspace = WORKSPACE
