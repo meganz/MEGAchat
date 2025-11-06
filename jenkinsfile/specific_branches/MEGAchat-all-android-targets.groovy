@@ -1,5 +1,4 @@
 def failedTargets = []
-
 pipeline {
     agent { label 'linux && amd64 && docker && android' }
     options {
@@ -25,6 +24,8 @@ pipeline {
         AWS_ACCESS_KEY_ID = credentials('s4_access_key_id_vcpkg_cache')
         AWS_SECRET_ACCESS_KEY = credentials('s4_secret_access_key_vcpkg_cache')
         AWS_ENDPOINT_URL = "https://s3.g.s4.mega.io"
+        BUILD_AARS = false
+        NIGHTLY_RESULTS_TO_SLACK = true
     }
     stages {
         stage('Override build parameters'){
@@ -66,6 +67,7 @@ pipeline {
                 ])
                 script {
                     if (env.MEGACHAT_COMMIT?.trim()) {
+                        sh "echo checking out to provided MEGAchat commit"
                         sh "git checkout ${env.MEGACHAT_COMMIT}"
                     }
                 }
@@ -81,6 +83,7 @@ pipeline {
                     ])
                     script {
                         if (env.SDK_COMMIT?.trim()) {
+                            sh "echo checking out to provided SDK commit"
                             sh "git checkout ${env.SDK_COMMIT}"
                         }
                     }
@@ -385,6 +388,54 @@ pipeline {
                                 }' \${SLACK_WEBHOOK_URL}
                         """
                     }
+                }
+            }
+        }
+        success {
+            script{
+                if (env.gitlabTriggerPhrase?.trim()) {
+                    def reportPath = "${workspace}/packer/gitlab_report.txt"
+                    if (fileExists(reportPath)) {
+                        def body = readFile(reportPath).trim()
+                        addGitLabMRComment comment: body
+                        echo "✅ Comment sent to MR."
+
+                    } else {
+                        addGitLabMRComment comment: "⚠️ File `${reportPath}` not found in workspace, but build succeeded<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})"
+                        echo "File ${reportPath} not found."
+                    }            
+                }
+            }
+            deleteDir() /* clean up our workspace */
+        }
+        failure {
+            script{
+                if (env.gitlabTriggerPhrase?.trim()) {
+                    def reportPath = "${workspace}/packer/gitlab_report.txt"
+                    if (fileExists(reportPath)) {
+                        def body = readFile(reportPath).trim()
+                        addGitLabMRComment comment: body
+                        echo "✅ Comment sent to MR."
+
+                    } else {
+                        addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} :penguin: <b>Android</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>" )                        echo "File ${reportPath} not found."
+                    }            
+                }
+            }
+            deleteDir() /* clean up our workspace */
+        }
+        aborted {
+            script{
+                if (env.gitlabTriggerPhrase?.trim()) {
+                    def reportPath = "${workspace}/packer/gitlab_report.txt"
+                    if (fileExists(reportPath)) {
+                        def body = readFile(reportPath).trim()
+                        addGitLabMRComment comment: body
+                        echo "✅ Comment sent to MR."
+
+                    } else {
+                        addGitLabMRComment(comment: ":interrobang: ${env.JOB_NAME} :penguin: <b>Android</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>")
+                    }            
                 }
             }
             deleteDir() /* clean up our workspace */
