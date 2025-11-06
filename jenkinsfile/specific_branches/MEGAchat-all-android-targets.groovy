@@ -27,23 +27,44 @@ pipeline {
         AWS_ENDPOINT_URL = "https://s3.g.s4.mega.io"
     }
     stages {
+        stage('Override build parameters'){
+        when {
+            expression { return env.gitlabTriggerPhrase?.trim() }
+        }
+            steps {
+                script{
+                    def SDK_BRANCH_FROM_TRIGGER = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-sdk-branch=[^ ]*" | awk -F "sdk-branch="  \'{print \$2}\'|| :', returnStdout: true).trim()
+                    def MEGACHAT_BRANCH_FROM_TRIGGER = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-chat-branch=[^ ]*" | awk -F "chat-branch="  \'{print \$2}\'|| :', returnStdout: true).trim()
+                    def BUILD_TYPE_FROM_TRIGGER = sh(script: 'echo "$gitlabTriggerPhrase" | grep --only-matching "\\-\\-lib-type=[^ ]*" | awk -F "lib-type="  \'{print \$2}\'|| :', returnStdout: true).trim()
+                    env.SDK_BRANCH     = SDK_BRANCH_FROM_TRIGGER  ?: params.SDK_BRANCH
+                    env.MEGACHAT_BRANCH= MEGACHAT_BRANCH_FROM_TRIGGER ?: params.MEGACHAT_BRANCH
+                    env.BUILD_TYPE     = BUILD_TYPE_FROM_TRIGGER ?: params.BUILD_TYPE
+                    env.BUILD_AARS     = true
+                    env.NIGHTLY_RESULTS_TO_SLACK = false
+                    echo "SDK_BRANCH=${env.SDK_BRANCH}"
+                    echo "MEGACHAT_BRANCH=${env.MEGACHAT_BRANCH}"
+                    echo "BUILD_TYPE=${env.BUILD_TYPE}"
+                    echo "BUILD_AARS=${env.BUILD_AARS}"
+                }
+            }
+        }
         stage('Checkout SDK and MEGAchat'){
             steps {
                 deleteDir()
-                sh "echo Cloning MEGAchat branch \"${params.MEGACHAT_BRANCH}\""
+                sh "echo Cloning MEGAchat branch \"${env.MEGACHAT_BRANCH}\""
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: "${params.MEGACHAT_BRANCH}"]],
+                    branches: [[name: "${env.MEGACHAT_BRANCH}"]],
                     userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:megachat/MEGAchat.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
                     extensions: [
                         [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
                     ]
                 ])
                 dir('third-party/mega'){
-                    sh "echo Cloning SDK branch \"${params.SDK_BRANCH}\""
+                    sh "echo Cloning SDK branch \"${env.SDK_BRANCH}\""
                     checkout([
                         $class: 'GitSCM',
-                        branches: [[name: "${params.SDK_BRANCH}"]],
+                        branches: [[name: "${env.SDK_BRANCH}"]],
                         userRemoteConfigs: [[ url: "git@code.developers.mega.co.nz:sdk/sdk.git", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
                         extensions: [
                             [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
@@ -247,7 +268,7 @@ pipeline {
             }
         }
         stage('Prepare sdk-packer input, checkout and run it') {
-            when { expression { return env.BUILD_TRIGGERED_BY_TIMER == 'false' && params.BUILD_AARS } }
+            when { expression { return env.BUILD_TRIGGERED_BY_TIMER == 'false' && env.BUILD_AARS } }
             environment {
                 ANDROID_HOME = "/home/jenkins/android-cmdlinetools/"
                 ANDROID_NDK_HOME ="/home/jenkins/android-ndk/"
@@ -312,7 +333,7 @@ pipeline {
         always {
             sh "docker image rm meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
             script {
-                if (params.NIGHTLY_RESULTS_TO_SLACK && !params.BUILD_AARS) {
+                if (env.NIGHTLY_RESULTS_TO_SLACK && !env.BUILD_AARS) {
                     def sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                     def megachat_commit = sh(script: "git -C ${megachat_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                     def messageStatus = currentBuild.currentResult
