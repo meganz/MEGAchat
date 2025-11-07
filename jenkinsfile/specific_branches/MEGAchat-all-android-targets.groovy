@@ -24,8 +24,6 @@ pipeline {
         AWS_ACCESS_KEY_ID = credentials('s4_access_key_id_vcpkg_cache')
         AWS_SECRET_ACCESS_KEY = credentials('s4_secret_access_key_vcpkg_cache')
         AWS_ENDPOINT_URL = "https://s3.g.s4.mega.io"
-        BUILD_AARS = false
-        NIGHTLY_RESULTS_TO_SLACK = true
     }
     stages {
         stage('Override build parameters'){
@@ -42,8 +40,8 @@ pipeline {
                     env.SDK_BRANCH      = SDK_BRANCH_FROM_TRIGGER  ?: params.SDK_BRANCH
                     env.MEGACHAT_BRANCH = MEGACHAT_BRANCH_FROM_TRIGGER ?: params.MEGACHAT_BRANCH
                     env.BUILD_TYPE      = BUILD_TYPE_FROM_TRIGGER ?: params.BUILD_TYPE
-                    env.BUILD_AARS      = true
-                    env.NIGHTLY_RESULTS_TO_SLACK = false
+                    env.BUILD_AARS      = "true"
+                    env.NIGHTLY_RESULTS_TO_SLACK = "false"
                     echo "SDK_BRANCH=${env.SDK_BRANCH}"
                     echo "MEGACHAT_BRANCH=${env.MEGACHAT_BRANCH}"
                     echo "SDK_COMMIT=${env.SDK_COMMIT}"
@@ -285,7 +283,7 @@ pipeline {
             }
         }
         stage('Prepare sdk-packer input, checkout and run it') {
-            when { expression { return env.BUILD_TRIGGERED_BY_TIMER == 'false' && env.BUILD_AARS } }
+            when { expression { return env.BUILD_AARS == 'true' } }
             environment {
                 ANDROID_HOME = "/home/jenkins/android-cmdlinetools/"
                 ANDROID_NDK_HOME ="/home/jenkins/android-ndk/"
@@ -350,7 +348,7 @@ pipeline {
         always {
             sh "docker image rm meganz/megachat-android-build-env:${env.BUILD_NUMBER}"
             script {
-                if (env.NIGHTLY_RESULTS_TO_SLACK && !env.BUILD_AARS) {
+                if (env.NIGHTLY_RESULTS_TO_SLACK == "true") {
                     def sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                     def megachat_commit = sh(script: "git -C ${megachat_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                     def messageStatus = currentBuild.currentResult
