@@ -1,14 +1,16 @@
 #ifndef WEBRTCSFU_H
 #define WEBRTCSFU_H
 
-#include <logger.h>
-#include <rtcModule/webrtcAdapter.h>
-#include <rtcModule/webrtc.h>
-#include <rtcModule/rtcStats.h>
-#include <sfu.h>
 #include <IVideoRenderer.h>
 
+#include <rtcModule/rtcStats.h>
+#include <rtcModule/webrtc.h>
+#include <rtcModule/webrtcAdapter.h>
+
+#include <logger.h>
 #include <map>
+#include <memory>
+#include <sfu.h>
 #include <variant>
 
 namespace rtcModule
@@ -679,7 +681,7 @@ protected:
     megaHandle mConnectTimer = 0;    // Handler of the timeout for call re/connecting
     megaHandle mStatsTimer = 0;
     rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback> mStatConnCallback;
-    Stats mStats;
+    std::shared_ptr<Stats> mStats;
     SvcDriver mSvcDriver;
 
     /* maps peer cid to ephemeral key verification promise.

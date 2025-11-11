@@ -17,6 +17,8 @@
 #include <rapidjson/writer.h>
 
 #include <array>
+#include <atomic>
+#include <memory>
 
 namespace rtcModule
 {
@@ -165,20 +167,24 @@ class ConnStatsCallBack:
     public karere::DeleteTrackable
 {
 public:
-    ConnStatsCallBack(Stats* stats, uint32_t hiResId, uint32_t lowResId, void* appCtx);
+    ConnStatsCallBack(std::shared_ptr<Stats> stats,
+                      uint32_t hiResId,
+                      uint32_t lowResId,
+                      void* appCtx);
     ~ConnStatsCallBack();
     void removeStats();
 
+private:
     void OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& report) override;
 
-protected:
-    void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it,
-                      double& rtt,
-                      double& txBwe,
-                      int64_t& bytesRecv,
-                      int64_t& bytesSend);
+    static void getConnStats(const webrtc::RTCStatsReport::ConstIterator& it,
+                             double& rtt,
+                             double& txBwe,
+                             int64_t& bytesRecv,
+                             int64_t& bytesSend);
 
-    Stats* mStats = nullptr; // Doesn't take ownership (Belongs to Call)
+    std::weak_ptr<Stats> mStatsWeak;
+    std::shared_ptr<std::atomic<bool>> mCanceled;
     uint32_t mHiResId;
     uint32_t mLowResId;
     void* mAppCtx;
