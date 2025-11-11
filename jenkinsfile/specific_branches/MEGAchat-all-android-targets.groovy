@@ -1,5 +1,6 @@
 def failedTargets = []
 def sendAndroidSlackComment(String reportPath, String fallbackWhenMissing) {
+    def mrURL = "${env.GIT_URL_ANDROID_MRS}/${env.gitlabMergeRequestIid}"
     def body = fallbackWhenMissing
     if (fileExists(reportPath)) {
         body = readFile(reportPath).trim()
@@ -7,6 +8,8 @@ def sendAndroidSlackComment(String reportPath, String fallbackWhenMissing) {
         body = "${fallbackWhenMissing}\n⚠️ File not found: ${reportPath}"
         echo "⚠️ Slack report file not found: ${reportPath}"
     }
+
+    body += "\n\n🔗 Triggered from: <${mrURL}|Merge Request>"
 
     withCredentials([string(credentialsId: 'slack_webhook_sdk_android_AAR_report', variable: 'SLACK_WEBHOOK_URL')]) {
         sh """
@@ -426,7 +429,7 @@ pipeline {
                     )
                     sendAndroidSlackComment(
                         "${workspace}/packer/slack_report.txt",
-                        "✅ ${env.JOB_NAME} Android SUCCESS\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                        "✅ Android SDK Build SUCCESS\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
                     )  
                 }
             }
@@ -441,7 +444,7 @@ pipeline {
                     )
                     sendAndroidSlackComment(
                         "${workspace}/packer/slack_report.txt",
-                        "🔴 ${env.JOB_NAME} Android FAILURE\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                        "🔴 Android SDK Build FAILURE\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
                     ) 
                 }
             }
@@ -452,11 +455,11 @@ pipeline {
                 if (env.gitlabTriggerPhrase?.trim()) {
                     sendAndroidGitlabComment(
                         "${workspace}/packer/gitlab_report.txt",
-                        ":interrobang: ${env.JOB_NAME} :penguin: <b>Android</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>"
+                        ":interrobang: :penguin: <b>Android SDK Build</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>"
                     )
                     sendAndroidSlackComment(
                         "${workspace}/packer/slack_report.txt",
-                        "⚠️ ${env.JOB_NAME} Android ABORTED\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                        "⚠️  Android SDK Build ABORTED\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
                     ) 
                 }
             }
