@@ -8,18 +8,131 @@
 /* Includes the header */
 #include "megachatapi.h"
 
-extern JavaVM *MEGAjvm;
+#ifdef SWIGJAVA
+#include <jni.h>
 
+#if !defined(KARERE_DISABLE_WEBRTC) && defined(__ANDROID__)
+#include "webrtc/modules/utility/include/jvm_android.h"
+#include "webrtc/rtc_base/logging.h"
+#include "webrtc/rtc_base/ssl_adapter.h"
+#include "webrtc/sdk/android/native_api/base/init.h"
+#include "webrtc/sdk/android/src/jni/jni_generator_helper.h"
+#include "webrtc/sdk/android/src/jni/jni_helpers.h"
+#include "webrtc/sdk/android/native_api/jni/class_loader.h"
+#include "modules/utility/include/jvm_android.h"
+#endif
+
+extern JavaVM *MEGAjvm;
 extern jstring strEncodeUTF8;
-extern jclass applicationClass;
 extern jclass clsString;
 extern jmethodID ctorString;
-extern jmethodID deviceListMID;
 extern jmethodID getBytes;
-extern jmethodID startVideoCaptureMID;
-extern jmethodID stopVideoCaptureMID;
+#if !defined(KARERE_DISABLE_WEBRTC) && defined(__ANDROID__)
+extern jclass applicationClass;
+extern jmethodID deviceListMID;
 extern jobject surfaceTextureHelper;
+#endif
+
 extern int sdkVersion;
+
+namespace megajni
+{
+// Defined in the SDK bindings.
+jint on_load(JavaVM* jvm, void* reserved);
+}
+
+#if !defined(KARERE_DISABLE_WEBRTC) && defined(__ANDROID__)
+namespace megachatjni
+{
+
+void webrtc_on_load(JavaVM* jvm, JNIEnv* jenv)
+{
+    // Initialize WebRTC
+    webrtc::JVM::Initialize(jvm);
+    webrtc::InitAndroid(jvm);
+    rtc::InitializeSSL();
+
+    jenv->ExceptionClear();
+    jclass appGlobalsClass = jenv->FindClass("android/app/AppGlobals");
+    if (appGlobalsClass)
+    {
+        jmethodID getInitialApplicationMID = jenv->GetStaticMethodID(appGlobalsClass, "getInitialApplication", "()Landroid/app/Application;");
+        jenv->DeleteLocalRef(appGlobalsClass);
+    }
+    else
+    {
+        jenv->ExceptionClear();
+    }
+
+    jclass videoCaptureUtilsClass = jenv->FindClass("mega/privacy/android/app/utils/VideoCaptureUtils");
+    if (videoCaptureUtilsClass)
+    {
+        applicationClass = (jclass)jenv->NewGlobalRef(videoCaptureUtilsClass);
+        jenv->DeleteLocalRef(videoCaptureUtilsClass);
+
+        deviceListMID = jenv->GetStaticMethodID(applicationClass, "deviceList", "()[Ljava/lang/String;");
+        if (!deviceListMID)
+        {
+            jenv->ExceptionClear();
+        }
+
+        jclass surfaceTextureHelperClass = jenv->FindClass("org/webrtc/SurfaceTextureHelper");
+        if (surfaceTextureHelperClass)
+        {
+            jmethodID createSurfaceMID = jenv->GetStaticMethodID(surfaceTextureHelperClass, "create", "(Ljava/lang/String;Lorg/webrtc/EglBase$Context;)Lorg/webrtc/SurfaceTextureHelper;");
+            if (createSurfaceMID)
+            {
+                jstring threadStr = (jstring) jenv->NewStringUTF("VideoCapturerThread");
+                jobject surface = jenv->CallStaticObjectMethod(surfaceTextureHelperClass, createSurfaceMID, threadStr, NULL);
+                if (surface)
+                {
+                    surfaceTextureHelper = jenv->NewGlobalRef(surface);
+                    jenv->DeleteLocalRef(surface);
+                }
+                jenv->DeleteLocalRef(threadStr);
+            }
+            else
+            {
+                jenv->ExceptionClear();
+            }
+            jenv->DeleteLocalRef(surfaceTextureHelperClass);
+        }
+        else
+        {
+            jenv->ExceptionClear();
+        }
+    }
+    else
+    {
+        jenv->ExceptionClear();
+    }
+}
+
+} // namespace megachatjni
+
+#endif // !defined(KARERE_DISABLE_WEBRTC) && defined(__ANDROID__)
+
+#ifdef CHATLIB_ONLOAD
+    extern "C" jint JNIEXPORT JNICALL JNI_OnLoad(JavaVM *jvm, void *reserved)
+    {
+        // Initialize the SDK
+        jint ver = megajni::on_load(jvm, reserved);
+        if (!ver)
+        {
+            return 0;
+        }
+#if !defined(KARERE_DISABLE_WEBRTC) && defined(__ANDROID__)
+        // Initialize WebRTC
+        JNIEnv* jenv = nullptr;
+        jvm->GetEnv((void**)&jenv, JNI_VERSION_1_6);
+        megachatjni::webrtc_on_load(jvm, jenv);
+#endif
+        return ver;
+    }
+
+#endif // CHATLIB_ONLOAD
+
+#endif // SWIGJAVA
 
 %}
 %import "megaapi.h"

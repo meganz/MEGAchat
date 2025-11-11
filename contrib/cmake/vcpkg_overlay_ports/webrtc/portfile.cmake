@@ -72,6 +72,16 @@ if(NOT EXISTS ${SOURCE_PATH}/sources.ready)
                 fix_include.patch
                 fix_external_libjpeg.patch
         )
+    elseif(VCPKG_TARGET_IS_IOS)
+        vcpkg_apply_patches(
+            SOURCE_PATH ${WEBRTC_SOURCES_PATH}
+            PATCHES
+                # The following patches are needed for Xcode 26 compatibility until we update to a newer WebRTC version
+                fd31a24.diff # From https://chromium-review.googlesource.com/c/chromium/src/+/6632971
+                8582328.diff # From https://chromium-review.googlesource.com/c/chromium/src/+/6635289
+                19a1f65.diff # From https://chromium-review.googlesource.com/c/chromium/src/+/6646508
+                fix_clang20.diff # Fixes build with Clang 20 until we update to a newer WebRTC version and a newer toolchain.
+        )
     endif()
 
     # Mark sources as ready to build
