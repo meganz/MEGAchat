@@ -1,4 +1,32 @@
 def failedTargets = []
+def sendAndroidSlackComment(String reportPath, String fallbackWhenMissing) {
+    def body = fallbackWhenMissing
+    if (fileExists(reportPath)) {
+        body = readFile(reportPath).trim()
+    } else {
+        body = "${fallbackWhenMissing}\n⚠️ File not found: ${reportPath}"
+        echo "⚠️ Slack report file not found: ${reportPath}"
+    }
+
+    withCredentials([string(credentialsId: 'slack_webhook_sdk_android_AAR_report', variable: 'SLACK_WEBHOOK_URL')]) {
+        sh """
+            curl -sS -X POST -H 'Content-type: application/json' --data "{\\"text\\": \\"${body}\\"}" \${SLACK_WEBHOOK_URL} || true
+        """
+    }
+}
+
+def sendAndroidGitlabComment(String reportPath, String fallbackWhenMissing) {
+    if (fileExists(reportPath)) {
+        def body = readFile(reportPath).trim()
+        addGitLabMRComment comment: body
+    } else {
+        def note = "<br/>⚠️ File `${reportPath}` not found in workspace."
+        addGitLabMRComment comment: "${fallbackWhenMissing}${note}"
+        echo "File ${reportPath} not found."
+    }
+    echo "✅ Comment sent to MR."
+}
+
 pipeline {
     agent { label 'linux && amd64 && docker && android' }
     options {
@@ -392,16 +420,14 @@ pipeline {
         success {
             script{
                 if (env.gitlabTriggerPhrase?.trim()) {
-                    def reportPath = "${workspace}/packer/gitlab_report.txt"
-                    if (fileExists(reportPath)) {
-                        def body = readFile(reportPath).trim()
-                        addGitLabMRComment comment: body
-                        echo "✅ Comment sent to MR."
-
-                    } else {
-                        addGitLabMRComment comment: "⚠️ File `${reportPath}` not found in workspace, but build succeeded<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})"
-                        echo "File ${reportPath} not found."
-                    }            
+                    sendAndroidGitlabComment(
+                        "${workspace}/packer/gitlab_report.txt",
+                        "Build succeeded<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})"
+                    )
+                    sendAndroidSlackComment(
+                        "${workspace}/packer/slack_report.txt",
+                        "✅ ${env.JOB_NAME} Android SUCCESS\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                    )  
                 }
             }
             deleteDir() /* clean up our workspace */
@@ -409,15 +435,14 @@ pipeline {
         failure {
             script{
                 if (env.gitlabTriggerPhrase?.trim()) {
-                    def reportPath = "${workspace}/packer/gitlab_report.txt"
-                    if (fileExists(reportPath)) {
-                        def body = readFile(reportPath).trim()
-                        addGitLabMRComment comment: body
-                        echo "✅ Comment sent to MR."
-
-                    } else {
-                        addGitLabMRComment(comment: ":red_circle: ${env.JOB_NAME} :penguin: <b>Android</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>" )                        echo "File ${reportPath} not found."
-                    }            
+                    sendAndroidGitlabComment(
+                        "${workspace}/packer/gitlab_report.txt",
+                        ":red_circle: ${env.JOB_NAME} :penguin: <b>Android</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>"
+                    )
+                    sendAndroidSlackComment(
+                        "${workspace}/packer/slack_report.txt",
+                        "🔴 ${env.JOB_NAME} Android FAILURE\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                    ) 
                 }
             }
             deleteDir() /* clean up our workspace */
@@ -425,15 +450,14 @@ pipeline {
         aborted {
             script{
                 if (env.gitlabTriggerPhrase?.trim()) {
-                    def reportPath = "${workspace}/packer/gitlab_report.txt"
-                    if (fileExists(reportPath)) {
-                        def body = readFile(reportPath).trim()
-                        addGitLabMRComment comment: body
-                        echo "✅ Comment sent to MR."
-
-                    } else {
-                        addGitLabMRComment(comment: ":interrobang: ${env.JOB_NAME} :penguin: <b>Android</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>")
-                    }            
+                    sendAndroidGitlabComment(
+                        "${workspace}/packer/gitlab_report.txt",
+                        ":interrobang: ${env.JOB_NAME} :penguin: <b>Android</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>"
+                    )
+                    sendAndroidSlackComment(
+                        "${workspace}/packer/slack_report.txt",
+                        "⚠️ ${env.JOB_NAME} Android ABORTED\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                    ) 
                 }
             }
             deleteDir() /* clean up our workspace */
