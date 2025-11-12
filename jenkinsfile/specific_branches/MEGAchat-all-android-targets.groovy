@@ -1,7 +1,8 @@
 def failedTargets = []
-def sendAndroidSlackComment(String reportPath, String fallbackWhenMissing) {
+def sendAndroidSlackComment(String reportPath, String fallbackWhenMissing, String logsUrl) {
     def mrURL = "${env.GIT_URL_ANDROID_MRS}/${env.gitlabMergeRequestIid}"
     def body = fallbackWhenMissing
+    def logs = logsUrl ? "\n🪵 <${logsUrl}|Build Logs>" : ""
     if (fileExists(reportPath)) {
         body = readFile(reportPath).trim()
     } else {
@@ -9,7 +10,7 @@ def sendAndroidSlackComment(String reportPath, String fallbackWhenMissing) {
         echo "⚠️ Slack report file not found: ${reportPath}"
     }
 
-    body += "\n\n🔗 Triggered from: <${mrURL}|Merge Request>"
+    body += "\n\n🔗 Triggered from: <${mrURL}|Merge Request>${logs}"
 
     withCredentials([string(credentialsId: 'slack_webhook_sdk_android_AAR_report', variable: 'SLACK_WEBHOOK_URL')]) {
         sh """
@@ -17,17 +18,59 @@ def sendAndroidSlackComment(String reportPath, String fallbackWhenMissing) {
         """
     }
 }
-
-def sendAndroidGitlabComment(String reportPath, String fallbackWhenMissing) {
+def sendAndroidGitlabComment(String reportPath, String fallbackWhenMissing, String logsUrl) {
+    def logs = logsUrl ? "<br/>🪵 <a href='${logsUrl}'>Build Logs</a>" : ""
     if (fileExists(reportPath)) {
-        def body = readFile(reportPath).trim()
+        def body = readFile(reportPath).trim() + logs
         addGitLabMRComment comment: body
     } else {
         def note = "<br/>⚠️ File `${reportPath}` not found in workspace."
-        addGitLabMRComment comment: "${fallbackWhenMissing}${note}"
+        addGitLabMRComment comment: "${fallbackWhenMissing}${note}${logs}"
         echo "File ${reportPath} not found."
     }
     echo "✅ Comment sent to MR."
+}
+
+// Uploads a file to artifactory
+String uploadToArtifactory(String fileName) {
+    def targetPath
+    withCredentials([
+        usernamePassword(credentialsId: 'ANDROID_ARTIFACTORY_TOKEN', usernameVariable: 'ARTIFACTORY_USER', passwordVariable: 'TOKEN')
+    ])  {
+        def timestamp = sh(
+            script: "date +'%Y%m%d_%H%M%S'",
+            returnStdout: true
+        ).trim()
+        def logName = "prebuilt-sdk-log-${timestamp}.log"
+        targetPath = "android-mega/cicd/sdk-android-logs/${logName}"
+        sh """
+            jf rt upload \
+                "${fileName}" \
+                --url ${REPO_URL} \
+                --access-token ${TOKEN} \
+                "${targetPath}"
+        """
+    }
+    def link = "${REPO_URL}/${targetPath}"
+    echo "Logs uploaded to: ${link}"
+    return link
+}
+
+// Downloads the console log from this Jenkins build
+void downloadJenkinsConsoleLog(String fileName) {
+    withCredentials([usernameColonPassword(credentialsId: 'jenkins-ro', variable: 'CREDENTIALS')]) {
+        sh "curl -u \"\${CREDENTIALS}\" ${BUILD_URL}consoleText -o ${fileName}"
+    }
+}
+
+// Downloads the logs of the build, uploads them to artifactory
+// And return the URL
+String getLogsUrl(String projectId) {
+    String message = ""
+    String fileName = "build.log"
+    String logUrl = ""
+    downloadJenkinsConsoleLog(fileName)
+    return uploadToArtifactory(fileName)
 }
 
 pipeline {
@@ -423,13 +466,16 @@ pipeline {
         success {
             script{
                 if (env.gitlabTriggerPhrase?.trim()) {
+                    def logsUrl = getLogsUrl(env.PROJECT_ID)
                     sendAndroidGitlabComment(
                         "${workspace}/packer/gitlab_report.txt",
-                        "Build succeeded<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})"
+                        "Build succeeded<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})",
+                        logsUrl
                     )
                     sendAndroidSlackComment(
                         "${workspace}/packer/slack_report.txt",
-                        "✅ Android SDK Build SUCCESS\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                        "✅ Android SDK Build SUCCESS\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}",
+                        logsUrl
                     )  
                 }
             }
@@ -438,13 +484,16 @@ pipeline {
         failure {
             script{
                 if (env.gitlabTriggerPhrase?.trim()) {
+                    def logsUrl = getLogsUrl(env.PROJECT_ID)
                     sendAndroidGitlabComment(
                         "${workspace}/packer/gitlab_report.txt",
-                        ":red_circle: ${env.JOB_NAME} :penguin: <b>Android</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>"
+                        ":red_circle: ${env.JOB_NAME} :penguin: <b>Android</b> FAILURE :worried:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>",
+                        logsUrl
                     )
                     sendAndroidSlackComment(
                         "${workspace}/packer/slack_report.txt",
-                        "🔴 Android SDK Build FAILURE\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                        "🔴 Android SDK Build FAILURE\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}",
+                        logsUrl
                     ) 
                 }
             }
@@ -453,13 +502,16 @@ pipeline {
         aborted {
             script{
                 if (env.gitlabTriggerPhrase?.trim()) {
+                    def logsUrl = getLogsUrl(env.PROJECT_ID)
                     sendAndroidGitlabComment(
                         "${workspace}/packer/gitlab_report.txt",
-                        ":interrobang: :penguin: <b>Android SDK Build</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>"
+                        ":interrobang: :penguin: <b>Android SDK Build</b> ABORTED :confused:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>",
+                        logsUrl
                     )
                     sendAndroidSlackComment(
                         "${workspace}/packer/slack_report.txt",
-                        "⚠️  Android SDK Build ABORTED\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}"
+                        "⚠️  Android SDK Build ABORTED\\nBuild: ${env.BUILD_DISPLAY_NAME}\\nURL: ${env.RUN_DISPLAY_URL}",
+                        logsUrl
                     ) 
                 }
             }
