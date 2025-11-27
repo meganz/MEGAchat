@@ -87,6 +87,8 @@ pipeline {
                     sh "cp -v ../automation/requirements.txt requirements.txt"
                     sh """
                         docker build \
+                            --build-arg USER_ID=\$(id -u) \
+                            --build-arg GROUP_ID=\$(id -g) \
                             -f release-management.dockerfile \
                             -t ${env.MEGA_INTERNAL_DOCKER_REGISTRY}:8443/sdk-release-management:latest \
                             .
