@@ -55,20 +55,33 @@ bool SvcDriver::setSvcLayer(int8_t delta, int8_t& rxSpt, int8_t& rxTmp, int8_t& 
     }
 }
 
-Call::Call(const karere::Id& callid, const karere::Id& chatid, const karere::Id& callerid, bool isRinging, CallHandler& callHandler, MyMegaApi& megaApi, RtcModuleSfu& rtc, bool isGroup, std::shared_ptr<std::string> callKey, karere::AvFlags avflags, bool caller)
-    : mCallid(callid)
-    , mChatid(chatid)
-    , mCallerId(callerid)
-    , mIsRinging(isRinging)
-    , mIsOutgoingRinging (caller && !isGroup) // If I have started a 1on1 call outgoing ringing is true
-    , mIsOwnClientCaller(caller)
-    , mIsGroup(isGroup)
-    , mCallHandler(callHandler) // CallHandler to receive notifications about the call
-    , mMegaApi(megaApi)
-    , mSfuClient(rtc.getSfuClient())
-    , mCallKey(callKey ? *callKey : std::string())
-    , mIsJoining(false)
-    , mRtc(rtc)
+Call::Call(const karere::Id& callid,
+           const karere::Id& chatid,
+           const karere::Id& callerid,
+           bool isRinging,
+           CallHandler& callHandler,
+           MyMegaApi& megaApi,
+           RtcModuleSfu& rtc,
+           bool isGroup,
+           std::shared_ptr<std::string> callKey,
+           karere::AvFlags avflags,
+           bool caller):
+    mCallid(callid),
+    mChatid(chatid),
+    mCallerId(callerid),
+    mIsRinging(isRinging),
+    mIsOutgoingRinging(caller && !isGroup) // If I have started a 1on1 call outgoing ringing is true
+    ,
+    mIsOwnClientCaller(caller),
+    mIsGroup(isGroup),
+    mCallHandler(callHandler) // CallHandler to receive notifications about the call
+    ,
+    mMegaApi(megaApi),
+    mSfuClient(rtc.getSfuClient()),
+    mCallKey(callKey ? *callKey : std::string()),
+    mIsJoining(false),
+    mRtc(rtc),
+    mStats(std::make_shared<Stats>())
 {
     mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), rtc.getMySfuProtoVersion(), avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
@@ -1351,7 +1364,8 @@ bool Call::isUdpDisconnected() const
         return true;
     }
 
-    return (mStats.mSamples.mT.empty() && (time(nullptr) - getConnInitialTimeStamp() > sfu::SfuConnection::kNoMediaPathTimeout));
+    return (mStats->mSamples.mT.empty() &&
+            (time(nullptr) - getConnInitialTimeStamp() > sfu::SfuConnection::kNoMediaPathTimeout));
 }
 
 bool Call::isTermCodeRetriable(const TermCode& termCode) const
@@ -1395,7 +1409,7 @@ bool Call::isValidConnectionTermcode(TermCode termCode) const
 
 void Call::sendStats(const TermCode& termCode)
 {
-    if (mStats.isEmptyStats())
+    if (mStats->isEmptyStats())
     {
         // avoid sending stats more than once upon disconnect
         RTCM_LOG_DEBUG("%ssendStats: stats are empty", getLoggingName());
@@ -1403,15 +1417,15 @@ void Call::sendStats(const TermCode& termCode)
     }
 
     assert(isValidConnectionTermcode(termCode));
-    mStats.mDuration =
+    mStats->mDuration =
         mega::isValidTimeStamp(getConnInitialTimeStamp()) // mInitialTs
             ?
             static_cast<uint64_t>((time(nullptr) - getConnInitialTimeStamp()) * 1000) // ms
             :
             mega::mega_invalid_timestamp; // in case we have not joined SFU yet, send duration = 0
-    mStats.mMaxPeers = mMaxPeers;
-    mStats.mTermCode = static_cast<int32_t>(termCode);
-    if (auto [statsValidation, statsJson] = mStats.getJson(); statsValidation.any())
+    mStats->mMaxPeers = mMaxPeers;
+    mStats->mTermCode = static_cast<int32_t>(termCode);
+    if (auto [statsValidation, statsJson] = mStats->getJson(); statsValidation.any())
     {
         RTCM_LOG_WARNING(
             "%ssendStats: discarding callstats due to the following error/s: %s.\nJSON: %s",
@@ -1438,7 +1452,7 @@ void Call::sendStats(const TermCode& termCode)
     }
 
     RTCM_LOG_DEBUG("%sClear local SFU stats", getLoggingName());
-    mStats.clear();
+    mStats->clear();
 }
 
 EndCallReason Call::getEndCallReasonFromTermcode(const TermCode& termCode)
@@ -3940,28 +3954,28 @@ void Call::collectNonRTCStats()
     }
 
     // TODO: pending to implement disabledTxLayers in future if needed
-    mStats.mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) |
-                                 static_cast<int32_t>(RtcConstant::kTxSpatialLayerCount) << 8);
-    mStats.mSamples.mNrxa.push_back(audioSession);
-    mStats.mSamples.mNrxl.push_back(vThumbSession);
-    mStats.mSamples.mNrxh.push_back(hiResSession);
-    mStats.mSamples.mAv.push_back(getLocalAvFlags().value());
+    mStats->mSamples.mQ.push_back(static_cast<int32_t>(mSvcDriver.mCurrentSvcLayerIndex) |
+                                  static_cast<int32_t>(RtcConstant::kTxSpatialLayerCount) << 8);
+    mStats->mSamples.mNrxa.push_back(audioSession);
+    mStats->mSamples.mNrxl.push_back(vThumbSession);
+    mStats->mSamples.mNrxh.push_back(hiResSession);
+    mStats->mSamples.mAv.push_back(getLocalAvFlags().value());
 }
 
 void Call::initStatsValues()
 {
-    mStats.mPeerId = getOwnPeerId();
-    mStats.mCallid = mCallid;
-    mStats.mIsGroup = mIsGroup;
-    mStats.mDevice = mRtc.getDeviceInfo();
-    mStats.mSfuHost = mSfuConnection->getSfuUrl().host;
+    mStats->mPeerId = getOwnPeerId();
+    mStats->mCallid = mCallid;
+    mStats->mIsGroup = mIsGroup;
+    mStats->mDevice = mRtc.getDeviceInfo();
+    mStats->mSfuHost = mSfuConnection->getSfuUrl().host;
 }
 
 void Call::enableStats()
 {
-    mStats.mSfuProtoVersion = static_cast<uint32_t>(mRtc.getMySfuProtoVersion());
-    mStats.mCid = getOwnCid();
-    mStats.mTimeOffset = getJoinOffset();
+    mStats->mSfuProtoVersion = static_cast<uint32_t>(mRtc.getMySfuProtoVersion());
+    mStats->mCid = getOwnCid();
+    mStats->mTimeOffset = getJoinOffset();
     auto wptr = weakHandle();
     mStatsTimer = karere::setInterval([this, wptr]()
     {
@@ -3993,8 +4007,8 @@ void Call::enableStats()
         // poll non-rtc stats
         collectNonRTCStats();
 
-        // Keep mStats ownership
-        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(new ConnStatsCallBack(&mStats, hiResId, lowResId, mRtc.getAppCtx()));
+        mStatConnCallback = rtc::scoped_refptr<webrtc::RTCStatsCollectorCallback>(
+            new ConnStatsCallBack(mStats, hiResId, lowResId, mRtc.getAppCtx()));
         assert(mRtcConn);
         mRtcConn->GetStats(mStatConnCallback.get());
 
@@ -4236,29 +4250,29 @@ void Call::updateNetworkQuality(int networkQuality)
 
 void Call::adjustSvcByStats()
 {
-    if (mStats.mSamples.mRoundTripTime.empty())
+    if (mStats->mSamples.mRoundTripTime.empty())
     {
         RTCM_LOG_WARNING("%sadjustSvcBystats: not enough collected data", getLoggingName());
         return;
     }
 
-    double roundTripTime = mStats.mSamples.mRoundTripTime.back();
+    double roundTripTime = mStats->mSamples.mRoundTripTime.back();
     double packetLost = 0;
-    if (mStats.mSamples.mPacketLost.size() >= 2)
+    if (mStats->mSamples.mPacketLost.size() >= 2)
     {
         // get last lost packets
-        int lastpl =  mStats.mSamples.mPacketLost.back();
+        int lastpl = mStats->mSamples.mPacketLost.back();
         // use mPacketLostCapping to limit the influence of a large momentary peak on the moving average.
         lastpl = lastpl < mSvcDriver.mPacketLostCapping ? lastpl : static_cast<int>(mSvcDriver.mPacketLostCapping);
 
         // get (pre) last lost packets
-        int prelastpl= mStats.mSamples.mPacketLost.at(mStats.mSamples.mPacketLost.size()-2);
+        int prelastpl = mStats->mSamples.mPacketLost.at(mStats->mSamples.mPacketLost.size() - 2);
         // use mPacketLostCapping to limit the influence of a large momentary peak on the moving average.
         prelastpl = prelastpl < mSvcDriver.mPacketLostCapping ? prelastpl : static_cast<int>(mSvcDriver.mPacketLostCapping);
 
         // get periods
-        int lastT = mStats.mSamples.mT.back();
-        int prelastT = mStats.mSamples.mT.at(mStats.mSamples.mT.size() - 2);
+        int lastT = mStats->mSamples.mT.back();
+        int prelastT = mStats->mSamples.mT.at(mStats->mSamples.mT.size() - 2);
         packetLost = static_cast<double>(abs(lastpl - prelastpl)) / (static_cast<double>(abs(lastT - prelastT)) / 1000.0);
     }
 
@@ -4309,11 +4323,10 @@ void Call::adjustSvcByStats()
         updateSvcQuality(+1);
     }
 
-    if (mStats.mSamples.mVtxHiResh.size() < 2
-            || mStats.mSamples.mPacketSent.size() < 2
-            || mStats.mSamples.mTotalPacketSendDelay.size() < 2
-            || mStats.mSamples.mVtxHiResh.back() == 0
-            || mStats.mSamples.mVtxHiResh.at(mStats.mSamples.mVtxHiResh.size() -2) == 0)
+    if (mStats->mSamples.mVtxHiResh.size() < 2 || mStats->mSamples.mPacketSent.size() < 2 ||
+        mStats->mSamples.mTotalPacketSendDelay.size() < 2 ||
+        mStats->mSamples.mVtxHiResh.back() == 0 ||
+        mStats->mSamples.mVtxHiResh.at(mStats->mSamples.mVtxHiResh.size() - 2) == 0)
     {
         // notify about a change in network quality if received quality is very low
         mSvcDriver.mCurrentSvcLayerIndex < 1
@@ -4322,13 +4335,19 @@ void Call::adjustSvcByStats()
         return;
     }
 
-    mSvcDriver.mMovingAverageVideoTxHeight = mSvcDriver.mMovingAverageVideoTxHeight > 0
-            ? ((mSvcDriver.mMovingAverageVideoTxHeight * 3) + static_cast<double>(mStats.mSamples.mVtxHiResh.back())) / 4
-            : mStats.mSamples.mVtxHiResh.back();
+    mSvcDriver.mMovingAverageVideoTxHeight =
+        mSvcDriver.mMovingAverageVideoTxHeight > 0 ?
+            ((mSvcDriver.mMovingAverageVideoTxHeight * 3) +
+             static_cast<double>(mStats->mSamples.mVtxHiResh.back())) /
+                4 :
+            mStats->mSamples.mVtxHiResh.back();
 
     bool txBad = mSvcDriver.mMovingAverageVideoTxHeight < 360;
-    uint32_t pktSent =  mStats.mSamples.mPacketSent.back() - mStats.mSamples.mPacketSent.at(mStats.mSamples.mPacketSent.size() - 2);
-    double totalPacketSendDelay = mStats.mSamples.mTotalPacketSendDelay.back() - mStats.mSamples.mTotalPacketSendDelay.at(mStats.mSamples.mTotalPacketSendDelay.size() - 2);
+    uint32_t pktSent = mStats->mSamples.mPacketSent.back() -
+                       mStats->mSamples.mPacketSent.at(mStats->mSamples.mPacketSent.size() - 2);
+    double totalPacketSendDelay = mStats->mSamples.mTotalPacketSendDelay.back() -
+                                  mStats->mSamples.mTotalPacketSendDelay.at(
+                                      mStats->mSamples.mTotalPacketSendDelay.size() - 2);
     double vtxDelay = pktSent ? round(totalPacketSendDelay * 1000 / pktSent) : -1;
 
     // notify about a change in network quality if necessary

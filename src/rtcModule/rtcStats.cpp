@@ -57,7 +57,7 @@ void QualityLimitationReport::toJson(rapidjson::Value& value, rapidjson::Documen
 
 void ConnStatsCallBack::removeStats()
 {
-    mStats = nullptr;
+    *mCanceled = true;
 }
 
 std::string Stats::statsErrToString(const callstats_bs_t& e)
@@ -365,11 +365,15 @@ void Stats::parseSamples(const std::vector<int32_t> &samples, rapidjson::Value &
     }
 }
 
-ConnStatsCallBack::ConnStatsCallBack(Stats *stats, uint32_t hiResId, uint32_t lowResId, void* appCtx)
-    : mStats(stats)
-    , mHiResId(hiResId)
-    , mLowResId(lowResId)
-    , mAppCtx(appCtx)
+ConnStatsCallBack::ConnStatsCallBack(std::shared_ptr<Stats> stats,
+                                     uint32_t hiResId,
+                                     uint32_t lowResId,
+                                     void* appCtx):
+    mStatsWeak(stats),
+    mCanceled(std::make_shared<std::atomic<bool>>(false)),
+    mHiResId(hiResId),
+    mLowResId(lowResId),
+    mAppCtx(appCtx)
 {
 }
 
@@ -380,149 +384,160 @@ ConnStatsCallBack::~ConnStatsCallBack()
 
 void ConnStatsCallBack::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport> &report)
 {
-    auto wptr = weakHandle();
-    karere::marshallCall([wptr, this, report]()
-    {
-        if (wptr.deleted() || !mStats)
+    karere::marshallCall(
+        [report,
+         mStatsWeak = mStatsWeak,
+         mCanceled = mCanceled,
+         mHiResId = mHiResId,
+         mLowResId = mLowResId]()
         {
-            return;
-        }
-
-        mStats->mSamples.mRoundTripTime.push_back(0.0);
-        mStats->mSamples.mOutGoingBitrate.push_back(0.0);
-        mStats->mSamples.mBytesReceived.push_back(0);
-        mStats->mSamples.mBytesSend.push_back(0);
-        mStats->mSamples.mPacketLost.push_back(0);
-        mStats->mSamples.mVtxHiResh.push_back(0);
-        mStats->mSamples.mVtxHiResfps.push_back(0);
-        mStats->mSamples.mVtxHiResw.push_back(0);
-        mStats->mSamples.mVtxLowResh.push_back(0);
-        mStats->mSamples.mVtxLowResfps.push_back(0);
-        mStats->mSamples.mVtxLowResw.push_back(0);
-        mStats->mSamples.mAudioJitter.push_back(0);
-        mStats->mSamples.mPacketSent.push_back(0);
-        mStats->mSamples.mTotalPacketSendDelay.push_back(0);
-
-        if (mStats->mInitialTs == 0)
-        {
-            mStats->mInitialTs = report->timestamp().us();
-        }
-
-        mStats->mSamples.mT.push_back(
-            static_cast<int32_t>((report->timestamp().us() - mStats->mInitialTs) / 1000));
-
-        for (auto it = report->begin(); it != report->end(); it++)
-        {
-            if (strcmp(it->type(), "candidate-pair") == 0)
+            auto mStats = mStatsWeak.lock();
+            if (*mCanceled || !mStats)
             {
-                double rtt = 0.0;
-                double txBwe = 0.0;
-                int64_t bytesRecv = 0;
-                int64_t bytesSend = 0;
-                getConnStats(it, rtt, txBwe, bytesRecv, bytesSend);
-                mStats->mSamples.mRoundTripTime.back() += static_cast<int32_t>(std::lround(rtt));
-                mStats->mSamples.mOutGoingBitrate.back() += static_cast<int32_t>(std::lround(txBwe));
-                mStats->mSamples.mBytesReceived.back() += static_cast<int32_t>(bytesRecv);
-                mStats->mSamples.mBytesSend.back() += static_cast<int32_t>(bytesSend);
+                return;
             }
-            else if (strcmp(it->type(), "inbound-rtp") == 0)
+
+            mStats->mSamples.mRoundTripTime.push_back(0.0);
+            mStats->mSamples.mOutGoingBitrate.push_back(0.0);
+            mStats->mSamples.mBytesReceived.push_back(0);
+            mStats->mSamples.mBytesSend.push_back(0);
+            mStats->mSamples.mPacketLost.push_back(0);
+            mStats->mSamples.mVtxHiResh.push_back(0);
+            mStats->mSamples.mVtxHiResfps.push_back(0);
+            mStats->mSamples.mVtxHiResw.push_back(0);
+            mStats->mSamples.mVtxLowResh.push_back(0);
+            mStats->mSamples.mVtxLowResfps.push_back(0);
+            mStats->mSamples.mVtxLowResw.push_back(0);
+            mStats->mSamples.mAudioJitter.push_back(0);
+            mStats->mSamples.mPacketSent.push_back(0);
+            mStats->mSamples.mTotalPacketSendDelay.push_back(0);
+
+            if (mStats->mInitialTs == 0)
             {
-                std::string kind;
-                int32_t audioJitter = 0;
-                std::vector<webrtc::Attribute> attributes = it->Attributes();
-                for (const webrtc::Attribute& attribute: attributes)
-                {
-                    if (!attribute.has_value())
-                    {
-                        continue;
-                    }
-
-                    if (strcmp(attribute.name(), "packetsLost") == 0)
-                    {
-                        int32_t packetLost = attribute.get<int32_t>();
-                        mStats->mSamples.mPacketLost.back() = mStats->mSamples.mPacketLost.back() + packetLost;
-                    }
-
-                    if (strcmp(attribute.name(), "jitter") == 0)
-                    {
-                        double value = attribute.get<double>();
-                        audioJitter = static_cast<int32_t>(round(value * 1000.0));
-                    }
-
-                    if (strcmp(attribute.name(), "kind") == 0)
-                    {
-                        kind = attribute.get<std::string>();
-                    }
-                }
-
-                // we only take care of lowest value higher than 0
-                if (kind == "audio" && (!mStats->mSamples.mAudioJitter.back() || (mStats->mSamples.mAudioJitter.back() > audioJitter && audioJitter > 0)))
-                {
-                    mStats->mSamples.mAudioJitter.back() = audioJitter;
-                }
+                mStats->mInitialTs = report->timestamp().us();
             }
-            else if (strcmp(it->type(), "outbound-rtp") == 0)
+
+            mStats->mSamples.mT.push_back(
+                static_cast<int32_t>((report->timestamp().us() - mStats->mInitialTs) / 1000));
+
+            for (auto it = report->begin(); it != report->end(); it++)
             {
-                uint32_t width = 0;
-                uint32_t height = 0;
-                double fps = 0;
-                uint32_t ssrc = 0;
-                std::vector<webrtc::Attribute> attributes = it->Attributes();
-                for (const webrtc::Attribute& attribute: attributes)
+                if (strcmp(it->type(), "candidate-pair") == 0)
                 {
-                    if (!attribute.has_value())
+                    double rtt = 0.0;
+                    double txBwe = 0.0;
+                    int64_t bytesRecv = 0;
+                    int64_t bytesSend = 0;
+                    getConnStats(it, rtt, txBwe, bytesRecv, bytesSend);
+                    mStats->mSamples.mRoundTripTime.back() +=
+                        static_cast<int32_t>(std::lround(rtt));
+                    mStats->mSamples.mOutGoingBitrate.back() +=
+                        static_cast<int32_t>(std::lround(txBwe));
+                    mStats->mSamples.mBytesReceived.back() += static_cast<int32_t>(bytesRecv);
+                    mStats->mSamples.mBytesSend.back() += static_cast<int32_t>(bytesSend);
+                }
+                else if (strcmp(it->type(), "inbound-rtp") == 0)
+                {
+                    std::string kind;
+                    int32_t audioJitter = 0;
+                    std::vector<webrtc::Attribute> attributes = it->Attributes();
+                    for (const webrtc::Attribute& attribute: attributes)
                     {
-                        continue;
+                        if (!attribute.has_value())
+                        {
+                            continue;
+                        }
+
+                        if (strcmp(attribute.name(), "packetsLost") == 0)
+                        {
+                            int32_t packetLost = attribute.get<int32_t>();
+                            mStats->mSamples.mPacketLost.back() =
+                                mStats->mSamples.mPacketLost.back() + packetLost;
+                        }
+
+                        if (strcmp(attribute.name(), "jitter") == 0)
+                        {
+                            double value = attribute.get<double>();
+                            audioJitter = static_cast<int32_t>(round(value * 1000.0));
+                        }
+
+                        if (strcmp(attribute.name(), "kind") == 0)
+                        {
+                            kind = attribute.get<std::string>();
+                        }
                     }
 
-                    if (strcmp(attribute.name(), "frameWidth") == 0)
+                    // we only take care of lowest value higher than 0
+                    if (kind == "audio" &&
+                        (!mStats->mSamples.mAudioJitter.back() ||
+                         (mStats->mSamples.mAudioJitter.back() > audioJitter && audioJitter > 0)))
                     {
-                        width = attribute.get<uint32_t>();
-                    }
-                    else if (strcmp(attribute.name(), "frameHeight") == 0)
-                    {
-                        height = attribute.get<uint32_t>();
-                    }
-                    else if (strcmp(attribute.name(), "framesPerSecond") == 0)
-                    {
-                        fps = attribute.get<double>();
-                    }
-                    else if (strcmp(attribute.name(), "ssrc") == 0)
-                    {
-                        ssrc = attribute.get<uint32_t>();
-                    }
-                    else if (strcmp(attribute.name(), "packetsSent") == 0)
-                    {
-                        uint64_t packetSent = attribute.get<uint64_t>();
-                        mStats->mSamples.mPacketSent.back() = static_cast<uint32_t>(packetSent);
-                    }
-                    else if (strcmp(attribute.name(), "totalPacketSendDelay") == 0)
-                    {
-                        double totalPacketSendDelay = attribute.get<double>();
-                        mStats->mSamples.mTotalPacketSendDelay.back() = totalPacketSendDelay;
-                    }
-                    else if (strcmp(attribute.name(), "qualityLimitationReason") == 0)
-                    {
-                        std::string limitationReason = attribute.get<std::string>();
-                        mStats->mSamples.mQualityLimitations.addIncident(limitationReason);
+                        mStats->mSamples.mAudioJitter.back() = audioJitter;
                     }
                 }
+                else if (strcmp(it->type(), "outbound-rtp") == 0)
+                {
+                    uint32_t width = 0;
+                    uint32_t height = 0;
+                    double fps = 0;
+                    uint32_t ssrc = 0;
+                    std::vector<webrtc::Attribute> attributes = it->Attributes();
+                    for (const webrtc::Attribute& attribute: attributes)
+                    {
+                        if (!attribute.has_value())
+                        {
+                            continue;
+                        }
 
-                if (ssrc == mHiResId && mHiResId)
-                {
-                    mStats->mSamples.mVtxHiResh.back() = height;
-                    mStats->mSamples.mVtxHiResfps.back() = static_cast<int32_t>(fps);
-                    mStats->mSamples.mVtxHiResw.back() = width;
-                }
-                else if (ssrc == mLowResId && mLowResId)
-                {
-                    mStats->mSamples.mVtxLowResh.back() = height;
-                    mStats->mSamples.mVtxLowResfps.back() = static_cast<int32_t>(fps);
-                    mStats->mSamples.mVtxLowResw.back() = width;
+                        if (strcmp(attribute.name(), "frameWidth") == 0)
+                        {
+                            width = attribute.get<uint32_t>();
+                        }
+                        else if (strcmp(attribute.name(), "frameHeight") == 0)
+                        {
+                            height = attribute.get<uint32_t>();
+                        }
+                        else if (strcmp(attribute.name(), "framesPerSecond") == 0)
+                        {
+                            fps = attribute.get<double>();
+                        }
+                        else if (strcmp(attribute.name(), "ssrc") == 0)
+                        {
+                            ssrc = attribute.get<uint32_t>();
+                        }
+                        else if (strcmp(attribute.name(), "packetsSent") == 0)
+                        {
+                            uint64_t packetSent = attribute.get<uint64_t>();
+                            mStats->mSamples.mPacketSent.back() = static_cast<uint32_t>(packetSent);
+                        }
+                        else if (strcmp(attribute.name(), "totalPacketSendDelay") == 0)
+                        {
+                            double totalPacketSendDelay = attribute.get<double>();
+                            mStats->mSamples.mTotalPacketSendDelay.back() = totalPacketSendDelay;
+                        }
+                        else if (strcmp(attribute.name(), "qualityLimitationReason") == 0)
+                        {
+                            std::string limitationReason = attribute.get<std::string>();
+                            mStats->mSamples.mQualityLimitations.addIncident(limitationReason);
+                        }
+                    }
+
+                    if (ssrc == mHiResId && mHiResId)
+                    {
+                        mStats->mSamples.mVtxHiResh.back() = height;
+                        mStats->mSamples.mVtxHiResfps.back() = static_cast<int32_t>(fps);
+                        mStats->mSamples.mVtxHiResw.back() = width;
+                    }
+                    else if (ssrc == mLowResId && mLowResId)
+                    {
+                        mStats->mSamples.mVtxLowResh.back() = height;
+                        mStats->mSamples.mVtxLowResfps.back() = static_cast<int32_t>(fps);
+                        mStats->mSamples.mVtxLowResw.back() = width;
+                    }
                 }
             }
-        }
-    }, mAppCtx);
+        },
+        mAppCtx);
 }
 
 void ConnStatsCallBack::getConnStats(const webrtc::RTCStatsReport::ConstIterator& it, double& rtt, double& txBwe, int64_t& bytesRecv, int64_t& bytesSend)
