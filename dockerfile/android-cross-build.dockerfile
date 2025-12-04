@@ -20,9 +20,9 @@
 #    #Build for arm64: export ANDROID_ARCH='arm64-v8a'
 #    #Build for arm:   export ANDROID_ARCH='armeabi-v7a'
 #    #Build for x64:   export ANDROID_ARCH='x86_64'
-#    #Build for x86:   export export ANDROID_ARCH='x86'
+#    #Build for x86:   export ANDROID_ARCH='x86'
 #
-#    cmake -B buildAndroid_${ARCH} -S MEGAchat -DVCPKG_ROOT=/mega/vcpkg -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SYSTEM_NAME=Android -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME}
+#    cmake -B buildAndroid_${ARCH} -S MEGAchat -DVCPKG_ROOT=/mega/vcpkg -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_SYSTEM_NAME=Android -DANDROID_ABI=${ANDROID_ARCH}
 #
 #    cmake --build buildAndroid_${ARCH} -j10
 
@@ -105,8 +105,7 @@ CMD ["sh", "-c", "\
         --preset mega-android \
         -S MEGAchat \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DCMAKE_ANDROID_ARCH_ABI=${ANDROID_ARCH} \
-        -DCMAKE_ANDROID_NDK=${ANDROID_NDK_HOME} && \
+        -DANDROID_ABI=${ANDROID_ARCH} && \
     cmake \
         --build build-MEGAchat-mega-android' && \
     exec /bin/bash"]
