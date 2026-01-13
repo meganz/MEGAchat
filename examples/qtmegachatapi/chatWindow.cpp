@@ -1241,11 +1241,33 @@ void ChatWindow::onAttachNode(bool isVoiceClip)
 
     if (isVoiceClip)
     {
-        mMegaApi->startUpload(node.toStdString().c_str(), parent, nullptr, 0, "vm", false, false, nullptr);
+        const std::string localPath = node.toStdString();
+        mega::MegaUploadOptions options;
+        options.appData = "vm";
+        mMegaApi->startUpload(localPath, parent, nullptr, &options, nullptr);
     }
     else
     {
-        mMegaApi->startUploadForChat(node.toStdString().c_str(), parent, nullptr, false, nullptr);
+        const std::string localPath = node.toStdString();
+        mega::MegaUploadOptions options;
+        options.appData = nullptr;
+        options.isSourceTemporary = false;
+        options.isChatUpload = true;
+        options.pitagTrigger = mega::MegaApi::PITAG_TRIGGER_PICKER;
+        if (mChatRoom->isNoteToSelf())
+        {
+            options.pitagTarget = mega::MegaApi::PITAG_TARGET_NOTE_TO_SELF;
+        }
+        else if (mChatRoom->isGroup())
+        {
+            options.pitagTarget = mega::MegaApi::PITAG_TARGET_CHAT_GROUP;
+        }
+        else
+        {
+            options.pitagTarget = mega::MegaApi::PITAG_TARGET_CHAT_1TO1;
+        }
+
+        mMegaApi->startUpload(localPath, parent, nullptr, &options, nullptr);
     }
 
     delete parent;
