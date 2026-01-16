@@ -221,6 +221,7 @@ pipeline {
                                 -e AWS_SECRET_ACCESS_KEY \
                                 -e AWS_ENDPOINT_URL \
                                 -e ARCH=arm \
+                                -e BUILD_CORES=4 \
                                 meganz/megachat-android-build-env:${env.BUILD_NUMBER}
                         """
                     }
@@ -254,6 +255,7 @@ pipeline {
                                 -v ${VCPKGPATH}:/mega/vcpkg \
                                 -v ${WORKSPACE}/output/android-dynamic/arm64:/mega/build-MEGAchat-mega-android \
                                 -e ARCH=arm64 \
+                                -e BUILD_CORES=4 \
                                 -e VCPKG_BINARY_SOURCES \
                                 -e AWS_ACCESS_KEY_ID \
                                 -e AWS_SECRET_ACCESS_KEY \
@@ -292,6 +294,7 @@ pipeline {
                                 -v ${VCPKGPATH}:/mega/vcpkg \
                                 -v ${WORKSPACE}/output/android-dynamic/x86:/mega/build-MEGAchat-mega-android \
                                 -e ARCH=x86 \
+                                -e BUILD_CORES=4 \
                                 -e VCPKG_BINARY_SOURCES \
                                 -e AWS_ACCESS_KEY_ID \
                                 -e AWS_SECRET_ACCESS_KEY \
@@ -330,6 +333,7 @@ pipeline {
                                 -v ${VCPKGPATH}:/mega/vcpkg \
                                 -v ${WORKSPACE}/output/android-dynamic/x64:/mega/build-MEGAchat-mega-android \
                                 -e ARCH=x64 \
+                                -e BUILD_CORES=4 \
                                 -e VCPKG_BINARY_SOURCES \
                                 -e AWS_ACCESS_KEY_ID \
                                 -e AWS_SECRET_ACCESS_KEY \
