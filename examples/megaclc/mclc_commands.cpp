@@ -2759,43 +2759,24 @@ void exec_startupload(ac::ACState& s)
     m::MegaCancelToken* ct = useCancelToken ? makeNewGlobalCancelToken() : nullptr;
 
     bool logstage = s.extractflag("-logstage");
+    m::MegaUploadOptions uploadOptions;
+    if (set_filename)
+    {
+        uploadOptions.fileName = newfilename;
+    }
 
     if (auto node = GetNodeByPath(s.words[2].s))
     {
-        if (!set_filename)
-        {
-            g_megaApi->startUpload(s.words[1].s.c_str(),
-                                   node.get(),
-                                   nullptr,
-                                   0,
-                                   nullptr,
-                                   false,
-                                   false,
-                                   ct,
-                                   new OneShotTransferListener(
-                                       [](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
-                                       {
-                                           check_err("startUpload", e, ReportResult);
-                                       },
-                                       logstage));
-        }
-        else
-        {
-            g_megaApi->startUpload(s.words[1].s.c_str(),
-                                   node.get(),
-                                   newfilename.c_str(),
-                                   0,
-                                   nullptr,
-                                   false,
-                                   false,
-                                   ct,
-                                   new OneShotTransferListener(
-                                       [](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
-                                       {
-                                           check_err("startUpload", e, ReportResult);
-                                       },
-                                       logstage));
-        }
+        g_megaApi->startUpload(s.words[1].s,
+                               node.get(),
+                               ct,
+                               &uploadOptions,
+                               new OneShotTransferListener(
+                                   [](m::MegaApi*, m::MegaTransfer*, m::MegaError* e)
+                                   {
+                                       check_err("startUpload", e, ReportResult);
+                                   },
+                                   logstage));
     }
 }
 

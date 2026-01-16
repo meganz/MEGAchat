@@ -10362,15 +10362,14 @@ MegaNode *MegaChatApiTest::uploadFile(int accountIndex, const std::string& fileN
     std::string filePath = (sourcePath / fileName).string();
     mNodeUploadHandle[accountIndex] = INVALID_HANDLE;
     std::unique_ptr<MegaNode> targetNode(megaApi[accountIndex]->getNodeByPath(targetPath.c_str()));
-    megaApi[accountIndex]->startUpload(filePath.c_str()
-                                       , targetNode.get()
-                                       , nullptr    /*fileName*/
-                                       , 0          /*mtime*/
-                                       , nullptr    /*appdata*/
-                                       , false      /*isSourceTemporary*/
-                                       , false      /*startFirst*/
-                                       , nullptr    /*cancelToken*/
-                                       , this);     /*listener*/
+    const MegaUploadOptions uploadOptions;
+    megaApi[accountIndex]->startUpload(filePath,
+                                       targetNode.get(),
+                                       nullptr /*cancelToken*/
+                                       ,
+                                       &uploadOptions /*options*/
+                                       ,
+                                       this); /*listener*/
     bool responseOk = waitForResponse(&isNotTransferRunning(accountIndex));
     EXPECT_TRUE(responseOk) << "Expired timeout for upload file";
     if (!responseOk) return nullptr;
