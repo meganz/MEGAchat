@@ -73,6 +73,8 @@ ENV PATH=$PATH:$JAVA_HOME
 
 # Set default architecture
 ARG ARCH=x64
+ARG BUILD_CORES=4
+ENV BUILD_CORES=${BUILD_CORES}
 
 # Install AWS cli to use VCPKG cache in S4
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" && \
@@ -100,12 +102,13 @@ CMD ["sh", "-c", "\
       *) \
         echo 'Unsupported architecture: ${ARCH}' && exit 1;; \
     esac && \
-    su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,ANDROID_ARCH,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_ENDPOINT_URL,VCPKG_BINARY_SOURCES' -c ' \
+    su - me -w 'ANDROID_NDK_HOME,PATH,JAVA_HOME,ANDROID_ARCH,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_ENDPOINT_URL,VCPKG_BINARY_SOURCES,BUILD_CORES' -c ' \
     cmake \
         --preset mega-android \
         -S MEGAchat \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DANDROID_ABI=${ANDROID_ARCH} && \
     cmake \
-        --build build-MEGAchat-mega-android' && \
+        --build build-MEGAchat-mega-android \
+        -j ${BUILD_CORES}' && \
     exec /bin/bash"]
