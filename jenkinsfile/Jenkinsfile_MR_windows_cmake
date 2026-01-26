@@ -114,11 +114,12 @@ pipeline {
             steps{
                 script {
                     BUILD_TYPE = (env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc')) ? 'Release' : 'Debug'
+                    CMAKE_PRESET = (env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc')) ? 'megaclc-windows' : 'dev-windows'
                 }
                 dir(megachat_sources_workspace){
                     sh "echo Building in ${BUILD_TYPE} mode"
                     sh "mkdir -v tmp"
-                    sh "cmake --preset dev-windows -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT='${VCPKGPATH}' ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    sh "cmake --preset ${CMAKE_PRESET} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT='${VCPKGPATH}' ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -DCMAKE_PREFIX_PATH='C:\\Qt\\Qt5.15.13\\5.15.13\\x64' -DSWIG_EXECUTABLE='C:\\swigwin-4.0.2\\swig.exe' \
                     -S '${megachat_sources_workspace}' -B '${megachat_sources_workspace}'\\\\${BUILD_DIR}\\\\"
                     sh "cmake --build '${megachat_sources_workspace}'\\\\${BUILD_DIR} --config ${BUILD_TYPE} -j2"
