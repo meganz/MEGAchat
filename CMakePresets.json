@@ -60,6 +60,18 @@
             }
         },
         {
+            "name": "megaclc",
+            "hidden": true,
+            "inherits": "default",
+            "cacheVariables": {
+                "ENABLE_CHATLIB_MEGACLC": "ON",
+                "USE_WEBRTC" : "OFF",
+                "USE_FFMPEG" : "OFF",
+                "USE_PDFIUM" : "OFF",
+                "USE_FREEIMAGE" : "OFF"
+            }
+        },
+        {
             "name": "dev-unix",
             "inherits": [
                 "dev",
@@ -88,6 +100,20 @@
             "inherits": [
                 "mega",
                 "ios"
+            ]
+        },
+        {
+            "name": "megaclc-unix",
+            "inherits": [
+                "megaclc",
+                "unix"
+            ]
+        },
+        {
+            "name": "megaclc-windows",
+            "inherits": [
+                "megaclc",
+                "windows"
             ]
         }
     ]
