@@ -122,7 +122,7 @@ pipeline {
         stage('Build with docker'){
             steps {
                 sh "mkdir build_ubuntu2204"
-                sh "docker run --name megachat-builder-x64-ubuntu2204-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}/build_ubuntu2204:/mega/build -v ${WORKSPACE}:/mega/chat -v ${VCPKGPATH}:/mega/vcpkg -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_ENDPOINT_URL -e VCPKG_BINARY_SOURCES meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER}"
+                sh "docker run --name megachat-builder-x64-ubuntu2204-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}/build_ubuntu2204:/mega/build-MEGAchat-megaclc-unix -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_ENDPOINT_URL -e VCPKG_BINARY_SOURCES meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER}"
             }
             post{
                 aborted {
