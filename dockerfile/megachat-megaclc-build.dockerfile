@@ -35,11 +35,11 @@ WORKDIR /mega
 
 # Set entrypoint
 CMD ["sh", "-c", "\
-    userdel -f ubuntu && \
     owner_uid=$(stat -c '%u' /mega/MEGAchat) && \
     owner_gid=$(stat -c '%g' /mega/MEGAchat) && \
+    u=$(getent passwd \"$owner_uid\" | cut -d: -f1) && if [ -n \"$u\" ] && [ \"$owner_uid\" != \"0\" ]; then userdel -f \"$u\"; fi  && \
+    echo 'Adding \"mega\" group and user...' && \
     groupadd -g $owner_gid mega && \
-    echo 'Adding \"mega\" user...' && \
     useradd -M -u $owner_uid -g $owner_gid -d /mega -s /bin/bash mega && \
     su - mega -w 'AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_ENDPOINT_URL,VCPKG_BINARY_SOURCES' -c ' \
     cmake \
