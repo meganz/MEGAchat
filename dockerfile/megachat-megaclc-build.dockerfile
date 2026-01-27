@@ -10,7 +10,7 @@
 # How to run:
 # docker run -v /path/to/MEGAchat:/mega/MEGAchat [-v /path/to/sdk:/mega/sdk] [-v /path/to/output:/mega/build-MEGAchat-megaclc-unix/] megachat-ubuntu-build
 
-ARG DISTRO=ubuntu:24.04
+ARG DISTRO=ubuntu:22.04
 FROM $DISTRO
 
 ENV DEBIAN_FRONTEND=noninteractive
