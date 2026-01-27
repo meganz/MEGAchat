@@ -114,7 +114,7 @@ pipeline {
         stage('Build MEGAchat docker image'){
             steps{
                 dir("dockerfile"){
-                    sh "docker build -t meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER} --build-arg VCPKG_BINARY_SOURCES --build-arg AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY --build-arg AWS_ENDPOINT_URL -f ./megachat-ubuntu2204-build.dockerfile ."
+                    sh "docker build -t meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER} --build-arg VCPKG_BINARY_SOURCES --build-arg AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY --build-arg AWS_ENDPOINT_URL -f ./megachat-megaclc-build.dockerfile ."
                 }
             }
         }
