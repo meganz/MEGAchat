@@ -54,21 +54,49 @@ using byte = CryptoPP::byte;
 typedef unsigned char byte;
 #endif
 
-/** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
-
-extern rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext;
-extern std::unique_ptr<rtc::Thread> gWorkerThread;
-extern std::unique_ptr<rtc::Thread> gSignalingThread;
-extern rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing;
-extern std::string gFieldTrialStr;
 using namespace std::literals;
 
-/** Globally initializes the library */
-bool init(void *appCtx);
+/**
+ * WebRtcContext
+ * include:
+ * - Worker thread
+ * - Signaling thread
+ * - AudioProcessing module
+ * - PeerConnectionFactory
+ */
+class WebRtcContext
+{
+public:
+    static std::shared_ptr<WebRtcContext> create(void* appCtx);
+    ~WebRtcContext();
 
-/** De-initializes and cleans up the library and webrtc stack */
-void cleanup();
-bool isInitialized();
+    WebRtcContext(const WebRtcContext&) = delete;
+    WebRtcContext& operator=(const WebRtcContext&) = delete;
+    WebRtcContext(const WebRtcContext&&) = delete;
+    WebRtcContext& operator=(const WebRtcContext&&) = delete;
+
+    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> getPeerConnectionFactory() const;
+
+    rtc::Thread* getWorkerThread() const;
+
+    rtc::Thread* getSignalingThread() const;
+
+    rtc::scoped_refptr<webrtc::AudioProcessing> getAudioProcessing() const;
+
+private:
+    // private constructor
+    explicit WebRtcContext(void* appCtx);
+
+    void initialize();
+
+    std::unique_ptr<rtc::Thread> mWorkerThread;
+    std::unique_ptr<rtc::Thread> mSignalingThread;
+    rtc::scoped_refptr<webrtc::AudioProcessing> mAudioProcessing;
+    rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> mPeerConnectionFactory;
+    std::string mFieldTrialStr;
+    void* mAppCtx;
+};
+
 unsigned long generateId();
 
 typedef rtc::scoped_refptr<webrtc::MediaStreamInterface> tspMediaStream;
@@ -250,12 +278,28 @@ protected:
     };
     typedef rtc::scoped_refptr<webrtc::PeerConnectionInterface> Base;
     std::shared_ptr<Observer> mObserver;
+    std::shared_ptr<WebRtcContext> mWebRtcContext; // WebRtcContext reference
 
 public:
-    MyPeerConnection():Base(){}
-    MyPeerConnection(C& handler, void* appCtx)
-        :mObserver(new Observer(handler, appCtx))
+    MyPeerConnection():
+        Base()
+    {}
+
+    MyPeerConnection(C& handler, void* appCtx, std::shared_ptr<WebRtcContext> webRtcContext):
+        mObserver(new Observer(handler, appCtx)),
+        mWebRtcContext(webRtcContext)
     {
+        if (!mWebRtcContext)
+        {
+            throw std::runtime_error("WebRtcContext is null");
+        }
+
+        auto factory = mWebRtcContext->getPeerConnectionFactory();
+        if (!factory)
+        {
+            throw std::runtime_error("PeerConnectionFactory is null");
+        }
+
         webrtc::PeerConnectionInterface::RTCConfiguration config;
         config.sdp_semantics = webrtc::SdpSemantics::kUnifiedPlan;
 
@@ -265,7 +309,7 @@ public:
 
         webrtc::PeerConnectionDependencies dependencies(mObserver.get());
         webrtc::RTCErrorOr<rtc::scoped_refptr<webrtc::PeerConnectionInterface>> rtcError =
-                gWebrtcContext->CreatePeerConnectionOrError(config, std::move(dependencies));
+            factory->CreatePeerConnectionOrError(config, std::move(dependencies));
 
         if (!rtcError.error().ok())
         {
@@ -277,6 +321,7 @@ public:
         if (!get())
             throw std::runtime_error("Failed to create a PeerConnection object");
     }
+
     using Base::operator=;
   SdpCreateCallbacks::PromiseType createOffer(const webrtc::PeerConnectionInterface::RTCOfferAnswerOptions &options)
   {
@@ -437,7 +482,8 @@ public:
     static rtc::scoped_refptr<VideoCapturerManager>
         createCameraCapturer(const webrtc::VideoCaptureCapability& capabilities,
                              const std::string& deviceName,
-                             rtc::Thread* thread);
+                             rtc::Thread* workerThread,
+                             rtc::Thread* signalingThread);
     static VideoCapturerManager* createScreenCapturer(const webrtc::VideoCaptureCapability& capabilities, const long int deviceId, rtc::Thread* thread);
     virtual void openDevice(const std::string &deviceName) = 0;
     virtual void releaseDevice() = 0;
@@ -568,7 +614,10 @@ protected:
 class OBJCCaptureModule : public VideoCapturerManager
 {
 public:
-    explicit OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName);
+    explicit OBJCCaptureModule(const webrtc::VideoCaptureCapability& capabilities,
+                               const std::string& deviceName,
+                               rtc::Thread* workerThread,
+                               rtc::Thread* signalingThread);
     virtual ~OBJCCaptureModule() {}
 
     static std::set<std::pair<std::string, std::string>> getVideoDevices();

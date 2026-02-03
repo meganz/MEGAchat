@@ -78,11 +78,19 @@ Call::Call(const karere::Id& callid,
     ,
     mMegaApi(megaApi),
     mSfuClient(rtc.getSfuClient()),
+    mWebRtcContext(rtc.getWebRtcContext()) // get WebRtcContext from RtcModuleSfu
+    ,
     mCallKey(callKey ? *callKey : std::string()),
     mIsJoining(false),
     mRtc(rtc),
     mStats(std::make_shared<Stats>())
 {
+    if (!mWebRtcContext)
+    {
+        RTCM_LOG_ERROR("%sWebRtcContext is null", getLoggingName());
+        throw std::runtime_error("WebRtcContext is null");
+    }
+
     mMyPeer.reset(new sfu::Peer(karere::Id(mMegaApi.sdk.getMyUserHandleBinary()), rtc.getMySfuProtoVersion(), avflags.value()));
     setState(kStateInitial); // call after onNewCall, otherwise callhandler didn't exists
 }
@@ -1011,7 +1019,12 @@ void Call::joinSfu()
 
     clearPendingPeers(); // clear pending peers (if any) before joining call
     initStatsValues();
-    mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx());
+    if (mRtcConn)
+    {
+        mRtcConn->Close();
+        mRtcConn = nullptr;
+    }
+    mRtcConn = artc::MyPeerConnection<Call>(*this, this->mRtc.getAppCtx(), mWebRtcContext);
     size_t hiresTrackIndex = 0;
     createTransceivers(hiresTrackIndex);
     getLocalStreams();
@@ -4173,18 +4186,26 @@ void Call::updateVideoTracks()
         else
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+            auto factory = mWebRtcContext->getPeerConnectionFactory();
+            if (!factory)
+            {
+                RTCM_LOG_ERROR("%supdateVideoTracks(mHiRes): PeerConnectionFactory is null",
+                               getLoggingName());
+                return;
+            }
+
             if (hasScreenFlags && mRtc.getScreenDevice()) // not matter if also camera is enabled
                                                           // (screen = hi-res | camera = lowres)
             {
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack(
-                    mRtc.getScreenDevice()->getVideoTrackSource(),
-                    "v" + std::to_string(artc::generateId()));
+                videoTrack =
+                    factory->CreateVideoTrack(mRtc.getScreenDevice()->getVideoTrackSource(),
+                                              "v" + std::to_string(artc::generateId()));
             }
             else if (hasCameraFlags && mRtc.getCameraDevice()) // only camera flags enabled
             {
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack(
-                    mRtc.getCameraDevice()->getVideoTrackSource(),
-                    "v" + std::to_string(artc::generateId()));
+                videoTrack =
+                    factory->CreateVideoTrack(mRtc.getCameraDevice()->getVideoTrackSource(),
+                                              "v" + std::to_string(artc::generateId()));
             }
             else
             {
@@ -4208,18 +4229,26 @@ void Call::updateVideoTracks()
         else
         {
             rtc::scoped_refptr<webrtc::VideoTrackInterface> videoTrack;
+            auto factory = mWebRtcContext->getPeerConnectionFactory();
+            if (!factory)
+            {
+                RTCM_LOG_ERROR("%supdateVideoTracks(mVThumb): PeerConnectionFactory is null",
+                               getLoggingName());
+                return;
+            }
+
             if (hasCameraFlags && mRtc.getCameraDevice()) // not matter if also screen is enabled
                                                           // (screen = hi-res | camera = lowres)
             {
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack(
-                    mRtc.getCameraDevice()->getVideoTrackSource(),
-                    "v" + std::to_string(artc::generateId()));
+                videoTrack =
+                    factory->CreateVideoTrack(mRtc.getCameraDevice()->getVideoTrackSource(),
+                                              "v" + std::to_string(artc::generateId()));
             }
             else if (hasScreenFlags && mRtc.getScreenDevice()) // only screen flags enabled
             {
-                videoTrack = artc::gWebrtcContext->CreateVideoTrack(
-                    mRtc.getScreenDevice()->getVideoTrackSource(),
-                    "v" + std::to_string(artc::generateId()));
+                videoTrack =
+                    factory->CreateVideoTrack(mRtc.getScreenDevice()->getVideoTrackSource(),
+                                              "v" + std::to_string(artc::generateId()));
             }
             else
             {
@@ -4374,8 +4403,17 @@ void Call::updateAudioTracks()
     {
         if (!track) // create audio track only if not exists
         {
-            rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack =
-                    artc::gWebrtcContext->CreateAudioTrack("a"+std::to_string(artc::generateId()), artc::gWebrtcContext->CreateAudioSource(cricket::AudioOptions()).get());
+            auto factory = mWebRtcContext->getPeerConnectionFactory();
+            if (!factory)
+            {
+                RTCM_LOG_ERROR("%supdateAudioTracks: PeerConnectionFactory is null",
+                               getLoggingName());
+                return;
+            }
+
+            rtc::scoped_refptr<webrtc::AudioTrackInterface> audioTrack = factory->CreateAudioTrack(
+                "a" + std::to_string(artc::generateId()),
+                factory->CreateAudioSource(cricket::AudioOptions()).get());
 
             mAudio->getTransceiver()->sender()->SetTrack(audioTrack.get());
             audioTrack->set_enabled(true);
@@ -4404,12 +4442,9 @@ RtcModuleSfu::RtcModuleSfu(MyMegaApi &megaApi, CallHandler &callhandler, DNScach
     mAppCtx = appCtx;
 
     mSfuClient = std::make_unique<sfu::SfuClient>(websocketIO, appCtx, rRtcCryptoMeetings);
-    if (!artc::isInitialized())
-    {
-        //rtc::LogMessage::LogToDebug(rtc::LS_VERBOSE);
-        artc::init(appCtx);
-        RTCM_LOG_DEBUG("%sWebRTC stack initialized before first use", getLoggingName());
-    }
+
+    RTCM_LOG_DEBUG("%sCreating WebRtcContext", getLoggingName());
+    mWebRtcContext = artc::WebRtcContext::create(appCtx);
 
     mSelectedCameraDeviceId = getDefaultCameraDeviceId();
     mSelectedScreenDeviceId = getDefaultScreenDeviceId();
@@ -5003,7 +5038,8 @@ void RtcModuleSfu::openCameraDevice()
     mCameraCapturerDevice =
         artc::VideoCapturerManager::createCameraCapturer(capabilities,
                                                          *mSelectedCameraDeviceId,
-                                                         artc::gWorkerThread.get());
+                                                         mWebRtcContext->getWorkerThread(),
+                                                         mWebRtcContext->getSignalingThread());
     mCameraCapturerDevice->openDevice(*mSelectedCameraDeviceId);
     mCameraCapturerDevice->AddOrUpdateSink(&mCameraVideoSink, {});
 }
@@ -5042,7 +5078,7 @@ void RtcModuleSfu::openScreenDevice()
     mScreenCapturerDevice =
         artc::VideoCapturerManager::createScreenCapturer(capabilities,
                                                          *mSelectedScreenDeviceId,
-                                                         artc::gWorkerThread.get());
+                                                         mWebRtcContext->getWorkerThread());
     mScreenCapturerDevice->openDevice(std::string());
     mScreenCapturerDevice->AddOrUpdateSink(&mScreenVideoSink, {});
 }
@@ -5473,12 +5509,7 @@ void RemoteAudioSlot::release()
     }
 }
 
-void globalCleanup()
-{
-    if (!artc::isInitialized())
-        return;
-    artc::cleanup();
-}
+void globalCleanup() {}
 
 Session::Session(const sfu::Peer& peer)
     : mPeer(peer)
