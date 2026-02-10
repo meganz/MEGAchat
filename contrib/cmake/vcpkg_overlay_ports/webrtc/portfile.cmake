@@ -246,12 +246,12 @@ endif()
 
 # Add symbolic links to impersonate OpenSSL with the internal BoringSSL.
 if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "release")
-    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/lib/libssl.a COPY_ON_ERROR SYMBOLIC)
-    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/lib/libcrypto.a COPY_ON_ERROR SYMBOLIC)
+    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/lib/libssl.a COPY_ON_ERROR)
+    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/lib/libcrypto.a COPY_ON_ERROR)
 endif()
 if(NOT DEFINED VCPKG_BUILD_TYPE OR VCPKG_BUILD_TYPE STREQUAL "debug")
-    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/debug/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/debug/lib/libssl.a COPY_ON_ERROR SYMBOLIC)
-    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/debug/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/debug/lib/libcrypto.a COPY_ON_ERROR SYMBOLIC)
+    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/debug/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/debug/lib/libssl.a COPY_ON_ERROR)
+    file(CREATE_LINK ${CURRENT_PACKAGES_DIR}/debug/lib/libwebrtc.a ${CURRENT_PACKAGES_DIR}/debug/lib/libcrypto.a COPY_ON_ERROR)
 endif()
 
 # Install headers. Using COPY instead of INSTALL to reduce verbosity
