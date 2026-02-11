@@ -329,49 +329,12 @@ void LibwebsocketsClient::doWsDisconnect(bool immediate)
     if (!isConnected())
         return;
 
-    if (disconnecting)
-    {
-        if (immediate)
-        {
-            removeConnection();
-            disconnecting = false;
-            WEBSOCKETS_LOG_DEBUG("Requesting a forced disconnection to libwebsockets while "
-                                 "graceful disconnection in progress");
-        }
-        else
-        {
-            WEBSOCKETS_LOG_WARNING(
-                "Ignoring graceful disconnect. Already disconnecting gracefully");
-        }
-    }
-    else
-    {
-        const auto lwsContext = lws_get_context(wsi);
-        markAsDisconnecting();
-        if (immediate)
-        {
-            removeConnection();
-            WEBSOCKETS_LOG_DEBUG("Requesting a forced disconnection to libwebsockets");
-        }
-        else
-        {
-            disconnecting = true;
-            WEBSOCKETS_LOG_DEBUG("Requesting a graceful disconnection to libwebsockets");
-        }
-
-        // TODO (Future investigation / rework / refactoring):
-        // The call to verifyLwsThread() above ensures that this gets executed in the context of the
-        // thread that owns LWS. Before commit d7e39db115f7398b4fccd42475f82ddb64032318,
-        // lws_callback_on_writable() was called directly from here, which, considering the above,
-        // was fine. After that commit, the latter was defered to be called from the handler of
-        // LWS_CALLBACK_EVENT_WAIT_CANCELLED, which is now triggered by the call below.
-        //
-        // One thing to consider is whether calling lws_callback_on_writable() when disconnecting is
-        // needed at all. Even if it truly is, the changes in the commit mentioned above were
-        // probably not needed (although there's no obvious harm to them either, just made the code
-        // slightly more complicated).
-        lws_cancel_service(lwsContext);
-    }
+    // Close outside the LWS callback context. This avoids relying on
+    // lws_callback_on_writable() when the wsi may be in an intermediate shutdown
+    // state
+    lws_set_timeout(wsi, pending_timeout::PENDING_TIMEOUT_KILLED_BY_PARENT, LWS_TO_KILL_ASYNC);
+    removeConnection();
+    WEBSOCKETS_LOG_DEBUG("Requesting a forced disconnection to libwebsockets");
 }
 
 bool LibwebsocketsClient::wsIsConnected()
@@ -391,17 +354,6 @@ void LibwebsocketsClient::removeConnection()
         return;
     lws_set_wsi_user(std::exchange(wsi, nullptr), NULL);
     WEBSOCKETS_LOG_DEBUG("Pointer detached from libwebsockets");
-}
-
-std::mutex LibwebsocketsClient::accessDisconnectingWsiMtx{};
-std::set<struct lws*> LibwebsocketsClient::disconnectingWsiSet{};
-
-void LibwebsocketsClient::markAsDisconnecting()
-{
-    if (!isConnected())
-        return;
-    std::lock_guard g(accessDisconnectingWsiMtx);
-    disconnectingWsiSet.insert(wsi);
 }
 
 const char *LibwebsocketsClient::getOutputBuffer()
@@ -562,39 +514,17 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             break;
         }
 
-        case LWS_CALLBACK_EVENT_WAIT_CANCELLED:
-        {
-            lock_guard g(accessDisconnectingWsiMtx);
-            while (!disconnectingWsiSet.empty())
-            {
-                auto firstEl = disconnectingWsiSet.begin();
-                lws_callback_on_writable(*firstEl);
-                disconnectingWsiSet.erase(firstEl);
-            }
-            break;
-        }
         case LWS_CALLBACK_CLIENT_CLOSED:
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
-            {
-                lock_guard g(accessDisconnectingWsiMtx);
-                disconnectingWsiSet.erase(wsi);
-            }
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;
             if (!client)
             {
                 WEBSOCKETS_LOG_DEBUG("Forced disconnect completed");
                 break;
             }
-            if (client->disconnecting)
-            {
-                WEBSOCKETS_LOG_DEBUG("Graceful disconnect completed");
-                client->disconnecting = false;
-            }
-            else
-            {
-                WEBSOCKETS_LOG_DEBUG("Disconnect done by server");
-            }
+
+            WEBSOCKETS_LOG_DEBUG("Disconnect done by server");
 
             if (reason == LWS_CALLBACK_CLIENT_CONNECTION_ERROR && data && len)
             {
@@ -606,7 +536,7 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             client->wsCloseCb(reason, 0, "closed", 7);
             break;
         }
-            
+
         case LWS_CALLBACK_CLIENT_RECEIVE:
         {
             LibwebsocketsClient* client = (LibwebsocketsClient*)user;

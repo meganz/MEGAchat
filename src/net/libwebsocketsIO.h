@@ -94,31 +94,12 @@ private:
     struct lws* wsi;
 
     /**
-     * @brief Indicates that this connection (`wsi`) is being closed gracefully.
-     */
-    bool disconnecting;
-
-    /**
-     * @brief Implementation of the `wsDisconnect` virtual method. Used to close the lws connection
-     * (invalidate `wsi`). This can be done in two ways:
-     * - Immediately (`immediate == true`): Assumes the current connection (`wsi`) is invalid as
-     * soon as the method is called, so no more operations must be performed on it. This is done by
-     * setting `wsi` to `nullptr` and the userdata in the lws* (internally managed by lws) also to
-     * `NULL`. Further callbacks on this lws struct will exit early by checking the user pointer.
-     * - Gracefully (`immediate == false`): In this case, the object remains valid until lws
-     * confirms the `wsi` has been invalidated (when the corresponding callback is received). This
-     * sets `disconnecting` to true, which is reset to false once the connection is closed.
+     * @brief Closes the websocket connection (invalidates `wsi`)
      *
-     * @note Reminder: the protocol to close a connection follows these steps:
-     * 1. Call `lws_cancel_service`: This is the only thread-safe interface, callable outside
-     * `wsCallback`. It triggers a callback of type `LWS_CALLBACK_EVENT_WAIT_CANCELLED`.
-     * 2. Inside `callback[LWS_CALLBACK_EVENT_WAIT_CANCELLED]`, queue a
-     *    `callback[LWS_CALLBACK_CLIENT_WRITEABLE]`.
-     * 3. Inside `callback[LWS_CALLBACK_CLIENT_WRITEABLE]`, return `-1`. This tells lws to close the
-     *    connection, and a `callback[LWS_CALLBACK_CLIENT_CLOSED]` will be received.
-     * 4. Once `callback[LWS_CALLBACK_CLIENT_CLOSED]` is received, the connection can no longer be
-     * used.
-     * @param immediate See above
+     * We force-close outside the LWS callback context using
+     * lws_set_timeout(..., PENDING_TIMEOUT_KILLED_BY_PARENT, LWS_TO_KILL_ASYNC)
+     * to avoid relying on lws_callback_on_writable() when the wsi may be in an
+     * intermediate shutdown state
      */
     void doWsDisconnect(bool immediate);
 
@@ -132,22 +113,6 @@ private:
      * @brief Sets the user data of the `wsi` member to `nullptr` and then sets `wsi` to `nullptr`.
      */
     void removeConnection();
-
-    /**
-     * @brief These static members avoid calling `lws_callback_on_writable` outside `wsCallback` by
-     * using `lws_cancel_service` instead (which requires the context as an argument). We use this
-     * `std::set` as a queue for connections that need to call `lws_callback_on_writable` once the
-     * `LWS_CALLBACK_EVENT_WAIT_CANCELLED` callback is received.
-     *
-     * The mutex protects access to the set.
-     */
-    static std::mutex accessDisconnectingWsiMtx;
-    static std::set<struct lws*> disconnectingWsiSet;
-
-    /**
-     * @brief Adds the current `wsi` to the `disconnectingWsiSet`.
-     */
-    void markAsDisconnecting();
 
 #if WEBSOCKETS_TLS_SESSION_CACHE_ENABLED
     void saveTlsSessionToPersistentStorage();
