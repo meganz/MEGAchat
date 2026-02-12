@@ -205,13 +205,12 @@ int LibwebsocketsIO::wsGetNoNameErrorCode()
 
 LibwebsocketsClient::LibwebsocketsClient(WebsocketsIO::Mutex& mutex, WebsocketsClient* client):
     WebsocketsClientImpl(mutex, client),
-    wsi{nullptr},
-    disconnecting{false}
+    wsi{nullptr}
 {}
 
 LibwebsocketsClient::~LibwebsocketsClient()
 {
-    doWsDisconnect(true); // do not call wsDisconnect() virtual function during destruction
+    doWsDisconnect(); // do not call wsDisconnect() virtual function during destruction
 }
 
 void LibwebsocketsClient::verifyLwsThread() const
@@ -317,12 +316,12 @@ bool LibwebsocketsClient::connectViaClientInfo(const char *ip, const char *host,
     return wsi != nullptr;
 }
 
-void LibwebsocketsClient::wsDisconnect(bool immediate)
+void LibwebsocketsClient::wsDisconnect()
 {
-    doWsDisconnect(immediate);
+    doWsDisconnect();
 }
 
-void LibwebsocketsClient::doWsDisconnect(bool immediate)
+void LibwebsocketsClient::doWsDisconnect()
 {
     verifyLwsThread();
 
@@ -575,12 +574,6 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
                 return -1;
             }
 
-            if (client->disconnecting)
-            {
-                WEBSOCKETS_LOG_DEBUG("Completing graceful disconnect");
-                return -1;
-            }
-            
             data = (void *)client->getOutputBuffer();
             len = client->getOutputBufferLength();
             if (len && data)

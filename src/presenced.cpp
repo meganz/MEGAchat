@@ -1536,7 +1536,7 @@ void Client::setConnState(ConnState newState)
         // if a socket is opened, close it immediately
         if (wsIsConnected())
         {
-            wsDisconnect(true);
+            wsDisconnect();
         }
 
         // if connect-timer is running, it must be reset (kResolving --> kDisconnected)

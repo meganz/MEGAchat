@@ -217,7 +217,7 @@ public:
                    const char *host, int port, const char *path, bool ssl);
     int wsGetNoNameErrorCode(WebsocketsIO *websocketIO);
     bool wsSendMessage(char *msg, size_t len);  // returns true on success, false if error
-    void wsDisconnect(bool immediate);
+    void wsDisconnect();
     bool wsIsConnected();
     void wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len);
 
@@ -258,7 +258,7 @@ public:
 #endif
 
     virtual bool wsSendMessage(char *msg, size_t len) = 0;
-    virtual void wsDisconnect(bool immediate) = 0;
+    virtual void wsDisconnect() = 0;
     virtual bool wsIsConnected() = 0;
 };
 

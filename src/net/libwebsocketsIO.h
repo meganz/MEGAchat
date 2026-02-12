@@ -77,7 +77,7 @@ private:
     void resetOutputBuffer();
     
     bool wsSendMessage(char *msg, size_t len) override;
-    void wsDisconnect(bool immediate) override;
+    void wsDisconnect() override;
     bool wsIsConnected() override;
     
 public:
@@ -101,7 +101,7 @@ private:
      * to avoid relying on lws_callback_on_writable() when the wsi may be in an
      * intermediate shutdown state
      */
-    void doWsDisconnect(bool immediate);
+    void doWsDisconnect();
 
     /**
      * @brief Private implementation of `wsIsConnected`, defined to avoid calling a virtual method

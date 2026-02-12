@@ -841,7 +841,7 @@ void Connection::setState(State state, const bool avoidReconnect)
         // if a socket is opened, close it immediately
         if (wsIsConnected())
         {
-            wsDisconnect(true);
+            wsDisconnect();
         }
 
         // if an ECHO was sent, no need to wait for its response
