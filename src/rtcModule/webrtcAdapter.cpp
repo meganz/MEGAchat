@@ -51,80 +51,126 @@ VideoDecoderFactory::CodecSupport
 namespace artc
 {
 
-/** Global PeerConnectionFactory that initializes and holds a webrtc runtime context*/
-rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> gWebrtcContext = nullptr;
-std::unique_ptr<rtc::Thread> gWorkerThread = nullptr;
-std::unique_ptr<rtc::Thread> gSignalingThread = nullptr;
-rtc::scoped_refptr<webrtc::AudioProcessing> gAudioProcessing = nullptr;
-std::string gFieldTrialStr;
-
-static bool gIsInitialized = false;
-
-bool isInitialized() { return gIsInitialized; }
-bool init(void*)
+WebRtcContext::WebRtcContext(void* appCtx):
+    mAppCtx(appCtx)
 {
-    if (gIsInitialized)
-        return false;
-
-    if (gWebrtcContext == nullptr)
-    {
-        // Enable SVC encoding with the following configuration (3 spatial Layers | 3 temporal Layers)
-        gFieldTrialStr = (webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/", "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/"));
-        gFieldTrialStr = webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-Video-DisableAutomaticResize/Enabled/", gFieldTrialStr.c_str());
-        webrtc::field_trial::InitFieldTrialsFromString(gFieldTrialStr.c_str()); // trials_string must never be destroyed.
-
-        gWorkerThread = rtc::Thread::Create();
-        gWorkerThread->Start();
-        gSignalingThread = rtc::Thread::Create();
-        gSignalingThread->Start();
-
-        rtc::scoped_refptr<webrtc::AudioDeviceModule> audioDeviceModule;
-#ifdef __ANDROID__
-        audioDeviceModule =
-            webrtc::CreateAndroidAudioDeviceModule(webrtc::AudioDeviceModule::kAndroidJavaAudio);
-#endif
-
-        gAudioProcessing = rtc::scoped_refptr<webrtc::AudioProcessing>(webrtc::AudioProcessingBuilder().Create());
-        webrtc::AudioProcessing::Config audioConfig = gAudioProcessing->GetConfig();
-        gAudioProcessing->ApplyConfig(audioConfig);
-
-        gWebrtcContext = webrtc::CreatePeerConnectionFactory(
-            nullptr /*networThread*/,
-            gWorkerThread.get() /*workThread*/,
-            gSignalingThread.get() /*signaledThread*/,
-            audioDeviceModule,
-            webrtc::CreateBuiltinAudioEncoderFactory(),
-            webrtc::CreateBuiltinAudioDecoderFactory(),
-            std::make_unique<
-                webrtc::VideoEncoderFactoryTemplate<webrtc::LibvpxVp8EncoderTemplateAdapter,
-                                                    webrtc::LibvpxVp9EncoderTemplateAdapter,
-                                                    webrtc::OpenH264EncoderTemplateAdapter,
-                                                    webrtc::LibaomAv1EncoderTemplateAdapter>>(),
-            std::make_unique<
-                webrtc::VideoDecoderFactoryTemplate<webrtc::LibvpxVp8DecoderTemplateAdapter,
-                                                    webrtc::LibvpxVp9DecoderTemplateAdapter,
-                                                    webrtc::OpenH264DecoderTemplateAdapter,
-                                                    webrtc::Dav1dDecoderTemplateAdapter>>(),
-            nullptr /* audio_mixer */,
-            gAudioProcessing);
-    }
-
-    if (!gWebrtcContext)
-        throw std::runtime_error("Error creating peerconnection factory");
-    gIsInitialized = true;
-    return true;
+    RTCM_LOG_DEBUG("WebRtcContext: Creating WebRTC context");
 }
 
-void cleanup()
+std::shared_ptr<WebRtcContext> WebRtcContext::create(void* appCtx)
 {
-    if (!gIsInitialized)
-        return;
-    gWebrtcContext = nullptr;
+    auto context = std::shared_ptr<WebRtcContext>(new WebRtcContext(appCtx));
+    context->initialize();
+    return context;
+}
+
+void WebRtcContext::initialize()
+{
+    RTCM_LOG_DEBUG("WebRtcContext: Initializing WebRTC resources");
+
+    // Enable SVC encoding with the following configuration (3 spatial Layers | 3 temporal Layers)
+    mFieldTrialStr =
+        webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/",
+                                                     "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/");
+    mFieldTrialStr =
+        webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-Video-DisableAutomaticResize/Enabled/",
+                                                     mFieldTrialStr.c_str());
+    webrtc::field_trial::InitFieldTrialsFromString(mFieldTrialStr.c_str());
+
+    // Create and start threads
+    mWorkerThread = rtc::Thread::Create();
+    mWorkerThread->Start();
+    mSignalingThread = rtc::Thread::Create();
+    mSignalingThread->Start();
+
+    // Create audio device module (platform-specific)
+    rtc::scoped_refptr<webrtc::AudioDeviceModule> audioDeviceModule;
+#ifdef __ANDROID__
+    audioDeviceModule =
+        webrtc::CreateAndroidAudioDeviceModule(webrtc::AudioDeviceModule::kAndroidJavaAudio);
+#endif
+
+    // Create audio processing module
+    mAudioProcessing =
+        rtc::scoped_refptr<webrtc::AudioProcessing>(webrtc::AudioProcessingBuilder().Create());
+    webrtc::AudioProcessing::Config audioConfig = mAudioProcessing->GetConfig();
+    mAudioProcessing->ApplyConfig(audioConfig);
+
+    // Create PeerConnectionFactory
+    mPeerConnectionFactory = webrtc::CreatePeerConnectionFactory(
+        nullptr /*networkThread*/,
+        mWorkerThread.get() /*workerThread*/,
+        mSignalingThread.get() /*signalingThread*/,
+        audioDeviceModule,
+        webrtc::CreateBuiltinAudioEncoderFactory(),
+        webrtc::CreateBuiltinAudioDecoderFactory(),
+        std::make_unique<
+            webrtc::VideoEncoderFactoryTemplate<webrtc::LibvpxVp8EncoderTemplateAdapter,
+                                                webrtc::LibvpxVp9EncoderTemplateAdapter,
+                                                webrtc::OpenH264EncoderTemplateAdapter,
+                                                webrtc::LibaomAv1EncoderTemplateAdapter>>(),
+        std::make_unique<
+            webrtc::VideoDecoderFactoryTemplate<webrtc::LibvpxVp8DecoderTemplateAdapter,
+                                                webrtc::LibvpxVp9DecoderTemplateAdapter,
+                                                webrtc::OpenH264DecoderTemplateAdapter,
+                                                webrtc::Dav1dDecoderTemplateAdapter>>(),
+        nullptr /* audio_mixer */,
+        mAudioProcessing);
+
+    if (!mPeerConnectionFactory)
+    {
+        RTCM_LOG_WARNING("WebRtcContext: Failed to create PeerConnectionFactory");
+        throw std::runtime_error("Error creating peerconnection factory");
+    }
+
+    RTCM_LOG_DEBUG("WebRtcContext: Successfully initialized WebRTC resources");
+}
+
+WebRtcContext::~WebRtcContext()
+{
+    RTCM_LOG_DEBUG("WebRtcContext: Destroying WebRTC context(PeerConnectionFactory)");
+
+    mPeerConnectionFactory = nullptr;
+
+    mAudioProcessing = nullptr;
+
     rtc::CleanupSSL();
     rtc::ThreadManager::Instance()->SetCurrentThread(nullptr);
-    gIsInitialized = false;
-    gWorkerThread.reset(nullptr);
-    gSignalingThread.reset(nullptr);
+
+    RTCM_LOG_DEBUG("WebRtcContext: Stopping threads");
+    if (mWorkerThread)
+    {
+        mWorkerThread->Stop();
+        mWorkerThread.reset();
+    }
+    if (mSignalingThread)
+    {
+        mSignalingThread->Stop();
+        mSignalingThread.reset();
+    }
+
+    RTCM_LOG_DEBUG("WebRtcContext: WebRTC context destroyed");
+}
+
+rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface>
+    WebRtcContext::getPeerConnectionFactory() const
+{
+    return mPeerConnectionFactory;
+}
+
+rtc::Thread* WebRtcContext::getWorkerThread() const
+{
+    return mWorkerThread.get();
+}
+
+rtc::Thread* WebRtcContext::getSignalingThread() const
+{
+    return mSignalingThread.get();
+}
+
+rtc::scoped_refptr<webrtc::AudioProcessing> WebRtcContext::getAudioProcessing() const
+{
+    return mAudioProcessing;
 }
 
 /** Stream id and other ids generator */
@@ -324,17 +370,22 @@ rtc::scoped_refptr<artc::VideoCapturerManager>
 #endif
                                                ,
                                                rtc::Thread*
-#ifdef __ANDROID__
-                                                   thread
+#if defined(__APPLE__) || defined(__ANDROID__)
+                                                   workerThread
+#endif
+                                               ,
+                                               rtc::Thread*
+#ifdef __APPLE__
+                                                   signalingThread
 #endif
     )
 {
 #ifdef __APPLE__
     return rtc::scoped_refptr<artc::VideoCapturerManager>(
-        new OBJCCaptureModule(capabilities, deviceName));
+        new OBJCCaptureModule(capabilities, deviceName, workerThread, signalingThread));
 #elif __ANDROID__
     return rtc::scoped_refptr<artc::VideoCapturerManager>(
-        new CaptureModuleAndroid(capabilities, deviceName, thread));
+        new CaptureModuleAndroid(capabilities, deviceName, workerThread));
 #else
     return rtc::scoped_refptr<artc::VideoCapturerManager>(
         new CaptureCameraModuleLinux(capabilities));

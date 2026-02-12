@@ -383,7 +383,7 @@ public:
     Session* getSession(Cid_t cid);
     std::set<Cid_t> getSessionsCidsByUserHandle(const karere::Id& id);
     void setState(CallState newState);
-    static const char *stateToStr(CallState state);
+    static const char* stateToStr(CallState state);
 
     bool connectSfu(const std::string& sfuUrlStr);
     void joinSfu();
@@ -631,6 +631,8 @@ protected:
     MyMegaApi& mMegaApi;
     sfu::SfuClient& mSfuClient;
     sfu::SfuConnection* mSfuConnection = nullptr;   // owned by the SfuClient::mConnections, here for convenience
+
+    std::shared_ptr<artc::WebRtcContext> mWebRtcContext;
 
     // represents the Media channel connection (via WebRTC) between the local device and SFU.
     artc::MyPeerConnection<Call> mRtcConn;
@@ -931,6 +933,11 @@ public:
     bool isSpeakRequestSupportEnabled() const override;
     sfu::SfuProtocol getMySfuProtoVersion() const override;
 
+    std::shared_ptr<artc::WebRtcContext> getWebRtcContext() const
+    {
+        return mWebRtcContext;
+    }
+
     const char* getLoggingName() const
     {
         return mMegaApi.getLoggingName();
@@ -942,6 +949,8 @@ private:
     MyMegaApi& mMegaApi;
     DNScache &mDnsCache;
     std::unique_ptr<sfu::SfuClient> mSfuClient;
+
+    std::shared_ptr<artc::WebRtcContext> mWebRtcContext;
 
     // selected device id for camera device (string format)
     std::optional<std::string> mSelectedCameraDeviceId = std::nullopt;
