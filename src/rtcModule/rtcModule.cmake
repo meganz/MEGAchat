@@ -12,6 +12,7 @@ set(CHATLIB_RTCM_SOURCES
     rtcModule/rtcStats.cpp
     rtcModule/webrtcAdapter.cpp
     rtcModule/webrtc.cpp
+    rtcModule/OBJCCaptureModule.mm
 )
 
 
