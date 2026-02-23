@@ -12,6 +12,9 @@ set(CHATLIB_RTCM_SOURCES
     rtcModule/rtcStats.cpp
     rtcModule/webrtcAdapter.cpp
     rtcModule/webrtc.cpp
+)
+
+set(CHATLIB_RTCM_SOURCES_IOS
     rtcModule/OBJCCaptureModule.mm
 )
 
@@ -26,6 +29,12 @@ target_sources_conditional(CHATlib
     PRIVATE
     ${CHATLIB_RTCM_HEADERS}
     ${CHATLIB_RTCM_SOURCES}
+)
+
+target_sources_conditional(CHATlib
+    FLAG USE_WEBRTC AND IOS
+    PRIVATE
+    ${CHATLIB_RTCM_SOURCES_IOS}
 )
 
 target_include_directories(CHATlib PUBLIC ${CMAKE_CURRENT_LIST_DIR})
