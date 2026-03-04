@@ -116,12 +116,13 @@ pipeline {
             steps{
                 script {
                     BUILD_TYPE = (env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc')) ? 'Release' : 'Debug'
+                    CMAKE_PRESET = (env.gitlabTriggerPhrase != null && env.gitlabTriggerPhrase.contains('--upload_megaclc')) ? 'megaclc-unix' : 'dev-unix'
                 }
                 dir(megachat_sources_workspace){
                     //Build for arm64
                     sh "echo Building for arm64 in ${BUILD_TYPE} mode"
                     sh "mkdir ${BUILD_DIR}"
-                    sh "cmake --preset dev-unix -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    sh "cmake --preset ${CMAKE_PRESET} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}/arm64 \
                     -DCMAKE_OSX_ARCHITECTURES=arm64"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR} -j3"
@@ -129,7 +130,7 @@ pipeline {
                     //build for x64
                     sh "echo Building for x64-crosscompiling in ${BUILD_TYPE} mode"
                     sh "mkdir ${BUILD_DIR_X64}"
-                    sh "cmake --preset dev-unix -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
+                    sh "cmake --preset ${CMAKE_PRESET} -DCMAKE_BUILD_TYPE=${BUILD_TYPE} -DVCPKG_ROOT=${VCPKGPATH} ${BUILD_OPTIONS} -DCMAKE_VERBOSE_MAKEFILE=ON \
                     -DCMAKE_OSX_ARCHITECTURES=x86_64 \
                     -S ${megachat_sources_workspace} -B ${megachat_sources_workspace}/${BUILD_DIR_X64} -DCMAKE_PREFIX_PATH=${MEGAQTPATH}/x86_64"
                     sh "cmake --build ${megachat_sources_workspace}/${BUILD_DIR_X64} -j3"

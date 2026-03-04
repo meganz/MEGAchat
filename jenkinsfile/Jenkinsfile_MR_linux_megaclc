@@ -6,7 +6,7 @@ def setCommitStatus(String pStatus, String errorHint = '') {
             break
         case 'success':
             pState = 'success'
-            pMessage = ":white_check_mark: ${env.JOB_NAME} :penguin: <b>Linux MEGAclc</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}<br/>MEGAclc URL: [${env.REPO_URL}/MEGAchat/${env.gitlabMergeRequestIid}/ubuntu2204/megaclc/]"
+            pMessage = ":white_check_mark: ${env.JOB_NAME} :penguin: <b>Linux MEGAclc</b> SUCCEEDED :muscle:<br/>Build results: [Jenkins [${env.BUILD_DISPLAY_NAME}]](${env.RUN_DISPLAY_URL})<br/>Commit: ${env.GIT_COMMIT}<br/>MEGAclc URL: [${env.REPO_URL}/MEGAchat/${env.gitlabMergeRequestIid}/ubuntu/megaclc/]"
             break
         case 'aborted':
             pState = 'canceled'
@@ -47,6 +47,7 @@ pipeline {
         AWS_ACCESS_KEY_ID = credentials('s4_access_key_id_vcpkg_cache')
         AWS_SECRET_ACCESS_KEY = credentials('s4_secret_access_key_vcpkg_cache')
         AWS_ENDPOINT_URL = "https://s3.g.s4.mega.io"
+        DISTRO="ubuntu:22.04"
     }
     stages {
         stage('Clean previous runs'){
@@ -114,19 +115,19 @@ pipeline {
         stage('Build MEGAchat docker image'){
             steps{
                 dir("dockerfile"){
-                    sh "docker build -t meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER} --build-arg VCPKG_BINARY_SOURCES --build-arg AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY --build-arg AWS_ENDPOINT_URL -f ./megachat-ubuntu2204-build.dockerfile ."
+                    sh "docker build -t meganz/megachat-megaclc-build:${env.BUILD_NUMBER} --build-arg DISTRO=${DISTRO} --build-arg VCPKG_BINARY_SOURCES --build-arg AWS_ACCESS_KEY_ID --build-arg AWS_SECRET_ACCESS_KEY --build-arg AWS_ENDPOINT_URL -f ./megachat-megaclc-build.dockerfile ."
                 }
             }
         }
 
         stage('Build with docker'){
             steps {
-                sh "mkdir build_ubuntu2204"
-                sh "docker run --name megachat-builder-x64-ubuntu2204-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}/build_ubuntu2204:/mega/build -v ${WORKSPACE}:/mega/chat -v ${VCPKGPATH}:/mega/vcpkg -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_ENDPOINT_URL -e VCPKG_BINARY_SOURCES meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER}"
+                sh "mkdir build_megaclc"
+                sh "docker run --name megachat-megaclc-x64-builder-${env.BUILD_NUMBER} --rm -v ${WORKSPACE}/build_megaclc:/mega/build-MEGAchat-megaclc-unix -v ${WORKSPACE}:/mega/MEGAchat -v ${VCPKGPATH}:/mega/vcpkg -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_ENDPOINT_URL -e VCPKG_BINARY_SOURCES meganz/megachat-megaclc-build:${env.BUILD_NUMBER}"
             }
             post{
                 aborted {
-                    sh "docker kill megachat-builder-x64-ubuntu2204-${env.BUILD_NUMBER}" 
+                    sh "docker kill megachat-megaclc-x64-builder-${env.BUILD_NUMBER}"
                 }
             }  
         }
@@ -137,15 +138,15 @@ pipeline {
                         jf rt del \
                             --url ${REPO_URL} \
                             --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
-                            MEGAchat/${gitlabMergeRequestIid}/ubuntu2204/megaclc/ \
+                            MEGAchat/${gitlabMergeRequestIid}/ubuntu/megaclc/ \
                         || true
                     '''
-                    dir ("build_ubuntu2204/examples/megaclc/"){
+                    dir ("build_megaclc/examples/megaclc/"){
                         sh '''
                             jf rt upload \
                                 --url ${REPO_URL} \
                                 --access-token ${MEGACHAT_ARTIFACTORY_TOKEN} \
-                                megaclc MEGAchat/${gitlabMergeRequestIid}/ubuntu2204/megaclc/x64/
+                                megaclc MEGAchat/${gitlabMergeRequestIid}/ubuntu/megaclc/x64/
                         '''
                     }
                 }
@@ -154,7 +155,7 @@ pipeline {
     }
     post {
         always {
-            sh "docker image rm meganz/megachat-build-env-ub2204:${env.BUILD_NUMBER}"
+            sh "docker image rm meganz/megachat-megaclc-build:${env.BUILD_NUMBER}"
             deleteDir() /* clean up our workspace */
         }
         success {

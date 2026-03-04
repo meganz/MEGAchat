@@ -8,7 +8,10 @@
 namespace artc
 {
     
-    OBJCCaptureModule::OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities, const std::string &deviceName)
+    OBJCCaptureModule::OBJCCaptureModule(const webrtc::VideoCaptureCapability &capabilities,
+                                         const std::string &deviceName,
+                                         rtc::Thread* workerThread,
+                                         rtc::Thread* signalingThread)
     {
         if (mCameraVideoCapturer)
         {
@@ -59,7 +62,7 @@ namespace artc
         
         [mCameraVideoCapturer startCaptureWithDevice:mCaptureDevice format:selectedFormat fps:capabilities.maxFPS];
         mRunning = true;
-        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraVideoCapturer, gSignalingThread.get(), gWorkerThread.get());
+        mVideoSource = webrtc::ObjCToNativeVideoCapturer(mCameraVideoCapturer, signalingThread, workerThread);
     }
 
     std::set<std::pair<std::string, std::string>> OBJCCaptureModule::getVideoDevices()
