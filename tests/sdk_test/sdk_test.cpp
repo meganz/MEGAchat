@@ -188,7 +188,7 @@ bool MegaChatApiTest::chatApiInit(unsigned accountIndex, const char *session)
     // which will instantiate a new MyMegaLogger member, which (by default) will call
     // MegaApi::addLoggerObject() which will add it to g_externalLogger.
     // That has led to duplicated messages in the log file. Below is an attempt to work around that.
-    g_externalLogger.useOnlyFirstLogger();
+    getExternalLogger().useOnlyFirstLogger();
 
     // Initialize chat engine
     bool *flagInit = &initStateChanged[accountIndex]; *flagInit = false;
