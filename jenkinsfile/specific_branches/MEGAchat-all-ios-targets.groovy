@@ -8,7 +8,9 @@ pipeline {
         gitLabConnection('GitLabConnectionJenkins')
     }
     parameters {
+        booleanParam(name: 'BUILD_XFRAMEWORK', defaultValue: false, description: 'Build SDK/MEGAchat xframework for iOS')
         booleanParam(name: 'RESULT_TO_SLACK', defaultValue: true, description: 'Should the job result be sent to slack?')
+        string(name: 'IOS_BRANCH', defaultValue: '', description: 'Branch of iOS-dev used to upload xframework')
         string(name: 'MEGACHAT_BRANCH', defaultValue: 'develop', description: 'Define a custom SDK branch.')
         string(name: 'SDK_BRANCH', defaultValue: 'develop', description: 'Define a custom SDK branch.')
     }
@@ -68,6 +70,55 @@ pipeline {
                 sh "echo \"Building MEGAchat for iOS arm64 simulator (crosscompiling)\""
                 sh "cmake --preset mega-ios -DVCPKG_TARGET_TRIPLET=arm64-ios-simulator-mega -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_OSX_SYSROOT=iphonesimulator -DCMAKE_BUILD_TYPE=RelWithDebInfo -DVCPKG_ROOT=${VCPKGPATH} -DCMAKE_VERBOSE_MAKEFILE=ON -S ${WORKSPACE} -B ${WORKSPACE}/${BUILD_DIR_ARM64_SIM}"
                 sh "cmake --build ${WORKSPACE}/${BUILD_DIR_ARM64_SIM} -j2"
+            }
+        }
+        stage ("Build and upload iOS xframework") {
+            when { expression { return  params.BUILD_XFRAMEWORK } }
+            environment {
+                BUILD_DIR_ARM64 = "build_dir_arm64"
+                BUILD_DIR_ARM64_SIM = "build_dir_arm64_simulator"
+                IOS_DIR="ios"
+
+                // These are the directories where build-sdk-libs.sh expects the libs being built
+                BUILD_DIR_DEVICE="BUILD_ARM64_iOS"
+                BUILD_DIR_SIMULATOR="BUILD_ARM64_simulator"
+            }
+            steps {
+                echo "IOS_BRANCH: ${IOS_BRANCH}"
+                dir("${IOS_DIR}"){
+                    checkout([
+                        $class: 'GitSCM',
+                        branches: [[name: "${params.IOS_BRANCH}"  ]],
+                        userRemoteConfigs: [[ url: "${GIT_URL_IOS}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
+                        extensions: [
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
+                        ]
+                    ])
+                    sh """
+                        # Link built libraries
+                        rm -rf ${BUILD_DIR_DEVICE}
+                        rm -rf ${BUILD_DIR_SIMULATOR}
+                        ln -s ${WORKSPACE}/${BUILD_DIR_ARM64} ${BUILD_DIR_DEVICE}
+                        ln -s ${WORKSPACE}/${BUILD_DIR_ARM64_SIM} ${BUILD_DIR_SIMULATOR}
+
+                        # Link SDK and MEGAchat
+                        rm -rf Modules/DataSource/MEGAChatSDK/Sources/MEGAChatSDK
+                        rm -rf Modules/DataSource/MEGASDK/Sources/MEGASDK
+                        ln -s ${megachat_sources_workspace} Modules/DataSource/MEGAChatSDK/Sources/MEGAChatSDK
+                        ln -s ${sdk_sources_workspace} Modules/DataSource/MEGASDK/Sources/MEGASDK
+
+                        # Export the right path
+                        export PATH="\$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/bin:\$PATH"
+                        bash -x scripts/build-sdk-libs.sh --skip-build-libs
+                    """
+                }
+            }
+            post {
+                always {
+                   archiveArtifacts allowEmptyArchive: false, artifacts: "${IOS_DIR}/xcframework/"
+                   archiveArtifacts allowEmptyArchive: true, artifacts: "${IOS_DIR}/${BUILD_DIR_DEVICE}"
+                   archiveArtifacts allowEmptyArchive: true, artifacts: "${IOS_DIR}/${BUILD_DIR_SIMULATOR}"
+                }
             }
         }
     }
