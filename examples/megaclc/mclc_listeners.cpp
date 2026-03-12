@@ -619,8 +619,9 @@ void CLCMegaListener::onRequestFinish(m::MegaApi* api, m::MegaRequest* request, 
     switch (request->getType())
     {
         case m::MegaRequest::TYPE_LOGIN:
-            if (clc_log::check_err("Login", e))
+            if (e->getErrorCode() == m::MegaError::API_OK)
             {
+                clc_log::check_err("Login", e);
                 clc_console::conlock(std::cout)
                     << "Loading Account with fetchNodes..." << std::endl;
                 guard.unlock();
@@ -634,6 +635,7 @@ void CLCMegaListener::onRequestFinish(m::MegaApi* api, m::MegaRequest* request, 
             }
             else
             {
+                clc_log::check_err("Login", e, clc_log::ReportFailure);
                 guard.unlock();
                 setprompt(clc_prompt::COMMAND);
             }
