@@ -82,8 +82,18 @@ void megaclc()
         }
 
         // command editing loop - exits when a line is submitted or the engine requires the CPU
-        while (!clc_global::g_promptLine)
+        while (true)
         {
+            clc_prompt::prompttype currentPrompt;
+            {
+                auto cl = clc_console::conlock(std::cout);
+                currentPrompt = clc_global::g_prompt;
+                if (clc_global::g_promptLine)
+                {
+                    break;
+                }
+            }
+
             clc_time::WaitMillisec(1);
 
 #ifdef NO_READLINE
@@ -97,11 +107,11 @@ void megaclc()
                 }
             }
 #else
-            if (clc_global::g_prompt == clc_prompt::COMMAND)
+            if (currentPrompt == clc_prompt::COMMAND)
             {
                 rl_callback_read_char();
             }
-            else if (clc_global::g_prompt > clc_prompt::COMMAND)
+            else if (currentPrompt > clc_prompt::COMMAND)
             {
                 clc_global::g_console->readpwchar(pw_buf,
                                                   sizeof pw_buf,
@@ -137,12 +147,14 @@ void megaclc()
         rl_redisplay();
 #endif
 
-        if (clc_global::g_promptLine)
+        char* promptLine = clc_global::g_promptLine;
+        clc_global::g_promptLine = NULL;
+
+        if (promptLine)
         {
             // execute user command
-            clc_prompt::process_line(clc_global::g_promptLine);
-            free(clc_global::g_promptLine);
-            clc_global::g_promptLine = NULL;
+            clc_prompt::process_line(promptLine);
+            free(promptLine);
 
             if (clc_global::g_promptQuitFlag)
             {

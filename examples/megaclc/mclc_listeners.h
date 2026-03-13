@@ -26,9 +26,7 @@ public:
         onRequestFinishFunc;
 
     explicit OneShotRequestListener(
-        std::function<void(m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)> f = {}):
-        onRequestFinishFunc(f)
-    {}
+        std::function<void(m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)> f = {});
 
     void onRequestFinish(m::MegaApi* api, m::MegaRequest* request, m::MegaError* e) override;
 };
@@ -65,10 +63,7 @@ public:
 
     explicit OneShotTransferListener(
         std::function<void(m::MegaApi* api, m::MegaTransfer* transfer, m::MegaError* e)> f = {},
-        bool ls = false):
-        onTransferFinishFunc(f),
-        mLogStage(ls)
-    {}
+        bool ls = false);
 
     void onTransferFinish(m::MegaApi* api, m::MegaTransfer* request, m::MegaError* e) override;
 

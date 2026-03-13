@@ -10,12 +10,26 @@
 namespace mclc::clc_listen
 {
 
+OneShotRequestListener::OneShotRequestListener(
+    std::function<void(m::MegaApi* api, m::MegaRequest* request, m::MegaError* e)> f):
+    onRequestFinishFunc(std::move(f))
+{
+    if (clc_global::g_prompt == clc_prompt::COMMAND)
+    {
+        clc_prompt::setprompt(clc_prompt::NOPROMPT);
+    }
+}
+
 void OneShotRequestListener::onRequestFinish(m::MegaApi* api,
                                              m::MegaRequest* request,
                                              m::MegaError* e)
 {
     if (onRequestFinishFunc)
         onRequestFinishFunc(api, request, e);
+    if (clc_global::g_prompt == clc_prompt::NOPROMPT)
+    {
+        clc_prompt::setprompt(clc_prompt::COMMAND);
+    }
     delete this; // one-shot is done so auto-delete
 }
 
@@ -39,7 +53,23 @@ void OneShotTransferListener::onTransferFinish(m::MegaApi* api,
 {
     if (onTransferFinishFunc)
         onTransferFinishFunc(api, request, e);
+    if (clc_global::g_prompt == clc_prompt::NOPROMPT)
+    {
+        clc_prompt::setprompt(clc_prompt::COMMAND);
+    }
     delete this; // one-shot is done so auto-delete
+}
+
+OneShotTransferListener::OneShotTransferListener(
+    std::function<void(m::MegaApi* api, m::MegaTransfer* transfer, m::MegaError* e)> f,
+    bool ls):
+    onTransferFinishFunc(std::move(f)),
+    mLogStage(ls)
+{
+    if (clc_global::g_prompt == clc_prompt::COMMAND)
+    {
+        clc_prompt::setprompt(clc_prompt::NOPROMPT);
+    }
 }
 
 void OneShotTransferListener::onTransferStart(m::MegaApi*, m::MegaTransfer* request)
