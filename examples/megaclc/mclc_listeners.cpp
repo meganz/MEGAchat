@@ -541,89 +541,112 @@ void CLCChatListener::onRequestFinish(c::MegaChatApi* api,
 
 void CLCMegaListener::onUsersUpdate(m::MegaApi*, m::MegaUserList* users)
 {
-    clc_console::conlock(std::cout)
-        << "User list updated:  " << (users ? users->size() : -1) << std::endl;
-    if (users)
-    {
-        for (int i = 0; i < users->size(); ++i)
+    clc_console::asyncConsolePrint(
+        [&]()
         {
-            if (m::MegaUser* m = users->get(i))
+            clc_console::conlock(std::cout)
+                << "User list updated:  " << (users ? users->size() : -1) << std::endl;
+            if (users)
             {
-                auto changebits = m->getChanges();
-                if (changebits)
+                for (int i = 0; i < users->size(); ++i)
                 {
-                    auto cl = clc_console::conlock(std::cout);
-                    std::cout << "user " << str_utils::ch_s(m->getHandle()) << " changes:";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_AUTHRING)
-                        std::cout << " AUTHRING";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_LSTINT)
-                        std::cout << " LSTINT";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_AVATAR)
-                        std::cout << " AVATAR";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_FIRSTNAME)
-                        std::cout << " FIRSTNAME";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_LASTNAME)
-                        std::cout << " LASTNAME";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_EMAIL)
-                        std::cout << " EMAIL";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_KEYRING)
-                        std::cout << " KEYRING";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_COUNTRY)
-                        std::cout << " COUNTRY";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_BIRTHDAY)
-                        std::cout << " BIRTHDAY";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_PUBKEY_CU255)
-                        std::cout << " PUBKEY_CU255";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_PUBKEY_ED255)
-                        std::cout << " PUBKEY_ED255";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_SIG_PUBKEY_RSA)
-                        std::cout << " SIG_PUBKEY_RSA";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_SIG_PUBKEY_CU255)
-                        std::cout << " SIG_PUBKEY_CU255";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_LANGUAGE)
-                        std::cout << " LANGUAGE";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_PWD_REMINDER)
-                        std::cout << " PWD_REMINDER";
-                    if (changebits & m::MegaUser::CHANGE_TYPE_DISABLE_VERSIONS)
-                        std::cout << " DISABLE_VERSIONS";
-                    std::cout << std::endl;
+                    if (m::MegaUser* m = users->get(i))
+                    {
+                        auto changebits = m->getChanges();
+                        if (changebits)
+                        {
+                            auto cl = clc_console::conlock(std::cout);
+                            std::cout << "user " << str_utils::ch_s(m->getHandle()) << " changes:";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_AUTHRING)
+                                std::cout << " AUTHRING";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_LSTINT)
+                                std::cout << " LSTINT";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_AVATAR)
+                                std::cout << " AVATAR";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_FIRSTNAME)
+                                std::cout << " FIRSTNAME";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_LASTNAME)
+                                std::cout << " LASTNAME";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_EMAIL)
+                                std::cout << " EMAIL";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_KEYRING)
+                                std::cout << " KEYRING";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_COUNTRY)
+                                std::cout << " COUNTRY";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_BIRTHDAY)
+                                std::cout << " BIRTHDAY";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_PUBKEY_CU255)
+                                std::cout << " PUBKEY_CU255";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_PUBKEY_ED255)
+                                std::cout << " PUBKEY_ED255";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_SIG_PUBKEY_RSA)
+                                std::cout << " SIG_PUBKEY_RSA";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_SIG_PUBKEY_CU255)
+                                std::cout << " SIG_PUBKEY_CU255";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_LANGUAGE)
+                                std::cout << " LANGUAGE";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_PWD_REMINDER)
+                                std::cout << " PWD_REMINDER";
+                            if (changebits & m::MegaUser::CHANGE_TYPE_DISABLE_VERSIONS)
+                                std::cout << " DISABLE_VERSIONS";
+                            std::cout << std::endl;
+                        }
+                    }
                 }
             }
-        }
-    }
+        });
 }
 
 void CLCMegaListener::onAccountUpdate(m::MegaApi*)
 {
-    clc_console::conlock(std::cout) << "Account updated" << std::endl;
+    clc_console::asyncConsolePrint(
+        []()
+        {
+            clc_console::conlock(std::cout) << "Account updated" << std::endl;
+        });
 }
 
 void CLCMegaListener::onContactRequestsUpdate(m::MegaApi*, m::MegaContactRequestList* requests)
 {
-    clc_console::conlock(std::cout)
-        << "Contact requests list updated:  " << (requests ? requests->size() : -1) << std::endl;
+    clc_console::asyncConsolePrint(
+        [&]()
+        {
+            clc_console::conlock(std::cout)
+                << "Contact requests list updated:  " << (requests ? requests->size() : -1)
+                << std::endl;
+        });
 }
 
 void CLCMegaListener::onReloadNeeded(m::MegaApi* api)
 {
-    {
-        clc_console::conlock(std::cout)
-            << "Reload needed!  Submitting fetchNodes request" << std::endl;
-    }
+    clc_console::asyncConsolePrint(
+        [&]()
+        {
+            clc_console::conlock(std::cout)
+                << "Reload needed!  Submitting fetchNodes request" << std::endl;
+        });
     api->fetchNodes();
 }
 
 #ifdef ENABLE_SYNC
 void CLCMegaListener::onGlobalSyncStateChanged(m::MegaApi*)
 {
-    clc_console::conlock(std::cout) << "Sync state changed";
+    clc_console::asyncConsolePrint(
+        []()
+        {
+            clc_console::conlock(std::cout) << "Sync state changed";
+        });
 }
 #endif
 
 void CLCMegaListener::onChatsUpdate(m::MegaApi*, m::MegaTextChatList* chats)
 {
-    clc_console::conlock(std::cout)
-        << "Chats updated:  " << (chats ? chats->size() : -1) << std::endl;
+    clc_console::asyncConsolePrint(
+        [&]()
+        {
+            clc_console::conlock(std::cout)
+                << "Chats updated:  " << (chats ? chats->size() : -1) << std::endl;
+        });
 }
 
 void CLCMegaListener::onEvent(m::MegaApi*, m::MegaEvent* e)

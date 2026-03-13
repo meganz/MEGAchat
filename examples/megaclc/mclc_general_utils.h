@@ -159,6 +159,25 @@ std::string join(Iter begin, Iter end, const std::string& separator)
 namespace clc_console
 {
 
+#ifndef NO_READLINE
+void suspendPromptForAsyncOutput();
+void restorePromptAfterAsyncOutput();
+#endif
+
+template<typename PrintFn>
+void asyncConsolePrint(PrintFn&& printer)
+{
+#ifndef NO_READLINE
+    suspendPromptForAsyncOutput();
+#endif
+
+    printer();
+
+#ifndef NO_READLINE
+    restorePromptAfterAsyncOutput();
+#endif
+}
+
 /**
  * @class ConsoleLock
  * @brief This struct allows you to lock an output so you can print messages to it without race
