@@ -16,7 +16,9 @@
 #include <karereId.h>
 namespace k = ::karere;
 
+#include <deque>
 #include <regex>
+#include <set>
 
 namespace mclc::clc_cmds
 {
@@ -38,6 +40,174 @@ using m::logInfo;
 using m::logMax;
 using m::logWarning;
 using m::SimpleLogger;
+
+namespace
+{
+
+constexpr size_t kMaxHeaderContentWidthExceptBorders = 70;
+
+std::string generateReviewPublicChatErrorHeader(const std::string& chatLink,
+                                                const std::string& parentChatLink,
+                                                const size_t recursionLevel)
+{
+    const std::vector<std::string> lines{
+        "ReviewPublicChat: failed to review chatlink.",
+        "Link: " + chatLink,
+        "Parent chat_link: " + (parentChatLink.empty() ? std::string{"<root>"} : parentChatLink),
+        "Depth level: " + std::to_string(recursionLevel)};
+
+    const std::string border(kMaxHeaderContentWidthExceptBorders + 5, '!');
+    std::ostringstream os;
+    os << "\n\n" << border << "\n";
+    for (const auto& line: lines)
+    {
+        os << "! " << line;
+        if (line.size() < kMaxHeaderContentWidthExceptBorders)
+        {
+            os << std::string(kMaxHeaderContentWidthExceptBorders - line.size(), ' ');
+        }
+        os << "  !\n";
+    }
+    os << border << "\n" << std::endl;
+    return os.str();
+}
+
+std::string generateReviewPublicChatHeader(const std::string& chatLink,
+                                           const std::string& parentChatLink,
+                                           const size_t recursionLevel,
+                                           const std::string& chatId,
+                                           const int numPeers,
+                                           const char* title)
+{
+    const std::vector<std::string> lines{
+        "ReviewPublicChat: chatlink loaded succesfully.",
+        "Link: " + chatLink,
+        "Parent chat_link: " + (parentChatLink.empty() ? std::string{"<root>"} : parentChatLink),
+        "Depth level: " + std::to_string(recursionLevel),
+        "Chatid: " + chatId,
+        "User count: " + std::to_string(numPeers),
+        "Title: " + std::string(title ? title : "<No title>")};
+
+    const std::string border(kMaxHeaderContentWidthExceptBorders + 5, '#');
+    std::ostringstream os;
+    os << "\n\n" << border << "\n";
+    for (const auto& line: lines)
+    {
+        os << "# " << line;
+        if (line.size() < kMaxHeaderContentWidthExceptBorders)
+        {
+            os << std::string(kMaxHeaderContentWidthExceptBorders - line.size(), ' ');
+        }
+        os << "  #\n";
+    }
+    os << border << "\n" << std::endl;
+    return os.str();
+}
+
+bool reviewPublicChatLink(const std::string& chatLink,
+                          const std::string& parentChatLink,
+                          const size_t recursionLevel,
+                          const std::string& cmdName,
+                          int numMsgs)
+{
+    g_reviewingPublicChat = true;
+    g_reviewedChatLoggedIn = false;
+    g_reviewChatMsgCountRemaining = 0;
+    g_reviewChatMsgCount = 0;
+    g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
+
+    if (numMsgs > 0)
+    {
+        g_reviewChatLoadAllMsg = false;
+        g_reviewChatMsgCountRemaining = numMsgs;
+    }
+    else
+    {
+        g_reviewChatLoadAllMsg = true;
+        g_reviewChatMsgCountRemaining = MAX_NUMBER_MESSAGES;
+    }
+
+    auto [errPreviewChatLink, requestPreviewChatLink] =
+        clc_ccactions::processChatLink(chatLink.c_str(), true /*onlyCheck*/);
+    if (!errPreviewChatLink || !requestPreviewChatLink)
+    {
+        conlock(std::cout) << cmdName +
+                                  "Error: processChatLink has returned null error or request\n"
+                           << std::flush;
+        return false;
+    }
+
+    if (!check_err("checkChatLink", errPreviewChatLink.get()))
+    {
+        conlock(std::cout) << cmdName + "checkChatLink failed. Error: " +
+                                  errPreviewChatLink->getErrorString() + "\n"
+                           << std::flush;
+        return false;
+    }
+
+    const megachat::MegaChatHandle chatId = g_reviewPublicChatid =
+        requestPreviewChatLink->getChatHandle();
+    const int numPeers = static_cast<int>(requestPreviewChatLink->getNumber());
+    const char* title = requestPreviewChatLink->getText();
+    const auto headerMsg = generateReviewPublicChatHeader(chatLink,
+                                                          parentChatLink,
+                                                          recursionLevel,
+                                                          k::Id(g_reviewPublicChatid).toString(),
+                                                          numPeers,
+                                                          title);
+    conlock(std::cout) << headerMsg;
+    conlock(*g_reviewPublicChatOutFile) << headerMsg << std::flush;
+
+    auto [errOpenChatLink, requestOpenChatLink] =
+        clc_ccactions::processChatLink(chatLink.c_str(), false /*onlyCheck*/);
+    if (!errOpenChatLink || !requestOpenChatLink)
+    {
+        conlock(std::cout) << cmdName + "Failed to open chat link\n" << std::flush;
+        return false;
+    }
+
+    if (!check_err("openChatPreview", errOpenChatLink.get()))
+    {
+        conlock(std::cout) << cmdName + "OpenChatPreview failed. Error: " +
+                                  errOpenChatLink->getErrorString() + "\n"
+                           << std::flush;
+        return false;
+    }
+
+    bool isLoggedInChat = c::async::waitForResponse(
+        []()
+        {
+            return clc_global::g_reviewedChatLoggedIn.load();
+        },
+        megachat::async::HALF_MINUTE_IN_SECS);
+
+    if (!isLoggedInChat)
+    {
+        conlock(std::cout) << cmdName + "Error: cannot login into all chats\n" << std::flush;
+        return false;
+    }
+
+    std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(chatId));
+    if (!room)
+    {
+        conlock(std::cout) << cmdName + "openChatPreview succeeded but cannot retrieve chatroom: " +
+                                  str_utils::base64ChatHandle(chatId) + "\n"
+                           << std::flush;
+        assert(false);
+        return false;
+    }
+
+    clc_report::chatReport(chatId);
+
+    return c::async::waitForResponse(
+        []()
+        {
+            return !clc_global::g_reviewingPublicChat.load();
+        },
+        megachat::async::HALF_MINUTE_IN_SECS);
+}
+
+}
 
 void exec_initanonymous(ac::ACState&)
 {
@@ -1080,9 +1250,11 @@ void exec_reviewpublicchat(ac::ACState& s)
 
     if (g_reviewPublicChatid != c::MEGACHAT_INVALID_HANDLE)
     {
-        g_chatApi->closeChatRoom(g_reviewPublicChatid,
-                                 g_roomListeners[g_reviewPublicChatid].listener.get());
-        g_roomListeners.erase(g_reviewPublicChatid);
+        if (auto it = g_roomListeners.find(g_reviewPublicChatid); it != g_roomListeners.end())
+        {
+            g_chatApi->closeChatRoom(g_reviewPublicChatid, it->second.listener.get());
+            g_roomListeners.erase(it);
+        }
         g_chatApi->closeChatPreview(g_reviewPublicChatid);
     }
 
@@ -1098,24 +1270,6 @@ void exec_reviewpublicchat(ac::ACState& s)
                        "Error: Invalid value for [N], it must be greater than zero if provided\n";
             return;
         }
-    }
-
-    g_reviewingPublicChat = true;
-    g_startedPublicChatReview = false;
-    g_reviewedChatLoggedIn = false;
-    g_reviewChatMsgCountRemaining = 0;
-    g_reviewChatMsgCount = 0;
-    g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
-
-    if (numMsgs > 0)
-    {
-        g_reviewChatLoadAllMsg = false;
-        g_reviewChatMsgCountRemaining = numMsgs;
-    }
-    else
-    {
-        g_reviewChatLoadAllMsg = true;
-        g_reviewChatMsgCountRemaining = MAX_NUMBER_MESSAGES;
     }
 
     // get chat-link
@@ -1146,85 +1300,86 @@ void exec_reviewpublicchat(ac::ACState& s)
     *g_reviewPublicChatOutFile << chatLink << std::endl;
     *g_reviewPublicChatOutFileLinks << chatLink << std::endl;
     g_debugOutpuWriter.writeOutput(chatLink + "\n", logInfo);
+    {
+        std::lock_guard<std::mutex> lock(g_reviewPublicChatLinksMutex);
+        g_reviewPublicChatDiscoveredLinks.clear();
+    }
 
-    auto [errPreviewChatLink, requestPreviewChatLink] =
-        clc_ccactions::processChatLink(chatLink.c_str(), true /*onlyCheck*/);
-    if (!errPreviewChatLink || !requestPreviewChatLink)
+    struct PendingChatLink
+    {
+        std::string mLink;
+        std::string mParentLink;
+        size_t mRecursionLevel;
+    };
+
+    std::deque<PendingChatLink> pendingLinks;
+    pendingLinks.push_back({chatLink, {}, 0});
+    std::set<std::string> reviewedLinks;
+    bool reviewWithPartialFailures = false;
+
+    while (!pendingLinks.empty())
+    {
+        const auto current = pendingLinks.front();
+        pendingLinks.pop_front();
+
+        if (!reviewedLinks.insert(current.mLink).second)
+        {
+            continue;
+        }
+
+        if (!reviewPublicChatLink(current.mLink,
+                                  current.mParentLink,
+                                  current.mRecursionLevel,
+                                  cmdName,
+                                  numMsgs))
+        {
+            reviewWithPartialFailures = true;
+            const auto errorMsg = generateReviewPublicChatErrorHeader(current.mLink,
+                                                                      current.mParentLink,
+                                                                      current.mRecursionLevel);
+            conlock(std::cout) << errorMsg;
+            if (g_reviewPublicChatOutFile)
+            {
+                conlock(*g_reviewPublicChatOutFile) << errorMsg << std::flush;
+            }
+            continue;
+        }
+
+        if (g_reviewPublicChatid != c::MEGACHAT_INVALID_HANDLE)
+        {
+            if (auto it = g_roomListeners.find(g_reviewPublicChatid); it != g_roomListeners.end())
+            {
+                g_chatApi->closeChatRoom(g_reviewPublicChatid, it->second.listener.get());
+                g_roomListeners.erase(it);
+            }
+            g_chatApi->closeChatPreview(g_reviewPublicChatid);
+            g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
+        }
+
+        std::vector<std::string> discoveredLinks;
+        {
+            std::lock_guard<std::mutex> lock(g_reviewPublicChatLinksMutex);
+            discoveredLinks.swap(g_reviewPublicChatDiscoveredLinks);
+        }
+
+        for (const auto& discoveredLink: discoveredLinks)
+        {
+            if (reviewedLinks.find(discoveredLink) != reviewedLinks.end())
+            {
+                LOG_verbose << "Chatlink (" << discoveredLink << ") has already been reviewed";
+                continue;
+            }
+
+            pendingLinks.push_back({discoveredLink, current.mLink, current.mRecursionLevel + 1});
+        }
+    }
+
+    if (reviewWithPartialFailures)
     {
         conlock(std::cout) << cmdName +
-                                  "Error: processChatLink has returned null error or request\n"
+                                  "Finished with partial failures while reviewing chat links\n"
                            << std::flush;
     }
-
-    if (!check_err("checkChatLink", errPreviewChatLink.get()))
-    {
-        conlock(std::cout) << cmdName + "checkChatLink failed. Error: " +
-                                  errPreviewChatLink->getErrorString() + "\n"
-                           << std::flush;
-        return;
-    }
-
-    const megachat::MegaChatHandle chatId = g_reviewPublicChatid =
-        requestPreviewChatLink->getChatHandle();
-    std::ostringstream os1;
-    os1 << "\nReviewPublicChat: chatlink loaded succesfully.\n\tChatid: "
-        << k::Id(g_reviewPublicChatid).toString() << std::endl;
-    const auto msg1 = os1.str();
-    conlock(std::cout) << msg1;
-    conlock(*g_reviewPublicChatOutFile) << msg1 << std::flush;
-
-    const int numPeers = static_cast<int>(requestPreviewChatLink->getNumber());
-    std::ostringstream os2;
-    os2 << "\tUser count: " << numPeers << std::endl;
-    const auto msg2 = os2.str();
-    conlock(std::cout) << msg2;
-    conlock(*g_reviewPublicChatOutFile) << msg2 << std::flush;
-
-    const char* title = requestPreviewChatLink->getText();
-    std::ostringstream os3;
-    os3 << "\tTitle: " << title << std::endl;
-    const auto msg3 = os3.str();
-    conlock(std::cout) << msg3;
-    conlock(*g_reviewPublicChatOutFile) << msg3 << std::flush;
-
-    auto [errOpenChatLink, requestOpenChatLink] =
-        clc_ccactions::processChatLink(chatLink.c_str(), false /*onlyCheck*/);
-    if (!errOpenChatLink || !requestOpenChatLink)
-    {
-        conlock(std::cout) << cmdName + "Failed to open chat link\n" << std::flush;
-    }
-
-    if (!check_err("openChatPreview", errOpenChatLink.get()))
-    {
-        conlock(std::cout) << cmdName + "OpenChatPreview failed. Error: " +
-                                  errOpenChatLink->getErrorString() + "\n"
-                           << std::flush;
-        return;
-    }
-
-    bool isLoggedInChat = c::async::waitForResponse(
-        []()
-        {
-            return clc_global::g_reviewedChatLoggedIn.load();
-        },
-        megachat::async::HALF_MINUTE_IN_SECS);
-
-    if (!isLoggedInChat)
-    {
-        conlock(std::cout) << cmdName + "Error: cannot login into all chats\n" << std::flush;
-        return;
-    }
-
-    std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(chatId));
-    if (!room)
-    {
-        conlock(std::cout) << cmdName + "openChatPreview succeeded but cannot retrieve chatroom: " +
-                                  str_utils::base64ChatHandle(chatId) + "\n"
-                           << std::flush;
-        assert(false);
-        return;
-    }
-    clc_report::chatReport(chatId);
 }
 
 void exec_isfullhistoryloaded(ac::ACState& s)

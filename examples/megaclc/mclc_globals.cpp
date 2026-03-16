@@ -12,7 +12,6 @@ std::atomic<bool> g_chatFinishedLogout{false};
 
 std::atomic<bool> g_reviewingPublicChat{false};
 std::atomic<bool> g_dumpingChatHistory{false};
-std::atomic<bool> g_startedPublicChatReview{false};
 std::atomic<int> g_reviewedChatLoggedIn{false};
 std::atomic<bool> g_reviewChatLoadAllMsg{false};
 std::atomic<int> g_reviewChatMsgCountRemaining{-1};
@@ -21,6 +20,8 @@ std::atomic<::megachat::MegaChatHandle> g_reviewPublicChatid{::megachat::MEGACHA
 std::atomic<::megachat::MegaChatHandle> g_dumpHistoryChatid{::megachat::MEGACHAT_INVALID_HANDLE};
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFile;
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLinks;
+std::mutex g_reviewPublicChatLinksMutex;
+std::vector<std::string> g_reviewPublicChatDiscoveredLinks;
 std::mutex g_reviewPublicChatOutFileLogsMutex;
 std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLogs;
 

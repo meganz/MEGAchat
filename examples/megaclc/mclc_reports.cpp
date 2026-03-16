@@ -21,6 +21,21 @@ bool oneOpenRoom(c::MegaChatHandle room)
     return g_roomListeners.size() == 1 && g_roomListeners.begin()->first == room;
 }
 
+std::string reviewPublicChatSectionHeader(const std::string& title)
+{
+    constexpr size_t kSectionWidth = 75;
+    const std::string content =
+        title.size() <= kSectionWidth ? title : title.substr(0, kSectionWidth);
+    const std::string border(kSectionWidth, '=');
+    std::ostringstream os;
+    os << "\n" << content;
+    if (content.size() < kSectionWidth)
+    {
+        os << std::string(kSectionWidth - content.size(), ' ');
+    }
+    os << "\n" << border << "\n\n";
+    return os.str();
+}
 }
 
 void chatReport(const c::MegaChatHandle chatid)
@@ -56,7 +71,14 @@ void chatReport(const c::MegaChatHandle chatid)
         }
 
         std::ostringstream os;
-        os << "\n\t\t------------------ Load Particpants --------------------\n\n";
+        if (g_reviewingPublicChat)
+        {
+            os << reviewPublicChatSectionHeader("Load Participants");
+        }
+        else
+        {
+            os << "\n\t\t------------------ Load Particpants --------------------\n\n";
+        }
         for (unsigned int i = 0; i < numParticipants; i++)
         {
             c::MegaChatHandle peerHandle = chatRoom->getPeerHandle(i);
@@ -71,7 +93,14 @@ void chatReport(const c::MegaChatHandle chatid)
                << "\t\t\tName: " << (fullname.get() ? fullname.get() : "No name") << "\n";
         }
 
-        os << "\n\n\t\t------------------ Load Messages ----------------------\n\n";
+        if (g_reviewingPublicChat)
+        {
+            os << "\n" << reviewPublicChatSectionHeader("Load Messages");
+        }
+        else
+        {
+            os << "\n\n\t\t------------------ Load Messages ----------------------\n\n";
+        }
         const auto msg = os.str();
         clc_console::conlock(std::cout) << msg;
         clc_console::conlock(*g_reviewPublicChatOutFile) << msg << std::flush;
@@ -199,7 +228,6 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 
             g_dumpingChatHistory = false;
             g_reviewingPublicChat = false;
-            g_startedPublicChatReview = false;
             g_reviewChatMsgCountRemaining = 0;
             g_reviewChatMsgCount = 0;
             g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
@@ -231,10 +259,11 @@ void reportMessageHuman(c::MegaChatHandle chatid,
         {
             std::string message =
                 "Loaded all messages requested: " + std::to_string(g_reviewChatMsgCount);
-            clc_console::conlock(std::cout) << message << std::flush;
+            g_reviewingPublicChat = false;
+            clc_console::conlock(std::cout) << message << std::endl;
             if (g_reviewPublicChatOutFile)
             {
-                clc_console::conlock(*g_reviewPublicChatOutFile) << message << std::flush;
+                clc_console::conlock(*g_reviewPublicChatOutFile) << message << std::endl;
             }
         }
         return;
@@ -340,9 +369,12 @@ void reportMessageHuman(c::MegaChatHandle chatid,
 
     if (g_reviewPublicChatOutFileLinks && msg->getContent())
     {
-        const auto subChatLink = str_utils::extractChatLink(msg->getContent());
-        if (!subChatLink.empty())
+        if (const auto chatLink = str_utils::extractChatLink(msg->getContent()); !chatLink.empty())
         {
+            {
+                std::lock_guard<std::mutex> lock(g_reviewPublicChatLinksMutex);
+                g_reviewPublicChatDiscoveredLinks.push_back(chatLink);
+            }
             clc_console::conlock(*g_reviewPublicChatOutFileLinks) << outMsg << std::flush;
         }
     }
