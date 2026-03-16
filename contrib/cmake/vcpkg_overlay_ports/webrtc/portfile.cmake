@@ -436,11 +436,6 @@ if(VCPKG_TARGET_IS_IOS)
             WEBRTC_HAS_NEON
             WEBRTC_ARCH_ARM64
         )
-    elseif (${target_cpu} STREQUAL x64)
-        list(APPEND cmake_target_definitions
-            LIBYUV_DISABLE_NEON
-            LIBYUV_DISABLE_SVE
-        )
     endif()
 
     set(cmake_target_name_extra ${LIB_NAMES})
