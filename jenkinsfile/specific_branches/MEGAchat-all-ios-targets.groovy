@@ -110,14 +110,33 @@ pipeline {
                         # Export the right path
                         export PATH="\$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/bin:\$PATH"
                         bash -x scripts/build-sdk-libs.sh --skip-build-libs
+
+                        # Compress and hash xframework
+                        export now=`date "+%Y%m%d.%H%M%S"`
+                        for i in `ls xcframework`; do
+                            zip -r xcframework/\$i.\$now.zip xcframework/\$i
+                            swift package compute-checksum xcframework/\$i.\$now.zip > xcframework/\$i.\$now.checksum
+                        done
                     """
+
+                    // Upload xframework
+                    withCredentials([string(credentialsId: 'IOS-MEGA-ARTIFACTORY-UPLOAD', variable: 'ARTIFACTORY_TOKEN')]) {
+                        script {
+                            sh """
+                                export today=`date "+%Y%m%d"`
+                                export targetPath="${REPOSITORY_URL}/artifactory/ios-mega/xcframework/\$today"
+                                for i in `ls xcframework/*.{zip,checksum}`; do
+                                    curl -H"Authorization: Bearer \$ARTIFACTORY_TOKEN" -T \$i \$targetPath/
+                                done
+                            """
+                        }
+                    }
                 }
             }
             post {
                 always {
-                   archiveArtifacts allowEmptyArchive: false, artifacts: "${IOS_DIR}/xcframework/"
-                   archiveArtifacts allowEmptyArchive: true, artifacts: "${IOS_DIR}/${BUILD_DIR_DEVICE}"
-                   archiveArtifacts allowEmptyArchive: true, artifacts: "${IOS_DIR}/${BUILD_DIR_SIMULATOR}"
+                   archiveArtifacts allowEmptyArchive: false, artifacts: "${IOS_DIR}/xcframework/*.zip"
+                   archiveArtifacts allowEmptyArchive: false, artifacts: "${IOS_DIR}/xcframework/*.checksum"
                 }
             }
         }
