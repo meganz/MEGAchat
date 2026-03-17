@@ -129,10 +129,9 @@ bool WebsocketsClient::wsSendMessage(char *msg, size_t len)
     return result;
 }
 
-void WebsocketsClient::wsDisconnect(bool immediate)
+void WebsocketsClient::wsDisconnect()
 {
-    WEBSOCKETS_LOG_DEBUG("Disconnecting. Immediate: %d", immediate);
-    
+    WEBSOCKETS_LOG_DEBUG("Disconnecting");
     if (!ctx)
     {
         return;
@@ -140,13 +139,10 @@ void WebsocketsClient::wsDisconnect(bool immediate)
 
     assert(thread_id == std::this_thread::get_id());
 
-    ctx->wsDisconnect(immediate);
+    ctx->wsDisconnect();
 
-    if (immediate)
-    {
-        delete ctx;
-        ctx = NULL;
-    }
+    delete ctx;
+    ctx = NULL;
 }
 
 bool WebsocketsClient::wsIsConnected()
@@ -163,7 +159,7 @@ bool WebsocketsClient::wsIsConnected()
 
 void WebsocketsClient::wsCloseCbPrivate(int errcode, int errtype, const char *preason, size_t reason_len)
 {
-    if (!ctx)   // immediate disconnect ocurred before the marshall is executed (only applies to libws)
+    if (!ctx) // disconnect ocurred before the marshall is executed (only applies to libws)
     {
         return;
     }
