@@ -14,6 +14,9 @@ namespace k = ::karere;
 #include <mach-o/dyld.h>
 #endif
 
+#include <array>
+#include <set>
+
 namespace mclc
 {
 
@@ -131,48 +134,216 @@ fs::path pathFromLocalPath(const std::string& s, bool mustexist)
 namespace str_utils
 {
 
+namespace
+{
+
+const std::string kRootNz = "https://mega.nz/";
+const std::string kRootApp = "https://mega.app/";
+
+std::string linkRootURL()
+{
+    auto siteFlag = clc_global::g_megaApi->getFlag("site");
+    constexpr int USE_APP_URL = 1;
+    return (siteFlag->getType() == mega::MegaFlag::FLAG_TYPE_FEATURE &&
+            siteFlag->getGroup() == USE_APP_URL) ?
+               "https://mega.app/" :
+               "https://mega.nz/";
+}
+
+std::vector<std::string> extractLinksWithHandleAndKey(const char* message,
+                                                      const std::string& base,
+                                                      bool stopAtSlashAfterKey = false)
+{
+    constexpr size_t handleSize = 8;
+    constexpr size_t keySize = 22;
+
+    if (!message)
+    {
+        return {};
+    }
+
+    std::vector<std::string> links;
+    std::set<std::string> seen;
+    const std::array<std::pair<std::string, size_t>, 2> roots = {
+        std::make_pair(kRootNz, kRootNz.size()),
+        std::make_pair(kRootApp, kRootApp.size())};
+
+    for (const auto& [root, rootSize]: roots)
+    {
+        const auto prefix = root + base;
+        const char* current = message;
+        while ((current = strstr(current, prefix.c_str())))
+        {
+            const auto hashPtr = strstr(current, "#");
+            if (hashPtr &&
+                static_cast<size_t>(hashPtr - current) - rootSize - base.size() == handleSize)
+            {
+                auto keyPtr = hashPtr + 1;
+                size_t count = 0;
+                while (count < keySize && *keyPtr != '\0' &&
+                       (!stopAtSlashAfterKey || *keyPtr != '/'))
+                {
+                    ++count;
+                    ++keyPtr;
+                }
+                if (count == keySize)
+                {
+                    const auto link =
+                        linkRootURL() + std::string(current + rootSize,
+                                                    stopAtSlashAfterKey ?
+                                                        keyPtr :
+                                                        current + rootSize + base.size() +
+                                                            handleSize + 1 + keySize);
+                    if (seen.insert(link).second)
+                    {
+                        links.push_back(link);
+                    }
+                    current = keyPtr;
+                    continue;
+                }
+            }
+            current += prefix.size();
+        }
+    }
+
+    return links;
+}
+
+std::string extractLinkWithHandleAndKey(const char* message,
+                                        const std::string& base,
+                                        bool stopAtSlashAfterKey = false)
+{
+    const auto links = extractLinksWithHandleAndKey(message, base, stopAtSlashAfterKey);
+    return links.empty() ? std::string{} : links.front();
+}
+
+std::vector<std::string> extractLinksWithHandle(const char* message, const std::string& base)
+{
+    constexpr size_t handleSize = 8;
+
+    if (!message)
+    {
+        return {};
+    }
+
+    std::vector<std::string> links;
+    std::set<std::string> seen;
+    const std::array<std::pair<std::string, size_t>, 2> roots = {
+        std::make_pair(kRootNz, kRootNz.size()),
+        std::make_pair(kRootApp, kRootApp.size())};
+
+    for (const auto& [root, rootSize]: roots)
+    {
+        const auto prefix = root + base;
+        const char* current = message;
+        while ((current = strstr(current, prefix.c_str())))
+        {
+            auto handlePtr = current + rootSize + base.size();
+            size_t count = 0;
+            while (count < handleSize && *handlePtr != '\0')
+            {
+                ++count;
+                ++handlePtr;
+            }
+            if (count == handleSize)
+            {
+                const auto link =
+                    linkRootURL() +
+                    std::string(current + rootSize, current + rootSize + base.size() + handleSize);
+                if (seen.insert(link).second)
+                {
+                    links.push_back(link);
+                }
+                current = handlePtr;
+                continue;
+            }
+            current += prefix.size();
+        }
+    }
+
+    return links;
+}
+
+std::string extractLinkWithHandle(const char* message, const std::string& base)
+{
+    const auto links = extractLinksWithHandle(message, base);
+    return links.empty() ? std::string{} : links.front();
+}
+}
+
 // Chat links look like this:
 // https://mega.app/chat/E1foobar#EFa7vexblahJwjNglfooxg
 //                      ^handle  ^key
 std::string extractChatLink(const char* message)
 {
-    constexpr size_t handleSize = 8;
-    constexpr size_t keySize = 22;
     static const std::string base = "chat/";
-    const auto chatPtr = strstr(message, base.c_str());
-    if (!chatPtr)
-    {
-        return {};
-    }
-    const auto hashPtr = strstr(chatPtr, "#");
-    if (!hashPtr)
-    {
-        return {};
-    }
-    if (static_cast<size_t>(hashPtr - chatPtr) - base.size() != handleSize)
-    {
-        return {};
-    }
-    auto keyPtr = hashPtr + 1;
-    size_t count = 0;
-    while (count < keySize && *keyPtr != '\0')
-    {
-        ++count;
-        ++keyPtr;
-    }
-    if (count < keySize)
-    {
-        return {};
-    }
+    return extractLinkWithHandleAndKey(message, base);
+}
 
-    auto siteFlag = clc_global::g_megaApi->getFlag("site");
-    constexpr int USE_APP_URL = 1;
-    std::string rootURL = (siteFlag->getType() == mega::MegaFlag::FLAG_TYPE_FEATURE &&
-                           siteFlag->getGroup() == USE_APP_URL) ?
-                              "https://mega.app/" :
-                              "https://mega.nz/";
+std::vector<std::string> extractChatLinks(const char* message)
+{
+    static const std::string base = "chat/";
+    return extractLinksWithHandleAndKey(message, base);
+}
 
-    return rootURL + std::string(chatPtr, chatPtr + base.size() + handleSize + 1 + keySize);
+// Folder links look like this:
+// https://mega.nz/folder/9m0xyKza#MloVQA3krMfdPep-CYEddg/folder/RrE2UbJS
+//                        ^handle  ^key
+std::string extractFolderLink(const char* message)
+{
+    static const std::string base = "folder/";
+    return extractLinkWithHandleAndKey(message, base, true);
+}
+
+std::vector<std::string> extractFolderLinks(const char* message)
+{
+    static const std::string base = "folder/";
+    return extractLinksWithHandleAndKey(message, base, true);
+}
+
+// File links look like this:
+// https://mega.nz/file/zAJnUTYD#8YE5dXrnIEJ47NdDfFEvqtOefhuDMphyae0KY5zrhns
+//                      ^handle  ^key
+std::string extractFileLink(const char* message)
+{
+    static const std::string base = "file/";
+    return extractLinkWithHandleAndKey(message, base);
+}
+
+std::vector<std::string> extractFileLinks(const char* message)
+{
+    static const std::string base = "file/";
+    return extractLinksWithHandleAndKey(message, base);
+}
+
+// Contact links look like this:
+// https://mega.nz/C!S6hTFahK
+//                   ^handle
+std::string extractContactLink(const char* message)
+{
+    static const std::string base = "C!";
+    return extractLinkWithHandle(message, base);
+}
+
+std::vector<std::string> extractContactLinks(const char* message)
+{
+    static const std::string base = "C!";
+    return extractLinksWithHandle(message, base);
+}
+
+// Album links look like this:
+// https://mega.nz/collection/GqQDQDAJ#ZMKkdfm3HQjUa8WLT6nj2g
+//                            ^handle  ^key
+std::string extractAlbumLink(const char* message)
+{
+    static const std::string base = "collection/";
+    return extractLinkWithHandleAndKey(message, base);
+}
+
+std::vector<std::string> extractAlbumLinks(const char* message)
+{
+    static const std::string base = "collection/";
+    return extractLinksWithHandleAndKey(message, base);
 }
 
 // convert string to handle

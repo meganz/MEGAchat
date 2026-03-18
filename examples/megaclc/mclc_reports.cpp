@@ -88,7 +88,7 @@ void chatReport(const c::MegaChatHandle chatid)
                 std::unique_ptr<const char[]>(api->getUserFullnameFromCache(peerHandle));
             std::unique_ptr<const char[]> handleBase64 =
                 std::unique_ptr<const char[]>(m::MegaApi::userHandleToBase64(peerHandle));
-            os << "\tParticipant: " << handleBase64.get()
+            os << "Participant: " << handleBase64.get()
                << "\tEmail: " << (email.get() ? email.get() : "No email")
                << "\t\t\tName: " << (fullname.get() ? fullname.get() : "No name") << "\n";
         }
@@ -369,11 +369,21 @@ void reportMessageHuman(c::MegaChatHandle chatid,
 
     if (g_reviewPublicChatOutFileLinks && msg->getContent())
     {
-        if (const auto chatLink = str_utils::extractChatLink(msg->getContent()); !chatLink.empty())
+        const auto chatLinks = str_utils::extractChatLinks(msg->getContent());
+        const auto folderLinks = str_utils::extractFolderLinks(msg->getContent());
+        const auto fileLinks = str_utils::extractFileLinks(msg->getContent());
+        const auto contactLinks = str_utils::extractContactLinks(msg->getContent());
+        const auto albumLinks = str_utils::extractAlbumLinks(msg->getContent());
+        if (!chatLinks.empty() || !folderLinks.empty() || !fileLinks.empty() ||
+            !contactLinks.empty() || !albumLinks.empty())
         {
+            if (!chatLinks.empty())
             {
                 std::lock_guard<std::mutex> lock(g_reviewPublicChatLinksMutex);
-                g_reviewPublicChatDiscoveredLinks.push_back(chatLink);
+                for (const auto& chatLink: chatLinks)
+                {
+                    g_reviewPublicChatDiscoveredLinks.push_back(chatLink);
+                }
             }
             clc_console::conlock(*g_reviewPublicChatOutFileLinks) << outMsg << std::flush;
         }

@@ -1342,6 +1342,18 @@ void exec_reviewpublicchat(ac::ACState& s)
             {
                 conlock(*g_reviewPublicChatOutFile) << errorMsg << std::flush;
             }
+            if (g_reviewPublicChatid != c::MEGACHAT_INVALID_HANDLE)
+            {
+                if (auto it = g_roomListeners.find(g_reviewPublicChatid);
+                    it != g_roomListeners.end())
+                {
+                    g_chatApi->closeChatRoom(g_reviewPublicChatid, it->second.listener.get());
+                    g_roomListeners.erase(it);
+                }
+                g_chatApi->closeChatPreview(g_reviewPublicChatid);
+                g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
+            }
+            g_reviewingPublicChat = false;
             continue;
         }
 

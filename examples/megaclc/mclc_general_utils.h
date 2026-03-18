@@ -13,9 +13,11 @@ namespace m = ::mega;
 #include <megachatapi.h>
 namespace c = ::megachat;
 
-#include <filesystem>
 #include <karereId.h>
+
+#include <filesystem>
 #include <string>
+#include <vector>
 namespace fs = std::filesystem;
 #include <fstream>
 
@@ -83,6 +85,79 @@ namespace str_utils
  * @return A std::string with the link. If no link is found returns an empty string.
  */
 std::string extractChatLink(const char* message);
+
+/**
+ * @brief Extracts all chat links from an arbitrary message.
+ */
+std::vector<std::string> extractChatLinks(const char* message);
+
+/**
+ * @brief Extracts a link to a folder from an arbitrary message and returns it as a std::string
+ *
+ * Folder links look like this:
+ * https://mega.nz/folder/9m0xyKza#MloVQA3krMfdPep-CYEddg/folder/RrE2UbJS
+ *                        ^handle  ^key
+ *
+ * @param message The message where the link is expected to be.
+ * @return A std::string with the link. If no link is found returns an empty string.
+ */
+std::string extractFolderLink(const char* message);
+
+/**
+ * @brief Extracts all folder links from an arbitrary message.
+ */
+std::vector<std::string> extractFolderLinks(const char* message);
+
+/**
+ * @brief Extracts a link to a file from an arbitrary message and returns it as a std::string
+ *
+ * File links look like this:
+ * https://mega.nz/file/zAJnUTYD#8YE5dXrnIEJ47NdDfFEvqtOefhuDMphyae0KY5zrhns
+ *                      ^handle  ^key
+ *
+ * @param message The message where the link is expected to be.
+ * @return A std::string with the link. If no link is found returns an empty string.
+ */
+std::string extractFileLink(const char* message);
+
+/**
+ * @brief Extracts all file links from an arbitrary message.
+ */
+std::vector<std::string> extractFileLinks(const char* message);
+
+/**
+ * @brief Extracts a link to a contact from an arbitrary message and returns it as a std::string
+ *
+ * Contact links look like this:
+ * https://mega.nz/C!S6hTFahK
+ *                   ^handle
+ *
+ * @param message The message where the link is expected to be.
+ * @return A std::string with the link. If no link is found returns an empty string.
+ */
+std::string extractContactLink(const char* message);
+
+/**
+ * @brief Extracts all contact links from an arbitrary message.
+ */
+std::vector<std::string> extractContactLinks(const char* message);
+
+/**
+ * @brief Extracts a link to an album from an arbitrary message and returns it as a std::string
+ *
+ * Album links look like this:
+ * https://mega.nz/collection/GqQDQDAJ#ZMKkdfm3HQjUa8WLT6nj2g
+ *                            ^handle  ^key
+ *
+ * @param message The message where the link is expected to be.
+ * @return A std::string with the link. If no link is found returns an empty string.
+ */
+std::string extractAlbumLink(const char* message);
+
+/**
+ * @brief Extracts all album links from an arbitrary message.
+ */
+std::vector<std::string> extractAlbumLinks(const char* message);
 
 /**
  * @brief Convert a string into a chat handle
