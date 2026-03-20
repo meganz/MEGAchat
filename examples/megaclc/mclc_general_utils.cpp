@@ -309,11 +309,14 @@ ReadlineState suspendPromptForAsyncOutput()
 
 void restorePromptAfterAsyncOutput(ReadlineState& state)
 {
-    if (state.active)
+    if (state.active && clc_global::g_prompt == clc_prompt::COMMAND)
     {
         rl_restore_prompt();
-        rl_replace_line(state.line ? state.line.get() : "", 0);
-        rl_point = state.point;
+        if (rl_end == 0 && rl_point == 0)
+        {
+            rl_replace_line(state.line ? state.line.get() : "", 0);
+            rl_point = state.point;
+        }
         rl_redisplay();
     }
 }
