@@ -160,21 +160,28 @@ namespace clc_console
 {
 
 #ifndef NO_READLINE
-void suspendPromptForAsyncOutput();
-void restorePromptAfterAsyncOutput();
+struct ReadlineState
+{
+    std::unique_ptr<char, decltype(&std::free)> line{nullptr, &std::free};
+    int point = 0;
+    bool active = false;
+};
+
+ReadlineState suspendPromptForAsyncOutput();
+void restorePromptAfterAsyncOutput(ReadlineState& state);
 #endif
 
 template<typename PrintFn>
 void asyncConsolePrint(PrintFn&& printer)
 {
 #ifndef NO_READLINE
-    suspendPromptForAsyncOutput();
+    auto state = suspendPromptForAsyncOutput();
 #endif
 
     printer();
 
 #ifndef NO_READLINE
-    restorePromptAfterAsyncOutput();
+    restorePromptAfterAsyncOutput(state);
 #endif
 }
 

@@ -291,21 +291,29 @@ namespace clc_console
 {
 
 #ifndef NO_READLINE
-void suspendPromptForAsyncOutput()
+ReadlineState suspendPromptForAsyncOutput()
 {
+    ReadlineState state;
     if (clc_global::g_prompt == clc_prompt::COMMAND)
     {
+        state.active = true;
+        state.point = rl_point;
+        state.line.reset(rl_copy_text(0, rl_end));
+
         rl_save_prompt();
         rl_replace_line("", 0);
         rl_redisplay();
     }
+    return state;
 }
 
-void restorePromptAfterAsyncOutput()
+void restorePromptAfterAsyncOutput(ReadlineState& state)
 {
-    if (clc_global::g_prompt == clc_prompt::COMMAND)
+    if (state.active)
     {
         rl_restore_prompt();
+        rl_replace_line(state.line ? state.line.get() : "", 0);
+        rl_point = state.point;
         rl_redisplay();
     }
 }
