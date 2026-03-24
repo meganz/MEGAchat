@@ -53,7 +53,12 @@ void exec_initanonymous(ac::ACState&)
 
 void exec_login(ac::ACState& s)
 {
-    if (g_chatApi->getInitState() == c::MegaChatApi::INIT_NOT_DONE)
+    const int initState = g_chatApi->getInitState();
+    const auto chatInitNotDone = initState == c::MegaChatApi::INIT_NOT_DONE;
+    const auto retryingPendingLogin =
+        (initState == c::MegaChatApi::INIT_WAITING_NEW_SESSION) && !g_megaApi->isLoggedIn();
+
+    if (chatInitNotDone || retryingPendingLogin)
     {
         bool hasemail = s.words[1].s.find_first_of('@') != std::string::npos;
         if (s.words.size() == 3 && hasemail)
@@ -62,7 +67,10 @@ void exec_login(ac::ACState& s)
             {
                 conlock(std::cout) << "Initiating login attempt..." << std::endl;
             }
-            g_chatApi->init(NULL);
+            if (chatInitNotDone)
+            {
+                g_chatApi->init(NULL);
+            }
             g_login = s.words[1].s;
             g_password = s.words[2].s;
 
@@ -75,8 +83,8 @@ void exec_login(ac::ACState& s)
             g_login = s.words[1].s;
             setprompt(LOGINPASSWORD);
         }
-        else if ((s.words.size() == 2) ||
-                 (s.words.size() == 3 && !hasemail && s.words[1].s == "autoresume"))
+        else if (chatInitNotDone && ((s.words.size() == 2) || (s.words.size() == 3 && !hasemail &&
+                                                               s.words[1].s == "autoresume")))
         {
             std::string session, filename = "mega_autoresume_session" +
                                             (s.words.size() == 3 ? "_" + s.words[2].s : "");
@@ -91,7 +99,7 @@ void exec_login(ac::ACState& s)
             conlock(std::cout) << "Failed to get a valid session id from file " << filename
                                << std::endl;
         }
-        else if (s.words.size() == 2 && s.words[1].s.size() < 64 * 4 / 3)
+        else if (chatInitNotDone && s.words.size() == 2 && s.words[1].s.size() < 64 * 4 / 3)
         {
             {
                 conlock(std::cout) << "Resuming session..." << std::endl;
