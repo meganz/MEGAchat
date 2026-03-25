@@ -1,9 +1,9 @@
-def xframeworkMessage(artifacts, String log_url, String sdk_commit, String megachat_commit) {
+def xcframeworkMessage(artifacts, String log_url, String sdk_commit, String megachat_commit) {
     def urls_with_checksums = ""
     def message = ""
     def statusMessage = currentBuild.currentResult == "SUCCESS" ?
-        "🚀 XFrameworks published to Artifactory."
-        : "❌ There was an error building XFrameworks."
+        "🚀 XCFrameworks published to Artifactory."
+        : "❌ There was an error building XCFrameworks."
     artifacts.each { artifact ->
         urls_with_checksums += " * [${artifact[0]}](${artifact[1]})\n    * checksum: `${artifact[2]}`\n"
     }
@@ -56,7 +56,7 @@ def slackMessage(String message) {
     }
 }
 
-def xframeworkChecksumUpload(String file, String version, Boolean swiftChecksum) {
+def xcframeworkChecksumUpload(String file, String version, Boolean swiftChecksum) {
     def sha256 = swiftChecksum ?
           sh(script: "swift package compute-checksum ${file}", returnStdout: true).trim()
         : sh(script: "sha256 -q ${file}", returnStdout: true).trim()
@@ -86,7 +86,7 @@ void downloadJenkinsConsoleLog(String fileName) {
 String getLogsUrl(String fileName, String version) {
     String logsUrl = ""
     downloadJenkinsConsoleLog(fileName)
-    (_, logsUrl, _) = xframeworkChecksumUpload(fileName, version, false)
+    (_, logsUrl, _) = xcframeworkChecksumUpload(fileName, version, false)
     return logsUrl
 }
 
@@ -181,7 +181,7 @@ pipeline {
                 sh "cmake --build ${WORKSPACE}/${BUILD_DIR_ARM64_SIM} -j2"
             }
         }
-        stage ("Build and upload iOS xframework") {
+        stage ("Build and upload iOS xcframework") {
             when { expression { return  build_xcframework } }
             environment {
                 BUILD_DIR_ARM64 = "build_dir_arm64"
@@ -224,18 +224,18 @@ pipeline {
                         export PATH="\$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain/usr/bin:\$PATH"
                         bash -x scripts/build-sdk-libs.sh --skip-build-libs
 
-                        # Compress xframework
+                        # Compress xcframework
                         for i in `ls xcframework`; do
                             zip -r xcframework/\$i.${env.VERSION}.zip xcframework/\$i
                         done
                     """
 
-                    // Upload xframework
+                    // Upload xcframework
                     dir("xcframework") {
                         script {
                             def files = sh(script:"ls *.zip", returnStdout: true).split("\n")
                             files.each { file ->
-                                artifacts << xframeworkChecksumUpload(file, env.VERSION, true)
+                                artifacts << xcframeworkChecksumUpload(file, env.VERSION, true)
                             }
                         }
                     }
@@ -248,7 +248,7 @@ pipeline {
                         def sdk_commit = sh(script: "git -C ${sdk_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                         def megachat_commit = sh(script: "git -C ${megachat_sources_workspace} rev-parse HEAD", returnStdout: true).trim()
                         def logUrl = getLogsUrl("build.log", env.VERSION)
-                        def message = xframeworkMessage(artifacts, logUrl, sdk_commit, megachat_commit)
+                        def message = xcframeworkMessage(artifacts, logUrl, sdk_commit, megachat_commit)
                         echo message
                         addGitLabMRComment comment: message
                         slackMessage(message)
