@@ -29,11 +29,13 @@
 
 #import <set>
 #import <pthread.h>
+#import <os/lock.h>
 
 using namespace megachat;
 
 @interface MEGAChatSdk () {
     pthread_mutex_t listenerMutex;
+    os_unfair_lock _apiLock;
 }
 
 @property (nonatomic, assign) std::set<DelegateMEGAChatRequestListener *>activeRequestListeners;
@@ -64,7 +66,8 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     }
     
     self.megaChatApi = new MegaChatApi((::mega::MegaApi *)[megaSDK getCPtr]);
-    
+    _apiLock = OS_UNFAIR_LOCK_INIT;
+
     if (pthread_mutex_init(&listenerMutex, NULL)) {
         return nil;
     }
@@ -151,7 +154,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 
 - (void)deleteMegaChatApi {
     MegaChatApi *api = _megaChatApi;
+    os_unfair_lock_lock(&_apiLock);
     _megaChatApi = nil;
+    os_unfair_lock_unlock(&_apiLock);
     delete api;
     pthread_mutex_destroy(&listenerMutex);
 }
@@ -628,8 +633,13 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
 }
 
 - (MEGAChatRoom *)chatRoomForChatId:(uint64_t)chatId {
-    if (self.megaChatApi == nil) return nil;
+    os_unfair_lock_lock(&_apiLock);
+    if (!self.megaChatApi) {
+        os_unfair_lock_unlock(&_apiLock);
+        return nil;
+    }
     MegaChatRoom *chatRoom = self.megaChatApi->getChatRoom(chatId);
+    os_unfair_lock_unlock(&_apiLock);
     return chatRoom ? [[MEGAChatRoom alloc] initWithMegaChatRoom:chatRoom cMemoryOwn:YES] : nil;
 }
 
