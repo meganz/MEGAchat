@@ -290,6 +290,38 @@ std::string joinStringList(const m::MegaStringList& msl, const std::string& sepa
 namespace clc_console
 {
 
+#ifndef NO_READLINE
+ReadlineState suspendPromptForAsyncOutput()
+{
+    ReadlineState state;
+    if (clc_global::g_prompt == clc_prompt::COMMAND)
+    {
+        state.active = true;
+        state.point = rl_point;
+        state.line.reset(rl_copy_text(0, rl_end));
+
+        rl_save_prompt();
+        rl_replace_line("", 0);
+        rl_redisplay();
+    }
+    return state;
+}
+
+void restorePromptAfterAsyncOutput(ReadlineState& state)
+{
+    if (state.active && clc_global::g_prompt == clc_prompt::COMMAND)
+    {
+        rl_restore_prompt();
+        if (rl_end == 0 && rl_point == 0)
+        {
+            rl_replace_line(state.line ? state.line.get() : "", 0);
+            rl_point = state.point;
+        }
+        rl_redisplay();
+    }
+}
+#endif
+
 ConsoleLock::ConsoleLock(std::ostream& o):
     os(o),
     locking(true)
