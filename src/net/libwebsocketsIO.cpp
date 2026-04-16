@@ -543,9 +543,9 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             {
                 // LWS is about to free this wsi. If CLIENT_CLOSED or
                 // CLIENT_CONNECTION_ERROR was already handled, client->wsi is already
-                // null and removeConnection() is a no-op. If those callbacks were
-                // skipped (edge case), this prevents a dangling wsi pointer.
-                client->removeConnection();
+                // null. If those callbacks were skipped (edge case),
+                // this prevents a dangling wsi pointer.
+                client->wsi = nullptr;
             }
             break;
         }
