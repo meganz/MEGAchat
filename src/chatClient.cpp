@@ -4131,7 +4131,7 @@ promise::Promise<void> GroupChatRoom::autojoinPublicChat(uint64_t ph)
                                                      uKeyB64.c_str());
             })
         .then(
-            [this, wptr, myHandle](ReqResult)
+            [this, wptr](ReqResult)
             {
                 if (wptr.deleted())
                 {
