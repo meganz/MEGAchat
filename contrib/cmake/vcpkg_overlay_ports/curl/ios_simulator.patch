@@ -1,0 +1,56 @@
+# From https://github.com/curl/curl/commit/1737e47f59d93fa6e2001c2dd3404d67531d0aa9
+
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index c1e1b63..b6308c0 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1795,7 +1795,6 @@ check_symbol_exists("getaddrinfo"     "${CURL_INCLUDES};stdlib.h;string.h" HAVE_
+ check_symbol_exists("getifaddrs"      "${CURL_INCLUDES};stdlib.h" HAVE_GETIFADDRS)  # ifaddrs.h
+ check_symbol_exists("freeaddrinfo"    "${CURL_INCLUDES}" HAVE_FREEADDRINFO)  # ws2tcpip.h sys/socket.h netdb.h
+ check_function_exists("pipe"          HAVE_PIPE)
+-check_function_exists("pipe2"         HAVE_PIPE2)
+ check_function_exists("eventfd"       HAVE_EVENTFD)
+ check_symbol_exists("ftruncate"       "unistd.h" HAVE_FTRUNCATE)
+ check_symbol_exists("getpeername"     "${CURL_INCLUDES}" HAVE_GETPEERNAME)  # winsock2.h unistd.h proto/bsdsocket.h
+@@ -1804,6 +1803,13 @@ check_function_exists("getrlimit"       HAVE_GETRLIMIT)
+ check_function_exists("setlocale"       HAVE_SETLOCALE)
+ check_function_exists("setrlimit"       HAVE_SETRLIMIT)
+ 
++if(NOT APPLE)
++  # Apple platforms do not offer pipe2(), but the iPhone Simulator-specific
++  # /usr/lib/system/libsystem_sim_kernel.dylib exports it. To avoid false
++  # detection, omit this feature check for Apple targets.
++  check_function_exists("pipe2"         HAVE_PIPE2)
++endif()
++
+ if(NOT WIN32)
+   check_function_exists("if_nametoindex"  HAVE_IF_NAMETOINDEX)  # iphlpapi.h (Windows non-UWP), net/if.h
+   check_function_exists("realpath"        HAVE_REALPATH)
+diff --git a/configure.ac b/configure.ac
+index 9a5dd60..b61f04e 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -4198,7 +4198,6 @@ AC_CHECK_FUNCS([\
+   gettimeofday \
+   mach_absolute_time \
+   pipe \
+-  pipe2 \
+   poll \
+   sendmmsg \
+   sendmsg \
+@@ -4209,6 +4208,15 @@ AC_CHECK_FUNCS([\
+   utimes \
+ ])
+ 
++if test "$curl_cv_apple" != "yes"; then
++  dnl Apple platforms do not offer pipe2(), but the iPhone Simulator-specific
++  dnl /usr/lib/system/libsystem_sim_kernel.dylib exports it. To avoid false
++  dnl detection, omit this feature check for Apple targets.
++  AC_CHECK_FUNCS([\
++    pipe2 \
++  ])
++fi
++
+ if test "$curl_cv_native_windows" != 'yes'; then
+   AC_CHECK_FUNCS([\
+     if_nametoindex \
