@@ -104,12 +104,23 @@ std::string generateReviewPublicChatHeader(const std::string& chatLink,
     return os.str();
 }
 
-bool reviewPublicChatLink(const std::string& chatLink,
-                          const std::string& parentChatLink,
-                          const size_t recursionLevel,
-                          const std::string& cmdName,
-                          int numMsgs)
+struct ReviewLinkResult
 {
+    bool ok = false;
+    bool wasPreview = false;
+    bool skippedDuplicate = false;
+    megachat::MegaChatHandle chatid = c::MEGACHAT_INVALID_HANDLE;
+};
+
+ReviewLinkResult reviewPublicChatLink(const std::string& chatLink,
+                                      const std::string& parentChatLink,
+                                      const size_t recursionLevel,
+                                      const std::string& cmdName,
+                                      int numMsgs,
+                                      std::set<megachat::MegaChatHandle>& reviewedChatids)
+{
+    ReviewLinkResult result;
+
     g_reviewingPublicChat = true;
     g_reviewedChatLoggedIn = false;
     g_reviewChatMsgCountRemaining = 0;
@@ -134,7 +145,7 @@ bool reviewPublicChatLink(const std::string& chatLink,
         conlock(std::cout) << cmdName +
                                   "Error: processChatLink has returned null error or request\n"
                            << std::flush;
-        return false;
+        return result;
     }
 
     if (!check_err("checkChatLink", errPreviewChatLink.get()))
@@ -142,36 +153,95 @@ bool reviewPublicChatLink(const std::string& chatLink,
         conlock(std::cout) << cmdName + "checkChatLink failed. Error: " +
                                   errPreviewChatLink->getErrorString() + "\n"
                            << std::flush;
-        return false;
+        return result;
     }
 
-    const megachat::MegaChatHandle chatId = g_reviewPublicChatid =
-        requestPreviewChatLink->getChatHandle();
+    const megachat::MegaChatHandle chatId = requestPreviewChatLink->getChatHandle();
+    result.chatid = chatId;
+
+    // Dedup by chatid. Catches the case where different URLs (e.g. mega.nz vs mega.co.nz, or
+    // a regenerated public handle) point to the same chat that we already processed.
+    if (!reviewedChatids.insert(chatId).second)
+    {
+        LOG_verbose << "Chatlink chatid " << k::Id(chatId).toString()
+                    << " already reviewed; skipping";
+        result.skippedDuplicate = true;
+        g_reviewingPublicChat = false;
+        return result;
+    }
+
+    // Publish the active chatid as soon as we have it. The connection-state listener uses
+    // g_reviewPublicChatid to decide whether to flip g_reviewedChatLoggedIn, leaving the
+    // value as INVALID across the open path can drop transient ONLINE transitions for an
+    // already-known chatroom.
+    g_reviewPublicChatid = chatId;
+
+    // Decide path: if we already have this chatroom locally (we are a member, or it was
+    // previewed earlier), use openChatRoom via chatReport, otherwise openChatPreview.
+    bool localExists = false;
+    {
+        std::unique_ptr<megachat::MegaChatRoom> existing(g_chatApi->getChatRoom(chatId));
+        localExists = (existing != nullptr);
+        if (localExists)
+        {
+            result.wasPreview = existing->isPreview();
+        }
+    }
+
     const int numPeers = static_cast<int>(requestPreviewChatLink->getNumber());
     const char* title = requestPreviewChatLink->getText();
     const auto headerMsg = generateReviewPublicChatHeader(chatLink,
                                                           parentChatLink,
                                                           recursionLevel,
-                                                          k::Id(g_reviewPublicChatid).toString(),
+                                                          k::Id(chatId).toString(),
                                                           numPeers,
                                                           title);
     conlock(std::cout) << headerMsg;
     conlock(*g_reviewPublicChatOutFile) << headerMsg << std::flush;
 
-    auto [errOpenChatLink, requestOpenChatLink] =
-        clc_ccactions::processChatLink(chatLink.c_str(), false /*onlyCheck*/);
-    if (!errOpenChatLink || !requestOpenChatLink)
+    if (!localExists)
     {
-        conlock(std::cout) << cmdName + "Failed to open chat link\n" << std::flush;
-        return false;
+        auto [errOpenChatLink, requestOpenChatLink] =
+            clc_ccactions::processChatLink(chatLink.c_str(), false /*onlyCheck*/);
+        if (!errOpenChatLink || !requestOpenChatLink)
+        {
+            conlock(std::cout) << cmdName + "Failed to open chat link\n" << std::flush;
+            return result;
+        }
+
+        if (errOpenChatLink->getErrorCode() == megachat::MegaChatError::ERROR_EXIST)
+        {
+            // Race: between getChatRoom check above and openChatPreview, the chatroom became
+            // present locally. Re-inspect and continue down the openChatRoom path.
+            std::unique_ptr<megachat::MegaChatRoom> existingNow(g_chatApi->getChatRoom(chatId));
+            if (!existingNow)
+            {
+                conlock(std::cout) << cmdName + "OpenChatPreview returned ERROR_EXIST but chatroom "
+                                                "is not present locally\n"
+                                   << std::flush;
+                return result;
+            }
+            result.wasPreview = existingNow->isPreview();
+        }
+        else if (!check_err("openChatPreview", errOpenChatLink.get()))
+        {
+            conlock(std::cout) << cmdName + "OpenChatPreview failed. Error: " +
+                                      errOpenChatLink->getErrorString() + "\n"
+                               << std::flush;
+            return result;
+        }
+        else
+        {
+            result.wasPreview = true;
+        }
     }
 
-    if (!check_err("openChatPreview", errOpenChatLink.get()))
+    // For an already-known chat (member or active preview) the chatd connection may be
+    // ONLINE before the connection-state listener fires for our g_reviewPublicChatid, so the
+    // wait below would time out. Pre-arm the flag in that case.
+    if (g_chatApi->getChatConnectionState(chatId) == c::MegaChatApi::CHAT_CONNECTION_ONLINE)
     {
-        conlock(std::cout) << cmdName + "OpenChatPreview failed. Error: " +
-                                  errOpenChatLink->getErrorString() + "\n"
-                           << std::flush;
-        return false;
+        g_reviewedChatLoggedIn = true;
     }
 
     bool isLoggedInChat = c::async::waitForResponse(
@@ -184,29 +254,29 @@ bool reviewPublicChatLink(const std::string& chatLink,
     if (!isLoggedInChat)
     {
         conlock(std::cout) << cmdName + "Error: cannot login into all chats\n" << std::flush;
-        return false;
+        return result;
     }
 
     std::unique_ptr<megachat::MegaChatRoom> room(g_chatApi->getChatRoom(chatId));
     if (!room)
     {
-        conlock(std::cout) << cmdName + "openChatPreview succeeded but cannot retrieve chatroom: " +
+        conlock(std::cout) << cmdName + "Open chat succeeded but cannot retrieve chatroom: " +
                                   str_utils::base64ChatHandle(chatId) + "\n"
                            << std::flush;
         assert(false);
-        return false;
+        return result;
     }
 
     clc_report::chatReport(chatId);
 
-    return c::async::waitForResponse(
+    result.ok = c::async::waitForResponse(
         []()
         {
             return !clc_global::g_reviewingPublicChat.load();
         },
         megachat::async::HALF_MINUTE_IN_SECS);
+    return result;
 }
-
 }
 
 void exec_initanonymous(ac::ACState&)
@@ -1312,10 +1382,37 @@ void exec_reviewpublicchat(ac::ACState& s)
         size_t mRecursionLevel;
     };
 
+    // Indirect protection against runaway expansion (mutually-referencing chats, adversarial
+    // trees, etc.). Discovered links beyond this depth are noted and skipped instead of being
+    // queued, chatid dedup already covers ordinary loops, so this is a defense-in-depth bound.
+    constexpr size_t kMaxRecursionLevel = 16;
+
     std::deque<PendingChatLink> pendingLinks;
     pendingLinks.push_back({chatLink, {}, 0});
     std::set<std::string> reviewedLinks;
+    std::set<megachat::MegaChatHandle> reviewedChatids;
     bool reviewWithPartialFailures = false;
+
+    auto cleanupCurrentChat = [](bool wasPreview)
+    {
+        if (g_reviewPublicChatid != c::MEGACHAT_INVALID_HANDLE)
+        {
+            if (auto it = g_roomListeners.find(g_reviewPublicChatid); it != g_roomListeners.end())
+            {
+                g_chatApi->closeChatRoom(g_reviewPublicChatid, it->second.listener.get());
+                g_roomListeners.erase(it);
+            }
+            // Only close the preview if openChatPreview is what put the chatroom in our
+            // local cache. For a chat we are already a member of, closeChatPreview is a
+            // no-op-with-warning at best, and a no-op we shouldn't be relying on.
+            if (wasPreview)
+            {
+                g_chatApi->closeChatPreview(g_reviewPublicChatid);
+            }
+            g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
+        }
+        g_reviewingPublicChat = false;
+    };
 
     while (!pendingLinks.empty())
     {
@@ -1327,11 +1424,20 @@ void exec_reviewpublicchat(ac::ACState& s)
             continue;
         }
 
-        if (!reviewPublicChatLink(current.mLink,
-                                  current.mParentLink,
-                                  current.mRecursionLevel,
-                                  cmdName,
-                                  numMsgs))
+        const auto outcome = reviewPublicChatLink(current.mLink,
+                                                  current.mParentLink,
+                                                  current.mRecursionLevel,
+                                                  cmdName,
+                                                  numMsgs,
+                                                  reviewedChatids);
+
+        if (outcome.skippedDuplicate)
+        {
+            // Same chatid was already processed via another link; nothing was opened.
+            continue;
+        }
+
+        if (!outcome.ok)
         {
             reviewWithPartialFailures = true;
             const auto errorMsg = generateReviewPublicChatErrorHeader(current.mLink,
@@ -1342,36 +1448,39 @@ void exec_reviewpublicchat(ac::ACState& s)
             {
                 conlock(*g_reviewPublicChatOutFile) << errorMsg << std::flush;
             }
-            if (g_reviewPublicChatid != c::MEGACHAT_INVALID_HANDLE)
+            cleanupCurrentChat(outcome.wasPreview);
+            // Drop any chatlinks discovered while the review was failing; otherwise they
+            // would leak into the next successful iteration's swap and end up attributed
+            // to the wrong parent.
             {
-                if (auto it = g_roomListeners.find(g_reviewPublicChatid);
-                    it != g_roomListeners.end())
-                {
-                    g_chatApi->closeChatRoom(g_reviewPublicChatid, it->second.listener.get());
-                    g_roomListeners.erase(it);
-                }
-                g_chatApi->closeChatPreview(g_reviewPublicChatid);
-                g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
+                std::lock_guard<std::mutex> lock(g_reviewPublicChatLinksMutex);
+                g_reviewPublicChatDiscoveredLinks.clear();
             }
-            g_reviewingPublicChat = false;
             continue;
         }
 
-        if (g_reviewPublicChatid != c::MEGACHAT_INVALID_HANDLE)
-        {
-            if (auto it = g_roomListeners.find(g_reviewPublicChatid); it != g_roomListeners.end())
-            {
-                g_chatApi->closeChatRoom(g_reviewPublicChatid, it->second.listener.get());
-                g_roomListeners.erase(it);
-            }
-            g_chatApi->closeChatPreview(g_reviewPublicChatid);
-            g_reviewPublicChatid = c::MEGACHAT_INVALID_HANDLE;
-        }
+        cleanupCurrentChat(outcome.wasPreview);
 
         std::vector<std::string> discoveredLinks;
         {
             std::lock_guard<std::mutex> lock(g_reviewPublicChatLinksMutex);
             discoveredLinks.swap(g_reviewPublicChatDiscoveredLinks);
+        }
+
+        const size_t childLevel = current.mRecursionLevel + 1;
+        if (childLevel >= kMaxRecursionLevel && !discoveredLinks.empty())
+        {
+            std::ostringstream os;
+            os << "ReviewPublicChat: depth limit (" << kMaxRecursionLevel << ") reached; skipping "
+               << discoveredLinks.size() << " nested chatlink(s) discovered in " << current.mLink
+               << "\n";
+            const auto note = os.str();
+            conlock(std::cout) << note << std::flush;
+            if (g_reviewPublicChatOutFile)
+            {
+                conlock(*g_reviewPublicChatOutFile) << note << std::flush;
+            }
+            continue;
         }
 
         for (const auto& discoveredLink: discoveredLinks)
@@ -1382,7 +1491,7 @@ void exec_reviewpublicchat(ac::ACState& s)
                 continue;
             }
 
-            pendingLinks.push_back({discoveredLink, current.mLink, current.mRecursionLevel + 1});
+            pendingLinks.push_back({discoveredLink, current.mLink, childLevel});
         }
     }
 
