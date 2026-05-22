@@ -23,6 +23,7 @@
 #include <megachatapi.h>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 namespace mclc::clc_global
 {
@@ -59,7 +60,6 @@ extern std::atomic<bool> g_reviewChatLoadAllMsg;
 
 extern std::atomic<bool> g_reviewingPublicChat;
 extern std::atomic<bool> g_dumpingChatHistory;
-extern std::atomic<bool> g_startedPublicChatReview;
 extern std::atomic<int> g_reviewChatMsgCountRemaining;
 extern std::atomic<unsigned int> g_reviewChatMsgCount;
 extern std::atomic<::megachat::MegaChatHandle> g_reviewPublicChatid;
@@ -68,6 +68,11 @@ extern std::unique_ptr<std::ofstream> g_reviewPublicChatOutFile;
 extern std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLinks;
 extern std::mutex g_reviewPublicChatOutFileLogsMutex;
 extern std::unique_ptr<std::ofstream> g_reviewPublicChatOutFileLogs;
+extern std::mutex
+    g_reviewPublicChatLinksMutex; // guards access to g_reviewPublicChatDiscoveredLinks
+
+extern std::vector<std::string>
+    g_reviewPublicChatDiscoveredLinks; // links discovered in messages during public chat review
 
 // APIs
 extern std::unique_ptr<::mega::MegaApi> g_megaApi;

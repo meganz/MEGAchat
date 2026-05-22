@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <stdlib.h>
 #include <string.h>
+#include <type_traits>
 #include <vector>
 
 #if !defined(__arm__) && !defined(__aarch64__)
@@ -75,6 +76,8 @@ public:
     template <typename T>
     static T alignSafeRead(const void* ptr)
     {
+        static_assert(std::is_trivially_copyable<T>::value,
+                      "StaticBuffer::alignSafeRead requires a trivially copyable type");
 #ifndef BUFFER_ALLOW_UNALIGNED_MEMORY_ACCESS
         T val;
         memcpy(&val, ptr, sizeof(T));
@@ -102,6 +105,8 @@ public:
     template <class T>
     void read(size_t offset, T& output)
     {
+        static_assert(std::is_trivially_copyable<T>::value,
+                      "StaticBuffer::read requires a trivially copyable type");
         assert(offset+sizeof(T) <= mDataSize);
         memcpy(&output, mBuf+offset, sizeof(T));
     }

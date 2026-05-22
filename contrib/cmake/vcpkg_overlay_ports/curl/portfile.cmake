@@ -9,6 +9,7 @@ vcpkg_from_github(
     PATCHES
         dependencies.patch
         pkgconfig-curl-config.patch
+        ios_simulator.patch
 )
 
 vcpkg_check_features(OUT_FEATURE_OPTIONS FEATURE_OPTIONS

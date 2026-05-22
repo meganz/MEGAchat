@@ -6,6 +6,7 @@
 #include "mclc_listeners.h"
 #include "mclc_logging.h"
 
+#include <iomanip>
 #include <iostream>
 
 namespace mclc::clc_report
@@ -21,7 +22,22 @@ bool oneOpenRoom(c::MegaChatHandle room)
     return g_roomListeners.size() == 1 && g_roomListeners.begin()->first == room;
 }
 
+std::string reviewPublicChatSectionHeader(const std::string& title)
+{
+    constexpr size_t kSectionWidth = 75;
+    const std::string content =
+        title.size() <= kSectionWidth ? title : title.substr(0, kSectionWidth);
+    const std::string border(kSectionWidth, '=');
+    std::ostringstream os;
+    os << "\n" << content;
+    if (content.size() < kSectionWidth)
+    {
+        os << std::string(kSectionWidth - content.size(), ' ');
+    }
+    os << "\n" << border << "\n\n";
+    return os.str();
 }
+} // namespace
 
 void chatReport(const c::MegaChatHandle chatid)
 {
@@ -56,7 +72,32 @@ void chatReport(const c::MegaChatHandle chatid)
         }
 
         std::ostringstream os;
-        os << "\n\t\t------------------ Load Particpants --------------------\n\n";
+        if (g_reviewingPublicChat)
+        {
+            os << reviewPublicChatSectionHeader("Load Participants");
+        }
+        else
+        {
+            os << "\n\t\t------------------ Load Particpants --------------------\n\n";
+        }
+
+        // For chats we are a member of, list ourselves explicitly so the participant
+        // section matches the user count reported in the header.
+        constexpr int kEmailColWidth = 40;
+        const int ownPriv = chatRoom->getOwnPrivilege();
+        const bool selfIsMember = !chatRoom->isPreview() && ownPriv != c::MegaChatRoom::PRIV_RM &&
+                                  ownPriv != c::MegaChatRoom::PRIV_UNKNOWN;
+        if (selfIsMember)
+        {
+            const c::MegaChatHandle myHandle = api->getMyUserHandle();
+            std::unique_ptr<char[]> myEmail(api->getMyEmail());
+            std::unique_ptr<char[]> myName(api->getMyFullname());
+            std::unique_ptr<const char[]> myHandleBase64(m::MegaApi::userHandleToBase64(myHandle));
+            os << "Participant: " << myHandleBase64.get() << "  Email: " << std::left
+               << std::setw(kEmailColWidth) << (myEmail ? myEmail.get() : "No email")
+               << "  Name: " << (myName ? myName.get() : "No name") << "  (Self)\n";
+        }
+
         for (unsigned int i = 0; i < numParticipants; i++)
         {
             c::MegaChatHandle peerHandle = chatRoom->getPeerHandle(i);
@@ -66,12 +107,19 @@ void chatReport(const c::MegaChatHandle chatid)
                 std::unique_ptr<const char[]>(api->getUserFullnameFromCache(peerHandle));
             std::unique_ptr<const char[]> handleBase64 =
                 std::unique_ptr<const char[]>(m::MegaApi::userHandleToBase64(peerHandle));
-            os << "\tParticipant: " << handleBase64.get()
-               << "\tEmail: " << (email.get() ? email.get() : "No email")
-               << "\t\t\tName: " << (fullname.get() ? fullname.get() : "No name") << "\n";
+            os << "Participant: " << handleBase64.get() << "  Email: " << std::left
+               << std::setw(kEmailColWidth) << (email.get() ? email.get() : "No email")
+               << "  Name: " << (fullname.get() ? fullname.get() : "No name") << "\n";
         }
 
-        os << "\n\n\t\t------------------ Load Messages ----------------------\n\n";
+        if (g_reviewingPublicChat)
+        {
+            os << "\n" << reviewPublicChatSectionHeader("Load Messages");
+        }
+        else
+        {
+            os << "\n\n\t\t------------------ Load Messages ----------------------\n\n";
+        }
         const auto msg = os.str();
         clc_console::conlock(std::cout) << msg;
         clc_console::conlock(*g_reviewPublicChatOutFile) << msg << std::flush;
@@ -199,7 +247,6 @@ void reviewPublicChatLoadMessages(const c::MegaChatHandle chatid)
 
             g_dumpingChatHistory = false;
             g_reviewingPublicChat = false;
-            g_startedPublicChatReview = false;
             g_reviewChatMsgCountRemaining = 0;
             g_reviewChatMsgCount = 0;
             g_dumpHistoryChatid = c::MEGACHAT_INVALID_HANDLE;
@@ -231,11 +278,15 @@ void reportMessageHuman(c::MegaChatHandle chatid,
         {
             std::string message =
                 "Loaded all messages requested: " + std::to_string(g_reviewChatMsgCount);
-            clc_console::conlock(std::cout) << message << std::flush;
+            clc_console::conlock(std::cout) << message << std::endl;
             if (g_reviewPublicChatOutFile)
             {
-                clc_console::conlock(*g_reviewPublicChatOutFile) << message << std::flush;
+                clc_console::conlock(*g_reviewPublicChatOutFile) << message << std::endl;
             }
+            // Flip the flag *after* the writes are flushed. Otherwise the BFS main loop
+            // can wake up and start emitting the next chat's header before this trailing
+            // "Loaded all messages..." line has been written, scrambling the report order.
+            g_reviewingPublicChat = false;
         }
         return;
     }
@@ -340,9 +391,22 @@ void reportMessageHuman(c::MegaChatHandle chatid,
 
     if (g_reviewPublicChatOutFileLinks && msg->getContent())
     {
-        const auto subChatLink = str_utils::extractChatLink(msg->getContent());
-        if (!subChatLink.empty())
+        const auto chatLinks = str_utils::extractChatLinks(msg->getContent());
+        const auto folderLinks = str_utils::extractFolderLinks(msg->getContent());
+        const auto fileLinks = str_utils::extractFileLinks(msg->getContent());
+        const auto contactLinks = str_utils::extractContactLinks(msg->getContent());
+        const auto albumLinks = str_utils::extractAlbumLinks(msg->getContent());
+        if (!chatLinks.empty() || !folderLinks.empty() || !fileLinks.empty() ||
+            !contactLinks.empty() || !albumLinks.empty())
         {
+            if (!chatLinks.empty())
+            {
+                std::lock_guard<std::mutex> lock(g_reviewPublicChatLinksMutex);
+                for (const auto& chatLink: chatLinks)
+                {
+                    g_reviewPublicChatDiscoveredLinks.push_back(chatLink);
+                }
+            }
             clc_console::conlock(*g_reviewPublicChatOutFileLinks) << outMsg << std::flush;
         }
     }
