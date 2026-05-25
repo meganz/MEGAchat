@@ -513,6 +513,14 @@ int LibwebsocketsClient::wsCallback(struct lws *wsi, enum lws_callback_reasons r
             break;
         }
 
+        case LWS_CALLBACK_CLOSED_CLIENT_HTTP:
+            // H1 role close_cb. Fires when the connection drops in
+            // LRS_WAITING_SERVER_REPLY (after the WebSocket Upgrade GET is sent
+            // but before the 101 response arrives). Without handling it, the
+            // wsi gets freed while client->wsi still points at it, leaving a
+            // dangling pointer that crashes any subsequent use of client->wsi
+            // (e.g. the lws_set_timeout() call in doWsDisconnect()).
+            [[fallthrough]];
         case LWS_CALLBACK_CLIENT_CLOSED:
         case LWS_CALLBACK_CLIENT_CONNECTION_ERROR:
         {
