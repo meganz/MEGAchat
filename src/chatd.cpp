@@ -6716,7 +6716,7 @@ void Chat::onAddReaction(const Id& msgId, const Id& userId, const string& reacti
 
     auto wptr = weakHandle();
     pms.then(
-           [this, wptr, &msgId, &messageIdx, userId, reaction](
+           [this, wptr, msgId, &messageIdx, userId](
                std::shared_ptr<Buffer> data) // data is the UTF-8 string (the emoji)
            {
                if (wptr.deleted())
@@ -6812,7 +6812,7 @@ void Chat::onDelReaction(const Id& msgId, const Id& userId, const string& reacti
 
     auto wptr = weakHandle();
     pms.then(
-           [this, wptr, &msgId, &messageIdx, userId, reaction](
+           [this, wptr, msgId, &messageIdx, userId](
                std::shared_ptr<Buffer> data) // data is the UTF-8 string (the emoji)
            {
                if (wptr.deleted())
