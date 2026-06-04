@@ -644,6 +644,30 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, speakReqs, raiseHands, amidmap);
 }
 
+namespace
+{
+// A valid call IV is an 8-byte CTR IV encoded by Command::binaryToHex(), i.e.
+// exactly 16 hexadecimal characters. Anything else is rejected at parse time so
+// it can never reach the hex decoders or be indexed during slot assignment.
+bool isValidCallIv(const std::string& iv)
+{
+    if (iv.size() != sizeof(uint64_t) * 2)
+    {
+        return false;
+    }
+    for (const char c: iv)
+    {
+        const bool isHex =
+            (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        if (!isHex)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+} // namespace
+
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
@@ -691,7 +715,8 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
             {
                 for (rapidjson::SizeType i = 0; i < ivsIterator->value.Size(); i++)
                 {
-                    if (!ivsIterator->value[i].IsString())
+                    if (!ivsIterator->value[i].IsString() ||
+                        !isValidCallIv(ivsIterator->value[i].GetString()))
                     {
                         SFU_LOG_ERROR("parse invalid ivs");
                         ivs.clear();
@@ -974,7 +999,8 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     {
         for (rapidjson::SizeType i = 0; i < ivsIterator->value.Size(); i++)
         {
-            if (!ivsIterator->value[i].IsString())
+            if (!ivsIterator->value[i].IsString() ||
+                !isValidCallIv(ivsIterator->value[i].GetString()))
             {
                 SFU_LOG_ERROR("parse invalid ivs");
                 ivs.clear();
