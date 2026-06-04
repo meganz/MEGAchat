@@ -949,8 +949,10 @@ ProtocolHandler::decryptUnifiedKey(std::shared_ptr<Buffer>& key, uint64_t sender
 promise::Promise<std::shared_ptr<SendKey>>
 ProtocolHandler::decryptKey(std::shared_ptr<Buffer>& key, const Id& sender, const Id& receiver)
 {
-    if (key->dataSize() % AES::BLOCKSIZE)
+    if (key->dataSize() != AES::BLOCKSIZE)
+    {
         throw std::runtime_error("decryptKey: invalid aes-encrypted key size");
+    }
 
     Id otherParty = (sender == mOwnHandle) ? receiver : sender;
     auto wptr = weakHandle();
@@ -1291,6 +1293,16 @@ Promise<Message*> ProtocolHandler::msgDecrypt(Message* message)
 void ProtocolHandler::onKeyReceived(KeyId keyid, Id sender, Id receiver,
                                     const char* data, uint16_t dataLen, bool isEncrypted)
 {
+    if (dataLen != SVCRYPTO_KEY_SIZE)
+    {
+        STRONGVELOPE_LOG_WARNING("onKeyReceived: invalid %s key length %u for key %u of user %s",
+                                 isEncrypted ? "encrypted" : "unencrypted",
+                                 dataLen,
+                                 keyid,
+                                 sender.toString().c_str());
+        return;
+    }
+
     UserKeyId ukid(sender, keyid);
     if (!isEncrypted)
     {
