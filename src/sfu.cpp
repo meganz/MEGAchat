@@ -448,24 +448,37 @@ std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson
 uint64_t Command::hexToBinary(const std::string &hex)
 {
     uint64_t value = 0;
-    unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
-    assert(bufferSize <= 8);
-    std::unique_ptr<uint8_t []> buffer(new uint8_t[bufferSize]);
+    // Reject malformed input before decoding: an odd length is an incomplete final
+    // byte, and a length above 16 hex chars (8 bytes) would write past 'value' below.
+    if (hex.length() % 2 || hex.length() / 2 > sizeof(value))
+    {
+        SFU_LOG_ERROR_NO_STATS("hexToBinary: invalid hex input length %zu", hex.length());
+        assert(false && "hexToBinary: invalid hex input length");
+        return value;
+    }
+    uint8_t* bytes = reinterpret_cast<uint8_t*>(&value);
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
         // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
-        buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
-        buffer[binPos] = static_cast<uint8_t>(buffer[binPos] | hexDigitVal(hex[i++]));
+        bytes[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
+        bytes[binPos] = static_cast<uint8_t>(bytes[binPos] | hexDigitVal(hex[i++]));
     }
-
-    memcpy(&value, buffer.get(), bufferSize);
 
     return value;
 }
 
 std::vector<mega::byte> Command::hexToByteArray(const std::string &hex)
 {
+    // Reject malformed input before decoding: an odd length makes the loop below
+    // write one byte past 'res' (the last iteration decodes hex[i] together with the out-of-range
+    // hex[i + 1]).
+    if (hex.length() % 2)
+    {
+        SFU_LOG_ERROR_NO_STATS("hexToByteArray: invalid odd hex input length %zu", hex.length());
+        assert(false && "hexToByteArray: invalid odd hex input length");
+        return {};
+    }
     unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
     std::vector<mega::byte> res(bufferSize);
     unsigned int binPos = 0;
