@@ -3752,10 +3752,18 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                                       videoResolution);
                        return;
                    }
-                   slot->assignVideoSlot(
-                       cid,
-                       sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]),
-                       videoResolution);
+                   const std::optional<IvStatic_t> iv =
+                       sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]);
+                   if (!iv)
+                   {
+                       RTCM_LOG_ERROR("%shandleIncomingVideo: peer CID %u sent a malformed IV "
+                                      "for resolution %d",
+                                      getLoggingName(),
+                                      cid,
+                                      videoResolution);
+                       return;
+                   }
+                   slot->assignVideoSlot(cid, *iv, videoResolution);
                    attachSlotToSession(*sess, slot, false, videoResolution);
                })
             .fail(
@@ -3874,9 +3882,16 @@ void Call::addSpeaker(const Cid_t cid, const uint32_t amid)
                                    static_cast<unsigned>(ivs.size()));
                     return;
                 }
-                slot->assignAudioSlot(
-                    cid,
-                    sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
+                const std::optional<IvStatic_t> iv =
+                    sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]);
+                if (!iv)
+                {
+                    RTCM_LOG_ERROR("%saddSpeaker: peer CID %u sent a malformed audio IV",
+                                   getLoggingName(),
+                                   cid);
+                    return;
+                }
+                slot->assignAudioSlot(cid, *iv);
                 attachSlotToSession(*sess, slot, true, kUndefined);
             })
         .fail(

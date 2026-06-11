@@ -445,7 +445,7 @@ std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson
     return buildCallLimits(limObject);
 }
 
-uint64_t Command::hexToBinary(const std::string &hex)
+std::optional<uint64_t> Command::hexToBinary(const std::string& hex)
 {
     uint64_t value = 0;
     // Reject malformed input before decoding: an odd length is an incomplete final
@@ -454,7 +454,7 @@ uint64_t Command::hexToBinary(const std::string &hex)
     {
         SFU_LOG_ERROR_NO_STATS("hexToBinary: invalid hex input length %zu", hex.length());
         assert(false && "hexToBinary: invalid hex input length");
-        return value;
+        return std::nullopt;
     }
     uint8_t* bytes = reinterpret_cast<uint8_t*>(&value);
     unsigned int binPos = 0;

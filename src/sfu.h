@@ -310,7 +310,7 @@ public:
     static const std::string DENY_IDENTIFIER;
     virtual ~Command();
     static std::string binaryToHex(uint64_t value);
-    static uint64_t hexToBinary(const std::string& hex);
+    static std::optional<uint64_t> hexToBinary(const std::string& hex);
     static std::vector<mega::byte> hexToByteArray(const std::string &hex);
     void parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it) const;
     bool parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it, const bool allowDuplicates) const;
