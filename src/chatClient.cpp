@@ -1932,6 +1932,9 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
             if (wptr.deleted())
                 return;
 
+            if (!isUserAttrCacheReady())
+                return;
+
             mUserAttrCache->onUserAttrChange(mMyHandle, changeType);
         }, appCtx);
         break;
@@ -2476,6 +2479,11 @@ void Client::onUsersUpdate(mega::MegaApi* /*api*/, mega::MegaUserList *aUsers)
     marshallCall([wptr, this, users]()
     {
         if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (!isUserAttrCacheReady())
         {
             return;
         }
