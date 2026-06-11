@@ -186,28 +186,37 @@ pipeline {
                             sh """#!/bin/bash
                                 set -x
                                 ulimit -c unlimited
-                                if [ -z \"${TESTS_PARALLEL}\" ]; then
-                                    # Sequential run
-                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS_MEGACHAT} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} &
-                                    pid=\$!
-                                    wait \$pid || FAILED=1
-                                else
-                                    # Parallel run
-                                    tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS_MEGACHAT} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} ${TESTS_PARALLEL} 2>&1 | tee tests.stdout
-                                    [ \"\${PIPESTATUS[0]}\" != \"0\" ] && FAILED=1
+
+                                tests/unit_test/megachat_unit_test || FAILED=1
+
+                                if [ -z \"\$FAILED\" ]; then
+                                    if [ -z \"${TESTS_PARALLEL}\" ]; then
+                                        # Sequential run
+                                        tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS_MEGACHAT} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} &
+                                        pid=\$!
+                                        wait \$pid || FAILED=2
+                                    else
+                                        # Parallel run
+                                        tests/sdk_test/megachat_tests --USERAGENT:${env.USER_AGENT_TESTS_MEGACHAT} --APIURL:${APIURL_TO_TEST} ${GTEST_FILTER} ${GTEST_REPEAT} ${TESTS_PARALLEL} 2>&1 | tee tests.stdout
+                                        [ \"\${PIPESTATUS[0]}\" != \"0\" ] && FAILED=2
+                                    fi
                                 fi
 
                                 if [ -n "\$FAILED" ]; then
-                                    if [ -z \"${TESTS_PARALLEL}\" ]; then
-                                        # Sequential run
-                                        coreFiles=\"test_pid_\$pid/core\"
-                                    else
-                                        # Parallel run
-                                        procFailed=`grep \"<< PROCESS\" tests.stdout | sed 's/.*PID:\\([0-9]*\\).*/\\1/'`
-                                        if [ -n \"\$procFailed\" ]; then
-                                            for i in \$procFailed; do
-                                                coreFiles=\"\$coreFiles test_pid_\$i/core\"
-                                            done
+                                    if [ \"\$FAILED\" -le 1 ]; then
+                                        coreFiles=core
+                                    else # FAILED=2
+                                        if [ -z \"${TESTS_PARALLEL}\" ]; then
+                                            # Sequential run
+                                            coreFiles=\"test_pid_\$pid/core\"
+                                        else
+                                            # Parallel run
+                                            procFailed=`grep \"<< PROCESS\" tests.stdout | sed 's/.*PID:\\([0-9]*\\).*/\\1/'`
+                                            if [ -n \"\$procFailed\" ]; then
+                                                for i in \$procFailed; do
+                                                    coreFiles=\"\$coreFiles test_pid_\$i/core\"
+                                                done
+                                            fi
                                         fi
                                     fi
                                 fi
@@ -228,7 +237,8 @@ pipeline {
                                                 echo \"Processing core dump \$i :: \$(grep `echo \$i | sed 's#test_pid_\\([0-9].*\\)/core#\\1#'` tests.stdout)\"
                                                 echo thread apply all bt > backtrace
                                                 echo quit >> backtrace
-                                                gdb -q tests/sdk_test/megachat_tests \$i -x backtrace
+                                                [ \"\$FAILED\" = \"1\" ] && gdb -q tests/unit_test/megachat_unit_test \$i -x backtrace
+                                                [ \"\$FAILED\" = \"2\" ] && gdb -q tests/sdk_test/megachat_tests \$i -x backtrace
                                                 tar rf core.tar \$i
                                                 coresProcessed=`expr \$coresProcessed + 1`
                                                 coreFiles=`echo \$coreFiles | sed -e \"s#\$i##\"`
@@ -236,7 +246,8 @@ pipeline {
                                         done
                                     done
                                     if [ -e core.tar ]; then
-                                        tar rf core.tar -C tests/sdk_test/ megachat_tests
+                                         [ \"\$FAILED\" = \"1\" ] && tar rf core.tar -C tests/unit_test/ megachat_unit_test
+                                         [ \"\$FAILED\" = \"2\" ] && tar rf core.tar -C tests/sdk_test/ megachat_tests
                                         gzip core.tar
                                     fi
                                 fi
