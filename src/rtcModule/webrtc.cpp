@@ -154,10 +154,15 @@ void Call::setState(CallState newState)
             if (wptr.deleted())
                 return;
 
-            assert(mState <= CallState::kInWaitingRoom || !mConnectTimer); // if call state >= kStateInProgress mConnectTimer must be 0
-            if (mState < CallState::kInWaitingRoom)
+            // Always reset first: a stale non-zero handle would block re-arming (guard:
+            // !mConnectTimer).
+            mConnectTimer = 0;
+
+            // kInWaitingRoom waits on a human (moderator) decision — no timeout applies.
+            // All other pre-join states (including kStateJoining) are network handshakes
+            // that should complete within kConnectingTimeout.
+            if (mState != CallState::kInWaitingRoom && mState < CallState::kStateInProgress)
             {
-                mConnectTimer = 0;
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
                 if (mIsReconnectingToChatd)
                 {
