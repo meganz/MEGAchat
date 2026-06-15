@@ -861,10 +861,11 @@ public:
 
                     std::unique_ptr<mega::MegaIntegerList> byWeekDay;
                     rapidjson::Value::ConstMemberIterator itWd = it->value[index].FindMember("wd");
-                    if (itWd != it->value[index].MemberEnd() && itWd->value.IsArray() && itWd->value.Capacity())
+                    if (itWd != it->value[index].MemberEnd() && itWd->value.IsArray() &&
+                        itWd->value.Size())
                     {
                         byWeekDay.reset(mega::MegaIntegerList::createInstance());
-                        for (unsigned int i = 0; i < itWd->value.Capacity(); ++i)
+                        for (rapidjson::SizeType i = 0; i < itWd->value.Size(); ++i)
                         {
                             if (!itWd->value[i].IsInt()) { continue; }
                             byWeekDay->add(itWd->value[i].GetInt());
@@ -873,10 +874,11 @@ public:
 
                     std::unique_ptr<mega::MegaIntegerList> byMonthDay;
                     rapidjson::Value::ConstMemberIterator itMd = it->value[index].FindMember("md");
-                    if (itMd != it->value[index].MemberEnd() && itMd->value.IsArray() && itMd->value.Capacity())
+                    if (itMd != it->value[index].MemberEnd() && itMd->value.IsArray() &&
+                        itMd->value.Size())
                     {
                         byMonthDay.reset(mega::MegaIntegerList::createInstance());
-                        for (unsigned int i = 0; i < itMd->value.Capacity(); ++i)
+                        for (rapidjson::SizeType i = 0; i < itMd->value.Size(); ++i)
                         {
                             if (!itMd->value[i].IsInt()) { continue; }
                             byMonthDay->add(itMd->value[i].GetInt());
@@ -885,17 +887,21 @@ public:
 
                     std::unique_ptr<::mega::MegaIntegerMap> byMonthWeekDay;
                     rapidjson::Value::ConstMemberIterator itMwd = it->value[index].FindMember("mwd");
-                    if (itMwd != it->value[index].MemberEnd() && itMwd->value.IsArray() && itMwd->value.Capacity())
+                    if (itMwd != it->value[index].MemberEnd() && itMwd->value.IsArray() &&
+                        itMwd->value.Size())
                     {
                         byMonthWeekDay.reset(mega::MegaIntegerMap::createInstance());
-                        for (unsigned int i = 0; i < itMwd->value.Capacity(); ++i)
+                        for (rapidjson::SizeType i = 0; i < itMwd->value.Size(); ++i)
                         {
-                              if (itMwd->value[i].IsArray() && itMwd->value[i].GetArray().Capacity() == 2)
-                              {
-                                  auto subArr = itMwd->value[i].GetArray();
-                                  if (!subArr[0].IsInt() || !subArr[1].IsInt()) { continue; }
-                                  byMonthWeekDay->set(subArr[0].GetInt(),subArr[1].GetInt());
-                              }
+                            if (itMwd->value[i].IsArray() && itMwd->value[i].GetArray().Size() == 2)
+                            {
+                                auto subArr = itMwd->value[i].GetArray();
+                                if (!subArr[0].IsInt() || !subArr[1].IsInt())
+                                {
+                                    continue;
+                                }
+                                byMonthWeekDay->set(subArr[0].GetInt(), subArr[1].GetInt());
+                            }
                         }
                     }
 

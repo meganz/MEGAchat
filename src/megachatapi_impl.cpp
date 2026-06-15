@@ -13154,8 +13154,8 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 
     MegaNodeList *megaNodeList = new MegaNodeListPrivate();
 
-    int attachmentNumber = document.Capacity();
-    for (int i = 0; i < attachmentNumber; ++i)
+    rapidjson::SizeType attachmentNumber = document.Size();
+    for (rapidjson::SizeType i = 0; i < attachmentNumber; ++i)
     {
         const rapidjson::Value& file = document[i];
 
@@ -13185,15 +13185,15 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         {
             iteratorKey = file.FindMember("key");
         }
-        if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray()
-                || iteratorKey->value.Capacity() != 8)
+        if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray() ||
+            iteratorKey->value.Size() != 8)
         {
             API_LOG_ERROR("parseAttachNodeJSon: Invalid nodekey in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
         std::vector<int32_t> kElements;
-        for (unsigned int j = 0; j < iteratorKey->value.Capacity(); ++j)
+        for (rapidjson::SizeType j = 0; j < iteratorKey->value.Size(); ++j)
         {
             if (iteratorKey->value[j].IsInt())
             {
@@ -13348,8 +13348,8 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
 
     std::vector<MegaChatAttachedUser> *megaChatUsers = new std::vector<MegaChatAttachedUser>();
 
-    int contactNumber = document.Capacity();
-    for (int i = 0; i < contactNumber; ++i)
+    rapidjson::SizeType contactNumber = document.Size();
+    for (rapidjson::SizeType i = 0; i < contactNumber; ++i)
     {
         const rapidjson::Value& user = document[i];
 
@@ -13657,7 +13657,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
     std::string iconFormat;
     std::string url;
 
-    if (iteratorExtra->value.Capacity() == 1)
+    if (iteratorExtra->value.Size() == 1)
     {
         const rapidjson::Value& richPreview = iteratorExtra->value[0];
 
@@ -13695,7 +13695,7 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
         return NULL;
     }
 
-    if (iteratorExtra->value.Capacity() != 1)
+    if (iteratorExtra->value.Size() != 1)
     {
         API_LOG_ERROR("parseGeolocation: invalid JSON struct - invalid format");
         return NULL;

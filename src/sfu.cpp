@@ -283,7 +283,7 @@ bool Command::parseWrUsersMap(sfu::WrUserList& wrUsers, const rapidjson::Value& 
 void Command::parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it) const
 {
     assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    for (rapidjson::SizeType j = 0; j < it->value.Size(); ++j)
     {
         if (!it->value[j].IsString())
         {
@@ -299,7 +299,7 @@ bool Command::parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::
 {
     std::set<karere::Id> duplicatedUsers;
     assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    for (rapidjson::SizeType j = 0; j < it->value.Size(); ++j)
     {
         if (!it->value[j].IsString())
         {
@@ -345,7 +345,7 @@ void Command::parseTracks(const rapidjson::Document& command, const std::string&
             return;
         }
 
-        for (unsigned int i = 0; i < it->value.Capacity(); ++i)
+        for (rapidjson::SizeType i = 0; i < it->value.Size(); ++i)
         {
             Cid_t cid = 0;
             TrackDescriptor td;
@@ -363,7 +363,7 @@ void Command::parseTracks(const rapidjson::Document& command, const std::string&
             else
             {
                 const auto& arr = it->value[i].GetArray();
-                for (unsigned int j = 0; j < arr.Capacity(); ++j)
+                for (rapidjson::SizeType j = 0; j < arr.Size(); ++j)
                 {
                     if (j==0) { cid = arr[0].GetUint(); }
                     if (j==1) { td.mMid = arr[1].GetUint(); }
@@ -634,7 +634,7 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    for (rapidjson::SizeType j = 0; j < it->value.Size(); ++j)
     {
         if (it->value[j].IsObject())
         {
@@ -676,7 +676,7 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
             rapidjson::Value::ConstMemberIterator ivsIterator = it->value[j].FindMember("ivs");
             if (ivsIterator != it->value[j].MemberEnd() && ivsIterator->value.IsArray())
             {
-                for (unsigned int i = 0; i < ivsIterator->value.Capacity(); i++)
+                for (rapidjson::SizeType i = 0; i < ivsIterator->value.Size(); i++)
                 {
                     if (!ivsIterator->value[i].IsString())
                     {
@@ -694,7 +694,6 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
                  SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid 'av' value");
                  return;
             }
-
             rapidjson::Value::ConstMemberIterator amidIterator = it->value[j].FindMember("amid");
             if (amidIterator != it->value[j].MemberEnd() && amidIterator->value.IsUint()) // It's optional
             {
@@ -960,7 +959,7 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator ivsIterator = command.FindMember("ivs");
     if (ivsIterator != command.MemberEnd() && ivsIterator->value.IsArray())
     {
-        for (unsigned int i = 0; i < ivsIterator->value.Capacity(); i++)
+        for (rapidjson::SizeType i = 0; i < ivsIterator->value.Size(); i++)
         {
             if (!ivsIterator->value[i].IsString())
             {
@@ -1069,8 +1068,7 @@ Sdp::Sdp(const rapidjson::Value &sdp)
     rapidjson::Value::ConstMemberIterator tracksIterator = sdp.FindMember("tracks");
     if (tracksIterator != sdp.MemberEnd() && tracksIterator->value.IsArray())
     {
-        // TODO: check whether we should use Size() instead of Capacity() (also check other usages of Capacity())
-        for (unsigned int i = 0; i < tracksIterator->value.Capacity(); i++)
+        for (rapidjson::SizeType i = 0; i < tracksIterator->value.Size(); i++)
         {
             mTracks.push_back(parseTrack(tracksIterator->value[i]));
         }
@@ -1326,7 +1324,7 @@ Sdp::Track Sdp::parseTrack(const rapidjson::Value &value) const
     rapidjson::Value::ConstMemberIterator ssrcgIterator = value.FindMember("ssrcg");
     if (ssrcgIterator != value.MemberEnd() && ssrcgIterator->value.IsArray())
     {
-        for (unsigned int i = 0; i < ssrcgIterator->value.Size(); i++)
+        for (rapidjson::SizeType i = 0; i < ssrcgIterator->value.Size(); i++)
         {
             if (ssrcgIterator->value[i].IsString())
             {
@@ -1338,7 +1336,7 @@ Sdp::Track Sdp::parseTrack(const rapidjson::Value &value) const
     rapidjson::Value::ConstMemberIterator ssrcsIterator = value.FindMember("ssrcs");
     if (ssrcsIterator != value.MemberEnd() && ssrcsIterator->value.IsArray())
     {
-        for (unsigned int i = 0; i < ssrcsIterator->value.Size(); i++)
+        for (rapidjson::SizeType i = 0; i < ssrcsIterator->value.Size(); i++)
         {
             if (ssrcsIterator->value[i].IsObject())
             {
