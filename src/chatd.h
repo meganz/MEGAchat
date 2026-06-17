@@ -910,6 +910,12 @@ protected:
     Idx msgIncoming(bool isNew, Message* msg, bool isLocal=false);
     bool msgIncomingAfterAdd(bool isNew, bool isLocal, Message& msg, Idx idx);
     void msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx idx);
+    /** @brief Re-type a 'special' kMsgNormal message (one whose payload starts with a null
+     * byte) from its subtype byte. The resulting type is validated against the known
+     * special-message range before being applied, so an uncontrolled byte cannot wrap and
+     * turn a normal message into a management type. Leaves @p msg untouched otherwise.
+     * @param context caller name, used as a prefix for the diagnostic logs. */
+    void retypeIfSpecialMessage(Message& msg, const char* context);
     bool msgNodeHistIncoming(Message* msg);
     void onUserJoin(const karere::Id& userid, Priv priv);
     void onUserLeave(const karere::Id& userid);

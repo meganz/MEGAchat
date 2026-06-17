@@ -5394,19 +5394,50 @@ void Chat::onMsgUpdated(Message* cipherMsg)
             });
 }
 
+void Chat::retypeIfSpecialMessage(Message& msg, const char* context)
+{
+    // A kMsgNormal message whose payload starts with a null byte is a 'special' message
+    // (attachment, contact, etc.) whose real type is encoded in the following byte.
+    if (msg.empty() || msg.type != Message::kMsgNormal || (*msg.buf() != 0))
+    {
+        return;
+    }
+
+    if (msg.dataSize() < 2)
+    {
+        CHATID_LOG_ERROR("%s%s: Malformed special message received - starts with null char, "
+                         "but its length is 1. Assuming type of normal message",
+                         mChatdClient.getLoggingName(),
+                         context);
+        return;
+    }
+
+    // Map the subtype byte to its message type, but validate the result first. An uncontrolled
+    // byte may cause an overflow and convert the kMsgNormal in a management type.
+    const uint8_t subtype = static_cast<uint8_t>(msg.buf()[1]);
+    const Message::Type specialType = Message::resolveSpecialType(subtype);
+    if (specialType != Message::kMsgInvalid)
+    {
+        msg.type = specialType;
+    }
+    else
+    {
+        CHATID_LOG_ERROR("%s%s: Special message with unknown subtype (0x%02x) received; "
+                         "keeping it as a normal message",
+                         mChatdClient.getLoggingName(),
+                         context,
+                         subtype);
+        // A null-prefixed 'special' message with an unrecognised subtype is anomalous: either
+        // malformed/hostile input, or a new special type not yet covered by resolveSpecialType().
+        // Assert to surface the latter during development (compiled out in release).
+        assert(false && "special message subtype out of the valid range");
+    }
+}
+
 void Chat::onMsgUpdatedAfterDecrypt(time_t updateTs, bool richLinkRemoved, Message* msg)
 {
-    assert(!msg->isPendingToDecrypt()); //either decrypted or error
-    if (!msg->empty() && msg->type == Message::kMsgNormal && (*msg->buf() == 0))
-    {
-        if (msg->dataSize() < 2)
-            CHATID_LOG_ERROR(
-                "%sonMsgUpdated: Malformed special message received - starts with null char "
-                "received, but its length is 1. Assuming type of normal message",
-                mChatdClient.getLoggingName());
-        else
-            msg->type = static_cast<Message::Type>(msg->buf()[1] + Message::Type::kMsgOffset);
-    }
+    assert(!msg->isPendingToDecrypt()); // either decrypted or error
+    retypeIfSpecialMessage(*msg, "onMsgUpdatedAfterDecrypt");
 
     //update in memory, if loaded
     auto msgit = mIdToIndexMap.find(msg->id());
@@ -6322,16 +6353,8 @@ void Chat::msgIncomingAfterDecrypt(bool isNew, bool isLocal, Message& msg, Idx i
     auto msgid = msg.id();
     if (!isLocal)
     {
-        assert(!msg.isPendingToDecrypt()); //either decrypted or error
-        if (!msg.empty() && msg.type == Message::kMsgNormal && (*msg.buf() == 0)) //'special' message - attachment etc
-        {
-            if (msg.dataSize() < 2)
-                CHATID_LOG_ERROR("%sMalformed special message received - starts with null char "
-                                 "received, but its length is 1. Assuming type of normal message",
-                                 mChatdClient.getLoggingName());
-            else
-                msg.type = static_cast<Message::Type>(msg.buf()[1] + Message::Type::kMsgOffset);
-        }
+        assert(!msg.isPendingToDecrypt()); // either decrypted or error
+        retypeIfSpecialMessage(msg, "msgIncomingAfterDecrypt");
 
         verifyMsgOrder(msg, idx);
         CALL_DB(addMsgToHistory, msg, idx);

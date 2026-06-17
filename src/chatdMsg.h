@@ -1494,6 +1494,22 @@ public:
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
 
+    /** @brief Resolve the subtype byte of a 'special' kMsgNormal message (one whose payload
+     * starts with a null byte) to its concrete message type. The mapping is computed in a wide
+     * type and validated against the known special-message range, so a subtype byte cannot wrap
+     * (uint8_t) and resolve into a management type. Returns kMsgInvalid if the byte is not a
+     * known special-message subtype.
+     * @note The range below must cover every special-message type; widen it when a new
+     * kMsgUserFirst..kMsgVoiceClip type is added, otherwise that type resolves to kMsgInvalid. */
+    static Type resolveSpecialType(uint8_t subtype)
+    {
+        const unsigned type = static_cast<unsigned>(subtype) + kMsgOffset;
+        return (type >= static_cast<unsigned>(kMsgUserFirst) &&
+                type <= static_cast<unsigned>(kMsgVoiceClip)) ?
+                   static_cast<Type>(type) :
+                   kMsgInvalid;
+    }
+
     static bool hasUrl(const std::string &text, std::string &url);
     static bool parseUrl(const std::string &url);
     static void removeUnnecessaryLastCharacters(std::string& buf);
