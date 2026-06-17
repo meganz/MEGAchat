@@ -11406,10 +11406,12 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
 
             case MegaChatMessage::TYPE_SET_RETENTION_TIME:
             {
-               uint32_t retentionTime;
-               memcpy(&retentionTime, msg->contents().c_str(), msg->contents().size());
-               lastMsg = std::to_string(retentionTime);
-               break;
+                uint32_t retentionTime = 0;
+                memcpy(&retentionTime,
+                       msg->contents().c_str(),
+                       min(sizeof(retentionTime), msg->contents().size()));
+                lastMsg = std::to_string(retentionTime);
+                break;
             }
 
             case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
