@@ -445,27 +445,40 @@ std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson
     return buildCallLimits(limObject);
 }
 
-uint64_t Command::hexToBinary(const std::string &hex)
+std::optional<uint64_t> Command::hexToBinary(const std::string& hex)
 {
     uint64_t value = 0;
-    unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
-    assert(bufferSize <= 8);
-    std::unique_ptr<uint8_t []> buffer(new uint8_t[bufferSize]);
+    // Reject malformed input before decoding: an odd length is an incomplete final
+    // byte, and a length above 16 hex chars (8 bytes) would write past 'value' below.
+    if (hex.length() % 2 || hex.length() / 2 > sizeof(value))
+    {
+        SFU_LOG_ERROR_NO_STATS("hexToBinary: invalid hex input length %zu", hex.length());
+        assert(false && "hexToBinary: invalid hex input length");
+        return std::nullopt;
+    }
+    uint8_t* bytes = reinterpret_cast<uint8_t*>(&value);
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
         // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
-        buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
-        buffer[binPos] = static_cast<uint8_t>(buffer[binPos] | hexDigitVal(hex[i++]));
+        bytes[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
+        bytes[binPos] = static_cast<uint8_t>(bytes[binPos] | hexDigitVal(hex[i++]));
     }
-
-    memcpy(&value, buffer.get(), bufferSize);
 
     return value;
 }
 
 std::vector<mega::byte> Command::hexToByteArray(const std::string &hex)
 {
+    // Reject malformed input before decoding: an odd length makes the loop below
+    // write one byte past 'res' (the last iteration decodes hex[i] together with the out-of-range
+    // hex[i + 1]).
+    if (hex.length() % 2)
+    {
+        SFU_LOG_ERROR_NO_STATS("hexToByteArray: invalid odd hex input length %zu", hex.length());
+        assert(false && "hexToByteArray: invalid odd hex input length");
+        return {};
+    }
     unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
     std::vector<mega::byte> res(bufferSize);
     unsigned int binPos = 0;
@@ -631,6 +644,30 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, speakReqs, raiseHands, amidmap);
 }
 
+namespace
+{
+// A valid call IV is an 8-byte CTR IV encoded by Command::binaryToHex(), i.e.
+// exactly 16 hexadecimal characters. Anything else is rejected at parse time so
+// it can never reach the hex decoders or be indexed during slot assignment.
+bool isValidCallIv(const std::string& iv)
+{
+    if (iv.size() != sizeof(uint64_t) * 2)
+    {
+        return false;
+    }
+    for (const char c: iv)
+    {
+        const bool isHex =
+            (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        if (!isHex)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+} // namespace
+
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
@@ -678,7 +715,8 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
             {
                 for (rapidjson::SizeType i = 0; i < ivsIterator->value.Size(); i++)
                 {
-                    if (!ivsIterator->value[i].IsString())
+                    if (!ivsIterator->value[i].IsString() ||
+                        !isValidCallIv(ivsIterator->value[i].GetString()))
                     {
                         SFU_LOG_ERROR("parse invalid ivs");
                         ivs.clear();
@@ -961,7 +999,8 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     {
         for (rapidjson::SizeType i = 0; i < ivsIterator->value.Size(); i++)
         {
-            if (!ivsIterator->value[i].IsString())
+            if (!ivsIterator->value[i].IsString() ||
+                !isValidCallIv(ivsIterator->value[i].GetString()))
             {
                 SFU_LOG_ERROR("parse invalid ivs");
                 ivs.clear();
