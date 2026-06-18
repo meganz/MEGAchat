@@ -11821,6 +11821,38 @@ TEST_F(MegaChatApiUnitaryTest, ParseUrl)
     }
 }
 
+TEST_F(MegaChatApiUnitaryTest, SpecialMessageSubtype)
+{
+    LOG_info << "___TEST SpecialMessageSubtype___";
+
+    using M = chatd::Message;
+
+    // Legitimate special-message subtypes (0x10..0x14) resolve to their user types.
+    EXPECT_EQ(M::resolveSpecialType(0x10), M::kMsgAttachment);
+    EXPECT_EQ(M::resolveSpecialType(0x11), M::kMsgRevokeAttachment);
+    EXPECT_EQ(M::resolveSpecialType(0x12), M::kMsgContact);
+    EXPECT_EQ(M::resolveSpecialType(0x13), M::kMsgContainsMeta);
+    EXPECT_EQ(M::resolveSpecialType(0x14), M::kMsgVoiceClip);
+
+    // Out-of-range subtypes are rejected (the message stays kMsgNormal). 0xB6 is the byte that
+    // used to wrap to kMsgSetRetentionTime (0xB6 + kMsgOffset == 0x0B) and reach the preview
+    // memcpy.
+    EXPECT_EQ(M::resolveSpecialType(0x0F), M::kMsgInvalid);
+    EXPECT_EQ(M::resolveSpecialType(0x15), M::kMsgInvalid);
+    EXPECT_EQ(M::resolveSpecialType(0xB6), M::kMsgInvalid);
+
+    // Security invariant: no subtype byte may resolve into a management type (0x02..0x0C) or any
+    // value outside the known user range; the result is always a valid user type or kMsgInvalid.
+    for (unsigned b = 0; b <= 0xFF; ++b)
+    {
+        const M::Type type = M::resolveSpecialType(static_cast<uint8_t>(b));
+        const bool valid =
+            (type == M::kMsgInvalid) || (type >= M::kMsgUserFirst && type <= M::kMsgVoiceClip);
+        EXPECT_TRUE(valid) << "subtype byte 0x" << std::hex << b
+                           << " resolved to unexpected type 0x" << static_cast<unsigned>(type);
+    }
+}
+
 #ifndef KARERE_DISABLE_WEBRTC
 TEST_F(MegaChatApiUnitaryTest, SfuDataReception)
 {
