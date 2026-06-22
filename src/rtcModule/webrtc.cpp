@@ -158,10 +158,10 @@ void Call::setState(CallState newState)
             // !mConnectTimer).
             mConnectTimer = 0;
 
-            // kInWaitingRoom waits on a human (moderator) decision — no timeout applies.
-            // All other pre-join states (including kStateJoining) are network handshakes
-            // that should complete within kConnectingTimeout.
-            if (mState != CallState::kInWaitingRoom && mState < CallState::kStateInProgress)
+            // kStateConnecting and kStateJoining are the network handshake states that
+            // must complete within kConnectingTimeout. kInWaitingRoom is excluded because
+            // its timer is cancelled upon entry (setState cancels mConnectTimer on kInWaitingRoom).
+            if (mState == CallState::kStateConnecting || mState == CallState::kStateJoining)
             {
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
                 if (mIsReconnectingToChatd)
