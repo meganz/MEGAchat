@@ -1792,6 +1792,17 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             {
                 auto wptr = weakHandle();
                 auto parsedkey = splitPubKey(keyStr);
+                if (parsedkey.first.empty() || parsedkey.second.empty())
+                {
+                    // Malformed key. Do not treat the peer as verified.
+                    RTCM_LOG_ERROR(
+                        "%shandleAnswerCommand: malformed ephemeral key for user: %s, cid: %u",
+                        getLoggingName(),
+                        peer.getPeerid().toString().c_str(),
+                        peer.getCid());
+                    addPeerWithEphemKey(peer, false, std::string());
+                    continue;
+                }
                 std::shared_ptr<sfu::Peer> auxPeer(new sfu::Peer(peer));
                 verifySignature(peer.getCid(), peer.getPeerid(), parsedkey.first, parsedkey.second)
                     .then(
@@ -2404,6 +2415,14 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
 
         auto wptr = getDelTracker();
         auto parsedkey = splitPubKey(keyStr);
+        if (parsedkey.first.empty() || parsedkey.second.empty())
+        {
+            // Malformed key. Do not treat the peer as verified.
+            RTCM_LOG_ERROR("%shandlePeerJoin: malformed ephemeral key", getLoggingName());
+            assert(false);
+            addPeerWithEphemKey(*peer, std::string());
+            return false;
+        }
         verifySignature(cid, userid, parsedkey.first, parsedkey.second)
             .then(
                 [userid,
