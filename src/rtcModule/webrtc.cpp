@@ -4189,7 +4189,9 @@ Call::verifySignature(const Cid_t cid, const uint64_t userid, const std::string&
     promise::Promise<bool> pms;
     if (pubkey.empty() || signature.empty())
     {
-        pms.resolve(true);
+        // An empty public key or signature means there is nothing to verify.
+        // Malformed key, so verification failure.
+        pms.resolve(false);
     }
     else
     {
