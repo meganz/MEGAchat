@@ -66,7 +66,9 @@ enum
 /** Signature for all following bytes */
     TLV_TYPE_SIGNATURE          = 0x01,
 
-/** Type of message sent (legacy only) */
+    /** Type of message sent. Deprecated since protocol v2 (2016): the message type
+     *  is authenticated via byte 1 of the binary message (part of the signed input),
+     *  and no current sender emits this record. Kept only for diagnostic logging. */
     TLV_TYPE_MESSAGE_TYPE       = 0x02,
 
 /** "Base nonce" used for encryption of keys for all users

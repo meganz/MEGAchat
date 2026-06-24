@@ -267,12 +267,6 @@ ParsedMessage::ParsedMessage(const Message& binaryMessage, ProtocolHandler& prot
                 nonce.assign(record.buf(), record.dataLen);
                 break;
             }
-            case TLV_TYPE_MESSAGE_TYPE:
-            {
-                // if MESSAGE_TYPE, get the first byte from the record value.
-                type = record.read<uint8_t>();
-                break;
-            }
             case TLV_TYPE_INC_PARTICIPANT:
             {
                 if (type == chatd::Message::kMsgCallEnd)
