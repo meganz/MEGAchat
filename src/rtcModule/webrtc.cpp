@@ -1833,6 +1833,17 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                             // private ephemeral key
                             std::string out;
                             const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
+                            if (pubkeyBin.size() != mega::ECDH::PUBLIC_KEY_LENGTH)
+                            {
+                                // Reject a shorter decoded key to avoid an out-of-bounds read.
+                                RTCM_LOG_ERROR(
+                                    "%sInvalid ephemeral key length for user: %s, cid: %u",
+                                    getLoggingName(),
+                                    auxPeer->getPeerid().toString().c_str(),
+                                    auxPeer->getCid());
+                                addPeerWithEphemKey(*auxPeer, false, std::string());
+                                return;
+                            }
                             std::vector<::mega::byte> saltBin =
                                 generateEphemeralKeyIv(auxPeer->getIvs(), mMyPeer->getIvs());
                             bool derived = ephkeypair->deriveSharedKeyWithSalt(
@@ -2450,6 +2461,16 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                     // derive peer public ephemeral key with our private ephemeral key
                     std::string out;
                     const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
+                    if (pubkeyBin.size() != mega::ECDH::PUBLIC_KEY_LENGTH)
+                    {
+                        // Reject a shorter decoded key to avoid an out-of-bounds read.
+                        RTCM_LOG_WARNING("%sInvalid ephemeral key length for user: %s, cid: %u",
+                                         lname.c_str(),
+                                         peer->getPeerid().toString().c_str(),
+                                         peer->getCid());
+                        addPeerWithEphemKey(*peer, std::string());
+                        return;
+                    }
                     std::vector<::mega::byte> saltBin =
                         generateEphemeralKeyIv(peer->getIvs(), mMyPeer->getIvs());
                     bool derived = ephkeypair->deriveSharedKeyWithSalt(
