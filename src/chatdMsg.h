@@ -743,7 +743,7 @@ public:
                 memcpy(&changedLen, &buffer[position], lenDataSize);
                 position += lenDataSize;
 
-                if (len < (position + changedLen))
+                if (changedLen > len - position)
                 {
                     return NULL;
                 }
@@ -1065,7 +1065,7 @@ public:
             memcpy(&numParticipants, &buffer[position], lenNumParticipants);
             position += lenNumParticipants;
 
-            if (len < (position + (lenId * numParticipants)))
+            if (numParticipants > (len - position) / lenId)
             {
                 delete info;
                 return NULL;
