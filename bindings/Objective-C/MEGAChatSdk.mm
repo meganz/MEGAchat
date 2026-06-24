@@ -2115,8 +2115,9 @@ static DelegateMEGAChatLoggerListener *externalLogger = NULL;
     if (delegate == nil) return;
     
     pthread_mutex_lock(&listenerMutex);
-    _activeRequestListeners.erase(delegate);
+    size_t removed = _activeRequestListeners.erase(delegate);
     pthread_mutex_unlock(&listenerMutex);
+    if (removed == 0) return;
     delete delegate;
 }
 

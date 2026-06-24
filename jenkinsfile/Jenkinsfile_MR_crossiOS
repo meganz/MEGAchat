@@ -179,7 +179,6 @@ pipeline {
                 }
                 withCredentials([gitUsernamePassword(credentialsId: 'jenkins_sdk_token_with_user', gitToolName: 'Default')]) {
                     sh """
-                        bundle exec fastlane update_plugins
                         bundle exec fastlane build_simulator
                     """
                 }

@@ -693,44 +693,51 @@ ProtocolHandler::reactionDecrypt(const karere::Id &msgid, const karere::Id &user
     }
 
     auto wptr = weakHandle();
-    return symPms.then([wptr, &msgid, &reaction](const std::shared_ptr<SendKey>& data)
-    {
-        wptr.throwIfDeleted();
+    return symPms
+        .then(
+            [wptr, msgid, reaction](const std::shared_ptr<SendKey>& data)
+            {
+                wptr.throwIfDeleted();
 
-        // Inside this function str_to_a32 and a32_to_str calls must be done with type <T> = <uint32_t>
-        std::string keyBin (data->buf(), data->dataSize());
-        std::vector<uint32_t> key32 = ::mega::Utils::str_to_a32<uint32_t>(keyBin);
-        size_t key32Len = key32.size();
+                // Inside this function str_to_a32 and a32_to_str calls must be done with type <T> =
+                // <uint32_t>
+                std::string keyBin(data->buf(), data->dataSize());
+                std::vector<uint32_t> key32 = ::mega::Utils::str_to_a32<uint32_t>(keyBin);
+                size_t key32Len = key32.size();
 
-        std::string msgId = msgid.toString();
-        std::vector<uint32_t> msgId32 =  ::mega::Utils::str_to_a32<uint32_t>(msgId);
-        size_t msgId32Len = msgId32.size();
+                std::string msgId = msgid.toString();
+                std::vector<uint32_t> msgId32 = ::mega::Utils::str_to_a32<uint32_t>(msgId);
+                size_t msgId32Len = msgId32.size();
 
-        // key32 XOR msgId32 --> Cypherkey to encrypt reaction
-        std::vector<uint32_t> cypherKey(key32Len);
-        for (size_t i = 0; i < key32Len; i++)
-        {
-            cypherKey[i] = key32[i] ^ msgId32[i % msgId32Len];
-        }
+                // key32 XOR msgId32 --> Cypherkey to encrypt reaction
+                std::vector<uint32_t> cypherKey(key32Len);
+                for (size_t i = 0; i < key32Len; i++)
+                {
+                    cypherKey[i] = key32[i] ^ msgId32[i % msgId32Len];
+                }
 
-        std::vector<uint32_t> reaction32 = ::mega::Utils::str_to_a32<uint32_t>(reaction);
-        ::mega::xxteaDecrypt(reaction32.data(), static_cast<uint32_t>(reaction32.size()), cypherKey.data(), false);
-        std::string decrypted = ::mega::Utils::a32_to_str<uint32_t>(reaction32);
+                std::vector<uint32_t> reaction32 = ::mega::Utils::str_to_a32<uint32_t>(reaction);
+                ::mega::xxteaDecrypt(reaction32.data(),
+                                     static_cast<uint32_t>(reaction32.size()),
+                                     cypherKey.data(),
+                                     false);
+                std::string decrypted = ::mega::Utils::a32_to_str<uint32_t>(reaction32);
 
-        // skip the msgid's part (4 most significat bytes) and the left-padding (if any)
-        size_t pos = 4;
-        while (pos < decrypted.size() && decrypted[pos] == '\0')
-        {
-            pos++;
-        }
-        assert(pos <= 4 + 3);   // maximum left-padding should not be greater than 3 bytes
+                // skip the msgid's part (4 most significat bytes) and the left-padding (if any)
+                size_t pos = 4;
+                while (pos < decrypted.size() && decrypted[pos] == '\0')
+                {
+                    pos++;
+                }
+                assert(pos <= 4 + 3); // maximum left-padding should not be greater than 3 bytes
 
-        return std::make_shared<Buffer>(decrypted.data() + pos, decrypted.size() - pos);
-    })
-    .fail([](const ::promise::Error& err)
-    {
-        return err;
-    });
+                return std::make_shared<Buffer>(decrypted.data() + pos, decrypted.size() - pos);
+            })
+        .fail(
+            [](const ::promise::Error& err)
+            {
+                return err;
+            });
 }
 
 unsigned int ProtocolHandler::getCacheVersion() const
