@@ -104,9 +104,6 @@ endif()
 
 # Load integration tests
 if(ENABLE_CHATLIB_TESTS)
-    include(CTest)
-    include(GoogleTest)
-
     # Load test_tools target from the SDK
     add_subdirectory(${SDK_DIR}/tests ${CMAKE_BINARY_DIR}/${DEFAULT_SDK_DIR}/tests)
     add_subdirectory(tests/sdk_test)
