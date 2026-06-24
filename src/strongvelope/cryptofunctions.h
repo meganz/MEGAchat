@@ -71,6 +71,11 @@ static inline void aesECBDecrypt(const StaticBuffer& cipherText,
     assert(key.dataSize() == CryptoPP::AES::BLOCKSIZE);
     assert(cipherText.dataSize() == CryptoPP::AES::BLOCKSIZE);
     assert(output.dataSize() == CryptoPP::AES::BLOCKSIZE);
+    if (cipherText.dataSize() != CryptoPP::AES::BLOCKSIZE ||
+        output.dataSize() != CryptoPP::AES::BLOCKSIZE)
+    {
+        throw std::runtime_error("aesECBDecrypt: cipher/output must be exactly one AES block");
+    }
     CryptoPP::ECB_Mode<CryptoPP::AES>::Decryption aesdecryption(key.ubuf(), key.dataSize());
     aesdecryption.ProcessData(output.ubuf(),
         cipherText.ubuf(), cipherText.dataSize());
