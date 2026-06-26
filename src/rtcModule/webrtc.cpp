@@ -143,7 +143,10 @@ void Call::setState(CallState newState)
         mConnectTimer = 0;
     }
 
-    if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
+    // Arm the watchdog on kStateConnecting and on kStateJoining (covers the waiting room path
+    // where the timer was cancelled on kInWaitingRoom and never re-armed before kStateJoining).
+    if ((newState == CallState::kStateConnecting || newState == CallState::kStateJoining) &&
+        !mConnectTimer)
     {
         clearConnInitialTs(); // reset initial ts for current call connection
         clearJoinOffset();    // reset join offset, the offset is received upon ANSWER command in 't' param
