@@ -143,7 +143,10 @@ void Call::setState(CallState newState)
         mConnectTimer = 0;
     }
 
-    if (newState == CallState::kStateConnecting && !mConnectTimer) // if are we trying to reconnect, and no previous timer was set
+    // Arm the watchdog on kStateConnecting and on kStateJoining (covers the waiting room path
+    // where the timer was cancelled on kInWaitingRoom and never re-armed before kStateJoining).
+    if ((newState == CallState::kStateConnecting || newState == CallState::kStateJoining) &&
+        !mConnectTimer)
     {
         clearConnInitialTs(); // reset initial ts for current call connection
         clearJoinOffset();    // reset join offset, the offset is received upon ANSWER command in 't' param
@@ -154,10 +157,15 @@ void Call::setState(CallState newState)
             if (wptr.deleted())
                 return;
 
-            assert(mState <= CallState::kInWaitingRoom || !mConnectTimer); // if call state >= kStateInProgress mConnectTimer must be 0
-            if (mState < CallState::kInWaitingRoom)
+            // Always reset first: a stale non-zero handle would block re-arming (guard:
+            // !mConnectTimer).
+            mConnectTimer = 0;
+
+            // kStateConnecting and kStateJoining are the network handshake states that
+            // must complete within kConnectingTimeout. kInWaitingRoom is excluded because
+            // its timer is cancelled upon entry (setState cancels mConnectTimer on kInWaitingRoom).
+            if (mState == CallState::kStateConnecting || mState == CallState::kStateJoining)
             {
-                mConnectTimer = 0;
                 SFU_LOG_DEBUG("Reconnection attempt has not succeed after %d seconds. Automatically hang up call", kConnectingTimeout);
                 if (mIsReconnectingToChatd)
                 {
