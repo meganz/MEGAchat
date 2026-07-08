@@ -743,7 +743,7 @@ public:
                 memcpy(&changedLen, &buffer[position], lenDataSize);
                 position += lenDataSize;
 
-                if (len < (position + changedLen))
+                if (changedLen > len - position)
                 {
                     return NULL;
                 }
@@ -861,10 +861,11 @@ public:
 
                     std::unique_ptr<mega::MegaIntegerList> byWeekDay;
                     rapidjson::Value::ConstMemberIterator itWd = it->value[index].FindMember("wd");
-                    if (itWd != it->value[index].MemberEnd() && itWd->value.IsArray() && itWd->value.Capacity())
+                    if (itWd != it->value[index].MemberEnd() && itWd->value.IsArray() &&
+                        itWd->value.Size())
                     {
                         byWeekDay.reset(mega::MegaIntegerList::createInstance());
-                        for (unsigned int i = 0; i < itWd->value.Capacity(); ++i)
+                        for (rapidjson::SizeType i = 0; i < itWd->value.Size(); ++i)
                         {
                             if (!itWd->value[i].IsInt()) { continue; }
                             byWeekDay->add(itWd->value[i].GetInt());
@@ -873,10 +874,11 @@ public:
 
                     std::unique_ptr<mega::MegaIntegerList> byMonthDay;
                     rapidjson::Value::ConstMemberIterator itMd = it->value[index].FindMember("md");
-                    if (itMd != it->value[index].MemberEnd() && itMd->value.IsArray() && itMd->value.Capacity())
+                    if (itMd != it->value[index].MemberEnd() && itMd->value.IsArray() &&
+                        itMd->value.Size())
                     {
                         byMonthDay.reset(mega::MegaIntegerList::createInstance());
-                        for (unsigned int i = 0; i < itMd->value.Capacity(); ++i)
+                        for (rapidjson::SizeType i = 0; i < itMd->value.Size(); ++i)
                         {
                             if (!itMd->value[i].IsInt()) { continue; }
                             byMonthDay->add(itMd->value[i].GetInt());
@@ -885,17 +887,21 @@ public:
 
                     std::unique_ptr<::mega::MegaIntegerMap> byMonthWeekDay;
                     rapidjson::Value::ConstMemberIterator itMwd = it->value[index].FindMember("mwd");
-                    if (itMwd != it->value[index].MemberEnd() && itMwd->value.IsArray() && itMwd->value.Capacity())
+                    if (itMwd != it->value[index].MemberEnd() && itMwd->value.IsArray() &&
+                        itMwd->value.Size())
                     {
                         byMonthWeekDay.reset(mega::MegaIntegerMap::createInstance());
-                        for (unsigned int i = 0; i < itMwd->value.Capacity(); ++i)
+                        for (rapidjson::SizeType i = 0; i < itMwd->value.Size(); ++i)
                         {
-                              if (itMwd->value[i].IsArray() && itMwd->value[i].GetArray().Capacity() == 2)
-                              {
-                                  auto subArr = itMwd->value[i].GetArray();
-                                  if (!subArr[0].IsInt() || !subArr[1].IsInt()) { continue; }
-                                  byMonthWeekDay->set(subArr[0].GetInt(),subArr[1].GetInt());
-                              }
+                            if (itMwd->value[i].IsArray() && itMwd->value[i].GetArray().Size() == 2)
+                            {
+                                auto subArr = itMwd->value[i].GetArray();
+                                if (!subArr[0].IsInt() || !subArr[1].IsInt())
+                                {
+                                    continue;
+                                }
+                                byMonthWeekDay->set(subArr[0].GetInt(), subArr[1].GetInt());
+                            }
                         }
                     }
 
@@ -1059,7 +1065,7 @@ public:
             memcpy(&numParticipants, &buffer[position], lenNumParticipants);
             position += lenNumParticipants;
 
-            if (len < (position + (lenId * numParticipants)))
+            if (numParticipants > (len - position) / lenId)
             {
                 delete info;
                 return NULL;
@@ -1487,6 +1493,22 @@ public:
 
     /** @brief Throws an exception if this is not a management message. */
     void throwIfNotManagementMsg() const { if (!isManagementMessage()) throw std::runtime_error("Not a management message"); }
+
+    /** @brief Resolve the subtype byte of a 'special' kMsgNormal message (one whose payload
+     * starts with a null byte) to its concrete message type. The mapping is computed in a wide
+     * type and validated against the known special-message range, so a subtype byte cannot wrap
+     * (uint8_t) and resolve into a management type. Returns kMsgInvalid if the byte is not a
+     * known special-message subtype.
+     * @note The range below must cover every special-message type; widen it when a new
+     * kMsgUserFirst..kMsgVoiceClip type is added, otherwise that type resolves to kMsgInvalid. */
+    static Type resolveSpecialType(uint8_t subtype)
+    {
+        const unsigned type = static_cast<unsigned>(subtype) + kMsgOffset;
+        return (type >= static_cast<unsigned>(kMsgUserFirst) &&
+                type <= static_cast<unsigned>(kMsgVoiceClip)) ?
+                   static_cast<Type>(type) :
+                   kMsgInvalid;
+    }
 
     static bool hasUrl(const std::string &text, std::string &url);
     static bool parseUrl(const std::string &url);

@@ -19,6 +19,7 @@ enum karereTracks: int8_t
     kVthumbTrack    = 0,
     kHiResTrack     = 1,
     kAudioTrack     = 2,
+    kTotalTracks = 3,
 };
 
 constexpr unsigned int K_INVALID_CID = 0;

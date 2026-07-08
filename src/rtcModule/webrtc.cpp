@@ -1494,6 +1494,18 @@ void Call::clearParticipants()
 
 std::vector<mega::byte> Call::generateEphemeralKeyIv(const std::vector<std::string>& peerIvs, const std::vector<std::string>& myIvs) const
 {
+    // Both IV vectors must contain the full per-track IV set before indexing them;
+    // a peer can send a shorter (or empty) 'ivs' array.
+    if (peerIvs.size() < static_cast<size_t>(kTotalTracks) ||
+        myIvs.size() < static_cast<size_t>(kTotalTracks))
+    {
+        RTCM_LOG_ERROR("%sgenerateEphemeralKeyIv: not enough IVs (peer: %u, own: %u)",
+                       getLoggingName(),
+                       static_cast<unsigned>(peerIvs.size()),
+                       static_cast<unsigned>(myIvs.size()));
+        return {};
+    }
+
     std::string salt;
     std::vector<std::string> v { peerIvs[kHiResTrack], peerIvs[kAudioTrack], myIvs[kHiResTrack], myIvs[kAudioTrack] };
     sort(v.begin(), v.end());
@@ -3730,10 +3742,28 @@ void Call::handleIncomingVideo(const std::map<Cid_t, sfu::TrackDescriptor> &vide
                    }
 
                    const std::vector<std::string> ivs = sess->getPeer().getIvs();
-                   slot->assignVideoSlot(
-                       cid,
-                       sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]),
-                       videoResolution);
+                   if (videoResolution < 0 || ivs.size() <= static_cast<size_t>(videoResolution))
+                   {
+                       RTCM_LOG_ERROR("%shandleIncomingVideo: peer CID %u sent too few IVs (%u) "
+                                      "for resolution %d",
+                                      getLoggingName(),
+                                      cid,
+                                      static_cast<unsigned>(ivs.size()),
+                                      videoResolution);
+                       return;
+                   }
+                   const std::optional<IvStatic_t> iv =
+                       sfu::Command::hexToBinary(ivs[static_cast<size_t>(videoResolution)]);
+                   if (!iv)
+                   {
+                       RTCM_LOG_ERROR("%shandleIncomingVideo: peer CID %u sent a malformed IV "
+                                      "for resolution %d",
+                                      getLoggingName(),
+                                      cid,
+                                      videoResolution);
+                       return;
+                   }
+                   slot->assignVideoSlot(cid, *iv, videoResolution);
                    attachSlotToSession(*sess, slot, false, videoResolution);
                })
             .fail(
@@ -3842,10 +3872,26 @@ void Call::addSpeaker(const Cid_t cid, const uint32_t amid)
                 }
 
                 const std::vector<std::string> ivs = sess->getPeer().getIvs();
-                assert(ivs.size() >= kAudioTrack);
-                slot->assignAudioSlot(
-                    cid,
-                    sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]));
+                // A conformant peer advertises one IV per track, so require the full
+                // set before indexing it.
+                if (ivs.size() < static_cast<size_t>(kTotalTracks))
+                {
+                    RTCM_LOG_ERROR("%saddSpeaker: peer CID %u sent too few IVs (%u)",
+                                   getLoggingName(),
+                                   cid,
+                                   static_cast<unsigned>(ivs.size()));
+                    return;
+                }
+                const std::optional<IvStatic_t> iv =
+                    sfu::Command::hexToBinary(ivs[static_cast<size_t>(kAudioTrack)]);
+                if (!iv)
+                {
+                    RTCM_LOG_ERROR("%saddSpeaker: peer CID %u sent a malformed audio IV",
+                                   getLoggingName(),
+                                   cid);
+                    return;
+                }
+                slot->assignAudioSlot(cid, *iv);
                 attachSlotToSession(*sess, slot, true, kUndefined);
             })
         .fail(

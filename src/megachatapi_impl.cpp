@@ -11373,6 +11373,12 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
             case MegaChatMessage::TYPE_ALTER_PARTICIPANTS:
             case MegaChatMessage::TYPE_PRIV_CHANGE:
             {
+                // Require the full struct before reading it. A shorter body would read out of
+                // bounds.
+                if (msg->contents().size() < sizeof(Message::ManagementInfo))
+                {
+                    break;
+                }
                 const Message::ManagementInfo *management = reinterpret_cast<const Message::ManagementInfo*>(msg->contents().data());
                 lastMsgPriv = management->privilege;
                 lastMsgHandle = (MegaChatHandle)management->target;
@@ -11406,10 +11412,12 @@ MegaChatListItemPrivate::MegaChatListItemPrivate(ChatRoom &chatroom)
 
             case MegaChatMessage::TYPE_SET_RETENTION_TIME:
             {
-               uint32_t retentionTime;
-               memcpy(&retentionTime, msg->contents().c_str(), msg->contents().size());
-               lastMsg = std::to_string(retentionTime);
-               break;
+                uint32_t retentionTime = 0;
+                memcpy(&retentionTime,
+                       msg->contents().c_str(),
+                       min(sizeof(retentionTime), msg->contents().size()));
+                lastMsg = std::to_string(retentionTime);
+                break;
             }
 
             case MegaChatMessage::TYPE_REVOKE_NODE_ATTACHMENT:  // deprecated: should not be notified as last-message
@@ -13154,8 +13162,8 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
 
     MegaNodeList *megaNodeList = new MegaNodeListPrivate();
 
-    int attachmentNumber = document.Capacity();
-    for (int i = 0; i < attachmentNumber; ++i)
+    rapidjson::SizeType attachmentNumber = document.Size();
+    for (rapidjson::SizeType i = 0; i < attachmentNumber; ++i)
     {
         const rapidjson::Value& file = document[i];
 
@@ -13185,15 +13193,15 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         {
             iteratorKey = file.FindMember("key");
         }
-        if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray()
-                || iteratorKey->value.Capacity() != 8)
+        if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray() ||
+            iteratorKey->value.Size() != 8)
         {
             API_LOG_ERROR("parseAttachNodeJSon: Invalid nodekey in attachment JSON");
             delete megaNodeList;
             return NULL;
         }
         std::vector<int32_t> kElements;
-        for (unsigned int j = 0; j < iteratorKey->value.Capacity(); ++j)
+        for (rapidjson::SizeType j = 0; j < iteratorKey->value.Size(); ++j)
         {
             if (iteratorKey->value[j].IsInt())
             {
@@ -13348,8 +13356,8 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
 
     std::vector<MegaChatAttachedUser> *megaChatUsers = new std::vector<MegaChatAttachedUser>();
 
-    int contactNumber = document.Capacity();
-    for (int i = 0; i < contactNumber; ++i)
+    rapidjson::SizeType contactNumber = document.Size();
+    for (rapidjson::SizeType i = 0; i < contactNumber; ++i)
     {
         const rapidjson::Value& user = document[i];
 
@@ -13657,7 +13665,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
     std::string iconFormat;
     std::string url;
 
-    if (iteratorExtra->value.Capacity() == 1)
+    if (iteratorExtra->value.Size() == 1)
     {
         const rapidjson::Value& richPreview = iteratorExtra->value[0];
 
@@ -13695,7 +13703,7 @@ MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
         return NULL;
     }
 
-    if (iteratorExtra->value.Capacity() != 1)
+    if (iteratorExtra->value.Size() != 1)
     {
         API_LOG_ERROR("parseGeolocation: invalid JSON struct - invalid format");
         return NULL;

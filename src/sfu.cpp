@@ -283,7 +283,7 @@ bool Command::parseWrUsersMap(sfu::WrUserList& wrUsers, const rapidjson::Value& 
 void Command::parseUsersArray(std::set<karere::Id>& users, rapidjson::Value::ConstMemberIterator& it) const
 {
     assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    for (rapidjson::SizeType j = 0; j < it->value.Size(); ++j)
     {
         if (!it->value[j].IsString())
         {
@@ -299,7 +299,7 @@ bool Command::parseUsersArrayInOrder(std::vector<karere::Id>& users, rapidjson::
 {
     std::set<karere::Id> duplicatedUsers;
     assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    for (rapidjson::SizeType j = 0; j < it->value.Size(); ++j)
     {
         if (!it->value[j].IsString())
         {
@@ -345,7 +345,7 @@ void Command::parseTracks(const rapidjson::Document& command, const std::string&
             return;
         }
 
-        for (unsigned int i = 0; i < it->value.Capacity(); ++i)
+        for (rapidjson::SizeType i = 0; i < it->value.Size(); ++i)
         {
             Cid_t cid = 0;
             TrackDescriptor td;
@@ -363,7 +363,7 @@ void Command::parseTracks(const rapidjson::Document& command, const std::string&
             else
             {
                 const auto& arr = it->value[i].GetArray();
-                for (unsigned int j = 0; j < arr.Capacity(); ++j)
+                for (rapidjson::SizeType j = 0; j < arr.Size(); ++j)
                 {
                     if (j==0) { cid = arr[0].GetUint(); }
                     if (j==1) { td.mMid = arr[1].GetUint(); }
@@ -445,27 +445,40 @@ std::optional<SfuInterface::CallLimits> Command::parseCallLimits(const rapidjson
     return buildCallLimits(limObject);
 }
 
-uint64_t Command::hexToBinary(const std::string &hex)
+std::optional<uint64_t> Command::hexToBinary(const std::string& hex)
 {
     uint64_t value = 0;
-    unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
-    assert(bufferSize <= 8);
-    std::unique_ptr<uint8_t []> buffer(new uint8_t[bufferSize]);
+    // Reject malformed input before decoding: an odd length is an incomplete final
+    // byte, and a length above 16 hex chars (8 bytes) would write past 'value' below.
+    if (hex.length() % 2 || hex.length() / 2 > sizeof(value))
+    {
+        SFU_LOG_ERROR_NO_STATS("hexToBinary: invalid hex input length %zu", hex.length());
+        assert(false && "hexToBinary: invalid hex input length");
+        return std::nullopt;
+    }
+    uint8_t* bytes = reinterpret_cast<uint8_t*>(&value);
     unsigned int binPos = 0;
     for (unsigned int i = 0; i< hex.length(); binPos++)
     {
         // compiler doesn't guarantees the order "++" operation performed in relation to the second access of variable i (better to split in two operations)
-        buffer[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
-        buffer[binPos] = static_cast<uint8_t>(buffer[binPos] | hexDigitVal(hex[i++]));
+        bytes[binPos] = static_cast<uint8_t>((hexDigitVal(hex[i++])) << 4);
+        bytes[binPos] = static_cast<uint8_t>(bytes[binPos] | hexDigitVal(hex[i++]));
     }
-
-    memcpy(&value, buffer.get(), bufferSize);
 
     return value;
 }
 
 std::vector<mega::byte> Command::hexToByteArray(const std::string &hex)
 {
+    // Reject malformed input before decoding: an odd length makes the loop below
+    // write one byte past 'res' (the last iteration decodes hex[i] together with the out-of-range
+    // hex[i + 1]).
+    if (hex.length() % 2)
+    {
+        SFU_LOG_ERROR_NO_STATS("hexToByteArray: invalid odd hex input length %zu", hex.length());
+        assert(false && "hexToByteArray: invalid odd hex input length");
+        return {};
+    }
     unsigned int bufferSize = static_cast<unsigned int>(hex.length()) >> 1;
     std::vector<mega::byte> res(bufferSize);
     unsigned int binPos = 0;
@@ -631,10 +644,34 @@ bool AnswerCommand::processCommand(const rapidjson::Document &command)
     return mComplete(cid, sdp, callJoinOffset, peers, keystrmap, vthumbs, speakers, speakReqs, raiseHands, amidmap);
 }
 
+namespace
+{
+// A valid call IV is an 8-byte CTR IV encoded by Command::binaryToHex(), i.e.
+// exactly 16 hexadecimal characters. Anything else is rejected at parse time so
+// it can never reach the hex decoders or be indexed during slot assignment.
+bool isValidCallIv(const std::string& iv)
+{
+    if (iv.size() != sizeof(uint64_t) * 2)
+    {
+        return false;
+    }
+    for (const char c: iv)
+    {
+        const bool isHex =
+            (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+        if (!isHex)
+        {
+            return false;
+        }
+    }
+    return true;
+}
+} // namespace
+
 void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, std::string>& keystrmap, std::map<Cid_t, uint32_t>& amidmap, rapidjson::Value::ConstMemberIterator &it) const
 {
     assert(it->value.IsArray());
-    for (unsigned int j = 0; j < it->value.Capacity(); ++j)
+    for (rapidjson::SizeType j = 0; j < it->value.Size(); ++j)
     {
         if (it->value[j].IsObject())
         {
@@ -676,9 +713,10 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
             rapidjson::Value::ConstMemberIterator ivsIterator = it->value[j].FindMember("ivs");
             if (ivsIterator != it->value[j].MemberEnd() && ivsIterator->value.IsArray())
             {
-                for (unsigned int i = 0; i < ivsIterator->value.Capacity(); i++)
+                for (rapidjson::SizeType i = 0; i < ivsIterator->value.Size(); i++)
                 {
-                    if (!ivsIterator->value[i].IsString())
+                    if (!ivsIterator->value[i].IsString() ||
+                        !isValidCallIv(ivsIterator->value[i].GetString()))
                     {
                         SFU_LOG_ERROR("parse invalid ivs");
                         ivs.clear();
@@ -694,7 +732,6 @@ void AnswerCommand::parsePeerObject(std::vector<Peer> &peers, std::map<Cid_t, st
                  SFU_LOG_ERROR("AnswerCommand::parsePeerObject: invalid 'av' value");
                  return;
             }
-
             rapidjson::Value::ConstMemberIterator amidIterator = it->value[j].FindMember("amid");
             if (amidIterator != it->value[j].MemberEnd() && amidIterator->value.IsUint()) // It's optional
             {
@@ -960,9 +997,10 @@ bool PeerJoinCommand::processCommand(const rapidjson::Document &command)
     rapidjson::Value::ConstMemberIterator ivsIterator = command.FindMember("ivs");
     if (ivsIterator != command.MemberEnd() && ivsIterator->value.IsArray())
     {
-        for (unsigned int i = 0; i < ivsIterator->value.Capacity(); i++)
+        for (rapidjson::SizeType i = 0; i < ivsIterator->value.Size(); i++)
         {
-            if (!ivsIterator->value[i].IsString())
+            if (!ivsIterator->value[i].IsString() ||
+                !isValidCallIv(ivsIterator->value[i].GetString()))
             {
                 SFU_LOG_ERROR("parse invalid ivs");
                 ivs.clear();
@@ -1069,8 +1107,7 @@ Sdp::Sdp(const rapidjson::Value &sdp)
     rapidjson::Value::ConstMemberIterator tracksIterator = sdp.FindMember("tracks");
     if (tracksIterator != sdp.MemberEnd() && tracksIterator->value.IsArray())
     {
-        // TODO: check whether we should use Size() instead of Capacity() (also check other usages of Capacity())
-        for (unsigned int i = 0; i < tracksIterator->value.Capacity(); i++)
+        for (rapidjson::SizeType i = 0; i < tracksIterator->value.Size(); i++)
         {
             mTracks.push_back(parseTrack(tracksIterator->value[i]));
         }
@@ -1326,7 +1363,7 @@ Sdp::Track Sdp::parseTrack(const rapidjson::Value &value) const
     rapidjson::Value::ConstMemberIterator ssrcgIterator = value.FindMember("ssrcg");
     if (ssrcgIterator != value.MemberEnd() && ssrcgIterator->value.IsArray())
     {
-        for (unsigned int i = 0; i < ssrcgIterator->value.Size(); i++)
+        for (rapidjson::SizeType i = 0; i < ssrcgIterator->value.Size(); i++)
         {
             if (ssrcgIterator->value[i].IsString())
             {
@@ -1338,7 +1375,7 @@ Sdp::Track Sdp::parseTrack(const rapidjson::Value &value) const
     rapidjson::Value::ConstMemberIterator ssrcsIterator = value.FindMember("ssrcs");
     if (ssrcsIterator != value.MemberEnd() && ssrcsIterator->value.IsArray())
     {
-        for (unsigned int i = 0; i < ssrcsIterator->value.Size(); i++)
+        for (rapidjson::SizeType i = 0; i < ssrcsIterator->value.Size(); i++)
         {
             if (ssrcsIterator->value[i].IsObject())
             {
