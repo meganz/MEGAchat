@@ -1748,8 +1748,8 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
         peer.setModerator(isOnModeratorsList(peer.getPeerid()));
         if (peer.getPeerSfuVersion() < sfu::SfuProtocol::SFU_PROTO_V2)
         {
-            // SFU protocol versions V0 and V1 are deprecated: V0 carries no ephemeral
-            // key and V1 is never expected. Reject them instead of adding them as a verified peer.
+            // SFU protocol versions V0 and V1 are deprecated and must never come from the SFU.
+            // Reject the peer outright (no session).
             RTCM_LOG_ERROR(
                 "%shandleAnswerCommand: deprecated/unexpected SFU protocol version [%u] for user: "
                 "%s, cid: %u",
@@ -1758,7 +1758,9 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                 peer.getPeerid().toString().c_str(),
                 peer.getCid());
             assert(false);
-            addPeerWithEphemKey(peer, false, std::string());
+            removePendingPeer(peer.getCid());
+            onKeyVerified(false);
+            continue;
         }
         else // SFU_PROTO_V2+: verify ephemeral key signature, derive it, and then add the peer
         {
@@ -2398,8 +2400,8 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
     std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (mModerators.find(userid) != mModerators.end())));
     if (sfuProtoVersion < sfu::SfuProtocol::SFU_PROTO_V2)
     {
-        // SFU protocol versions V0 and V1 are deprecated: V0 carries no ephemeral
-        // key and V1 is never expected. Reject them instead of adding them as a verified peer.
+        // SFU protocol versions V0 and V1 are deprecated and must never come from the SFU.
+        // Reject the peer outright (no session).
         RTCM_LOG_ERROR(
             "%shandlePeerJoin: deprecated/unexpected SFU protocol version [%u] for user: %s, cid: "
             "%u",
@@ -2408,7 +2410,7 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
             peer->getPeerid().toString().c_str(),
             peer->getCid());
         assert(false);
-        addPeerWithEphemKey(*peer, std::string());
+        removePendingPeer(cid);
         return false;
     }
     else // SFU_PROTO_V2+: verify ephemeral key signature, derive it, and then add the peer
