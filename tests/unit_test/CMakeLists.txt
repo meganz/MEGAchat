@@ -3,6 +3,7 @@ add_executable(megachat_unit_test)
 target_sources(megachat_unit_test
     PRIVATE
         src/main.cpp
+        src/jsonutils_test.cpp
         src/sfu_test.cpp
 )
 
