@@ -6244,44 +6244,97 @@ KarereScheduledRules* KarereScheduledRules::unserialize(const Buffer& in)
 
     std::string aux(in.buf(), in.dataSize());
     std::unique_ptr<mega::ScheduledRules> sr(mega::ScheduledRules::unserialize(aux));
-    if (!sr)         { return nullptr; }
+    if (!sr)
+    {
+        return nullptr;
+    }
 
-    return new KarereScheduledRules(sr->freq(), sr->interval(), sr->until(),
-                                    sr->byWeekDay(), sr->byMonthDay(), sr->byMonthWeekDay());
+    return new KarereScheduledRules(sr->freq(),
+                                    sr->interval(),
+                                    sr->until(),
+                                    sr->byWeekDay(),
+                                    sr->byMonthDay(),
+                                    sr->byMonthWeekDay());
 }
 
-KarereScheduledMeeting::KarereScheduledMeeting(const karere::Id& chatid, const karere::Id& organizerid,
-                                               const std::string& timezone, const mega::m_time_t startDateTime,
-                                               const mega::m_time_t endDateTime, const std::string& title,
-                                               const std::string& description, const karere::Id& schedId,
-                                               const karere::Id& parentSchedId, const int cancelled,
-                                               const std::string& attributes, const mega::m_time_t overrides,
-                                               const KarereScheduledFlags* flags, const KarereScheduledRules* rules)
-    : mega::ScheduledMeeting(chatid, timezone, startDateTime, endDateTime, title, description, organizerid, schedId,
-                             parentSchedId, cancelled, attributes, overrides, flags, rules)
+KarereScheduledMeeting::KarereScheduledMeeting(const karere::Id& chatid,
+                                               const karere::Id& organizerid,
+                                               const std::string& timezone,
+                                               const mega::m_time_t startDateTime,
+                                               const mega::m_time_t endDateTime,
+                                               const std::string& title,
+                                               const std::string& description,
+                                               const karere::Id& schedId,
+                                               const karere::Id& parentSchedId,
+                                               const int cancelled,
+                                               const std::string& attributes,
+                                               const mega::m_time_t overrides,
+                                               const KarereScheduledFlags* flags,
+                                               const KarereScheduledRules* rules):
+    mega::ScheduledMeeting(chatid,
+                           timezone,
+                           startDateTime,
+                           endDateTime,
+                           title,
+                           description,
+                           organizerid,
+                           schedId,
+                           parentSchedId,
+                           cancelled,
+                           attributes,
+                           overrides,
+                           flags,
+                           rules)
 {}
 
-KarereScheduledMeeting::KarereScheduledMeeting(const KarereScheduledMeeting *ksm)
-    : mega::ScheduledMeeting(ksm)
+KarereScheduledMeeting::KarereScheduledMeeting(const KarereScheduledMeeting* ksm):
+    mega::ScheduledMeeting(ksm)
 {}
 
-KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting *msm)
-    : mega::ScheduledMeeting(msm->chatid(),
-                             msm->timezone() ? msm->timezone() : std::string(),
-                             msm->startDateTime(), msm->endDateTime(),
-                             msm->title() ? msm->title() : std::string(),
-                             msm->description() ? msm->description() : std::string(),
-                             msm->organizerUserid(), msm->schedId(), msm->parentSchedId(), msm->cancelled(),
-                             msm->attributes() ? msm->attributes() : std::string(),
-                             msm->overrides(),
-                             msm->flags() ? std::make_unique<KarereScheduledFlags>(msm->flags()).get() : nullptr,
-                             msm->rules() ? std::make_unique<KarereScheduledRules>(msm->rules()).get() : nullptr)
+namespace
+{
+std::unique_ptr<KarereScheduledFlags> toKarereScheduledFlags(const mega::MegaScheduledMeeting* msm)
+{
+    std::unique_ptr<mega::MegaScheduledFlags> flags(msm->flags());
+    return flags ? std::make_unique<KarereScheduledFlags>(flags.get()) : nullptr;
+}
+
+std::unique_ptr<KarereScheduledRules> toKarereScheduledRules(const mega::MegaScheduledMeeting* msm)
+{
+    std::unique_ptr<mega::MegaScheduledRules> rules(msm->rules());
+    return rules ? std::make_unique<KarereScheduledRules>(rules.get()) : nullptr;
+}
+} // anonymous namespace
+
+KarereScheduledMeeting::KarereScheduledMeeting(const mega::MegaScheduledMeeting* msm):
+    mega::ScheduledMeeting(msm->chatid(),
+                           msm->timezone() ? msm->timezone() : std::string(),
+                           msm->startDateTime(),
+                           msm->endDateTime(),
+                           msm->title() ? msm->title() : std::string(),
+                           msm->description() ? msm->description() : std::string(),
+                           msm->organizerUserid(),
+                           msm->schedId(),
+                           msm->parentSchedId(),
+                           msm->cancelled(),
+                           msm->attributes() ? msm->attributes() : std::string(),
+                           msm->overrides(),
+                           toKarereScheduledFlags(msm).get(),
+                           toKarereScheduledRules(msm).get())
 {}
 
-const KarereScheduledFlags* KarereScheduledMeeting::flags() const { return dynamic_cast<const KarereScheduledFlags*>(mega::ScheduledMeeting::flags()); }
-const KarereScheduledRules* KarereScheduledMeeting::rules() const { return dynamic_cast<const KarereScheduledRules*>(mega::ScheduledMeeting::rules()); }
+const KarereScheduledFlags* KarereScheduledMeeting::flags() const
+{
+    return dynamic_cast<const KarereScheduledFlags*>(mega::ScheduledMeeting::flags());
+}
 
-KarereScheduledMeeting::sched_bs_t KarereScheduledMeeting::compare(const mega::MegaScheduledMeeting* sm) const
+const KarereScheduledRules* KarereScheduledMeeting::rules() const
+{
+    return dynamic_cast<const KarereScheduledRules*>(mega::ScheduledMeeting::rules());
+}
+
+KarereScheduledMeeting::sched_bs_t
+    KarereScheduledMeeting::compare(const mega::MegaScheduledMeeting* sm) const
 {
     // scheduled meeting Handle and chatid can't change
     sched_bs_t bs = 0;

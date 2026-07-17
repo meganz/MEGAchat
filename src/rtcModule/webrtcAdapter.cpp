@@ -22,10 +22,12 @@
 #include <rtc_base/ssl_adapter.h>
 #include <system_wrappers/include/field_trial.h>
 
+#include <mutex>
+
 #ifdef __ANDROID__
 #include <sdk/android/native_api/audio_device_module/audio_device_android.h>
-extern JavaVM *MEGAjvm;
-extern JNIEnv *jenv;
+extern JavaVM* MEGAjvm;
+extern JNIEnv* jenv;
 jclass applicationClass;
 jmethodID startVideoCaptureMID = nullptr;
 jmethodID stopVideoCaptureMID = nullptr;
@@ -51,6 +53,31 @@ VideoDecoderFactory::CodecSupport
 namespace artc
 {
 
+namespace
+{
+const std::string& webRtcFieldTrials()
+{
+    static const std::string trials = webrtc::field_trial::MergeFieldTrialsStrings(
+        "WebRTC-Video-DisableAutomaticResize/Enabled/",
+        webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/",
+                                                     "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/")
+            .c_str());
+    return trials;
+}
+
+// WebRTC requires InitFieldTrialsFromString() to be called at most once per process, before any
+// other WebRTC call. The passed string must never be destroyed.
+void initWebRtcFieldTrialsOnce()
+{
+    static std::once_flag once;
+    std::call_once(once,
+                   []
+                   {
+                       webrtc::field_trial::InitFieldTrialsFromString(webRtcFieldTrials().c_str());
+                   });
+}
+}
+
 WebRtcContext::WebRtcContext(void* appCtx):
     mAppCtx(appCtx)
 {
@@ -68,14 +95,7 @@ void WebRtcContext::initialize()
 {
     RTCM_LOG_DEBUG("WebRtcContext: Initializing WebRTC resources");
 
-    // Enable SVC encoding with the following configuration (3 spatial Layers | 3 temporal Layers)
-    mFieldTrialStr =
-        webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-GenericDescriptorAuth/Disabled/",
-                                                     "WebRTC-SupportVP9SVC/EnabledByFlag_3SL3TL/");
-    mFieldTrialStr =
-        webrtc::field_trial::MergeFieldTrialsStrings("WebRTC-Video-DisableAutomaticResize/Enabled/",
-                                                     mFieldTrialStr.c_str());
-    webrtc::field_trial::InitFieldTrialsFromString(mFieldTrialStr.c_str());
+    initWebRtcFieldTrialsOnce();
 
     // Create and start threads
     mWorkerThread = rtc::Thread::Create();
