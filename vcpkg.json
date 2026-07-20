@@ -19,7 +19,8 @@
                     "default-features": false,
                     "features": [
                         "zstd",
-                        "ssl"
+                        "ssl",
+			"websockets"
                     ],
                     "platform": "ios"
                 },
@@ -28,7 +29,8 @@
                     "default-features": false,
                     "features": [
                         "zstd",
-                        "boringssl"
+                        "boringssl",
+			"websockets"
                     ],
                     "platform": "!ios"
                 }
@@ -40,7 +42,7 @@
                 "libwebsockets",
                 {
                     "name": "curl",
-                    "features": [ "zstd" ]
+		    "features": [ "websockets", "zstd" ]
                 }
             ]
         },
