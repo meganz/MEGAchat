@@ -1745,6 +1745,14 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGIN:
     {
+        // The App side calls init and sdk login in parallel, The SDK request listener is registered
+        // at the end of init(), so a fast login already in flight by then delivers onRequestFinish
+        // without a matching onRequestStart.
+        if (!mInitStats.hasStageStarted(InitStats::kStatsLogin))
+        {
+            mInitStats.stageStart(InitStats::kStatsLogin);
+        }
+
         mInitStats.stageEnd(InitStats::kStatsLogin);
         break;
     }
@@ -5966,6 +5974,11 @@ void InitStats::stageStart(uint8_t stage)
     }
 
     mStageStats[stage] = currentTime();
+}
+
+bool InitStats::hasStageStarted(uint8_t stage) const
+{
+    return mStageStats.find(stage) != mStageStats.end();
 }
 
 void InitStats::stageEnd(uint8_t stage)
