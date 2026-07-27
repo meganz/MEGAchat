@@ -836,22 +836,65 @@ protected:
      * @param callerIdx index of user account that started the call
      * @param receiverIdx index of user account that is going to answer the call
      * @param chatId MegaChatHandle that identifies the chat room
-     * @param enableVideo if true call will be answered with video flags enabled (if permissions allow it)
-     * @param enableAudio if true call will be answered with audio flags enabled (if permissions allow it)
+     * @param enableVideo if true call will be answered with video flags enabled (if permissions
+     * allow it)
+     * @param enableAudio if true call will be answered with audio flags enabled (if permissions
+     * allow it)
      */
-    void answerCallAndCheckInProgress(const unsigned int callerIdx, const unsigned int receiverIdx, const megachat::MegaChatHandle chatId, const bool enableVideo, const bool enableAudio);
+    void answerCallAndCheckInProgress(const unsigned int callerIdx,
+                                      const unsigned int receiverIdx,
+                                      const megachat::MegaChatHandle chatId,
+                                      const bool enableVideo,
+                                      const bool enableAudio);
 
     /**
-     * @brief starts a chat call and checks that have been received by a set of participants provided
+     * @brief starts a chat call and checks that have been received by a set of participants
+     * provided
      *
      * @param performerIdx index of user account that is going to start the call
      * @param recvsIdxs set of indexes of users accounts that must receive the call
      * @param chatId MegaChatHandle that identifies the chat room
-     * @param enableVideo if true call will be started with video flags enabled (if permissions allow it)
-     * @param enableAudio if true call will be started with audio flags enabled (if permissions allow it)
-     * @param notRinging if true call won't ring (Note that Waiting room is bypased if notRinging is false and feature is enabled in chatroom)
+     * @param enableVideo if true call will be started with video flags enabled (if permissions
+     * allow it)
+     * @param enableAudio if true call will be started with audio flags enabled (if permissions
+     * allow it)
+     * @param notRinging if true call won't ring (Note that Waiting room is bypased if notRinging is
+     * false and feature is enabled in chatroom)
      */
-    void startCallAndCheckReceived(const unsigned int performerIdx, const std::set<unsigned int> recvsIdxs, const megachat::MegaChatHandle chatId, const bool enableVideo, const bool enableAudio, const bool notRinging);
+    void startCallAndCheckReceived(const unsigned int performerIdx,
+                                   const std::set<unsigned int> recvsIdxs,
+                                   const megachat::MegaChatHandle chatId,
+                                   const bool enableVideo,
+                                   const bool enableAudio,
+                                   const bool notRinging);
+
+    /**
+     * @brief Starts a call in a chatroom, waiting until the server releases the chatroom.
+     *
+     * After a call ends, chatd/SFU notify the client (DELCALLREASON) and the client-side call is
+     * destroyed, but the API bookkeeping for the chatroom can lag behind for a short while. During
+     * that window a new start-call request returns MegaChatError::ERROR_EXIST even though there is
+     * no call anymore from the client point of view. This is a real race observed on CI under load
+     * (e.g. running with several instances in parallel).
+     *
+     * This method starts the call and, while it returns ERROR_EXIST, retries until the server
+     * releases the chatroom or timeout is reached, and returns the final request result.
+     *
+     * @param callerIdx index of user account that is going to start the call
+     * @param chatid MegaChatHandle that identifies the chat room
+     * @param enableVideo if true call is started with video enabled (if permissions allow it)
+     * @param enableAudio if true call is started with audio enabled (if permissions allow it)
+     * @param notRinging if true call won't ring for the rest of participants
+     * @param timeout max seconds to wait for the server to release the chatroom.
+     *        If 0 (or omitted), defaults to 5 seconds.
+     * @return the final start-call request result code
+     */
+    int startCallWaitingServerReleasesChat(const unsigned int callerIdx,
+                                           const ::megachat::MegaChatHandle chatid,
+                                           const bool enableVideo,
+                                           const bool enableAudio,
+                                           const bool notRinging,
+                                           const unsigned int timeout = 5);
 
     /**
      * @brief starts a call in a chatroom
@@ -859,12 +902,19 @@ protected:
      * @param callerIdx index of user account that is going to start the call
      * @param eF exit flags that determine when action is considered as finished
      * @param chatid MegaChatHandle that identifies the chat room
-     * @param enableVideo if true call will be started with video flags enabled (if permissions allow it)
-     * @param enableAudio if true call will be started with audio flags enabled (if permissions allow it)
-     * @param notRinging if true call won't ring (Note that Waiting room is bypased if notRinging is false and feature is enabled in chatroom)
+     * @param enableVideo if true call will be started with video flags enabled (if permissions
+     * allow it)
+     * @param enableAudio if true call will be started with audio flags enabled (if permissions
+     * allow it)
+     * @param notRinging if true call won't ring (Note that Waiting room is bypased if notRinging is
+     * false and feature is enabled in chatroom)
      */
-    void startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const ::megachat::MegaChatHandle chatid,
-                         const bool enableVideo, const bool enableAudio, const bool notRinging);
+    void startCallInChat(const unsigned int callerIdx,
+                         ExitBoolFlags& eF,
+                         const ::megachat::MegaChatHandle chatid,
+                         const bool enableVideo,
+                         const bool enableAudio,
+                         const bool notRinging);
 
     /**
      * @brief rejects a call

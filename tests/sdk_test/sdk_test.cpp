@@ -5320,19 +5320,26 @@ TEST_F(MegaChatApiTest, Calls)
     // Remote video listener aren't necessary because call is never ging to be answered at tests
 
     LOG_debug << "#### Test1: A calls B ####";
-    bool *callInProgress = &mCallInProgress[a1]; *callInProgress = false;
-    bool *callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
+    bool* callInProgress = &mCallInProgress[a1];
+    *callInProgress = false;
+    bool* callReceivedRinging = &mCallReceivedRinging[a2];
+    *callReceivedRinging = false;
     mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
-    bool *callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
-    bool *callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
-    int *termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
-    int *termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
+    bool* callDestroyed0 = &mCallDestroyed[a1];
+    *callDestroyed0 = false;
+    bool* callDestroyed1 = &mCallDestroyed[a2];
+    *callDestroyed1 = false;
+    int* termCode0 = &mTerminationCode[a1];
+    *termCode0 = 0;
+    int* termCode1 = &mTerminationCode[a2];
+    *termCode1 = 0;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
-    ChatRequestTracker crtCall(megaChatApi[a1]);
-    megaChatApi[a1]->startChatCall(chatid, false, false, &crtCall);
-    ASSERT_EQ(crtCall.waitForResult(), MegaChatError::ERROR_OK) << "Failed to start chat call: " << crtCall.getErrorString();
+    const int startCallRes =
+        startCallWaitingServerReleasesChat(a1, chatid, false, false, false /*notRinging*/);
+    ASSERT_EQ(startCallRes, MegaChatError::ERROR_OK)
+        << "Failed to start chat call. Error code: " << startCallRes;
     ASSERT_TRUE(waitForResponse(callInProgress)) << "Timeout expired for receiving a call";
     unique_ptr<MegaChatCall> auxCall(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall)
@@ -5357,19 +5364,27 @@ TEST_F(MegaChatApiTest, Calls)
     ASSERT_TRUE(waitForResponse(callDestroyed1)) << "The call has to be finished account 2";
 
     LOG_debug << "#### Test3: A calls B ####";
-    callInProgress = &mCallInProgress[a1]; *callInProgress = false;
-    callReceivedRinging = &mCallReceivedRinging[a2]; *callReceivedRinging = false;
+    callInProgress = &mCallInProgress[a1];
+    *callInProgress = false;
+    callReceivedRinging = &mCallReceivedRinging[a2];
+    *callReceivedRinging = false;
     mCallIdExpectedReceived[a2] = MEGACHAT_INVALID_HANDLE;
     mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
-    callDestroyed0 = &mCallDestroyed[a1]; *callDestroyed0 = false;
-    callDestroyed1 = &mCallDestroyed[a2]; *callDestroyed1 = false;
-    termCode0 = &mTerminationCode[a1]; *termCode0 = 0;
-    termCode1 = &mTerminationCode[a2]; *termCode1 = 0;
+    callDestroyed0 = &mCallDestroyed[a1];
+    *callDestroyed0 = false;
+    callDestroyed1 = &mCallDestroyed[a2];
+    *callDestroyed1 = false;
+    termCode0 = &mTerminationCode[a1];
+    *termCode0 = 0;
+    termCode1 = &mTerminationCode[a2];
+    *termCode1 = 0;
     mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
-    ChatRequestTracker crtCall2(megaChatApi[a1]);
-    megaChatApi[a1]->startChatCall(chatid, false, false, &crtCall2);
-    ASSERT_EQ(crtCall2.waitForResult(), MegaChatError::ERROR_OK) << "Failed to start chat call (2): " << crtCall2.getErrorString();
+    const int startCallRes2 =
+        startCallWaitingServerReleasesChat(a1, chatid, false, false, false /*notRinging*/);
+    ASSERT_EQ(startCallRes2, MegaChatError::ERROR_OK)
+        << "Failed to start chat call (2) (server did not release chatroom). Error code: "
+        << startCallRes2;
     ASSERT_TRUE(waitForResponse(callInProgress)) << "Timeout expired for receiving a call";
     auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall)
@@ -5408,9 +5423,11 @@ TEST_F(MegaChatApiTest, Calls)
     mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
 
     LOG_debug << "#### Test6: A calls B ####";
-    ChatRequestTracker crtCall3(megaChatApi[a1]);
-    megaChatApi[a1]->startChatCall(chatid, false, false, &crtCall3);
-    ASSERT_EQ(crtCall3.waitForResult(), MegaChatError::ERROR_OK) << "Failed to start chat call (3): " << crtCall3.getErrorString();
+    const int startCallRes3 =
+        startCallWaitingServerReleasesChat(a1, chatid, false, false, false /*notRinging*/);
+    ASSERT_EQ(startCallRes3, MegaChatError::ERROR_OK)
+        << "Failed to start chat call (3) (server did not release chatroom). Error code: "
+        << startCallRes3;
     ASSERT_TRUE(waitForResponse(callInProgress)) << "Timeout expired for receiving a call";
     auxCall.reset(megaChatApi[a1]->getChatCall(mChatIdInProgressCall[a1]));
     if (auxCall)
@@ -7376,61 +7393,70 @@ TEST_F(MegaChatApiTest, WaitingRooms)
     auto kickFromCall = [this, a1, a2, chatid, uh]()
     {
         ASSERT_NO_FATAL_FAILURE(
-            waitForAction (1,
-                          std::vector<bool *> {&mCallLeft[a2]},
-                          std::vector<string> {"&mCallDestroyed[a2]"},
+            waitForAction(1,
+                          std::vector<bool*>{&mCallLeft[a2]},
+                          std::vector<string>{"&mCallDestroyed[a2]"},
                           "grants B Join permission to call from A",
                           true /* wait for all exit flags*/,
                           true /* reset flags*/,
                           maxTimeout,
-                          [this, a1, chatid, uh](){
+                          [this, a1, chatid, uh]()
+                          {
                               ChatRequestTracker crtKickWr(megaChatApi[a1]);
-                              std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
+                              std::unique_ptr<::mega::MegaHandleList> hl(
+                                  ::mega::MegaHandleList::createInstance());
                               hl->addMegaHandle(uh);
                               megaChatApi[a1]->kickUsersFromCall(chatid, hl.get(), &crtKickWr);
                               ASSERT_EQ(crtKickWr.waitForResult(), MegaChatError::ERROR_OK)
-                                  << "Failed to kick users from call. Error: " << crtKickWr.getErrorString();
-                          });
-        );
-        ASSERT_TRUE(mTerminationCode[a2] == MegaChatCall::TERM_CODE_KICKED) << "Unexpected termcode" << MegaChatCall::termcodeToString(mTerminationCode[a2]);
+                                  << "Failed to kick users from call. Error: "
+                                  << crtKickWr.getErrorString();
+                          }););
+        ASSERT_TRUE(mTerminationCode[a2] == MegaChatCall::TERM_CODE_KICKED)
+            << "Unexpected termcode" << MegaChatCall::termcodeToString(mTerminationCode[a2]);
     };
 
-    auto startWaitingRoomCallPrimaryAccount = [this, &a1, &a2, &chatid](const MegaChatHandle schedIdWr, const bool notRinging){
-
+    auto startWaitingRoomCallPrimaryAccount =
+        [this, &a1, &a2, &chatid](const MegaChatHandle schedIdWr, const bool notRinging)
+    {
         mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
         mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
         mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
         mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
-        ASSERT_TRUE(schedIdWr == MEGACHAT_INVALID_HANDLE || !notRinging) << "Schedid and notRinging cannot be set in conjunction";
+        ASSERT_TRUE(schedIdWr == MEGACHAT_INVALID_HANDLE || !notRinging)
+            << "Schedid and notRinging cannot be set in conjunction";
 
         bool* receivedSecondary = nullptr;
-        receivedSecondary = schedIdWr != MEGACHAT_INVALID_HANDLE || notRinging
-                                ? &mCallReceived[a2]
-                                : &mCallReceivedRinging[a2];
+        receivedSecondary = schedIdWr != MEGACHAT_INVALID_HANDLE || notRinging ?
+                                &mCallReceived[a2] :
+                                &mCallReceivedRinging[a2];
 
         ASSERT_NO_FATAL_FAILURE(
-            waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
-                          std::vector<bool *> {&mCallInProgress[a1], receivedSecondary},
-                          std::vector<string> {"mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
-                          "starting chat call from A",
-                          true /* wait for all exit flags*/,
-                          true /*reset flags*/,
-                          maxTimeout,
-                          [this, &a1, &chatid, &schedIdWr, &notRinging]()
-                          {
-                              ChatRequestTracker crtStartCall(megaChatApi[a1]);
-                              schedIdWr != MEGACHAT_INVALID_HANDLE
-                                  ? megaChatApi[a1]->startMeetingInWaitingRoomChat(chatid, schedIdWr, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall) // legacy
-                                  : megaChatApi[a1]->startCallInChat(chatid, /*enableVideo*/ false, /*enableAudio*/ false, notRinging, &crtStartCall);
-
-                              ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
-                                  << "Failed to start call. Error: " << crtStartCall.getErrorString();
-                          });
-        );
+            waitForAction(
+                1, // just one attempt as mCallReceivedRinging for B account could fail but call
+                   // could have been created from A account
+                std::vector<bool*>{&mCallInProgress[a1], receivedSecondary},
+                std::vector<string>{"mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
+                "starting chat call from A",
+                true /* wait for all exit flags*/,
+                true /*reset flags*/,
+                maxTimeout,
+                [this, &a1, &chatid, &schedIdWr, &notRinging]()
+                {
+                    const bool nr = schedIdWr != MEGACHAT_INVALID_HANDLE ? true : notRinging;
+                    const int res = startCallWaitingServerReleasesChat(a1,
+                                                                       chatid,
+                                                                       /*enableVideo*/ false,
+                                                                       /*enableAudio*/ false,
+                                                                       nr);
+                    ASSERT_EQ(res, MegaChatError::ERROR_OK)
+                        << "Failed to start call (server did not release chatroom). Error code: "
+                        << res;
+                }););
     };
 
-    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool redirectToWaitingRoom){
-
+    const auto answerCallSecondaryAccount =
+        [this, &a1, &a2, &chatid](const bool redirectToWaitingRoom)
+    {
         bool* waitingPrimary = nullptr;
         bool* waitingSecondary = nullptr;
 
@@ -7972,55 +7998,66 @@ TEST_F(MegaChatApiTest, DISABLED_WaitingRoomsTimeout)
     auto pushIntoWr = [this, &a1, &a2, &chatid, &uh]()
     {
         ASSERT_NO_FATAL_FAILURE(
-            waitForAction (1,
-                          { &mCallWrChanged[a1], &mCallWR[a2] },
-                          { "&mCallWrChanged[a1]", "&mCallWR[a2]" },
+            waitForAction(1,
+                          {&mCallWrChanged[a1], &mCallWR[a2]},
+                          {"&mCallWrChanged[a1]", "&mCallWR[a2]"},
                           "grants B Join permission to call from A",
                           true /* wait for all exit flags*/,
                           true /* reset flags*/,
                           maxTimeout,
-                          [this, &a1, &chatid, &uh](){
+                          [this, &a1, &chatid, &uh]()
+                          {
                               ChatRequestTracker crtPushWr(megaChatApi[a1]);
-                              std::unique_ptr <::mega::MegaHandleList> hl(::mega::MegaHandleList::createInstance());
+                              std::unique_ptr<::mega::MegaHandleList> hl(
+                                  ::mega::MegaHandleList::createInstance());
                               hl->addMegaHandle(uh);
-                              megaChatApi[a1]->pushUsersIntoWaitingRoom(chatid, hl.get(), false /*all*/, &crtPushWr);
+                              megaChatApi[a1]->pushUsersIntoWaitingRoom(chatid,
+                                                                        hl.get(),
+                                                                        false /*all*/,
+                                                                        &crtPushWr);
                               ASSERT_EQ(crtPushWr.waitForResult(), MegaChatError::ERROR_OK)
-                                  << "Failed to push users into WR. Error: " << crtPushWr.getErrorString();
-                          });
-        );
+                                  << "Failed to push users into WR. Error: "
+                                  << crtPushWr.getErrorString();
+                          }););
     };
 
-    auto startWaitingRoomCallPrimaryAccount = [this, &a1, &a2, &chatid](const MegaChatHandle schedIdWr = MEGACHAT_INVALID_HANDLE){
-
+    auto startWaitingRoomCallPrimaryAccount =
+        [this, &a1, &a2, &chatid](const MegaChatHandle schedIdWr = MEGACHAT_INVALID_HANDLE)
+    {
         mCallIdJoining[a1] = MEGACHAT_INVALID_HANDLE;
         mChatIdInProgressCall[a1] = MEGACHAT_INVALID_HANDLE;
         mCallIdRingIn[a2] = MEGACHAT_INVALID_HANDLE;
         mChatIdRingInCall[a2] = MEGACHAT_INVALID_HANDLE;
 
-        bool* receivedSecondary = schedIdWr != MEGACHAT_INVALID_HANDLE
-                                      ? &mCallReceived[a2]
-                                      : &mCallReceivedRinging[a2];
+        bool* receivedSecondary =
+            schedIdWr != MEGACHAT_INVALID_HANDLE ? &mCallReceived[a2] : &mCallReceivedRinging[a2];
 
         ASSERT_NO_FATAL_FAILURE(
-            waitForAction (1, // just one attempt as mCallReceivedRinging for B account could fail but call could have been created from A account
-                          { &mCallInProgress[a1], receivedSecondary },
-                          { "mCallInProgress[a1]", "mCallReceivedRinging[a2]" },
-                          "starting chat call from A",
-                          true /* wait for all exit flags*/,
-                          true /*reset flags*/,
-                          maxTimeout,
-                          [this, &a1, &chatid, &schedIdWr]()
-                          {
-                              ChatRequestTracker crtStartCall(megaChatApi[a1]);
-                              megaChatApi[a1]->startMeetingInWaitingRoomChat(chatid, schedIdWr, /*enableVideo*/ false, /*enableAudio*/ false, &crtStartCall);
-                              ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
-                                  << "Failed to start call. Error: " << crtStartCall.getErrorString();
-                          });
-        );
+            waitForAction(
+                1, // just one attempt as mCallReceivedRinging for B account could fail but call
+                   // could have been created from A account
+                {&mCallInProgress[a1], receivedSecondary},
+                {"mCallInProgress[a1]", "mCallReceivedRinging[a2]"},
+                "starting chat call from A",
+                true /* wait for all exit flags*/,
+                true /*reset flags*/,
+                maxTimeout,
+                [this, &a1, &chatid, &schedIdWr]()
+                {
+                    const int res =
+                        startCallWaitingServerReleasesChat(a1,
+                                                           chatid,
+                                                           /*enableVideo*/ false,
+                                                           /*enableAudio*/ false,
+                                                           schedIdWr != MEGACHAT_INVALID_HANDLE);
+                    ASSERT_EQ(res, MegaChatError::ERROR_OK)
+                        << "Failed to start call (server did not release chatroom). Error code: "
+                        << res;
+                }););
     };
 
-    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool waitingRoom){
-
+    const auto answerCallSecondaryAccount = [this, &a1, &a2, &chatid](const bool waitingRoom)
+    {
         bool* waitingPrimary = nullptr;
         bool* waitingSecondary = nullptr;
 
@@ -9538,35 +9575,80 @@ void MegaChatApiTest::startCallAndCheckReceived (const unsigned int performerIdx
                               chatId)); // check received callid for caller(performerIdx)
 }
 
-void MegaChatApiTest::startCallInChat(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId,
-                                      const bool enableVideo, const bool enableAudio, const bool notRinging)
+int MegaChatApiTest::startCallWaitingServerReleasesChat(const unsigned int callerIdx,
+                                                        const MegaChatHandle chatid,
+                                                        const bool enableVideo,
+                                                        const bool enableAudio,
+                                                        const bool notRinging,
+                                                        const unsigned int timeout)
 {
-    ASSERT_NO_FATAL_FAILURE(
-        waitForAction (1,  /* just one attempt */
-                      eF,
-                      "starting chat call",
-                      true /* wait for all exit flags */,
-                      true /* reset flags */,
-                      maxTimeout,
-                      [this, &chatId, &notRinging, &enableVideo, &enableAudio, &callerIdx]()
-                      {
-                          ChatRequestTracker crtStartCall(megaChatApi[callerIdx]);
-                          megaChatApi[callerIdx]->startCallInChat(chatId, enableVideo, enableAudio, notRinging, &crtStartCall);
-                          ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to start call. Error: " << crtStartCall.getErrorString();
-                      });
-    );
+    const unsigned int effectiveTimeout = timeout > 0 ? timeout : 5;
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(effectiveTimeout);
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        ChatRequestTracker crtStartCall(megaChatApi[callerIdx]);
+        megaChatApi[callerIdx]->startCallInChat(chatid,
+                                                enableVideo,
+                                                enableAudio,
+                                                notRinging,
+                                                &crtStartCall);
+        int res = crtStartCall.waitForResult();
+        if (res == MegaChatError::ERROR_OK)
+        {
+            return res;
+        }
+        if (res != MegaChatError::ERROR_EXIST)
+        {
+            LOG_err << "startCall failed: " << crtStartCall.getErrorString();
+            return res;
+        }
+
+        LOG_debug << "startCall: chatroom not released by server yet (ERROR_EXIST), retrying";
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+    }
+    return MegaChatError::ERROR_EXIST;
 }
 
-void MegaChatApiTest::rejectCall(const unsigned int performerIdx, ExitBoolFlags& eF, const MegaChatHandle chatId)
+void MegaChatApiTest::startCallInChat(const unsigned int callerIdx,
+                                      ExitBoolFlags& eF,
+                                      const MegaChatHandle chatId,
+                                      const bool enableVideo,
+                                      const bool enableAudio,
+                                      const bool notRinging)
+{
+    ASSERT_NO_FATAL_FAILURE(
+        waitForAction(
+            1, /* just one attempt */
+            eF,
+            "starting chat call",
+            true /* wait for all exit flags */,
+            true /* reset flags */,
+            maxTimeout,
+            [this, &chatId, &notRinging, &enableVideo, &enableAudio, &callerIdx]()
+            {
+                const int res = startCallWaitingServerReleasesChat(callerIdx,
+                                                                   chatId,
+                                                                   enableVideo,
+                                                                   enableAudio,
+                                                                   notRinging);
+                ASSERT_EQ(res, MegaChatError::ERROR_OK)
+                    << "Failed to start call (server did not release chatroom). Error code: "
+                    << res;
+            }););
+}
+
+void MegaChatApiTest::rejectCall(const unsigned int performerIdx,
+                                 ExitBoolFlags& eF,
+                                 const MegaChatHandle chatId)
 {
     std::unique_ptr<MegaChatCall> call(megaChatApi[performerIdx]->getChatCall(chatId));
-    ASSERT_TRUE(call) << "Can't get call for " << std::to_string(performerIdx) <<". CallId: " << getChatIdStrB64(mData.mChatid);
+    ASSERT_TRUE(call) << "Can't get call for " << std::to_string(performerIdx)
+                      << ". CallId: " << getChatIdStrB64(mData.mChatid);
 
     MegaChatHandle callId = call->getCallId();
 
     ASSERT_NO_FATAL_FAILURE(
-        waitForAction (1,  /* just one attempt */
+        waitForAction(1, /* just one attempt */
                       eF,
                       "rejecting chat call",
                       true /* wait for all exit flags */,
@@ -9578,35 +9660,46 @@ void MegaChatApiTest::rejectCall(const unsigned int performerIdx, ExitBoolFlags&
                           megaChatApi[performerIdx]->rejectCall(callId, &crtRejectCall);
                           ASSERT_EQ(crtRejectCall.waitForResult(), MegaChatError::ERROR_OK)
                               << "Failed to reject call. Error: " << crtRejectCall.getErrorString();
-                      });
-    );
+                      }););
 }
 
-void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid, const MegaChatHandle schedIdWr,
-                                           const bool enableVideo, const bool enableAudio)
+void MegaChatApiTest::startWaitingRoomCall(const unsigned int callerIdx,
+                                           ExitBoolFlags& eF,
+                                           const MegaChatHandle chatid,
+                                           const MegaChatHandle schedIdWr,
+                                           const bool enableVideo,
+                                           const bool enableAudio)
 {
     ASSERT_NO_FATAL_FAILURE(
-        waitForAction (1,  /* just one attempt */
-                      eF,
-                      "starting call in a chatroom with waiting room option enabled",
-                      true /* wait for all exit flags */,
-                      true /* reset flags */,
-                      maxTimeout,
-                      [this, &chatid, &schedIdWr, &enableVideo, &enableAudio, &callerIdx]()
-                      {
-                          ChatRequestTracker crtStartCall(megaChatApi[callerIdx]);
-                          megaChatApi[callerIdx]->startMeetingInWaitingRoomChat(chatid, schedIdWr, enableVideo, enableAudio, &crtStartCall);
-                          ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to start call. Error: " << crtStartCall.getErrorString();
-                      });
-    );
+        waitForAction(
+            1, /* just one attempt */
+            eF,
+            "starting call in a chatroom with waiting room option enabled",
+            true /* wait for all exit flags */,
+            true /* reset flags */,
+            maxTimeout,
+            [this, &chatid, &schedIdWr, &enableVideo, &enableAudio, &callerIdx]()
+            {
+                const int res =
+                    startCallWaitingServerReleasesChat(callerIdx,
+                                                       chatid,
+                                                       enableVideo,
+                                                       enableAudio,
+                                                       schedIdWr != MEGACHAT_INVALID_HANDLE);
+                ASSERT_EQ(res, MegaChatError::ERROR_OK)
+                    << "Failed to start call (server did not release chatroom). Error code: "
+                    << res;
+            }););
 }
 
-void MegaChatApiTest::answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, const MegaChatHandle chatid,
-                                           const bool enableVideo, const bool enableAudio)
+void MegaChatApiTest::answerChatCall(unsigned int calleeIdx,
+                                     ExitBoolFlags& eF,
+                                     const MegaChatHandle chatid,
+                                     const bool enableVideo,
+                                     const bool enableAudio)
 {
     ASSERT_NO_FATAL_FAILURE(
-        waitForAction (1, /* just one attempt */
+        waitForAction(1, /* just one attempt */
                       eF,
                       "answering chat call",
                       true /* wait for all exit flags*/,
@@ -9615,11 +9708,13 @@ void MegaChatApiTest::answerChatCall(unsigned int calleeIdx, ExitBoolFlags& eF, 
                       [this, &calleeIdx, &chatid, &enableVideo, &enableAudio]()
                       {
                           ChatRequestTracker crtAnswerCall(megaChatApi[calleeIdx]);
-                          megaChatApi[calleeIdx]->answerChatCall(chatid, enableVideo, enableAudio, &crtAnswerCall);
+                          megaChatApi[calleeIdx]->answerChatCall(chatid,
+                                                                 enableVideo,
+                                                                 enableAudio,
+                                                                 &crtAnswerCall);
                           ASSERT_EQ(crtAnswerCall.waitForResult(), MegaChatError::ERROR_OK)
                               << "Failed to answer call. Error: " << crtAnswerCall.getErrorString();
-                      });
-    );
+                      }););
 }
 #endif
 
@@ -10673,39 +10768,54 @@ void MegaChatApiTest::checkCallIdInProgress(const unsigned idx)
 
     MegaChatHandle* callId = handleVars().getVar(idx, "CallIdInProgress");
     ASSERT_TRUE(callId) << "Can't get CallInProgress var for account: " << std::to_string(idx);
-    ASSERT_NE(*callId, MEGACHAT_INVALID_HANDLE) << "Invalid callid received at onChatCallUpdate for account: " << std::to_string(idx);
-    ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE) << "Invalid callid in MegaChatCall for account: " << std::to_string(idx);
-    ASSERT_TRUE(*callId == call->getCallId()) << "Callids doesn't match "
-                                              << getChatIdStrB64(mData.mChatid)
-                                              << " " << getChatIdStrB64(*callId);
+    ASSERT_NE(*callId, MEGACHAT_INVALID_HANDLE)
+        << "Invalid callid received at onChatCallUpdate for account: " << std::to_string(idx);
+    ASSERT_NE(call->getCallId(), MEGACHAT_INVALID_HANDLE)
+        << "Invalid callid in MegaChatCall for account: " << std::to_string(idx);
+    ASSERT_TRUE(*callId == call->getCallId())
+        << "Callids doesn't match " << getChatIdStrB64(mData.mChatid) << " "
+        << getChatIdStrB64(*callId);
 };
 
-void MegaChatApiTest::startChatCall(const unsigned int callerIdx, ExitBoolFlags& eF, const MegaChatHandle chatid,
-                                    const bool enableVideo, const bool enableAudio, const bool notRinging, const unsigned int timeout)
+void MegaChatApiTest::startChatCall(const unsigned int callerIdx,
+                                    ExitBoolFlags& eF,
+                                    const MegaChatHandle chatid,
+                                    const bool enableVideo,
+                                    const bool enableAudio,
+                                    const bool notRinging,
+                                    const unsigned int timeout)
 {
     ASSERT_NO_FATAL_FAILURE(
-        waitForAction (1,  /* just one attempt */
-                      eF,
-                      "starting call in a chatroom with speak request option enabled",
-                      true /* wait for all exit flags */,
-                      true /* reset flags */,
-                      timeout,
-                      [this, &chatid, &enableVideo, &enableAudio, &callerIdx, &notRinging]()
-                      {
-                          ChatRequestTracker crtStartCall(megaChatApi[callerIdx]);
-                          megaChatApi[callerIdx]->startCallInChat(chatid, enableVideo, enableAudio, notRinging, &crtStartCall);
-                          ASSERT_EQ(crtStartCall.waitForResult(), MegaChatError::ERROR_OK)
-                              << "Failed to start call. Error: " << crtStartCall.getErrorString();
-                      });
-    );
+        waitForAction(
+            1, /* just one attempt */
+            eF,
+            "starting call in a chatroom with speak request option enabled",
+            true /* wait for all exit flags */,
+            true /* reset flags */,
+            timeout,
+            [this, &chatid, &enableVideo, &enableAudio, &callerIdx, &notRinging]()
+            {
+                const int res = startCallWaitingServerReleasesChat(callerIdx,
+                                                                   chatid,
+                                                                   enableVideo,
+                                                                   enableAudio,
+                                                                   notRinging);
+                ASSERT_EQ(res, MegaChatError::ERROR_OK)
+                    << "Failed to start call (server did not release chatroom). Error code: "
+                    << res;
+            }););
 }
 
-void MegaChatApiTest::startChatCall(const MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio)
+void MegaChatApiTest::startChatCall(const MegaChatHandle chatid,
+                                    const unsigned int performerIdx,
+                                    const std::set<unsigned int> participants,
+                                    const bool enableVideo,
+                                    const bool enableAudio)
 {
     std::string msg = "Account with index " + std::to_string(performerIdx) + " starts call";
-    std::vector<bool *> exitFlags   { &mCallInProgress[performerIdx] };
-    std::vector<string> exiFlagsStr { "mCallInProgress[" + std::to_string(performerIdx) + "]" };
-    for (auto idx : participants)
+    std::vector<bool*> exitFlags{&mCallInProgress[performerIdx]};
+    std::vector<string> exiFlagsStr{"mCallInProgress[" + std::to_string(performerIdx) + "]"};
+    for (auto idx: participants)
     {
         exitFlags.emplace_back(&mCallReceivedRinging[idx]);
         exiFlagsStr.emplace_back("mCallReceivedRinging[" + std::to_string(idx) + "]");
@@ -10713,7 +10823,7 @@ void MegaChatApiTest::startChatCall(const MegaChatHandle chatid, const unsigned 
 
     // Start chat call
     ASSERT_NO_FATAL_FAILURE(
-        waitForAction (1,
+        waitForAction(1,
                       exitFlags,
                       exiFlagsStr,
                       msg.c_str(),
@@ -10722,21 +10832,27 @@ void MegaChatApiTest::startChatCall(const MegaChatHandle chatid, const unsigned 
                       maxTimeout,
                       [this, &chatid, &performerIdx, &enableVideo, &enableAudio]()
                       {
-                          ChatRequestTracker crtCall(megaChatApi[performerIdx]);
-                          megaChatApi[performerIdx]->startChatCall(chatid, enableVideo, enableAudio, &crtCall);
-                          ASSERT_EQ(crtCall.waitForResult(), MegaChatError::ERROR_OK)
+                          const int res = startCallWaitingServerReleasesChat(performerIdx,
+                                                                             chatid,
+                                                                             enableVideo,
+                                                                             enableAudio,
+                                                                             false /*notRinging*/);
+                          ASSERT_EQ(res, MegaChatError::ERROR_OK)
                               << "Failed to start call from account: " << performerIdx
-                              << ". Error: " << crtCall.getErrorString();
-                      });
-    );
+                              << " (server did not release chatroom). Error code: " << res;
+                      }););
 }
 
-void MegaChatApiTest::answerChatCall(const MegaChatHandle chatid, const unsigned int performerIdx, const std::set<unsigned int> participants, const bool enableVideo, const bool enableAudio)
+void MegaChatApiTest::answerChatCall(const MegaChatHandle chatid,
+                                     const unsigned int performerIdx,
+                                     const std::set<unsigned int> participants,
+                                     const bool enableVideo,
+                                     const bool enableAudio)
 {
     std::string msg = "Account with index " + std::to_string(performerIdx) + " answers call";
-    std::vector<bool *> exiFlags;
+    std::vector<bool*> exiFlags;
     std::vector<string> exiFlagsStr;
-    for (auto idx : participants)
+    for (auto idx: participants)
     {
         exiFlags.emplace_back(&mChatCallSessionStatusInProgress[idx]);
         exiFlagsStr.emplace_back("mChatCallSessionStatusInProgress[" + std::to_string(idx) + "]");
