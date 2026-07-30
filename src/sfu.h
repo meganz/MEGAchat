@@ -169,9 +169,9 @@ public:
     struct Track
     {
         // TODO: document what is each variable
-        std::string mType;  // "a" for audio, "v" for video
-        uint64_t mMid;
-        std::string mDir;   // direction of track (sendrecv, recvonly, sendonly)
+        std::string mType; // "a" for audio, "v" for video
+        uint64_t mMid = 0;
+        std::string mDir; // direction of track (sendrecv, recvonly, sendonly)
         std::string mSid;
         std::string mId;
         std::vector<std::string> mSsrcg;
@@ -203,13 +203,13 @@ private:
 
     // returns the position of the next line starting with "m"
     unsigned int nextMline(const std::vector<std::string>& lines, unsigned int position);
-    std::string nextWord(const std::string& line, unsigned int start, unsigned int &charRead);
+    std::string nextWord(const std::string& line, unsigned int start, unsigned int& charRead);
 
-    // returns the Track represented by a JSON string
-    Track parseTrack(const rapidjson::Value &value) const;
+    // returns the Track represented by a JSON string, or nullopt if the entry is invalid
+    std::optional<Track> parseTrack(const rapidjson::Value& value) const;
 
     // convenience method to uncompress each track from JSON session-description (see unCompress() )
-    std::string unCompressTrack(const Track &track, const std::string& tpl);
+    std::string unCompressTrack(const Track& track, const std::string& tpl);
 
     // maps id ("cmn", "atpl", "vtpl") to the corresponding session description
     std::map<std::string, std::string> mData;

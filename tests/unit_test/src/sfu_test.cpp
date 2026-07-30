@@ -374,4 +374,96 @@ TEST(PeerJoinIvValidation, RejectsNonStringIvElement)
     EXPECT_TRUE(runPeerJoinWithIvs(ivs).empty());
 }
 
+TEST(SfuParseData, RejectsNonObjectTopLevelFrame)
+{
+    constexpr const char* invalidTopLevelFrames[] = {
+        "42",
+        "\"x\"",
+        "[]",
+        "true",
+    };
+
+    for (auto* frame: invalidTopLevelFrames)
+    {
+        rapidjson::Document document;
+        sfu::SfuConnection::SfuData outdata;
+        EXPECT_FALSE(sfu::SfuConnection::parseSfuData(frame, document, outdata))
+            << "[FAILED rejecting non-object SFU frame]: " << frame;
+        EXPECT_EQ(outdata.msg, "top-level not an object")
+            << "[FAILED rejecting non-object SFU frame]: " << frame;
+    }
+}
+
+TEST(SdpJsonTracks, ParsesSingleValidTrack)
+{
+    rapidjson::Document doc;
+    doc.Parse(R"({"tracks":[{"t":"v","mid":3,"dir":"sendrecv"}]})");
+    ASSERT_FALSE(doc.HasParseError());
+    sfu::Sdp sdp(doc);
+    ASSERT_EQ(sdp.tracks().size(), 1u);
+    EXPECT_EQ(sdp.tracks()[0].mType, "v");
+    EXPECT_EQ(sdp.tracks()[0].mMid, 3u);
+    EXPECT_EQ(sdp.tracks()[0].mDir, "sendrecv");
+}
+
+TEST(SdpJsonTracks, DefaultsMidWhenMissing)
+{
+    rapidjson::Document doc;
+    doc.Parse(R"({"tracks":[{"t":"v","dir":"sendrecv"}]})");
+    ASSERT_FALSE(doc.HasParseError());
+    sfu::Sdp sdp(doc);
+    ASSERT_EQ(sdp.tracks().size(), 1u);
+    EXPECT_EQ(sdp.tracks()[0].mType, "v");
+    EXPECT_EQ(sdp.tracks()[0].mMid, 0u);
+    EXPECT_EQ(sdp.tracks()[0].mDir, "sendrecv");
+}
+
+TEST(SdpJsonTracks, SkipsTrailingNonObjectTrackElement)
+{
+    rapidjson::Document doc;
+    doc.Parse(R"({"tracks":[{"t":"v","mid":3,"dir":"sendrecv"},42]})");
+    ASSERT_FALSE(doc.HasParseError());
+    sfu::Sdp sdp(doc);
+    ASSERT_EQ(sdp.tracks().size(), 1u);
+    EXPECT_EQ(sdp.tracks()[0].mType, "v");
+    EXPECT_EQ(sdp.tracks()[0].mMid, 3u);
+    EXPECT_EQ(sdp.tracks()[0].mDir, "sendrecv");
+}
+
+TEST(SdpJsonTracks, ParsesMultipleValidTracks)
+{
+    rapidjson::Document doc;
+    doc.Parse(
+        R"({"tracks":[{"t":"a","mid":1,"dir":"sendrecv"},{"t":"v","mid":2,"dir":"sendonly"}]})");
+    ASSERT_FALSE(doc.HasParseError());
+    sfu::Sdp sdp(doc);
+    ASSERT_EQ(sdp.tracks().size(), 2u);
+    EXPECT_EQ(sdp.tracks()[0].mType, "a");
+    EXPECT_EQ(sdp.tracks()[1].mType, "v");
+}
+
+TEST(SdpJsonTracks, SkipsOnlyNonObjectTrackElements)
+{
+    rapidjson::Document doc;
+    doc.Parse(R"({"tracks":[42,"x",[]]})");
+    ASSERT_FALSE(doc.HasParseError());
+    sfu::Sdp sdp(doc);
+    EXPECT_TRUE(sdp.tracks().empty());
+}
+
+TEST(SdpJsonTracks, SkipsNonObjectTrackBetweenValidTracks)
+{
+    rapidjson::Document doc;
+    doc.Parse(
+        R"({"tracks":[{"t":"a","mid":1,"dir":"sendrecv"},"x",{"t":"v","mid":2,"dir":"recvonly"}]})");
+    ASSERT_FALSE(doc.HasParseError());
+    sfu::Sdp sdp(doc);
+    ASSERT_EQ(sdp.tracks().size(), 2u);
+    EXPECT_EQ(sdp.tracks()[0].mType, "a");
+    EXPECT_EQ(sdp.tracks()[0].mMid, 1u);
+    EXPECT_EQ(sdp.tracks()[1].mType, "v");
+    EXPECT_EQ(sdp.tracks()[1].mMid, 2u);
+    EXPECT_EQ(sdp.tracks()[1].mDir, "recvonly");
+}
+
 #endif // KARERE_DISABLE_WEBRTC

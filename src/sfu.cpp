@@ -1109,7 +1109,10 @@ Sdp::Sdp(const rapidjson::Value &sdp)
     {
         for (rapidjson::SizeType i = 0; i < tracksIterator->value.Size(); i++)
         {
-            mTracks.push_back(parseTrack(tracksIterator->value[i]));
+            if (auto track = parseTrack(tracksIterator->value[i]))
+            {
+                mTracks.push_back(std::move(*track));
+            }
         }
     }
 }
@@ -1323,11 +1326,16 @@ std::string Sdp::nextWord(const std::string& line, unsigned int start, unsigned 
 
     charRead = i;
     return line.substr(start, i - start);
-
 }
 
-Sdp::Track Sdp::parseTrack(const rapidjson::Value &value) const
+std::optional<Sdp::Track> Sdp::parseTrack(const rapidjson::Value& value) const
 {
+    if (!value.IsObject())
+    {
+        SFU_LOG_ERROR_NO_STATS("parseTrack: track entry is not an object");
+        return std::nullopt;
+    }
+
     Sdp::Track track;
 
     rapidjson::Value::ConstMemberIterator typeIterator = value.FindMember("t");
@@ -1396,10 +1404,10 @@ Sdp::Track Sdp::parseTrack(const rapidjson::Value &value) const
         }
     }
 
-    return  track;
+    return track;
 }
 
-std::string Sdp::unCompressTrack(const Sdp::Track& track, const std::string &tpl)
+std::string Sdp::unCompressTrack(const Sdp::Track& track, const std::string& tpl)
 {
     std::string sdp = tpl;
 
@@ -1809,8 +1817,15 @@ bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc,
         return false;
     }
 
+    if (!jsonDoc.IsObject())
+    {
+        parsedData.msg = "top-level not an object";
+        return false;
+    }
+
     // command received {"a": "command", ...}
-    rapidjson::Value::ConstMemberIterator jsonCommandIterator = jsonDoc.FindMember(Command::COMMAND_IDENTIFIER.c_str());
+    rapidjson::Value::ConstMemberIterator jsonCommandIterator =
+        jsonDoc.FindMember(Command::COMMAND_IDENTIFIER.c_str());
     if (jsonCommandIterator != jsonDoc.MemberEnd() && jsonCommandIterator->value.IsString())
     {
         parsedData.notificationType = SfuData::SFU_COMMAND;
