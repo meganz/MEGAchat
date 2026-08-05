@@ -1754,22 +1754,23 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
 
         // check if peerid is included in mods list received upon HELLO
         peer.setModerator(isOnModeratorsList(peer.getPeerid()));
-        if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V0) // there's no ephemeral key, just add peer
+        if (peer.getPeerSfuVersion() < sfu::SfuProtocol::SFU_PROTO_V2)
         {
-            addPeerWithEphemKey(peer, true, std::string());
-        }
-        else if (peer.getPeerSfuVersion() == sfu::SfuProtocol::SFU_PROTO_V1)
-        {
-            // we shouldn't receive any peer with protocol v1
+            // SFU protocol versions V0 and V1 are deprecated and must never come from the SFU.
+            // Reject the peer outright (no session).
             RTCM_LOG_ERROR(
-                "%shandleAnswerCommand: unexpected SFU protocol version [%u] for user: %s, cid: %u",
+                "%shandleAnswerCommand: deprecated/unexpected SFU protocol version [%u] for user: "
+                "%s, cid: %u",
                 getLoggingName(),
                 static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer.getPeerSfuVersion()),
                 peer.getPeerid().toString().c_str(),
                 peer.getCid());
             assert(false);
+            removePendingPeer(peer.getCid());
+            onKeyVerified(false);
+            continue;
         }
-        else if (peer.getPeerSfuVersion() >= sfu::SfuProtocol::SFU_PROTO_V2) // verify ephemeral key signature, derive it, and then add the peer
+        else // SFU_PROTO_V2+: verify ephemeral key signature, derive it, and then add the peer
         {
             if (!sfu::isKnownSfuVersion(peer.getPeerSfuVersion()))
             {
@@ -1800,6 +1801,17 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
             {
                 auto wptr = weakHandle();
                 auto parsedkey = splitPubKey(keyStr);
+                if (parsedkey.first.empty() || parsedkey.second.empty())
+                {
+                    // Malformed key. Do not treat the peer as verified.
+                    RTCM_LOG_ERROR(
+                        "%shandleAnswerCommand: malformed ephemeral key for user: %s, cid: %u",
+                        getLoggingName(),
+                        peer.getPeerid().toString().c_str(),
+                        peer.getCid());
+                    addPeerWithEphemKey(peer, false, std::string());
+                    continue;
+                }
                 std::shared_ptr<sfu::Peer> auxPeer(new sfu::Peer(peer));
                 verifySignature(peer.getCid(), peer.getPeerid(), parsedkey.first, parsedkey.second)
                     .then(
@@ -1831,8 +1843,30 @@ bool Call::handleAnswerCommand(Cid_t cid, std::shared_ptr<sfu::Sdp> sdp, uint64_
                             // private ephemeral key
                             std::string out;
                             const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
+                            if (pubkeyBin.size() != mega::ECDH::PUBLIC_KEY_LENGTH)
+                            {
+                                // Reject a shorter decoded key to avoid an out-of-bounds read.
+                                RTCM_LOG_ERROR(
+                                    "%sInvalid ephemeral key length for user: %s, cid: %u",
+                                    getLoggingName(),
+                                    auxPeer->getPeerid().toString().c_str(),
+                                    auxPeer->getCid());
+                                addPeerWithEphemKey(*auxPeer, false, std::string());
+                                return;
+                            }
                             std::vector<::mega::byte> saltBin =
                                 generateEphemeralKeyIv(auxPeer->getIvs(), mMyPeer->getIvs());
+                            if (saltBin.empty())
+                            {
+                                // Incomplete peer IVs: don't derive with a degenerate/empty salt.
+                                RTCM_LOG_ERROR(
+                                    "%sCan't build ephemeral key salt for user: %s, cid: %u",
+                                    getLoggingName(),
+                                    auxPeer->getPeerid().toString().c_str(),
+                                    auxPeer->getCid());
+                                addPeerWithEphemKey(*auxPeer, false, std::string());
+                                return;
+                            }
                             bool derived = ephkeypair->deriveSharedKeyWithSalt(
                                 reinterpret_cast<const unsigned char*>(pubkeyBin.data()),
                                 saltBin.data(),
@@ -2372,23 +2406,22 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
     }
 
     std::shared_ptr<sfu::Peer> peer(new sfu::Peer(userid, sfuProtoVersion, static_cast<unsigned>(av), &ivs, cid, (mModerators.find(userid) != mModerators.end())));
-    if (sfuProtoVersion == sfu::SfuProtocol::SFU_PROTO_V0)
+    if (sfuProtoVersion < sfu::SfuProtocol::SFU_PROTO_V2)
     {
-        addPeerWithEphemKey(*peer, std::string());
-    }
-    else if (sfuProtoVersion == sfu::SfuProtocol::SFU_PROTO_V1)
-    {
-        // we shouldn't receive any peer with protocol v1
+        // SFU protocol versions V0 and V1 are deprecated and must never come from the SFU.
+        // Reject the peer outright (no session).
         RTCM_LOG_ERROR(
-            "%shandlePeerJoin: unexpected SFU protocol version [%u] for user: %s, cid: %u",
+            "%shandlePeerJoin: deprecated/unexpected SFU protocol version [%u] for user: %s, cid: "
+            "%u",
             getLoggingName(),
             static_cast<std::underlying_type<sfu::SfuProtocol>::type>(peer->getPeerSfuVersion()),
             peer->getPeerid().toString().c_str(),
             peer->getCid());
         assert(false);
+        removePendingPeer(cid);
         return false;
     }
-    else if (sfuProtoVersion >= sfu::SfuProtocol::SFU_PROTO_V2)
+    else // SFU_PROTO_V2+: verify ephemeral key signature, derive it, and then add the peer
     {
         if (!sfu::isKnownSfuVersion(sfuProtoVersion))
         {
@@ -2412,6 +2445,14 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
 
         auto wptr = getDelTracker();
         auto parsedkey = splitPubKey(keyStr);
+        if (parsedkey.first.empty() || parsedkey.second.empty())
+        {
+            // Malformed key. Do not treat the peer as verified.
+            RTCM_LOG_ERROR("%shandlePeerJoin: malformed ephemeral key", getLoggingName());
+            assert(false);
+            addPeerWithEphemKey(*peer, std::string());
+            return false;
+        }
         verifySignature(cid, userid, parsedkey.first, parsedkey.second)
             .then(
                 [userid,
@@ -2441,8 +2482,28 @@ bool Call::handlePeerJoin(Cid_t cid, uint64_t userid, sfu::SfuProtocol sfuProtoV
                     // derive peer public ephemeral key with our private ephemeral key
                     std::string out;
                     const std::string pubkeyBin = mega::Base64::atob(parsedkey.first);
+                    if (pubkeyBin.size() != mega::ECDH::PUBLIC_KEY_LENGTH)
+                    {
+                        // Reject a shorter decoded key to avoid an out-of-bounds read.
+                        RTCM_LOG_ERROR("%sInvalid ephemeral key length for user: %s, cid: %u",
+                                       lname.c_str(),
+                                       peer->getPeerid().toString().c_str(),
+                                       peer->getCid());
+                        addPeerWithEphemKey(*peer, std::string());
+                        return;
+                    }
                     std::vector<::mega::byte> saltBin =
                         generateEphemeralKeyIv(peer->getIvs(), mMyPeer->getIvs());
+                    if (saltBin.empty())
+                    {
+                        // Incomplete peer IVs: don't derive with a degenerate/empty salt.
+                        RTCM_LOG_ERROR("%sCan't build ephemeral key salt for user: %s, cid: %u",
+                                       lname.c_str(),
+                                       peer->getPeerid().toString().c_str(),
+                                       peer->getCid());
+                        addPeerWithEphemKey(*peer, std::string());
+                        return;
+                    }
                     bool derived = ephkeypair->deriveSharedKeyWithSalt(
                         reinterpret_cast<const unsigned char*>(pubkeyBin.data()),
                         saltBin.data(),
@@ -4197,7 +4258,9 @@ Call::verifySignature(const Cid_t cid, const uint64_t userid, const std::string&
     promise::Promise<bool> pms;
     if (pubkey.empty() || signature.empty())
     {
-        pms.resolve(true);
+        // An empty public key or signature means there is nothing to verify.
+        // Malformed key, so verification failure.
+        pms.resolve(false);
     }
     else
     {

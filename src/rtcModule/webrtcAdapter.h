@@ -93,7 +93,6 @@ private:
     std::unique_ptr<rtc::Thread> mSignalingThread;
     rtc::scoped_refptr<webrtc::AudioProcessing> mAudioProcessing;
     rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> mPeerConnectionFactory;
-    std::string mFieldTrialStr;
     void* mAppCtx;
 };
 

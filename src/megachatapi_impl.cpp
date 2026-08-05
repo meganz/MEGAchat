@@ -13160,19 +13160,31 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         return NULL;
     }
 
-    MegaNodeList *megaNodeList = new MegaNodeListPrivate();
+    if (!document.IsArray())
+    {
+        API_LOG_ERROR(
+            "parseAttachNodeJSon: Invalid attachment JSON - top-level value is not an array");
+        return NULL;
+    }
+
+    std::unique_ptr<MegaNodeList> megaNodeList = std::make_unique<MegaNodeListPrivate>();
 
     rapidjson::SizeType attachmentNumber = document.Size();
     for (rapidjson::SizeType i = 0; i < attachmentNumber; ++i)
     {
         const rapidjson::Value& file = document[i];
+        if (!file.IsObject())
+        {
+            API_LOG_ERROR(
+                "parseAttachNodeJSon: Invalid attachment JSON - array element is not an object");
+            return NULL;
+        }
 
         // nodehandle
         rapidjson::Value::ConstMemberIterator iteratorHandle = file.FindMember("h");
         if (iteratorHandle == file.MemberEnd() || !iteratorHandle->value.IsString())
         {
             API_LOG_ERROR("parseAttachNodeJSon: Invalid nodehandle in attachment JSON");
-            delete megaNodeList;
             return NULL;
         }
         MegaHandle megaHandle = MegaApi::base64ToHandle(iteratorHandle->value.GetString());
@@ -13182,14 +13194,13 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorName == file.MemberEnd() || !iteratorName->value.IsString())
         {
             API_LOG_ERROR("parseAttachNodeJSon: Invalid filename in attachment JSON");
-            delete megaNodeList;
             return NULL;
         }
         std::string nameString = iteratorName->value.GetString();
 
         // nodekey
         rapidjson::Value::ConstMemberIterator iteratorKey = file.FindMember("k");
-        if (!iteratorKey->value.IsArray())
+        if (iteratorKey == file.MemberEnd() || !iteratorKey->value.IsArray())
         {
             iteratorKey = file.FindMember("key");
         }
@@ -13197,7 +13208,6 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             iteratorKey->value.Size() != 8)
         {
             API_LOG_ERROR("parseAttachNodeJSon: Invalid nodekey in attachment JSON");
-            delete megaNodeList;
             return NULL;
         }
         std::vector<int32_t> kElements;
@@ -13211,7 +13221,6 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
             else
             {
                 API_LOG_ERROR("parseAttachNodeJSon: Invalid nodekey data in attachment JSON");
-                delete megaNodeList;
                 return NULL;
             }
         }
@@ -13224,7 +13233,6 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorSize == file.MemberEnd() || !iteratorSize->value.IsInt64())
         {
             API_LOG_ERROR("parseAttachNodeJSon: Invalid size in attachment JSON");
-            delete megaNodeList;
             return NULL;
         }
         int64_t size = iteratorSize->value.GetInt64();
@@ -13248,7 +13256,6 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorType == file.MemberEnd() || !iteratorType->value.IsInt())
         {
             API_LOG_ERROR("parseAttachNodeJSon: Invalid type in attachment JSON");
-            delete megaNodeList;
             return NULL;
         }
         int type = iteratorType->value.GetInt();
@@ -13258,7 +13265,6 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         if (iteratorTimeStamp == file.MemberEnd() || !iteratorTimeStamp->value.IsInt64())
         {
             API_LOG_ERROR("parseAttachNodeJSon: Invalid timestamp in attachment JSON");
-            delete megaNodeList;
             return NULL;
         }
         int64_t timeStamp = iteratorTimeStamp->value.GetInt64();
@@ -13278,7 +13284,7 @@ MegaNodeList *JSonUtils::parseAttachNodeJSon(const char *json)
         megaNodeList->addNode(&node);
     }
 
-    return megaNodeList;
+    return megaNodeList.release();
 }
 
 std::string JSonUtils::generateAttachContactJSon(MegaHandleList *contacts, ContactList *contactList)
@@ -13354,18 +13360,30 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
         return NULL;
     }
 
-    std::vector<MegaChatAttachedUser> *megaChatUsers = new std::vector<MegaChatAttachedUser>();
+    if (!document.IsArray())
+    {
+        API_LOG_ERROR("parseAttachContactJSon: Invalid contact-attachment JSON - top-level value "
+                      "is not an array");
+        return NULL;
+    }
+
+    auto megaChatUsers = std::make_unique<std::vector<MegaChatAttachedUser>>();
 
     rapidjson::SizeType contactNumber = document.Size();
     for (rapidjson::SizeType i = 0; i < contactNumber; ++i)
     {
         const rapidjson::Value& user = document[i];
+        if (!user.IsObject())
+        {
+            API_LOG_ERROR("parseAttachContactJSon: Invalid contact-attachment JSON - array element "
+                          "is not an object");
+            return NULL;
+        }
 
         rapidjson::Value::ConstMemberIterator iteratorEmail = user.FindMember("email");
         if (iteratorEmail == user.MemberEnd() || !iteratorEmail->value.IsString())
         {
             API_LOG_ERROR("parseAttachContactJSon: Invalid email in contact-attachment JSON");
-            delete megaChatUsers;
             return NULL;
         }
         std::string emailString = iteratorEmail->value.GetString();
@@ -13374,7 +13392,6 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
         if (iteratorHandle == user.MemberEnd() || !iteratorHandle->value.IsString())
         {
             API_LOG_ERROR("parseAttachContactJSon: Invalid userhandle in contact-attachment JSON");
-            delete megaChatUsers;
             return NULL;
         }
         std::string handleString = iteratorHandle->value.GetString();
@@ -13383,7 +13400,6 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
         if (iteratorName == user.MemberEnd() || !iteratorName->value.IsString())
         {
             API_LOG_ERROR("parseAttachContactJSon: Invalid username in contact-attachment JSON");
-            delete megaChatUsers;
             return NULL;
         }
         std::string nameString = iteratorName->value.GetString();
@@ -13392,8 +13408,7 @@ std::vector<MegaChatAttachedUser> *JSonUtils::parseAttachContactJSon(const char 
         megaChatUsers->push_back(megaChatUser);
     }
 
-    return megaChatUsers;
-
+    return megaChatUsers.release();
 }
 
 std::string JSonUtils::generateGeolocationJSon(float longitude, float latitude, const char *img)
@@ -13606,6 +13621,12 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
         return containsMeta;
     }
 
+    if (!document.IsObject())
+    {
+        API_LOG_ERROR("parseContainsMeta: invalid JSON struct - top-level value is not an object");
+        return containsMeta;
+    }
+
     rapidjson::Value::ConstMemberIterator iteratorTextMessage = document.FindMember("textMessage");
     if (iteratorTextMessage == document.MemberEnd() || !iteratorTextMessage->value.IsString())
     {
@@ -13648,12 +13669,18 @@ const MegaChatContainsMeta* JSonUtils::parseContainsMeta(const char *json, uint8
     return containsMeta;
 }
 
-MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, std::string &textMessage)
+MegaChatRichPreview* JSonUtils::parseRichPreview(rapidjson::Document& document,
+                                                 std::string& textMessage)
 {
     rapidjson::Value::ConstMemberIterator iteratorExtra = document.FindMember("extra");
-    if (iteratorExtra == document.MemberEnd() || iteratorExtra->value.IsObject())
+    if (iteratorExtra == document.MemberEnd())
     {
         API_LOG_ERROR("parseRichPreview: invalid JSON struct - \"extra\" field not found");
+        return NULL;
+    }
+    if (!iteratorExtra->value.IsArray())
+    {
+        API_LOG_ERROR("parseRichPreview: invalid JSON struct - \"extra\" is not an array");
         return NULL;
     }
 
@@ -13665,7 +13692,7 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
     std::string iconFormat;
     std::string url;
 
-    if (iteratorExtra->value.Size() == 1)
+    if (iteratorExtra->value.Size() == 1 && iteratorExtra->value[0].IsObject())
     {
         const rapidjson::Value& richPreview = iteratorExtra->value[0];
 
@@ -13691,19 +13718,31 @@ MegaChatRichPreview *JSonUtils::parseRichPreview(rapidjson::Document &document, 
         }
     }
 
-    return new MegaChatRichPreviewPrivate(textMessage, title, description, image, imageFormat, icon, iconFormat, url);
+    return new MegaChatRichPreviewPrivate(textMessage,
+                                          title,
+                                          description,
+                                          image,
+                                          imageFormat,
+                                          icon,
+                                          iconFormat,
+                                          url);
 }
 
-MegaChatGeolocation *JSonUtils::parseGeolocation(rapidjson::Document &document)
+MegaChatGeolocation* JSonUtils::parseGeolocation(rapidjson::Document& document)
 {
     rapidjson::Value::ConstMemberIterator iteratorExtra = document.FindMember("extra");
-    if (iteratorExtra == document.MemberEnd() || iteratorExtra->value.IsObject())
+    if (iteratorExtra == document.MemberEnd())
     {
-        API_LOG_ERROR("parseGeolocation: invalid JSON struct - \", extra\" field not found");
+        API_LOG_ERROR("parseGeolocation: invalid JSON struct - \"extra\" field not found");
+        return NULL;
+    }
+    if (!iteratorExtra->value.IsArray())
+    {
+        API_LOG_ERROR("parseGeolocation: invalid JSON struct - \"extra\" is not an array");
         return NULL;
     }
 
-    if (iteratorExtra->value.Size() != 1)
+    if (iteratorExtra->value.Size() != 1 || !iteratorExtra->value[0].IsObject())
     {
         API_LOG_ERROR("parseGeolocation: invalid JSON struct - invalid format");
         return NULL;
