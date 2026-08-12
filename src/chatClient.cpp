@@ -5579,22 +5579,32 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     }
     mega::MegaTextChatPeerListPrivate peers;
     peers.addPeer(mUserid, chatd::PRIV_MODERATOR);
-    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr, mega::ChatOptions::kEmpty, nullptr)
-    .then([this](ReqResult result) -> Promise<ChatRoom*>
-    {
-        auto& list = *result->getMegaTextChatList();
-        if (list.size() < 1)
-            return ::promise::Error("Empty chat list returned from API");
-        if (mChatRoom)
-        {
-            return mChatRoom;
-        }
-        auto room = mClist.client.chats->addRoom(*list.get(0));
-        if (!room)
-            return ::promise::Error("API created an incorrect 1on1 room");
-        room->connect();
-        return room;
-    });
+    auto wptr = weakHandle();
+    return mClist.client.api
+        .call(&mega::MegaApi::createChat,
+              false,
+              &peers,
+              nullptr,
+              mega::ChatOptions::kEmpty,
+              nullptr)
+        .then(
+            [this, wptr](ReqResult result) -> Promise<ChatRoom*>
+            {
+                if (wptr.deleted())
+                    return ::promise::Error("Contact was deleted while creating the chatroom");
+                auto& list = *result->getMegaTextChatList();
+                if (list.size() < 1)
+                    return ::promise::Error("Empty chat list returned from API");
+                if (mChatRoom)
+                {
+                    return mChatRoom;
+                }
+                auto room = mClist.client.chats->addRoom(*list.get(0));
+                if (!room)
+                    return ::promise::Error("API created an incorrect 1on1 room");
+                room->connect();
+                return room;
+            });
 }
 
 void Contact::setChatRoom(PeerChatRoom& room)
