@@ -197,14 +197,12 @@ pipeline {
                     env.VERSION = sh(script: "date '+%Y%m%d.%H%M%S'", returnStdout: true).trim()
                 }
                 dir("${IOS_DIR}"){
-                    checkout([  // Checkouts the source and target branches merged, from the webhook MR
-                                // Just in case devs have modified `build-sdk-libs.sh` script in the MR
+                    checkout([
                         $class: 'GitSCM',
                         branches: [[name: "origin/${env.gitlabSourceBranch}"]],
                         userRemoteConfigs: [[ url: "${GIT_URL_IOS}", credentialsId: "12492eb8-0278-4402-98f0-4412abfb65c1" ]],
                         extensions: [
-                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"],
-                            [$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: "origin", mergeStrategy: 'DEFAULT', mergeTarget: "${env.gitlabTargetBranch}"]]
+                            [$class: "UserIdentity",name: "jenkins", email: "jenkins@jenkins"]
                         ]
                     ])
                     sh """
