@@ -1250,6 +1250,21 @@ void Call::removeCallImmediately(uint8_t reason, TermCode connectionTermCode)
     mRtc.deleteCall(getCallid());
 }
 
+bool Call::removeCallIfDestroying(const char* caller, TermCode connectionTermCode)
+{
+    if (!isDestroying())
+    {
+        return false;
+    }
+
+    // an immediate disconnect would abort the pending removal and leave the call stuck
+    RTCM_LOG_WARNING("%s%s: call is already being destroyed, removing it",
+                     getLoggingName(),
+                     caller);
+    removeCallImmediately(mTempEndCallReason, connectionTermCode);
+    return true;
+}
+
 void Call::clearResources(const TermCode& termCode)
 {
     RTCM_LOG_DEBUG("%sclearResources, termcode (%u): %s",
@@ -2630,6 +2645,10 @@ bool Call::handleBye(const unsigned termCode, const bool wr, const std::string& 
         karere::marshallCall([wptr, auxTermCode, this]()
         {
             if (wptr.deleted()) { return; }
+            if (removeCallIfDestroying("handleBye", auxTermCode))
+            {
+                return;
+            }
             immediateCallDisconnect(auxTermCode);
         }, mRtc.getAppCtx());
     }
@@ -3180,6 +3199,11 @@ bool Call::error(unsigned int code, const std::string &errMsg)
         // leave it in an invalid state (and will crash at Libwebsockets::resetMessage())
 
         if (wptr.deleted())
+        {
+            return;
+        }
+
+        if (removeCallIfDestroying("error", connectionTermCode))
         {
             return;
         }
