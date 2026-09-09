@@ -11998,8 +11998,11 @@ TEST_F(MegaChatApiUnitaryTest, SfuDataReception)
     {
         rapidjson::Document document;
         sfu::SfuConnection::SfuData outdata;
-        EXPECT_TRUE(sfu::SfuConnection::parseSfuData(testCase.first.c_str(), document, outdata))
-                << "[FAILED processing SFU command]: " << testCase.first << ". " << outdata.msg;
+        EXPECT_TRUE(sfu::SfuConnection::parseSfuData(testCase.first.c_str(),
+                                                     testCase.first.size(),
+                                                     document,
+                                                     outdata))
+            << "[FAILED processing SFU command]: " << testCase.first << ". " << outdata.msg;
 
         if (outdata.notificationType == sfu::SfuConnection::SfuData::SFU_COMMAND)
         {
