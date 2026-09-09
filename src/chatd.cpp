@@ -7021,10 +7021,20 @@ void Chat::setOnlineState(ChatState state)
                 else if (call->getState() >= rtcModule::CallState::kStateConnecting &&
                          call->getState() <= rtcModule::CallState::kStateInProgress)
                 {
-                    CHATD_LOG_DEBUG(
-                        "%schatd::setOnlineState (kChatStateOnline) -> reconnection to sfu ",
-                        mChatdClient.getLoggingName());
-                    call->reconnectToSfu();
+                    if (!call->isConnectedToSfu())
+                    {
+                        CHATD_LOG_DEBUG(
+                            "%schatd::setOnlineState (kChatStateOnline) -> reconnection to sfu",
+                            mChatdClient.getLoggingName());
+                        call->reconnectToSfu();
+                    }
+                    else
+                    {
+                        CHATD_LOG_DEBUG(
+                            "%schatd::setOnlineState (kChatStateOnline) -> SFU already connected,"
+                            " skipping reconnection",
+                            mChatdClient.getLoggingName());
+                    }
                 }
             }
         }

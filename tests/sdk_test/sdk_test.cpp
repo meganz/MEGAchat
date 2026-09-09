@@ -1242,59 +1242,32 @@ TEST_F(MegaChatApiTest, RaiseHandLite)
     };
 
     auto reconnectAndCheckraisedHand =
-        [this, &addVarRaiseHand, &checkVarRaiseHand, &checkUserHasHandRaised](
-            const ::megachat::MegaChatHandle chatid,
-            const unsigned int idx,
-            const MegaChatHandle uh,
-            std::set<unsigned int> recvIdx)
+        [this, &checkUserHasHandRaised](const ::megachat::MegaChatHandle chatid,
+                                        const unsigned int idx,
+                                        const MegaChatHandle uh,
+                                        std::set<unsigned int> recvIdx)
     {
         /**
-         * Upon a call disconnect (user hangup or involuntary disconnection), if the user had their
-         * hand raised, the SFU will send RHAND_DEL to the rest of the participants to inform them
-         * that the user has lowered their hand. If the user is finally able to reconnect, MEGAchat
-         * will automatically send "rh" upon the JOIN command to inform the SFU that the user wants
-         * to restore their raised hand to the same state as prior to the disconnect.
-         *
-         * Note: User that gets disconnected won't receive RHAND_DEL as it's not connected to SFU
+         * Since the SFU connection is kept alive when only chatd drops and reconnects,
+         * no RHAND_DEL is sent and no re-JOIN occurs. The raise hand state persists
+         * unchanged — verify it is still set, and the call still in progress, after the
+         * chatd reconnect completes.
          */
-        clearTemporalVars();
-        ExitBoolFlags eF;
-        // ensure that get reach CALL_STATUS_IN_PROGRESS before continue
-        ASSERT_NO_FATAL_FAILURE(
-            addBoolVarAndExitFlag(idx,
-                                  eF,
-                                  "CallInProgress",
-                                  false));
+        ChatRequestTracker crtRetryConnection(megaChatApi[idx]);
+        megaChatApi[idx]->retryPendingConnections(true, &crtRetryConnection);
+        ASSERT_EQ(crtRetryConnection.waitForResult(), MegaChatError::ERROR_OK)
+            << "Failed to retry pending connections";
 
-        ASSERT_NO_FATAL_FAILURE(
-            addVarRaiseHand(recvIdx,
-                            false,
-                            eF)); // add exit flags for lowered hand (SFU automatically does)
-
-        ASSERT_NO_FATAL_FAILURE(
-            addVarRaiseHand(recvIdx, true, eF)); // add exit flags for raised hand upon reconnect
-
-        ASSERT_NO_FATAL_FAILURE(
-            waitForAction(1, /* just one attempt */
-                          eF,
-                          "raise hand",
-                          true /* wait for all exit flags */,
-                          true /* reset flags */,
-                          minTimeout * 2, // 2 min
-                          [this, idx]()
-                          {
-                              ChatRequestTracker crtRetryConnection(megaChatApi[idx]);
-                              megaChatApi[idx]->retryPendingConnections(true, &crtRetryConnection);
-
-                              ASSERT_EQ(crtRetryConnection.waitForResult(), MegaChatError::ERROR_OK)
-                                  << "Failed to retry pending connections";
-                          }));
-
-        ASSERT_NO_FATAL_FAILURE(
-            checkVarRaiseHand(recvIdx, false, uh)); // check flags for lowered hand
-        ASSERT_NO_FATAL_FAILURE(
-            checkVarRaiseHand(recvIdx, true, uh)); // check flags for raised hand upon reconnect
-        ASSERT_NO_FATAL_FAILURE(checkUserHasHandRaised(chatid, uh, idx, true /*added*/));
+        recvIdx.emplace(idx);
+        for (const auto i: recvIdx)
+        {
+            std::unique_ptr<MegaChatCall> call(megaChatApi[i]->getChatCall(chatid));
+            ASSERT_TRUE(call) << "reconnectAndCheckraisedHand: Cannot get call for chat: "
+                              << getChatIdStrB64(chatid);
+            ASSERT_EQ(call->getStatus(), MegaChatCall::CALL_STATUS_IN_PROGRESS)
+                << "reconnectAndCheckraisedHand: call is not in progress after chatd reconnect";
+            ASSERT_NO_FATAL_FAILURE(checkUserHasHandRaised(chatid, uh, i, true /*added*/));
+        }
     };
 
     auto raiseHand = [this, &addVarRaiseHand, &checkVarRaiseHand](const bool add,
@@ -6027,59 +6000,32 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
     waitForCallAction(a1 /*performer*/, MAX_ATTEMPTS, exitFlag, "receiving audio disabled at account B", maxTimeout, action);
                             );
 
+    // Since the SFU connection is kept alive when only chatd drops and reconnects,
+    // no session teardown or re-establishment occurs. Verify the reconnect completes and
+    // the call is still in progress.
     LOG_debug << "A forcing a reconnect";
-    bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1]; *sessionWasDestroyedA = false;
-    bool* sessionWasDestroyedB = &mChatSessionWasDestroyed[a2]; *sessionWasDestroyedB = false;
-
-    bool* chatCallSessionStatusInProgressA = &mChatCallSessionStatusInProgress[a1];
-    *chatCallSessionStatusInProgressA = false;
-    bool* chatCallSessionStatusInProgressB = &mChatCallSessionStatusInProgress[a2];
-    *chatCallSessionStatusInProgressB = false;
-
-    std::function<void()> waitForChatCallReadyA =
-      [this, &chatCallSessionStatusInProgressA]()
-      {
-          ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressA)) <<
-                           "Timeout expired for A receiving chat call in progress";
-      };
-
-    std::function<void()> waitForChatCallReadyB =
-      [this, &chatCallSessionStatusInProgressB] ()
-      {
-          ASSERT_TRUE(waitForResponse(chatCallSessionStatusInProgressB)) <<
-                           "Timeout expired for B receiving chat call in progress";
-      };
-
     ChatRequestTracker crtRetryConn(megaChatApi[a1]);
     megaChatApi[a1]->retryPendingConnections(true, &crtRetryConn);
-    // wait for session destruction checks
-    std::function<void()> waitForChatCallSessionDestroyedB =
-        [this, &sessionWasDestroyedB]()
-        {
-            ASSERT_TRUE(waitForResponse(sessionWasDestroyedB))
-                             << "Timeout expired for B receiving session destroyed notification";
-        };
-    ASSERT_NO_FATAL_FAILURE(waitForChatCallSessionDestroyedB());
-    std::function<void()> waitForChatCallSessionDestroyedA =
-        [this, &sessionWasDestroyedA]()
-        {
-            ASSERT_TRUE(waitForResponse(sessionWasDestroyedA))
-                             << "Timeout expired for A receiving session destroyed notification";
-        };
-    ASSERT_NO_FATAL_FAILURE(waitForChatCallSessionDestroyedA());
-    // Wait for request finish (i.e. disconnection confirmation)
-    ASSERT_EQ(crtRetryConn.waitForResult(), MegaChatError::ERROR_OK) << "Client A failed to reconnect. Error: " << crtRetryConn.getErrorString();
+    ASSERT_EQ(crtRetryConn.waitForResult(), MegaChatError::ERROR_OK)
+        << "Client A failed to reconnect. Error: " << crtRetryConn.getErrorString();
     ASSERT_TRUE(crtRetryConn.getFlag());
     ASSERT_FALSE(crtRetryConn.getParamType());
 
-    // B confirms new mega chat session is ready
-    ASSERT_NO_FATAL_FAILURE(waitForChatCallReadyB());
-    // A confirms new mega chat session is ready
-    ASSERT_NO_FATAL_FAILURE(waitForChatCallReadyA());
+    for (const auto i: {a1, a2})
+    {
+        std::unique_ptr<MegaChatCall> call(megaChatApi[i]->getChatCall(chatid));
+        ASSERT_TRUE(call) << "Cannot get call for chat: " << getChatIdStrB64(chatid);
+        ASSERT_EQ(call->getStatus(), MegaChatCall::CALL_STATUS_IN_PROGRESS)
+            << "call is not in progress after chatd reconnect";
+    }
 
     // B hangs up
-    bool* callDestroyedB = &mCallDestroyed[a2]; *callDestroyedB = false;
-    *sessionWasDestroyedB = false; *sessionWasDestroyedA = false; // reset flags of session destruction
+    bool* callDestroyedB = &mCallDestroyed[a2];
+    *callDestroyedB = false;
+    bool* sessionWasDestroyedA = &mChatSessionWasDestroyed[a1];
+    *sessionWasDestroyedA = false;
+    bool* sessionWasDestroyedB = &mChatSessionWasDestroyed[a2];
+    *sessionWasDestroyedB = false;
 
     LOG_debug << "#### Test11: B hangs up call ####";
     bool hangupCallExitFlag = false;
@@ -6097,8 +6043,10 @@ TEST_F(MegaChatApiTest, EstablishedCalls)
                             );
 
     // wait for session destruction checks
-    ASSERT_NO_FATAL_FAILURE(waitForChatCallSessionDestroyedB());
-    ASSERT_NO_FATAL_FAILURE(waitForChatCallSessionDestroyedA());
+    ASSERT_TRUE(waitForResponse(sessionWasDestroyedB))
+        << "Timeout expired for B receiving session destroyed notification";
+    ASSERT_TRUE(waitForResponse(sessionWasDestroyedA))
+        << "Timeout expired for A receiving session destroyed notification";
     LOG_debug << "Call finished for B";
 
     bool* callDestroyedA = &mCallDestroyed[a1]; *callDestroyedA = false;
