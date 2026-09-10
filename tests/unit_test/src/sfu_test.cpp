@@ -25,6 +25,7 @@
 
 #include <rapidjson/document.h>
 
+#include <cstring>
 #include <optional>
 #include <sfu.h>
 #include <string>
@@ -387,7 +388,7 @@ TEST(SfuParseData, RejectsNonObjectTopLevelFrame)
     {
         rapidjson::Document document;
         sfu::SfuConnection::SfuData outdata;
-        EXPECT_FALSE(sfu::SfuConnection::parseSfuData(frame, document, outdata))
+        EXPECT_FALSE(sfu::SfuConnection::parseSfuData(frame, strlen(frame), document, outdata))
             << "[FAILED rejecting non-object SFU frame]: " << frame;
         EXPECT_EQ(outdata.msg, "top-level not an object")
             << "[FAILED rejecting non-object SFU frame]: " << frame;
