@@ -430,7 +430,7 @@ public:
     void clearParticipants();
     bool hasCallKey();
     bool isValidWrJoiningState() const;
-    bool isConnectedToSfu() const;
+    bool isConnectedToSfu() const override;
     bool isSendingBye() const;
     void clearWrJoiningState();
     void setWrJoiningState(const sfu::WrState status);
