@@ -407,6 +407,9 @@ public:
     // delete call immediately
     void removeCallImmediately(uint8_t reason, TermCode connectionTermCode);
 
+    // complete a pending destroy instead of disconnecting; true if the call was removed
+    bool removeCallIfDestroying(const char* caller, TermCode connectionTermCode);
+
     // clear call resources
     void clearResources(const TermCode& termCode);
 
