@@ -873,6 +873,9 @@ class InitStats
         /** @brief Obtain end ts for a stage */
         void stageEnd(uint8_t stage);
 
+        /** @brief True if a start ts has already been recorded for a stage */
+        bool hasStageStarted(uint8_t stage) const;
+
         /** @brief Set the init state */
         void setInitState(uint8_t state);
 

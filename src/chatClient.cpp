@@ -1745,6 +1745,14 @@ void Client::onRequestFinish(::mega::MegaApi* /*apiObj*/, ::mega::MegaRequest *r
     {
     case ::mega::MegaRequest::TYPE_LOGIN:
     {
+        // The App side calls init and sdk login in parallel, The SDK request listener is registered
+        // at the end of init(), so a fast login already in flight by then delivers onRequestFinish
+        // without a matching onRequestStart.
+        if (!mInitStats.hasStageStarted(InitStats::kStatsLogin))
+        {
+            mInitStats.stageStart(InitStats::kStatsLogin);
+        }
+
         mInitStats.stageEnd(InitStats::kStatsLogin);
         break;
     }
@@ -5571,22 +5579,32 @@ promise::Promise<ChatRoom*> Contact::createChatRoom()
     }
     mega::MegaTextChatPeerListPrivate peers;
     peers.addPeer(mUserid, chatd::PRIV_MODERATOR);
-    return mClist.client.api.call(&mega::MegaApi::createChat, false, &peers, nullptr, mega::ChatOptions::kEmpty, nullptr)
-    .then([this](ReqResult result) -> Promise<ChatRoom*>
-    {
-        auto& list = *result->getMegaTextChatList();
-        if (list.size() < 1)
-            return ::promise::Error("Empty chat list returned from API");
-        if (mChatRoom)
-        {
-            return mChatRoom;
-        }
-        auto room = mClist.client.chats->addRoom(*list.get(0));
-        if (!room)
-            return ::promise::Error("API created an incorrect 1on1 room");
-        room->connect();
-        return room;
-    });
+    auto wptr = weakHandle();
+    return mClist.client.api
+        .call(&mega::MegaApi::createChat,
+              false,
+              &peers,
+              nullptr,
+              mega::ChatOptions::kEmpty,
+              nullptr)
+        .then(
+            [this, wptr](ReqResult result) -> Promise<ChatRoom*>
+            {
+                if (wptr.deleted())
+                    return ::promise::Error("Contact was deleted while creating the chatroom");
+                auto& list = *result->getMegaTextChatList();
+                if (list.size() < 1)
+                    return ::promise::Error("Empty chat list returned from API");
+                if (mChatRoom)
+                {
+                    return mChatRoom;
+                }
+                auto room = mClist.client.chats->addRoom(*list.get(0));
+                if (!room)
+                    return ::promise::Error("API created an incorrect 1on1 room");
+                room->connect();
+                return room;
+            });
 }
 
 void Contact::setChatRoom(PeerChatRoom& room)
@@ -5966,6 +5984,11 @@ void InitStats::stageStart(uint8_t stage)
     }
 
     mStageStats[stage] = currentTime();
+}
+
+bool InitStats::hasStageStarted(uint8_t stage) const
+{
+    return mStageStats.find(stage) != mStageStats.end();
 }
 
 void InitStats::stageEnd(uint8_t stage)

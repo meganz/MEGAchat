@@ -407,6 +407,9 @@ public:
     // delete call immediately
     void removeCallImmediately(uint8_t reason, TermCode connectionTermCode);
 
+    // complete a pending destroy instead of disconnecting; true if the call was removed
+    bool removeCallIfDestroying(const char* caller, TermCode connectionTermCode);
+
     // clear call resources
     void clearResources(const TermCode& termCode);
 
@@ -430,7 +433,7 @@ public:
     void clearParticipants();
     bool hasCallKey();
     bool isValidWrJoiningState() const;
-    bool isConnectedToSfu() const;
+    bool isConnectedToSfu() const override;
     bool isSendingBye() const;
     void clearWrJoiningState();
     void setWrJoiningState(const sfu::WrState status);

@@ -202,6 +202,7 @@ public:
     // called by chatd client when the connection to chatd is closed
     virtual void onDisconnectFromChatd() = 0;
     virtual void reconnectToSfu() = 0;
+    virtual bool isConnectedToSfu() const = 0;
 
     virtual promise::Promise<void> hangup() = 0;
     virtual promise::Promise<void> endCall() = 0;  // only used on 1on1 when incoming call is rejected or moderator in group call to finish it for all participants

@@ -1805,11 +1805,14 @@ void SfuConnection::setCallbackToCommands(sfu::SfuInterface &call, std::map<std:
     commands[RaiseHandDelCommand::COMMAND_NAME] = std::make_unique<RaiseHandDelCommand>(std::bind(&sfu::SfuInterface::handleRaiseHandDelCommand, &call, std::placeholders::_1), call);
 }
 
-bool SfuConnection::parseSfuData(const char* data, rapidjson::Document& jsonDoc, SfuData& parsedData)
+bool SfuConnection::parseSfuData(const char* data,
+                                 size_t len,
+                                 rapidjson::Document& jsonDoc,
+                                 SfuData& parsedData)
 {
-    SFU_LOG_DEBUG("Data received: %s", data);
-    rapidjson::StringStream stringStream(data);
-    jsonDoc.ParseStream(stringStream);
+    SFU_LOG_DEBUG("Data received: %.*s", static_cast<int>(len), data);
+    // parse exactly len bytes: the websockets layer does not guarantee a null-terminated buffer
+    jsonDoc.Parse(data, len);
 
     if (jsonDoc.GetParseError() != rapidjson::ParseErrorCode::kParseErrorNone)
     {
@@ -1883,7 +1886,7 @@ bool SfuConnection::handleIncomingData(const char *data, size_t len)
 {
     rapidjson::Document jsonDoc;
     SfuData outdata;
-    if (!parseSfuData(data, jsonDoc, outdata))
+    if (!parseSfuData(data, len, jsonDoc, outdata))
     {
         // error parsing incoming data from SFU
         SFU_LOG_ERROR("%s", outdata.msg.c_str());
